@@ -3,20 +3,20 @@ from __future__ import division
 from itertools import count
 from functools import reduce
 
-from toolz import unique, concat, pluck, juxt, get
+from toolz import unique, concat, pluck, juxt, get, memoize
 from blaze.expr import Summary
 from dynd import nd
 
 from .reductions import (get_bases, get_create, get_cols, get_info, get_temps,
                          get_append, get_finalize)
 from .util import ngjit, _exec
-from .expr import optionify
 
 
-__all__ = ['compile_reduction']
+__all__ = ['compile_components']
 
 
-def compile_reduction(expr):
+@memoize
+def compile_components(expr):
     """Given a `ByPixel` expression, returning 4 sub-functions.
 
     Parameters
@@ -96,7 +96,7 @@ def make_append(bases, cols, calls):
             for agg, name in local_lk.items()] + body
     code = ('def append(i, x, y, {0}):\n'
             '    {1}').format(', '.join(signature), '\n    '.join(body))
-    _exec(code, namespace, True)
+    _exec(code, namespace)
     return ngjit(namespace['append'])
 
 

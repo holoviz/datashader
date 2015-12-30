@@ -40,23 +40,28 @@ _dynd_missing_types = {np.dtype('i2'): np.iinfo('i2').min,
                        np.dtype('f4'): np.nan,
                        np.dtype('f8'): np.nan}
 
+def numpy_dtype(x):
+    if hasattr(x, 'ty'):
+        return numpy_dtype(x.ty)
+    return x.to_numpy_dtype()
+
 
 @dispatch(Reduction)
 def get_create(red):
-    dtype = red.dshape.measure.to_numpy_dtype()
+    dtype = numpy_dtype(red.dshape.measure)
     value = _dynd_missing_types[dtype]
     return lambda shape: np.full(shape, value, dtype=dtype)
 
 
 @dispatch(count)
 def get_create(red):
-    dtype = red.dshape.measure.to_numpy_dtype()
+    dtype = numpy_dtype(red.dshape.measure)
     return lambda shape: np.zeros(shape, dtype=dtype)
 
 
 @dispatch(min)
 def get_create(red):
-    dtype = red.dshape.measure.to_numpy_dtype()
+    dtype = numpy_dtype(red.dshape.measure)
     if np.issubdtype(dtype, np.floating):
         value = np.inf
     else:
@@ -66,7 +71,7 @@ def get_create(red):
 
 @dispatch(max)
 def get_create(red):
-    dtype = red.dshape.measure.to_numpy_dtype()
+    dtype = numpy_dtype(red.dshape.measure)
     if np.issubdtype(dtype, np.floating):
         value = -np.inf
     else:
@@ -109,14 +114,17 @@ def register_append(red):
 
 @register_append(count)
 @ngjit
-def append_count(x, y, agg):
+def append_count(x, y, agg, field):
     agg[y, x] += 1
 
 
 @register_append(sum)
 @ngjit
 def append_sum(x, y, agg, field):
-    agg[y, x] += field
+    if np.isnan(agg[y, x]):
+        agg[y, x] = field
+    else:
+        agg[y, x] += field
 
 
 @register_append(max)
