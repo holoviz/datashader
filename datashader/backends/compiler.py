@@ -5,7 +5,7 @@ from functools import reduce
 
 from toolz import unique, concat, pluck, juxt, get, memoize
 from blaze.expr import Summary
-from dynd import nd
+from dynd import nd, ndt
 
 from .reductions import (get_bases, get_create, get_cols, get_info, get_temps,
                          get_append, get_finalize)
@@ -116,7 +116,9 @@ def make_finalize(bases, expr):
         shape = bases[0].shape[:2]
         out = nd.empty(shape, dshape)
         for path, finalizer, inds in zip(paths, finalizers, indices):
-            reduce(getattr, path, out)[:] = finalizer(*get(inds, bases))
+            arr = reduce(getattr, path, out)
+            np_arr = nd.as_numpy(arr.view_scalars(arr.dtype.value_type))
+            np_arr[:] = finalizer(*get(inds, bases))
         return out
 
     return finalize

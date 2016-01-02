@@ -1,6 +1,7 @@
 from __future__ import division
 
 import numpy as np
+from toolz import memoize
 from blaze import dispatch
 from blaze.expr import Field
 from blaze.expr.reductions import (count, sum, mean, min, max, var, std,
@@ -39,6 +40,12 @@ _dynd_missing_types = {np.dtype('i2'): np.iinfo('i2').min,
                        np.dtype('i8'): np.iinfo('i8').min,
                        np.dtype('f4'): np.nan,
                        np.dtype('f8'): np.nan}
+
+_dynd_is_missing = {}
+mk_missing = lambda m: ngjit(lambda x: x == m)
+for dt, m in _dynd_missing_types.items():
+    _dynd_is_missing[dt] = np.isnan if m is np.nan else mk_missing(m)
+
 
 def numpy_dtype(x):
     if hasattr(x, 'ty'):
@@ -118,13 +125,18 @@ def append_count(x, y, agg, field):
     agg[y, x] += 1
 
 
-@register_append(sum)
-@ngjit
-def append_sum(x, y, agg, field):
-    if np.isnan(agg[y, x]):
-        agg[y, x] = field
-    else:
-        agg[y, x] += field
+@dispatch(sum)
+@memoize
+def get_append(red):
+    dtype = numpy_dtype(red.dshape.measure)
+    is_missing = _dynd_is_missing[dtype]
+    @ngjit
+    def append_sum(x, y, agg, field):
+        if is_missing(agg[y, x]):
+            agg[y, x] = field
+        else:
+            agg[y, x] += field
+    return append_sum
 
 
 @register_append(max)
@@ -144,11 +156,15 @@ def append_min(x, y, agg, field):
 @register_append(m2)
 @ngjit
 def append_m2(x, y, m2, field, sum, count):
-    """sum & count are the results of sum[y, x], count[y, x] before being
-    updated by field"""
-    u1 = sum / count
-    u = (sum + field) / (count + 1)
-    m2[y, x] += (field - u1) * (field - u)
+    # sum & count are the results of sum[y, x], count[y, x] before being
+    # updated by field
+    u1 = np.float64(sum) / count
+    u = np.float64(sum + field) / (count + 1)
+    temp = (field - u1) * (field - u)
+    if np.isnan(m2[y, x]):
+        m2[y, x] = temp
+    else:
+        m2[y, x] += temp
 
 
 @dispatch((count, sum))
@@ -185,19 +201,24 @@ def register_finalize(red):
     return _
 
 
+def as_float64(arr):
+    is_missing = _dynd_is_missing[arr.dtype]
+    return np.where(is_missing(arr), np.nan, arr.astype('f8'))
+
+
 @register_finalize(mean)
 def finalize_mean(sums, counts):
     with np.errstate(divide='ignore', invalid='ignore'):
-        return sums/counts
+        return as_float64(sums)/counts
 
 
 @register_finalize(var)
 def finalize_var(sums, counts, m2s):
     with np.errstate(divide='ignore', invalid='ignore'):
-        return m2s/counts
+        return as_float64(m2s)/counts
 
 
 @register_finalize(std)
 def finalize_std(sums, counts, m2s):
     with np.errstate(divide='ignore', invalid='ignore'):
-        return np.sqrt(m2s/counts)
+        return np.sqrt(as_float64(m2s)/counts)

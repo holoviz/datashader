@@ -32,8 +32,8 @@ def make_extend(glyph, info, append):
 def subselect(glyph, df=None, x_range=None, y_range=None):
     xmin, xmax = x_range
     ymin, ymax = y_range
-    return df[(glyph.x > xmin) & (glyph.x < xmax) &
-              (glyph.y > ymin) & (glyph.y < ymax)]
+    return df[(glyph.x >= xmin) & (glyph.x <= xmax) &
+              (glyph.y >= ymin) & (glyph.y <= ymax)]
 
 
 def view_transform(canvas):
