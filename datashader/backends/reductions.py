@@ -158,13 +158,12 @@ def append_min(x, y, agg, field):
 def append_m2(x, y, m2, field, sum, count):
     # sum & count are the results of sum[y, x], count[y, x] before being
     # updated by field
-    u1 = np.float64(sum) / count
-    u = np.float64(sum + field) / (count + 1)
-    temp = (field - u1) * (field - u)
-    if np.isnan(m2[y, x]):
-        m2[y, x] = temp
+    if count == 0:
+        m2[y, x] = 0
     else:
-        m2[y, x] += temp
+        u1 = np.float64(sum) / count
+        u = np.float64(sum + field) / (count + 1)
+        m2[y, x] += (field - u1) * (field - u)
 
 
 @dispatch((count, sum))
@@ -174,7 +173,7 @@ def get_finalize(red):
 
 @dispatch(min)
 def get_finalize(red):
-    dtype = red.dshape.measure.to_numpy_dtype()
+    dtype = numpy_dtype(red.dshape.measure)
     missing = _dynd_missing_types[dtype]
     if np.issubdtype(dtype, np.floating):
         return lambda x: np.where(np.isposinf(x), missing, x)
@@ -185,7 +184,7 @@ def get_finalize(red):
 
 @dispatch(max)
 def get_finalize(red):
-    dtype = red.dshape.measure.to_numpy_dtype()
+    dtype = numpy_dtype(red.dshape.measure)
     missing = _dynd_missing_types[dtype]
     if np.issubdtype(dtype, np.floating):
         return lambda x: np.where(np.isneginf(x), missing, x)
