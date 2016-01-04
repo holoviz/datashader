@@ -30,10 +30,27 @@ def make_extend(glyph, info, append):
 
 @dispatch(Point)
 def subselect(glyph, df=None, x_range=None, y_range=None):
-    xmin, xmax = x_range
-    ymin, ymax = y_range
-    return df[(glyph.x >= xmin) & (glyph.x <= xmax) &
-              (glyph.y >= ymin) & (glyph.y <= ymax)]
+    select = None
+    if x_range:
+        xmin, xmax = x_range
+        select = (glyph.x >= xmin) & (glyph.x <= xmax)
+    if y_range:
+        ymin, ymax = y_range
+        temp = (glyph.y >= xmin) & (glyph.x <= xmax)
+        select = temp if select is None else temp & select
+    if select is None:
+        return df
+    return df[select]
+
+
+@dispatch(Point)
+def get_x_range(glyph):
+    return glyph.x.min(), glyph.x.max()
+
+
+@dispatch(Point)
+def get_y_range(glyph):
+    return glyph.y.min(), glyph.y.max()
 
 
 def view_transform(canvas):
