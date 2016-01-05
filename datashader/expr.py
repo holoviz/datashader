@@ -5,7 +5,14 @@ import re
 from blaze.expr import Expr, summary, common_subexpression
 from blaze.expr.split_apply_combine import _names_and_types
 
-from datashape import dshape, DataShape, Record, Tuple, Option, isreal
+from datashape import dshape, DataShape, Record, Tuple, Option, Unit
+from datashape.typesets import real
+from datashape.predicates import launder
+
+
+def isreal(dt):
+    dt = launder(dt)
+    return isinstance(dt, Unit) and dt in real
 
 
 class Canvas(object):

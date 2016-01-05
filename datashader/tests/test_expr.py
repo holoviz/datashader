@@ -1,11 +1,17 @@
-from datashader.expr import Canvas, ByPixel, Point
+from datashader.expr import Canvas, ByPixel, Point, isreal
 from blaze import symbol, summary
 from datashape import dshape
 
 
 canvas = Canvas(plot_height=400, plot_width=600)
-df = symbol('df', 'var * {x: float64, y: float64, i32: int32, '
+df = symbol('df', 'var * {x: float64, y: int64, i32: int32, '
                   'i64: int64, f32: float32, f64: float64}')
+
+
+def test_isreal():
+    assert isreal('int32')
+    assert isreal('float32')
+    assert not isreal('complex64')
 
 
 def test_dshape():
