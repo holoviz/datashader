@@ -107,6 +107,8 @@ def get_temps(red):
     return (sum(red._child), count(red._child))
 
 
+# ============ Appenders ============
+
 @dispatch(Reduction)
 def get_append(red):
     raise TypeError("Don't know how to handle {0}".format(red))
@@ -165,6 +167,54 @@ def append_m2(x, y, m2, field, sum, count):
         u = np.float64(sum + field) / (count + 1)
         m2[y, x] += (field - u1) * (field - u)
 
+
+# ============ Combiners ============
+
+@dispatch(Reduction)
+def get_combine(red):
+    raise TypeError("Don't know how to handle {0}".format(red))
+
+
+def register_combine(red):
+    def _(f):
+        get_combine.add((red,), lambda x: f)
+        return f
+    return _
+
+
+@register_combine(count)
+def combine_count(aggs):
+    return aggs.sum(axis=0)
+
+
+@register_combine(sum)
+def combine_sum(aggs):
+    out = aggs.sum()
+    missing_val = _dynd_missing_types[aggs.dtype]
+    if missing_val is not np.nan:
+        missing = np.bitwise_or.reduce(aggs == missing_val, axis=0)
+        out[missing] = missing_val
+    return out
+
+
+@register_combine(min)
+def combine_min(aggs):
+    return np.nanmin(aggs, axis=0)
+
+
+@register_combine(max)
+def combine_max(aggs):
+    return np.nanmax(aggs, axis=0)
+
+
+@register_combine(m2)
+def combine_m2(Ms, sums, ns):
+    sums = as_float64(sums)
+    mu = sums.sum(axis=0) / ns.sum(axis=0)
+    return (Ms + ns*(sums/ns - mu)**2).sum(axis=0)
+
+
+# ============ Finalizers ============
 
 @dispatch((count, sum))
 def get_finalize(red):

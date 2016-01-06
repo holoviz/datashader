@@ -15,7 +15,7 @@ __all__ = ['compute_down', 'optimize']
 def compute_down(expr, data):
     df = compute(expr._child, data)
 
-    create, info, append, finalize = compile_components(expr)
+    create, info, append, combine, finalize = compile_components(expr)
     extend = make_extend(expr.glyph, info, append)
 
     aggs = create((expr.canvas.plot_height, expr.canvas.plot_width))

@@ -6,9 +6,10 @@ from functools import reduce
 from toolz import unique, concat, pluck, juxt, get, memoize
 from blaze.expr import Summary
 from dynd import nd, ndt
+import numpy as np
 
 from .reductions import (get_bases, get_create, get_cols, get_info, get_temps,
-                         get_append, get_finalize)
+                         get_append, get_combine, get_finalize)
 from .util import ngjit, _exec
 
 
@@ -17,7 +18,7 @@ __all__ = ['compile_components']
 
 @memoize
 def compile_components(expr):
-    """Given a `ByPixel` expression, returning 4 sub-functions.
+    """Given a `ByPixel` expression, returning 5 sub-functions.
 
     Parameters
     ----------
@@ -39,6 +40,10 @@ def compile_components(expr):
         base arrays and columns in ``aggs_and_cols``. This does the bulk of the
         work.
 
+    ``combine(base_tuples)``
+        Combine a list of base tuples into a single base tuple. This forms the
+        reducing step in a reduction tree.
+
     ``finalize(aggs)``
         Given a tuple of base numpy arrays, return the finalized ``dynd`` array.
     """
@@ -46,13 +51,15 @@ def compile_components(expr):
     bases = list(unique(concat(map(get_bases, reductions))))
     calls = list(map(_get_call_tuples, bases))
     cols = list(unique(concat(pluck(2, calls))))
+    temps = list(pluck(3, calls))
 
     create = make_create(bases)
     info = make_info(cols)
     append = make_append(bases, cols, calls)
+    combine = make_combine(bases, temps)
     finalize = make_finalize(bases, expr)
 
-    return create, info, append, finalize
+    return create, info, append, combine, finalize
 
 
 _get_call_tuples = juxt([get_append, lambda a: (a,), get_cols, get_temps])
@@ -98,6 +105,18 @@ def make_append(bases, cols, calls):
             '    {1}').format(', '.join(signature), '\n    '.join(body))
     _exec(code, namespace)
     return ngjit(namespace['append'])
+
+
+def make_combine(bases, temps):
+    arg_lk = dict((k, v) for (v, k) in enumerate(bases))
+    calls = [(get_combine(b), [arg_lk[i] for i in (b,) + t])
+             for (b, t) in zip(bases, temps)]
+
+    def combine(base_tuples):
+        bases = tuple(np.stack(bs) for bs in zip(base_tuples))
+        return tuple(f(*get(inds, bases)) for (f, inds) in calls)
+
+    return combine
 
 
 def make_finalize(bases, expr):
