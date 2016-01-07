@@ -9,4 +9,4 @@ setup(name='datashader',
       description='Bin based rendering toolchain',
       url='http://github.com/bokeh/datashader',
       install_requires=install_requires,
-      packages=['datashader', 'datashader.backends'])
+      packages=['datashader'])

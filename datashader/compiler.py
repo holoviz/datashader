@@ -1,15 +1,13 @@
-from __future__ import division
+from __future__ import absolute_import, division, print_function
 
 from itertools import count
 from functools import reduce
 
-from toolz import unique, concat, pluck, juxt, get, memoize
-from blaze.expr import Summary
-from dynd import nd, ndt
+from toolz import unique, concat, pluck, get, memoize
+from dynd import nd
 import numpy as np
 
-from .reductions import (get_bases, get_create, get_cols, get_info, get_temps,
-                         get_append, get_combine, get_finalize)
+from .aggregates import Summary
 from .util import ngjit, _exec
 
 
@@ -17,23 +15,25 @@ __all__ = ['compile_components']
 
 
 @memoize
-def compile_components(expr):
-    """Given a `ByPixel` expression, returning 5 sub-functions.
+def compile_components(summary, schema):
+    """Given a ``Summary`` object and a table schema, returning 5 sub-functions.
 
     Parameters
     ----------
-    expr : ByPixel
-        The blaze expression describing the aggregations to be computed.
+    summary : Summary
+        The expression describing the aggregations to be computed.
 
     Returns
     -------
     A tuple of the following functions:
 
     ``create(shape)``
-        Takes the aggregate shape, and returns a tuple of initialized numpy arrays.
+        Takes the aggregate shape, and returns a tuple of initialized numpy
+        arrays.
 
     ``info(df)``
-        Takes a dataframe, and returns preprocessed 1D numpy arrays of the needed columns.
+        Takes a dataframe, and returns preprocessed 1D numpy arrays of the
+        needed columns.
 
     ``append(i, x, y, *aggs_and_cols)``
         Appends the ``i``th row of the table to the ``(x, y)`` bin, given the
@@ -45,42 +45,51 @@ def compile_components(expr):
         reducing step in a reduction tree.
 
     ``finalize(aggs)``
-        Given a tuple of base numpy arrays, return the finalized ``dynd`` array.
+        Given a tuple of base numpy arrays, returns the finalized
+        ``dynd`` array.
     """
-    reductions = list(pluck(1, preorder_traversal(expr.apply)))
-    bases = list(unique(concat(map(get_bases, reductions))))
-    calls = list(map(_get_call_tuples, bases))
+    paths, reds = zip(*preorder_traversal(summary))
+
+    # List of base reductions (actually computed)
+    bases = list(unique(concat(r._bases for r in reds)))
+    dshapes = [b.out_dshape(schema) for b in bases]
+    # List of tuples of (append, base, input columns, temps)
+    calls = [_get_call_tuples(b, d) for (b, d) in zip(bases, dshapes)]
+    # List of unique column names needed
     cols = list(unique(concat(pluck(2, calls))))
+    # List of temps needed
     temps = list(pluck(3, calls))
 
-    create = make_create(bases)
+    create = make_create(bases, dshapes)
     info = make_info(cols)
     append = make_append(bases, cols, calls)
-    combine = make_combine(bases, temps)
-    finalize = make_finalize(bases, expr)
+    combine = make_combine(bases, dshapes, temps)
+    finalize = make_finalize(bases, summary, schema)
 
     return create, info, append, combine, finalize
 
 
-_get_call_tuples = juxt([get_append, lambda a: (a,), get_cols, get_temps])
-
-
 def preorder_traversal(summary):
-    """Yields tuples of (path, reduction)"""
-    for name, value in zip(summary.names, summary.values):
+    """Yields tuples of (path, reduction, dshape)"""
+    for key, value in zip(summary.keys, summary.values):
         if isinstance(value, Summary):
-            for name2, value2 in preorder_traversal(value):
-                yield (name,) + name2, value2
+            for key2, value2 in preorder_traversal(value):
+                yield (key,) + key2, value2
         else:
-            yield (name,), value
+            yield (key,), value
 
 
-def make_create(bases):
-    return juxt(map(get_create, bases))
+def _get_call_tuples(base, dshape):
+    return base._build_append(dshape), (base,), base.inputs, base._temps
+
+
+def make_create(bases, dshapes):
+    creators = [b._build_create(d) for (b, d) in zip(bases, dshapes)]
+    return lambda shape: tuple(c(shape) for c in creators)
 
 
 def make_info(cols):
-    return juxt(map(get_info, cols))
+    return lambda df: tuple(df[c].values for c in cols)
 
 
 def make_append(bases, cols, calls):
@@ -107,10 +116,10 @@ def make_append(bases, cols, calls):
     return ngjit(namespace['append'])
 
 
-def make_combine(bases, temps):
+def make_combine(bases, dshapes, temps):
     arg_lk = dict((k, v) for (v, k) in enumerate(bases))
-    calls = [(get_combine(b), [arg_lk[i] for i in (b,) + t])
-             for (b, t) in zip(bases, temps)]
+    calls = [(b._build_combine(d), [arg_lk[i] for i in (b,) + t])
+             for (b, d, t) in zip(bases, dshapes, temps)]
 
     def combine(base_tuples):
         bases = tuple(np.stack(bs) for bs in zip(base_tuples))
@@ -119,16 +128,16 @@ def make_combine(bases, temps):
     return combine
 
 
-def make_finalize(bases, expr):
-    dshape = str(expr.dshape.measure)
+def make_finalize(bases, summary, schema):
+    dshape = str(summary.out_dshape(schema))
     paths = []
     finalizers = []
     indices = []
     arg_lk = dict((k, v) for (v, k) in enumerate(bases))
-    for (path, red) in preorder_traversal(expr.apply):
+    for (path, red) in preorder_traversal(summary):
         paths.append(path)
-        finalizers.append(get_finalize(red))
-        interms = get_bases(red)
+        finalizers.append(red._build_finalize(schema))
+        interms = red._bases
         indices.append([arg_lk[b] for b in interms])
 
     def finalize(bases):

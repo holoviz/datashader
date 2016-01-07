@@ -2,7 +2,8 @@ from __future__ import absolute_import
 
 __version__ = '0.0.1'
 
-from .expr import Canvas
+from .core import Canvas
+from .aggregates import count, sum, min, max, mean, std, var
 
 # Needed to build the backend dispatch
-from . import backends
+from .pandas import *
