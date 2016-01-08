@@ -8,7 +8,7 @@ from dynd import nd
 import numpy as np
 
 from .aggregates import Summary
-from .util import ngjit, _exec
+from .utils import ngjit, _exec
 
 
 __all__ = ['compile_components']
@@ -122,7 +122,7 @@ def make_combine(bases, dshapes, temps):
              for (b, d, t) in zip(bases, dshapes, temps)]
 
     def combine(base_tuples):
-        bases = tuple(np.stack(bs) for bs in zip(base_tuples))
+        bases = tuple(np.stack(bs) for bs in zip(*base_tuples))
         return tuple(f(*get(inds, bases)) for (f, inds) in calls)
 
     return combine

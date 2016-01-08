@@ -2,10 +2,11 @@ from __future__ import absolute_import, division, print_function
 
 import sys
 from inspect import getmro
+from contextlib import contextmanager
+
 from datashape import Unit
 from datashape.predicates import launder
 from datashape.typesets import real
-
 import numba as nb
 
 

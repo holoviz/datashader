@@ -5,7 +5,7 @@ from odo import discover
 
 from .aggregates import Summary
 from .glyphs import Point
-from .util import Dispatcher, isreal
+from .utils import Dispatcher, isreal
 
 
 class Canvas(object):

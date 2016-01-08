@@ -5,7 +5,7 @@ from datashape import dshape, isnumeric, Record, Option, DataShape, maxtype
 from datashape import coretypes as ct
 from toolz import concat, unique, memoize, identity
 
-from .util import ngjit
+from .utils import ngjit
 
 
 # Dynd Missing Type Flags
@@ -278,11 +278,14 @@ def combine_count(aggs):
 
 
 def combine_sum(aggs):
-    out = aggs.sum()
     missing_val = _dynd_missing_types[aggs.dtype]
+    is_missing = _dynd_is_missing[aggs.dtype]
+    missing_vals = is_missing(aggs)
+    all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
+    set_to_zero = missing_vals & ~all_empty
+    out = np.where(set_to_zero, 0, aggs).sum(axis=0)
     if missing_val is not np.nan:
-        missing = np.bitwise_or.reduce(aggs == missing_val, axis=0)
-        out[missing] = missing_val
+        out[all_empty] = missing_val
     return out
 
 
@@ -296,8 +299,8 @@ def combine_max(aggs):
 
 def combine_m2(Ms, sums, ns):
     sums = as_float64(sums)
-    mu = sums.sum(axis=0) / ns.sum(axis=0)
-    return (Ms + ns*(sums/ns - mu)**2).sum(axis=0)
+    mu = np.nansum(sums, axis=0) / ns.sum(axis=0)
+    return np.nansum(Ms + ns*(sums/ns - mu)**2, axis=0)
 
 
 # ============ Finalizers ============
