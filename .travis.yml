@@ -1,0 +1,30 @@
+language: python
+sudo: false
+python:
+    - "2.7"
+    - "3.5"
+
+install:
+  # Install conda
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update conda
+
+  # Install dependencies
+  - conda create -n test-environment python=$TRAVIS_PYTHON_VERSION
+  - source activate test-environment
+  - conda install numpy pandas pytest toolz numba datashape odo dask
+  - conda install -c dynd dynd-python
+  # Temporary, until conda main channel gets updated
+  - pip install --upgrade --no-deps dask
+  - pip install --upgrade --no-deps odo
+
+  - python setup.py develop --no-deps
+
+script:
+    - py.test datashader --verbose
+
+notifications:
+  email: false
