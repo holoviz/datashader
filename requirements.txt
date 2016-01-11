@@ -4,3 +4,5 @@ datashape >= 0.5.0
 toolz
 numba
 dynd
+odo
+dask

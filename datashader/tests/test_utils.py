@@ -1,6 +1,6 @@
 from datashape import dshape
 
-from datashader.util import _exec, Dispatcher, isreal
+from datashader.utils import _exec, Dispatcher, isreal
 
 from pytest import raises
 
