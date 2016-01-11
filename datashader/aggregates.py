@@ -78,7 +78,7 @@ class Reduction(Aggregation):
 
 
 class count(Reduction):
-    _dshape = dshape(Option(ct.int32))
+    _dshape = dshape(ct.int32)
 
     def validate(self, in_dshape):
         pass
