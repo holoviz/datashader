@@ -145,7 +145,8 @@ def make_finalize(bases, summary, schema):
         out = nd.empty(shape, dshape)
         for path, finalizer, inds in zip(paths, finalizers, indices):
             arr = reduce(getattr, path, out)
-            np_arr = nd.as_numpy(arr.view_scalars(arr.dtype.value_type))
+            view_as = getattr(arr.dtype, 'value_type', arr.dtype)
+            np_arr = nd.as_numpy(arr.view_scalars(view_as))
             np_arr[:] = finalizer(*get(inds, bases))
         return out
 
