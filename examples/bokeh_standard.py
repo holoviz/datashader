@@ -1,87 +1,105 @@
 from __future__ import absolute_import, print_function, division
 
 import os
-import logging
-import datetime as dt
 
 import datashader as ds
 import datashader.transfer_functions as tf
 import dask.dataframe as dd
-import numpy as np
-from dynd import nd
 
 from bokeh.server.server import Server
 from bokeh.application import Application
-from bokeh.tile_providers import STAMEN_TONER
-from bokeh.plotting import figure, show, output_file
-from bokeh.models import Range1d
-from bokeh.models import ImageSource
+from bokeh.application.handlers import FunctionHandler
+from bokeh.plotting import Figure
+from bokeh.models import Range1d, ImageSource, WMTSTileSource, TileRenderer, DynamicImageRenderer
 from bokeh.models.widgets.layouts import HBox, VBox
-from bokeh.models.widgets import Select
+from bokeh.models.widgets import Select, Slider
 
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler
 
-from fastcache import lru_cache
-
 from webargs import fields
 from webargs.tornadoparser import use_args
 
-try:
-    from urllib2 import unquote
-except ImportError:
-    from urllib.parse import unquote
-
+# http request arguments for datashing HTTP request
 ds_args = {
     'width': fields.Int(missing=800),
     'height': fields.Int(missing=600),
-    'requesterID': fields.Str(missing=""),
-    'allowStretch': fields.Bool(missing=True),
-    'aggregator': fields.Str(missing="COC_COMP"),
-    'arl': fields.Str(missing=""),
     'select': fields.Str(missing=""),
 }
 
-print('Loading Data...')
-df = dd.from_castra('data/taxi.castra')
-df = df[['pickup_longitude', 'pickup_latitude', 'dropoff_longitude', 'dropoff_latitude', 'passenger_count']]
-df = df.compute()
-
 class GetDataset(RequestHandler):
+    '''handles http requests for datashading using input arguments listed above in ``ds_args``
+    '''
 
     @use_args(ds_args)
-    def get(self, dataset, args):
+    def get(self, args):
+
+        # parse args -----------------------------
         xmin, ymin, xmax, ymax = map(float, args['select'].strip(',').split(','))
-        cvs = ds.Canvas(plot_width=args['width'], plot_height=args['height'], x_range=(xmin, xmax), y_range=(ymin, ymax), stretch=False)
-        pickups = cvs.points(df, 'pickup_longitude', 'pickup_latitude',
-                             count=ds.count('passenger_count'))
-        dropoffs = cvs.points(df, 'dropoff_longitude', 'dropoff_latitude',
-                              count=ds.count('passenger_count'))
+        self.model.map_extent = [xmin, ymin, xmax, ymax]
 
-        pix = tf.interpolate(pickups.count, (255, 204, 204), 'red')
+        # create aggregate -----------------------
+        cvs = ds.Canvas(plot_width=args['width'], plot_height=args['height'], x_range=(xmin, xmax), y_range=(ymin, ymax), stretch=self.model.allow_stretch)
+        if self.model.transfer_function == 'count':
+            agg = cvs.points(self.model.df, self.model.dataset[1], self.model.dataset[2], count=ds.count('passenger_count'))
+            pix = tf.interpolate(agg.count, (255, 204, 204), 'red')
 
-        print('Dataset: {}, Request: {}'.format(dataset, args))
-        t_start = dt.datetime.utcnow()
-        pix = tf.interpolate(pickups.count, (255, 204, 204), 'red')
+        # TODO: work out transfer functions
+        elif self.model.transfer_function == 'mean':
+            agg = cvs.points(self.model.df, self.model.dataset[1], self.model.dataset[2], mean=ds.mean('passenger_count'))
+            pix = tf.interpolate(agg.mean, (255, 204, 204), 'red')
+
+        # serialize to image --------------------
         img_io = pix.to_bytesio()
         self.write(img_io.getvalue())
         self.set_header("Content-type", "image/png")
-        t_end = dt.datetime.utcnow()
-        elapsed = t_end - t_start
-        print('Elapsed time: {}'.format(elapsed.total_seconds()))
 
 class AppState(object):
-
+    '''simple value object to hold app state
+    '''
     def __init__(self):
+
+        # data configurations --------------------
+        self.datasets = {}
+        self.datasets['NYC Taxi Pickups'] = ('TAXI_PICKUP', 'pickup_longitude', 'pickup_latitude')
+        self.datasets['NYC Taxi Dropoffs'] = ('TAXI_DROPOFF', 'dropoff_longitude', 'dropoff_latitude')
+        self.dataset = self.datasets['NYC Taxi Pickups']
+
+        # transfer function configuration -------------
+        self.transfer_functions = {}
+        self.transfer_functions['Count'] = 'count'
+        self.transfer_functions['Mean'] = 'mean'
+        self.transfer_function = self.transfer_functions['Count']
+
+        # map configurations --------------------
+        self.map_extent = [-8242056, 4971273, -8227397, 4982613]
+
+        self.basemaps = {}
+        self.basemaps['Toner'] = 'http://tile.stamen.com/toner-background/{Z}/{X}/{Y}.png'
+        self.basemaps['Imagery'] = 'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}'
+        self.basemaps['Shaded Relief'] = 'http://services.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{Z}/{Y}/{X}'
+        self.basemap = self.basemaps['Toner']
+
+        # dynamic image configuration --------------------
+        self.service_url = 'http://{host}:{port}/datashader?'
+        self.service_url += 'height={HEIGHT}&'
+        self.service_url += 'width={WIDTH}&'
+        self.service_url += 'arl={arl}&'
+        self.service_url += 'select={XMIN},{YMIN},{XMAX},{YMAX}'
+
+        self.shader_url_vars = {}
+        self.shader_url_vars['host'] = 'localhost'
+        self.shader_url_vars['port'] = 5000
+        self.shader_url_vars['layer_name'] = self.dataset
+        self.shader_url_vars['arl'] = 'stub'
+
+        self.allow_stretch_options = {}
+        self.allow_stretch_options['Yes'] = True
+        self.allow_stretch_options['No'] = False
+        self.allow_stretch = False
+
+        # set defaults ------------------------
         self.cache = {}
-        self.transfer_functions = []
-        self.basemaps = []
-        self.datasets = dict([('NYC Taxi Pickups','TAXI_PICKUP'),('GDELT','GDELT'),('US Census Synthetic People','CENSUS_SYN_PEOPLE'),('NYC Taxi Dropoffs','TAXI_DROPOFF')])
-        self.basemaps = dict([('Toner','http://tile.stamen.com/toner-background/{Z}/{X}/{Y}.png'),
-            ('Imagery','http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}'),
-            ('Shaded Relief','http://services.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{Z}/{Y}/{X}')])
-        self.dataset = self.datasets.keys()[0]
-        self.basemap = self.basemaps.keys()[0]
         self.load_datasets()
 
     def load_datasets(self):
@@ -91,66 +109,117 @@ class AppState(object):
             df = df[['pickup_longitude', 'pickup_latitude', 'dropoff_longitude', 'dropoff_latitude', 'passenger_count']]
             df = df.compute()
             self.cache['TAXI_PICKUP'] = df
+            self.cache['TAXI_DROPOFF'] = df
+        else:
+            raise FileNotFoundError('Unable to find input dataset')
 
-    def bind_widget(self, widget, widget_field, model_field):
-        widget.on_change(widget_field, partial(self.on_change, model_field=model_field))
+    @property
+    def df(self):
+        return self.cache[self.dataset[0]]
 
-    def on_change(self, attr, old, new, model_field):
-        setattr(self, model_field, new)
-        self.update_app()
+class AppView(object):
 
-def add_select(self, name, options, model_field):
-    '''TODO: add docs'''
-    widget = Select.create(name=name, value=getattr(self.model, model_field), options=options)
-    self.bind_to_model(widget, 'value', model_field)
-    self.layout.children.append(widget)
-    return widget
+    def __init__(self, app_model):
+        self.model = app_model
+        self.create_layout()
+        self.update()
 
-def create_client(model):
-    output_file('bokeh_datashader_example.html')
-    mercator_extent = dict(start=-20000000, end=20000000, bounds=None)
-    x_range = Range1d(**mercator_extent)
-    y_range = Range1d(**mercator_extent)
-    f = figure(tools='wheel_zoom,pan', x_range=x_range, y_range=y_range)
-    f.axis.visible = False
-    f.add_tile(STAMEN_TONER)
+    def create_layout(self):
 
-    service_url = 'http://{host}:{port}/{layer_name}?'
-    service_url += 'height={HEIGHT}&'
-    service_url += 'width={WIDTH}&'
-    service_url += 'arl={arl}&'
-    service_url += 'select={XMIN},{YMIN},{XMAX},{YMAX}'
+        # create figure ----------------------------
+        self.x_range = Range1d(start=self.model.map_extent[0], end=self.model.map_extent[2], bounds=None)
+        self.y_range = Range1d(start=self.model.map_extent[1], end=self.model.map_extent[3], bounds=None)
 
-    shader_url_vars = {}
-    shader_url_vars['host'] = 'localhost'
-    shader_url_vars['port'] = 5000
-    shader_url_vars['layer_name'] = model.dataset
-    shader_url_vars['arl'] = 'stub'
+        self.fig = Figure(tools='wheel_zoom,pan', x_range=self.x_range, y_range=self.y_range)
+        self.fig.plot_height = 660
+        self.fig.plot_width = 990
+        self.fig.axis.visible = False
 
-    dynamic_image_options = {}
-    dynamic_image_options['url'] = service_url
-    dynamic_image_options['extra_url_vars'] = shader_url_vars
-    dynamic_image_source = ImageSource(**dynamic_image_options)
+        # add tiled basemap ----------------------------
+        self.tile_source = WMTSTileSource(url=self.model.basemap)
+        self.tile_renderer = TileRenderer(tile_source=self.tile_source)
+        self.fig.renderers.append(self.tile_renderer)
 
-    f.add_dynamic_image(dynamic_image_source)
+        # add datashader layer ----------------------------
+        self.image_source = ImageSource(**dict(url=self.model.service_url, extra_url_vars=self.model.shader_url_vars))
+        self.image_renderer = DynamicImageRenderer(image_source=self.image_source)
+        self.fig.renderers.append(self.image_renderer)
 
-    # user controls -----------------------------------
-    model.dataset_select = Select.create(name='Datasets', value=model.dataset, options=model.datasets)
-    
-    model.basemap_select = Select.create(name='Basemaps', value=model.basemap, options=model.basemaps)
+        # add ui components ----------------------------
+        dataset_select = Select.create(name='Dataset', options=self.model.datasets)
+        dataset_select.on_change('value', self.on_dataset_change)
 
-    controls = VBox(children=[model.dataset_select, model.basemap_select])
-    layout = HBox(children=[controls, f])
-    show(layout)
+        transfer_select = Select.create(name='Transfer Function', options=self.model.transfer_functions)
+        transfer_select.on_change('value', self.on_transfer_function_change)
 
-def create_server():
-    print('Server Starting...')
-    server = Server(Application(), io_loop=IOLoop(), extra_patterns=[(r"/(.*)", GetDataset)], port=5000)
-    return server
+        allow_stretch_select = Select.create(name='Allow Stretch', options=self.model.allow_stretch_options)
+        allow_stretch_select.on_change('value', self.on_allow_stretch_change)
+
+        basemap_select = Select.create(name='Basemap', value='Toner', options=self.model.basemaps)
+        basemap_select.on_change('value', self.on_basemap_change)
+
+        opacity_slider = Slider(title="Opacity", value=100, start=0, end=100, step=1)
+        opacity_slider.on_change('value', self.on_opacity_slider_change)
+
+        self.controls = HBox(width=self.fig.plot_width, children=[dataset_select, transfer_select, allow_stretch_select, basemap_select, opacity_slider])
+        self.layout = VBox(width=self.fig.plot_width, height=self.fig.plot_height, children=[self.controls, self.fig])
+
+    def update(self):
+        '''configures and returns bokeh user interface for datashader map.
+        '''
+        pass
+
+    def update_image(self):
+        for i in range(len(self.fig.renderers)):
+            if hasattr(self.fig.renderers[i], 'image_source'):
+                self.fig.renderers[i].update(image_source=ImageSource(**dict(url=self.model.service_url, extra_url_vars=self.model.shader_url_vars)))
+                self.fig.x_range = Range1d(start=-20000000, end=20000000, bounds=None)
+
+    def update_tiles(self):
+        for i in range(len(self.fig.renderers)):
+            if hasattr(self.fig.renderers[i], 'tile_source'):
+                self.fig.renderers[i].update(tile_source=WMTSTileSource(url=self.model.basemap))
+                self.fig.x_range = Range1d(start=-20000000, end=20000000, bounds=None)
+
+    def on_basemap_change(self, attr, old, new):
+        self.model.basemap = self.model.basemaps[new]
+        self.update_tiles()
+
+    def on_dataset_change(self, attr, old, new):
+        self.model.dataset = self.model.datasets[new]
+        self.update_image()
+
+    def on_transfer_function_change(self, attr, old, new):
+        self.model.transfer_function = self.model.transfer_functions[new]
+        self.update_image()
+
+    def on_allow_stretch_change(self, attr, old, new):
+        self.model.allow_stretch = self.model.allow_stretch_options[new]
+        self.update_image()
+
+    def on_opacity_slider_change(self, attr, old, new):
+        for i in range(len(self.fig.renderers)):
+            if hasattr(self.fig.renderers[i], 'image_source'):
+                self.fig.renderers[i].alpha = new / 100
+                self.fig.x_range = Range1d(start=-20000000, end=20000000, bounds=None)
+
+
+# ------------ entry point ---------------
+def main():
+    '''starts server object wired to bokeh client. Instantiating ``Server`` directly is
+       used to add custom http endpoint into ``extra_patterns``.
+    '''
+    def add_roots(doc):
+        model = AppState()
+        view = AppView(model)
+        GetDataset.model = model
+        doc.add_root(view.layout)
+
+    app = Application()
+    app.add(FunctionHandler(add_roots))
+    server = Server(app, io_loop=IOLoop(), extra_patterns=[(r"/datashader", GetDataset)], port=5000)
+    print('Starting server at http://localhost:5000/...')
+    server.start()
 
 if __name__ == '__main__':
-    model = AppState()
-    create_client(model)
-    server = create_server()
-    server.start()
-    print('Server Ready...')
+    main()
