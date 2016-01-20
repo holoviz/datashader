@@ -2,6 +2,8 @@ from __future__ import absolute_import, print_function, division
 
 import os
 
+from collections import OrderedDict
+
 import datashader as ds
 import datashader.transfer_functions as tf
 import dask.dataframe as dd
@@ -38,16 +40,10 @@ class GetDataset(RequestHandler):
         xmin, ymin, xmax, ymax = map(float, args['select'].strip(',').split(','))
         self.model.map_extent = [xmin, ymin, xmax, ymax]
 
-        # create aggregate -----------------------
-        cvs = ds.Canvas(plot_width=args['width'], plot_height=args['height'], x_range=(xmin, xmax), y_range=(ymin, ymax), stretch=self.model.allow_stretch)
-        if self.model.transfer_function == 'count':
-            agg = cvs.points(self.model.df, self.model.dataset[1], self.model.dataset[2], count=ds.count('passenger_count'))
-            pix = tf.interpolate(agg.count, (255, 204, 204), 'red')
-
-        # TODO: work out transfer functions
-        elif self.model.transfer_function == 'mean':
-            agg = cvs.points(self.model.df, self.model.dataset[1], self.model.dataset[2], mean=ds.mean('passenger_count'))
-            pix = tf.interpolate(agg.mean, (255, 204, 204), 'red')
+        # create image -----------------------
+        cvs = ds.Canvas(plot_width=args['width'], plot_height=args['height'], x_range=(xmin, xmax), y_range=(ymin, ymax))
+        agg = cvs.points(self.model.df, self.model.location[1], self.model.location[2], agg_field=self.model.aggregate_function(self.model.field))
+        pix = tf.interpolate(agg.agg_field, (255, 204, 204), 'red', how=self.model.transfer_function)
 
         # serialize to image --------------------
         img_io = pix.to_bytesio()
@@ -60,43 +56,50 @@ class AppState(object):
     def __init__(self):
 
         # data configurations --------------------
-        self.datasets = {}
-        self.datasets['NYC Taxi Pickups'] = ('TAXI_PICKUP', 'pickup_longitude', 'pickup_latitude')
-        self.datasets['NYC Taxi Dropoffs'] = ('TAXI_DROPOFF', 'dropoff_longitude', 'dropoff_latitude')
-        self.dataset = self.datasets['NYC Taxi Pickups']
+        self.locations = OrderedDict()
+        self.locations['NYC Taxi Pickups'] = ('TAXI_PICKUP', 'pickup_longitude', 'pickup_latitude')
+        self.locations['NYC Taxi Dropoffs'] = ('TAXI_DROPOFF', 'dropoff_longitude', 'dropoff_latitude')
+        self.location = self.locations.values()[0]
+
+        self.aggregate_functions = OrderedDict()
+        self.aggregate_functions['Count'] = ds.count
+        self.aggregate_functions['Mean'] = ds.mean
+        self.aggregate_functions['Sum'] = ds.sum
+        self.aggregate_functions['Min'] = ds.min
+        self.aggregate_functions['Max'] = ds.max
+        self.aggregate_function = self.aggregate_functions.values()[0]
 
         # transfer function configuration -------------
-        self.transfer_functions = {}
-        self.transfer_functions['Count'] = 'count'
-        self.transfer_functions['Mean'] = 'mean'
-        self.transfer_function = self.transfer_functions['Count']
+        self.transfer_functions = OrderedDict()
+        self.transfer_functions['Log'] = 'log'
+        self.transfer_functions['Linear'] = 'linear'
+        self.transfer_functions[u"\u221B"] = 'cbrt'
+        self.transfer_function = self.transfer_functions.values()[0]
 
         # map configurations --------------------
         self.map_extent = [-8240227.037, 4974203.152, -8231283.905, 4979238.441]
 
-        self.basemaps = {}
+        self.basemaps = OrderedDict()
         self.basemaps['Toner'] = 'http://tile.stamen.com/toner-background/{Z}/{X}/{Y}.png'
         self.basemaps['Imagery'] = 'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{Z}/{Y}/{X}'
         self.basemaps['Shaded Relief'] = 'http://services.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{Z}/{Y}/{X}'
-        self.basemap = self.basemaps['Toner']
+        self.basemap = self.basemaps.values()[0]
 
         # dynamic image configuration --------------------
         self.service_url = 'http://{host}:{port}/datashader?'
         self.service_url += 'height={HEIGHT}&'
         self.service_url += 'width={WIDTH}&'
-        self.service_url += 'arl={arl}&'
         self.service_url += 'select={XMIN},{YMIN},{XMAX},{YMAX}'
 
         self.shader_url_vars = {}
         self.shader_url_vars['host'] = 'localhost'
         self.shader_url_vars['port'] = 5000
-        self.shader_url_vars['layer_name'] = self.dataset
-        self.shader_url_vars['arl'] = 'stub'
 
-        self.allow_stretch_options = {}
-        self.allow_stretch_options['Yes'] = True
-        self.allow_stretch_options['No'] = False
-        self.allow_stretch = False
+        self.fields = OrderedDict()
+        self.fields['Passenger Count'] = 'passenger_count'
+        self.fields['Trip Time (s)'] = 'trip_time_in_secs'
+        self.fields['Trip Distance'] = 'trip_distance'
+        self.field = self.fields.values()[0]
 
         # set defaults ------------------------
         self.cache = {}
@@ -106,7 +109,12 @@ class AppState(object):
         print('Loading Data...')
         if os.path.exists('data/taxi.castra'):
             df = dd.from_castra('data/taxi.castra')
-            df = df[['pickup_longitude', 'pickup_latitude', 'dropoff_longitude', 'dropoff_latitude', 'passenger_count']]
+            location_fields = []
+            for f in self.locations.values():
+                location_fields += [f[1], f[2]]
+
+            load_fields = self.fields.values() + location_fields
+            df = df[load_fields]
             df = df.compute()
             self.cache['TAXI_PICKUP'] = df
             self.cache['TAXI_DROPOFF'] = df
@@ -115,14 +123,13 @@ class AppState(object):
 
     @property
     def df(self):
-        return self.cache[self.dataset[0]]
+        return self.cache[self.location[0]]
 
 class AppView(object):
 
     def __init__(self, app_model):
         self.model = app_model
         self.create_layout()
-        self.update()
 
     def create_layout(self):
 
@@ -146,14 +153,17 @@ class AppView(object):
         self.fig.renderers.append(self.image_renderer)
 
         # add ui components ----------------------------
-        dataset_select = Select.create(name='Dataset', options=self.model.datasets)
-        dataset_select.on_change('value', self.on_dataset_change)
+        location_select = Select.create(name='Location', options=self.model.locations)
+        location_select.on_change('value', self.on_location_change)
+
+        field_select = Select.create(name='Field', options=self.model.fields)
+        field_select.on_change('value', self.on_field_change)
+
+        aggregate_select = Select.create(name='Aggregate', options=self.model.aggregate_functions)
+        aggregate_select.on_change('value', self.on_aggregate_change)
 
         transfer_select = Select.create(name='Transfer Function', options=self.model.transfer_functions)
         transfer_select.on_change('value', self.on_transfer_function_change)
-
-        allow_stretch_select = Select.create(name='Allow Stretch', options=self.model.allow_stretch_options)
-        allow_stretch_select.on_change('value', self.on_allow_stretch_change)
 
         basemap_select = Select.create(name='Basemap', value='Toner', options=self.model.basemaps)
         basemap_select.on_change('value', self.on_basemap_change)
@@ -161,13 +171,8 @@ class AppView(object):
         opacity_slider = Slider(title="Opacity", value=100, start=0, end=100, step=1)
         opacity_slider.on_change('value', self.on_opacity_slider_change)
 
-        self.controls = HBox(width=self.fig.plot_width, children=[dataset_select, transfer_select, allow_stretch_select, basemap_select, opacity_slider])
+        self.controls = HBox(width=self.fig.plot_width, children=[location_select, field_select, aggregate_select, transfer_select, basemap_select, opacity_slider])
         self.layout = VBox(width=self.fig.plot_width, height=self.fig.plot_height, children=[self.controls, self.fig])
-
-    def update(self):
-        '''configures and returns bokeh user interface for datashader map.
-        '''
-        pass
 
     def update_image(self):
         for renderer in self.fig.renderers:
@@ -180,27 +185,30 @@ class AppView(object):
             if hasattr(renderer, 'tile_source'):
                 renderer.tile_source = WMTSTileSource(url=self.model.basemap)
 
+    def on_field_change(self, attr, old, new):
+        self.model.field = self.model.fields[new]
+        self.update_image()
+
     def on_basemap_change(self, attr, old, new):
         self.model.basemap = self.model.basemaps[new]
         self.update_tiles()
 
-    def on_dataset_change(self, attr, old, new):
-        self.model.dataset = self.model.datasets[new]
+    def on_location_change(self, attr, old, new):
+        self.model.location = self.model.locations[new]
+        self.update_image()
+
+    def on_aggregate_change(self, attr, old, new):
+        self.model.aggregate_function = self.model.aggregate_functions[new]
         self.update_image()
 
     def on_transfer_function_change(self, attr, old, new):
         self.model.transfer_function = self.model.transfer_functions[new]
         self.update_image()
 
-    def on_allow_stretch_change(self, attr, old, new):
-        self.model.allow_stretch = self.model.allow_stretch_options[new]
-        self.update_image()
-
     def on_opacity_slider_change(self, attr, old, new):
-        for i in range(len(self.fig.renderers)):
-            if hasattr(self.fig.renderers[i], 'image_source'):
-                self.fig.renderers[i].alpha = new / 100
-
+        for renderer in self.fig.renderers:
+            if hasattr(renderer, 'image_source'):
+                renderer.alpha = new / 100
 
 # ------------ entry point ---------------
 def main():
