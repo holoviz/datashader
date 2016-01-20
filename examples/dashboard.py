@@ -72,7 +72,7 @@ class AppState(object):
         self.transfer_function = self.transfer_functions['Count']
 
         # map configurations --------------------
-        self.map_extent = [-8242056, 4971273, -8227397, 4982613]
+        self.map_extent = [-8240227.037, 4974203.152, -8231283.905, 4979238.441]
 
         self.basemaps = {}
         self.basemaps['Toner'] = 'http://tile.stamen.com/toner-background/{Z}/{X}/{Y}.png'
@@ -170,16 +170,15 @@ class AppView(object):
         pass
 
     def update_image(self):
-        for i in range(len(self.fig.renderers)):
-            if hasattr(self.fig.renderers[i], 'image_source'):
-                self.fig.renderers[i].update(image_source=ImageSource(**dict(url=self.model.service_url, extra_url_vars=self.model.shader_url_vars)))
-                self.fig.x_range = Range1d(start=-20000000, end=20000000, bounds=None)
+        for renderer in self.fig.renderers:
+            if hasattr(renderer, 'image_source'):
+                renderer.image_source=ImageSource(**dict(url=self.model.service_url, extra_url_vars=self.model.shader_url_vars))
+                break
 
     def update_tiles(self):
-        for i in range(len(self.fig.renderers)):
-            if hasattr(self.fig.renderers[i], 'tile_source'):
-                self.fig.renderers[i].update(tile_source=WMTSTileSource(url=self.model.basemap))
-                self.fig.x_range = Range1d(start=-20000000, end=20000000, bounds=None)
+        for renderer in self.fig.renderers:
+            if hasattr(renderer, 'tile_source'):
+                renderer.tile_source = WMTSTileSource(url=self.model.basemap)
 
     def on_basemap_change(self, attr, old, new):
         self.model.basemap = self.model.basemaps[new]
@@ -201,7 +200,6 @@ class AppView(object):
         for i in range(len(self.fig.renderers)):
             if hasattr(self.fig.renderers[i], 'image_source'):
                 self.fig.renderers[i].alpha = new / 100
-                self.fig.x_range = Range1d(start=-20000000, end=20000000, bounds=None)
 
 
 # ------------ entry point ---------------
