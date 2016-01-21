@@ -82,11 +82,11 @@ def interpolate(agg, low, high, how='log'):
         raise ValueError("Unknown interpolation method: {0}".format(how))
     if is_option(agg.dtype):
         buffer = nd.as_numpy(agg.view_scalars(agg.dtype.value_type))
-        offset = buffer[~is_missing(buffer)].min()
+        missing = is_missing(buffer)
     else:
         buffer = nd.as_numpy(agg)
-        offset = buffer.min()
-        missing = buffer == offset
+        missing = (buffer == 0)
+    offset = buffer[~missing].min()
 
     data = f(buffer + offset)
     span = [data[~missing].min(), data[~missing].max()]
@@ -95,5 +95,5 @@ def interpolate(agg, low, high, how='log'):
     g = np.interp(data, span, gspan, left=255).astype(np.uint8)
     b = np.interp(data, span, bspan, left=255).astype(np.uint8)
     a = np.full_like(r, 255)
-    a[missing] = 0
-    return Image(np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape))
+    img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
+    return Image(np.where(missing, 0, img))
