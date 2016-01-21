@@ -168,10 +168,14 @@ class AppView(object):
         basemap_select = Select.create(name='Basemap', value='Toner', options=self.model.basemaps)
         basemap_select.on_change('value', self.on_basemap_change)
 
-        opacity_slider = Slider(title="Opacity", value=100, start=0, end=100, step=1)
-        opacity_slider.on_change('value', self.on_opacity_slider_change)
+        basemap_opacity = Slider(title="Basemap opacity", value=100, start=0, end=100, step=1)
+        basemap_opacity.on_change('value', self.on_basemap_opacity_change)
 
-        self.controls = HBox(width=self.fig.plot_width, children=[location_select, field_select, aggregate_select, transfer_select, basemap_select, opacity_slider])
+        data_opacity = Slider(title="Data opacity", value=100, start=0, end=100, step=1)
+        data_opacity.on_change('value', self.on_data_opacity_change)
+
+        self.opacities = VBox(children=[basemap_opacity, data_opacity])
+        self.controls = HBox(width=self.fig.plot_width, children=[location_select, field_select, aggregate_select, transfer_select, basemap_select, self.opacities])
         self.layout = VBox(width=self.fig.plot_width, height=self.fig.plot_height, children=[self.controls, self.fig])
 
     def update_image(self):
@@ -205,7 +209,12 @@ class AppView(object):
         self.model.transfer_function = self.model.transfer_functions[new]
         self.update_image()
 
-    def on_opacity_slider_change(self, attr, old, new):
+    def on_basemap_opacity_change(self, attr, old, new):
+        for renderer in self.fig.renderers:
+            if hasattr(renderer, 'tile_source'):
+                renderer.alpha = new / 100
+
+    def on_data_opacity_change(self, attr, old, new):
         for renderer in self.fig.renderers:
             if hasattr(renderer, 'image_source'):
                 renderer.alpha = new / 100
