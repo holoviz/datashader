@@ -28,7 +28,10 @@ def optionify(d):
     return d if isinstance(d, Option) else Option(d)
 
 
-class Aggregation(object):
+class Expr(object):
+    def __init__(self, column):
+        self.column = column
+
     def __hash__(self):
         return hash((type(self), self.inputs))
 
@@ -36,10 +39,26 @@ class Aggregation(object):
         return type(self) is type(other) and self.inputs == other.inputs
 
 
-class Reduction(Aggregation):
+class Preprocess(Expr):
     def __init__(self, column):
         self.column = column
 
+    @property
+    def inputs(self):
+        return (self.column,)
+
+
+class extract(Preprocess):
+    def apply(self, df):
+        return df[self.column].values
+
+
+class category_codes(Preprocess):
+    def apply(self, df):
+        return df[self.column].cat.codes.values
+
+
+class Reduction(Expr):
     def validate(self, in_dshape):
         if not isnumeric(in_dshape.measure[self.column]):
             raise ValueError("input must be numeric")
@@ -51,7 +70,7 @@ class Reduction(Aggregation):
 
     @property
     def inputs(self):
-        return (self.column,)
+        return (extract(self.column),)
 
     @property
     def _bases(self):
@@ -161,6 +180,33 @@ class m2(Reduction):
         return identity
 
 
+class count_cat(Reduction):
+    def validate(self, in_dshape):
+        if not isinstance(in_dshape.measure[self.column], ct.Categorical):
+            raise ValueError("input must be categorical")
+
+    def out_dshape(self, input_dshape):
+        cats = input_dshape.measure[self.column].categories
+        return dshape(Record([(c, ct.int32) for c in cats]))
+
+    @property
+    def inputs(self):
+        return (category_codes(self.column),)
+
+    def _build_create(self, out_dshape):
+        n_cats = len(out_dshape.measure.fields)
+        return lambda shape: np.zeros(shape + (n_cats,), dtype='i4')
+
+    def _build_append(self, dshape):
+        return append_count_cat
+
+    def _build_combine(self, dshape):
+        return combine_count_cat
+
+    def _build_finalize(self, dshape):
+        return build_finalize_count_cat(dshape[self.column].categories)
+
+
 class mean(Reduction):
     _dshape = dshape(Option(ct.float64))
 
@@ -194,7 +240,7 @@ class std(Reduction):
         return finalize_std
 
 
-class Summary(Aggregation):
+class Summary(Expr):
     def __init__(self, **kwargs):
         ks, vs = zip(*sorted(kwargs.items()))
         self.keys = ks
@@ -255,6 +301,11 @@ def append_sum(x, y, agg, field):
         agg[y, x] += field
 
 
+@ngjit
+def append_count_cat(x, y, agg, field):
+    agg[y, x, field] += 1
+
+
 # ============ Combiners ============
 
 def combine_count(aggs):
@@ -284,6 +335,10 @@ def combine_m2(Ms, sums, ns):
     sums = as_float64(sums)
     mu = np.nansum(sums, axis=0) / ns.sum(axis=0)
     return np.nansum(Ms + ns*(sums/ns - mu)**2, axis=0)
+
+
+def combine_count_cat(aggs):
+    return aggs.sum(axis=0, dtype='i4')
 
 
 # ============ Finalizers ============
@@ -327,3 +382,8 @@ def finalize_var(sums, counts, m2s):
 def finalize_std(sums, counts, m2s):
     with np.errstate(divide='ignore', invalid='ignore'):
         return np.sqrt(as_float64(m2s)/counts)
+
+
+def build_finalize_count_cat(cats):
+    dtype = [(field, 'i4') for field in cats]
+    return lambda counts: counts.view(dtype).squeeze()
