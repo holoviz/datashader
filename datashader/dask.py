@@ -14,11 +14,6 @@ from .glyphs import subselect, compute_x_bounds, compute_y_bounds
 __all__ = ()
 
 
-@discover.register(dd.DataFrame)
-def discover_dask_dataframe(df):
-    return var * Record(zip(df.columns, map(dshape_from_pandas, df.dtypes)))
-
-
 @pipeline.register(dd.DataFrame)
 def dask_pipeline(df, schema, canvas, glyph, summary):
     create, info, append, combine, finalize = compile_components(summary,

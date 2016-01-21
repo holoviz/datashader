@@ -89,7 +89,7 @@ def make_create(bases, dshapes):
 
 
 def make_info(cols):
-    return lambda df: tuple(df[c].values for c in cols)
+    return lambda df: tuple(c.apply(df) for c in cols)
 
 
 def make_append(bases, cols, calls):
@@ -145,8 +145,9 @@ def make_finalize(bases, summary, schema):
         out = nd.empty(shape, dshape)
         for path, finalizer, inds in zip(paths, finalizers, indices):
             arr = reduce(getattr, path, out)
-            view_as = getattr(arr.dtype, 'value_type', arr.dtype)
-            np_arr = nd.as_numpy(arr.view_scalars(view_as))
+            if hasattr(arr.dtype, 'value_type'):
+                arr = arr.view_scalars(arr.dtype.value_type)
+            np_arr = nd.as_numpy(arr)
             np_arr[:] = finalizer(*get(inds, bases))
         return out
 
