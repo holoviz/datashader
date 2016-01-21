@@ -15,7 +15,7 @@ install:
   # Install dependencies
   - conda create -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - conda install numpy pandas pytest toolz numba datashape odo dask
+  - conda install numpy pandas pytest toolz numba datashape odo dask pillow
   - conda install -c dynd dynd-python
   # Temporary, until conda main channel gets updated
   - pip install --upgrade --no-deps dask

@@ -7,6 +7,7 @@ from dynd import nd
 from PIL.Image import fromarray
 
 from .colors import rgb
+from .utils import is_missing, is_option
 
 
 __all__ = ['Image', 'merge', 'stack', 'interpolate']
@@ -30,10 +31,6 @@ class Image(object):
         self.to_pil(origin).save(fp, format)
         fp.seek(0)
         return fp
-
-
-def _is_option(agg):
-    return hasattr(agg, 'value_type')
 
 
 def _to_channels(data):
@@ -83,10 +80,9 @@ def interpolate(agg, low, high, how='log'):
         f = lambda x: x
     else:
         raise ValueError("Unknown interpolation method: {0}".format(how))
-    if _is_option(agg.dtype):
+    if is_option(agg.dtype):
         buffer = nd.as_numpy(agg.view_scalars(agg.dtype.value_type))
-        missing = nd.as_numpy(nd.is_missing(agg))
-        offset = buffer[~missing].min()
+        offset = buffer[~is_missing(buffer)].min()
     else:
         buffer = nd.as_numpy(agg)
         offset = buffer.min()
