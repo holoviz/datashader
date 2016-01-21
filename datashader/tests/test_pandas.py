@@ -16,7 +16,7 @@ c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
 
 
 def eq(agg, b):
-    a = nd.as_numpy(agg.view_scalars(agg.dtype.value_type))
+    a = nd.as_numpy(agg.view_scalars(getattr(agg.dtype, 'value_type', agg.dtype)))
     assert np.allclose(a, b)
     assert a.dtype == b.dtype
 

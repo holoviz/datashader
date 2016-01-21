@@ -5,7 +5,7 @@ from datashape import dshape, isnumeric, Record, Option, DataShape, maxtype
 from datashape import coretypes as ct
 from toolz import concat, unique, memoize, identity
 
-from .utils import ngjit
+from .utils import ngjit, is_missing
 
 
 # Dynd Missing Type Flags
@@ -14,15 +14,6 @@ _dynd_missing_types = {np.dtype('i2'): np.iinfo('i2').min,
                        np.dtype('i8'): np.iinfo('i8').min,
                        np.dtype('f4'): np.nan,
                        np.dtype('f8'): np.nan}
-
-
-def make_is_missing(m):
-    return ngjit(lambda x: x == m)
-
-# Lookup from dtype to function that checks if value is missing
-_dynd_is_missing = {}
-for dt, m in _dynd_missing_types.items():
-    _dynd_is_missing[dt] = np.isnan if m is np.nan else make_is_missing(m)
 
 
 def numpy_dtype(x):
@@ -78,7 +69,7 @@ class Reduction(Aggregation):
 
 
 class count(Reduction):
-    _dshape = dshape(Option(ct.int32))
+    _dshape = dshape(ct.int32)
 
     def validate(self, in_dshape):
         pass
@@ -103,7 +94,7 @@ class sum(Reduction):
         return dshape(optionify(maxtype(input_dshape.measure[self.column])))
 
     def _build_append(self, dshape):
-        return build_append_sum(dshape)
+        return append_sum
 
     def _build_combine(self, dshape):
         return combine_sum
@@ -256,19 +247,12 @@ def append_m2(x, y, m2, field, sum, count):
         m2[y, x] += (field - u1) * (field - u)
 
 
-@memoize
-def build_append_sum(dshape):
-    # sum needs specialization for each missing flag
-    dtype = numpy_dtype(dshape)
-    is_missing = _dynd_is_missing[dtype]
-
-    @ngjit
-    def append_sum(x, y, agg, field):
-        if is_missing(agg[y, x]):
-            agg[y, x] = field
-        else:
-            agg[y, x] += field
-    return append_sum
+@ngjit
+def append_sum(x, y, agg, field):
+    if is_missing(agg[y, x]):
+        agg[y, x] = field
+    else:
+        agg[y, x] += field
 
 
 # ============ Combiners ============
@@ -279,7 +263,6 @@ def combine_count(aggs):
 
 def combine_sum(aggs):
     missing_val = _dynd_missing_types[aggs.dtype]
-    is_missing = _dynd_is_missing[aggs.dtype]
     missing_vals = is_missing(aggs)
     all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
     set_to_zero = missing_vals & ~all_empty
@@ -328,7 +311,6 @@ def build_finalize_max(dshape):
 
 
 def as_float64(arr):
-    is_missing = _dynd_is_missing[arr.dtype]
     return np.where(is_missing(arr), np.nan, arr.astype('f8'))
 
 

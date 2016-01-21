@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division
 
 from toolz import memoize
+import numpy as np
 
 from .utils import ngjit, isreal
 from .dispatch import dispatch
@@ -34,8 +35,9 @@ class Point(Glyph):
         def _extend(vt, xs, ys, *aggs_and_cols):
             sx, sy, tx, ty = vt
             for i in range(xs.shape[0]):
-                append(i, int(xs[i] * sx + tx), int(ys[i] * sy + ty),
-                       *aggs_and_cols)
+                if not (np.isnan(xs[i]) or np.isnan(ys[i])): 
+                    append(i, int(xs[i] * sx + tx), int(ys[i] * sy + ty),
+                           *aggs_and_cols)
 
         def extend(aggs, df, vt):
             xs = df[x_name].values
