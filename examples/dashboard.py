@@ -119,7 +119,7 @@ class AppState(object):
             self.cache['TAXI_PICKUP'] = df
             self.cache['TAXI_DROPOFF'] = df
         else:
-            raise FileNotFoundError('Unable to find input dataset')
+            raise IOError('Unable to find input dataset')
 
     @property
     def df(self):
