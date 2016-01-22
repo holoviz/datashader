@@ -4,7 +4,7 @@ import pandas as pd
 
 from .core import pipeline
 from .compiler import compile_components
-from .glyphs import subselect, compute_x_bounds, compute_y_bounds
+from .glyphs import compute_x_bounds, compute_y_bounds
 
 __all__ = ()
 
@@ -18,6 +18,5 @@ def pandas_pipeline(df, schema, canvas, glyph, summary):
     x_range = canvas.x_range or compute_x_bounds(glyph, df)
     y_range = canvas.y_range or compute_y_bounds(glyph, df)
     vt = canvas.view_transform(x_range, y_range)
-    df = subselect(glyph, df, canvas)
-    extend(aggs, df, vt)
+    extend(aggs, df, vt, x_range + y_range)
     return finalize(aggs)
