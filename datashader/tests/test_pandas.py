@@ -10,7 +10,9 @@ df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'i32': np.arange(20, dtype='i4'),
                    'i64': np.arange(20, dtype='i8'),
                    'f32': np.arange(20, dtype='f4'),
-                   'f64': np.arange(20, dtype='f8')})
+                   'f64': np.arange(20, dtype='f8'),
+                   'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
+df.cat = df.cat.astype('category')
 
 c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
 
@@ -76,6 +78,14 @@ def test_std():
     eq(c.points(df, 'x', 'y', agg=ds.std('i64')).agg, out)
     eq(c.points(df, 'x', 'y', agg=ds.std('f32')).agg, out)
     eq(c.points(df, 'x', 'y', agg=ds.std('f64')).agg, out)
+
+
+def test_count_cat():
+    agg = c.points(df, 'x', 'y', agg=ds.count_cat('cat')).agg
+    assert (nd.as_numpy(agg.a) == np.array([[5, 0], [0, 0]])).all()
+    assert (nd.as_numpy(agg.b) == np.array([[0, 0], [5, 0]])).all()
+    assert (nd.as_numpy(agg.c) == np.array([[0, 5], [0, 0]])).all()
+    assert (nd.as_numpy(agg.d) == np.array([[0, 0], [0, 5]])).all()
 
 
 def test_multiple_aggregates():
