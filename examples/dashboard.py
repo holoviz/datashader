@@ -167,8 +167,8 @@ class AppView(object):
         self.fig.renderers.append(self.tile_renderer)
 
         # add datashader layer
-        self.image_source = ImageSource(**dict(url=self.model.service_url,
-                                        extra_url_vars=self.model.shader_url_vars))
+        self.image_source = ImageSource(url=self.model.service_url,
+                                        extra_url_vars=self.model.shader_url_vars)
         self.image_renderer = DynamicImageRenderer(image_source=self.image_source)
         self.fig.renderers.append(self.image_renderer)
 
