@@ -19,7 +19,7 @@ install:
   - conda install -c dynd dynd-python
   # Need a few fixes to odo and datashape that aren't in the latest release
   - pip install --upgrade --no-deps git+https://github.com/Blaze/odo
-  - pip install --upgrade --no-deps git+https://github.com/jcrist/datashape@is_scalar_cat
+  - pip install --upgrade --no-deps git+https://github.com/Blaze/datashape
 
   - python setup.py develop --no-deps
 
