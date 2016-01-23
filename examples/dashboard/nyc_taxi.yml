@@ -12,7 +12,11 @@ plots:
     yaxis: dropoff_latitude
 
 summary_fields:
-  Passenger Count: passenger_count
-  Trip Distance: trip_distance
-  Fare ($): fare_amount
-  Tip ($): fare_amount
+  - name: Passenger Count
+    field: passenger_count
+
+  - name: Trip Distance
+    field: trip_distance
+
+  - name: Fare ($)    
+    field: fare_amount
