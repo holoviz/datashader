@@ -1,0 +1,18 @@
+---
+
+file: data/nyc_taxi.csv 
+
+plots: 
+  - name: NYC Taxi Pickups
+    xaxis: pickup_longitude
+    yaxis: pickup_latitude
+
+  - name: NYC Taxi Dropoffs
+    xaxis: dropoff_longitude
+    yaxis: dropoff_latitude
+
+summary_fields:
+  Passenger Count: passenger_count
+  Trip Distance: trip_distance
+  Fare ($): fare_amount
+  Tip ($): fare_amount
