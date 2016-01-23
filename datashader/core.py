@@ -13,8 +13,8 @@ class Canvas(object):
                  x_range=None, y_range=None, stretch=False):
         self.plot_width = plot_width
         self.plot_height = plot_height
-        self.x_range = x_range
-        self.y_range = y_range
+        self.x_range = tuple(x_range) if x_range else x_range
+        self.y_range = tuple(y_range) if y_range else y_range
         self.stretch = stretch
 
     def points(self, source, x, y, **kwargs):

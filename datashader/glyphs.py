@@ -1,7 +1,6 @@
 from __future__ import absolute_import, division
 
 from toolz import memoize
-import numpy as np
 
 from .utils import ngjit, isreal
 from .dispatch import dispatch
@@ -32,37 +31,23 @@ class Point(Glyph):
         y_name = self.y
 
         @ngjit
-        def _extend(vt, xs, ys, *aggs_and_cols):
+        def _extend(vt, bounds, xs, ys, *aggs_and_cols):
             sx, sy, tx, ty = vt
+            xmin, xmax, ymin, ymax = bounds
             for i in range(xs.shape[0]):
-                if not (np.isnan(xs[i]) or np.isnan(ys[i])): 
-                    append(i, int(xs[i] * sx + tx), int(ys[i] * sy + ty),
+                x = xs[i]
+                y = ys[i]
+                if (xmin <= x <= xmax) and (ymin <= y <= ymax):
+                    append(i, int(x * sx + tx), int(y * sy + ty),
                            *aggs_and_cols)
 
-        def extend(aggs, df, vt):
+        def extend(aggs, df, vt, bounds):
             xs = df[x_name].values
             ys = df[y_name].values
             cols = aggs + info(df)
-            _extend(vt, xs, ys, *cols)
+            _extend(vt, bounds, xs, ys, *cols)
 
         return extend
-
-
-@dispatch(Point, object, object)
-def subselect(glyph, df, canvas):
-    select = None
-    if canvas.x_range:
-        xmin, xmax = canvas.x_range
-        x = df[glyph.x]
-        select = (x >= xmin) & (x <= xmax)
-    if canvas.y_range:
-        ymin, ymax = canvas.y_range
-        y = df[glyph.y]
-        temp = (y >= ymin) & (y <= ymax)
-        select = temp if select is None else temp & select
-    if select is None:
-        return df
-    return df[select]
 
 
 @dispatch(Point, object)
