@@ -1,7 +1,6 @@
 from __future__ import absolute_import, division
 
 from toolz import memoize
-import numpy as np
 
 from .utils import ngjit, isreal
 from .dispatch import dispatch
@@ -38,9 +37,8 @@ class Point(Glyph):
             for i in range(xs.shape[0]):
                 x = xs[i]
                 y = ys[i]
-                if (not (np.isnan(x) or np.isnan(y)) and
-                        (xmin <= x <= xmax) and (ymin <= y <= ymax)):
-                    append(i, int(xs[i] * sx + tx), int(ys[i] * sy + ty),
+                if (xmin <= x <= xmax) and (ymin <= y <= ymax):
+                    append(i, int(x * sx + tx), int(y * sy + ty),
                            *aggs_and_cols)
 
         def extend(aggs, df, vt, bounds):
