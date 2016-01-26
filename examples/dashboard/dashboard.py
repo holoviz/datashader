@@ -82,9 +82,6 @@ class AppState(object):
         self.transfer_functions[u"\u221B"] = 'cbrt'
         self.transfer_function = self.transfer_functions.values()[0]
 
-        # map configurations
-        self.map_extent = [-8240227.037, 4974203.152, -8231283.905, 4979238.441]
-
         self.basemaps = OrderedDict()
         self.basemaps['Toner'] = ('http://tile.stamen.com/toner-background'
                                   '/{Z}/{X}/{Y}.png')
@@ -119,11 +116,18 @@ class AppState(object):
         with open(config_path) as f:
             self.config = yaml.load(f.read())
 
+        # parse initial extent
+        extent = self.config['initial_extent']
+        self.map_extent = [extent['xmin'], extent['ymin'],
+                           extent['xmax'], extent['ymax']]
+        
+        # parse plots
         self.locations = OrderedDict()
         for p in self.config['plots']:
             self.locations[p['name']] = (p['name'], p['xaxis'], p['yaxis'])
         self.location = self.locations.values()[0]
 
+        # parse summary field
         self.fields = OrderedDict()
         for f in self.config['summary_fields']:
             self.fields[f['name']] = f['field']

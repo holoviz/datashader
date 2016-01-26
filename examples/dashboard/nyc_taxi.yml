@@ -2,6 +2,13 @@
 
 file: data/nyc_taxi.csv 
 
+initial_extent:
+  is_geo: true
+  xmin: -8240227.037
+  ymin: 4974203.152
+  xmax: -8231283.905
+  ymax: 4979238.441
+
 plots: 
   - name: NYC Taxi Pickups
     xaxis: pickup_longitude
