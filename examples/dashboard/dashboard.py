@@ -1,6 +1,8 @@
 from __future__ import absolute_import, print_function, division
 
 from os import path
+import yaml
+import pdb
 
 from collections import OrderedDict
 
@@ -11,6 +13,7 @@ import pandas as pd
 from bokeh.server.server import Server
 from bokeh.application import Application
 from bokeh.application.handlers import FunctionHandler
+
 from bokeh.plotting import Figure
 from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer,
                           DynamicImageRenderer)
@@ -29,7 +32,6 @@ ds_args = {
     'height': fields.Int(missing=600),
     'select': fields.Str(missing=""),
 }
-
 
 class GetDataset(RequestHandler):
     """Handles http requests for datashading."""
@@ -60,14 +62,10 @@ class GetDataset(RequestHandler):
 
 class AppState(object):
     """Simple value object to hold app state"""
-    def __init__(self):
-        # data configurations
-        self.locations = OrderedDict()
-        self.locations['NYC Taxi Pickups'] =\
-                ('TAXI_PICKUP', 'pickup_longitude', 'pickup_latitude')
-        self.locations['NYC Taxi Dropoffs'] =\
-                ('TAXI_DROPOFF', 'dropoff_longitude', 'dropoff_latitude')
-        self.location = self.locations.values()[0]
+
+    def __init__(self, config_file='nyc_taxi.yml'):
+
+        self.load_config_file(config_file)
 
         self.aggregate_functions = OrderedDict()
         self.aggregate_functions['Count'] = ds.count
@@ -109,16 +107,27 @@ class AppState(object):
         self.shader_url_vars['host'] = 'localhost'
         self.shader_url_vars['port'] = 5000
 
-        self.fields = OrderedDict()
-        self.fields['Passenger Count'] = 'passenger_count'
-        self.fields['Trip Distance'] = 'trip_distance'
-        self.fields['Fare ($)'] = 'fare_amount'
-        self.fields['Tip ($)'] = 'fare_amount'
-        self.field = self.fields.values()[0]
-
         # set defaults
-        self.cache = {}
         self.load_datasets()
+
+    def load_config_file(self, config_path):
+        '''load and parse yaml config file'''
+
+        if not path.exists(config_path):
+            raise IOError('Unable to find config file "{}"'.format(config_path))
+
+        with open(config_path) as f:
+            self.config = yaml.load(f.read())
+
+        self.locations = OrderedDict()
+        for p in self.config['plots']:
+            self.locations[p['name']] = (p['name'], p['xaxis'], p['yaxis'])
+        self.location = self.locations.values()[0]
+
+        self.fields = OrderedDict()
+        for f in self.config['summary_fields']:
+            self.fields[f['name']] = f['field']
+        self.field = self.fields.values()[0]
 
     def load_datasets(self):
         print('Loading Data...')
@@ -130,16 +139,9 @@ class AppState(object):
                 location_fields += [f[1], f[2]]
 
             load_fields = self.fields.values() + location_fields
-            df = pd.read_csv(taxi_path, usecols=load_fields)
-            self.cache['TAXI_PICKUP'] = df
-            self.cache['TAXI_DROPOFF'] = df
+            self.df = pd.read_csv(taxi_path, usecols=load_fields)
         else:
             raise IOError('Unable to find input dataset')
-
-    @property
-    def df(self):
-        return self.cache[self.location[0]]
-
 
 class AppView(object):
 
