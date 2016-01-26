@@ -1,6 +1,6 @@
 ---
 
-file: data/nyc_taxi.csv 
+file: ../data/nyc_taxi.csv 
 
 initial_extent:
   is_geo: true

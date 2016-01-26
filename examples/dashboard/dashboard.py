@@ -135,17 +135,17 @@ class AppState(object):
 
     def load_datasets(self):
         print('Loading Data...')
-        examples_dir = path.dirname(path.realpath(__file__))
-        taxi_path = path.join(examples_dir, 'data', 'taxi.csv')
-        if path.exists(taxi_path):
-            axes_fields = []
-            for f in self.axes.values():
-                axes_fields += [f[1], f[2]]
+        taxi_path = self.config['file']
 
-            load_fields = self.fields.values() + axes_fields
-            self.df = pd.read_csv(taxi_path, usecols=load_fields)
-        else:
-            raise IOError('Unable to find input dataset')
+        if not path.exists(taxi_path):
+            raise IOError('Unable to find input dataset: "{}"'.format(taxi_path))
+
+        axes_fields = []
+        for f in self.axes.values():
+            axes_fields += [f[1], f[2]]
+
+        load_fields = self.fields.values() + axes_fields
+        self.df = pd.read_csv(taxi_path, usecols=load_fields)
 
 class AppView(object):
 
