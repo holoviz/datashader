@@ -123,7 +123,7 @@ class AppState(object):
         
         # parse plots
         self.locations = OrderedDict()
-        for p in self.config['plots']:
+        for p in self.config['axes']:
             self.locations[p['name']] = (p['name'], p['xaxis'], p['yaxis'])
         self.location = self.locations.values()[0]
 
