@@ -1,5 +1,7 @@
 from __future__ import absolute_import, print_function, division
 
+import argparse
+
 from os import path
 import yaml
 import pdb
@@ -63,7 +65,7 @@ class GetDataset(RequestHandler):
 class AppState(object):
     """Simple value object to hold app state"""
 
-    def __init__(self, config_file='nyc_taxi.yml'):
+    def __init__(self, config_file):
 
         self.load_config_file(config_file)
 
@@ -244,8 +246,12 @@ class AppView(object):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', help='yaml config file (e.g. nyc_taxi.yml)', required=True)
+    args = vars(parser.parse_args())
+
     def add_roots(doc):
-        model = AppState()
+        model = AppState(args['config'])
         view = AppView(model)
         GetDataset.model = model
         doc.add_root(view.layout)
