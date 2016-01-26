@@ -48,8 +48,8 @@ class GetDataset(RequestHandler):
                         x_range=(xmin, xmax),
                         y_range=(ymin, ymax))
         agg = cvs.points(self.model.df,
-                         self.model.location[1],
-                         self.model.location[2],
+                         self.model.active_axes[1],
+                         self.model.active_axes[2],
                          agg=self.model.aggregate_function(self.model.field))
         pix = tf.interpolate(agg.agg, (255, 204, 204), 'red',
                              how=self.model.transfer_function)
@@ -122,10 +122,10 @@ class AppState(object):
                            extent['xmax'], extent['ymax']]
         
         # parse plots
-        self.locations = OrderedDict()
+        self.axes = OrderedDict()
         for p in self.config['axes']:
-            self.locations[p['name']] = (p['name'], p['xaxis'], p['yaxis'])
-        self.location = self.locations.values()[0]
+            self.axes[p['name']] = (p['name'], p['xaxis'], p['yaxis'])
+        self.active_axes = self.axes.values()[0]
 
         # parse summary field
         self.fields = OrderedDict()
@@ -138,11 +138,11 @@ class AppState(object):
         examples_dir = path.dirname(path.realpath(__file__))
         taxi_path = path.join(examples_dir, 'data', 'taxi.csv')
         if path.exists(taxi_path):
-            location_fields = []
-            for f in self.locations.values():
-                location_fields += [f[1], f[2]]
+            axes_fields = []
+            for f in self.axes.values():
+                axes_fields += [f[1], f[2]]
 
-            load_fields = self.fields.values() + location_fields
+            load_fields = self.fields.values() + axes_fields
             self.df = pd.read_csv(taxi_path, usecols=load_fields)
         else:
             raise IOError('Unable to find input dataset')
@@ -179,9 +179,9 @@ class AppView(object):
         self.fig.renderers.append(self.image_renderer)
 
         # add ui components
-        location_select = Select.create(name='Location',
-                                        options=self.model.locations)
-        location_select.on_change('value', self.on_location_change)
+        axes_select = Select.create(name='Axes',
+                                        options=self.model.axes)
+        axes_select.on_change('value', self.on_axes_change)
 
         field_select = Select.create(name='Field', options=self.model.fields)
         field_select.on_change('value', self.on_field_change)
@@ -202,7 +202,7 @@ class AppView(object):
                                 end=100, step=1)
         opacity_slider.on_change('value', self.on_opacity_slider_change)
 
-        controls = [location_select, field_select, aggregate_select,
+        controls = [axes_select, field_select, aggregate_select,
                     transfer_select, basemap_select, opacity_slider]
         self.controls = HBox(width=self.fig.plot_width, children=controls)
         self.layout = VBox(width=self.fig.plot_width,
@@ -229,8 +229,8 @@ class AppView(object):
         self.model.basemap = self.model.basemaps[new]
         self.update_tiles()
 
-    def on_location_change(self, attr, old, new):
-        self.model.location = self.model.locations[new]
+    def on_axes_change(self, attr, old, new):
+        self.model.active_axes = self.model.axes[new]
         self.update_image()
 
     def on_aggregate_change(self, attr, old, new):
