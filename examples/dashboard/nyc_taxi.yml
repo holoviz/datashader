@@ -9,7 +9,7 @@ initial_extent:
   xmax: -8231283.905
   ymax: 4979238.441
 
-plots: 
+axes: 
   - name: NYC Taxi Pickups
     xaxis: pickup_longitude
     yaxis: pickup_latitude
