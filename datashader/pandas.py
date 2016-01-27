@@ -13,7 +13,7 @@ __all__ = ()
 def pandas_pipeline(df, schema, canvas, glyph, summary):
     create, info, append, _, finalize = compile_components(summary, schema)
     x_mapper = canvas.x_axis_type.mapper
-    y_mapper = canvas.x_axis_type.mapper
+    y_mapper = canvas.y_axis_type.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
     x_range = canvas.x_range or compute_x_bounds(glyph, df)

@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
+import numpy as np
 from datashape.predicates import istabular
 from odo import discover
 
@@ -7,28 +8,43 @@ from .utils import Dispatcher, ngjit
 
 
 class Axis(object):
+    def __init__(self, range):
+        self.start, self.end = range
+
     def __eq__(self, other):
         return (type(self) == type(other) and
                 self.start == other.start and
                 self.end == other.end)
 
-
-class LinearAxis(Axis):
-    def __init__(self, range):
-        self.start, self.end = range
-
     def view_transform(self, d):
-        s = (d - 1)/(self.end - self.start)
-        t = -self.start * s
+        start = self.mapper(self.start)
+        end = self.mapper(self.end)
+        s = (d - 1)/(end - start)
+        t = -start * s
         return s, t
 
+
+class LinearAxis(Axis):
     @staticmethod
     @ngjit
     def mapper(x):
         return x
 
 
-_axis_types = {'linear': LinearAxis}
+class LogAxis(Axis):
+    def __init__(self, range):
+        if range[0] <= 0 or range[1] <= 0:
+            raise ValueError("Negative bounds not valid for log-axis")
+        super(LogAxis, self).__init__(range)
+
+    @staticmethod
+    @ngjit
+    def mapper(x):
+        return np.log10(x)
+
+
+_axis_types = {'linear': LinearAxis,
+               'log': LogAxis}
 
 
 class Canvas(object):

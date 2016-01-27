@@ -11,6 +11,8 @@ set_options(get=get_sync)
 
 df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
+                   'log_x': np.array(([1.] * 10 + [10] * 10)),
+                   'log_y': np.array(([1.] * 5 + [10] * 5 + [1] * 5 + [10] * 5)),
                    'i32': np.arange(20, dtype='i4'),
                    'i64': np.arange(20, dtype='i8'),
                    'f32': np.arange(20, dtype='f4'),
@@ -21,6 +23,12 @@ df.cat = df.cat.astype('category')
 ddf = dd.from_pandas(df, npartitions=3)
 
 c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
+c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
+                   y_range=(0, 1), x_axis_type='log')
+c_logy = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1),
+                   y_range=(1, 10), y_axis_type='log')
+c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
+                    y_range=(1, 10), x_axis_type='log', y_axis_type='log')
 
 
 def eq(agg, b):
@@ -108,3 +116,10 @@ def test_multiple_aggregates():
     eq(agg.f64.mean, df.f64.reshape((2, 2, 5)).mean(axis=2).T)
     eq(agg.i32_sum, df.i32.reshape((2, 2, 5)).sum(axis=2).T)
     eq(agg.i32_count, np.array([[5, 5], [5, 5]], dtype='i4'))
+
+
+def test_log_axis():
+    out = np.array([[5, 5], [5, 5]], dtype='i4')
+    eq(c_logx.points(ddf, 'log_x', 'y', ds.count('i32')), out)
+    eq(c_logy.points(ddf, 'x', 'log_y', ds.count('i32')), out)
+    eq(c_logxy.points(ddf, 'log_x', 'log_y', ds.count('i32')), out)
