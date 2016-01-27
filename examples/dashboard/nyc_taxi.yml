@@ -1,0 +1,29 @@
+---
+
+file: ../data/nyc_taxi.csv 
+
+initial_extent:
+  is_geo: true
+  xmin: -8240227.037
+  ymin: 4974203.152
+  xmax: -8231283.905
+  ymax: 4979238.441
+
+axes: 
+  - name: NYC Taxi Pickups
+    xaxis: pickup_longitude
+    yaxis: pickup_latitude
+
+  - name: NYC Taxi Dropoffs
+    xaxis: dropoff_longitude
+    yaxis: dropoff_latitude
+
+summary_fields:
+  - name: Passenger Count
+    field: passenger_count
+
+  - name: Trip Distance
+    field: trip_distance
+
+  - name: Fare ($)    
+    field: fare_amount
