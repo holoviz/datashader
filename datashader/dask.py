@@ -21,6 +21,8 @@ def dask_pipeline(df, schema, canvas, glyph, summary):
     y_range = canvas.y_range or compute_y_bounds(glyph, df)
     x_min, x_max, y_min, y_max = bounds = compute(*(x_range + y_range))
     x_range, y_range = (x_min, x_max), (y_min, y_max)
+    x_axis = canvas.x_axis_type(x_range)
+    y_axis = canvas.y_axis_type(y_range)
 
     vt = canvas.view_transform(x_range, y_range)
     shape = (canvas.plot_height, canvas.plot_width)
@@ -34,7 +36,8 @@ def dask_pipeline(df, schema, canvas, glyph, summary):
     keys = df._keys()
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k)) for (k2, k) in zip(keys2, keys))
-    dsk[name] = (finalize, (combine, keys2))
+    dsk[name] = (apply, finalize, [(combine, keys2)],
+                 dict(x_axis=x_axis, y_axis=y_axis))
     dsk.update(df.dask)
     dsk = df._optimize(dsk, name)
 

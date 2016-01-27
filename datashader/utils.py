@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function
 import sys
 from inspect import getmro
 
-from datashape import Unit
+from datashape import Unit, dshape
 from datashape.predicates import launder
 from datashape.typesets import real
 import numba as nb
@@ -133,3 +133,7 @@ def is_missing(x):
 def is_option(agg):
     """Returns if the dshape of the dynd array is an option type"""
     return hasattr(agg, 'value_type')
+
+
+def dshape_from_dynd(ds):
+    return dshape(str(ds))

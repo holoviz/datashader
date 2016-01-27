@@ -4,10 +4,10 @@ from dynd import nd
 import dask.dataframe as dd
 from dask.context import set_options
 from dask.async import get_sync
-set_options(get=get_sync)
 
 import datashader as ds
 
+set_options(get=get_sync)
 
 df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
@@ -24,6 +24,7 @@ c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
 
 
 def eq(agg, b):
+    agg = agg._data
     a = nd.as_numpy(agg.view_scalars(getattr(agg.dtype, 'value_type', agg.dtype)))
     assert np.allclose(a, b)
     assert a.dtype == b.dtype
@@ -31,74 +32,77 @@ def eq(agg, b):
 
 def test_count():
     out = np.array([[5, 5], [5, 5]], dtype='i4')
-    eq(c.points(ddf, 'x', 'y', agg=ds.count('i32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.count('i64')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.count('f32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.count('i64')).agg, out)
+    eq(c.points(ddf, 'x', 'y', ds.count('i32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.count('i64')), out)
+    eq(c.points(ddf, 'x', 'y', ds.count('f32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.count('i64')), out)
 
 
 def test_sum():
     out = df.i32.reshape((2, 2, 5)).sum(axis=2, dtype='i8').T
-    eq(c.points(ddf, 'x', 'y', agg=ds.sum('i32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.sum('i64')).agg, out)
+    eq(c.points(ddf, 'x', 'y', ds.sum('i32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.sum('i64')), out)
     out = out.astype('f8')
-    eq(c.points(ddf, 'x', 'y', agg=ds.sum('f32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.sum('f64')).agg, out)
+    eq(c.points(ddf, 'x', 'y', ds.sum('f32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.sum('f64')), out)
 
 
 def test_min():
     out = df.i32.reshape((2, 2, 5)).min(axis=2).T
-    eq(c.points(ddf, 'x', 'y', agg=ds.min('i32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.min('i64')).agg, out.astype('i8'))
-    eq(c.points(ddf, 'x', 'y', agg=ds.min('f32')).agg, out.astype('f4'))
-    eq(c.points(ddf, 'x', 'y', agg=ds.min('f64')).agg, out.astype('f8'))
+    eq(c.points(ddf, 'x', 'y', ds.min('i32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.min('i64')), out.astype('i8'))
+    eq(c.points(ddf, 'x', 'y', ds.min('f32')), out.astype('f4'))
+    eq(c.points(ddf, 'x', 'y', ds.min('f64')), out.astype('f8'))
 
 
 def test_max():
     out = df.i32.reshape((2, 2, 5)).max(axis=2).T
-    eq(c.points(ddf, 'x', 'y', agg=ds.max('i32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.max('i64')).agg, out.astype('i8'))
-    eq(c.points(ddf, 'x', 'y', agg=ds.max('f32')).agg, out.astype('f4'))
-    eq(c.points(ddf, 'x', 'y', agg=ds.max('f64')).agg, out.astype('f8'))
+    eq(c.points(ddf, 'x', 'y', ds.max('i32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.max('i64')), out.astype('i8'))
+    eq(c.points(ddf, 'x', 'y', ds.max('f32')), out.astype('f4'))
+    eq(c.points(ddf, 'x', 'y', ds.max('f64')), out.astype('f8'))
 
 
 def test_mean():
     out = df.i32.reshape((2, 2, 5)).mean(axis=2).T
-    eq(c.points(ddf, 'x', 'y', agg=ds.mean('i32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.mean('i64')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.mean('f32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.mean('f64')).agg, out)
+    eq(c.points(ddf, 'x', 'y', ds.mean('i32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.mean('i64')), out)
+    eq(c.points(ddf, 'x', 'y', ds.mean('f32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.mean('f64')), out)
 
 
 def test_var():
     out = df.i32.reshape((2, 2, 5)).var(axis=2).T
-    eq(c.points(ddf, 'x', 'y', agg=ds.var('i32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.var('i64')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.var('f32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.var('f64')).agg, out)
+    eq(c.points(ddf, 'x', 'y', ds.var('i32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.var('i64')), out)
+    eq(c.points(ddf, 'x', 'y', ds.var('f32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.var('f64')), out)
 
 
 def test_std():
     out = df.i32.reshape((2, 2, 5)).std(axis=2).T
-    eq(c.points(ddf, 'x', 'y', agg=ds.std('i32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.std('i64')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.std('f32')).agg, out)
-    eq(c.points(ddf, 'x', 'y', agg=ds.std('f64')).agg, out)
+    eq(c.points(ddf, 'x', 'y', ds.std('i32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.std('i64')), out)
+    eq(c.points(ddf, 'x', 'y', ds.std('f32')), out)
+    eq(c.points(ddf, 'x', 'y', ds.std('f64')), out)
 
 
 def test_count_cat():
-    agg = c.points(df, 'x', 'y', agg=ds.count_cat('cat')).agg
-    assert (nd.as_numpy(agg.a) == np.array([[5, 0], [0, 0]])).all()
-    assert (nd.as_numpy(agg.b) == np.array([[0, 0], [5, 0]])).all()
-    assert (nd.as_numpy(agg.c) == np.array([[0, 5], [0, 0]])).all()
-    assert (nd.as_numpy(agg.d) == np.array([[0, 0], [0, 5]])).all()
+    agg = c.points(df, 'x', 'y', ds.count_cat('cat'))
+    sol = np.array([[[5, 0, 0, 0],
+                     [0, 0, 5, 0]],
+                    [[0, 5, 0, 0],
+                     [0, 0, 0, 5]]])
+    assert (nd.as_numpy(agg._data) == sol).all()
+    assert agg._cats == ('a', 'b', 'c', 'd')
 
 
 def test_multiple_aggregates():
     agg = c.points(ddf, 'x', 'y',
-                   f64=dict(std=ds.std('f64'), mean=ds.mean('f64')),
-                   i32_sum=ds.sum('i32'),
-                   i32_count=ds.count('i32'))
+                   ds.summary(f64=ds.summary(std=ds.std('f64'),
+                                             mean=ds.mean('f64')),
+                              i32_sum=ds.sum('i32'),
+                              i32_count=ds.count('i32')))
 
     eq(agg.f64.std, df.f64.reshape((2, 2, 5)).std(axis=2).T)
     eq(agg.f64.mean, df.f64.reshape((2, 2, 5)).mean(axis=2).T)
