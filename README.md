@@ -9,35 +9,37 @@ the visualization pipeline, and other related techniques.  The project
 is under active development, and all the code and documentation is
 subject to frequent changes.
 
-## Getting Started
+## Installation
 
 ```
-# grab the master branch of the datashader repo
-git clone https://github.com/bokeh/datashader.git
-
-# Create a new conda environment
+# Create a new conda environment, if desired
 conda create -n datashader python=2.7
 source activate datashader
 
-# Install required packages
-conda install pillow numba dynd-python pandas datashape
-
-# Install the datashader library
-cd datashader
-python setup.py develop
+# Install required packages, including latest fixes required
+conda install numpy pandas pytest toolz numba datashape odo dask pillow
+conda install -c dynd dynd-python
+pip install --upgrade --no-deps git+https://github.com/Blaze/odo
+pip install --upgrade --no-deps git+https://github.com/Blaze/datashape
 
 # Install Bokeh for running examples
 conda install -c https://conda.anaconda.org/bokeh/channel/dev bokeh
+
+# Install the datashader library
+git clone https://github.com/bokeh/datashader.git
+cd datashader
+python setup.py develop
 ```
 
-**Run the examples**
-
-Currently requires taxi.castra/, which must be obtained separately, to be
-placed into examples/data/.
+**Running the examples**
 
 ```
-# Start the server
 cd examples
+
+# Download the sample data. This may take a while.
+python download_sample_data.py
+
+# Run the example
 python dashboard.py
 ```
 
