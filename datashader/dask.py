@@ -15,7 +15,9 @@ __all__ = ()
 def dask_pipeline(df, schema, canvas, glyph, summary):
     create, info, append, combine, finalize = compile_components(summary,
                                                                  schema)
-    extend = glyph._build_extend(info, append)
+    x_mapper = canvas.x_axis_type.mapper
+    y_mapper = canvas.x_axis_type.mapper
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
     x_range = canvas.x_range or compute_x_bounds(glyph, df)
     y_range = canvas.y_range or compute_y_bounds(glyph, df)
@@ -24,7 +26,9 @@ def dask_pipeline(df, schema, canvas, glyph, summary):
     x_axis = canvas.x_axis_type(x_range)
     y_axis = canvas.y_axis_type(y_range)
 
-    vt = canvas.view_transform(x_range, y_range)
+    xvt = x_axis.view_transform(canvas.plot_width)
+    yvt = y_axis.view_transform(canvas.plot_height)
+    vt = xvt + yvt
     shape = (canvas.plot_height, canvas.plot_width)
 
     def chunk(df):

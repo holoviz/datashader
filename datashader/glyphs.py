@@ -26,19 +26,21 @@ class Point(Glyph):
         return self.x, self.y
 
     @memoize
-    def _build_extend(self, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append):
         x_name = self.x
         y_name = self.y
 
         @ngjit
         def _extend(vt, bounds, xs, ys, *aggs_and_cols):
-            sx, sy, tx, ty = vt
+            sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
             for i in range(xs.shape[0]):
                 x = xs[i]
                 y = ys[i]
                 if (xmin <= x <= xmax) and (ymin <= y <= ymax):
-                    append(i, int(x * sx + tx), int(y * sy + ty),
+                    append(i,
+                           int(x_mapper(x) * sx + tx),
+                           int(y_mapper(y) * sy + ty),
                            *aggs_and_cols)
 
         def extend(aggs, df, vt, bounds):
