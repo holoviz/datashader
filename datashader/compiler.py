@@ -16,7 +16,8 @@ __all__ = ['compile_components']
 
 @memoize
 def compile_components(summary, schema):
-    """Given a ``Summary`` object and a table schema, returning 5 sub-functions.
+    """
+    Given a ``Summary`` object and a table schema, returns 5 sub-functions.
 
     Parameters
     ----------

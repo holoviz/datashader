@@ -20,7 +20,7 @@ def latlng_to_meters(df, lat_name, lng_name):
     df.loc[:, lng_name] = mx
     df.loc[:, lat_name] = my
 
-taxi_path = path.join(data_dir, 'taxi.csv')
+taxi_path = path.join(data_dir, 'nyc_taxi.csv')
 if not path.exists(taxi_path):
     print("Downloading Taxi Data...")
     url = ('https://storage.googleapis.com/tlc-trip-data/2015/'
