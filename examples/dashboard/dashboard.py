@@ -16,8 +16,8 @@ from bokeh.application.handlers import FunctionHandler
 
 from bokeh.plotting import Figure
 from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer,
-                          DynamicImageRenderer)
-from bokeh.models.widgets.layouts import HBox, VBox
+                          DynamicImageRenderer, HBox, VBox)
+    
 from bokeh.models.widgets import Select, Slider
 
 from tornado.ioloop import IOLoop
