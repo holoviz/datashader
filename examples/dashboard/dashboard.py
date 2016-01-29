@@ -50,8 +50,8 @@ class GetDataset(RequestHandler):
         agg = cvs.points(self.model.df,
                          self.model.active_axes[1],
                          self.model.active_axes[2],
-                         agg=self.model.aggregate_function(self.model.field))
-        pix = tf.interpolate(agg.agg, (255, 204, 204), 'red',
+                         self.model.aggregate_function(self.model.field))
+        pix = tf.interpolate(agg, (255, 204, 204), 'red',
                              how=self.model.transfer_function)
 
         # serialize to image
