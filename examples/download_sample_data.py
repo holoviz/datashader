@@ -36,6 +36,9 @@ if not path.exists(taxi_path):
                 (df.dropoff_latitude < 40.80)].copy()
     latlng_to_meters(df, 'pickup_latitude', 'pickup_longitude')
     latlng_to_meters(df, 'dropoff_latitude', 'dropoff_longitude')
+    df.rename(columns={'pickup_longitude':'pickup_x', 'dropoff_longitude':'dropoff_x',
+                       'pickup_latitude' :'pickup_y', 'dropoff_latitude' :'dropoff_y'},
+              inplace=True)
     df.to_csv(taxi_path, index=False)
 
 print("\nAll data downloaded.")
