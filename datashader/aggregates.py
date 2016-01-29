@@ -182,6 +182,10 @@ class CategoricalAggregate(Aggregate):
             raise KeyError("'{0}'".format(key))
 
     @property
+    def cats(self):
+        return self._cats
+
+    @property
     def dshape(self):
         if not hasattr(self, '_dshape'):
             self._dshape = DataShape(len(self._cats), 'int32')
