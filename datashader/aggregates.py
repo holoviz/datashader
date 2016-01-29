@@ -3,7 +3,7 @@ from __future__ import division, absolute_import, print_function
 import operator
 
 import numpy as np
-from datashape import dshape, Record, DataShape
+from datashape import dshape, Record, DataShape, isboolean
 from dynd import nd
 from toolz import get
 
@@ -25,6 +25,12 @@ def _validate_axis(axis):
     if not isinstance(axis, Axis):
         raise TypeError("axis must be instance of Axis")
     return axis
+
+
+def _validate_aligned(a, b):
+    if (a.x_axis != b.x_axis or a.y_axis != b.y_axis or a.shape != b.shape):
+        raise NotImplementedError("operations between aggregates with "
+                                  "non-matching axis or shape")
 
 
 def dynd_op(op, left, right):
@@ -55,10 +61,7 @@ def make_binary_op(op, use_dynd=True):
     agg_op = op if use_dynd else lambda l, r: dynd_op(op, l, r)
     def f(self, other):
         if isinstance(other, ScalarAggregate):
-            if (self.x_axis != other.x_axis or self.y_axis != other.y_axis or
-                    self.shape != other.shape):
-                raise NotImplementedError("operations between aggregates with "
-                                          "non-matching axis or shape")
+            _validate_aligned(self, other)
             res = agg_op(self._data, other._data)
         elif isinstance(other, (np.generic, int, float, bool)):
             res = agg_op(self._data, other)
@@ -105,6 +108,27 @@ class ScalarAggregate(Aggregate):
         if not hasattr(self, '_shape'):
             self._shape = self._data.shape
         return self._shape
+
+    def where(self, cond, otherwise=None):
+        """Return elements from `self` or `otherwise`, depending on `cond`.
+
+        Parameters
+        ----------
+        cond : ScalarAggregate
+            A boolean `ScalarAggregate` of the same shape as `self`.
+        otherwise : ScalarAggregate, numeric, None, optional
+            The value to use in each element if `cond` is `False`. If an
+            aggregate, must have same shape as `self` and `cond`. If `None`
+            [default], yields a missing value for the given datashape.
+
+        Returns
+        -------
+        ScalarAggregate
+        """
+        if not isinstance(cond, ScalarAggregate):
+            raise TypeError("cond must be instance of ScalarAggregate")
+        out = _where_helper(self, cond, otherwise)
+        return ScalarAggregate(out, self.x_axis, self.y_axis)
 
     __add__ = make_binary_op(operator.add)
     __sub__ = make_binary_op(operator.sub)
@@ -188,7 +212,8 @@ class CategoricalAggregate(Aggregate):
     @property
     def dshape(self):
         if not hasattr(self, '_dshape'):
-            self._dshape = DataShape(len(self._cats), 'int32')
+            self._dshape = DataShape(len(self._cats),
+                                     dshape_from_dynd(self._data.dtype))
         return self._dshape
 
     @property
@@ -196,6 +221,31 @@ class CategoricalAggregate(Aggregate):
         if not hasattr(self, '_shape'):
             self._shape = self._data.shape[:2]
         return self._shape
+
+    def where(self, cond, otherwise=None):
+        """Return elements from `self` or `otherwise`, depending on `cond`.
+
+        Parameters
+        ----------
+        cond : CategoricalAggregate, ScalarAggregate
+            A boolean aggregate of the same shape as `self`.
+        otherwise : Aggregate, numeric, None, optional
+            The value to use in each element if `cond` is `False`. If an
+            aggregate, must have same shape as `self` and `cond`. If `None`
+            [default], yields a missing value for the given datashape.
+
+        Returns
+        -------
+        CategoricalAggregate
+        """
+        if (self.cats != getattr(cond, 'cats', self.cats) !=
+                getattr(otherwise, 'cats', self.cats)):
+            raise ValueError("Categoricals not aligned")
+        if not isinstance(cond, (CategoricalAggregate, ScalarAggregate)):
+            raise TypeError("cond must be instance of ScalarAggregate "
+                            "or CategoricalAggregate")
+        out = _where_helper(self, cond, otherwise)
+        return CategoricalAggregate(out, self.cats, self.x_axis, self.y_axis)
 
 
 class RecordAggregate(Aggregate):
@@ -250,3 +300,39 @@ class RecordAggregate(Aggregate):
         except KeyError:
             raise AttributeError("'RecordAggregate' object has no attribute"
                                  "'{0}'".format(key))
+
+
+def _where_helper(agg, cond, otherwise):
+    if not isboolean(cond.dshape):
+        raise TypeError("cond must be a boolean aggregate")
+    _validate_aligned(agg, cond)
+    cond_arr, _ = dynd_to_np_mask(cond._data)
+    arr, arr_mask = dynd_to_np_mask(agg._data)
+    arr_missing = is_option(agg._data.dtype)
+    while cond_arr.ndim < arr.ndim:
+        cond_arr = np.expand_dims(cond_arr, -1)
+    if isinstance(otherwise, Aggregate):
+        _validate_aligned(agg, otherwise)
+        otherwise_arr, otherwise_mask = dynd_to_np_mask(otherwise._data)
+        while otherwise_arr.ndim < arr.ndim:
+            otherwise_arr = np.expand_dims(otherwise_arr, -1)
+            otherwise_mask = np.expand_dims(otherwise_mask, -1)
+        otherwise_missing = is_option(otherwise._data.dtype)
+    elif isinstance(otherwise, (int, float, np.generic)):
+        otherwise_arr = otherwise
+        otherwise_mask = otherwise_missing = False
+    elif otherwise is None:
+        otherwise_arr = dynd_missing_types[arr.dtype]
+        otherwise_mask = False
+        otherwise_missing = True
+    else:
+        raise TypeError("`otherwise` got unknown"
+                        " type: {0}".format(type(otherwise)))
+    out = np.where(cond_arr, arr, otherwise_arr)
+    if arr_missing or otherwise_missing:
+        out[arr_mask | otherwise_mask] = dynd_missing_types[out.dtype]
+        out = nd.asarray(out)
+        out = out.view_scalars('?' + str(out.dtype))
+    else:
+        out = nd.asarray(out)
+    return out
