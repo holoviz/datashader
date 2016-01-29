@@ -130,6 +130,25 @@ class ScalarAggregate(Aggregate):
         out = _where_helper(self, cond, otherwise)
         return ScalarAggregate(out, self.x_axis, self.y_axis)
 
+    def interpolate(self, low, high, **kwargs):
+        """Convert a ScalarAggregate to an image.
+
+        Parameters
+        ----------
+        low : color name or tuple
+            The color for the low end of the scale. Can be specified either by
+            name, hexcode, or as a tuple of ``(red, green, blue)`` values.
+        high : color name or tuple
+            The color for the high end of the scale
+        how : string or callable
+            The interpolation method to use. Valid strings are 'log' [default],
+            'cbrt', and 'linear'. Callables take a 2-dimensional array of
+            magnitudes at each pixel, and should return a numeric array of the
+            same shape.
+        """
+        from .transfer_functions import interpolate
+        return interpolate(self, low, high, **kwargs)
+
     __add__ = make_binary_op(operator.add)
     __sub__ = make_binary_op(operator.sub)
     __mul__ = make_binary_op(operator.mul)
@@ -246,6 +265,26 @@ class CategoricalAggregate(Aggregate):
                             "or CategoricalAggregate")
         out = _where_helper(self, cond, otherwise)
         return CategoricalAggregate(out, self.cats, self.x_axis, self.y_axis)
+
+    def colorize(self, color_key, **kwargs):
+        """Color a CategoricalAggregate by field.
+
+        Parameters
+        ----------
+        color_key : dict or iterable
+            A mapping of fields to colors. Can be either a ``dict`` mapping
+            from field name to colors, or an iterable of colors in the same
+            order as the record fields.
+        how : string or callable
+            The interpolation method to use. Valid strings are 'log' [default],
+            'cbrt', and 'linear'. Callables take a 2-dimensional array of
+            magnitudes at each pixel, and should return a numeric array of the
+            same shape.
+        min_alpha : float, optional
+            The minimum alpha value to use for non-empty pixels, in [0, 255].
+        """
+        from .transfer_functions import colorize
+        return colorize(self, color_key, **kwargs)
 
 
 class RecordAggregate(Aggregate):

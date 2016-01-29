@@ -36,6 +36,8 @@ def test_interpolate(attr):
                     [4286675711, 0, 4282268671],
                     [4280163839, 4278190335, 0]])
     assert (img == sol).all()
+    img = x.interpolate('pink', 'red', how='log').img
+    assert (img == sol).all()
     img = tf.interpolate(x, 'pink', 'red', how='cbrt').img
     sol = np.array([[0, 4291543295, 4289109503],
                     [4286807295, 0, 4282399999],
@@ -64,6 +66,8 @@ def test_colorize():
     img = tf.colorize(cat_agg, colors, how='log').img
     sol = np.array([[3137273856, 2449494783],
                     [4266997674, 3841982719]])
+    assert (img == sol).all()
+    img = cat_agg.colorize(colors, how='log').img
     assert (img == sol).all()
     colors = dict(zip('abc', colors))
     img = tf.colorize(cat_agg, colors, how='cbrt').img
