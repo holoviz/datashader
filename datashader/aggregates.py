@@ -106,6 +106,60 @@ class ScalarAggregate(Aggregate):
             self._shape = self._data.shape
         return self._shape
 
+    def where(self, cond, otherwise=None):
+        """Return elements from `self` or `otherwise`, depending on `cond`.
+
+        Parameters
+        ----------
+        cond : ScalarAggregate
+            A boolean `ScalarAggregate` of the same shape as `self`.
+        otherwise : ScalarAggregate, numeric, None, optional
+            The value to use in each element if `cond` is `False`. If an
+            aggregate, must have same shape as `self` and `cond`. If `None`
+            [default], yields a missing value for the given datashape.
+
+        Returns
+        -------
+        ScalarAggregate
+        """
+        if not isinstance(cond, ScalarAggregate):
+            raise TypeError("cond must be instance of ScalarAggregate")
+        elif cond.dshape != dshape('bool') and cond.dshape != dshape('?bool'):
+            raise TypeError("cond must be a boolean aggregate")
+        elif not (cond.shape == self.shape and cond.x_axis == self.x_axis and
+                  cond.y_axis == self.y_axis):
+            raise NotImplementedError("operations between aggregates with "
+                                      "non-matching axis or shape")
+        arr, arr_mask = dynd_to_np_mask(self._data)
+        if isinstance(otherwise, ScalarAggregate):
+            if (cond.shape == self.shape and cond.x_axis == self.x_axis and
+                    cond.y_axis == self.y_axis):
+                otherwise_arr, otherwise_mask = dynd_to_np_mask(otherwise._data)
+                otherwise_missing = is_option(otherwise._data.dtype)
+            else:
+                raise NotImplementedError("operations between aggregates with "
+                                          "non-matching axis or shape")
+        elif isinstance(otherwise, (int, float, np.generic)):
+            otherwise_arr = otherwise
+            otherwise_mask = otherwise_missing = False
+        elif otherwise is None:
+            otherwise_arr = dynd_missing_types[arr.dtype]
+            otherwise_mask = False
+            otherwise_missing = True
+        else:
+            raise TypeError("`otherwise` got unknown"
+                            " type: {0}".format(type(otherwise)))
+        arr_missing = is_option(self._data.dtype)
+        cond_arr, _ = dynd_to_np_mask(cond._data)
+        out = np.where(cond_arr, arr, otherwise_arr)
+        if arr_missing or otherwise_missing:
+            out[arr_mask | otherwise_mask] = dynd_missing_types[out.dtype]
+            out = nd.asarray(out)
+            out = out.view_scalars('?' + str(out.dtype))
+        else:
+            out = nd.asarray(out)
+        return ScalarAggregate(out, self.x_axis, self.y_axis)
+
     __add__ = make_binary_op(operator.add)
     __sub__ = make_binary_op(operator.sub)
     __mul__ = make_binary_op(operator.mul)

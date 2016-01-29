@@ -28,6 +28,8 @@ s_d = ScalarAggregate(d, x_axis=x_axis, y_axis=y_axis)
 def assert_dynd_eq(a, b, check_dtype=True):
     if check_dtype:
         assert a.dtype == b.dtype
+    print(a)
+    print(b)
     assert np.all((a == b).view_scalars('bool'))
 
 
@@ -111,6 +113,25 @@ def test_scalar_agg_unops():
     assert_dynd_eq((~s_a)._data, -1*a - 1)
     assert_dynd_eq(abs(s_a)._data, a)
     assert_dynd_eq(abs(s_b)._data, b)
+
+
+def test_scalar_agg_where():
+    assert_dynd_eq(s_a.where(s_a < 3)._data,
+                   nd.array([[0, 1, 2], [None, None, None]], '2 * 3 * ?int64'))
+    assert_dynd_eq(s_a.where(s_a < 3, 5)._data,
+                   nd.array([[0, 1, 2], [5, 5, 5]], '2 * 3 * ?int64'))
+    assert_dynd_eq(s_b.where(s_a < 3, 5)._data,
+                   nd.array([[2, 2, None], [5, 5, 3]], '2 * 3 * ?float64'))
+    assert_dynd_eq(s_b.where(s_a < 3, s_a)._data,
+                   nd.array([[2, 2, None], [3, 4, 3]], '2 * 3 * ?float64'))
+    with pytest.raises(TypeError):
+        s_a.where(s_b)
+    with pytest.raises(NotImplementedError):
+        s_a.where(s_c)
+    temp = ScalarAggregate((s_a > 2)._data, x_axis=x_axis,
+                           y_axis=LogAxis((1, 5)))
+    with pytest.raises(NotImplementedError):
+        s_a.where(temp)
 
 
 def test_categorical_agg():
