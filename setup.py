@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
 
 setup(name='datashader',
       version=datashader.__version__,
-      description='Bin based rendering toolchain',
+      description='Data visualization toolchain based on aggregating into a grid',
       url='http://github.com/bokeh/datashader',
       install_requires=install_requires,
       packages=['datashader'])
