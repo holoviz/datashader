@@ -127,33 +127,7 @@ class ScalarAggregate(Aggregate):
         """
         if not isinstance(cond, ScalarAggregate):
             raise TypeError("cond must be instance of ScalarAggregate")
-        elif not isboolean(cond.dshape):
-            raise TypeError("cond must be a boolean aggregate")
-        _validate_aligned(self, cond)
-        cond_arr, _ = dynd_to_np_mask(cond._data)
-        arr, arr_mask = dynd_to_np_mask(self._data)
-        arr_missing = is_option(self._data.dtype)
-        if isinstance(otherwise, ScalarAggregate):
-            _validate_aligned(self, otherwise)
-            otherwise_arr, otherwise_mask = dynd_to_np_mask(otherwise._data)
-            otherwise_missing = is_option(otherwise._data.dtype)
-        elif isinstance(otherwise, (int, float, np.generic)):
-            otherwise_arr = otherwise
-            otherwise_mask = otherwise_missing = False
-        elif otherwise is None:
-            otherwise_arr = dynd_missing_types[arr.dtype]
-            otherwise_mask = False
-            otherwise_missing = True
-        else:
-            raise TypeError("`otherwise` got unknown"
-                            " type: {0}".format(type(otherwise)))
-        out = np.where(cond_arr, arr, otherwise_arr)
-        if arr_missing or otherwise_missing:
-            out[arr_mask | otherwise_mask] = dynd_missing_types[out.dtype]
-            out = nd.asarray(out)
-            out = out.view_scalars('?' + str(out.dtype))
-        else:
-            out = nd.asarray(out)
+        out = _where_helper(self, cond, otherwise)
         return ScalarAggregate(out, self.x_axis, self.y_axis)
 
     __add__ = make_binary_op(operator.add)
@@ -270,38 +244,7 @@ class CategoricalAggregate(Aggregate):
         if not isinstance(cond, (CategoricalAggregate, ScalarAggregate)):
             raise TypeError("cond must be instance of ScalarAggregate "
                             "or CategoricalAggregate")
-        elif not isboolean(cond.dshape):
-            raise TypeError("cond must be a boolean aggregate")
-        _validate_aligned(self, cond)
-        cond_arr, _ = dynd_to_np_mask(cond._data)
-        if isinstance(cond, ScalarAggregate):
-            cond_arr = np.expand_dims(cond_arr, 2)
-        arr, arr_mask = dynd_to_np_mask(self._data)
-        arr_missing = is_option(self._data.dtype)
-        if isinstance(otherwise, (CategoricalAggregate, ScalarAggregate)):
-            _validate_aligned(self, otherwise)
-            otherwise_arr, otherwise_mask = dynd_to_np_mask(otherwise._data)
-            if isinstance(otherwise, ScalarAggregate):
-                otherwise_arr = np.expand_dims(otherwise_arr, 2)
-                otherwise_mask = np.expand_dims(otherwise_mask, 2)
-            otherwise_missing = is_option(otherwise._data.dtype)
-        elif isinstance(otherwise, (int, float, np.generic)):
-            otherwise_arr = otherwise
-            otherwise_mask = otherwise_missing = False
-        elif otherwise is None:
-            otherwise_arr = dynd_missing_types[arr.dtype]
-            otherwise_mask = False
-            otherwise_missing = True
-        else:
-            raise TypeError("`otherwise` got unknown"
-                            " type: {0}".format(type(otherwise)))
-        out = np.where(cond_arr, arr, otherwise_arr)
-        if arr_missing or otherwise_missing:
-            out[arr_mask | otherwise_mask] = dynd_missing_types[out.dtype]
-            out = nd.asarray(out)
-            out = out.view_scalars('?' + str(out.dtype))
-        else:
-            out = nd.asarray(out)
+        out = _where_helper(self, cond, otherwise)
         return CategoricalAggregate(out, self.cats, self.x_axis, self.y_axis)
 
 
@@ -357,3 +300,39 @@ class RecordAggregate(Aggregate):
         except KeyError:
             raise AttributeError("'RecordAggregate' object has no attribute"
                                  "'{0}'".format(key))
+
+
+def _where_helper(agg, cond, otherwise):
+    if not isboolean(cond.dshape):
+        raise TypeError("cond must be a boolean aggregate")
+    _validate_aligned(agg, cond)
+    cond_arr, _ = dynd_to_np_mask(cond._data)
+    arr, arr_mask = dynd_to_np_mask(agg._data)
+    arr_missing = is_option(agg._data.dtype)
+    while cond_arr.ndim < arr.ndim:
+        cond_arr = np.expand_dims(cond_arr, -1)
+    if isinstance(otherwise, Aggregate):
+        _validate_aligned(agg, otherwise)
+        otherwise_arr, otherwise_mask = dynd_to_np_mask(otherwise._data)
+        while otherwise_arr.ndim < arr.ndim:
+            otherwise_arr = np.expand_dims(otherwise_arr, -1)
+            otherwise_mask = np.expand_dims(otherwise_mask, -1)
+        otherwise_missing = is_option(otherwise._data.dtype)
+    elif isinstance(otherwise, (int, float, np.generic)):
+        otherwise_arr = otherwise
+        otherwise_mask = otherwise_missing = False
+    elif otherwise is None:
+        otherwise_arr = dynd_missing_types[arr.dtype]
+        otherwise_mask = False
+        otherwise_missing = True
+    else:
+        raise TypeError("`otherwise` got unknown"
+                        " type: {0}".format(type(otherwise)))
+    out = np.where(cond_arr, arr, otherwise_arr)
+    if arr_missing or otherwise_missing:
+        out[arr_mask | otherwise_mask] = dynd_missing_types[out.dtype]
+        out = nd.asarray(out)
+        out = out.view_scalars('?' + str(out.dtype))
+    else:
+        out = nd.asarray(out)
+    return out
