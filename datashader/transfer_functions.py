@@ -122,6 +122,8 @@ def interpolate(agg, low, high, how='log'):
     if not isinstance(agg, ScalarAggregate):
         raise TypeError("agg must be instance of ScalarAggregate")
     buffer, missing = dynd_to_np_mask(agg._data)
+    if buffer.min() == 0:
+        missing = (missing | (buffer == 0))
     offset = buffer[~missing].min()
     data = _normalize_interpolate_how(how)(buffer + offset)
     span = [data[~missing].min(), data[~missing].max()]

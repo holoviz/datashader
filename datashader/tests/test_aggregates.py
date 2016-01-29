@@ -28,8 +28,6 @@ s_d = ScalarAggregate(d, x_axis=x_axis, y_axis=y_axis)
 def assert_dynd_eq(a, b, check_dtype=True):
     if check_dtype:
         assert a.dtype == b.dtype
-    print(a)
-    print(b)
     assert np.all((a == b).view_scalars('bool'))
 
 
@@ -132,6 +130,56 @@ def test_scalar_agg_where():
                            y_axis=LogAxis((1, 5)))
     with pytest.raises(NotImplementedError):
         s_a.where(temp)
+
+
+def test_categorical_agg_where():
+    data = nd.array([[(0, 12, 0), (3, 0, 3)],
+                     [(12, 12, 12), (24, 0, 0)]])
+    cats = ['a', 'b', 'c']
+    agg = CategoricalAggregate(data, cats, x_axis, y_axis)
+    scalar_cond = ScalarAggregate(nd.array([[True, False], [True, True]]),
+                                  x_axis, y_axis)
+    cat_cond = CategoricalAggregate(nd.array([[(True, False, True),
+                                               (True, True, False)],
+                                              [(True, False, False),
+                                               (True, True, True)]],
+                                             '2 * 2 * 3 * bool'),
+                                    cats, x_axis, y_axis)
+    otherwise = CategoricalAggregate(nd.array([[(1, 2, 3), (4, 5, 6)],
+                                               [(7, 8, 9), (10, 11, 12)]]),
+                                     cats, x_axis, y_axis)
+    assert_dynd_eq(agg.where(scalar_cond)._data,
+                   nd.array([[(0, 12, 0), (None, None, None)],
+                             [(12, 12, 12), (24, 0, 0)]],
+                            '2 * 2 * 3 * ?int32'))
+    assert_dynd_eq(agg.where(scalar_cond, 2)._data,
+                   nd.array([[(0, 12, 0), (2, 2, 2)],
+                             [(12, 12, 12), (24, 0, 0)]]))
+    assert_dynd_eq(agg.where(scalar_cond, otherwise)._data,
+                   nd.array([[(0, 12, 0), (4, 5, 6)],
+                             [(12, 12, 12), (24, 0, 0)]]))
+    assert_dynd_eq(agg.where(cat_cond)._data,
+                   nd.array([[(0, None, 0), (3, 0, None)],
+                             [(12, None, None), (24, 0, 0)]],
+                            '2 * 2 * 3 * ?int32'))
+    assert_dynd_eq(agg.where(cat_cond, 2)._data,
+                   nd.array([[(0, 2, 0), (3, 0, 2)],
+                             [(12, 2, 2), (24, 0, 0)]]))
+    assert_dynd_eq(agg.where(cat_cond, otherwise)._data,
+                   nd.array([[(0, 2, 0), (3, 0, 6)],
+                             [(12, 8, 9), (24, 0, 0)]]))
+    temp = CategoricalAggregate(cat_cond._data, ['a', 'b', 'd'],
+                                x_axis=x_axis, y_axis=y_axis)
+    with pytest.raises(ValueError):
+        agg.where(temp)
+    with pytest.raises(TypeError):
+        agg.where(agg)
+    with pytest.raises(NotImplementedError):
+        agg.where(s_c)
+    temp = CategoricalAggregate(cat_cond._data, cats,
+                                x_axis=x_axis, y_axis=LogAxis((1, 5)))
+    with pytest.raises(NotImplementedError):
+        agg.where(temp)
 
 
 def test_categorical_agg():

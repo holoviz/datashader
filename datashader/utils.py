@@ -148,7 +148,7 @@ def dynd_to_np_mask(x):
         missing = is_missing(arr)
     else:
         arr = nd.as_numpy(x)
-        missing = (arr == 0)
+        missing = np.full_like(arr, False, dtype='bool')
     return arr, missing
 
 
