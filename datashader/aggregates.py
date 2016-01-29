@@ -218,7 +218,7 @@ class RecordAggregate(Aggregate):
     def dshape(self):
         if not hasattr(self, '_dshape'):
             self._dshape = dshape(Record([(k, v.dshape) for (k, v) in
-                                          self._data.items()]))
+                                          sorted(self._data.items())]))
         return self._dshape
 
     @property

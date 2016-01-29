@@ -5,6 +5,7 @@ from dask.base import tokenize, compute
 from dask.context import _globals
 
 from .core import pipeline
+from .compatibility import apply
 from .compiler import compile_components
 from .glyphs import compute_x_bounds, compute_y_bounds
 
