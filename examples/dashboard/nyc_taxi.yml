@@ -11,12 +11,12 @@ initial_extent:
 
 axes: 
   - name: NYC Taxi Pickups
-    xaxis: pickup_longitude
-    yaxis: pickup_latitude
+    xaxis: pickup_x
+    yaxis: pickup_y
 
   - name: NYC Taxi Dropoffs
-    xaxis: dropoff_longitude
-    yaxis: dropoff_latitude
+    xaxis: dropoff_x
+    yaxis: dropoff_y
 
 summary_fields:
   - name: Passenger Count
