@@ -16,6 +16,9 @@ class Axis(object):
                 self.start == other.start and
                 self.end == other.end)
 
+    def __hash__(self):
+        return hash((type(self), self.start, self.end))
+
     def view_transform(self, d):
         start = self.mapper(self.start)
         end = self.mapper(self.end)

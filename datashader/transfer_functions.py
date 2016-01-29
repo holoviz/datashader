@@ -8,7 +8,7 @@ from dynd import nd
 from PIL.Image import fromarray
 
 from .colors import rgb
-from .utils import is_missing, is_option
+from .utils import is_missing, is_option, dynd_to_np_mask
 
 
 __all__ = ['Image', 'merge', 'stack', 'interpolate', 'colorize']
@@ -88,12 +88,7 @@ def interpolate(agg, low, high, how='log'):
         magnitudes at each pixel, and should return a numeric array of the same
         shape.
     """
-    if is_option(agg.dtype):
-        buffer = nd.as_numpy(agg.view_scalars(agg.dtype.value_type))
-        missing = is_missing(buffer)
-    else:
-        buffer = nd.as_numpy(agg)
-        missing = (buffer == 0)
+    buffer, missing = dynd_to_np_mask(agg)
     offset = buffer[~missing].min()
     data = _normalize_interpolate_how(how)(buffer + offset)
     span = [data[~missing].min(), data[~missing].max()]

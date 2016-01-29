@@ -1,13 +1,16 @@
 from __future__ import absolute_import, division, print_function
 
 import sys
+import re
 from inspect import getmro
+from keyword import iskeyword
 
+import numba as nb
+import numpy as np
 from datashape import Unit, dshape
 from datashape.predicates import launder
 from datashape.typesets import real
-import numba as nb
-import numpy as np
+from dynd import nd
 
 
 ngjit = nb.jit(nopython=True, nogil=True)
@@ -130,6 +133,25 @@ def is_missing(x):
         return lambda x: False
 
 
+# Dynd Missing Type Flags
+dynd_missing_types = {np.dtype('bool'): 2,
+                      np.dtype('i2'): np.iinfo('i2').min,
+                      np.dtype('i4'): np.iinfo('i4').min,
+                      np.dtype('i8'): np.iinfo('i8').min,
+                      np.dtype('f4'): np.nan,
+                      np.dtype('f8'): np.nan}
+
+
+def dynd_to_np_mask(x):
+    if is_option(x.dtype):
+        arr = nd.as_numpy(x.view_scalars(x.dtype.value_type))
+        missing = is_missing(arr)
+    else:
+        arr = nd.as_numpy(x)
+        missing = (arr == 0)
+    return arr, missing
+
+
 def is_option(agg):
     """Returns if the dshape of the dynd array is an option type"""
     return hasattr(agg, 'value_type')
@@ -137,3 +159,23 @@ def is_option(agg):
 
 def dshape_from_dynd(ds):
     return dshape(str(ds))
+
+
+def is_valid_identifier(s):
+    """Check whether a string is a valid Python identifier.
+
+    Examples
+    --------
+    >>> is_valid_identifier('foo')
+    True
+    >>> is_valid_identifier('foo bar')
+    False
+    >>> is_valid_identifier('1foo')
+    False
+    >>> is_valid_identifier('foo1')
+    True
+    >>> is_valid_identifier('for')
+    False
+    """
+    return (not iskeyword(s) and
+            re.match(r'^[_a-zA-Z][_a-zA-Z0-9]*$', s) is not None)

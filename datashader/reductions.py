@@ -6,16 +6,8 @@ from datashape import dshape, isnumeric, Record, Option, DataShape, maxtype
 from datashape import coretypes as ct
 from toolz import concat, unique, memoize
 
-from .aggregates import ScalarAggregate, ByCategoriesAggregate
-from .utils import ngjit, is_missing
-
-
-# Dynd Missing Type Flags
-_dynd_missing_types = {np.dtype('i2'): np.iinfo('i2').min,
-                       np.dtype('i4'): np.iinfo('i4').min,
-                       np.dtype('i8'): np.iinfo('i8').min,
-                       np.dtype('f4'): np.nan,
-                       np.dtype('f8'): np.nan}
+from .aggregates import ScalarAggregate, CategoricalAggregate
+from .utils import ngjit, is_missing, dynd_missing_types
 
 
 def numpy_dtype(x):
@@ -85,7 +77,7 @@ class Reduction(Expr):
     @memoize
     def _build_create(self, dshape):
         dtype = numpy_dtype(dshape.measure)
-        value = _dynd_missing_types[dtype]
+        value = dynd_missing_types[dtype]
         return lambda shape: np.full(shape, value, dtype=dtype)
 
 
@@ -207,7 +199,7 @@ class count_cat(Reduction):
     def _build_finalize(self, dshape):
         cats = dshape[self.column].categories
         def finalize(bases, **kwargs):
-            return ByCategoriesAggregate(nd.asarray(bases[0]), cats, **kwargs)
+            return CategoricalAggregate(nd.asarray(bases[0]), cats, **kwargs)
         return finalize
 
 
@@ -317,7 +309,7 @@ def combine_count(aggs):
 
 
 def combine_sum(aggs):
-    missing_val = _dynd_missing_types[aggs.dtype]
+    missing_val = dynd_missing_types[aggs.dtype]
     missing_vals = is_missing(aggs)
     all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
     set_to_zero = missing_vals & ~all_empty
@@ -358,7 +350,7 @@ def build_finalize_identity(dshape):
 @memoize
 def build_finalize_min(dshape):
     dtype = numpy_dtype(dshape.measure)
-    missing = _dynd_missing_types[dtype]
+    missing = dynd_missing_types[dtype]
     if np.issubdtype(dtype, np.floating):
         is_missing = np.isposinf
     else:
@@ -374,7 +366,7 @@ def build_finalize_min(dshape):
 @memoize
 def build_finalize_max(dshape):
     dtype = numpy_dtype(dshape.measure)
-    missing = _dynd_missing_types[dtype]
+    missing = dynd_missing_types[dtype]
     if np.issubdtype(dtype, np.floating):
         is_missing = np.isneginf
     else:
