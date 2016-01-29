@@ -1,389 +1,252 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import division, absolute_import, print_function
+
+import operator
 
 import numpy as np
-from datashape import dshape, isnumeric, Record, Option, DataShape, maxtype
-from datashape import coretypes as ct
-from toolz import concat, unique, memoize, identity
+from datashape import dshape, Record, DataShape
+from dynd import nd
+from toolz import get
 
-from .utils import ngjit, is_missing
-
-
-# Dynd Missing Type Flags
-_dynd_missing_types = {np.dtype('i2'): np.iinfo('i2').min,
-                       np.dtype('i4'): np.iinfo('i4').min,
-                       np.dtype('i8'): np.iinfo('i8').min,
-                       np.dtype('f4'): np.nan,
-                       np.dtype('f8'): np.nan}
+from .core import Axis
+from .utils import (dshape_from_dynd, is_valid_identifier, is_option,
+                    dynd_missing_types, dynd_to_np_mask)
 
 
-def numpy_dtype(x):
-    if hasattr(x, 'ty'):
-        return numpy_dtype(x.ty)
-    return x.to_numpy_dtype()
+__all__ = ['ScalarAggregate', 'CategoricalAggregate', 'RecordAggregate']
 
 
-def optionify(d):
-    if isinstance(d, DataShape):
-        return DataShape(*(optionify(i) for i in d.parameters))
-    return d if isinstance(d, Option) else Option(d)
+class Aggregate(object):
+    def __repr__(self):
+        return "{0}<dshape='{1}', shape={2}>".format(type(self).__name__,
+                                                     self.dshape, self.shape)
 
 
-class Expr(object):
-    def __init__(self, column):
-        self.column = column
-
-    def __hash__(self):
-        return hash((type(self), self.inputs))
-
-    def __eq__(self, other):
-        return type(self) is type(other) and self.inputs == other.inputs
+def _validate_axis(axis):
+    if not isinstance(axis, Axis):
+        raise TypeError("axis must be instance of Axis")
+    return axis
 
 
-class Preprocess(Expr):
-    def __init__(self, column):
-        self.column = column
-
-    @property
-    def inputs(self):
-        return (self.column,)
-
-
-class extract(Preprocess):
-    def apply(self, df):
-        return df[self.column].values
-
-
-class category_codes(Preprocess):
-    def apply(self, df):
-        return df[self.column].cat.codes.values
-
-
-class Reduction(Expr):
-    def validate(self, in_dshape):
-        if not isnumeric(in_dshape.measure[self.column]):
-            raise ValueError("input must be numeric")
-
-    def out_dshape(self, in_dshape):
-        if hasattr(self, '_dshape'):
-            return self._dshape
-        return dshape(optionify(in_dshape.measure[self.column]))
-
-    @property
-    def inputs(self):
-        return (extract(self.column),)
-
-    @property
-    def _bases(self):
-        return (self,)
-
-    @property
-    def _temps(self):
-        return ()
-
-    @memoize
-    def _build_create(self, dshape):
-        dtype = numpy_dtype(dshape.measure)
-        value = _dynd_missing_types[dtype]
-        return lambda shape: np.full(shape, value, dtype=dtype)
-
-
-class count(Reduction):
-    _dshape = dshape(ct.int32)
-
-    def validate(self, in_dshape):
-        pass
-
-    @memoize
-    def _build_create(self, dshape):
-        dtype = numpy_dtype(dshape.measure)
-        return lambda shape: np.zeros(shape, dtype=dtype)
-
-    def _build_append(self, dshape):
-        return append_count
-
-    def _build_combine(self, dshape):
-        return combine_count
-
-    def _build_finalize(self, dshape):
-        return identity
-
-
-class sum(Reduction):
-    def out_dshape(self, input_dshape):
-        return dshape(optionify(maxtype(input_dshape.measure[self.column])))
-
-    def _build_append(self, dshape):
-        return append_sum
-
-    def _build_combine(self, dshape):
-        return combine_sum
-
-    def _build_finalize(self, dshape):
-        return identity
-
-
-class min(Reduction):
-    @memoize
-    def _build_create(self, dshape):
-        dtype = numpy_dtype(dshape.measure)
-        if np.issubdtype(dtype, np.floating):
-            value = np.inf
+def dynd_op(op, left, right):
+    if isinstance(left, nd.array):
+        left_np, left_missing = dynd_to_np_mask(left)
+        left_option = is_option(left.dtype)
+    else:
+        left_np, left_missing = left, False
+        left_option = False
+    if isinstance(right, nd.array):
+        right_np, right_missing = dynd_to_np_mask(right)
+        right_option = is_option(right.dtype)
+    else:
+        right_np, right_missing = right, False
+        right_option = False
+    out = op(left_np, right_np)
+    if left_option or right_option:
+        if out.dtype in dynd_missing_types:
+            out[left_missing | right_missing] = dynd_missing_types[out.dtype]
+            out = nd.asarray(out)
+            return nd.asarray(out).view_scalars('?' + str(out.dtype))
         else:
-            value = np.iinfo(dtype).max
-        return lambda shape: np.full(shape, value, dtype=dtype)
-
-    def _build_append(self, dshape):
-        return append_min
-
-    def _build_combine(self, dshape):
-        return combine_min
-
-    def _build_finalize(self, dshape):
-        return build_finalize_min(dshape.measure[self.column])
+            raise ValueError("Missing type unknown")
+    return nd.asarray(out)
 
 
-class max(Reduction):
-    @memoize
-    def _build_create(self, dshape):
-        dtype = numpy_dtype(dshape.measure)
-        if np.issubdtype(dtype, np.floating):
-            value = -np.inf
+def make_binary_op(op, use_dynd=True):
+    agg_op = op if use_dynd else lambda l, r: dynd_op(op, l, r)
+    def f(self, other):
+        if isinstance(other, ScalarAggregate):
+            if (self.x_axis != other.x_axis or self.y_axis != other.y_axis or
+                    self.shape != other.shape):
+                raise NotImplementedError("operations between aggregates with "
+                                          "non-matching axis or shape")
+            res = agg_op(self._data, other._data)
+        elif isinstance(other, (np.generic, int, float, bool)):
+            res = agg_op(self._data, other)
         else:
-            value = np.iinfo(dtype).min
-        return lambda shape: np.full(shape, value, dtype=dtype)
-
-    def _build_append(self, dshape):
-        return append_max
-
-    def _build_combine(self, dshape):
-        return combine_max
-
-    def _build_finalize(self, dshape):
-        return build_finalize_max(dshape.measure[self.column])
+            return NotImplemented
+        return ScalarAggregate(res, self.x_axis, self.y_axis)
+    return f
 
 
-class m2(Reduction):
-    """Second moment"""
-    _dshape = dshape(ct.float64)
-
-    @property
-    def _temps(self):
-        return (sum(self.column), count(self.column))
-
-    def _build_append(self, dshape):
-        return append_m2
-
-    def _build_combine(self, dshape):
-        return combine_m2
-
-    def _build_finalize(self, dshape):
-        return identity
+def make_unary_op(op):
+    def f(self):
+        arr, missing = dynd_to_np_mask(self._data)
+        out = op(arr)
+        if is_option(self._data.dtype):
+            out[missing] = dynd_missing_types[out.dtype]
+            out = nd.asarray(out).view_scalars('?' + str(out.dtype))
+        else:
+            out = nd.asarray(out)
+        return ScalarAggregate(out, self.x_axis, self.y_axis)
+    return f
 
 
-class count_cat(Reduction):
-    def validate(self, in_dshape):
-        if not isinstance(in_dshape.measure[self.column], ct.Categorical):
-            raise ValueError("input must be categorical")
+def right(method):
+    """Wrapper to create 'right' version of operator given left version"""
+    def _inner(self, other):
+        return method(other, self)
+    return _inner
 
-    def out_dshape(self, input_dshape):
-        cats = input_dshape.measure[self.column].categories
-        return dshape(Record([(c, ct.int32) for c in cats]))
+
+class ScalarAggregate(Aggregate):
+    def __init__(self, data, x_axis=None, y_axis=None):
+        self._data = data
+        self.x_axis = _validate_axis(x_axis)
+        self.y_axis = _validate_axis(y_axis)
 
     @property
-    def inputs(self):
-        return (category_codes(self.column),)
-
-    def _build_create(self, out_dshape):
-        n_cats = len(out_dshape.measure.fields)
-        return lambda shape: np.zeros(shape + (n_cats,), dtype='i4')
-
-    def _build_append(self, dshape):
-        return append_count_cat
-
-    def _build_combine(self, dshape):
-        return combine_count_cat
-
-    def _build_finalize(self, dshape):
-        return build_finalize_count_cat(dshape[self.column].categories)
-
-
-class mean(Reduction):
-    _dshape = dshape(Option(ct.float64))
+    def dshape(self):
+        if not hasattr(self, '_dshape'):
+            self._dshape = dshape_from_dynd(self._data.dtype)
+        return self._dshape
 
     @property
-    def _bases(self):
-        return (sum(self.column), count(self.column))
+    def shape(self):
+        if not hasattr(self, '_shape'):
+            self._shape = self._data.shape
+        return self._shape
 
-    def _build_finalize(self, dshape):
-        return finalize_mean
+    __add__ = make_binary_op(operator.add)
+    __sub__ = make_binary_op(operator.sub)
+    __mul__ = make_binary_op(operator.mul)
+    __floordiv__ = make_binary_op(operator.floordiv, False)
+    __div__ = __floordiv__
+    __truediv__ = make_binary_op(operator.truediv, False)
+    __eq__ = make_binary_op(operator.eq)
+    __ne__ = make_binary_op(operator.ne)
+    __lt__ = make_binary_op(operator.lt)
+    __le__ = make_binary_op(operator.le)
+    __gt__ = make_binary_op(operator.gt)
+    __ge__ = make_binary_op(operator.ge)
+    __and__ = make_binary_op(operator.and_, False)
+    __or__ = make_binary_op(operator.or_, False)
+    __xor__ = make_binary_op(operator.xor, False)
+    __radd__ = make_binary_op(right(operator.add))
+    __rsub__ = make_binary_op(right(operator.sub))
+    __rmul__ = make_binary_op(right(operator.mul))
+    __rfloordiv__ = make_binary_op(right(operator.floordiv), False)
+    __rdiv__ = __rfloordiv__
+    __rtruediv__ = make_binary_op(right(operator.truediv), False)
+    __req__ = make_binary_op(right(operator.eq))
+    __rne__ = make_binary_op(right(operator.ne))
+    __rlt__ = make_binary_op(right(operator.lt))
+    __rle__ = make_binary_op(right(operator.le))
+    __rgt__ = make_binary_op(right(operator.gt))
+    __rge__ = make_binary_op(right(operator.ge))
+    __rand__ = make_binary_op(right(operator.and_), False)
+    __ror__ = make_binary_op(right(operator.or_), False)
+    __rxor__ = make_binary_op(right(operator.xor), False)
+    __abs__ = make_unary_op(operator.abs)
+    __neg__ = make_unary_op(operator.neg)
+    __pos__ = make_unary_op(operator.pos)
+    __invert__ = make_unary_op(operator.inv)
 
 
-class var(Reduction):
-    _dshape = dshape(Option(ct.float64))
+class CategoricalAggregate(Aggregate):
+    def __init__(self, data, cats, x_axis=None, y_axis=None):
+        self._data = data
+        self._cats = cats
+        self.x_axis = _validate_axis(x_axis)
+        self.y_axis = _validate_axis(y_axis)
+
+    def __dir__(self):
+        return sorted(set(dir(type(self)) + list(self.__dict__) +
+                      list(filter(is_valid_identifier, self._cats))))
+
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError("'CategoricalAggregate' object has no "
+                                 "attribute '{0}'".format(key))
+
+    def __getitem__(self, key):
+        try:
+            if isinstance(key, list):
+                # List of categories
+                inds = [self._cats.index(k) for k in key]
+                dtype = self._data.dtype
+                if is_option(dtype):
+                    out = nd.as_numpy(self._data.view_scalars(
+                                      dtype.value_type))
+                else:
+                    out = nd.as_numpy(self._data)
+                out = nd.asarray(out[:, :, inds]).view_scalars(dtype)
+                return CategoricalAggregate(out, key, self.x_axis, self.y_axis)
+            else:
+                # Single category
+                i = self._cats.index(key)
+                return ScalarAggregate(self._data[:, :, i],
+                                       self.x_axis, self.y_axis)
+        except ValueError:
+            raise KeyError("'{0}'".format(key))
 
     @property
-    def _bases(self):
-        return (sum(self.column), count(self.column), m2(self.column))
-
-    def _build_finalize(self, dshape):
-        return finalize_var
-
-
-class std(Reduction):
-    _dshape = dshape(Option(ct.float64))
+    def cats(self):
+        return self._cats
 
     @property
-    def _bases(self):
-        return (sum(self.column), count(self.column), m2(self.column))
-
-    def _build_finalize(self, dshape):
-        return finalize_std
-
-
-class Summary(Expr):
-    def __init__(self, **kwargs):
-        ks, vs = zip(*sorted(kwargs.items()))
-        self.keys = ks
-        self.values = [Summary(**v) if isinstance(v, dict) else v for v in vs]
-
-    def __hash__(self):
-        return hash((type(self), tuple(self.keys), tuple(self.values)))
-
-    def validate(self, input_dshape):
-        for v in self.values:
-            v.validate(input_dshape)
-
-    def out_dshape(self, in_dshape):
-        return dshape(Record([(k, v.out_dshape(in_dshape)) for (k, v)
-                              in zip(self.keys, self.values)]))
+    def dshape(self):
+        if not hasattr(self, '_dshape'):
+            self._dshape = DataShape(len(self._cats), 'int32')
+        return self._dshape
 
     @property
-    def inputs(self):
-        return tuple(unique(concat(v.inputs for v in self.values)))
+    def shape(self):
+        if not hasattr(self, '_shape'):
+            self._shape = self._data.shape[:2]
+        return self._shape
 
 
-# ============ Appenders ============
+class RecordAggregate(Aggregate):
+    def __init__(self, data, x_axis=None, y_axis=None):
+        if not isinstance(data, dict):
+            raise TypeError("data must be a dictionary")
+        if not data:
+            raise ValueError("Empty data dictionary")
+        aggs = list(data.values())
+        shape = aggs[0].shape
+        for a in aggs:
+            if a.x_axis != x_axis or a.y_axis != y_axis or a.shape != shape:
+                raise ValueError("Aggregates must have same shape and axes")
+        self._data = data
+        self.x_axis = _validate_axis(x_axis)
+        self.y_axis = _validate_axis(y_axis)
+        self._shape = shape
 
-@ngjit
-def append_count(x, y, agg, field):
-    agg[y, x] += 1
+    @property
+    def dshape(self):
+        if not hasattr(self, '_dshape'):
+            self._dshape = dshape(Record([(k, v.dshape) for (k, v) in
+                                          sorted(self._data.items())]))
+        return self._dshape
 
+    @property
+    def shape(self):
+        return self._shape
 
-@ngjit
-def append_max(x, y, agg, field):
-    if agg[y, x] < field:
-        agg[y, x] = field
+    def keys(self):
+        return list(sorted(self._data.keys()))
 
+    def values(self):
+        return list(sorted(self._data.values()))
 
-@ngjit
-def append_min(x, y, agg, field):
-    if agg[y, x] > field:
-        agg[y, x] = field
+    def items(self):
+        return list(sorted(self._data.items()))
 
+    def __dir__(self):
+        return sorted(set(dir(type(self)) + list(self.__dict__) +
+                      list(self.keys())))
 
-@ngjit
-def append_m2(x, y, m2, field, sum, count):
-    # sum & count are the results of sum[y, x], count[y, x] before being
-    # updated by field
-    if count == 0:
-        m2[y, x] = 0
-    else:
-        u1 = np.float64(sum) / count
-        u = np.float64(sum + field) / (count + 1)
-        m2[y, x] += (field - u1) * (field - u)
+    def __getitem__(self, key):
+        if isinstance(key, list):
+            return RecordAggregate(dict(zip(key, get(key, self._data))),
+                                   self.x_axis, self.y_axis)
+        return self._data[key]
 
-
-@ngjit
-def append_sum(x, y, agg, field):
-    if is_missing(agg[y, x]):
-        agg[y, x] = field
-    else:
-        agg[y, x] += field
-
-
-@ngjit
-def append_count_cat(x, y, agg, field):
-    agg[y, x, field] += 1
-
-
-# ============ Combiners ============
-
-def combine_count(aggs):
-    return aggs.sum(axis=0)
-
-
-def combine_sum(aggs):
-    missing_val = _dynd_missing_types[aggs.dtype]
-    missing_vals = is_missing(aggs)
-    all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
-    set_to_zero = missing_vals & ~all_empty
-    out = np.where(set_to_zero, 0, aggs).sum(axis=0)
-    if missing_val is not np.nan:
-        out[all_empty] = missing_val
-    return out
-
-
-def combine_min(aggs):
-    return np.nanmin(aggs, axis=0)
-
-
-def combine_max(aggs):
-    return np.nanmax(aggs, axis=0)
-
-
-def combine_m2(Ms, sums, ns):
-    sums = as_float64(sums)
-    mu = np.nansum(sums, axis=0) / ns.sum(axis=0)
-    return np.nansum(Ms + ns*(sums/ns - mu)**2, axis=0)
-
-
-def combine_count_cat(aggs):
-    return aggs.sum(axis=0, dtype='i4')
-
-
-# ============ Finalizers ============
-
-@memoize
-def build_finalize_min(dshape):
-    dtype = numpy_dtype(dshape.measure)
-    missing = _dynd_missing_types[dtype]
-    if np.issubdtype(dtype, np.floating):
-        return lambda x: np.where(np.isposinf(x), missing, x)
-    else:
-        value = np.iinfo(dtype).max
-        return lambda x: np.where(x == value, missing, x)
-
-
-@memoize
-def build_finalize_max(dshape):
-    dtype = numpy_dtype(dshape.measure)
-    missing = _dynd_missing_types[dtype]
-    if np.issubdtype(dtype, np.floating):
-        return lambda x: np.where(np.isneginf(x), missing, x)
-    else:
-        value = np.iinfo(dtype).min
-        return lambda x: np.where(x == value, missing, x)
-
-
-def as_float64(arr):
-    return np.where(is_missing(arr), np.nan, arr.astype('f8'))
-
-
-def finalize_mean(sums, counts):
-    with np.errstate(divide='ignore', invalid='ignore'):
-        return as_float64(sums)/counts
-
-
-def finalize_var(sums, counts, m2s):
-    with np.errstate(divide='ignore', invalid='ignore'):
-        return as_float64(m2s)/counts
-
-
-def finalize_std(sums, counts, m2s):
-    with np.errstate(divide='ignore', invalid='ignore'):
-        return np.sqrt(as_float64(m2s)/counts)
-
-
-def build_finalize_count_cat(cats):
-    dtype = [(field, 'i4') for field in cats]
-    return lambda counts: counts.view(dtype).squeeze()
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError("'RecordAggregate' object has no attribute"
+                                 "'{0}'".format(key))

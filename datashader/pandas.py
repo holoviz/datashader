@@ -12,11 +12,19 @@ __all__ = ()
 @pipeline.register(pd.DataFrame)
 def pandas_pipeline(df, schema, canvas, glyph, summary):
     create, info, append, _, finalize = compile_components(summary, schema)
-    extend = glyph._build_extend(info, append)
+    x_mapper = canvas.x_axis_type.mapper
+    y_mapper = canvas.y_axis_type.mapper
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
-    aggs = create((canvas.plot_height, canvas.plot_width))
     x_range = canvas.x_range or compute_x_bounds(glyph, df)
     y_range = canvas.y_range or compute_y_bounds(glyph, df)
-    vt = canvas.view_transform(x_range, y_range)
-    extend(aggs, df, vt, x_range + y_range)
-    return finalize(aggs)
+    x_axis = canvas.x_axis_type(x_range)
+    y_axis = canvas.y_axis_type(y_range)
+
+    xvt = x_axis.view_transform(canvas.plot_width)
+    yvt = y_axis.view_transform(canvas.plot_height)
+
+    bases = create((canvas.plot_height, canvas.plot_width))
+    extend(bases, df, xvt + yvt, x_range + y_range)
+
+    return finalize(bases, x_axis=x_axis, y_axis=y_axis)

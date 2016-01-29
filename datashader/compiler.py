@@ -1,13 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
 from itertools import count
-from functools import reduce
 
 from toolz import unique, concat, pluck, get, memoize
-from dynd import nd
 import numpy as np
 
-from .aggregates import Summary
+from .aggregates import RecordAggregate
+from .reductions import summary
 from .utils import ngjit, _exec
 
 
@@ -15,14 +14,13 @@ __all__ = ['compile_components']
 
 
 @memoize
-def compile_components(summary, schema):
-    """
-    Given a ``Summary`` object and a table schema, returns 5 sub-functions.
+def compile_components(agg, schema):
+    """Given a ``Aggregation`` object and a schema, return 5 sub-functions.
 
     Parameters
     ----------
-    summary : Summary
-        The expression describing the aggregations to be computed.
+    agg : Aggregation
+        The expression describing the aggregation(s) to be computed.
 
     Returns
     -------
@@ -49,7 +47,7 @@ def compile_components(summary, schema):
         Given a tuple of base numpy arrays, returns the finalized
         ``dynd`` array.
     """
-    paths, reds = zip(*preorder_traversal(summary))
+    reds = list(traverse_aggregation(agg))
 
     # List of base reductions (actually computed)
     bases = list(unique(concat(r._bases for r in reds)))
@@ -65,19 +63,19 @@ def compile_components(summary, schema):
     info = make_info(cols)
     append = make_append(bases, cols, calls)
     combine = make_combine(bases, dshapes, temps)
-    finalize = make_finalize(bases, summary, schema)
+    finalize = make_finalize(bases, agg, schema)
 
     return create, info, append, combine, finalize
 
 
-def preorder_traversal(summary):
-    """Yields tuples of (path, reduction, dshape)"""
-    for key, value in zip(summary.keys, summary.values):
-        if isinstance(value, Summary):
-            for key2, value2 in preorder_traversal(value):
-                yield (key,) + key2, value2
-        else:
-            yield (key,), value
+def traverse_aggregation(agg):
+    """Yield a left->right traversal of an aggregation"""
+    if isinstance(agg, summary):
+        for a in agg.values:
+            for a2 in traverse_aggregation(a):
+                yield a2
+    else:
+        yield agg
 
 
 def _get_call_tuples(base, dshape):
@@ -129,27 +127,19 @@ def make_combine(bases, dshapes, temps):
     return combine
 
 
-def make_finalize(bases, summary, schema):
-    dshape = str(summary.out_dshape(schema))
-    paths = []
-    finalizers = []
-    indices = []
+def make_finalize(bases, agg, schema):
     arg_lk = dict((k, v) for (v, k) in enumerate(bases))
-    for (path, red) in preorder_traversal(summary):
-        paths.append(path)
-        finalizers.append(red._build_finalize(schema))
-        interms = red._bases
-        indices.append([arg_lk[b] for b in interms])
+    if isinstance(agg, summary):
+        calls = []
+        for key, val in zip(agg.keys, agg.values):
+            f = make_finalize(bases, val, schema)
+            inds = [arg_lk[b] for b in getattr(val, '_bases', bases)]
+            calls.append((key, f, inds))
 
-    def finalize(bases):
-        shape = bases[0].shape[:2]
-        out = nd.empty(shape, dshape)
-        for path, finalizer, inds in zip(paths, finalizers, indices):
-            arr = reduce(getattr, path, out)
-            if hasattr(arr.dtype, 'value_type'):
-                arr = arr.view_scalars(arr.dtype.value_type)
-            np_arr = nd.as_numpy(arr)
-            np_arr[:] = finalizer(*get(inds, bases))
-        return out
-
-    return finalize
+        def finalize(bases, **kwargs):
+            data = {key: finalizer(get(inds, bases), **kwargs)
+                    for (key, finalizer, inds) in calls}
+            return RecordAggregate(data, **kwargs)
+        return finalize
+    else:
+        return agg._build_finalize(schema)
