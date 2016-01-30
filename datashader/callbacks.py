@@ -56,6 +56,13 @@ class IPythonKernelCallback(object):
         self.callback = callback
         self.kwargs = kwargs
 
+        # Initialize callback with plot ranges
+        w, h = self.p.plot_width, self.p.plot_height
+        xmin, xmax = self.p.x_range.start, self.p.x_range.end
+        ymin, ymax = self.p.y_range.start, self.p.y_range.end
+        ranges = dict(x_range=(xmin, xmax), y_range=(ymin, ymax), w=w, h=h)
+        callback(self.p, ranges, **kwargs)
+
         # Register callback on the class with unique reference
         cls = type(self)
         ref = str(uuid.uuid4())
@@ -78,5 +85,5 @@ class IPythonKernelCallback(object):
         self.p.renderers.pop()
         ranges['x_range'] = (ranges['xmin'], ranges['xmax'])
         ranges['y_range'] = (ranges['ymin'], ranges['ymax'])
-        self.callback(ranges, **self.kwargs)
+        self.callback(self.p, ranges, **self.kwargs)
         push_notebook(document=self.p.document)
