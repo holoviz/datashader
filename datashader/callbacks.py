@@ -39,10 +39,8 @@ class IPythonKernelCallback(object):
         var throttled_cb = Bokeh._throttle['{ref}'];
         if (throttled_cb) {{
             throttled_cb()
-            console.log(throttled_cb)
         }} else {{
             Bokeh._throttle['{ref}'] = _.throttle(update_plot, {throttle});
-            console.log(Bokeh._throttle['{ref}'])
             Bokeh._throttle['{ref}']()
         }}
     """
