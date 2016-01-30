@@ -1,7 +1,11 @@
-import uuid
+import uuid, json
 
+from bokeh.embed import notebook_div
+from bokeh.document import Document
 from bokeh.models import CustomJS
-from bokeh.io import push_notebook
+from bokeh.model import _ModelInDocument as add_to_document
+from bokeh.io import _CommsHandle
+from bokeh.util.notebook import get_comms
 
 
 class IPythonKernelCallback(object):
@@ -63,25 +67,45 @@ class IPythonKernelCallback(object):
 
         # Register callback on the class with unique reference
         cls = type(self)
-        ref = str(uuid.uuid4())
-        cls._callbacks[ref] = self
+        self.ref = str(uuid.uuid4())
+        cls._callbacks[self.ref] = self
 
         # Generate python callback command
         cmd = cls.cmd_template.format(module=cls.__module__,
-                                      cls=cls.__name__, ref=ref)
+                                      cls=cls.__name__, ref=self.ref)
 
         # Initialize callback
         cb_code = cls.jscode.format(plot_id=self.p._id, cmd=cmd,
-                                    ref=ref.replace('-', '_'),
+                                    ref=self.ref.replace('-', '_'),
                                     throttle=throttle)
         cb_args = dict(x_range=self.p.x_range, y_range=self.p.y_range)
         callback = CustomJS(args=cb_args, code=cb_code)
         self.p.x_range.callback = callback
         self.p.y_range.callback = callback
 
+        self.comms = None
+        # Initialize document
+        doc_handler = add_to_document(self.p)
+        with doc_handler:
+            self.doc = doc_handler._doc
+            self.div = notebook_div(self.p, self.ref)
+
+
     def update_image(self, ranges):
+        if not self.comms:
+            self.comms = _CommsHandle(get_comms(self.ref), self.doc,
+                                      self.doc.to_json())
         self.p.renderers.pop()
         ranges['x_range'] = (ranges['xmin'], ranges['xmax'])
         ranges['y_range'] = (ranges['ymin'], ranges['ymax'])
         self.callback(self.p, ranges, **self.kwargs)
-        push_notebook(document=self.p.document)
+
+        to_json = self.doc.to_json()
+        msg = Document._compute_patch_between_json(self.comms.json, to_json)
+        self.comms._json[self.doc] = to_json
+        self.comms.comms.send(json.dumps(msg))
+
+
+    def _repr_html_(self):
+        return self.div
+
