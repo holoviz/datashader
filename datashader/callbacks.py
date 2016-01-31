@@ -44,7 +44,7 @@ class IPythonKernelCallback(object):
         if (throttled_cb) {{
             throttled_cb()
         }} else {{
-            Bokeh._throttle['{ref}'] = _.throttle(update_plot, {throttle});
+            Bokeh._throttle['{ref}'] = _.debounce(update_plot, {throttle});
             Bokeh._throttle['{ref}']()
         }}
     """
@@ -53,7 +53,7 @@ class IPythonKernelCallback(object):
     
     _callbacks = {}
 
-    def __init__(self, bokeh_plot, callback, throttle=250, **kwargs):
+    def __init__(self, bokeh_plot, callback, throttle=100, **kwargs):
         self.p = bokeh_plot
         self.callback = callback
         self.kwargs = kwargs
