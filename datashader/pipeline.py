@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 """
-Declarative interface to Datashader.  
+Declarative interface to Datashader.
 
 Provides a configurable pipeline that makes it simpler to specify
 individual stages independently from the others, Currently does not
@@ -38,17 +38,17 @@ class Interpolate(param.Parameterized):
 class DatashaderPipeline(param.Parameterized):
     """
     Configurable datashading pipeline.  Allows each element of the pipeline
-    to be specified independently without code duplication, e.g. to show the 
-    effect of varying that element while keeping the rest of the pipeline 
-    constant.  
-    
+    to be specified independently without code duplication, e.g. to show the
+    effect of varying that element while keeping the rest of the pipeline
+    constant.
+
     The pipeline is roughly:
 
     1. create canvas of the requested size
     2. aggregate using the specified x and y fields, aggregate field, and agg_fn
     3. apply the specified transfer_fns, if any, in order
     4. apply the specified color_fn to translate each resulting aggregate into a color
-    5. return the result as an image    
+    5. return the result as an image
     """
 
     data = param.Parameter(doc="""
@@ -79,7 +79,7 @@ class DatashaderPipeline(param.Parameterized):
         """
         Accepts a Bokeh plot and a viewport specified via a ranges dictionary
         (which should contain x_range, y_range, h, and w).  Returns an image
-        rendered at the specified location, using the current parameter values.        
+        rendered at the specified location, using the current parameter values.
         """
         ps = param.ParamOverrides(self,params)
 
