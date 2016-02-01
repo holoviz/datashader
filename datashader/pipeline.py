@@ -29,7 +29,7 @@ class Interpolate(param.Parameterized):
         Color string or tuple specifying the ending point for interpolation.""")
 
     how = param.Parameter(default="log", doc="""
-        Function object or string specifying how to map from a scalar into color space.""")
+        Function object or string specifying how to map a scalar into color space.""")
 
     def __call__(self, agg):
         return tf.interpolate(agg, self.low, self.high, self.how)
@@ -42,12 +42,12 @@ class DatashaderPipeline(param.Parameterized):
     effect of varying that element while keeping the rest of the pipeline
     constant.
 
-    The pipeline is roughly:
+    The supported pipeline is roughly:
 
-    1. create canvas of the requested size
+    1. create canvas of the requested size (in data space) and resolution
     2. aggregate using the specified x and y fields, aggregate field, and agg_fn
-    3. apply the specified transfer_fns, if any, in order
-    4. apply the specified color_fn to translate each resulting aggregate into a color
+    3. apply specified transfer_fns, if any, in order
+    4. apply specified color_fn to translate each resulting aggregate into a color
     5. return the result as an image
     """
 
@@ -86,7 +86,9 @@ class DatashaderPipeline(param.Parameterized):
         x_range, y_range = ranges['x_range'], ranges['y_range']
         h, w = ranges['h'], ranges['w']
 
-        cvs = core.Canvas(plot_width=w, plot_height=h, x_range=x_range, y_range=y_range)
+        cvs = core.Canvas(plot_width=w, plot_height=h,
+                          x_range=x_range, y_range=y_range)
+
         agg = cvs.points(ps.data, ps.x, ps.y, ps.agg_fn(ps.agg))
         for f in ps.transfer_fns:
             agg = f(agg)
@@ -94,4 +96,5 @@ class DatashaderPipeline(param.Parameterized):
 
         dh = y_range[1] - y_range[0]
         dw = x_range[1] - x_range[0]
-        plot.image_rgba(image=[pix.img], x=x_range[0], y=y_range[0], dw=dw, dh=dh, dilate=False)
+        plot.image_rgba(image=[pix.img], x=x_range[0], y=y_range[0],
+                        dw=dw, dh=dh, dilate=False)
