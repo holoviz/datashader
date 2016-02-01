@@ -23,16 +23,16 @@ class Interpolate(param.Parameterized):
     """
 
     low = param.Parameter(default="lightpink", doc="""
-         Color string or tuple specifying the starting point for interpolation.""")
+        Color string or tuple specifying the starting point for interpolation.""")
 
     high = param.Parameter(default="red", doc="""
-         Color string or tuple specifying the ending point for interpolation.""")
+        Color string or tuple specifying the ending point for interpolation.""")
 
     how = param.Parameter(default="log", doc="""
-         Function object or string specifying how to map from a scalar into color space.""")
+        Function object or string specifying how to map from a scalar into color space.""")
 
     def __call__(self, agg):
-            return tf.interpolate(agg, self.low, self.high, self.how)
+        return tf.interpolate(agg, self.low, self.high, self.how)
 
 
 class DatashaderPipeline(param.Parameterized):
