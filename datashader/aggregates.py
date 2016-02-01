@@ -33,6 +33,14 @@ def _validate_aligned(a, b):
                                   "non-matching axis or shape")
 
 
+_ufunc_lookup = {'sum': np.nansum,
+                 'min': np.nanmin,
+                 'max': np.nanmax,
+                 'mean': np.nanmean,
+                 'std': np.nanstd,
+                 'var': np.nanvar}
+
+
 def dynd_op(op, left, right):
     if isinstance(left, nd.array):
         left_np, left_missing = dynd_to_np_mask(left)
@@ -285,6 +293,40 @@ class CategoricalAggregate(Aggregate):
         """
         from .transfer_functions import colorize
         return colorize(self, color_key, **kwargs)
+
+    def flatten(self, how='sum'):
+        """Flatten along the categorical axis, reducing by `how`.
+
+        Parameters
+        ----------
+        how : string, optional
+            How to reduce along the axis. Options are 'sum' [default], 'min',
+            'max', 'mean', 'std', and 'var'.
+
+        Returns
+        -------
+        ScalarAggregate
+        """
+        if how in _ufunc_lookup:
+            how = _ufunc_lookup[how]
+        else:
+            raise TypeError("Unknown `how` {0}".format(how))
+        arr, mask = dynd_to_np_mask(self._data)
+        otype = how(np.array([1, 2, 3], dtype=arr.dtype)).dtype
+        if is_option(self._data.dtype):
+            arr2 = np.where(mask, np.nan, arr.astype('f8'))
+            out = how(arr2, axis=2)
+            if out.dtype != otype:
+                out = np.where(np.isnan(out), dynd_missing_types[otype],
+                               out.astype(otype))
+            out = nd.asarray(out)
+            out = out.view_scalars('?' + str(out.dtype))
+        else:
+            out = how(arr, axis=2)
+            if out.dtype != otype:
+                out = out.astype(otype)
+            out = nd.asarray(out)
+        return ScalarAggregate(out, self.x_axis, self.y_axis)
 
 
 class RecordAggregate(Aggregate):

@@ -182,6 +182,29 @@ def test_categorical_agg_where():
         agg.where(temp)
 
 
+@pytest.mark.parametrize('how', ['sum', 'mean', 'max', 'min', 'std', 'var'])
+def test_flatten(how):
+    data = nd.array([[(0, 12, 0), (3, 0, 3)],
+                     [(12, 12, 12), (24, 0, 0)]])
+    cats = ['a', 'b', 'c']
+    agg = CategoricalAggregate(data, cats, x_axis, y_axis)
+    assert_dynd_eq(agg.flatten(how=how)._data,
+                   nd.asarray(getattr(np, 'nan' + how)(data, axis=2)))
+    data = nd.array([[(0, 12, 0), (3, 0, 3)],
+                     [(12, 12, 12), (24, 0, None)]])
+    agg = CategoricalAggregate(data, cats, x_axis, y_axis)
+    data2 = data.ucast('?float64').eval().view_scalars('float64')
+    if how == 'sum':
+        otype = '?int64'
+    elif how in ('mean', 'std', 'var'):
+        otype = '?float64'
+    else:
+        otype = '?int32'
+    assert_dynd_eq(agg.flatten(how=how)._data,
+                   nd.asarray(getattr(np, 'nan' + how)(data2, axis=2))
+                   .view_scalars('?float64').ucast(otype).eval())
+
+
 def test_categorical_agg():
     data = np.array([[(0, 12, 0), (3, 0, 3)],
                      [(12, 12, 12), (24, 0, 0)]], dtype='i4')
