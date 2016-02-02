@@ -9,7 +9,7 @@ from bokeh.util.notebook import get_comms
 
 
 class IPythonKernelCallback(object):
-    
+
     jscode="""
         // Define a callback to capture errors on the Python side
         function callback(msg){{
@@ -19,7 +19,7 @@ class IPythonKernelCallback(object):
         function update_plot() {{
             callbacks = {{iopub: {{output: callback}}}};
             var plot = Bokeh.index['{plot_id}'];
-            
+
             // Generate a command to execute in Python
             var ranges = {{xmin: x_range.attributes.start,
                           ymin: y_range.attributes.start,
@@ -27,7 +27,7 @@ class IPythonKernelCallback(object):
                           ymax: y_range.attributes.end,
                           w: plot.frame.get('width'),
                           h: plot.frame.get('height')}}
-                          
+
             var range_str = JSON.stringify(ranges)
             var cmd = "{cmd}(" + range_str + ")"
 
@@ -35,11 +35,11 @@ class IPythonKernelCallback(object):
             var kernel = IPython.notebook.kernel;
             kernel.execute(cmd, callbacks, {{silent : false}});
         }}
-    
+
         if (!Bokeh._throttle) {{
             Bokeh._throttle = {{}}
         }}
-        
+
         var throttled_cb = Bokeh._throttle['{ref}'];
         if (throttled_cb) {{
             throttled_cb()
@@ -48,9 +48,9 @@ class IPythonKernelCallback(object):
             Bokeh._throttle['{ref}']()
         }}
     """
-    
+
     cmd_template = "from {module} import {cls}; {cls}._callbacks['{ref}'].update_image"
-    
+
     _callbacks = {}
 
     def __init__(self, bokeh_plot, callback, throttle=100, **kwargs):
@@ -62,8 +62,7 @@ class IPythonKernelCallback(object):
         w, h = self.p.plot_width, self.p.plot_height
         xmin, xmax = self.p.x_range.start, self.p.x_range.end
         ymin, ymax = self.p.y_range.start, self.p.y_range.end
-        ranges = dict(x_range=(xmin, xmax), y_range=(ymin, ymax), w=w, h=h)
-        callback(self.p, ranges, **kwargs)
+        callback((xmin, xmax), (ymin, ymax), w, h, **kwargs)
 
         # Register callback on the class with unique reference
         cls = type(self)
@@ -97,9 +96,15 @@ class IPythonKernelCallback(object):
                                       self.doc.to_json())
 
         self.p.renderers.pop()
-        ranges['x_range'] = (ranges['xmin'], ranges['xmax'])
-        ranges['y_range'] = (ranges['ymin'], ranges['ymax'])
-        self.callback(self.p, ranges, **self.kwargs)
+        x_range = (ranges['xmin'], ranges['xmax'])
+        y_range = (ranges['ymin'], ranges['ymax'])
+
+        image = self.callback(x_range,y_range,ranges['w'],ranges['h'], **self.kwargs)
+ 
+        dh = y_range[1] - y_range[0]
+        dw = x_range[1] - x_range[0]
+        self.p.image_rgba(image=[image.img], x=x_range[0], y=y_range[0],
+                          dw=dw, dh=dh, dilate=False)
 
         to_json = self.doc.to_json()
         msg = Document._compute_patch_between_json(self.comms.json, to_json)
@@ -109,4 +114,3 @@ class IPythonKernelCallback(object):
 
     def _repr_html_(self):
         return self.div
-

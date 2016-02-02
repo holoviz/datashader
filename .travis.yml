@@ -15,7 +15,7 @@ install:
   # Install dependencies
   - conda create -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - conda install numpy pandas pytest toolz numba datashape odo dask pillow
+  - conda install numpy pandas pytest toolz numba datashape odo dask pillow param
   - conda install -c dynd dynd-python
   # Need a few fixes to odo and datashape that aren't in the latest release
   - pip install --upgrade --no-deps git+https://github.com/Blaze/odo
