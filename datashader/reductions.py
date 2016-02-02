@@ -32,6 +32,9 @@ class Expr(object):
     def __eq__(self, other):
         return type(self) is type(other) and self.inputs == other.inputs
 
+    def __ne__(self, other):
+        return not self == other
+
 
 class Preprocess(Expr):
     def __init__(self, column):
