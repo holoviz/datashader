@@ -14,15 +14,17 @@ import pytest
 
 x_axis = LinearAxis((0, 10))
 y_axis = LinearAxis((1, 5))
+x_axis2 = LinearAxis((0, 10))
+y_axis2 = LinearAxis((1, 5))
 
 a = nd.array([[0, 1, 2], [3, 4, None]], '2 * 3 * ?int64')
 b = nd.array([[2, 2, None], [0, 3, 3]], '2 * 3 * ?float64')
 c = nd.array([True, False, True])
 d = nd.array([True, True, False])
 s_a = ScalarAggregate(a, x_axis=x_axis, y_axis=y_axis)
-s_b = ScalarAggregate(b, x_axis=x_axis, y_axis=y_axis)
+s_b = ScalarAggregate(b, x_axis=x_axis2, y_axis=y_axis2)
 s_c = ScalarAggregate(c, x_axis=x_axis, y_axis=y_axis)
-s_d = ScalarAggregate(d, x_axis=x_axis, y_axis=y_axis)
+s_d = ScalarAggregate(d, x_axis=x_axis2, y_axis=y_axis2)
 
 
 def assert_dynd_eq(a, b, check_dtype=True):
