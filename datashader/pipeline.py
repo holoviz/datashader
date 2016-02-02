@@ -3,11 +3,11 @@ from __future__ import absolute_import, division, print_function
 """
 Declarative interface to Datashader.
 
-Provides a configurable pipeline that makes it simpler to specify
-individual stages independently from the others, Currently does not
-add any new underlying capabilities, with all functionality also
-available using the default imperative interface provided by other
-files.
+Provides a configurable pipeline that makes it more convenient to
+specify individual stages independently from the others.  Does not
+cover all possible datashader functionality, and does not add any new
+underlying capabilities; all functionality is also available using the
+default imperative interface provided by other files.
 """
 
 import param
@@ -36,12 +36,12 @@ class Interpolate(param.Parameterized):
         return tf.interpolate(agg, self.low, self.high, self.how)
 
 
-class DatashaderPipeline(param.Parameterized):
+class Pipeline(param.Parameterized):
     """
-    Configurable datashading pipeline for use with Bokeh.  Allows each
-    element of the pipeline to be specified independently without code
-    duplication, e.g. to show the effect of varying that element while
-    keeping the rest of the pipeline constant.
+    Configurable datashading pipeline.  Allows each element of the
+    pipeline to be specified independently without code duplication,
+    e.g. to show the effect of varying that element while keeping the
+    rest of the pipeline constant.
 
     Given a dataframe-like object df, the supported pipeline is roughly:
 
@@ -70,20 +70,17 @@ class DatashaderPipeline(param.Parameterized):
         Function to convert a scalar aggregated bin value into a color.""")
 
 
-    def __call__(self, plot, ranges, **params):
+    def __call__(self, x_range, y_range, w, h, **params):
         """
-        Accepts a Bokeh plot and a viewport specified via a ranges dictionary
-        (which should contain x_range and y_range specifying the viewport in
-        data space, and h and w specifying the resolution).
+        Accepts a viewport in data space specified as 
+        x_range (xmin,xmax), y_range (ymin,ymax), and a rendering
+        resolution w x h.
 
         Returns an image of the specified height and width, rendered
         over the specified range in data space, using the current
         parameter values.
         """
         ps = param.ParamOverrides(self,params)
-
-        x_range, y_range = ranges['x_range'], ranges['y_range']
-        h, w = ranges['h'], ranges['w']
 
         canvas = core.Canvas(plot_width=w, plot_height=h,
                              x_range=x_range, y_range=y_range)
@@ -92,9 +89,8 @@ class DatashaderPipeline(param.Parameterized):
 
         for f in ps.transfer_fns:
             agg = f(bins)
+
         pixels = ps.color_fn(bins)
 
-        dh = y_range[1] - y_range[0]
-        dw = x_range[1] - x_range[0]
-        plot.image_rgba(image=[pixels.img], x=x_range[0], y=y_range[0],
-                        dw=dw, dh=dh, dilate=False)
+        return pixels
+

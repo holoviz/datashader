@@ -6,6 +6,7 @@ from .core import Canvas
 from .reductions import (count, sum, min, max, mean, std, var, count_cat,
                          summary)
 from .glyphs import Point
+from .pipeline import Pipeline, Interpolate
 
 # Needed to build the backend dispatch
 from .pandas import *
