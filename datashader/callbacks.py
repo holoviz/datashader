@@ -49,7 +49,7 @@ class IPythonKernelCallback(object):
         }}
     """
 
-    cmd_template = "from {module} import {cls}; {cls}._callbacks['{ref}'].update_image"
+    cmd_template = "from {module} import {cls}; {cls}._callbacks['{ref}'].update"
 
     _callbacks = {}
 
@@ -62,7 +62,8 @@ class IPythonKernelCallback(object):
         w, h = self.p.plot_width, self.p.plot_height
         xmin, xmax = self.p.x_range.start, self.p.x_range.end
         ymin, ymax = self.p.y_range.start, self.p.y_range.end
-        callback((xmin, xmax), (ymin, ymax), w, h, **kwargs)
+        self.redraw_image({'xmin': xmin, 'xmax': xmax, 'ymin': ymin,
+                           'ymax': ymax, 'w': w, 'h': h})
 
         # Register callback on the class with unique reference
         cls = type(self)
@@ -90,26 +91,28 @@ class IPythonKernelCallback(object):
             self.div = notebook_div(self.p, self.ref)
 
 
-    def update_image(self, ranges):
+    def update(self, ranges):
         if not self.comms:
             self.comms = _CommsHandle(get_comms(self.ref), self.doc,
                                       self.doc.to_json())
-
         self.p.renderers.pop()
-        x_range = (ranges['xmin'], ranges['xmax'])
-        y_range = (ranges['ymin'], ranges['ymax'])
-
-        image = self.callback(x_range,y_range,ranges['w'],ranges['h'], **self.kwargs)
- 
-        dh = y_range[1] - y_range[0]
-        dw = x_range[1] - x_range[0]
-        self.p.image_rgba(image=[image.img], x=x_range[0], y=y_range[0],
-                          dw=dw, dh=dh, dilate=False)
+        self.redraw_image(ranges)
 
         to_json = self.doc.to_json()
         msg = Document._compute_patch_between_json(self.comms.json, to_json)
         self.comms._json[self.doc] = to_json
         self.comms.comms.send(json.dumps(msg))
+
+
+    def redraw_image(self, ranges):
+        x_range = (ranges['xmin'], ranges['xmax'])
+        y_range = (ranges['ymin'], ranges['ymax'])
+
+        image = self.callback(x_range,y_range,ranges['w'],ranges['h'], **self.kwargs)
+        dh = y_range[1] - y_range[0]
+        dw = x_range[1] - x_range[0]
+        self.p.image_rgba(image=[image.img], x=x_range[0], y=y_range[0],
+                          dw=dw, dh=dh, dilate=False)
 
 
     def _repr_html_(self):
