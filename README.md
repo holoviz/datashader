@@ -36,13 +36,24 @@ python setup.py develop
 
 ```
 cd examples
-
-# Download the sample data. This may take a while, even on a good connection.
-python download_sample_data.py
-
-# Run the example
-cd dashboard
-python dashboard.py --config nyc_taxi.yml
 ```
 
-and then point your browser to the appropriate URL, which is localhost:5000 by default.
+Download the sample data. This may take 20 minutes on a good connection, and more otherwise:
+```
+python download_sample_data.py
+```
+
+Dashboard example:
+```
+cd dashboard
+python dashboard.py --config nyc_taxi.yml
+cd ..
+```
+
+(and then point your browser to the appropriate URL, which is localhost:5000 by default.)
+
+Jupyter notebook example:
+```
+jupyter notebook
+```
+(and then select `nyc_taxi.ipynb` from within the Jupyter notebook, and select `Cell/Run all` to create interactive plots.)
