@@ -2,7 +2,7 @@ import uuid, json
 
 from bokeh.embed import notebook_div
 from bokeh.document import Document
-from bokeh.models import CustomJS
+from bokeh.models import CustomJS, ColumnDataSource
 from bokeh.model import _ModelInDocument as add_to_document
 from bokeh.io import _CommsHandle
 from bokeh.util.notebook import get_comms
@@ -58,12 +58,17 @@ class IPythonKernelCallback(object):
         self.callback = callback
         self.kwargs = kwargs
 
-        # Initialize callback with plot ranges
+        # Initialize RGBA image glyph and datasource
         w, h = self.p.plot_width, self.p.plot_height
         xmin, xmax = self.p.x_range.start, self.p.x_range.end
         ymin, ymax = self.p.y_range.start, self.p.y_range.end
-        self.redraw_image({'xmin': xmin, 'xmax': xmax, 'ymin': ymin,
-                           'ymax': ymax, 'w': w, 'h': h})
+        dw, dh = xmax-xmin, ymax-ymin
+        image = self.callback((xmin, xmax), (ymin, ymax), w, h, **self.kwargs)
+
+        self.ds = ColumnDataSource(data=dict(image=[image.img], x=[xmin],
+                                             y=[ymin], dw=[dw], dh=[dh]))
+        self.p.image_rgba(source=self.ds, image='image', x='x', y='y',
+                          dw='dw', dh='dh', dilate=False)
 
         # Register callback on the class with unique reference
         cls = type(self)
@@ -83,21 +88,20 @@ class IPythonKernelCallback(object):
         self.p.x_range.callback = callback
         self.p.y_range.callback = callback
 
-        self.comms = None
         # Initialize document
         doc_handler = add_to_document(self.p)
         with doc_handler:
             self.doc = doc_handler._doc
             self.div = notebook_div(self.p, self.ref)
+        self.comms = None
 
 
     def update(self, ranges):
         if not self.comms:
             self.comms = _CommsHandle(get_comms(self.ref), self.doc,
                                       self.doc.to_json())
-        self.p.renderers.pop()
-        self.redraw_image(ranges)
 
+        self.redraw_image(ranges)
         to_json = self.doc.to_json()
         msg = Document._compute_patch_between_json(self.comms.json, to_json)
         self.comms._json[self.doc] = to_json
@@ -107,12 +111,12 @@ class IPythonKernelCallback(object):
     def redraw_image(self, ranges):
         x_range = (ranges['xmin'], ranges['xmax'])
         y_range = (ranges['ymin'], ranges['ymax'])
-
-        image = self.callback(x_range,y_range,ranges['w'],ranges['h'], **self.kwargs)
         dh = y_range[1] - y_range[0]
         dw = x_range[1] - x_range[0]
-        self.p.image_rgba(image=[image.img], x=x_range[0], y=y_range[0],
-                          dw=dw, dh=dh, dilate=False)
+
+        image = self.callback(x_range, y_range, ranges['w'], ranges['h'], **self.kwargs)
+        self.ds.data.update(dict(image=[image.img], x=[x_range[0]], y=[y_range[0]],
+                                 dw=[dw], dh=[dh]))
 
 
     def _repr_html_(self):
