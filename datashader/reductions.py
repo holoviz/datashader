@@ -86,6 +86,12 @@ class Reduction(Expr):
 
 class count(Reduction):
     _dshape = dshape(ct.int32)
+    def __init__(self, column=None):
+        self.column = column
+
+    @property
+    def inputs(self):
+        return (extract(self.column),) if self.column else ()
 
     def validate(self, in_dshape):
         pass
@@ -95,7 +101,10 @@ class count(Reduction):
         return lambda shape: np.zeros(shape, dtype='i4')
 
     def _build_append(self, dshape):
-        return append_count
+        if self.column is None:
+            return append_count
+        else:
+            return append_count_non_na
 
     def _build_combine(self, dshape):
         return combine_count
@@ -264,8 +273,14 @@ class summary(Expr):
 # ============ Appenders ============
 
 @ngjit
-def append_count(x, y, agg, field):
+def append_count(x, y, agg):
     agg[y, x] += 1
+
+
+@ngjit
+def append_count_non_na(x, y, agg, field):
+    if not np.isnan(field):
+        agg[y, x] += 1
 
 
 @ngjit
@@ -284,20 +299,22 @@ def append_min(x, y, agg, field):
 def append_m2(x, y, m2, field, sum, count):
     # sum & count are the results of sum[y, x], count[y, x] before being
     # updated by field
-    if count == 0:
-        m2[y, x] = 0
-    else:
-        u1 = np.float64(sum) / count
-        u = np.float64(sum + field) / (count + 1)
-        m2[y, x] += (field - u1) * (field - u)
+    if not np.isnan(field):
+        if count == 0:
+            m2[y, x] = 0
+        else:
+            u1 = np.float64(sum) / count
+            u = np.float64(sum + field) / (count + 1)
+            m2[y, x] += (field - u1) * (field - u)
 
 
 @ngjit
 def append_sum(x, y, agg, field):
-    if is_missing(agg[y, x]):
-        agg[y, x] = field
-    else:
-        agg[y, x] += field
+    if not np.isnan(field):
+        if is_missing(agg[y, x]):
+            agg[y, x] = field
+        else:
+            agg[y, x] += field
 
 
 @ngjit
