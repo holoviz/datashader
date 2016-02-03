@@ -19,6 +19,8 @@ df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'f64': np.arange(20, dtype='f8'),
                    'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
 df.cat = df.cat.astype('category')
+df.f32[2] = np.nan
+df.f64[2] = np.nan
 
 ddf = dd.from_pandas(df, npartitions=3)
 
@@ -42,15 +44,17 @@ def test_count():
     out = np.array([[5, 5], [5, 5]], dtype='i4')
     eq(c.points(ddf, 'x', 'y', ds.count('i32')), out)
     eq(c.points(ddf, 'x', 'y', ds.count('i64')), out)
+    eq(c.points(df, 'x', 'y', ds.count()), out)
+    out = np.array([[4, 5], [5, 5]], dtype='i4')
     eq(c.points(ddf, 'x', 'y', ds.count('f32')), out)
-    eq(c.points(ddf, 'x', 'y', ds.count('i64')), out)
+    eq(c.points(ddf, 'x', 'y', ds.count('f64')), out)
 
 
 def test_sum():
     out = df.i32.reshape((2, 2, 5)).sum(axis=2, dtype='i8').T
     eq(c.points(ddf, 'x', 'y', ds.sum('i32')), out)
     eq(c.points(ddf, 'x', 'y', ds.sum('i64')), out)
-    out = out.astype('f8')
+    out = np.nansum(df.f64.reshape((2, 2, 5)), axis=2).T
     eq(c.points(ddf, 'x', 'y', ds.sum('f32')), out)
     eq(c.points(ddf, 'x', 'y', ds.sum('f64')), out)
 
@@ -75,6 +79,7 @@ def test_mean():
     out = df.i32.reshape((2, 2, 5)).mean(axis=2).T
     eq(c.points(ddf, 'x', 'y', ds.mean('i32')), out)
     eq(c.points(ddf, 'x', 'y', ds.mean('i64')), out)
+    out = np.nanmean(df.f64.reshape((2, 2, 5)), axis=2).T
     eq(c.points(ddf, 'x', 'y', ds.mean('f32')), out)
     eq(c.points(ddf, 'x', 'y', ds.mean('f64')), out)
 
@@ -83,6 +88,7 @@ def test_var():
     out = df.i32.reshape((2, 2, 5)).var(axis=2).T
     eq(c.points(ddf, 'x', 'y', ds.var('i32')), out)
     eq(c.points(ddf, 'x', 'y', ds.var('i64')), out)
+    out = np.nanvar(df.f64.reshape((2, 2, 5)), axis=2).T
     eq(c.points(ddf, 'x', 'y', ds.var('f32')), out)
     eq(c.points(ddf, 'x', 'y', ds.var('f64')), out)
 
@@ -91,6 +97,7 @@ def test_std():
     out = df.i32.reshape((2, 2, 5)).std(axis=2).T
     eq(c.points(ddf, 'x', 'y', ds.std('i32')), out)
     eq(c.points(ddf, 'x', 'y', ds.std('i64')), out)
+    out = np.nanstd(df.f64.reshape((2, 2, 5)), axis=2).T
     eq(c.points(ddf, 'x', 'y', ds.std('f32')), out)
     eq(c.points(ddf, 'x', 'y', ds.std('f64')), out)
 
@@ -112,8 +119,8 @@ def test_multiple_aggregates():
                               i32_sum=ds.sum('i32'),
                               i32_count=ds.count('i32')))
 
-    eq(agg.f64.std, df.f64.reshape((2, 2, 5)).std(axis=2).T)
-    eq(agg.f64.mean, df.f64.reshape((2, 2, 5)).mean(axis=2).T)
+    eq(agg.f64.std, np.nanstd(df.f64.reshape((2, 2, 5)), axis=2).T)
+    eq(agg.f64.mean, np.nanmean(df.f64.reshape((2, 2, 5)), axis=2).T)
     eq(agg.i32_sum, df.i32.reshape((2, 2, 5)).sum(axis=2).T)
     eq(agg.i32_count, np.array([[5, 5], [5, 5]], dtype='i4'))
 
