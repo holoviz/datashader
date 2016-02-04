@@ -140,7 +140,8 @@ class AppState(object):
         taxi_path = self.config['file']
 
         if not path.isabs(taxi_path):
-            taxi_path = path.join(path.split(self.config_path)[0], taxi_path)
+            config_dir = path.split(self.config_path)[0]
+            taxi_path = path.join(config_dir, taxi_path)
 
         if not path.exists(taxi_path):
             raise IOError('Unable to find input dataset: "{}"'.format(taxi_path))
