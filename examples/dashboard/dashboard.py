@@ -113,6 +113,8 @@ class AppState(object):
         if not path.exists(config_path):
             raise IOError('Unable to find config file "{}"'.format(config_path))
 
+        self.config_path = path.abspath(config_path)
+
         with open(config_path) as f:
             self.config = yaml.load(f.read())
 
@@ -120,7 +122,7 @@ class AppState(object):
         extent = self.config['initial_extent']
         self.map_extent = [extent['xmin'], extent['ymin'],
                            extent['xmax'], extent['ymax']]
-        
+
         # parse plots
         self.axes = OrderedDict()
         for p in self.config['axes']:
@@ -136,6 +138,9 @@ class AppState(object):
     def load_datasets(self):
         print('Loading Data...')
         taxi_path = self.config['file']
+
+        if not path.isabs(taxi_path):
+            taxi_path = path.join(path.split(self.config_path)[0], taxi_path)
 
         if not path.exists(taxi_path):
             raise IOError('Unable to find input dataset: "{}"'.format(taxi_path))
@@ -180,7 +185,7 @@ class AppView(object):
 
         # add ui components
         axes_select = Select.create(name='Axes',
-                                        options=self.model.axes)
+                                    options=self.model.axes)
         axes_select.on_change('value', self.on_axes_change)
 
         field_select = Select.create(name='Field', options=self.model.fields)
@@ -213,7 +218,7 @@ class AppView(object):
         for renderer in self.fig.renderers:
             if hasattr(renderer, 'image_source'):
                 renderer.image_source = ImageSource(url=self.model.service_url,
-                        extra_url_vars=self.model.shader_url_vars)
+                                                    extra_url_vars=self.model.shader_url_vars)
                 break
 
     def update_tiles(self):
