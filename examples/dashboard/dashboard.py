@@ -19,7 +19,7 @@ from bokeh.plotting import Figure
 from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer,
                           DynamicImageRenderer, HBox, VBox)
 
-from bokeh.models.widgets import Select, Slider
+from bokeh.models import Select, Slider, CheckboxGroup
 
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler
@@ -93,6 +93,10 @@ class AppState(object):
                                           '/ArcGIS/rest/services'
                                           '/World_Shaded_Relief/MapServer'
                                           '/tile/{Z}/{Y}/{X}.png')
+
+        self.labels_url = ('http://tile.stamen.com/toner-labels'
+                           '/{Z}/{X}/{Y}.png')
+
         self.basemap = self.basemaps.values()[0]
 
         # dynamic image configuration
@@ -170,8 +174,8 @@ class AppView(object):
 
         self.fig = Figure(tools='wheel_zoom,pan', x_range=self.x_range,
                           y_range=self.y_range)
-        self.fig.plot_height = 660
-        self.fig.plot_width = 990
+        self.fig.plot_height = 560
+        self.fig.plot_width = 800
         self.fig.axis.visible = False
 
         # add tiled basemap
@@ -184,6 +188,11 @@ class AppView(object):
                                         extra_url_vars=self.model.shader_url_vars)
         self.image_renderer = DynamicImageRenderer(image_source=self.image_source)
         self.fig.renderers.append(self.image_renderer)
+
+        # add label layer
+        self.label_source = WMTSTileSource(url=self.model.labels_url)
+        self.label_renderer = TileRenderer(tile_source=self.label_source)
+        self.fig.renderers.append(self.label_renderer)
 
         # add ui components
         axes_select = Select.create(name='Axes',
@@ -205,28 +214,32 @@ class AppView(object):
                                        options=self.model.basemaps)
         basemap_select.on_change('value', self.on_basemap_change)
 
-        opacity_slider = Slider(title="Opacity", value=100, start=0,
-                                end=100, step=1)
-        opacity_slider.on_change('value', self.on_opacity_slider_change)
+        image_opacity_slider = Slider(title="Opacity", value=100, start=0,
+                                      end=100, step=1)
+        image_opacity_slider.on_change('value', self.on_image_opacity_slider_change)
+
+        basemap_opacity_slider = Slider(title="Basemap Opacity", value=100, start=0,
+                                        end=100, step=1)
+        basemap_opacity_slider.on_change('value', self.on_basemap_opacity_slider_change)
+
+        show_labels_chk = CheckboxGroup(labels=["Show Labels"], active=[0])
+        show_labels_chk.on_click(self.on_labels_change)
+
 
         controls = [axes_select, field_select, aggregate_select,
-                    transfer_select, basemap_select, opacity_slider]
-        self.controls = HBox(width=self.fig.plot_width, children=controls)
-        self.layout = VBox(width=self.fig.plot_width,
-                           height=self.fig.plot_height,
-                           children=[self.controls, self.fig])
+                    transfer_select]
+
+        map_controls = [basemap_select, basemap_opacity_slider,
+                        image_opacity_slider, show_labels_chk]
+
+        self.controls = VBox(width=200, height=600, children=controls)
+        self.map_controls = HBox(width=self.fig.plot_width, children=map_controls)
+        self.map_area = VBox(width=self.fig.plot_width, children=[self.map_controls, self.fig])
+        self.layout = HBox(width=1024, children=[self.controls, self.map_area])
 
     def update_image(self):
-        for renderer in self.fig.renderers:
-            if hasattr(renderer, 'image_source'):
-                renderer.image_source = ImageSource(url=self.model.service_url,
-                                                    extra_url_vars=self.model.shader_url_vars)
-                break
-
-    def update_tiles(self):
-        for renderer in self.fig.renderers:
-            if hasattr(renderer, 'tile_source'):
-                renderer.tile_source = WMTSTileSource(url=self.model.basemap)
+        self.image_renderer.image_source = ImageSource(url=self.model.service_url,
+                        extra_url_vars=self.model.shader_url_vars)
 
     def on_field_change(self, attr, old, new):
         self.model.field = self.model.fields[new]
@@ -234,7 +247,7 @@ class AppView(object):
 
     def on_basemap_change(self, attr, old, new):
         self.model.basemap = self.model.basemaps[new]
-        self.update_tiles()
+        self.tile_renderer.tile_source = WMTSTileSource(url=self.model.basemap)
 
     def on_axes_change(self, attr, old, new):
         self.model.active_axes = self.model.axes[new]
@@ -248,11 +261,14 @@ class AppView(object):
         self.model.transfer_function = self.model.transfer_functions[new]
         self.update_image()
 
-    def on_opacity_slider_change(self, attr, old, new):
-        for renderer in self.fig.renderers:
-            if hasattr(renderer, 'image_source'):
-                renderer.alpha = new / 100
+    def on_image_opacity_slider_change(self, attr, old, new):
+        self.image_renderer.alpha = new / 100
 
+    def on_basemap_opacity_slider_change(self, attr, old, new):
+        self.tile_renderer.alpha = new / 100
+
+    def on_labels_change(self, new):
+        self.label_renderer.alpha = 1 if new else 0
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
