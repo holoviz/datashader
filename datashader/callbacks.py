@@ -144,6 +144,3 @@ class InteractiveImage(object):
 
     def _repr_html_(self):
         return self.div
-
-
-IPythonKernelCallback = InteractiveImage  # Temporary; for backwards compatibility

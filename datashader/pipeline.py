@@ -12,8 +12,6 @@ default imperative interface provided by other files.
 
 import param
 
-from functools import partial
-
 from . import transfer_functions as tf
 from . import reductions
 from . import core
@@ -49,7 +47,7 @@ class Pipeline(param.Parameterized):
         Optional function(s) to apply to the aggregated bin values, before
         they each get converted into a color.""")
 
-    color_fn = param.Callable(default=partial(tf.interpolate,low="lightblue",high="darkblue"), doc="""
+    color_fn = param.Callable(default=tf.interpolate, doc="""
         Function to convert a scalar aggregated bin value into a color.""")
 
 
