@@ -102,7 +102,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def interpolate(agg, low="lightcyan", high="darkblue", how='log'):
+def interpolate(agg, low="lightblue", high="darkblue", how='log'):
     """Convert a ScalarAggregate to an image.
 
     Parameters
