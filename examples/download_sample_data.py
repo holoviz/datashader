@@ -26,14 +26,14 @@ if not path.exists(taxi_path):
     url = ('https://storage.googleapis.com/tlc-trip-data/2015/'
            'yellow_tripdata_2015-01.csv')
     df = pd.read_csv(url)
-    df = df.loc[(df.pickup_longitude < -73.90) &
-                (df.pickup_longitude > -74.05) &
-                (df.dropoff_longitude < -73.90) &
-                (df.dropoff_longitude > -74.05) &
-                (df.pickup_latitude > 40.70) &
-                (df.pickup_latitude < 40.80) &
-                (df.dropoff_latitude > 40.70) &
-                (df.dropoff_latitude < 40.80)].copy()
+    df = df.loc[(df.pickup_longitude < -73.75) &
+                (df.pickup_longitude > -74.15) &
+                (df.dropoff_longitude < -73.75) &
+                (df.dropoff_longitude > -74.15) &
+                (df.pickup_latitude > 40.68) &
+                (df.pickup_latitude < 40.84) &
+                (df.dropoff_latitude > 40.68) &
+                (df.dropoff_latitude < 40.84)].copy()
     latlng_to_meters(df, 'pickup_latitude', 'pickup_longitude')
     latlng_to_meters(df, 'dropoff_latitude', 'dropoff_longitude')
     df.rename(columns={'pickup_longitude':'pickup_x', 'dropoff_longitude':'dropoff_x',

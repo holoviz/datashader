@@ -17,25 +17,6 @@ from . import reductions
 from . import core
 from . import glyphs
 
-
-class Interpolate(param.Parameterized):
-    """
-    Parameterized function object to interpolate colors from a scalar input.
-    """
-
-    low = param.Parameter(default="lightpink", doc="""
-        Color string or tuple specifying the starting point for interpolation.""")
-
-    high = param.Parameter(default="red", doc="""
-        Color string or tuple specifying the ending point for interpolation.""")
-
-    how = param.Parameter(default="log", doc="""
-        Function object or string specifying how to map a scalar into color space.""")
-
-    def __call__(self, agg):
-        return tf.interpolate(agg, self.low, self.high, self.how)
-
-
 class Pipeline(param.Parameterized):
     """
     Configurable datashading pipeline.  Allows each element of the
@@ -59,14 +40,14 @@ class Pipeline(param.Parameterized):
     glyph = param.ClassSelector(glyphs.Glyph,default=glyphs.Point("x","y"), doc="""
         Marker shape for each point, specified using fields for the data object.""")
 
-    agg = param.ClassSelector(reductions.Reduction, default=reductions.count("count"), 
+    agg = param.ClassSelector(reductions.Reduction, default=reductions.count(), 
         doc="""Function for incrementally reducing a bin's values into a scalar.""")
 
     transfer_fns = param.HookList(default=[], doc="""
         Optional function(s) to apply to the aggregated bin values, before
         they each get converted into a color.""")
 
-    color_fn = param.Callable(default=Interpolate(), doc="""
+    color_fn = param.Callable(default=tf.interpolate, doc="""
         Function to convert a scalar aggregated bin value into a color.""")
 
 
