@@ -3,6 +3,7 @@ from __future__ import absolute_import, print_function, division
 import argparse
 from os import path
 import yaml
+import webbrowser
 
 from collections import OrderedDict
 
@@ -63,7 +64,7 @@ class GetDataset(RequestHandler):
 class AppState(object):
     """Simple value object to hold app state"""
 
-    def __init__(self, config_file):
+    def __init__(self, config_file, app_port=5000):
 
         self.load_config_file(config_file)
 
@@ -102,7 +103,7 @@ class AppState(object):
 
         self.shader_url_vars = {}
         self.shader_url_vars['host'] = 'localhost'
-        self.shader_url_vars['port'] = 5000
+        self.shader_url_vars['port'] = app_port
 
         # set defaults
         self.load_datasets()
@@ -258,8 +259,10 @@ if __name__ == '__main__':
     parser.add_argument('--config', help='yaml config file (e.g. nyc_taxi.yml)', required=True)
     args = vars(parser.parse_args())
 
+    APP_PORT = 5000
+
     def add_roots(doc):
-        model = AppState(args['config'])
+        model = AppState(args['config'], APP_PORT)
         view = AppView(model)
         GetDataset.model = model
         doc.add_root(view.layout)
@@ -269,6 +272,9 @@ if __name__ == '__main__':
     # Start server object wired to bokeh client. Instantiating ``Server``
     # directly is used to add custom http endpoint into ``extra_patterns``.
     server = Server(app, io_loop=IOLoop(),
-                    extra_patterns=[(r"/datashader", GetDataset)], port=5000)
-    print('Starting server at http://localhost:5000/...')
+                    extra_patterns=[(r"/datashader", GetDataset)], port=APP_PORT)
+
+    print('Starting server at http://localhost:{}/...'.format(APP_PORT))
+    webbrowser.open('http://localhost:{}'.format(APP_PORT))
+
     server.start()
