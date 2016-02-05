@@ -45,15 +45,13 @@ python download_sample_data.py
 
 Dashboard example:
 ```
-cd dashboard
-python dashboard.py --config nyc_taxi.yml
-cd ..
+python dashboard/dashboard.py --config dashboard/nyc_taxi.yml 
 ```
 
-(and then point your browser to the appropriate URL, which is localhost:5000 by default.)
+(which should launch a browser tab pointing to the appropriate URL, which is localhost:5000 by default.)
 
-Jupyter notebook example:
+Jupyter notebook examples:
 ```
 jupyter notebook
 ```
-(and then select `nyc_taxi.ipynb` from within the Jupyter notebook, and select `Cell/Run all` to create interactive plots.)
+(and then select `nyc_taxi.ipynb` or `nyc_taxi-nongeo.ipynb` from within the Jupyter tab in your browser, and select `Cell/Run all` to create interactive plots.)
