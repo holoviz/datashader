@@ -1,25 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from dynd import nd
-from datashape import dshape, isnumeric, Record, Option, DataShape, maxtype
+from datashape import dshape, isnumeric, Record, Option
 from datashape import coretypes as ct
-from toolz import concat, unique, memoize
+from toolz import concat, unique
+import xarray as xr
 
-from .aggregates import ScalarAggregate, CategoricalAggregate
-from .utils import ngjit, is_missing, dynd_missing_types
-
-
-def numpy_dtype(x):
-    if hasattr(x, 'ty'):
-        return numpy_dtype(x.ty)
-    return x.to_numpy_dtype()
-
-
-def optionify(d):
-    if isinstance(d, DataShape):
-        return DataShape(*(optionify(i) for i in d.parameters))
-    return d if isinstance(d, Option) else Option(d)
+from .utils import ngjit
 
 
 class Expr(object):
@@ -61,9 +48,7 @@ class Reduction(Expr):
             raise ValueError("input must be numeric")
 
     def out_dshape(self, in_dshape):
-        if hasattr(self, '_dshape'):
-            return self._dshape
-        return dshape(optionify(in_dshape.measure[self.column]))
+        return self._dshape
 
     @property
     def inputs(self):
@@ -77,15 +62,33 @@ class Reduction(Expr):
     def _temps(self):
         return ()
 
-    @memoize
     def _build_create(self, dshape):
-        dtype = numpy_dtype(dshape.measure)
-        value = dynd_missing_types[dtype]
-        return lambda shape: np.full(shape, value, dtype=dtype)
+        return self._create
+
+    def _build_append(self, dshape):
+        return self._append
+
+    def _build_combine(self, dshape):
+        return self._combine
+
+    def _build_finalize(self, dshape):
+        return self._finalize
+
+
+@ngjit
+def append_count(x, y, agg):
+    agg[y, x] += 1
+
+
+@ngjit
+def append_count_non_na(x, y, agg, field):
+    if not np.isnan(field):
+        agg[y, x] += 1
 
 
 class count(Reduction):
     _dshape = dshape(ct.int32)
+
     def __init__(self, column=None):
         self.column = column
 
@@ -96,93 +99,103 @@ class count(Reduction):
     def validate(self, in_dshape):
         pass
 
-    @memoize
-    def _build_create(self, dshape):
-        return lambda shape: np.zeros(shape, dtype='i4')
+    @staticmethod
+    def _create(shape):
+        return np.zeros(shape, dtype='i4')
 
     def _build_append(self, dshape):
-        if self.column is None:
-            return append_count
-        else:
-            return append_count_non_na
+        return append_count if self.column is None else append_count_non_na
 
-    def _build_combine(self, dshape):
-        return combine_count
+    @staticmethod
+    def _combine(aggs):
+        return aggs.sum(axis=0, dtype='i4')
 
-    def _build_finalize(self, dshape):
-        return build_finalize_identity(ct.int32)
-
-
-class sum(Reduction):
-    def out_dshape(self, input_dshape):
-        return dshape(optionify(maxtype(input_dshape.measure[self.column])))
-
-    def _build_append(self, dshape):
-        return append_sum
-
-    def _build_combine(self, dshape):
-        return combine_sum
-
-    def _build_finalize(self, dshape):
-        return build_finalize_identity(self.out_dshape(dshape))
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        return xr.DataArray(bases[0], **kwargs)
 
 
-class min(Reduction):
-    @memoize
-    def _build_create(self, dshape):
-        dtype = numpy_dtype(dshape.measure)
-        if np.issubdtype(dtype, np.floating):
-            value = np.inf
-        else:
-            value = np.iinfo(dtype).max
-        return lambda shape: np.full(shape, value, dtype=dtype)
+class FloatingReduction(Reduction):
+    _dshape = dshape(Option(ct.float64))
 
-    def _build_append(self, dshape):
-        return append_min
+    @staticmethod
+    def _create(shape):
+        return np.full(shape, np.nan, dtype='f8')
 
-    def _build_combine(self, dshape):
-        return combine_min
-
-    def _build_finalize(self, dshape):
-        return build_finalize_min(dshape.measure[self.column])
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        return xr.DataArray(bases[0], **kwargs)
 
 
-class max(Reduction):
-    @memoize
-    def _build_create(self, dshape):
-        dtype = numpy_dtype(dshape.measure)
-        if np.issubdtype(dtype, np.floating):
-            value = -np.inf
-        else:
-            value = np.iinfo(dtype).min
-        return lambda shape: np.full(shape, value, dtype=dtype)
+class sum(FloatingReduction):
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not np.isnan(field):
+            if np.isnan(agg[y, x]):
+                agg[y, x] = field
+            else:
+                agg[y, x] += field
 
-    def _build_append(self, dshape):
-        return append_max
-
-    def _build_combine(self, dshape):
-        return combine_max
-
-    def _build_finalize(self, dshape):
-        return build_finalize_max(dshape.measure[self.column])
+    @staticmethod
+    def _combine(aggs):
+        missing_vals = np.isnan(aggs)
+        all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
+        set_to_zero = missing_vals & ~all_empty
+        return np.where(set_to_zero, 0, aggs).sum(axis=0)
 
 
-class m2(Reduction):
+class m2(FloatingReduction):
     """Second moment"""
-    _dshape = dshape(ct.float64)
-
     @property
     def _temps(self):
         return (sum(self.column), count(self.column))
 
-    def _build_append(self, dshape):
-        return append_m2
+    @staticmethod
+    @ngjit
+    def _append(x, y, m2, field, sum, count):
+        # sum & count are the results of sum[y, x], count[y, x] before being
+        # updated by field
+        if not np.isnan(field):
+            if count == 0:
+                m2[y, x] = 0
+            else:
+                u1 = np.float64(sum) / count
+                u = np.float64(sum + field) / (count + 1)
+                m2[y, x] += (field - u1) * (field - u)
 
-    def _build_combine(self, dshape):
-        return combine_m2
+    @staticmethod
+    def _combine(Ms, sums, ns):
+        mu = np.nansum(sums, axis=0) / ns.sum(axis=0)
+        return np.nansum(Ms + ns*(sums/ns - mu)**2, axis=0)
 
-    def _build_finalize(self, dshape):
-        return build_finalize_identity(ct.float64)
+
+class min(FloatingReduction):
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if np.isnan(agg[y, x]):
+            agg[y, x] = field
+        elif agg[y, x] > field:
+            agg[y, x] = field
+
+    @staticmethod
+    def _combine(aggs):
+        return np.nanmin(aggs, axis=0)
+
+
+class max(FloatingReduction):
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if np.isnan(agg[y, x]):
+            agg[y, x] = field
+        elif agg[y, x] < field:
+            agg[y, x] = field
+
+    @staticmethod
+    def _combine(aggs):
+        return np.nanmax(aggs, axis=0)
 
 
 class count_cat(Reduction):
@@ -202,16 +215,22 @@ class count_cat(Reduction):
         n_cats = len(out_dshape.measure.fields)
         return lambda shape: np.zeros(shape + (n_cats,), dtype='i4')
 
-    def _build_append(self, dshape):
-        return append_count_cat
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        agg[y, x, field] += 1
 
-    def _build_combine(self, dshape):
-        return combine_count_cat
+    @staticmethod
+    def _combine(aggs):
+        return aggs.sum(axis=0, dtype='i4')
 
     def _build_finalize(self, dshape):
-        cats = dshape[self.column].categories
+        cats = list(dshape[self.column].categories)
+
         def finalize(bases, **kwargs):
-            return CategoricalAggregate(nd.asarray(bases[0]), cats, **kwargs)
+            dims = kwargs['dims'] + [self.column]
+            coords = kwargs['coords'] + [cats]
+            return xr.DataArray(bases[0], dims=dims, coords=coords)
         return finalize
 
 
@@ -222,8 +241,12 @@ class mean(Reduction):
     def _bases(self):
         return (sum(self.column), count(self.column))
 
-    def _build_finalize(self, dshape):
-        return finalize_mean
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        sums, counts = bases
+        with np.errstate(divide='ignore', invalid='ignore'):
+            x = sums/counts
+        return xr.DataArray(x, **kwargs)
 
 
 class var(Reduction):
@@ -233,8 +256,12 @@ class var(Reduction):
     def _bases(self):
         return (sum(self.column), count(self.column), m2(self.column))
 
-    def _build_finalize(self, dshape):
-        return finalize_var
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        sums, counts, m2s = bases
+        with np.errstate(divide='ignore', invalid='ignore'):
+            x = m2s/counts
+        return xr.DataArray(x, **kwargs)
 
 
 class std(Reduction):
@@ -244,8 +271,12 @@ class std(Reduction):
     def _bases(self):
         return (sum(self.column), count(self.column), m2(self.column))
 
-    def _build_finalize(self, dshape):
-        return finalize_std
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        sums, counts, m2s = bases
+        with np.errstate(divide='ignore', invalid='ignore'):
+            x = np.sqrt(m2s/counts)
+        return xr.DataArray(x, **kwargs)
 
 
 class summary(Expr):
@@ -268,157 +299,3 @@ class summary(Expr):
     @property
     def inputs(self):
         return tuple(unique(concat(v.inputs for v in self.values)))
-
-
-# ============ Appenders ============
-
-@ngjit
-def append_count(x, y, agg):
-    agg[y, x] += 1
-
-
-@ngjit
-def append_count_non_na(x, y, agg, field):
-    if not np.isnan(field):
-        agg[y, x] += 1
-
-
-@ngjit
-def append_max(x, y, agg, field):
-    if agg[y, x] < field:
-        agg[y, x] = field
-
-
-@ngjit
-def append_min(x, y, agg, field):
-    if agg[y, x] > field:
-        agg[y, x] = field
-
-
-@ngjit
-def append_m2(x, y, m2, field, sum, count):
-    # sum & count are the results of sum[y, x], count[y, x] before being
-    # updated by field
-    if not np.isnan(field):
-        if count == 0:
-            m2[y, x] = 0
-        else:
-            u1 = np.float64(sum) / count
-            u = np.float64(sum + field) / (count + 1)
-            m2[y, x] += (field - u1) * (field - u)
-
-
-@ngjit
-def append_sum(x, y, agg, field):
-    if not np.isnan(field):
-        if is_missing(agg[y, x]):
-            agg[y, x] = field
-        else:
-            agg[y, x] += field
-
-
-@ngjit
-def append_count_cat(x, y, agg, field):
-    agg[y, x, field] += 1
-
-
-# ============ Combiners ============
-
-def combine_count(aggs):
-    return aggs.sum(axis=0, dtype='i4')
-
-
-def combine_sum(aggs):
-    missing_val = dynd_missing_types[aggs.dtype]
-    missing_vals = is_missing(aggs)
-    all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
-    set_to_zero = missing_vals & ~all_empty
-    out = np.where(set_to_zero, 0, aggs).sum(axis=0)
-    if missing_val is not np.nan:
-        out[all_empty] = missing_val
-    return out
-
-
-def combine_min(aggs):
-    return np.nanmin(aggs, axis=0)
-
-
-def combine_max(aggs):
-    return np.nanmax(aggs, axis=0)
-
-
-def combine_m2(Ms, sums, ns):
-    sums = as_float64(sums)
-    mu = np.nansum(sums, axis=0) / ns.sum(axis=0)
-    return np.nansum(Ms + ns*(sums/ns - mu)**2, axis=0)
-
-
-def combine_count_cat(aggs):
-    return aggs.sum(axis=0, dtype='i4')
-
-
-# ============ Finalizers ============
-
-def build_finalize_identity(dshape):
-    dshape = str(dshape)
-    def finalize(bases, **kwargs):
-        return ScalarAggregate(nd.asarray(bases[0]).view_scalars(dshape),
-                               **kwargs)
-    return finalize
-
-
-@memoize
-def build_finalize_min(dshape):
-    dtype = numpy_dtype(dshape.measure)
-    missing = dynd_missing_types[dtype]
-    if np.issubdtype(dtype, np.floating):
-        is_missing = np.isposinf
-    else:
-        value = np.iinfo(dtype).max
-        is_missing = lambda x: x == value
-    dshape = str(dshape)
-    def finalize(bases, **kwargs):
-        x = np.where(is_missing(bases[0]), missing, bases[0])
-        return ScalarAggregate(nd.asarray(x).view_scalars(dshape), **kwargs)
-    return finalize
-
-
-@memoize
-def build_finalize_max(dshape):
-    dtype = numpy_dtype(dshape.measure)
-    missing = dynd_missing_types[dtype]
-    if np.issubdtype(dtype, np.floating):
-        is_missing = np.isneginf
-    else:
-        value = np.iinfo(dtype).max
-        is_missing = lambda x: x == value
-    dshape = str(dshape)
-    def finalize(bases, **kwargs):
-        x = np.where(is_missing(bases[0]), missing, bases[0])
-        return ScalarAggregate(nd.asarray(x).view_scalars(dshape), **kwargs)
-    return finalize
-
-
-def as_float64(arr):
-    return np.where(is_missing(arr), np.nan, arr.astype('f8'))
-
-
-def finalize_mean(bases, **kwargs):
-    sums, counts = bases
-    with np.errstate(divide='ignore', invalid='ignore'):
-        x = as_float64(sums)/counts
-    return ScalarAggregate(nd.asarray(x).view_scalars('?float64'), **kwargs)
-
-
-def finalize_var(bases, **kwargs):
-    sums, counts, m2s = bases
-    with np.errstate(divide='ignore', invalid='ignore'):
-        x = as_float64(m2s)/counts
-    return ScalarAggregate(nd.asarray(x).view_scalars('?float64'), **kwargs)
-
-
-def finalize_std(bases, **kwargs):
-    sums, counts, m2s = bases
-    with np.errstate(divide='ignore', invalid='ignore'):
-        x = np.sqrt(as_float64(m2s)/counts)
-    return ScalarAggregate(nd.asarray(x).view_scalars('?float64'), **kwargs)

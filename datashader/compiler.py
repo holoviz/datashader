@@ -4,8 +4,8 @@ from itertools import count
 
 from toolz import unique, concat, pluck, get, memoize
 import numpy as np
+import xarray as xr
 
-from .aggregates import RecordAggregate
 from .reductions import summary
 from .utils import ngjit, _exec
 
@@ -44,8 +44,8 @@ def compile_components(agg, schema):
         reducing step in a reduction tree.
 
     ``finalize(aggs)``
-        Given a tuple of base numpy arrays, returns the finalized
-        ``dynd`` array.
+        Given a tuple of base numpy arrays, returns the finalized ``DataArray``
+        or ``Dataset``.
     """
     reds = list(traverse_aggregation(agg))
 
@@ -139,7 +139,7 @@ def make_finalize(bases, agg, schema):
         def finalize(bases, **kwargs):
             data = {key: finalizer(get(inds, bases), **kwargs)
                     for (key, finalizer, inds) in calls}
-            return RecordAggregate(data, **kwargs)
+            return xr.Dataset(data)
         return finalize
     else:
         return agg._build_finalize(schema)
