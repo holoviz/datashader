@@ -2,6 +2,7 @@ language: python
 sudo: false
 python:
     - "2.7"
+    - "3.4"
     - "3.5"
 
 install:
@@ -15,10 +16,10 @@ install:
   # Install dependencies
   - conda create -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - conda install numpy pandas pytest toolz numba datashape odo dask pillow param xarray
+  - conda install dask numba numpy odo pandas param pillow pytest toolz xarray
   # Need a few fixes to odo and datashape that aren't in the latest release
+  - conda install -c blaze datashape
   - pip install --upgrade --no-deps git+https://github.com/Blaze/odo
-  - pip install --upgrade --no-deps git+https://github.com/Blaze/datashape
 
   - python setup.py develop --no-deps
 

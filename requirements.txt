@@ -1,8 +1,10 @@
-numpy >= 1.7
-pandas >= 0.15.0
-datashape >= 0.5.0
-toolz
-numba
-dynd
-odo
 dask
+datashape >= 0.5.1
+numba
+numpy >= 1.7
+odo >= 0.4.2
+pandas >= 0.15.0
+param
+pillow
+toolz
+xarray
