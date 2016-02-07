@@ -20,10 +20,6 @@ class Point(Glyph):
         elif not isreal(in_dshape.measure[self.y]):
             raise ValueError('y must be real')
 
-    @property
-    def inputs(self):
-        return self.x, self.y
-
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         x_name = self.x

@@ -8,14 +8,9 @@ from .utils import Dispatcher, ngjit
 
 
 class Axis(object):
-    def __eq__(self, other):
-        return (type(self) == type(other))
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        return hash(type(self))
+    def __init__(self, mapper, inverse_mapper):
+        self.mapper = mapper
+        self.inverse_mapper = inverse_mapper
 
     def scale_and_translation(self, range, n):
         start, end = map(self.mapper, range)
@@ -29,29 +24,9 @@ class Axis(object):
         return self.inverse_mapper((px - t)/s)
 
 
-class LinearAxis(Axis):
-    @staticmethod
-    @ngjit
-    def mapper(x):
-        return x
-
-    inverse_mapper = mapper
-
-
-class LogAxis(Axis):
-    @staticmethod
-    @ngjit
-    def mapper(x):
-        return np.log10(x)
-
-    @staticmethod
-    @ngjit
-    def inverse_mapper(x):
-        return 10**x
-
-
-_axis_lookup = {'linear': LinearAxis(),
-                'log': LogAxis()}
+_axis_lookup = {'linear': Axis(ngjit(lambda x: x), ngjit(lambda x: x)),
+                'log': Axis(ngjit(lambda x: np.log10(x)),
+                            ngjit(lambda x: 10**x))}
 
 
 class Canvas(object):

@@ -6,8 +6,9 @@ from toolz import unique, concat, pluck, get, memoize
 import numpy as np
 import xarray as xr
 
+from .compatibility import _exec
 from .reductions import summary
-from .utils import ngjit, _exec
+from .utils import ngjit
 
 
 __all__ = ['compile_components']
