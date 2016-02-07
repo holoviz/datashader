@@ -18,8 +18,7 @@ conda create -n datashader python=2.7
 source activate datashader
 
 # Install required packages, including latest fixes required
-conda install numpy pandas pytest toolz numba datashape odo dask pillow
-conda install -c dynd dynd-python
+conda install numpy pandas xarray toolz numba datashape odo dask pillow
 pip install --upgrade --no-deps git+https://github.com/Blaze/odo
 pip install --upgrade --no-deps git+https://github.com/Blaze/datashape
 
