@@ -74,14 +74,14 @@ class AppState(object):
         self.aggregate_functions['Sum'] = ds.sum
         self.aggregate_functions['Min'] = ds.min
         self.aggregate_functions['Max'] = ds.max
-        self.aggregate_function = self.aggregate_functions.values()[0]
+        self.aggregate_function = list(self.aggregate_functions.values())[0]
 
         # transfer function configuration
         self.transfer_functions = OrderedDict()
         self.transfer_functions['Log'] = 'log'
         self.transfer_functions['Linear'] = 'linear'
         self.transfer_functions[u"\u221B"] = 'cbrt'
-        self.transfer_function = self.transfer_functions.values()[0]
+        self.transfer_function = list(self.transfer_functions.values())[0]
 
         self.basemaps = OrderedDict()
         self.basemaps['Toner'] = ('http://tile.stamen.com/toner-background'
@@ -97,7 +97,7 @@ class AppState(object):
         self.labels_url = ('http://tile.stamen.com/toner-labels'
                            '/{Z}/{X}/{Y}.png')
 
-        self.basemap = self.basemaps.values()[0]
+        self.basemap = list(self.basemaps.values())[0]
 
         # dynamic image configuration
         self.service_url = 'http://{host}:{port}/datashader?'
@@ -132,13 +132,13 @@ class AppState(object):
         self.axes = OrderedDict()
         for p in self.config['axes']:
             self.axes[p['name']] = (p['name'], p['xaxis'], p['yaxis'])
-        self.active_axes = self.axes.values()[0]
+        self.active_axes = list(self.axes.values())[0]
 
         # parse summary field
         self.fields = OrderedDict()
         for f in self.config['summary_fields']:
             self.fields[f['name']] = f['field']
-        self.field = self.fields.values()[0]
+        self.field = list(self.fields.values())[0]
 
     def load_datasets(self):
         print('Loading Data...')
@@ -155,7 +155,7 @@ class AppState(object):
         for f in self.axes.values():
             axes_fields += [f[1], f[2]]
 
-        load_fields = self.fields.values() + axes_fields
+        load_fields = list(self.fields.values()) + axes_fields
         self.df = pd.read_csv(taxi_path, usecols=load_fields)
 
 class AppView(object):

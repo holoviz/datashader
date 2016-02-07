@@ -3,7 +3,6 @@ from __future__ import absolute_import, division
 from toolz import memoize
 
 from .utils import ngjit, isreal
-from .dispatch import dispatch
 
 
 class Glyph(object):
@@ -20,10 +19,6 @@ class Point(Glyph):
             raise ValueError('x must be real')
         elif not isreal(in_dshape.measure[self.y]):
             raise ValueError('y must be real')
-
-    @property
-    def inputs(self):
-        return self.x, self.y
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
@@ -51,12 +46,8 @@ class Point(Glyph):
 
         return extend
 
+    def _compute_x_bounds(self, df):
+        return df[self.x].min(), df[self.y].max()
 
-@dispatch(Point, object)
-def compute_x_bounds(glyph, df):
-    return df[glyph.x].min(), df[glyph.x].max()
-
-
-@dispatch(Point, object)
-def compute_y_bounds(glyph, df):
-    return df[glyph.y].min(), df[glyph.y].max()
+    def _compute_y_bounds(self, df):
+        return df[self.y].min(), df[self.y].max()
