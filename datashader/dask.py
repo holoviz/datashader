@@ -7,7 +7,6 @@ from dask.context import _globals
 from .core import pipeline
 from .compatibility import apply
 from .compiler import compile_components
-from .glyphs import compute_x_bounds, compute_y_bounds
 
 __all__ = ()
 
@@ -20,8 +19,8 @@ def dask_pipeline(df, schema, canvas, glyph, summary):
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
-    x_range = canvas.x_range or compute_x_bounds(glyph, df)
-    y_range = canvas.y_range or compute_y_bounds(glyph, df)
+    x_range = canvas.x_range or glyph._compute_x_bounds(df)
+    y_range = canvas.y_range or glyph._compute_y_bounds(df)
     x_min, x_max, y_min, y_max = bounds = compute(*(x_range + y_range))
     x_range, y_range = (x_min, x_max), (y_min, y_max)
     width = canvas.plot_width

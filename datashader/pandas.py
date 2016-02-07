@@ -4,7 +4,6 @@ import pandas as pd
 
 from .core import pipeline
 from .compiler import compile_components
-from .glyphs import compute_x_bounds, compute_y_bounds
 
 __all__ = ()
 
@@ -16,8 +15,8 @@ def pandas_pipeline(df, schema, canvas, glyph, summary):
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
-    x_range = canvas.x_range or compute_x_bounds(glyph, df)
-    y_range = canvas.y_range or compute_y_bounds(glyph, df)
+    x_range = canvas.x_range or glyph._compute_x_bounds(df)
+    y_range = canvas.y_range or glyph._compute_y_bounds(df)
     width = canvas.plot_width
     height = canvas.plot_height
 

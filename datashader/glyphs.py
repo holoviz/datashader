@@ -3,7 +3,6 @@ from __future__ import absolute_import, division
 from toolz import memoize
 
 from .utils import ngjit, isreal
-from .dispatch import dispatch
 
 
 class Glyph(object):
@@ -51,12 +50,8 @@ class Point(Glyph):
 
         return extend
 
+    def _compute_x_bounds(self, df):
+        return df[self.x].min(), df[self.y].max()
 
-@dispatch(Point, object)
-def compute_x_bounds(glyph, df):
-    return df[glyph.x].min(), df[glyph.x].max()
-
-
-@dispatch(Point, object)
-def compute_y_bounds(glyph, df):
-    return df[glyph.y].min(), df[glyph.y].max()
+    def _compute_y_bounds(self, df):
+        return df[self.y].min(), df[self.y].max()
