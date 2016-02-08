@@ -83,7 +83,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def interpolate(agg, low="lightblue", high="darkblue", how='log'):
+def interpolate(agg, low="lightblue", high="darkblue", how='cbrt'):
     """Convert a 2D DataArray to an image.
 
     Parameters
@@ -95,8 +95,8 @@ def interpolate(agg, low="lightblue", high="darkblue", how='log'):
     high : color name or tuple
         The color for the high end of the scale
     how : string or callable
-        The interpolation method to use. Valid strings are 'log' [default],
-        'cbrt', and 'linear'. Callables take a 2-dimensional array of
+        The interpolation method to use. Valid strings are 'cbrt' [default],
+        'log', and 'linear'. Callables take a 2-dimensional array of
         magnitudes at each pixel, and should return a numeric array of the same
         shape.
     """
@@ -120,7 +120,7 @@ def interpolate(agg, low="lightblue", high="darkblue", how='log'):
     return Image(img, coords=agg.coords, dims=agg.dims)
 
 
-def colorize(agg, color_key, how='log', min_alpha=20):
+def colorize(agg, color_key, how='cbrt', min_alpha=20):
     """Color a CategoricalAggregate by field.
 
     Parameters
@@ -131,8 +131,8 @@ def colorize(agg, color_key, how='log', min_alpha=20):
         field name to colors, or an iterable of colors in the same order as the
         record fields.
     how : string or callable
-        The interpolation method to use. Valid strings are 'log' [default],
-        'cbrt', and 'linear'. Callables take a 2-dimensional array of
+        The interpolation method to use. Valid strings are 'cbrt' [default],
+        'log', and 'linear'. Callables take a 2-dimensional array of
         magnitudes at each pixel, and should return a numeric array of the same
         shape.
     min_alpha : float, optional
