@@ -1,0 +1,34 @@
+package:
+  name: datashader
+  version: 0.1.0
+
+extra:
+  channels:
+    - blaze
+
+requirements:
+  build:
+    - python
+    - setuptools
+
+  run:
+    - python
+    - dask >=0.7.6
+    - datashape >=0.5.1
+    - numba >=0.23.1
+    - odo >=0.4.2
+    - numpy >=1.7
+    - pandas >=0.15.0
+    - pillow >=3.1.1
+    - xarray >=0.7.0
+    - toolz >=0.7.4
+
+test:
+  requires:
+    - pytest >=2.8.5
+  imports:
+    - datashader
+
+about:
+  home: https://github.com/bokeh/datashader
+  license: New BSD
