@@ -88,7 +88,7 @@ class InteractiveImage(object):
         dw, dh = xmax-xmin, ymax-ymin
         image = self.callback(x_range=(xmin, xmax), y_range=(ymin, ymax), w=w, h=h, **self.kwargs)
 
-        self.ds = ColumnDataSource(data=dict(image=[image.img], x=[xmin],
+        self.ds = ColumnDataSource(data=dict(image=[image.data], x=[xmin],
                                              y=[ymin], dw=[dw], dh=[dh]))
         self.p.image_rgba(source=self.ds, image='image', x='x', y='y',
                           dw='dw', dh='dh', dilate=False)
@@ -138,7 +138,7 @@ class InteractiveImage(object):
         dw = x_range[1] - x_range[0]
 
         image = self.callback(x_range=x_range, y_range=y_range, w=ranges['w'], h=ranges['h'], **self.kwargs)
-        self.ds.data.update(dict(image=[image.img], x=[x_range[0]], y=[y_range[0]],
+        self.ds.data.update(dict(image=[image.data], x=[x_range[0]], y=[y_range[0]],
                                  dw=[dw], dh=[dh]))
 
 
