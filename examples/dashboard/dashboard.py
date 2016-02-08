@@ -78,9 +78,9 @@ class AppState(object):
 
         # transfer function configuration
         self.transfer_functions = OrderedDict()
+        self.transfer_functions[u"\u221B - Cube Root"] = 'cbrt'
         self.transfer_functions['Log'] = 'log'
         self.transfer_functions['Linear'] = 'linear'
-        self.transfer_functions[u"\u221B"] = 'cbrt'
         self.transfer_function = list(self.transfer_functions.values())[0]
 
         self.basemaps = OrderedDict()
