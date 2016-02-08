@@ -4,7 +4,6 @@ numba
 numpy >= 1.7
 odo >= 0.4.2
 pandas >= 0.15.0
-param
 pillow
 toolz
 xarray
