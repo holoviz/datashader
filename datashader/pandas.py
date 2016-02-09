@@ -24,7 +24,7 @@ def pandas_pipeline(df, schema, canvas, glyph, summary):
     y_st = canvas.y_axis.compute_scale_and_translate(y_range, height)
 
     x_axis = canvas.x_axis.compute_index(x_st, width)
-    y_axis = canvas.y_axis.compute_index(y_st, width)
+    y_axis = canvas.y_axis.compute_index(y_st, height)
 
     bases = create((height, width))
     extend(bases, df, x_st + y_st, x_range + y_range)
