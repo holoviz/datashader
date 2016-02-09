@@ -36,7 +36,7 @@ python dashboard/dashboard.py --config dashboard/nyc_taxi.yml
 Most of the examples are in the form of runnable Jupyter notebooks. Copies of
 these with all the images and output included are hosted at [Anaconda
 Cloud](https://anaconda.org/jbednar/notebooks). To run these notebooks on your
-own system, install and startup a Jupyter notebook server:
+own system, install and start up a Jupyter notebook server:
 
 ```
 conda install jupyter
