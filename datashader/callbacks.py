@@ -17,9 +17,9 @@ class InteractiveImage(object):
     the image dynamically.  Works in a Jupyter/IPython notebook cell,
     using the existing notebook kernel Python process (not a separate
     Bokeh server).  Does not yet support usage outside the notebook,
-    but could be extened to use Bokeh server in that case.  
+    but could be extened to use Bokeh server in that case.
     """
-    
+
     jscode="""
         // Define a callback to capture errors on the Python side
         function callback(msg){{
@@ -74,7 +74,7 @@ class InteractiveImage(object):
 
         The throttle parameter allows control over how many times the
         callback will get executed when there are frequent closely
-        spaced events.        
+        spaced events.
         """
 
         self.p = bokeh_plot
@@ -82,11 +82,14 @@ class InteractiveImage(object):
         self.kwargs = kwargs
 
         # Initialize RGBA image glyph and datasource
-        w, h = self.p.plot_width, self.p.plot_height
+        width, height = self.p.plot_width, self.p.plot_height
         xmin, xmax = self.p.x_range.start, self.p.x_range.end
         ymin, ymax = self.p.y_range.start, self.p.y_range.end
-        dw, dh = xmax-xmin, ymax-ymin
-        image = self.callback(x_range=(xmin, xmax), y_range=(ymin, ymax), w=w, h=h, **self.kwargs)
+
+        x_range = (xmin, xmax)
+        y_range = (ymin, ymax)
+        dw, dh = xmax - xmin, ymax - ymin
+        image = self.callback(x_range, y_range, width, height, **self.kwargs)
 
         self.ds = ColumnDataSource(data=dict(image=[image.data], x=[xmin],
                                              y=[ymin], dw=[dw], dh=[dh]))
