@@ -27,7 +27,7 @@ class Expr(object):
 class Axis(object):
     """Interface for implementing axis transformations.
 
-    Instances hold implementations of implementations too and from axis space.
+    Instances hold implementations of transformations to and from axis space.
     The default implementation is equivalent to:
 
     >>> def forward_transform(data_x):

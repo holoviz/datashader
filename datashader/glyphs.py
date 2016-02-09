@@ -14,6 +14,8 @@ class Glyph(Expr):
 class Point(Glyph):
     """A point, with center at ``x`` and ``y``.
 
+    Points map each record to a single bin.
+
     Parameters
     ----------
     x, y : str

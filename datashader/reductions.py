@@ -118,7 +118,7 @@ class count(Reduction):
 
 
 class FloatingReduction(Reduction):
-    """Base classes for reductions that always have floating dtype."""
+    """Base classes for reductions that always have floating-point dtype."""
     _dshape = dshape(Option(ct.float64))
 
     @staticmethod
@@ -332,8 +332,8 @@ class std(Reduction):
     Parameters
     ----------
     column : str
-        Name of the column to aggregate over. Must be numeric. ``NaN values in
-        the column are skipped.
+        Name of the column to aggregate over. Column data type must be numeric.
+        ``NaN`` values in the column are skipped.
     """
     _dshape = dshape(Option(ct.float64))
 
