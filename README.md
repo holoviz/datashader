@@ -6,24 +6,32 @@ Datashader
 
 Datashader is a graphics pipeline system for creating meaningful
 representations of large amounts of data. It breaks the creation of images into
-2 steps:
+3 steps:
 
-1. Aggregation
+1. Projection
 
-   Data is binned per-pixel by various user specified methods into aggregates.
+   Each record is projected into zero or more bins, based on a specified glyph.
 
-2. Transformation
+2. Aggregation
+
+   Reductions are computed for each bin, compressing the potentially large
+   dataset into a much smaller *aggregate*.
+
+3. Transformation
 
    These aggregates are then further processed to create an image.
 
 Using this very general pipeline, many interesting data visualizations can be
 created in a performant and scalable way. Datashader contains tools for easily
-creating these pipelines in few lines of code.
+creating these pipelines in a composable manner, using only a few lines of code.
 
 The project is under active development, and all the code and documentation is
 subject to frequent changes.
 
 ## Installation
+
+Datashader is available using the `conda` package manager, from the `bokeh`
+channel:
 
 ```
 conda install -c bokeh datashader
@@ -31,7 +39,7 @@ conda install -c bokeh datashader
 
 ## Examples
 
-Several example can be found in the `examples` directory.
+Several examples can be found in the `examples` directory.
 
 ## Related work
 
