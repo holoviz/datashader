@@ -2,10 +2,6 @@ package:
   name: datashader
   version: 0.1.0
 
-extra:
-  channels:
-    - blaze
-
 requirements:
   build:
     - python
