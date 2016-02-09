@@ -15,10 +15,14 @@ try:
 except ImportError:
     pass
 
+
 def test():
+    """Run the datashader test suite."""
+    import os
     try:
-        import os, pytest
-        pytest.main(os.path.dirname(__file__))
+        import pytest
     except ImportError:
         import sys
-        sys.stderr.write("You need to install py.test to run tests -- conda install py.test")
+        sys.stderr.write("You need to install py.test to run tests.\n\n")
+        raise
+    pytest.main(os.path.dirname(__file__))
