@@ -6,24 +6,12 @@ from datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 
+from .core import Expr
 from .utils import ngjit
 
 
-class Expr(object):
-    def __init__(self, column):
-        self.column = column
-
-    def __hash__(self):
-        return hash((type(self), self.inputs))
-
-    def __eq__(self, other):
-        return type(self) is type(other) and self.inputs == other.inputs
-
-    def __ne__(self, other):
-        return not self == other
-
-
 class Preprocess(Expr):
+    """Base clase for preprocessing steps."""
     def __init__(self, column):
         self.column = column
 
@@ -33,16 +21,22 @@ class Preprocess(Expr):
 
 
 class extract(Preprocess):
+    """Extract a column from a dataframe as a numpy array of values."""
     def apply(self, df):
         return df[self.column].values
 
 
 class category_codes(Preprocess):
+    """Extract just the category codes from a categorical column."""
     def apply(self, df):
         return df[self.column].cat.codes.values
 
 
 class Reduction(Expr):
+    """Base class for per-bin reductions."""
+    def __init__(self, column):
+        self.column = column
+
     def validate(self, in_dshape):
         if not isnumeric(in_dshape.measure[self.column]):
             raise ValueError("input must be numeric")
@@ -87,6 +81,14 @@ def append_count_non_na(x, y, agg, field):
 
 
 class count(Reduction):
+    """Count elements in each bin.
+
+    Parameters
+    ----------
+    column : str, optional
+        If provided, only counts elements in ``column`` that are not ``NaN``.
+        Otherwise, counts every element.
+    """
     _dshape = dshape(ct.int32)
 
     def __init__(self, column=None):
@@ -116,6 +118,7 @@ class count(Reduction):
 
 
 class FloatingReduction(Reduction):
+    """Base classes for reductions that always have floating dtype."""
     _dshape = dshape(Option(ct.float64))
 
     @staticmethod
@@ -128,6 +131,14 @@ class FloatingReduction(Reduction):
 
 
 class sum(FloatingReduction):
+    """Sum of all elements in ``column``.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Column data type must be numeric.
+        ``NaN`` values in the column are skipped.
+    """
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
@@ -146,7 +157,17 @@ class sum(FloatingReduction):
 
 
 class m2(FloatingReduction):
-    """Second moment"""
+    """Sum of square differences from the mean of all elements in ``column``.
+
+    Intermediate value for computing ``var`` and ``std``, not intended to be
+    used on its own.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Column data type must be numeric.
+        ``NaN`` values in the column are skipped.
+    """
     @property
     def _temps(self):
         return (sum(self.column), count(self.column))
@@ -171,6 +192,14 @@ class m2(FloatingReduction):
 
 
 class min(FloatingReduction):
+    """Minimum value of all elements in ``column``.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Column data type must be numeric.
+        ``NaN`` values in the column are skipped.
+    """
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
@@ -185,6 +214,14 @@ class min(FloatingReduction):
 
 
 class max(FloatingReduction):
+    """Maximum value of all elements in ``column``.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Column data type must be numeric.
+        ``NaN`` values in the column are skipped.
+    """
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
@@ -199,6 +236,15 @@ class max(FloatingReduction):
 
 
 class count_cat(Reduction):
+    """Count of all elements in ``column``, grouped by category.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Column data type must be
+        categorical. Resulting aggregate has a outer dimension axis along the
+        categories present.
+    """
     def validate(self, in_dshape):
         if not isinstance(in_dshape.measure[self.column], ct.Categorical):
             raise ValueError("input must be categorical")
@@ -235,6 +281,14 @@ class count_cat(Reduction):
 
 
 class mean(Reduction):
+    """Mean of all elements in ``column``.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Column data type must be numeric.
+        ``NaN`` values in the column are skipped.
+    """
     _dshape = dshape(Option(ct.float64))
 
     @property
@@ -250,6 +304,14 @@ class mean(Reduction):
 
 
 class var(Reduction):
+    """Variance of all elements in ``column``.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Column data type must be numeric.
+        ``NaN`` values in the column are skipped.
+    """
     _dshape = dshape(Option(ct.float64))
 
     @property
@@ -265,6 +327,14 @@ class var(Reduction):
 
 
 class std(Reduction):
+    """Standard Deviation of all elements in ``column``.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Must be numeric. ``NaN values in
+        the column are skipped.
+    """
     _dshape = dshape(Option(ct.float64))
 
     @property
@@ -280,6 +350,19 @@ class std(Reduction):
 
 
 class summary(Expr):
+    """A collection of named reductions.
+
+    Computes all aggregates simultaneously, output is stored as a
+    ``xarray.Dataset``.
+
+    Examples
+    --------
+    A reduction for computing the mean of column "a", and the sum of column "b"
+    for each bin, all in a single pass.
+
+    >>> import datashader as ds
+    >>> red = ds.summary(mean_a=ds.mean('a'), sum_b=ds.sum('b'))
+    """
     def __init__(self, **kwargs):
         ks, vs = zip(*sorted(kwargs.items()))
         self.keys = ks

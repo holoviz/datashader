@@ -42,5 +42,18 @@ class Dispatcher(object):
 
 
 def isreal(dt):
+    """Check if a datashape is numeric and real.
+
+    Example
+    -------
+    >>> isreal('int32')
+    True
+    >>> isreal('float64')
+    True
+    >>> isreal('string')
+    False
+    >>> isreal('complex64')
+    False
+    """
     dt = launder(dt)
     return isinstance(dt, Unit) and dt in real

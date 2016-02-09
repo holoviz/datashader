@@ -4,14 +4,14 @@ import dask.dataframe as dd
 from dask.base import tokenize, compute
 from dask.context import _globals
 
-from .core import pipeline
+from .core import bypixel
 from .compatibility import apply
 from .compiler import compile_components
 
 __all__ = ()
 
 
-@pipeline.register(dd.DataFrame)
+@bypixel.pipeline.register(dd.DataFrame)
 def dask_pipeline(df, schema, canvas, glyph, summary):
     create, info, append, combine, finalize = compile_components(summary,
                                                                  schema)
@@ -26,13 +26,13 @@ def dask_pipeline(df, schema, canvas, glyph, summary):
     width = canvas.plot_width
     height = canvas.plot_height
 
-    x_st = canvas.x_axis.scale_and_translation(x_range, width)
-    y_st = canvas.y_axis.scale_and_translation(y_range, height)
+    x_st = canvas.x_axis.compute_scale_and_translate(x_range, width)
+    y_st = canvas.y_axis.compute_scale_and_translate(y_range, height)
     st = x_st + y_st
     shape = (height, width)
 
-    x_axis = canvas.x_axis.compute_index(width, x_st)
-    y_axis = canvas.y_axis.compute_index(height, y_st)
+    x_axis = canvas.x_axis.compute_index(x_st, width)
+    y_axis = canvas.y_axis.compute_index(y_st, height)
 
     def chunk(df):
         aggs = create(shape)

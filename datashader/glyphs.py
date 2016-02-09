@@ -2,17 +2,30 @@ from __future__ import absolute_import, division
 
 from toolz import memoize
 
+from .core import Expr
 from .utils import ngjit, isreal
 
 
-class Glyph(object):
+class Glyph(Expr):
+    """Base class for glyphs."""
     pass
 
 
 class Point(Glyph):
+    """A point, with center at ``x`` and ``y``.
+
+    Parameters
+    ----------
+    x, y : str
+        Column names for the x and y coordinates of center of each point.
+    """
     def __init__(self, x, y):
         self.x = x
         self.y = y
+
+    @property
+    def inputs(self):
+        return (self.x, self.y)
 
     def validate(self, in_dshape):
         if not isreal(in_dshape.measure[self.x]):
