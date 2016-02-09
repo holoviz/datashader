@@ -3,54 +3,49 @@ Datashader
 
 [![Build Status](https://travis-ci.org/bokeh/datashader.svg)](https://travis-ci.org/bokeh/datashader)
 
-The Datashader project is focused on building better ways to visualize
-very large datasets, using intelligent server-side downsampling,
-automatic computations performed on the data as it progresses through
-the visualization pipeline, and other related techniques.  The project
-is under active development, and all the code and documentation is
+
+Datashader is a graphics pipeline system for creating meaningful
+representations of large amounts of data. It breaks the creation of images into
+3 steps:
+
+1. Projection
+
+   Each record is projected into zero or more bins, based on a specified glyph.
+
+2. Aggregation
+
+   Reductions are computed for each bin, compressing the potentially large
+   dataset into a much smaller *aggregate*.
+
+3. Transformation
+
+   These aggregates are then further processed to create an image.
+
+Using this very general pipeline, many interesting data visualizations can be
+created in a performant and scalable way. Datashader contains tools for easily
+creating these pipelines in a composable manner, using only a few lines of code.
+
+The project is under active development, and all the code and documentation is
 subject to frequent changes.
 
 ## Installation
 
-```
-# Create a new conda environment, if desired
-conda create -n datashader python=2.7
-source activate datashader
-
-# Install required packages, including latest fixes required
-conda install numpy pandas xarray toolz numba datashape odo dask pillow
-pip install --upgrade --no-deps git+https://github.com/Blaze/odo
-pip install --upgrade --no-deps git+https://github.com/Blaze/datashape
-
-# Install Bokeh for running examples
-conda install -c https://conda.anaconda.org/bokeh/channel/dev bokeh
-
-# Install the datashader library
-git clone https://github.com/bokeh/datashader.git
-cd datashader
-python setup.py develop
-```
-
-**Running the examples**
+Datashader is available using the `conda` package manager, from the `bokeh`
+channel:
 
 ```
-cd examples
+conda install -c bokeh datashader
 ```
 
-Download the sample data. This may take 20 minutes on a good connection, and more otherwise:
-```
-python download_sample_data.py
-```
+## Examples
 
-Dashboard example:
-```
-python dashboard/dashboard.py --config dashboard/nyc_taxi.yml 
-```
+Several examples can be found in the `examples` directory.
 
-(which should launch a browser tab pointing to the appropriate URL, which is localhost:5000 by default.)
+## Related work
 
-Jupyter notebook examples:
-```
-jupyter notebook
-```
-(and then select `nyc_taxi.ipynb` or `nyc_taxi-nongeo.ipynb` from within the Jupyter tab in your browser, and select `Cell/Run all` to create interactive plots.)
+The core concepts of datashader are based off the concept of Abstract
+Rendering:
+
+- Abstract Rendering: [Out-of-core Rendering for Information
+  Visualization](http://www.crest.iu.edu/publications/prints/2014/Cottam2014OutOfCore.pdf)
+  (SPIE Conference on Visualization and Data Analysis 2014)
