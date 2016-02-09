@@ -4,6 +4,7 @@ import argparse
 from os import path
 import yaml
 import webbrowser
+import uuid
 
 from collections import OrderedDict
 
@@ -27,6 +28,7 @@ from tornado.web import RequestHandler
 from webargs import fields
 from webargs.tornadoparser import use_args
 
+
 # http request arguments for datashing HTTP request
 ds_args = {
     'width': fields.Int(missing=800),
@@ -38,6 +40,7 @@ class GetDataset(RequestHandler):
     """Handles http requests for datashading."""
     @use_args(ds_args)
     def get(self, args):
+
         # parse args
         selection = args['select'].strip(',').split(',')
         xmin, ymin, xmax, ymax = map(float, selection)
@@ -103,11 +106,13 @@ class AppState(object):
         self.service_url = 'http://{host}:{port}/datashader?'
         self.service_url += 'height={HEIGHT}&'
         self.service_url += 'width={WIDTH}&'
-        self.service_url += 'select={XMIN},{YMIN},{XMAX},{YMAX}'
+        self.service_url += 'select={XMIN},{YMIN},{XMAX},{YMAX}&'
+        self.service_url += 'cachebust={cachebust}'
 
         self.shader_url_vars = {}
         self.shader_url_vars['host'] = 'localhost'
         self.shader_url_vars['port'] = app_port
+        self.shader_url_vars['cachebust'] = str(uuid.uuid4())
 
         # set defaults
         self.load_datasets()
@@ -238,6 +243,7 @@ class AppView(object):
         self.layout = HBox(width=1024, children=[self.controls, self.map_area])
 
     def update_image(self):
+        self.model.shader_url_vars['cachebust'] = str(uuid.uuid4())
         self.image_renderer.image_source = ImageSource(url=self.model.service_url,
                         extra_url_vars=self.model.shader_url_vars)
 
