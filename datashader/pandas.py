@@ -2,13 +2,13 @@ from __future__ import absolute_import, division
 
 import pandas as pd
 
-from .core import pipeline
+from .core import bypixel
 from .compiler import compile_components
 
 __all__ = ()
 
 
-@pipeline.register(pd.DataFrame)
+@bypixel.pipeline.register(pd.DataFrame)
 def pandas_pipeline(df, schema, canvas, glyph, summary):
     create, info, append, _, finalize = compile_components(summary, schema)
     x_mapper = canvas.x_axis.mapper
@@ -20,11 +20,11 @@ def pandas_pipeline(df, schema, canvas, glyph, summary):
     width = canvas.plot_width
     height = canvas.plot_height
 
-    x_st = canvas.x_axis.scale_and_translation(x_range, width)
-    y_st = canvas.y_axis.scale_and_translation(y_range, height)
+    x_st = canvas.x_axis.compute_scale_and_translate(x_range, width)
+    y_st = canvas.y_axis.compute_scale_and_translate(y_range, height)
 
-    x_axis = canvas.x_axis.compute_index(width, x_st)
-    y_axis = canvas.y_axis.compute_index(height, y_st)
+    x_axis = canvas.x_axis.compute_index(x_st, width)
+    y_axis = canvas.y_axis.compute_index(y_st, width)
 
     bases = create((height, width))
     extend(bases, df, x_st + y_st, x_range + y_range)

@@ -24,7 +24,7 @@ install:
   - python setup.py develop --no-deps
 
 script:
-    - py.test datashader --verbose
+    - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then py.test datashader --doctest-modules --doctest-ignore-import-errors --verbose; else py.test datashader --verbose; fi
 
 notifications:
   email: false

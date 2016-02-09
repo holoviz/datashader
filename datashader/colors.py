@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 
+# Lookup of web color names to their hex codes.
 color_lookup = {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7',
                 'aqua': '#00FFFF', 'aquamarine': '#7FFFD4',
                 'azure': '#F0FFFF', 'beige': '#F5F5DC',
@@ -79,23 +80,47 @@ color_lookup = {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7',
 
 
 def hex_to_rgb(x):
-    x = x.strip('#')
-    if len(x) != 6:
+    """Convert a color hexcode to an rgb tuple.
+
+    Example
+    -------
+    >>> rgb('#FFFFFF')
+    (255, 255, 255)
+    """
+    if not (x.startswith('#') and len(x) == 7):
         raise ValueError("Invalid hex color")
-    return (int(x[:2], 16), int(x[2:4], 16), int(x[4:], 16))
+    x = x.strip('#')
+    try:
+        return (int(x[:2], 16), int(x[2:4], 16), int(x[4:], 16))
+    except ValueError:
+        raise ValueError("Invalid hex color")
 
 
 def rgb(x):
     """Return a triple representing rgb color.
 
     Can convert colors by name or hexcode. Passing in a valid rgb tuple is
-    idempotent"""
+    idempotent.
 
-    if x in color_lookup:
-        x = hex_to_rgb(color_lookup[x])
-    elif isinstance(x, str) and x.startswith('#'):
-        x = hex_to_rgb(x)
-    elif not (isinstance(x, tuple) and len(x) == 3 and min(x) >= 0 and
-              max(x) <= 255):
+    Example
+    -------
+    >>> rgb('plum')
+    (221, 160, 221)
+    >>> rgb('#FFFFFF')
+    (255, 255, 255)
+    >>> rgb((255, 255, 255))
+    (255, 255, 255)
+    """
+    if isinstance(x, str):
+        if x.startswith('#'):
+            return hex_to_rgb(x)
+        elif x in color_lookup:
+            return hex_to_rgb(color_lookup[x])
+        else:
+            raise ValueError("Unknown color: '{0}'".format(x))
+    elif isinstance(x, tuple) and len(x) == 3:
+        if min(x) < 0 or max(x) > 255:
+            raise ValueError("Invalid RGB tuple")
+    else:
         raise TypeError("Don't know how to convert {0} to RGB".format(x))
     return x
