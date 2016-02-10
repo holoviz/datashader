@@ -31,11 +31,20 @@ subject to frequent changes.
 
 ## Installation
 
-Datashader is available using the `conda` package manager, from the `bokeh`
-channel:
+Datashader is available on most platforms using the `conda` package manager,
+from the `bokeh` channel:
 
 ```
 conda install -c bokeh datashader
+```
+
+Alternatively, you can manually install from the repository:
+
+```
+git clone https://github.com/bokeh/datashader.git
+cd datashader
+conda install -c bokeh --file requirements.txt
+python setup.py install
 ```
 
 ## Examples
