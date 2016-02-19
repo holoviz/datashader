@@ -3,13 +3,16 @@ from __future__ import absolute_import, division, print_function
 from io import BytesIO
 
 import numpy as np
+import numba as nb
 import xarray as xr
 from PIL.Image import fromarray
+from toolz import memoize
 
 from .colors import rgb
+from .composite import composite_op_lookup
 
 
-__all__ = ['Image', 'merge', 'stack', 'interpolate', 'colorize']
+__all__ = ['Image', 'merge', 'stack', 'interpolate', 'colorize', 'spread']
 
 
 class Image(xr.DataArray):
@@ -163,3 +166,144 @@ def colorize(agg, color_key, how='cbrt', min_alpha=20):
     a[white] = 0
     return Image(np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape),
                  dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1])
+
+
+def spread(img, px=1, shape='circle', how='over'):
+    """Spread pixels in an image.
+
+    Spreading expands each pixel a certain number of pixels on all sides
+    according to a given shape, merging pixels using a specified compositing
+    operator. This can be useful to make sparse plots more visible.
+
+    Parameters
+    ----------
+    img : Image
+    px : int, optional
+        Number of pixels to spread on all sides
+    shape : str, optional
+        The shape to spread by. Options are 'circle' [default] or 'square'.
+    how : str, optional
+        The name of the compositing operator to use when combining pixels.
+    """
+    if not isinstance(img, Image):
+        raise TypeError("Expected `Image`, got: `{0}`".format(type(img)))
+    elif not isinstance(px, int) or px < 0:
+        raise ValueError("``px`` must be an integer >= 0")
+    if px == 0:
+        return img
+    mask = _mask_lookup[shape](px)
+    kernel = _build_spread_kernel(how)
+    w = mask.shape[0]
+    extra = w // 2
+    M, N = img.shape
+    buf = np.zeros((M + 2*extra, N + 2*extra), dtype='uint32')
+    kernel(img.data, mask, buf)
+    out = buf[extra:-extra, extra:-extra].copy()
+    return Image(out, dims=img.dims, coords=img.coords)
+
+
+@memoize
+def _build_spread_kernel(how):
+    """Build a spreading kernel for a given composite operator"""
+    op = composite_op_lookup[how]
+
+    @nb.jit(nopython=True, nogil=True)
+    def kernel(arr, mask, out):
+        M, N = arr.shape
+        w = mask.shape[0]
+        for y in range(M):
+            for x in range(N):
+                el = arr[y, x]
+                # Skip if data is transparent
+                if (el >> 24) & 255:
+                    for i in range(w):
+                        for j in range(w):
+                            # Skip if mask is False at this value
+                            if mask[i, j]:
+                                out[i + y, j + x] = op(el, out[i + y, j + x])
+    return kernel
+
+
+def _square_mask(px):
+    """Produce a square mask with sides of length ``2 * px + 1``"""
+    px = int(px)
+    w = 2 * px + 1
+    return np.ones((w, w), dtype='bool')
+
+
+def _circle_mask(r):
+    """Produce a circular mask with a diameter of ``2 * r + 1``"""
+    r = int(r)
+    w = 2 * r + 1
+    mask = np.zeros((w, w), dtype='bool')
+    _fill_circle(mask, r, r, r, True)
+    return mask
+
+
+_mask_lookup = {'square': _square_mask,
+                'circle': _circle_mask}
+
+
+@nb.jit(nopython=True, nogil=True)
+def _fill_circle(arr, x0, y0, r, val):
+    """General circle filling routine.
+
+    Low level, no bounds checking performed. Has potential to segfault if
+    misused.
+
+    Parameters
+    ----------
+    arr : 2d array
+    x0, y0 : int
+        Center coordinates of the circle.
+    r : int
+        Circle radius in pixels. Note that this excludes the center pixel - the
+        resulting circle will be ``2 * r + 1`` pixels in diameter.
+    val : scalar
+        Fill value
+    """
+    x = r
+    y = 0
+    do2 = 1 - x
+
+    # Special cases for r == 0 (fastpath) and r == 1. The normal algorithm will
+    # draw a 3x3 grid for this case, but a "+" looks a bit better in my opinion
+    if r == 0:
+        arr[y0, x0] = 1
+        return
+    elif r == 1:
+        _fill_span(arr, y0, x0 - 1, x0 + 1, val)
+        arr[y0 + 1, x0] = arr[y0 - 1, x0] = val
+        return
+    # Determine width
+    while y <= x:
+        y += 1
+        if do2 <= 0:
+            do2 += 2 * y + 1
+        else:
+            x -= 1
+            do2 += 2 * (y - x) + 1
+            break
+    width = y - 1
+    # Fill in spans
+    _fill_span(arr, y0 + r, x0 - width, x0 + width, val)
+    _fill_span(arr, y0 - r, x0 - width, x0 + width, val)
+    for row in range(-width, width + 1):
+        _fill_span(arr, y0 + row, x0 - r, x0 + r, val)
+    # Fill in remainder
+    while y < r:
+        _fill_span(arr, y0 + y, x0 - x, x0 + x, val)
+        _fill_span(arr, y0 - y, x0 - x, x0 + x, val)
+        y += 1
+        if do2 <= 0:
+            do2 += 2 * y + 1
+        else:
+            x -= 1
+            do2 += 2 * (y - x) + 1
+
+
+@nb.jit(nopython=True, nogil=True)
+def _fill_span(arr, y, l, r, val):
+    """Fill a horizontal span with ``val``"""
+    for i in range(l, r + 1):
+        arr[y, i] = val
