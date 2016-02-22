@@ -142,6 +142,35 @@ class Canvas(object):
             agg = count()
         return bypixel(source, self, Point(x, y), agg)
 
+    def line(self, source, x, y, agg=None):
+        """Compute a reduction by pixel, mapping data to pixels as a line.
+
+        For aggregates that take in extra fields, the interpolated bins will
+        receive the fields from the previous point. In pseudocode:
+
+        >>> for i in range(len(rows) - 1):    # doctest: +SKIP
+        ...     row0 = rows[i]
+        ...     row1 = rows[i + 1]
+        ...     for xi, yi in interpolate(row0.x, row0.y, row1.x, row1.y):
+        ...         add_to_aggregate(xi, yi, row0)
+
+        Parameters
+        ----------
+        source : pandas.DataFrame, dask.DataFrame
+            The input datasource.
+        x : str
+            Column name for the point x coordinates.
+        y : str
+            Column name for the point y coordinates.
+        agg : Reduction, optional
+            Reduction to compute. Default is ``count()``.
+        """
+        from .glyphs import Line
+        from .reductions import count
+        if agg is None:
+            agg = count()
+        return bypixel(source, self, Line(x, y), agg)
+
 
 def bypixel(source, canvas, glyph, agg):
     """Compute an aggregate grouped by pixel sized bins.
