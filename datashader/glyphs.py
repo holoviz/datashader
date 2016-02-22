@@ -62,7 +62,7 @@ class Point(Glyph):
         return extend
 
     def _compute_x_bounds(self, df):
-        return df[self.x].min(), df[self.y].max()
+        return df[self.x].min(), df[self.x].max()
 
     def _compute_y_bounds(self, df):
         return df[self.y].min(), df[self.y].max()
