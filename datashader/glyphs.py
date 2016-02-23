@@ -12,16 +12,8 @@ class Glyph(Expr):
     pass
 
 
-class Point(Glyph):
-    """A point, with center at ``x`` and ``y``.
-
-    Points map each record to a single bin.
-
-    Parameters
-    ----------
-    x, y : str
-        Column names for the x and y coordinates of each point.
-    """
+class _PointLike(Glyph):
+    """Shared methods between Point and Line"""
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -36,6 +28,23 @@ class Point(Glyph):
         elif not isreal(in_dshape.measure[self.y]):
             raise ValueError('y must be real')
 
+    def _compute_x_bounds(self, df):
+        return df[self.x].min(), df[self.x].max()
+
+    def _compute_y_bounds(self, df):
+        return df[self.y].min(), df[self.y].max()
+
+
+class Point(_PointLike):
+    """A point, with center at ``x`` and ``y``.
+
+    Points map each record to a single bin.
+
+    Parameters
+    ----------
+    x, y : str
+        Column names for the x and y coordinates of each point.
+    """
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         x_name = self.x
@@ -62,14 +71,8 @@ class Point(Glyph):
 
         return extend
 
-    def _compute_x_bounds(self, df):
-        return df[self.x].min(), df[self.x].max()
 
-    def _compute_y_bounds(self, df):
-        return df[self.y].min(), df[self.y].max()
-
-
-class Line(Glyph):
+class Line(_PointLike):
     """A line, with vertices defined by ``x`` and ``y``.
 
     Parameters
@@ -77,20 +80,6 @@ class Line(Glyph):
     x, y : str
         Column names for the x and y coordinates of each vertex.
     """
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-    @property
-    def inputs(self):
-        return (self.x, self.y)
-
-    def validate(self, in_dshape):
-        if not isreal(in_dshape.measure[self.x]):
-            raise ValueError('x must be real')
-        elif not isreal(in_dshape.measure[self.y]):
-            raise ValueError('y must be real')
-
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         _extend = _build_line_kernel(append, x_mapper, y_mapper)
@@ -105,12 +94,8 @@ class Line(Glyph):
 
         return extend
 
-    def _compute_x_bounds(self, df):
-        return df[self.x].min(), df[self.x].max()
 
-    def _compute_y_bounds(self, df):
-        return df[self.y].min(), df[self.y].max()
-
+# -- Helpers for drawing computing geometry --
 
 # Outcode constants
 INSIDE = 0b0000
@@ -122,6 +107,7 @@ TOP = 0b1000
 
 @ngjit
 def _compute_outcode(x, y, xmin, xmax, ymin, ymax):
+    """Outcodes for Cohen-Sutherland"""
     code = INSIDE
 
     if x < xmin:
@@ -139,7 +125,7 @@ def _build_line_kernel(append, x_mapper, y_mapper):
     """Specialize a line plotting kernel for a given append/axis combination"""
     @ngjit
     def draw_line(vt, bounds, x0, y0, x1, y1, lastx, lasty, i, *aggs_and_cols):
-        """Draw a line using bresenham's algorithm"""
+        """Draw a line using Bresenham's algorithm"""
         sx, tx, sy, ty = vt
         # Project to pixel space
         x0i = int(x_mapper(x0) * sx + tx)
