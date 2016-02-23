@@ -1,6 +1,10 @@
-import uuid, json
+import uuid
 
-from bokeh.core.json_encoder import serialize_json
+try:
+    import ujson as json
+except:
+    import json
+
 from bokeh.embed import notebook_div
 from bokeh.document import Document
 from bokeh.models import CustomJS, ColumnDataSource
@@ -64,7 +68,7 @@ class InteractiveImage(object):
 
     _callbacks = {}
 
-    def __init__(self, bokeh_plot, callback, throttle=250, **kwargs):
+    def __init__(self, bokeh_plot, callback, throttle=200, **kwargs):
         """
         The callback function should have the signature:
 
@@ -158,11 +162,13 @@ class InteractiveImage(object):
         """
         Generate an update event json message.
         """
-        return serialize_json({'events': [{'attr': u'data',
-                                           'kind': 'ModelChanged',
-                                           'model': self.ds.ref,
-                                           'new': self.ds.data}],
-                               'references': []})
+        data = dict(self.ds.data)
+        data['image'] = [data['image'][0].tolist()]
+        return json.dumps({'events': [{'attr': u'data',
+                                       'kind': 'ModelChanged',
+                                       'model': self.ds.ref,
+                                       'new': data}],
+                           'references': []})
 
 
     def update_image(self, ranges):
