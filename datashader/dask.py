@@ -3,22 +3,29 @@ from __future__ import absolute_import, division
 import dask.dataframe as dd
 from dask.base import tokenize, compute
 from dask.context import _globals
+import pandas as pd
 
 from .core import bypixel
 from .compatibility import apply
 from .compiler import compile_components
+from .glyphs import Glyph, Line
+from .utils import Dispatcher
 
 __all__ = ()
 
 
 @bypixel.pipeline.register(dd.DataFrame)
 def dask_pipeline(df, schema, canvas, glyph, summary):
-    create, info, append, combine, finalize = compile_components(summary,
-                                                                 schema)
-    x_mapper = canvas.x_axis.mapper
-    y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
+    dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary)
 
+    get = _globals['get'] or df._default_get
+    dsk.update(df.dask)
+    dsk = df._optimize(dsk, name)
+
+    return get(dsk, name)
+
+
+def shape_bounds_st_and_axis(df, canvas, glyph):
     x_range = canvas.x_range or glyph._compute_x_bounds(df)
     y_range = canvas.y_range or glyph._compute_y_bounds(df)
     x_min, x_max, y_min, y_max = bounds = compute(*(x_range + y_range))
@@ -33,6 +40,24 @@ def dask_pipeline(df, schema, canvas, glyph, summary):
 
     x_axis = canvas.x_axis.compute_index(x_st, width)
     y_axis = canvas.y_axis.compute_index(y_st, height)
+    axis = [y_axis, x_axis]
+
+    return shape, bounds, st, axis
+
+
+glyph_dispatch = Dispatcher()
+
+
+@glyph_dispatch.register(Glyph)
+def default(glyph, df, schema, canvas, summary):
+    shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
+
+    # Compile functions
+    create, info, append, combine, finalize = compile_components(summary,
+                                                                 schema)
+    x_mapper = canvas.x_axis.mapper
+    y_mapper = canvas.y_axis.mapper
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
     def chunk(df):
         aggs = create(shape)
@@ -44,10 +69,36 @@ def dask_pipeline(df, schema, canvas, glyph, summary):
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k)) for (k2, k) in zip(keys2, keys))
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(coords=[y_axis, x_axis], dims=['y_axis', 'x_axis']))
-    dsk.update(df.dask)
-    dsk = df._optimize(dsk, name)
+                 dict(coords=axis, dims=['y_axis', 'x_axis']))
+    return dsk, name
 
-    get = _globals['get'] or df._default_get
 
-    return get(dsk, name)
+@glyph_dispatch.register(Line)
+def line(glyph, df, schema, canvas, summary):
+    shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
+
+    # Compile functions
+    create, info, append, combine, finalize = compile_components(summary,
+                                                                 schema)
+    x_mapper = canvas.x_axis.mapper
+    y_mapper = canvas.y_axis.mapper
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
+
+    def chunk(df, df2=None):
+        plot_start = True
+        if df2 is not None:
+            df = pd.concat([df.iloc[-1:], df2])
+            plot_start = False
+        aggs = create(shape)
+        extend(aggs, df, st, bounds, plot_start=plot_start)
+        return aggs
+
+    name = tokenize(df._name, canvas, glyph, summary)
+    old_name = df._name
+    dsk = {(name, 0): (chunk, (old_name, 0))}
+    for i in range(1, df.npartitions):
+        dsk[(name, i)] = (chunk, (old_name, i - 1), (old_name, i))
+    keys2 = [(name, i) for i in range(df.npartitions)]
+    dsk[name] = (apply, finalize, [(combine, keys2)],
+                 dict(coords=axis, dims=['y_axis', 'x_axis']))
+    return dsk, name

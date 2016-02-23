@@ -86,11 +86,11 @@ class Line(_PointLike):
         x_name = self.x
         y_name = self.y
 
-        def extend(aggs, df, vt, bounds):
+        def extend(aggs, df, vt, bounds, plot_start=True):
             xs = df[x_name].values
             ys = df[y_name].values
             cols = aggs + info(df)
-            _extend(vt, bounds, xs, ys, *cols)
+            _extend(vt, bounds, xs, ys, plot_start, *cols)
 
         return extend
 
@@ -124,7 +124,7 @@ def _compute_outcode(x, y, xmin, xmax, ymin, ymax):
 def _build_line_kernel(append, x_mapper, y_mapper):
     """Specialize a line plotting kernel for a given append/axis combination"""
     @ngjit
-    def draw_line(vt, bounds, x0, y0, x1, y1, lastx, lasty, i, *aggs_and_cols):
+    def draw_line(vt, bounds, x0, y0, x1, y1, i, plot_start, *aggs_and_cols):
         """Draw a line using Bresenham's algorithm"""
         sx, tx, sy, ty = vt
         # Project to pixel space
@@ -141,10 +141,8 @@ def _build_line_kernel(append, x_mapper, y_mapper):
         iy = (dy > 0) - (dy < 0)
         dy = abs(dy) * 2
 
-        if lastx != x0i or lasty != y0i:
+        if plot_start:
             append(i, x0i, y0i, *aggs_and_cols)
-        elif lastx == x1i and lasty == y1i:
-            return (lastx, lasty)
 
         if dx >= dy:
             error = 2*dy - dx
@@ -164,16 +162,12 @@ def _build_line_kernel(append, x_mapper, y_mapper):
                 error += 2 * dx
                 y0i += iy
                 append(i, x0i, y0i, *aggs_and_cols)
-        return (x0i, y0i)
 
     @ngjit
-    def extend_lines(vt, bounds, xs, ys, *aggs_and_cols):
+    def extend_lines(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
         sx, tx, sy, ty = vt
         xmin, xmax, ymin, ymax = bounds
-        # These track the last pixel coordinate appended to, allowing us to
-        # debounce on duplicate pixels.
-        lastx = lasty = -1
         nrows = xs.shape[0]
         i = 0
         while i < nrows - 1:
@@ -184,8 +178,8 @@ def _build_line_kernel(append, x_mapper, y_mapper):
             # If any of the coordinates are NaN, there's a discontinuity. Skip
             # the entire segment.
             if np.isnan(x0) or np.isnan(y0) or np.isnan(x1) or np.isnan(y1):
+                plot_start = True
                 i += 2
-                lastx = lasty = -1
                 continue
 
             # Use Cohen-Sutherland to clip the segment to a bounding box
@@ -227,8 +221,9 @@ def _build_line_kernel(append, x_mapper, y_mapper):
                                                     ymin, ymax)
 
             if accept:
-                lastx, lasty = draw_line(vt, bounds, x0, y0, x1, y1, lastx,
-                                         lasty, i, *aggs_and_cols)
+                draw_line(vt, bounds, x0, y0, x1, y1, i, plot_start,
+                          *aggs_and_cols)
+                plot_start = False
             i += 1
 
     return extend_lines
