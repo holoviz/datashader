@@ -129,6 +129,8 @@ class Canvas(object):
         ----------
         source : pandas.DataFrame, dask.DataFrame
             The input datasource.
+        x, y : str
+            Column names for the x and y coordinates of each point.
         x : str
             Column name for the point x coordinates.
         y : str
@@ -158,10 +160,8 @@ class Canvas(object):
         ----------
         source : pandas.DataFrame, dask.DataFrame
             The input datasource.
-        x : str
-            Column name for the point x coordinates.
-        y : str
-            Column name for the point y coordinates.
+        x, y : str
+            Column names for the x and y coordinates of each vertex.
         agg : Reduction, optional
             Reduction to compute. Default is ``count()``.
         """

@@ -20,7 +20,7 @@ class Point(Glyph):
     Parameters
     ----------
     x, y : str
-        Column names for the x and y coordinates of center of each point.
+        Column names for the x and y coordinates of each point.
     """
     def __init__(self, x, y):
         self.x = x
@@ -70,12 +70,12 @@ class Point(Glyph):
 
 
 class Line(Glyph):
-    """A point, with points defined by ``x`` and ``y``.
+    """A line, with vertices defined by ``x`` and ``y``.
 
     Parameters
     ----------
     x, y : str
-        Column names for the x and y coordinates of center of each point.
+        Column names for the x and y coordinates of each vertex.
     """
     def __init__(self, x, y):
         self.x = x
