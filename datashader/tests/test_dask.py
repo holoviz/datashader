@@ -17,6 +17,7 @@ df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'i64': np.arange(20, dtype='i8'),
                    'f32': np.arange(20, dtype='f4'),
                    'f64': np.arange(20, dtype='f8'),
+                   'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                    'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
 df.cat = df.cat.astype('category')
 df.f32[2] = np.nan
@@ -50,6 +51,17 @@ def test_count():
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.count('f32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.count('f64')), out)
+
+
+def test_any():
+    out = xr.DataArray(np.array([[True, True], [True, True]]),
+                       coords=coords, dims=dims)
+    assert_eq(c.points(df, 'x', 'y', ds.any('i64')), out)
+    assert_eq(c.points(df, 'x', 'y', ds.any('f64')), out)
+    assert_eq(c.points(df, 'x', 'y', ds.any()), out)
+    out = xr.DataArray(np.array([[True, True], [True, False]]),
+                       coords=coords, dims=dims)
+    assert_eq(c.points(df, 'x', 'y', ds.any('empty_bin')), out)
 
 
 def test_sum():

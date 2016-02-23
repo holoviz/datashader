@@ -3,7 +3,7 @@ from __future__ import absolute_import
 __version__ = '0.1.0'
 
 from .core import Canvas
-from .reductions import (count, sum, min, max, mean, std, var, count_cat,
+from .reductions import (count, any, sum, min, max, mean, std, var, count_cat,
                          summary)
 from .glyphs import Point
 from .pipeline import Pipeline

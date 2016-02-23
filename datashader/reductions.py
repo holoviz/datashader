@@ -69,28 +69,8 @@ class Reduction(Expr):
         return self._finalize
 
 
-@ngjit
-def append_count(x, y, agg):
-    agg[y, x] += 1
-
-
-@ngjit
-def append_count_non_na(x, y, agg, field):
-    if not np.isnan(field):
-        agg[y, x] += 1
-
-
-class count(Reduction):
-    """Count elements in each bin.
-
-    Parameters
-    ----------
-    column : str, optional
-        If provided, only counts elements in ``column`` that are not ``NaN``.
-        Otherwise, counts every element.
-    """
-    _dshape = dshape(ct.int32)
-
+class OptionalFieldReduction(Reduction):
+    """Base class for things like ``count`` or ``any``"""
     def __init__(self, column=None):
         self.column = column
 
@@ -101,20 +81,73 @@ class count(Reduction):
     def validate(self, in_dshape):
         pass
 
+    def _build_append(self, dshape):
+        return self._append if self.column is None else self._append_non_na
+
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        return xr.DataArray(bases[0], **kwargs)
+
+
+class count(OptionalFieldReduction):
+    """Count elements in each bin.
+
+    Parameters
+    ----------
+    column : str, optional
+        If provided, only counts elements in ``column`` that are not ``NaN``.
+        Otherwise, counts every element.
+    """
+    _dshape = dshape(ct.int32)
+
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg):
+        agg[y, x] += 1
+
+    @staticmethod
+    @ngjit
+    def _append_non_na(x, y, agg, field):
+        if not np.isnan(field):
+            agg[y, x] += 1
+
     @staticmethod
     def _create(shape):
         return np.zeros(shape, dtype='i4')
-
-    def _build_append(self, dshape):
-        return append_count if self.column is None else append_count_non_na
 
     @staticmethod
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='i4')
 
+
+class any(OptionalFieldReduction):
+    """Whether any elements in column map to each bin.
+
+    Parameters
+    ----------
+    column : str, optional
+        If provided, only elements in ``column`` that are ``NaN`` are skipped.
+    """
+    _dshape = dshape(ct.bool_)
+
     @staticmethod
-    def _finalize(bases, **kwargs):
-        return xr.DataArray(bases[0], **kwargs)
+    @ngjit
+    def _append(x, y, agg):
+        agg[y, x] = True
+
+    @staticmethod
+    @ngjit
+    def _append_non_na(x, y, agg, field):
+        if not np.isnan(field):
+            agg[y, x] = True
+
+    @staticmethod
+    def _create(shape):
+        return np.zeros(shape, dtype='bool')
+
+    @staticmethod
+    def _combine(aggs):
+        return aggs.sum(axis=0, dtype='bool')
 
 
 class FloatingReduction(Reduction):

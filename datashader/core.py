@@ -163,12 +163,12 @@ class Canvas(object):
         x, y : str
             Column names for the x and y coordinates of each vertex.
         agg : Reduction, optional
-            Reduction to compute. Default is ``count()``.
+            Reduction to compute. Default is ``any()``.
         """
         from .glyphs import Line
-        from .reductions import count
+        from .reductions import any
         if agg is None:
-            agg = count()
+            agg = any()
         return bypixel(source, self, Line(x, y), agg)
 
 
