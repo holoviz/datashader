@@ -1,5 +1,6 @@
 import uuid, json
 
+from bokeh.core.json_encoder import serialize_json
 from bokeh.embed import notebook_div
 from bokeh.document import Document
 from bokeh.models import CustomJS, ColumnDataSource
@@ -54,7 +55,7 @@ class InteractiveImage(object):
         if (throttled_cb) {{
             throttled_cb()
         }} else {{
-            Bokeh._throttle['{ref}'] = _.debounce(update_plot, {throttle});
+            Bokeh._throttle['{ref}'] = _.throttle(update_plot, {throttle});
             Bokeh._throttle['{ref}']()
         }}
     """
@@ -63,7 +64,7 @@ class InteractiveImage(object):
 
     _callbacks = {}
 
-    def __init__(self, bokeh_plot, callback, throttle=100, **kwargs):
+    def __init__(self, bokeh_plot, callback, throttle=250, **kwargs):
         """
         The callback function should have the signature:
 
@@ -80,25 +81,30 @@ class InteractiveImage(object):
         self.p = bokeh_plot
         self.callback = callback
         self.kwargs = kwargs
+        self.ref = str(uuid.uuid4())
+        self.comms_handle = None
+        self.throttle = throttle
 
-        # Initialize RGBA image glyph and datasource
-        width, height = self.p.plot_width, self.p.plot_height
-        xmin, xmax = self.p.x_range.start, self.p.x_range.end
-        ymin, ymax = self.p.y_range.start, self.p.y_range.end
+        # Initialize the image and callback
+        self.ds, self.renderer = self._init_image()
+        callback = self._init_callback()
+        self.p.x_range.callback = callback
+        self.p.y_range.callback = callback
 
-        x_range = (xmin, xmax)
-        y_range = (ymin, ymax)
-        dw, dh = xmax - xmin, ymax - ymin
-        image = self.callback(x_range, y_range, width, height, **self.kwargs)
+        # Initialize document
+        doc_handler = add_to_document(self.p)
+        with doc_handler:
+            self.doc = doc_handler._doc
+            self.div = notebook_div(self.p, self.ref)
 
-        self.ds = ColumnDataSource(data=dict(image=[image.data], x=[xmin],
-                                             y=[ymin], dw=[dw], dh=[dh]))
-        self.p.image_rgba(source=self.ds, image='image', x='x', y='y',
-                          dw='dw', dh='dh', dilate=False)
+
+    def _init_callback(self):
+        """
+        Generate CustomJS from template.
+        """
+        cls = type(self)
 
         # Register callback on the class with unique reference
-        cls = type(self)
-        self.ref = str(uuid.uuid4())
         cls._callbacks[self.ref] = self
 
         # Generate python callback command
@@ -108,41 +114,71 @@ class InteractiveImage(object):
         # Initialize callback
         cb_code = cls.jscode.format(plot_id=self.p._id, cmd=cmd,
                                     ref=self.ref.replace('-', '_'),
-                                    throttle=throttle)
+                                    throttle=self.throttle)
         cb_args = dict(x_range=self.p.x_range, y_range=self.p.y_range)
-        callback = CustomJS(args=cb_args, code=cb_code)
-        self.p.x_range.callback = callback
-        self.p.y_range.callback = callback
+        return CustomJS(args=cb_args, code=cb_code)
 
-        # Initialize document
-        doc_handler = add_to_document(self.p)
-        with doc_handler:
-            self.doc = doc_handler._doc
-            self.div = notebook_div(self.p, self.ref)
-        self.comms = None
+
+    def _init_image(self):
+        """
+        Initialize RGBA image glyph and datasource
+        """
+        width, height = self.p.plot_width, self.p.plot_height
+        xmin, xmax = self.p.x_range.start, self.p.x_range.end
+        ymin, ymax = self.p.y_range.start, self.p.y_range.end
+
+        x_range = (xmin, xmax)
+        y_range = (ymin, ymax)
+        dw, dh = xmax - xmin, ymax - ymin
+        image = self.callback(x_range, y_range, width, height, **self.kwargs)
+
+        ds = ColumnDataSource(data=dict(image=[image.data], x=[xmin],
+                                        y=[ymin], dw=[dw], dh=[dh]))
+        renderer = self.p.image_rgba(source=ds, image='image', x='x', y='y',
+                                     dw='dw', dh='dh', dilate=False)
+        return ds, renderer
 
 
     def update(self, ranges):
-        if not self.comms:
-            self.comms = _CommsHandle(get_comms(self.ref), self.doc,
-                                      self.doc.to_json())
+        """
+        Update the image datasource based on the new ranges,
+        serialize the data to JSON and send to notebook via
+        a new or existing notebook comms handle.
+        """
+        if not self.comms_handle:
+            self.comms_handle = _CommsHandle(get_comms(self.ref), self.doc,
+                                             {})
 
-        self.redraw_image(ranges)
-        to_json = self.doc.to_json()
-        msg = Document._compute_patch_between_json(self.comms.json, to_json)
-        self.comms._json[self.doc] = to_json
-        self.comms.comms.send(json.dumps(msg))
+        self.update_image(ranges)
+        msg = self.get_update_event()
+        self.comms_handle.comms.send(msg)
 
 
-    def redraw_image(self, ranges):
+    def get_update_event(self):
+        """
+        Generate an update event json message.
+        """
+        return serialize_json({'events': [{'attr': u'data',
+                                           'kind': 'ModelChanged',
+                                           'model': self.ds.ref,
+                                           'new': self.ds.data}],
+                               'references': []})
+
+
+    def update_image(self, ranges):
+        """
+        Updates image with data returned by callback
+        """
         x_range = (ranges['xmin'], ranges['xmax'])
         y_range = (ranges['ymin'], ranges['ymax'])
         dh = y_range[1] - y_range[0]
         dw = x_range[1] - x_range[0]
 
-        image = self.callback(x_range=x_range, y_range=y_range, w=ranges['w'], h=ranges['h'], **self.kwargs)
-        self.ds.data.update(dict(image=[image.data], x=[x_range[0]], y=[y_range[0]],
-                                 dw=[dw], dh=[dh]))
+        image = self.callback(x_range, y_range, ranges['w'],
+                              ranges['h'], **self.kwargs)
+        new_data = dict(image=[image.data], x=[x_range[0]],
+                        y=[y_range[0]], dw=[dw], dh=[dh])
+        self.ds.data.update(new_data)
 
 
     def _repr_html_(self):
