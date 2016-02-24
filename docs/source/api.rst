@@ -17,6 +17,7 @@ Glyphs
 .. autosummary::
 
    Point
+   Line
 
 Reductions
 ----------
@@ -25,6 +26,7 @@ Reductions
 .. autosummary::
 
    count
+   any
    sum
    min
    max
@@ -54,10 +56,11 @@ Definitions
 
 .. currentmodule:: datashader.glyphs
 .. autoclass:: Point
+.. autoclass:: Line
 
 .. currentmodule:: datashader.reductions
 .. autoclass:: count
-   :no-inherited-members:
+.. autoclass:: any
 .. autoclass:: sum
 .. autoclass:: min
 .. autoclass:: max

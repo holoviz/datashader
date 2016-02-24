@@ -121,7 +121,7 @@ class count(OptionalFieldReduction):
 
 
 class any(OptionalFieldReduction):
-    """Whether any elements in column map to each bin.
+    """Whether any elements in ``column`` map to each bin.
 
     Parameters
     ----------
