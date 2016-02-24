@@ -82,7 +82,8 @@ class Line(_PointLike):
     """
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        _extend = _build_line_kernel(append, x_mapper, y_mapper)
+        draw_line = _build_draw_line(append, x_mapper, y_mapper)
+        extend_line = _build_extend_line(draw_line)
         x_name = self.x
         y_name = self.y
 
@@ -90,12 +91,12 @@ class Line(_PointLike):
             xs = df[x_name].values
             ys = df[y_name].values
             cols = aggs + info(df)
-            _extend(vt, bounds, xs, ys, plot_start, *cols)
+            extend_line(vt, bounds, xs, ys, plot_start, *cols)
 
         return extend
 
 
-# -- Helpers for drawing computing geometry --
+# -- Helpers for computing line geometry --
 
 # Outcode constants
 INSIDE = 0b0000
@@ -121,10 +122,11 @@ def _compute_outcode(x, y, xmin, xmax, ymin, ymax):
     return code
 
 
-def _build_line_kernel(append, x_mapper, y_mapper):
+def _build_draw_line(append, x_mapper, y_mapper):
     """Specialize a line plotting kernel for a given append/axis combination"""
     @ngjit
-    def draw_line(vt, bounds, x0, y0, x1, y1, i, plot_start, *aggs_and_cols):
+    def draw_line(vt, bounds, x0, y0, x1, y1, i, plot_start, clipped,
+                  *aggs_and_cols):
         """Draw a line using Bresenham's algorithm"""
         sx, tx, sy, ty = vt
         # Project to pixel space
@@ -145,6 +147,11 @@ def _build_line_kernel(append, x_mapper, y_mapper):
             append(i, x0i, y0i, *aggs_and_cols)
 
         if dx >= dy:
+            # If vertices weren't clipped and are concurrent in integer space,
+            # call append and return, as the second vertex won't be hit below.
+            if not clipped and not (dx | dy):
+                append(i, x0i, y0i, *aggs_and_cols)
+                return
             error = 2*dy - dx
             while x0i != x1i:
                 if error >= 0 and (error or ix > 0):
@@ -163,8 +170,12 @@ def _build_line_kernel(append, x_mapper, y_mapper):
                 y0i += iy
                 append(i, x0i, y0i, *aggs_and_cols)
 
+    return draw_line
+
+
+def _build_extend_line(draw_line):
     @ngjit
-    def extend_lines(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
         sx, tx, sy, ty = vt
         xmin, xmax, ymin, ymax = bounds
@@ -183,20 +194,21 @@ def _build_line_kernel(append, x_mapper, y_mapper):
                 continue
 
             # Use Cohen-Sutherland to clip the segment to a bounding box
-            # This is pretty much taken verbatim from Wikipedia:
-            # https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
             outcode0 = _compute_outcode(x0, y0, xmin, xmax, ymin, ymax)
             outcode1 = _compute_outcode(x1, y1, xmin, xmax, ymin, ymax)
 
             accept = False
+            clipped = False
 
             while True:
                 if not (outcode0 | outcode1):
                     accept = True
                     break
                 elif outcode0 & outcode1:
+                    plot_start = True
                     break
                 else:
+                    clipped = True
                     outcode_out = outcode0 if outcode0 else outcode1
                     if outcode_out & TOP:
                         x = x0 + (x1 - x0) * (ymax - y0) / (y1 - y0)
@@ -215,15 +227,17 @@ def _build_line_kernel(append, x_mapper, y_mapper):
                         x0, y0 = x, y
                         outcode0 = _compute_outcode(x0, y0, xmin, xmax,
                                                     ymin, ymax)
+                        # If x0 is clipped, we need to plot the new start
+                        plot_start = True
                     else:
                         x1, y1 = x, y
                         outcode1 = _compute_outcode(x1, y1, xmin, xmax,
                                                     ymin, ymax)
 
             if accept:
-                draw_line(vt, bounds, x0, y0, x1, y1, i, plot_start,
+                draw_line(vt, bounds, x0, y0, x1, y1, i, plot_start, clipped,
                           *aggs_and_cols)
                 plot_start = False
             i += 1
 
-    return extend_lines
+    return extend_line

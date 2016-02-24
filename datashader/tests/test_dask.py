@@ -162,3 +162,22 @@ def test_log_axis():
     out = xr.DataArray(sol, coords=[np.array([1., 10.]), np.array([1., 10.])],
                        dims=dims)
     assert_eq(c_logxy.points(ddf, 'log_x', 'log_y', ds.count('i32')), out)
+
+
+def test_line():
+    df = pd.DataFrame({'x': [4, 0, -4, -3, -2, -1.9, 0, 10, 10, 0, 4],
+                       'y': [0, -4, 0, 1, 2, 2.1, 4, 20, 30, 4, 0]})
+    ddf = dd.from_pandas(df, npartitions=3)
+    cvs = ds.Canvas(plot_width=7, plot_height=7,
+                    x_range=(-3, 3), y_range=(-3, 3))
+    agg = cvs.line(ddf, 'x', 'y', ds.count())
+    sol = np.array([[0, 0, 1, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 2, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
+    out = xr.DataArray(sol, coords=[np.arange(-3, 4), np.arange(-3, 4)],
+                       dims=['y_axis', 'x_axis'])
+    assert_eq(agg, out)
