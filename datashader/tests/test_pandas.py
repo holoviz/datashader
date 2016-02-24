@@ -13,6 +13,7 @@ df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'i64': np.arange(20, dtype='i8'),
                    'f32': np.arange(20, dtype='f4'),
                    'f64': np.arange(20, dtype='f8'),
+                   'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                    'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
 df.cat = df.cat.astype('category')
 df.f32[2] = np.nan
@@ -44,6 +45,17 @@ def test_count():
                        coords=coords, dims=dims)
     assert_eq(c.points(df, 'x', 'y', ds.count('f32')), out)
     assert_eq(c.points(df, 'x', 'y', ds.count('f64')), out)
+
+
+def test_any():
+    out = xr.DataArray(np.array([[True, True], [True, True]]),
+                       coords=coords, dims=dims)
+    assert_eq(c.points(df, 'x', 'y', ds.any('i64')), out)
+    assert_eq(c.points(df, 'x', 'y', ds.any('f64')), out)
+    assert_eq(c.points(df, 'x', 'y', ds.any()), out)
+    out = xr.DataArray(np.array([[True, True], [True, False]]),
+                       coords=coords, dims=dims)
+    assert_eq(c.points(df, 'x', 'y', ds.any('empty_bin')), out)
 
 
 def test_sum():
@@ -144,3 +156,21 @@ def test_log_axis():
     out = xr.DataArray(sol, coords=[np.array([1., 10.]), np.array([1., 10.])],
                        dims=dims)
     assert_eq(c_logxy.points(df, 'log_x', 'log_y', ds.count('i32')), out)
+
+
+def test_line():
+    df = pd.DataFrame({'x': [4, 0, -4, -3, -2, -1.9, 0, 10, 10, 0, 4],
+                       'y': [0, -4, 0, 1, 2, 2.1, 4, 20, 30, 4, 0]})
+    cvs = ds.Canvas(plot_width=7, plot_height=7,
+                    x_range=(-3, 3), y_range=(-3, 3))
+    agg = cvs.line(df, 'x', 'y', ds.count())
+    sol = np.array([[0, 0, 1, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 2, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
+    out = xr.DataArray(sol, coords=[np.arange(-3, 4), np.arange(-3, 4)],
+                       dims=['y_axis', 'x_axis'])
+    assert_eq(agg, out)
