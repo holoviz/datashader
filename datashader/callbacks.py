@@ -15,7 +15,8 @@ from bokeh.util.notebook import get_comms
 
 class InteractiveImage(object):
     """
-    Bokeh-based interactive image object that updates on pan/zoom events.
+    Bokeh-based interactive image object that updates on pan/zoom
+    events.
 
     Given a Bokeh plot and a callback function, calls the function
     whenever the pan or zoom changes the plot's extent, regenerating
@@ -23,6 +24,24 @@ class InteractiveImage(object):
     using the existing notebook kernel Python process (not a separate
     Bokeh server).  Does not yet support usage outside the notebook,
     but could be extened to use Bokeh server in that case.
+
+    Parameters
+    ----------
+    bokeh_plot : plot or figure
+        Bokeh plot the image will be drawn on
+    callback : function
+        Python callback function with the signature::
+
+           fn(x_range=(xmin, xmax), y_range=(ymin, ymax),
+              w, h, **kwargs)
+
+        and returning a PIL image object.
+    throttle : int
+        The throttle parameter specifies how frequently events
+        are generated in milliseconds.
+    **kwargs
+        Any kwargs provided here will be passed to the callback
+        function.
     """
 
     jscode="""
@@ -69,19 +88,6 @@ class InteractiveImage(object):
     _callbacks = {}
 
     def __init__(self, bokeh_plot, callback, throttle=200, **kwargs):
-        """
-        The callback function should have the signature:
-
-        fn(x_range=(xmin, xmax), y_range=(ymin, ymax), w, h, **kwargs)
-
-        and return a PIL image object.  Any kwargs provided here will
-        be passed to the callback each time.
-
-        The throttle parameter allows control over how many times the
-        callback will get executed when there are frequent closely
-        spaced events.
-        """
-
         self.p = bokeh_plot
         self.callback = callback
         self.kwargs = kwargs
@@ -148,6 +154,12 @@ class InteractiveImage(object):
         Update the image datasource based on the new ranges,
         serialize the data to JSON and send to notebook via
         a new or existing notebook comms handle.
+
+        Parameters
+        ----------
+        ranges : dict(xmin=float, xmax=float, ymin=float, ymax=float,
+                      h=int, w=int)
+            Dictionary with of x/y-ranges, width and height.
         """
         if not self.comms_handle:
             self.comms_handle = _CommsHandle(get_comms(self.ref), self.doc,
