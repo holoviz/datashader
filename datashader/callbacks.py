@@ -78,7 +78,8 @@ class InteractiveImage(object):
         if (throttled_cb) {{
             throttled_cb()
         }} else {{
-            Bokeh._throttle['{ref}'] = _.throttle(update_plot, {throttle});
+            Bokeh._throttle['{ref}'] = _.throttle(update_plot, {throttle},
+                                                  {{leading: false}});
             Bokeh._throttle['{ref}']()
         }}
     """
