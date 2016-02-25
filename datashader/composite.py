@@ -7,7 +7,7 @@ import numpy as np
 __all__ = ('composite_op_lookup', 'over', 'add', 'saturate')
 
 
-@nb.jit('(uint32,)', nopython=True, nogil=True)
+@nb.jit('(uint32,)', nopython=True, nogil=True, cache=True)
 def extract_scaled(x):
     """Extract components as float64 values in [0.0, 1.0]"""
     r = np.float64((x & 255) / 255)
@@ -17,7 +17,8 @@ def extract_scaled(x):
     return r, g, b, a
 
 
-@nb.jit('(float64, float64, float64, float64)', nopython=True, nogil=True)
+@nb.jit('(float64, float64, float64, float64)', nopython=True,
+        nogil=True, cache=True)
 def combine_scaled(r, g, b, a):
     """Combine components in [0, 1] to rgba uint32"""
     r2 = np.uint32(r * 255)
@@ -37,10 +38,11 @@ composite_op_lookup = {}
 
 def operator(f):
     """Define and register a new composite operator"""
-    f = nb.jit('uint32(uint32, uint32)', nopython=True, nogil=True)(f)
-    f.disable_compile()
-    composite_op_lookup[f.__name__] = f
-    return f
+    f2 = nb.vectorize(f)
+    f2._compile_for_argtys((nb.types.uint32, nb.types.uint32))
+    f2._frozen = True
+    composite_op_lookup[f.__name__] = f2
+    return f2
 
 
 @operator
