@@ -3,16 +3,17 @@ from __future__ import absolute_import, division, print_function
 from io import BytesIO
 
 import numpy as np
+import toolz as tz
 import xarray as xr
 from PIL.Image import fromarray
-from toolz import memoize
+
 
 from .colors import rgb
 from .composite import composite_op_lookup
 from .utils import ngjit
 
 
-__all__ = ['Image', 'merge', 'stack', 'interpolate', 'colorize', 'spread']
+__all__ = ['Image', 'stack', 'interpolate', 'colorize', 'spread']
 
 
 class Image(xr.DataArray):
@@ -32,44 +33,26 @@ class Image(xr.DataArray):
         return fp
 
 
-def _to_channels(data):
-    return data.view([('r', 'u1'), ('g', 'u1'), ('b', 'u1'), ('a', 'u1')])
+def stack(*imgs, **kwargs):
+    """Combine images together, overlaying later images onto earlier ones.
 
-
-def _validate_images(imgs):
+    Parameters
+    ----------
+    imgs : iterable of Image
+        The images to combine.
+    how : str, optional
+        The compositing operator to combine pixels. Default is `'over'`.
+    """
     if not imgs:
         raise ValueError("No images passed in")
     for i in imgs:
         if not isinstance(i, Image):
             raise TypeError("Expected `Image`, got: `{0}`".format(type(i)))
-
-
-def merge(*imgs):
-    """Merge a number of images together, averaging the channels"""
-    _validate_images(imgs)
+    op = composite_op_lookup[kwargs.get('how', 'over')]
     if len(imgs) == 1:
         return imgs[0]
     imgs = xr.align(*imgs, copy=False, join='outer')
-    coords, dims = imgs[0].coords, imgs[0].dims
-    imgs = _to_channels(np.stack([i.data for i in imgs]))
-    r = imgs['r'].mean(axis=0, dtype='f8').astype('uint8')
-    g = imgs['g'].mean(axis=0, dtype='f8').astype('uint8')
-    b = imgs['b'].mean(axis=0, dtype='f8').astype('uint8')
-    a = imgs['a'].mean(axis=0, dtype='f8').astype('uint8')
-    out = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
-    return Image(out, coords=coords, dims=dims)
-
-
-def stack(*imgs):
-    """Merge a number of images together, overlapping earlier images with
-    later ones."""
-    _validate_images(imgs)
-    if len(imgs) == 1:
-        return imgs[0]
-    imgs = xr.align(*imgs, copy=False, join='outer')
-    out = imgs[0].data.copy()
-    for img in imgs[1:]:
-        out = np.where(_to_channels(img.data)['a'] == 0, out, img.data)
+    out = tz.reduce(tz.flip(op), [i.data for i in imgs])
     return Image(out, coords=imgs[0].coords, dims=imgs[0].dims)
 
 
@@ -213,7 +196,7 @@ def spread(img, px=1, shape='circle', how='over', mask=None):
     return Image(out, dims=img.dims, coords=img.coords)
 
 
-@memoize
+@tz.memoize
 def _build_spread_kernel(how):
     """Build a spreading kernel for a given composite operator"""
     op = composite_op_lookup[how]
