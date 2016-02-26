@@ -3,13 +3,17 @@ from __future__ import absolute_import, division, print_function
 from io import BytesIO
 
 import numpy as np
+import toolz as tz
 import xarray as xr
 from PIL.Image import fromarray
 
+
 from .colors import rgb
+from .composite import composite_op_lookup
+from .utils import ngjit
 
 
-__all__ = ['Image', 'merge', 'stack', 'interpolate', 'colorize']
+__all__ = ['Image', 'stack', 'interpolate', 'colorize', 'spread']
 
 
 class Image(xr.DataArray):
@@ -29,44 +33,26 @@ class Image(xr.DataArray):
         return fp
 
 
-def _to_channels(data):
-    return data.view([('r', 'u1'), ('g', 'u1'), ('b', 'u1'), ('a', 'u1')])
+def stack(*imgs, **kwargs):
+    """Combine images together, overlaying later images onto earlier ones.
 
-
-def _validate_images(imgs):
+    Parameters
+    ----------
+    imgs : iterable of Image
+        The images to combine.
+    how : str, optional
+        The compositing operator to combine pixels. Default is `'over'`.
+    """
     if not imgs:
         raise ValueError("No images passed in")
     for i in imgs:
         if not isinstance(i, Image):
             raise TypeError("Expected `Image`, got: `{0}`".format(type(i)))
-
-
-def merge(*imgs):
-    """Merge a number of images together, averaging the channels"""
-    _validate_images(imgs)
+    op = composite_op_lookup[kwargs.get('how', 'over')]
     if len(imgs) == 1:
         return imgs[0]
     imgs = xr.align(*imgs, copy=False, join='outer')
-    coords, dims = imgs[0].coords, imgs[0].dims
-    imgs = _to_channels(np.stack([i.data for i in imgs]))
-    r = imgs['r'].mean(axis=0, dtype='f8').astype('uint8')
-    g = imgs['g'].mean(axis=0, dtype='f8').astype('uint8')
-    b = imgs['b'].mean(axis=0, dtype='f8').astype('uint8')
-    a = imgs['a'].mean(axis=0, dtype='f8').astype('uint8')
-    out = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
-    return Image(out, coords=coords, dims=dims)
-
-
-def stack(*imgs):
-    """Merge a number of images together, overlapping earlier images with
-    later ones."""
-    _validate_images(imgs)
-    if len(imgs) == 1:
-        return imgs[0]
-    imgs = xr.align(*imgs, copy=False, join='outer')
-    out = imgs[0].data.copy()
-    for img in imgs[1:]:
-        out = np.where(_to_channels(img.data)['a'] == 0, out, img.data)
+    out = tz.reduce(tz.flip(op), [i.data for i in imgs])
     return Image(out, coords=imgs[0].coords, dims=imgs[0].dims)
 
 
@@ -163,3 +149,88 @@ def colorize(agg, color_key, how='cbrt', min_alpha=20):
     a[white] = 0
     return Image(np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape),
                  dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1])
+
+
+def spread(img, px=1, shape='circle', how='over', mask=None):
+    """Spread pixels in an image.
+
+    Spreading expands each pixel a certain number of pixels on all sides
+    according to a given shape, merging pixels using a specified compositing
+    operator. This can be useful to make sparse plots more visible.
+
+    Parameters
+    ----------
+    img : Image
+    px : int, optional
+        Number of pixels to spread on all sides
+    shape : str, optional
+        The shape to spread by. Options are 'circle' [default] or 'square'.
+    how : str, optional
+        The name of the compositing operator to use when combining pixels.
+    mask : ndarray, shape (M, M), optional
+        The mask to spread over. If provided, this mask is used instead of
+        generating one based on `px` and `shape`. Must be a square array
+        with odd dimensions. Pixels are spread from the center of the mask to
+        locations where the mask is True.
+    """
+    if not isinstance(img, Image):
+        raise TypeError("Expected `Image`, got: `{0}`".format(type(img)))
+    if mask is None:
+        if not isinstance(px, int) or px < 0:
+            raise ValueError("``px`` must be an integer >= 0")
+        if px == 0:
+            return img
+        mask = _mask_lookup[shape](px)
+    elif not (isinstance(mask, np.ndarray) and mask.ndim == 2 and
+              mask.shape[0] == mask.shape[1] and mask.shape[0] % 2 == 1):
+        raise ValueError("mask must be a square 2 dimensional ndarray with "
+                         "odd dimensions.")
+        mask = mask if mask.dtype == 'bool' else mask.astype('bool')
+    kernel = _build_spread_kernel(how)
+    w = mask.shape[0]
+    extra = w // 2
+    M, N = img.shape
+    buf = np.zeros((M + 2*extra, N + 2*extra), dtype='uint32')
+    kernel(img.data, mask, buf)
+    out = buf[extra:-extra, extra:-extra].copy()
+    return Image(out, dims=img.dims, coords=img.coords)
+
+
+@tz.memoize
+def _build_spread_kernel(how):
+    """Build a spreading kernel for a given composite operator"""
+    op = composite_op_lookup[how]
+
+    @ngjit
+    def kernel(arr, mask, out):
+        M, N = arr.shape
+        w = mask.shape[0]
+        for y in range(M):
+            for x in range(N):
+                el = arr[y, x]
+                # Skip if data is transparent
+                if (el >> 24) & 255:
+                    for i in range(w):
+                        for j in range(w):
+                            # Skip if mask is False at this value
+                            if mask[i, j]:
+                                out[i + y, j + x] = op(el, out[i + y, j + x])
+    return kernel
+
+
+def _square_mask(px):
+    """Produce a square mask with sides of length ``2 * px + 1``"""
+    px = int(px)
+    w = 2 * px + 1
+    return np.ones((w, w), dtype='bool')
+
+
+def _circle_mask(r):
+    """Produce a circular mask with a diameter of ``2 * r + 1``"""
+    x = np.arange(-r, r + 1, dtype='i4')
+    bound = r + 0.5 if r > 1 else r
+    return np.where(np.sqrt(x**2 + x[:, None]**2) <= bound, True, False)
+
+
+_mask_lookup = {'square': _square_mask,
+                'circle': _circle_mask}

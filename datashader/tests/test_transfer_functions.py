@@ -85,42 +85,122 @@ def test_colorize():
 
 
 coords2 = [np.array([0, 2]), np.array([3, 5])]
-img1 = tf.Image(np.dstack([np.array([[255, 0], [0, 125]], 'uint8'),
-                           np.array([[255, 0], [0, 255]], 'uint8'),
-                           np.array([[0, 0], [0, 0]], 'uint8'),
-                           np.array([[255, 0], [0, 255]], 'uint8')])
-                .view(np.uint32).reshape((2, 2)), coords=coords2, dims=dims)
-
-img2 = tf.Image(np.dstack([np.array([[0, 0], [0, 255]], 'uint8'),
-                           np.array([[0, 0], [0, 125]], 'uint8'),
-                           np.array([[0, 0], [0, 125]], 'uint8'),
-                           np.array([[0, 0], [255, 125]], 'uint8')])
-                .view(np.uint32).reshape((2, 2)), coords=coords2, dims=dims)
+img1 = tf.Image(np.array([[0xff00ffff, 0x00000000],
+                          [0x00000000, 0xff00ff7d]], dtype='uint32'),
+                coords=coords2, dims=dims)
+img2 = tf.Image(np.array([[0x00000000, 0x00000000],
+                          [0x000000ff, 0x7d7d7dff]], dtype='uint32'),
+                coords=coords2, dims=dims)
 
 
 def test_stack():
     img = tf.stack(img1, img2)
+    out = np.array([[0xff00ffff, 0x00000000],
+                    [0x00000000, 0xff3dbfbc]], dtype='uint32')
     assert (img.x_axis == img1.x_axis).all()
     assert (img.y_axis == img1.y_axis).all()
-    chan = img.data.view([('r', 'uint8'), ('g', 'uint8'),
-                         ('b', 'uint8'), ('a', 'uint8')])
-    assert (chan['r'] == np.array([[255, 0], [0, 255]])).all()
-    assert (chan['g'] == np.array([[255, 0], [0, 125]])).all()
-    assert (chan['b'] == np.array([[0, 0], [0, 125]])).all()
-    assert (chan['a'] == np.array([[255, 0], [255, 125]])).all()
+    np.testing.assert_equal(img.data, out)
 
-
-def test_merge():
-    img = tf.merge(img1, img2)
+    img = tf.stack(img2, img1)
+    out = np.array([[0xff00ffff, 0x00000000],
+                    [0x00000000, 0xff00ff7d]], dtype='uint32')
     assert (img.x_axis == img1.x_axis).all()
     assert (img.y_axis == img1.y_axis).all()
-    chan = img.data.view([('r', 'uint8'), ('g', 'uint8'),
-                         ('b', 'uint8'), ('a', 'uint8')])
-    assert (chan['r'] == np.array([[127, 0], [0, 190]])).all()
-    assert (chan['g'] == np.array([[127, 0], [0, 190]])).all()
-    assert (chan['b'] == np.array([[0, 0], [0, 62]])).all()
-    assert (chan['a'] == np.array([[127, 0], [127, 190]])).all()
-    assert (tf.merge(img2, img1).data == img.data).all()
+    np.testing.assert_equal(img.data, out)
+
+    img = tf.stack(img1, img2, how='add')
+    out = np.array([[0xff00ffff, 0x00000000],
+                    [0x00000000, 0xff3d3cfa]], dtype='uint32')
+    assert (img.x_axis == img1.x_axis).all()
+    assert (img.y_axis == img1.y_axis).all()
+    np.testing.assert_equal(img.data, out)
+
+
+def test_masks():
+    # Square
+    mask = tf._square_mask(2)
+    np.testing.assert_equal(mask, np.ones((5, 5), dtype='bool'))
+    np.testing.assert_equal(tf._square_mask(0), np.ones((1, 1), dtype='bool'))
+    # Circle
+    np.testing.assert_equal(tf._circle_mask(0), np.ones((1, 1), dtype='bool'))
+    out = np.array([[0, 1, 0],
+                    [1, 1, 1],
+                    [0, 1, 0]], dtype='bool')
+    np.testing.assert_equal(tf._circle_mask(1), out)
+    out = np.array([[0, 0, 1, 1, 1, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 1, 0, 0]], dtype='bool')
+    np.testing.assert_equal(tf._circle_mask(3), out)
+
+
+def test_spread():
+    p = 0x7d00007d
+    g = 0x7d00FF00
+    b = 0x7dFF0000
+    data = np.array([[p, p, 0, 0, 0],
+                     [p, g, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, b, 0],
+                     [0, 0, 0, 0, 0]], dtype='uint32')
+    coords = [np.arange(5), np.arange(5)]
+    img = tf.Image(data, coords=coords, dims=dims)
+
+    s = tf.spread(img)
+    o = np.array([[0xdc00007d, 0xdc009036, 0x7d00007d, 0x00000000, 0x00000000],
+                  [0xdc009036, 0xdc009036, 0x7d00ff00, 0x00000000, 0x00000000],
+                  [0x7d00007d, 0x7d00ff00, 0x00000000, 0x7dff0000, 0x00000000],
+                  [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000],
+                  [0x00000000, 0x00000000, 0x00000000, 0x7dff0000, 0x00000000]])
+    np.testing.assert_equal(s.data, o)
+    assert (s.x_axis == img.x_axis).all()
+    assert (s.y_axis == img.y_axis).all()
+    assert s.dims == img.dims
+
+    s = tf.spread(img, px=2)
+    o = np.array([[0xed00863b, 0xed00863b, 0xed00863b, 0xbc00a82a, 0x00000000],
+                  [0xed00863b, 0xed00863b, 0xf581411c, 0xdc904812, 0x7dff0000],
+                  [0xed00863b, 0xf581411c, 0xed864419, 0xbca85600, 0x7dff0000],
+                  [0xbc00a82a, 0xdc904812, 0xbca85600, 0x7dff0000, 0x7dff0000],
+                  [0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000, 0x7dff0000]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(img, shape='square')
+    o = np.array([[0xed00863b, 0xed00863b, 0xbc00a82a, 0x00000000, 0x00000000],
+                  [0xed00863b, 0xed00863b, 0xbc00a82a, 0x00000000, 0x00000000],
+                  [0xbc00a82a, 0xbc00a82a, 0xbca85600, 0x7dff0000, 0x7dff0000],
+                  [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000],
+                  [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(img, how='add')
+    o = np.array([[0xff0000b7, 0xff007d7a, 0x7d00007d, 0x00000000, 0x00000000],
+                  [0xff007d7a, 0xff007d7a, 0x7d00ff00, 0x00000000, 0x00000000],
+                  [0x7d00007d, 0x7d00ff00, 0x00000000, 0x7dff0000, 0x00000000],
+                  [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000],
+                  [0x00000000, 0x00000000, 0x00000000, 0x7dff0000, 0x00000000]])
+    np.testing.assert_equal(s.data, o)
+
+    mask = np.array([[1, 0, 1],
+                     [0, 1, 0],
+                     [1, 0, 1]])
+    s = tf.spread(img, mask=mask)
+    o = np.array([[0xbc00a82a, 0xbc00007d, 0x7d00ff00, 0x00000000, 0x00000000],
+                  [0xbc00007d, 0xbc00a82a, 0x7d00007d, 0x00000000, 0x00000000],
+                  [0x7d00ff00, 0x7d00007d, 0xbca85600, 0x00000000, 0x7dff0000],
+                  [0x00000000, 0x00000000, 0x00000000, 0x7dff0000, 0x00000000],
+                  [0x00000000, 0x00000000, 0x7dff0000, 0x00000000, 0x7dff0000]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(img, px=0)
+    np.testing.assert_equal(s.data, img.data)
+
+    pytest.raises(ValueError, lambda: tf.spread(img, px=-1))
+    pytest.raises(ValueError, lambda: tf.spread(img, mask=np.ones(2)))
+    pytest.raises(ValueError, lambda: tf.spread(img, mask=np.ones((2, 2))))
 
 
 def test_Image_to_pil():

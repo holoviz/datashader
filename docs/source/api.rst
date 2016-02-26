@@ -45,7 +45,7 @@ Transfer Functions
    interpolate
    colorize
    stack
-   merge
+   spread
 
 Definitions
 -----------
