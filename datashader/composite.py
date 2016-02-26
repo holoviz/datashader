@@ -4,7 +4,7 @@ import numba as nb
 import numpy as np
 
 
-__all__ = ('composite_op_lookup', 'over', 'add', 'saturate')
+__all__ = ('composite_op_lookup', 'over', 'add', 'saturate', 'source')
 
 
 @nb.jit('(uint32,)', nopython=True, nogil=True, cache=True)
@@ -43,6 +43,14 @@ def operator(f):
     f2._frozen = True
     composite_op_lookup[f.__name__] = f2
     return f2
+
+
+@operator
+def source(src, dst):
+    if src & 0xff000000:
+        return src
+    else:
+        return dst
 
 
 @operator

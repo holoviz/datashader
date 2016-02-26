@@ -1,6 +1,6 @@
 import numpy as np
 
-from datashader.composite import add, saturate, over
+from datashader.composite import add, saturate, over, source
 
 src = np.array([[0x00000000, 0x00ffffff, 0xffffffff],
                 [0x7dff0000, 0x7d00ff00, 0x7d0000ff],
@@ -12,6 +12,16 @@ black = np.uint32(0xffffffff)
 blue = np.uint32(0xffff0000)
 half_blue = np.uint32(0x7dff0000)
 half_purple = np.uint32(0x7d7d007d)
+
+
+def test_source():
+    o = src.copy()
+    o[0, :2] = clear
+    np.testing.assert_equal(source(src, clear), o)
+    o[0, :2] = clear_black
+    np.testing.assert_equal(source(src, clear_black), o)
+    o[0, :2] = half_blue
+    np.testing.assert_equal(source(src, half_blue), o)
 
 
 def test_over():
