@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/bokeh/datashader.png?label=ready&title=Ready)](https://waffle.io/bokeh/datashader)
 Datashader
 ----------
 
