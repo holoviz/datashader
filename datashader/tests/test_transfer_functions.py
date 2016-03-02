@@ -93,6 +93,16 @@ img2 = tf.Image(np.array([[0x00000000, 0x00000000],
                 coords=coords2, dims=dims)
 
 
+def test_set_background():
+    out = tf.set_background(img1)
+    assert out.equals(img1)
+    sol = tf.Image(np.array([[0xff00ffff, 0xff0000ff],
+                             [0xff0000ff, 0xff00ff7d]], dtype='uint32'),
+                   coords=coords2, dims=dims)
+    out = tf.set_background(img1, 'red')
+    assert out.equals(sol)
+
+
 def test_stack():
     img = tf.stack(img1, img2)
     out = np.array([[0xff00ffff, 0x00000000],
