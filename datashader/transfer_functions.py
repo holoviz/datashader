@@ -9,11 +9,12 @@ from PIL.Image import fromarray
 
 
 from .colors import rgb
-from .composite import composite_op_lookup
+from .composite import composite_op_lookup, source
 from .utils import ngjit
 
 
-__all__ = ['Image', 'stack', 'interpolate', 'colorize', 'spread']
+__all__ = ['Image', 'stack', 'interpolate', 'colorize', 'set_background',
+           'spread']
 
 
 class Image(xr.DataArray):
@@ -75,12 +76,11 @@ def interpolate(agg, low="lightblue", high="darkblue", how='cbrt'):
     Parameters
     ----------
     agg : DataArray
-    low : color name or tuple
-        The color for the low end of the scale. Can be specified either by
-        name, hexcode, or as a tuple of ``(red, green, blue)`` values.
-    high : color name or tuple
-        The color for the high end of the scale
-    how : string or callable
+    low, high : color name or tuple, optional
+        The color for the low and high ends of the scale. Can be specified
+        either by name, hexcode, or as a tuple of ``(red, green, blue)``
+        values.
+    how : str or callable, optional
         The interpolation method to use. Valid strings are 'cbrt' [default],
         'log', and 'linear'. Callables take a 2-dimensional array of
         magnitudes at each pixel, and should return a numeric array of the same
@@ -116,7 +116,7 @@ def colorize(agg, color_key, how='cbrt', min_alpha=20):
         A mapping of fields to colors. Can be either a ``dict`` mapping from
         field name to colors, or an iterable of colors in the same order as the
         record fields.
-    how : string or callable
+    how : str or callable, optional
         The interpolation method to use. Valid strings are 'cbrt' [default],
         'log', and 'linear'. Callables take a 2-dimensional array of
         magnitudes at each pixel, and should return a numeric array of the same
@@ -149,6 +149,25 @@ def colorize(agg, color_key, how='cbrt', min_alpha=20):
     a[white] = 0
     return Image(np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape),
                  dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1])
+
+
+def set_background(img, color=None):
+    """Return a new image, with the background set to `color`.
+
+    Parameters
+    -----------------
+    img : Image
+    color : color name or tuple, optional
+        The background color. Can be specified either by name, hexcode, or as a
+        tuple of ``(red, green, blue)`` values.
+    """
+    if not isinstance(img, Image):
+        raise TypeError("Expected `Image`, got: `{0}`".format(type(img)))
+    if color is None:
+        return img
+    background = np.uint8(rgb(color) + (255,)).view('uint32')[0]
+    data = source(img.data, background)
+    return Image(data, coords=img.coords, dims=img.dims)
 
 
 def spread(img, px=1, shape='circle', how='over', mask=None):
