@@ -19,6 +19,9 @@ axes:
     yaxis: dropoff_y
 
 summary_fields:
+  - name: Trip Count
+    field: None
+
   - name: Passenger Count
     field: passenger_count
 

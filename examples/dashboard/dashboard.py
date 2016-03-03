@@ -142,26 +142,26 @@ class AppState(object):
         # parse summary field
         self.fields = OrderedDict()
         for f in self.config['summary_fields']:
-            self.fields[f['name']] = f['field']
+            self.fields[f['name']] = None if f['field'] == 'None' else f['field']
         self.field = list(self.fields.values())[0]
 
     def load_datasets(self):
         print('Loading Data...')
-        taxi_path = self.config['file']
+        data_path = self.config['file']
 
-        if not path.isabs(taxi_path):
+        if not path.isabs(data_path):
             config_dir = path.split(self.config_path)[0]
-            taxi_path = path.join(config_dir, taxi_path)
+            data_path = path.join(config_dir, data_path)
 
-        if not path.exists(taxi_path):
-            raise IOError('Unable to find input dataset: "{}"'.format(taxi_path))
+        if not path.exists(data_path):
+            raise IOError('Unable to find input dataset: "{}"'.format(data_path))
 
         axes_fields = []
         for f in self.axes.values():
             axes_fields += [f[1], f[2]]
 
-        load_fields = list(self.fields.values()) + axes_fields
-        self.df = pd.read_csv(taxi_path, usecols=load_fields)
+        load_fields = [f for f in self.fields.values() if f is not None] + axes_fields
+        self.df = pd.read_csv(data_path, usecols=load_fields)
 
 class AppView(object):
 
