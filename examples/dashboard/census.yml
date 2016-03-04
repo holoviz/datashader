@@ -1,0 +1,30 @@
+---
+
+file: ../data/census.castra
+
+initial_extent:
+  is_geo: true
+  xmin: -13914936
+  ymin: 2632019
+  xmax: -7235767
+  ymax: 6446276
+
+axes: 
+  - name: US Census Synthetic people
+    xaxis: meterswest
+    yaxis: metersnorth
+
+summary_fields:
+  - name: Counts
+    field: None
+
+  - name: Race
+    field: race
+    cat_colors: race_colors
+
+race_colors:
+  w: blue
+  b: green
+  a: red
+  h: orange
+  o: saddlebrown
