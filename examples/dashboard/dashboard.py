@@ -146,8 +146,8 @@ class AppState(object):
         self.field = list(self.fields.values())[0]
 
     def load_datasets(self):
-        print('Loading Data...')
         data_path = self.config['file']
+        print('Loading Data from {}...'.format(data_path))
 
         if not path.isabs(data_path):
             config_dir = path.split(self.config_path)[0]
