@@ -161,8 +161,16 @@ class AppState(object):
             axes_fields += [f[1], f[2]]
 
         load_fields = [f for f in self.fields.values() if f is not None] + axes_fields
-        self.df = pd.read_csv(data_path, usecols=load_fields)
 
+        if data_path.endswith(".csv") :
+            self.df = pd.read_csv(data_path, usecols=load_fields)
+        elif data_path.endswith(".castra"):
+            import dask.dataframe as dd
+            self.df = dd.from_castra(data_path)
+        else:
+            raise IOError("Unknown data file type; .csv and .castra currently supported")
+
+        
 class AppView(object):
 
     def __init__(self, app_model):
@@ -278,7 +286,7 @@ class AppView(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', help='yaml config file (e.g. nyc_taxi.yml)', required=True)
+    parser.add_argument('-c', '--config', help='yaml config file (e.g. nyc_taxi.yml)', required=True)
     args = vars(parser.parse_args())
 
     APP_PORT = 5000
