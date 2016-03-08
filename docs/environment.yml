@@ -6,7 +6,7 @@ dependencies:
     - numpydoc
     - dask >=0.7.6
     - datashape >=0.5.1
-    - numba >=0.23.1
+    - numba >=0.24.0
     - odo >=0.4.1
     - numpy >=1.7
     - pandas >=0.15.0

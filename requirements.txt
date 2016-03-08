@@ -1,6 +1,6 @@
 dask
 datashape >= 0.5.1
-numba
+numba >= 0.24.0
 numpy >= 1.7
 odo >= 0.4.1
 pandas >= 0.15.0
