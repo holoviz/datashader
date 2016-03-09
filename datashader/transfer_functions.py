@@ -85,9 +85,9 @@ def interpolate(agg, low="lightblue", high="darkblue", how='cbrt', cmap=None):
         'log', and 'linear'. Callables take a 2-dimensional array of
         magnitudes at each pixel, and should return a numeric array of the same
         shape.
-    cmap : str or None, optional
-        If specified, overrides the provided low, high values with the name
-        of a colormap to import from matplotlib.
+    cmap : str, optional
+        If specified, interpolate along the named colormap, as provided by
+        matplotlib.  Overrides low,high.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
