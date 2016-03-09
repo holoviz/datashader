@@ -109,10 +109,8 @@ def interpolate(agg, low="lightblue", high="darkblue", how='cbrt', cmap=None):
         a = np.where(np.isnan(data), 0, 255).astype(np.uint8)
         img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
     else:
-        from matplotlib import cm
-        if cmap not in dir(cm):
-            raise RuntimeException("Can't find Matplotlib colormap named '%s'" % cmap)
-        mapper = cm.__dict__[cmap]
+        from matplotlib.cm import get_cmap
+        mapper = get_cmap(cmap)
         tmp = mapper(data, bytes=True)
         tmp[:,:,3] = np.where(np.isnan(data), 0, 255).astype(np.uint8)
         img = tmp.view(np.uint32).reshape(data.shape)
