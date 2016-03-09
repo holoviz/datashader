@@ -52,11 +52,8 @@ python setup.py install
 
 Several examples can be found in the `examples` directory.
 
-## Related work
+## Learning more
 
-The core concepts of datashader are based off the concept of Abstract
-Rendering:
-
-- Abstract Rendering: [Out-of-core Rendering for Information
-  Visualization](http://www.crest.iu.edu/publications/prints/2014/Cottam2014OutOfCore.pdf)
-  (SPIE Conference on Visualization and Data Analysis 2014)
+Additional resources are linked from the
+[datashader documentation] (http://datashader.readthedocs.org), including
+papers and talks about the approach.
