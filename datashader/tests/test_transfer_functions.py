@@ -26,28 +26,55 @@ agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c))
 @pytest.mark.parametrize(['attr'], ['a', 'b', 'c'])
 def test_interpolate(attr):
     x = getattr(agg, attr)
-    img = tf.interpolate(x, 'pink', 'red', how='log')
+    cmap = ['pink', 'red']
+    img = tf.interpolate(x, cmap=cmap, how='log')
     sol = np.array([[0, 4291543295, 4286741503],
                     [4283978751, 0, 4280492543],
                     [4279242751, 4278190335, 0]], dtype='u4')
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.interpolate(x, 'pink', 'red', how='cbrt')
+    img = tf.interpolate(x, cmap=cmap, how='cbrt')
     sol = np.array([[0, 4291543295, 4284176127],
                     [4282268415, 0, 4279834879],
                     [4278914047, 4278190335, 0]], dtype='u4')
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.interpolate(x, 'pink', 'red', how='linear')
+    img = tf.interpolate(x, cmap=cmap, how='linear')
     sol = np.array([[0, 4291543295, 4289306879],
                     [4287070463, 0, 4282597631],
                     [4280361215, 4278190335, 0]])
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.interpolate(x, 'pink', 'red', how=lambda x: x ** 2)
+    img = tf.interpolate(x, cmap=cmap, how=lambda x: x ** 2)
     sol = np.array([[0, 4291543295, 4291148543],
                     [4290030335, 0, 4285557503],
                     [4282268415, 4278190335, 0]], dtype='u4')
+    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    assert img.equals(sol)
+
+
+def test_interpolate_cmap():
+    cmap = ['red', (0, 255, 0), '#0000FF']
+    img = tf.interpolate(agg.a, how='log', cmap=cmap)
+    sol = np.array([[0, 4278190335, 4278236489],
+                    [4280344064, 0, 4289091584],
+                    [4292225024, 4294901760, 0]])
+    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    assert img.equals(sol)
+
+    with pytest.raises(TypeError):
+        tf.interpolate(agg.a, cmap='foo')
+
+    with pytest.raises(ValueError):
+        tf.interpolate(agg.a, low='red', cmap=cmap)
+
+
+def test_interpolate_mpl_cmap():
+    cm = pytest.importorskip('matplotlib.cm')
+    img = tf.interpolate(agg.a, how='log', cmap=cm.viridis)
+    sol = np.array([[5505348, 4283695428, 4287524142],
+                    [4287143710, 5505348, 4282832267],
+                    [4280213706, 4280608765, 5505348]])
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
 

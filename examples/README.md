@@ -74,3 +74,11 @@ map](https://blog.openstreetmap.org/2012/04/01/bulk-gps-point-data/). This
 dataset isn't provided by the download script, and is only included to
 demonstrate working with a large dataset. The run notebook can be viewed using
 the `anaconda.org` link provided above.
+
+**[tseries](https://anaconda.org/jbednar/tseries/notebook)**
+
+Plotting several time series on the same plot.
+
+**[trajectory](https://anaconda.org/jbednar/trajectory/notebook)**
+
+Plotting a 2D trajectory.

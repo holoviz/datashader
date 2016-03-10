@@ -16,9 +16,9 @@ install:
   # Install dependencies
   - conda create -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - conda install dask numba numpy pandas pillow pytest toolz xarray
-  # Need a few fixes to odo and datashape that aren't in the latest release
-  - conda install -c blaze datashape odo
+  - conda install dask numba numpy pandas pillow pytest toolz xarray datashape odo
+  # Optional dependencies, for testing only
+  - conda install matplotlib
 
   - python setup.py develop --no-deps
 
