@@ -41,15 +41,15 @@ class Pipeline(object):
         self.transform_fn = transform_fn
         self.color_fn = color_fn
 
-    def __call__(self, x_range, y_range, width, height):
+    def __call__(self, x_range=None, y_range=None, width=600, height=600):
         """Compute an image from the specified pipeline.
 
         Parameters
         ----------
-        x_range, y_range : tuple
+        x_range, y_range : tuple, optional
             The bounding box on the viewport, specified as tuples of
             ``(min, max)``
-        width, height : int
+        width, height : int, optional
             The shape of the image
         """
         canvas = core.Canvas(plot_width=width, plot_height=height,
