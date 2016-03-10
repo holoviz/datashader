@@ -29,9 +29,6 @@ from tornado.web import RequestHandler
 from webargs import fields
 from webargs.tornadoparser import use_args
 
-from pdb import set_trace
-
-
 # http request arguments for datashing HTTP request
 ds_args = {
     'width': fields.Int(missing=800),
