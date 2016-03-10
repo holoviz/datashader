@@ -70,7 +70,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def interpolate(agg, low="lightblue", high="darkblue", how='cbrt'):
+def interpolate(agg, low="lightblue", high="darkblue", how='cbrt', cmap=None):
     """Convert a 2D DataArray to an image.
 
     Parameters
@@ -85,6 +85,7 @@ def interpolate(agg, low="lightblue", high="darkblue", how='cbrt'):
         'log', and 'linear'. Callables take a 2-dimensional array of
         magnitudes at each pixel, and should return a numeric array of the same
         shape.
+    cmap : list of colors or matplotlib.colors.Colormap, optional
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
@@ -97,12 +98,24 @@ def interpolate(agg, low="lightblue", high="darkblue", how='cbrt'):
     how = _normalize_interpolate_how(how)
     data = how(agg - offset)
     span = [np.nanmin(data), np.nanmax(data)]
-    rspan, gspan, bspan = zip(rgb(low), rgb(high))
-    r = np.interp(data, span, rspan, left=255).astype(np.uint8)
-    g = np.interp(data, span, gspan, left=255).astype(np.uint8)
-    b = np.interp(data, span, bspan, left=255).astype(np.uint8)
-    a = np.where(np.isnan(data), 0, 255).astype(np.uint8)
-    img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
+    if cmap is None:
+        cmap = [low, high]
+    if isinstance(cmap, list):
+        rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
+        span = np.linspace(span[0], span[1], len(cmap))
+        r = np.interp(data, span, rspan, left=255).astype(np.uint8)
+        g = np.interp(data, span, gspan, left=255).astype(np.uint8)
+        b = np.interp(data, span, bspan, left=255).astype(np.uint8)
+        a = np.where(np.isnan(data), 0, 255).astype(np.uint8)
+        img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
+    elif (getattr(type(cmap), '__module__', '').startswith('matplotlib') and
+          callable(cmap)):
+        img = cmap((data - span[0])/(span[1] - span[0]), bytes=True)
+        img[:, :, 3] = np.where(np.isnan(data), 0, 255).astype(np.uint8)
+        img = img.view(np.uint32).reshape(data.shape)
+    else:
+        raise TypeError("Expected `cmap` of `matplotlib.colors.Colormap` or "
+                        "`list`, got: '{0}'".format(type(cmap)))
     return Image(img, coords=agg.coords, dims=agg.dims)
 
 

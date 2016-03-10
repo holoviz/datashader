@@ -52,6 +52,29 @@ def test_interpolate(attr):
     assert img.equals(sol)
 
 
+def test_interpolate_cmap():
+    cmap = ['red', (0, 255, 0), '#0000FF']
+    img = tf.interpolate(agg.a, how='log', cmap=cmap)
+    sol = np.array([[0, 4278190335, 4278236489],
+                    [4280344064, 0, 4289091584],
+                    [4292225024, 4294901760, 0]])
+    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    assert img.equals(sol)
+
+    with pytest.raises(TypeError):
+        tf.interpolate(agg.a, cmap='foo')
+
+
+def test_interpolate_mpl_cmap():
+    cm = pytest.importorskip('matplotlib.cm')
+    img = tf.interpolate(agg.a, how='log', cmap=cm.viridis)
+    sol = np.array([[5505348, 4283695428, 4287524142],
+                    [4287143710, 5505348, 4282832267],
+                    [4280213706, 4280608765, 5505348]])
+    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    assert img.equals(sol)
+
+
 def test_colorize():
     coords = [np.array([0, 1]), np.array([2, 5])]
     cat_agg = xr.DataArray(np.array([[(0, 12, 0), (3, 0, 3)],
