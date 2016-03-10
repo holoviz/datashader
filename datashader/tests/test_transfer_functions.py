@@ -64,6 +64,9 @@ def test_interpolate_cmap():
     with pytest.raises(TypeError):
         tf.interpolate(agg.a, cmap='foo')
 
+    with pytest.raises(ValueError):
+        tf.interpolate(agg.a, low='red', cmap=cmap)
+
 
 def test_interpolate_mpl_cmap():
     cm = pytest.importorskip('matplotlib.cm')

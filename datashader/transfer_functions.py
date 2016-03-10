@@ -70,8 +70,11 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def interpolate(agg, low="lightblue", high="darkblue", how='cbrt', cmap=None):
+def interpolate(agg, low=None, high=None, how='cbrt', cmap=None):
     """Convert a 2D DataArray to an image.
+
+    Data is converted to an image either by interpolating between a `low` and
+    `high` color [default], or by a specified colormap.
 
     Parameters
     ----------
@@ -79,18 +82,26 @@ def interpolate(agg, low="lightblue", high="darkblue", how='cbrt', cmap=None):
     low, high : color name or tuple, optional
         The color for the low and high ends of the scale. Can be specified
         either by name, hexcode, or as a tuple of ``(red, green, blue)``
-        values.
+        values. Defaults are "lightblue" and "darkblue", respectively.
     how : str or callable, optional
         The interpolation method to use. Valid strings are 'cbrt' [default],
         'log', and 'linear'. Callables take a 2-dimensional array of
         magnitudes at each pixel, and should return a numeric array of the same
         shape.
     cmap : list of colors or matplotlib.colors.Colormap, optional
+        The colormap to use. Can be either a list of colors (in any of the
+        formats described above), or a matplotlib colormap object.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
     if agg.ndim != 2:
         raise ValueError("agg must be 2D")
+    if cmap is not None:
+        if low or high:
+            raise ValueError("Can't provide both `cmap` and `low` or `high`")
+    else:
+        # Defaults
+        cmap = [low or 'lightblue', high or 'darkblue']
     offset = agg.min()
     if offset == 0:
         agg = agg.where(agg > 0)
@@ -98,8 +109,6 @@ def interpolate(agg, low="lightblue", high="darkblue", how='cbrt', cmap=None):
     how = _normalize_interpolate_how(how)
     data = how(agg - offset)
     span = [np.nanmin(data), np.nanmax(data)]
-    if cmap is None:
-        cmap = [low, high]
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
         span = np.linspace(span[0], span[1], len(cmap))
