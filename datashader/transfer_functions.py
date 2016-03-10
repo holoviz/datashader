@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 from io import BytesIO
+import warnings
 
 import numpy as np
 import toolz as tz
@@ -15,6 +16,8 @@ from .utils import ngjit
 
 __all__ = ['Image', 'stack', 'interpolate', 'colorize', 'set_background',
            'spread']
+
+warnings.simplefilter('always', DeprecationWarning)
 
 
 class Image(xr.DataArray):
@@ -70,7 +73,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def interpolate(agg, low=None, high=None, how='cbrt', cmap=None):
+def interpolate(agg, low=None, high=None, cmap=None, how='cbrt'):
     """Convert a 2D DataArray to an image.
 
     Data is converted to an image either by interpolating between a `low` and
@@ -80,17 +83,18 @@ def interpolate(agg, low=None, high=None, how='cbrt', cmap=None):
     ----------
     agg : DataArray
     low, high : color name or tuple, optional
-        The color for the low and high ends of the scale. Can be specified
-        either by name, hexcode, or as a tuple of ``(red, green, blue)``
-        values. Defaults are "lightblue" and "darkblue", respectively.
+        Deprecated. The color for the low and high ends of the scale. Can be
+        specified either by name, hexcode, or as a tuple of ``(red, green,
+        blue)`` values.
+    cmap : list of colors or matplotlib.colors.Colormap, optional
+        The colormap to use. Can be either a list of colors (in any of the
+        formats described above), or a matplotlib colormap object.
+        Default is `["lightblue", "darkblue"]`
     how : str or callable, optional
         The interpolation method to use. Valid strings are 'cbrt' [default],
         'log', and 'linear'. Callables take a 2-dimensional array of
         magnitudes at each pixel, and should return a numeric array of the same
         shape.
-    cmap : list of colors or matplotlib.colors.Colormap, optional
-        The colormap to use. Can be either a list of colors (in any of the
-        formats described above), or a matplotlib colormap object.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
@@ -101,7 +105,12 @@ def interpolate(agg, low=None, high=None, how='cbrt', cmap=None):
             raise ValueError("Can't provide both `cmap` and `low` or `high`")
     else:
         # Defaults
-        cmap = [low or 'lightblue', high or 'darkblue']
+        cmap = ['lightblue', 'darkblue']
+        if low or high:
+            w = DeprecationWarning("Using `low` and `high` is deprecated. "
+                                   "Instead use `cmap=[low, high]`")
+            warnings.warn(w)
+            cmap = [low or cmap[0], high or cmap[1]]
     offset = agg.min()
     if offset == 0:
         agg = agg.where(agg > 0)
@@ -117,8 +126,8 @@ def interpolate(agg, low=None, high=None, how='cbrt', cmap=None):
         b = np.interp(data, span, bspan, left=255).astype(np.uint8)
         a = np.where(np.isnan(data), 0, 255).astype(np.uint8)
         img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
-    elif (getattr(type(cmap), '__module__', '').startswith('matplotlib') and
-          callable(cmap)):
+    elif callable(cmap):
+        # Assume callable is matplotlib colormap
         img = cmap((data - span[0])/(span[1] - span[0]), bytes=True)
         img[:, :, 3] = np.where(np.isnan(data), 0, 255).astype(np.uint8)
         img = img.view(np.uint32).reshape(data.shape)
