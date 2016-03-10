@@ -11,6 +11,7 @@ from collections import OrderedDict
 import datashader as ds
 import datashader.transfer_functions as tf
 import pandas as pd
+import numpy as np
 
 from bokeh.server.server import Server
 from bokeh.application import Application
@@ -27,6 +28,8 @@ from tornado.web import RequestHandler
 
 from webargs import fields
 from webargs.tornadoparser import use_args
+
+from pdb import set_trace
 
 
 # http request arguments for datashing HTTP request
@@ -51,12 +54,33 @@ class GetDataset(RequestHandler):
                         plot_height=args['height'],
                         x_range=(xmin, xmax),
                         y_range=(ymin, ymax))
-        agg = cvs.points(self.model.df,
-                         self.model.active_axes[1],
-                         self.model.active_axes[2],
-                         self.model.aggregate_function(self.model.field))
-        pix = tf.interpolate(agg, (255, 204, 204), 'red',
-                             how=self.model.transfer_function)
+
+        # handle categorical field
+        if self.model.field in self.model.categorical_fields:
+            agg = cvs.points(self.model.df,
+                             self.model.active_axes[1],
+                             self.model.active_axes[2],
+                             ds.count_cat(self.model.field))
+
+            pix = tf.colorize(agg, self.model.colormap,
+                                 how=self.model.transfer_function)
+
+        # handle ordinal field
+        elif self.model.field in self.model.ordinal_fields:
+            agg = cvs.points(self.model.df,
+                             self.model.active_axes[1],
+                             self.model.active_axes[2])
+
+            pix = tf.interpolate(agg, (255, 204, 204), 'red',
+                                 how=self.model.transfer_function)
+        # handle no field
+        else:
+            agg = cvs.points(self.model.df,
+                             self.model.active_axes[1],
+                             self.model.active_axes[2])
+
+            pix = tf.interpolate(agg, (255, 204, 204), 'red',
+                                 how=self.model.transfer_function)
 
         # serialize to image
         img_io = pix.to_bytesio()
@@ -141,9 +165,23 @@ class AppState(object):
 
         # parse summary field
         self.fields = OrderedDict()
+        self.colormaps = OrderedDict()
+        self.ordinal_fields = []
+        self.categorical_fields = []
         for f in self.config['summary_fields']:
             self.fields[f['name']] = None if f['field'] == 'None' else f['field']
+
+            if 'cat_colors' in f.keys():
+                self.colormaps[f['name']] = f['cat_colors']
+                self.categorical_fields.append(f['field'])
+
+            elif f['field'] != 'None':
+                self.ordinal_fields.append(f['field'])
+
         self.field = list(self.fields.values())[0]
+
+        if self.colormaps:
+            self.colormap = self.colormaps[list(self.fields.keys())[0]]
 
     def load_datasets(self):
         data_path = self.config['file']
@@ -164,6 +202,11 @@ class AppState(object):
 
         if data_path.endswith(".csv") :
             self.df = pd.read_csv(data_path, usecols=load_fields)
+
+            # parse categorical fields
+            for f in self.categorical_fields:
+                self.df[f] = self.df[f].astype('category')
+
         elif data_path.endswith(".castra"):
             import dask.dataframe as dd
             self.df = dd.from_castra(data_path)
@@ -188,7 +231,7 @@ class AppView(object):
         self.fig = Figure(tools='wheel_zoom,pan', x_range=self.x_range,
                           y_range=self.y_range)
         self.fig.plot_height = 560
-        self.fig.plot_width = 800
+        self.fig.plot_width = 810
         self.fig.axis.visible = False
 
         # add tiled basemap
@@ -201,28 +244,34 @@ class AppView(object):
                                         extra_url_vars=self.model.shader_url_vars)
         self.image_renderer = DynamicImageRenderer(image_source=self.image_source)
         self.fig.renderers.append(self.image_renderer)
-
+        
         # add label layer
         self.label_source = WMTSTileSource(url=self.model.labels_url)
         self.label_renderer = TileRenderer(tile_source=self.label_source)
         self.fig.renderers.append(self.label_renderer)
 
         # add ui components
+        controls = []
         axes_select = Select.create(name='Axes',
                                     options=self.model.axes)
         axes_select.on_change('value', self.on_axes_change)
+        controls.append(axes_select)
 
-        field_select = Select.create(name='Field', options=self.model.fields)
-        field_select.on_change('value', self.on_field_change)
+        self.field_select = Select.create(name='Field', options=self.model.fields)
+        self.field_select.on_change('value', self.on_field_change)
+        controls.append(self.field_select)
 
-        aggregate_select = Select.create(name='Aggregate',
+        self.aggregate_select = Select.create(name='Aggregate',
                                          options=self.model.aggregate_functions)
-        aggregate_select.on_change('value', self.on_aggregate_change)
+        self.aggregate_select.on_change('value', self.on_aggregate_change)
+        controls.append(self.aggregate_select)
 
         transfer_select = Select.create(name='Transfer Function',
                                         options=self.model.transfer_functions)
         transfer_select.on_change('value', self.on_transfer_function_change)
+        controls.append(transfer_select)
 
+        # add map components
         basemap_select = Select.create(name='Basemap', value='Toner',
                                        options=self.model.basemaps)
         basemap_select.on_change('value', self.on_basemap_change)
@@ -238,10 +287,6 @@ class AppView(object):
         show_labels_chk = CheckboxGroup(labels=["Show Labels"], active=[0])
         show_labels_chk.on_click(self.on_labels_change)
 
-
-        controls = [axes_select, field_select, aggregate_select,
-                    transfer_select]
-
         map_controls = [basemap_select, basemap_opacity_slider,
                         image_opacity_slider, show_labels_chk]
 
@@ -255,9 +300,19 @@ class AppView(object):
         self.image_renderer.image_source = ImageSource(url=self.model.service_url,
                         extra_url_vars=self.model.shader_url_vars)
 
+
     def on_field_change(self, attr, old, new):
         self.model.field = self.model.fields[new]
         self.update_image()
+
+        if not self.model.field:
+            self.aggregate_select.options = [dict(name="No Aggregates Available", value="")]
+
+        elif self.model.field in self.model.categorical_fields:
+            self.aggregate_select.options = [dict(name="Categorical", value="count_cat")]
+        else:
+            opts = [dict(name=k, value=k) for k in self.model.aggregate_functions.keys()]
+            self.aggregate_select.options = opts
 
     def on_basemap_change(self, attr, old, new):
         self.model.basemap = self.model.basemaps[new]
