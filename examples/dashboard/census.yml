@@ -15,16 +15,15 @@ axes:
     yaxis: metersnorth
 
 summary_fields:
-  - name: Counts
-    field: None
 
   - name: Race
     field: race
-    cat_colors: race_colors
+    cat_colors:
+      w: blue
+      b: green
+      a: red
+      h: orange
+      o: saddlebrown
 
-race_colors:
-  w: blue
-  b: green
-  a: red
-  h: orange
-  o: saddlebrown
+  - name: Counts
+    field: None
