@@ -5,6 +5,7 @@ from os import path
 import yaml
 import webbrowser
 import uuid
+import math
 
 from collections import OrderedDict
 
@@ -12,16 +13,17 @@ import datashader as ds
 import datashader.transfer_functions as tf
 import pandas as pd
 import numpy as np
+import pdb
 
 from bokeh.server.server import Server
 from bokeh.application import Application
 from bokeh.application.handlers import FunctionHandler
 
-from bokeh.plotting import Figure
+from bokeh.plotting import Figure 
 from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer,
                           DynamicImageRenderer, HBox, VBox)
 
-from bokeh.models import Select, Slider, CheckboxGroup
+from bokeh.models import Select, Slider, CheckboxGroup, CustomJS, ColumnDataSource, Square, HoverTool
 
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler
@@ -52,12 +54,22 @@ class GetDataset(RequestHandler):
                         x_range=(xmin, xmax),
                         y_range=(ymin, ymax))
 
+        hover_cvs = ds.Canvas(plot_width=math.ceil(args['width'] / self.model.hover_size),
+                        plot_height=math.ceil(args['height'] / self.model.hover_size),
+                        x_range=(xmin, xmax),
+                        y_range=(ymin, ymax))
+
         # handle categorical field
         if self.model.field in self.model.categorical_fields:
             agg = cvs.points(self.model.df,
                              self.model.active_axes[1],
                              self.model.active_axes[2],
                              ds.count_cat(self.model.field))
+
+            hover_agg = hover_cvs.points(self.model.df,
+                                  self.model.active_axes[1],
+                                  self.model.active_axes[2],
+                                  ds.count_cat(self.model.field))
 
             pix = tf.colorize(agg, self.model.colormap,
                                  how=self.model.transfer_function)
@@ -66,7 +78,13 @@ class GetDataset(RequestHandler):
         elif self.model.field in self.model.ordinal_fields:
             agg = cvs.points(self.model.df,
                              self.model.active_axes[1],
-                             self.model.active_axes[2])
+                             self.model.active_axes[2],
+                             self.model.aggregate_function(self.model.field))
+
+            hover_agg = hover_cvs.points(self.model.df,
+                                         self.model.active_axes[1],
+                                         self.model.active_axes[2],
+                                         self.model.aggregate_function(self.model.field))
 
             pix = tf.interpolate(agg, (255, 204, 204), 'red',
                                  how=self.model.transfer_function)
@@ -76,14 +94,24 @@ class GetDataset(RequestHandler):
                              self.model.active_axes[1],
                              self.model.active_axes[2])
 
+            hover_agg = hover_cvs.points(self.model.df,
+                                         self.model.active_axes[1],
+                                         self.model.active_axes[2])
             pix = tf.interpolate(agg, (255, 204, 204), 'red',
                                  how=self.model.transfer_function)
 
+        def hover_callback():
+            xs, ys = np.meshgrid(hover_agg.x_axis.values,
+                                 hover_agg.y_axis.values)
+            self.model.hover_source.data['x'] = xs.flatten()
+            self.model.hover_source.data['y'] = ys.flatten()
+            self.model.hover_source.data['value'] = hover_agg.values.flatten()
+
+        server.get_sessions('/')[0].with_document_locked(hover_callback)
         # serialize to image
         img_io = pix.to_bytesio()
         self.write(img_io.getvalue())
         self.set_header("Content-type", "image/png")
-
 
 class AppState(object):
     """Simple value object to hold app state"""
@@ -137,6 +165,10 @@ class AppState(object):
 
         # set defaults
         self.load_datasets()
+
+        # hover
+        self.hover_source = ColumnDataSource(data=dict(x=[], y=[], val=[]))
+        self.hover_size = 8
 
     def load_config_file(self, config_path):
         '''load and parse yaml config file'''
@@ -247,6 +279,31 @@ class AppView(object):
         self.label_renderer = TileRenderer(tile_source=self.label_source)
         self.fig.renderers.append(self.label_renderer)
 
+        self.invisible_square = Square(x='x',
+                                  y='y',
+                                  fill_color=None,
+                                  line_color=None, 
+                                  size=self.model.hover_size)
+
+        self.visible_square = Square(x='x',
+                                y='y', 
+                                fill_color='#79DCDE',
+                                fill_alpha=.5,
+                                line_color='#79DCDE', 
+                                line_alpha=1,
+                                size=self.model.hover_size)
+
+        cr = self.fig.add_glyph(self.model.hover_source,
+                                self.invisible_square,
+                                selection_glyph=self.visible_square,
+                                nonselection_glyph=self.invisible_square)
+
+        # Add a hover tool, that selects the circle
+        code = "source.set('selected', cb_data['index']);"
+        callback = CustomJS(args={'source': self.model.hover_source}, code=code)
+        self.hover_tool = HoverTool(tooltips=[(self.model.fields.keys()[0], "@value")], callback=callback, renderers=[cr], mode='mouse')
+        self.fig.add_tools(self.hover_tool)
+
         # add ui components
         controls = []
         axes_select = Select.create(name='Axes',
@@ -281,6 +338,11 @@ class AppView(object):
                                         end=100, step=1)
         basemap_opacity_slider.on_change('value', self.on_basemap_opacity_slider_change)
 
+        hover_size_slider = Slider(title="Hover Size (px)", value=8, start=4,
+                                        end=30, step=1)
+        hover_size_slider.on_change('value', self.on_hover_size_change)
+        controls.append(hover_size_slider)
+
         show_labels_chk = CheckboxGroup(labels=["Show Labels"], active=[0])
         show_labels_chk.on_click(self.on_labels_change)
 
@@ -297,9 +359,9 @@ class AppView(object):
         self.image_renderer.image_source = ImageSource(url=self.model.service_url,
                         extra_url_vars=self.model.shader_url_vars)
 
-
     def on_field_change(self, attr, old, new):
         self.model.field = self.model.fields[new]
+        self.hover_tool.tooltips = [(new, '@value')]
         self.update_image()
 
         if not self.model.field:
@@ -314,6 +376,12 @@ class AppView(object):
     def on_basemap_change(self, attr, old, new):
         self.model.basemap = self.model.basemaps[new]
         self.tile_renderer.tile_source = WMTSTileSource(url=self.model.basemap)
+
+    def on_hover_size_change(self, attr, old, new):
+        self.model.hover_size = int(new)
+        self.invisible_square.size = int(new)
+        self.visible_square.size = int(new)
+        self.update_image()
 
     def on_axes_change(self, attr, old, new):
         self.model.active_axes = self.model.axes[new]
