@@ -60,9 +60,45 @@ def stack(*imgs, **kwargs):
     return Image(out, coords=imgs[0].coords, dims=imgs[0].dims)
 
 
+def eq_hist(data, nbins=256):
+    """Return a numpy array after histogram equalization.
+
+    For use in `interpolate`.
+
+    Parameters
+    ----------
+    data : ndarray
+    nbins : int, optional
+        Number of bins to use. Note that this argument is ignored for integer
+        arrays, which bin by the integer values directly.
+
+    Notes
+    -----
+    This function is adapted from the implementation in scikit-image [1]_.
+
+    References
+    ----------
+    .. [1] http://scikit-image.org/docs/stable/api/skimage.exposure.html#equalize-hist
+    """
+    if not isinstance(data, np.ndarray):
+        raise TypeError("data must be np.ndarray")
+    if np.issubdtype(data.dtype, np.integer):
+        hist = np.bincount(data.ravel())
+        bin_centers = np.arange(len(hist))
+        idx = np.nonzero(hist)[0][0]
+        hist, bin_centers = hist[idx:], bin_centers[idx:]
+    else:
+        hist, bin_edges = np.histogram(data[~np.isnan(data)], bins=nbins)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    cdf = hist.cumsum()
+    cdf = cdf / float(cdf[-1])
+    return np.interp(data.flat, bin_centers, cdf).reshape(data.shape)
+
+
 _interpolate_lookup = {'log': np.log1p,
                        'cbrt': lambda x: x ** (1/3.),
-                       'linear': lambda x: x}
+                       'linear': lambda x: x,
+                       'eq_hist': eq_hist}
 
 
 def _normalize_interpolate_how(how):
@@ -92,7 +128,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='cbrt'):
         Default is `["lightblue", "darkblue"]`
     how : str or callable, optional
         The interpolation method to use. Valid strings are 'cbrt' [default],
-        'log', and 'linear'. Callables take a 2-dimensional array of
+        'log', 'linear', and 'eq_hist'. Callables take a 2-dimensional array of
         magnitudes at each pixel, and should return a numeric array of the same
         shape.
     """
@@ -116,7 +152,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='cbrt'):
         agg = agg.where(agg > 0)
         offset = agg.min()
     how = _normalize_interpolate_how(how)
-    data = how(agg - offset)
+    data = how(agg.data - offset.data)
     span = [np.nanmin(data), np.nanmax(data)]
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))

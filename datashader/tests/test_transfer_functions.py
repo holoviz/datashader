@@ -1,3 +1,5 @@
+from __future__ import division
+
 from io import BytesIO
 
 import numpy as np
@@ -43,6 +45,12 @@ def test_interpolate(attr):
     sol = np.array([[0, 4291543295, 4289306879],
                     [4287070463, 0, 4282597631],
                     [4280361215, 4278190335, 0]])
+    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    assert img.equals(sol)
+    img = tf.interpolate(x, cmap=cmap, how='eq_hist')
+    sol = np.array([[0, 4291543295, 4288846335],
+                    [4286609919, 0, 4283518207],
+                    [4281281791, 4278190335, 0]], dtype='u4')
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
     img = tf.interpolate(x, cmap=cmap, how=lambda x: x ** 2)
@@ -238,6 +246,30 @@ def test_spread():
     pytest.raises(ValueError, lambda: tf.spread(img, px=-1))
     pytest.raises(ValueError, lambda: tf.spread(img, mask=np.ones(2)))
     pytest.raises(ValueError, lambda: tf.spread(img, mask=np.ones((2, 2))))
+
+
+def check_eq_hist_cdf_slope(eq):
+    # Check that the slope of the cdf is ~1
+    # Adapted from scikit-image's test for the same function
+    cdf = np.histogram(eq[~np.isnan(eq)], bins=256)[0].cumsum()
+    cdf = cdf / cdf[-1]
+    slope = np.polyfit(np.linspace(0, 1, cdf.size), cdf, 1)[0]
+    assert 0.9 < slope < 1.1
+
+
+def test_eq_hist():
+    # Float
+    data = np.random.normal(size=300**2)
+    data[np.random.randint(300**2, size=100)] = np.nan
+    data = (data - np.nanmin(data)).reshape((300, 300))
+    eq = tf.eq_hist(data)
+    check_eq_hist_cdf_slope(eq)
+    assert (np.isnan(eq) == np.isnan(data)).all()
+    # Integer
+    data = np.random.normal(scale=100, size=(300, 300)).astype('i8')
+    data = data - data.min()
+    eq = tf.eq_hist(data)
+    check_eq_hist_cdf_slope(eq)
 
 
 def test_Image_to_pil():
