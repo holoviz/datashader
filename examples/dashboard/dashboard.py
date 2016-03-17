@@ -13,7 +13,6 @@ import datashader as ds
 import datashader.transfer_functions as tf
 import pandas as pd
 import numpy as np
-import pdb
 
 from bokeh.server.server import Server
 from bokeh.application import Application
@@ -38,6 +37,7 @@ ds_args = {
     'select': fields.Str(missing=""),
 }
 
+
 class GetDataset(RequestHandler):
     """Handles http requests for datashading."""
     @use_args(ds_args)
@@ -54,10 +54,6 @@ class GetDataset(RequestHandler):
                         x_range=(xmin, xmax),
                         y_range=(ymin, ymax))
 
-        hover_cvs = ds.Canvas(plot_width=math.ceil(args['width'] / self.model.hover_size),
-                        plot_height=math.ceil(args['height'] / self.model.hover_size),
-                        x_range=(xmin, xmax),
-                        y_range=(ymin, ymax))
 
         # handle categorical field
         if self.model.field in self.model.categorical_fields:
@@ -66,13 +62,9 @@ class GetDataset(RequestHandler):
                              self.model.active_axes[2],
                              ds.count_cat(self.model.field))
 
-            hover_agg = hover_cvs.points(self.model.df,
-                                  self.model.active_axes[1],
-                                  self.model.active_axes[2],
-                                  ds.count_cat(self.model.field))
-
-            pix = tf.colorize(agg, self.model.colormap,
-                                 how=self.model.transfer_function)
+            pix = tf.colorize(agg,
+                              self.model.colormap,
+                              how=self.model.transfer_function)
 
         # handle ordinal field
         elif self.model.field in self.model.ordinal_fields:
@@ -80,11 +72,6 @@ class GetDataset(RequestHandler):
                              self.model.active_axes[1],
                              self.model.active_axes[2],
                              self.model.aggregate_function(self.model.field))
-
-            hover_agg = hover_cvs.points(self.model.df,
-                                         self.model.active_axes[1],
-                                         self.model.active_axes[2],
-                                         self.model.aggregate_function(self.model.field))
 
             pix = tf.interpolate(agg, (255, 204, 204), 'red',
                                  how=self.model.transfer_function)
@@ -94,18 +81,32 @@ class GetDataset(RequestHandler):
                              self.model.active_axes[1],
                              self.model.active_axes[2])
 
-            hover_agg = hover_cvs.points(self.model.df,
-                                         self.model.active_axes[1],
-                                         self.model.active_axes[2])
             pix = tf.interpolate(agg, (255, 204, 204), 'red',
                                  how=self.model.transfer_function)
 
         def hover_callback():
-            xs, ys = np.meshgrid(hover_agg.x_axis.values,
-                                 hover_agg.y_axis.values)
-            self.model.hover_source.data['x'] = xs.flatten()
-            self.model.hover_source.data['y'] = ys.flatten()
-            self.model.hover_source.data['value'] = hover_agg.values.flatten()
+
+            def downsample(aggregate, factor):
+                ys, xs = aggregate.shape
+                crarr = aggregate[:ys-(ys % int(factor)),:xs-(xs % int(factor))]
+                return np.nanmean(np.concatenate([[crarr[i::factor,j::factor] 
+                                                   for i in range(factor)] 
+                                                   for j in range(factor)]), axis=0)
+
+            hover_agg = downsample(agg.values, self.model.hover_size)
+
+            sq_xs = np.linspace(self.model.map_extent[0],
+                                self.model.map_extent[2],
+                                agg.shape[1] / self.model.hover_size)
+
+            sq_ys = np.linspace(self.model.map_extent[1],
+                                self.model.map_extent[3],
+                                agg.shape[0] / self.model.hover_size)
+
+            agg_xs, agg_ys = np.meshgrid(sq_xs, sq_ys)
+            self.model.hover_source.data['x'] = agg_xs.flatten()
+            self.model.hover_source.data['y'] = agg_ys.flatten()
+            self.model.hover_source.data['value'] = hover_agg.flatten()
 
         server.get_sessions('/')[0].with_document_locked(hover_callback)
         # serialize to image
@@ -279,6 +280,7 @@ class AppView(object):
         self.label_renderer = TileRenderer(tile_source=self.label_source)
         self.fig.renderers.append(self.label_renderer)
 
+        # Add a hover tool
         self.invisible_square = Square(x='x',
                                   y='y',
                                   fill_color=None,
@@ -298,10 +300,13 @@ class AppView(object):
                                 selection_glyph=self.visible_square,
                                 nonselection_glyph=self.invisible_square)
 
-        # Add a hover tool, that selects the circle
         code = "source.set('selected', cb_data['index']);"
         callback = CustomJS(args={'source': self.model.hover_source}, code=code)
-        self.hover_tool = HoverTool(tooltips=[(self.model.fields.keys()[0], "@value")], callback=callback, renderers=[cr], mode='mouse')
+
+        self.hover_tool = HoverTool(tooltips=[(self.model.fields.keys()[0], "@value")],
+                                    callback=callback, 
+                                    renderers=[cr], 
+                                    mode='mouse')
         self.fig.add_tools(self.hover_tool)
 
         # add ui components
@@ -338,7 +343,7 @@ class AppView(object):
                                         end=100, step=1)
         basemap_opacity_slider.on_change('value', self.on_basemap_opacity_slider_change)
 
-        hover_size_slider = Slider(title="Hover Size (px)", value=8, start=4,
+        hover_size_slider = Slider(title="Hover Size (px)", value=8, start=1,
                                         end=30, step=1)
         hover_size_slider.on_change('value', self.on_hover_size_change)
         controls.append(hover_size_slider)
