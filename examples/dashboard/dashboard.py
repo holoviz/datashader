@@ -343,7 +343,7 @@ class AppView(object):
                                         end=100, step=1)
         basemap_opacity_slider.on_change('value', self.on_basemap_opacity_slider_change)
 
-        hover_size_slider = Slider(title="Hover Size (px)", value=8, start=1,
+        hover_size_slider = Slider(title="Hover Size (px)", value=8, start=4,
                                         end=30, step=1)
         hover_size_slider.on_change('value', self.on_hover_size_change)
         controls.append(hover_size_slider)
