@@ -8,8 +8,8 @@ good network connection. The dataset is roughly 1.5 GB on disk.
 python download_sample_data.py
 ```
 
-The examples also require bokeh to be installed. Bokeh is available through
-either conda or pip.
+Datashader is an independent library, but most of the examples require
+bokeh to be installed. Bokeh is available through either conda or pip:
 
 ```
 conda install bokeh
@@ -20,16 +20,6 @@ pip install bokeh
 ```
 
 ## Examples
-
-### Dashboard
-
-An example interactive dashboard using [bokeh
-server](http://bokeh.pydata.org/en/latest/docs/user_guide/server.html)
-integrated with a datashading pipeline. To start, run:
-
-```
-python dashboard/dashboard.py --config dashboard/nyc_taxi.yml
-```
 
 ### Notebooks
 
@@ -74,3 +64,52 @@ map](https://blog.openstreetmap.org/2012/04/01/bulk-gps-point-data/). This
 dataset isn't provided by the download script, and is only included to
 demonstrate working with a large dataset. The run notebook can be viewed using
 the `anaconda.org` link provided above.
+
+
+
+### Dashboard
+
+An example interactive dashboard using 
+[bokeh server](http://bokeh.pydata.org/en/latest/docs/user_guide/server.html)
+integrated with a datashading pipeline.  Requires webargs:
+
+```
+pip install webargs
+```
+
+To start, run:
+
+```
+python dashboard/dashboard.py -c dashboard/nyc_taxi.yml
+```
+
+The 'nyc_taxi.yml' configuration file set up the dashboard to use the
+NYC Taxi dataset downloaded above.  If you have less than 16GB of RAM
+on your machine, you will want to add the "-o" option to tell it to work
+out of core instead of loading all data into memory, though doing so will
+make interactive use substantially slower than if sufficient memory were
+available.
+
+You can write similar configuration files for working with other
+datasets of your own, while adding features to dashboard.py itself if
+needed.  As an example, a configuration file for the [2010 US Census
+racial data](http://www.coopercenter.org/demographics/Racial-Dot-Map)
+is also provided.  To use the census data, you'll need to install dask
+and castra:
+
+```
+conda install dask
+conda install -c quanyuan castra
+```
+
+You'll also need to download the 1.3GB data file
+[census.castra.zip]()
+and unzip it into `examples/data/` (5GB unzipped), then run the
+dashboard:
+
+```
+python dashboard/dashboard.py -c dashboard/census.yml
+```
+
+If you have other dashboards running, you'll need to add "-p 5001" (etc.) to select
+a unique port number for the web page to use for communicating with the Bokeh server.
