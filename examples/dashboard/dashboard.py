@@ -117,7 +117,7 @@ class GetDataset(RequestHandler):
 class AppState(object):
     """Simple value object to hold app state"""
 
-    def __init__(self, config_file, app_port=5000):
+    def __init__(self, config_file, outofcore, app_port):
 
         self.load_config_file(config_file)
 
@@ -165,7 +165,7 @@ class AppState(object):
         self.shader_url_vars['cachebust'] = str(uuid.uuid4())
 
         # set defaults
-        self.load_datasets()
+        self.load_datasets(outofcore)
 
         # hover
         self.hover_source = ColumnDataSource(data=dict(x=[], y=[], val=[]))
@@ -213,7 +213,7 @@ class AppState(object):
         if self.colormaps:
             self.colormap = self.colormaps[list(self.fields.keys())[0]]
 
-    def load_datasets(self):
+    def load_datasets(self,outofcore):
         data_path = self.config['file']
         print('Loading Data from {}...'.format(data_path))
 
@@ -240,6 +240,9 @@ class AppState(object):
         elif data_path.endswith(".castra"):
             import dask.dataframe as dd
             self.df = dd.from_castra(data_path)
+            if not outofcore:
+                self.df = self.df.cache(cache=dict)
+            
         else:
             raise IOError("Unknown data file type; .csv and .castra currently supported")
 
@@ -412,12 +415,15 @@ class AppView(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', help='yaml config file (e.g. nyc_taxi.yml)', required=True)
+    parser.add_argument('-p', '--port',   help='port number to use for communicating with server; defaults to 5000', default=5000)
+    parser.add_argument('-o', '--outofcore', help='use out-of-core processing if available, for datasets larger than memory',
+                        default=False, action='store_true')
     args = vars(parser.parse_args())
 
-    APP_PORT = 5000
+    APP_PORT = args['port']
 
     def add_roots(doc):
-        model = AppState(args['config'], APP_PORT)
+        model = AppState(args['config'], args['outofcore'], APP_PORT)
         view = AppView(model)
         GetDataset.model = model
         doc.add_root(view.layout)
