@@ -73,7 +73,7 @@ class GetDataset(RequestHandler):
                              self.model.active_axes[2],
                              self.model.aggregate_function(self.model.field))
 
-            pix = tf.interpolate(agg, (255, 204, 204), 'red',
+            pix = tf.interpolate(agg, cmap=[(255, 204, 204), 'red'],
                                  how=self.model.transfer_function)
         # handle no field
         else:
@@ -81,7 +81,7 @@ class GetDataset(RequestHandler):
                              self.model.active_axes[1],
                              self.model.active_axes[2])
 
-            pix = tf.interpolate(agg, (255, 204, 204), 'red',
+            pix = tf.interpolate(agg, cmap=[(255, 204, 204), 'red'],
                                  how=self.model.transfer_function)
 
         def hover_callback():
