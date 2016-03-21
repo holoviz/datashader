@@ -5,7 +5,7 @@ from os import path
 import yaml
 import webbrowser
 import uuid
-import math
+import pdb
 
 from collections import OrderedDict
 
@@ -13,6 +13,7 @@ import datashader as ds
 import datashader.transfer_functions as tf
 import pandas as pd
 import numpy as np
+from xarray import DataArray
 
 from bokeh.server.server import Server
 from bokeh.application import Application
@@ -36,7 +37,6 @@ ds_args = {
     'height': fields.Int(missing=600),
     'select': fields.Str(missing=""),
 }
-
 
 class GetDataset(RequestHandler):
     """Handles http requests for datashading."""
@@ -84,7 +84,7 @@ class GetDataset(RequestHandler):
             pix = tf.interpolate(agg, cmap=[(255, 204, 204), 'red'],
                                  how=self.model.transfer_function)
 
-        def hover_callback():
+        def update_plots():
 
             def downsample(aggregate, factor):
                 ys, xs = aggregate.shape
@@ -93,6 +93,7 @@ class GetDataset(RequestHandler):
                                                    for i in range(factor)] 
                                                    for j in range(factor)]), axis=0)
 
+            # update hover layer
             hover_agg = downsample(agg.values, self.model.hover_size)
 
             sq_xs = np.linspace(self.model.map_extent[0],
@@ -108,7 +109,21 @@ class GetDataset(RequestHandler):
             self.model.hover_source.data['y'] = agg_ys.flatten()
             self.model.hover_source.data['value'] = hover_agg.flatten()
 
-        server.get_sessions('/')[0].with_document_locked(hover_callback)
+            # update legend
+            min_val = agg.values.min()
+            max_val = agg.values.max()
+            vals = np.vstack([np.linspace(min_val, max_val, 180)] * 18)
+            vals_arr = DataArray(vals)
+            img = tf.interpolate(vals_arr,
+                                 cmap=[(255, 204, 204), 'red'],
+                                 how=self.model.transfer_function)
+            self.model.legend_source.data['image'] = [img.values]
+            self.model.legend_source.data['x'] = [min_val]
+            self.model.legend_source.data['dw'] = [max_val - min_val]
+            self.model.legend_fig.x_range.start = min_val
+            self.model.legend_fig.x_range.end = max_val
+
+        server.get_sessions('/')[0].with_document_locked(update_plots)
         # serialize to image
         img_io = pix.to_bytesio()
         self.write(img_io.getvalue())
@@ -170,6 +185,13 @@ class AppState(object):
         # hover
         self.hover_source = ColumnDataSource(data=dict(x=[], y=[], val=[]))
         self.hover_size = 8
+
+        # legend
+        self.legend_source = ColumnDataSource(data=dict(image=[],
+                                                        x=[0],
+                                                        y=[0],
+                                                        dw=[180],
+                                                        dh=[18]))
 
     def load_config_file(self, config_path):
         '''load and parse yaml config file'''
@@ -261,8 +283,16 @@ class AppView(object):
         self.y_range = Range1d(start=self.model.map_extent[1],
                                end=self.model.map_extent[3], bounds=None)
 
-        self.fig = Figure(tools='wheel_zoom,pan', x_range=self.x_range,
+        self.fig = Figure(tools='wheel_zoom,pan',
+                          x_range=self.x_range,
+                          lod_threshold=None,
                           y_range=self.y_range)
+
+        self.fig.min_border_top = 0
+        self.fig.min_border_bottom = 10
+        self.fig.min_border_left = 0
+        self.fig.min_border_right = 0
+
         self.fig.plot_height = 560
         self.fig.plot_width = 810
         self.fig.axis.visible = False
@@ -310,6 +340,29 @@ class AppView(object):
                                     callback=callback, 
                                     renderers=[cr], 
                                     mode='mouse')
+
+        self.model.legend_fig = Figure(x_range=(0, 180),
+                                       plot_height=50,
+                                       plot_width=self.fig.plot_width,
+                                       lod_threshold=None,
+                                       toolbar_location=None,
+                                       y_range=(0,18))
+
+        self.model.legend_fig.min_border_top = 0
+        self.model.legend_fig.min_border_bottom = 10
+        self.model.legend_fig.min_border_left = 0
+        self.model.legend_fig.min_border_right = 0
+        self.model.legend_fig.yaxis.visible = False
+        self.model.legend_fig.grid.grid_line_alpha = 0
+
+        self.model.legend_fig.image_rgba(source=self.model.legend_source,
+                                         image='image',
+                                         x='x',
+                                         y='y',
+                                         dw='dw',
+                                         dh='dh',
+                                         dw_units='screen')
+
         self.fig.add_tools(self.hover_tool)
 
         # add ui components
@@ -359,7 +412,9 @@ class AppView(object):
 
         self.controls = VBox(width=200, height=600, children=controls)
         self.map_controls = HBox(width=self.fig.plot_width, children=map_controls)
-        self.map_area = VBox(width=self.fig.plot_width, children=[self.map_controls, self.fig])
+        self.map_area = VBox(width=self.fig.plot_width, children=[self.map_controls,
+                                                                  self.fig,
+                                                                  self.model.legend_fig])
         self.layout = HBox(width=1024, children=[self.controls, self.map_area])
 
     def update_image(self):
