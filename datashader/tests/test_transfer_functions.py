@@ -25,6 +25,15 @@ s_c = xr.DataArray(c, coords=coords, dims=dims)
 agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c))
 
 
+eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
+                              [4286149631, 0, 4283518207],
+                              [4280821503, 4278190335, 0]], dtype='u4'),
+               'b': np.array([[0, 4291543295, 4288846335],
+                              [4286609919, 0, 4283518207],
+                              [4281281791, 4278190335, 0]], dtype='u4')}
+eq_hist_sol['c'] = eq_hist_sol['b']
+
+
 @pytest.mark.parametrize(['attr'], ['a', 'b', 'c'])
 def test_interpolate(attr):
     x = getattr(agg, attr)
@@ -48,12 +57,10 @@ def test_interpolate(attr):
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
     img = tf.interpolate(x, cmap=cmap, how='eq_hist')
-    sol = np.array([[0, 4291543295, 4288846335],
-                    [4286609919, 0, 4283518207],
-                    [4281281791, 4278190335, 0]], dtype='u4')
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    sol = xr.DataArray(eq_hist_sol[attr], coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.interpolate(x, cmap=cmap, how=lambda x: x ** 2)
+    img = tf.interpolate(x, cmap=cmap,
+                         how=lambda x, mask: np.where(mask, np.nan, x ** 2))
     sol = np.array([[0, 4291543295, 4291148543],
                     [4290030335, 0, 4285557503],
                     [4282268415, 4278190335, 0]], dtype='u4')
@@ -262,9 +269,10 @@ def test_eq_hist():
     data = np.random.normal(size=300**2)
     data[np.random.randint(300**2, size=100)] = np.nan
     data = (data - np.nanmin(data)).reshape((300, 300))
-    eq = tf.eq_hist(data)
+    mask = np.isnan(data)
+    eq = tf.eq_hist(data, mask)
     check_eq_hist_cdf_slope(eq)
-    assert (np.isnan(eq) == np.isnan(data)).all()
+    assert (np.isnan(eq) == mask).all()
     # Integer
     data = np.random.normal(scale=100, size=(300, 300)).astype('i8')
     data = data - data.min()
