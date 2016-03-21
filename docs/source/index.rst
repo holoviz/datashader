@@ -50,8 +50,20 @@ Examples
 The repository contains several runnable examples, which can be `found here
 <https://github.com/bokeh/datashader/tree/master/examples>`_. Many of the
 examples are in the form of Jupyter notebooks. Copies of these with all the
-images and output included can be viewed on Anaconda Cloud `here
+images and output included can be viewed on `Anaconda Cloud
 <https://anaconda.org/jbednar/notebooks>`_.
+
+
+Other resources
+---------------
+
+`Video <http://go2.continuum.io/JN12XH0g0W0Rb300CZ00000>`_ and
+`slides <http://go2.continuum.io/V0Nc000C300W100X20HZhR0>`_ from a Feb
+2015 one-hour talk introducing Datashader are available.
+
+Some of the original ideas for datashader were developed under the
+name Abstract Rendering, which is described in a `2014 SPIE VDA paper
+<http://www.crest.iu.edu/publications/prints/2014/Cottam2014OutOfCore.pdf>`_.
 
 
 .. toctree::

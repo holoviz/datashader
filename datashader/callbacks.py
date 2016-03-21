@@ -59,8 +59,8 @@ class InteractiveImage(object):
                           ymin: y_range.attributes.start,
                           xmax: x_range.attributes.end,
                           ymax: y_range.attributes.end,
-                          w: plot.frame.get('width'),
-                          h: plot.frame.get('height')}}
+                          w: Math.floor(plot.frame.get('width')),
+                          h: Math.floor(plot.frame.get('height'))}}
 
             var range_str = JSON.stringify(ranges)
             var cmd = "{cmd}(" + range_str + ")"
