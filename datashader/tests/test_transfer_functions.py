@@ -104,24 +104,25 @@ def test_colorize():
     colors = [(255, 0, 0), '#0000FF', 'orange']
 
     img = tf.colorize(cat_agg, colors, how='log')
-    sol = np.array([[3137273856, 2449494783],
-                    [4266997674, 3841982719]])
+    sol = np.array([[2583625728, 335565567],
+                    [4283774890, 3707764991]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert img.equals(sol)
     colors = dict(zip('abc', colors))
     img = tf.colorize(cat_agg, colors, how='cbrt')
-    sol = np.array([[3070164992, 2499826431],
-                    [4283774890, 3774873855]])
+    sol = np.array([[2650734592, 335565567],
+                    [4283774890, 3657433343]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert img.equals(sol)
     img = tf.colorize(cat_agg, colors, how='linear')
-    sol = np.array([[1660878848, 989876991],
-                    [4283774890, 2952790271]])
+    sol = np.array([[1140785152, 335565567],
+                    [4283774890, 2701132031]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.colorize(cat_agg, colors, how=lambda x: x ** 2)
-    sol = np.array([[788463616, 436228863],
-                    [4283774890, 2080375039]])
+    img = tf.colorize(cat_agg, colors,
+                      how=lambda x, m: np.where(m, np.nan, x) ** 2)
+    sol = np.array([[503250944, 335565567],
+                    [4283774890, 1744830719]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert img.equals(sol)
 

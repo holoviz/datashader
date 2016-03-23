@@ -99,21 +99,9 @@ def eq_hist(data, mask=None, nbins=256):
     return out if mask is None else np.where(mask, np.nan, out)
 
 
-def _linear(data, mask=None):
-    return np.where(mask, np.nan, data) if mask is not None else data
-
-
-def _log(data, mask=None):
-    return np.log1p(_linear(data, mask))
-
-
-def _cbrt(data, mask=None):
-    return _linear(data, mask) ** (1/3.)
-
-
-_interpolate_lookup = {'log': _log,
-                       'cbrt': _cbrt,
-                       'linear': _linear,
+_interpolate_lookup = {'log': lambda d, m: np.log1p(np.where(m, np.nan, d)),
+                       'cbrt': lambda d, m: np.where(m, np.nan, d)**(1/3.),
+                       'linear': lambda d, m: np.where(m, np.nan, d),
                        'eq_hist': eq_hist}
 
 
@@ -168,7 +156,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='cbrt'):
     offset = agg.min().data
     mask = agg.isnull()
     if offset == 0:
-        mask = mask | agg <= 0
+        mask = mask | (agg <= 0)
         offset = agg.data[agg.data > 0].min()
     data = how(agg.data - offset, mask.data)
     span = [np.nanmin(data), np.nanmax(data)]
@@ -203,9 +191,10 @@ def colorize(agg, color_key, how='cbrt', min_alpha=20):
         record fields.
     how : str or callable, optional
         The interpolation method to use. Valid strings are 'cbrt' [default],
-        'log', and 'linear'. Callables take a 2-dimensional array of
-        magnitudes at each pixel, and should return a numeric array of the same
-        shape.
+        'log', and 'linear'. Callables take 2 arguments - a 2-dimensional
+        array of magnitudes at each pixel, and a boolean mask array indicating
+        missingness. They should return a numeric array of the same shape, with
+        `NaN`s where the mask was True.
     min_alpha : float, optional
         The minimum alpha value to use for non-empty pixels, in [0, 255].
     """
@@ -227,11 +216,15 @@ def colorize(agg, color_key, how='cbrt', min_alpha=20):
     r = (data.dot(rs)/total).astype(np.uint8)
     g = (data.dot(gs)/total).astype(np.uint8)
     b = (data.dot(bs)/total).astype(np.uint8)
-    a = _normalize_interpolate_how(how)(total)
-    a = ((255 - min_alpha) * a/a.max() + min_alpha).astype(np.uint8)
-    white = (total == 0)
-    r[white] = g[white] = b[white] = 255
-    a[white] = 0
+    offset = total.min()
+    mask = np.isnan(total)
+    if offset == 0:
+        mask = mask | (total <= 0)
+        offset = total[total > 0].min()
+    a = _normalize_interpolate_how(how)(total - offset, mask)
+    a = np.interp(a, [np.nanmin(a), np.nanmax(a)],
+                  [min_alpha, 255], left=0, right=255).astype(np.uint8)
+    r[mask] = g[mask] = b[mask] = 255
     return Image(np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape),
                  dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1])
 
