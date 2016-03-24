@@ -42,10 +42,13 @@ Transfer Functions
 .. currentmodule:: datashader.transfer_functions
 .. autosummary::
 
+   Image
    interpolate
    colorize
    stack
    spread
+   dynspread
+   set_background
 
 Definitions
 -----------
