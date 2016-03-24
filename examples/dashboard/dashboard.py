@@ -191,8 +191,8 @@ class AppState(object):
     def __init__(self, config_file, outofcore, app_port):
 
         self.load_config_file(config_file)
-        self.plot_height = 560
-        self.plot_width = 810
+        self.plot_height = 600
+        self.plot_width = 1124
 
         self.aggregate_functions = OrderedDict()
         self.aggregate_functions['Count'] = ds.count
@@ -486,7 +486,7 @@ class AppView(object):
         self.map_area = VBox(width=self.fig.plot_width, children=[self.map_controls,
                                                                   self.fig,
                                                                   self.model.legend_vbox])
-        self.layout = HBox(width=1024, children=[self.controls, self.map_area])
+        self.layout = HBox(width=1366, children=[self.controls, self.map_area])
 
     def update_image(self):
         self.model.shader_url_vars['cachebust'] = str(uuid.uuid4())
