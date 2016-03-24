@@ -331,12 +331,15 @@ class AppState(object):
             raise IOError("Unknown data file type; .csv and .castra currently supported")
 
     def create_legend(self, img, x, y, dw, dh, x_start, x_end, y_range):
+
+        x_axis_type = 'linear' if self.transfer_function == 'linear' else 'log'
         legend_fig = Figure(x_range=(x_start, x_end),
                             plot_height=max(dh, 50),
                             plot_width=self.plot_width,
                             lod_threshold=None,
                             toolbar_location=None,
-                            y_range=y_range)
+                            y_range=y_range,
+                            x_axis_type=x_axis_type)
 
         legend_fig.min_border_top = 0
         legend_fig.min_border_bottom = 10
