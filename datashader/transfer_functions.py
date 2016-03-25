@@ -4,6 +4,7 @@ from io import BytesIO
 import warnings
 
 import numpy as np
+import numba as nb
 import toolz as tz
 import xarray as xr
 from PIL.Image import fromarray
@@ -15,7 +16,7 @@ from .utils import ngjit
 
 
 __all__ = ['Image', 'stack', 'interpolate', 'colorize', 'set_background',
-           'spread']
+           'spread', 'dynspread']
 
 warnings.simplefilter('always', DeprecationWarning)
 
@@ -331,3 +332,57 @@ def _circle_mask(r):
 
 _mask_lookup = {'square': _square_mask,
                 'circle': _circle_mask}
+
+
+def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over'):
+    """Spread pixels in an image dynamically based on the image density.
+
+    Spreading expands each pixel a certain number of pixels on all sides
+    according to a given shape, merging pixels using a specified compositing
+    operator. This can be useful to make sparse plots more visible. Dynamic
+    spreading determines how many pixels to spread based on a density
+    heuristic.
+
+    Parameters
+    ----------
+    img : Image
+    threshold : float, optional
+        A tuning parameter in [0, 1]. Indicates the minimum value for the
+        density heuristic.
+    max_px : int, optional
+        Maximum number of pixels to spread on all sides.
+    shape : str, optional
+        The shape to spread by. Options are 'circle' [default] or 'square'.
+    how : str, optional
+        The name of the compositing operator to use when combining pixels.
+    """
+    if not 0 <= threshold <= 1:
+        raise ValueError("threshold must be in [0, 1]")
+    if not isinstance(max_px, int) or max_px < 0:
+        raise ValueError("max_px must be >= 0")
+    # Simple linear search. Not super efficient, but max_px is usually small.
+    for px in range(max_px + 1):
+        out = spread(img, px, shape=shape, how=how)
+        if _density(out.data) >= threshold:
+            break
+    return out
+
+
+@nb.jit(nopython=True, nogil=True, cache=True)
+def _density(arr):
+    """Compute a density heuristic of an image.
+
+    The density is a number in [0, 1], and indicates the normalized mean number
+    of non-empty adjacent pixels for each non-empty pixel.
+    """
+    M, N = arr.shape
+    cnt = total = 0
+    for y in range(1, M - 1):
+        for x in range(1, N - 1):
+            if (arr[y, x] >> 24) & 255:
+                cnt += 1
+                for i in range(y - 1, y + 2):
+                    for j in range(x - 1, x + 2):
+                        if (arr[i, j] >> 24) & 255:
+                            total += 1
+    return (total - cnt)/(cnt * 8) if cnt else np.inf
