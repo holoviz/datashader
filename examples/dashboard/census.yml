@@ -24,6 +24,12 @@ summary_fields:
       a: red
       h: orange
       o: saddlebrown
+    cat_names:
+      w: White
+      b: Black
+      a: Asian
+      h: Hispanic
+      o: Other
 
   - name: Counts
     field: None

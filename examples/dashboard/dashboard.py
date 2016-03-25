@@ -24,6 +24,7 @@ from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer,
                           DynamicImageRenderer, HBox, VBox)
 
 from bokeh.models import Select, Slider, CheckboxGroup, CustomJS, ColumnDataSource, Square, HoverTool
+from bokeh.models import Plot, Text, Circle
 from bokeh.palettes import BrBG9, PiYG9
 
 from tornado.ioloop import IOLoop
@@ -133,32 +134,9 @@ class GetDataset(RequestHandler):
 
             # update legend ---------------------------------------------------------
             if self.model.field in self.model.categorical_fields:
-
-                cat_dim = agg.dims[-1]
-                len_bar=900
-                cats = agg[cat_dim].values.tolist()
-                total = agg.sum(dim=cat_dim)
-                min_val = int(total.min().data)
-                max_val = int(total.max().data)
-                scale = np.linspace(min_val, max_val, 180, dtype=total.dtype)
-                cats = agg.coords[agg.dims[-1]].values
-                ncats = len(cats)
-                data = np.zeros((180, ncats, ncats), dtype=total.dtype)
-                data[:, np.arange(ncats), np.arange(ncats)] = scale[:, None]
-                cbar = DataArray(data, dims=['value', 'fake', cat_dim], 
-                                 coords=[scale, cats, cats])
-                img = tf.colorize(cbar, self.model.colormap, how=self.model.transfer_function)
-
-                dw = max_val - min_val
-                legend_fig = self.model.create_legend(img.values.T,
-                                                      x=min_val,
-                                                      y=0,
-                                                      dh=18 * ncats,
-                                                      dw=dw,
-                                                      x_start=min_val,
-                                                      x_end=max_val,
-                                                      y_range=(0,18 * ncats))
-                self.model.legend_vbox.children = [legend_fig]
+                cat_legend = self.model.create_categorical_legend(self.model.colormap, self.model.colornames)
+                self.model.legend_side_vbox.children = [cat_legend]
+                self.model.legend_bottom_vbox.children = []
 
             else:
                 min_val = np.nanmin(agg.values)
@@ -177,7 +155,8 @@ class GetDataset(RequestHandler):
                                                       x_end=max_val,
                                                       y_range=(0,18))
 
-                self.model.legend_vbox.children = [legend_fig]
+                self.model.legend_bottom_vbox.children = [legend_fig]
+                self.model.legend_side_vbox.children = []
 
         server.get_sessions('/')[0].with_document_locked(update_plots)
         # serialize to image
@@ -279,6 +258,7 @@ class AppState(object):
         # parse summary field
         self.fields = OrderedDict()
         self.colormaps = OrderedDict()
+        self.color_name_maps = OrderedDict()
         self.ordinal_fields = []
         self.categorical_fields = []
         for f in self.config['summary_fields']:
@@ -287,6 +267,7 @@ class AppState(object):
             if 'cat_colors' in f.keys():
                 self.colormaps[f['name']] = f['cat_colors']
                 self.categorical_fields.append(f['field'])
+                self.color_name_maps[f['name']] = f['cat_names']
 
             elif f['field'] != 'None':
                 self.ordinal_fields.append(f['field'])
@@ -296,6 +277,7 @@ class AppState(object):
 
         if self.colormaps:
             self.colormap = self.colormaps[list(self.fields.keys())[0]]
+            self.colornames = self.color_name_maps[list(self.fields.keys())[0]]
 
     def load_datasets(self,outofcore):
         data_path = self.config['file']
@@ -330,6 +312,30 @@ class AppState(object):
         else:
             raise IOError("Unknown data file type; .csv and .castra currently supported")
 
+    def create_categorical_legend(self, colormap, colornames):
+        plot_options = {}
+        plot_options['x_range'] = Range1d(start=0, end=200)
+        plot_options['y_range'] = Range1d(start=0, end=100)
+        plot_options['plot_height'] = 120
+        plot_options['plot_width'] = 190
+
+        plot_options['min_border_bottom'] = 0
+        plot_options['min_border_left'] = 0
+        plot_options['min_border_right'] = 0
+        plot_options['min_border_top'] = 0
+        plot_options['outline_line_width'] = 0
+        plot_options['toolbar_location'] = None
+
+        legend = Plot(**plot_options)
+        regions = list(colormap.keys())
+        colors = list(colormap.values())
+        for i, (region, color) in enumerate(zip(regions, colors)):
+            text_y = 95 - i * 20
+            legend.add_glyph(Text(x=40, y=text_y-12, text=[colornames[region]], text_font_size='10pt', text_color='#666666'))
+            legend.add_glyph(Circle(x=15, y=text_y-5, fill_color=color, size=10, line_color=None, fill_alpha=0.8))
+
+        return legend
+
     def create_legend(self, img, x, y, dw, dh, x_start, x_end, y_range):
 
         x_axis_type = 'linear' if self.transfer_function == 'linear' else 'log'
@@ -343,8 +349,8 @@ class AppState(object):
 
         legend_fig.min_border_top = 0
         legend_fig.min_border_bottom = 10
-        legend_fig.min_border_left = 0
-        legend_fig.min_border_right = 0
+        legend_fig.min_border_left = 15
+        legend_fig.min_border_right = 15
         legend_fig.yaxis.visible = False
         legend_fig.grid.grid_line_alpha = 0
 
@@ -427,7 +433,8 @@ class AppView(object):
                                     renderers=[cr], 
                                     mode='mouse')
         self.fig.add_tools(self.model.hover_tool)
-        self.model.legend_vbox = VBox()
+        self.model.legend_side_vbox = VBox()
+        self.model.legend_bottom_vbox = VBox()
 
         # add ui components
         controls = []
@@ -454,6 +461,18 @@ class AppView(object):
         color_ramp_select.on_change('value', self.on_color_ramp_change)
         controls.append(color_ramp_select)
 
+        spread_size_slider = Slider(title="Spread Size (px)", value=0, start=0,
+                                        end=10, step=1)
+        spread_size_slider.on_change('value', self.on_spread_size_change)
+        controls.append(spread_size_slider)
+
+        hover_size_slider = Slider(title="Hover Size (px)", value=8, start=4,
+                                        end=30, step=1)
+        hover_size_slider.on_change('value', self.on_hover_size_change)
+        controls.append(hover_size_slider)
+
+        controls.append(self.model.legend_side_vbox)
+
         # add map components
         basemap_select = Select.create(name='Basemap', value='Toner',
                                        options=self.model.basemaps)
@@ -467,16 +486,6 @@ class AppView(object):
                                         end=100, step=1)
         basemap_opacity_slider.on_change('value', self.on_basemap_opacity_slider_change)
 
-        spread_size_slider = Slider(title="Spread Size (px)", value=0, start=0,
-                                        end=10, step=1)
-        spread_size_slider.on_change('value', self.on_spread_size_change)
-        controls.append(spread_size_slider)
-
-        hover_size_slider = Slider(title="Hover Size (px)", value=8, start=4,
-                                        end=30, step=1)
-        hover_size_slider.on_change('value', self.on_hover_size_change)
-        controls.append(hover_size_slider)
-
 
         show_labels_chk = CheckboxGroup(labels=["Show Labels"], active=[0])
         show_labels_chk.on_click(self.on_labels_change)
@@ -488,7 +497,7 @@ class AppView(object):
         self.map_controls = HBox(width=self.fig.plot_width, children=map_controls)
         self.map_area = VBox(width=self.fig.plot_width, children=[self.map_controls,
                                                                   self.fig,
-                                                                  self.model.legend_vbox])
+                                                                  self.model.legend_bottom_vbox])
         self.layout = HBox(width=1366, children=[self.controls, self.map_area])
 
     def update_image(self):
