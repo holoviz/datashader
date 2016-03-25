@@ -140,8 +140,21 @@ class GetDataset(RequestHandler):
 
             else:
                 min_val = np.nanmin(agg.values)
+
+                if min_val == 0:
+                    min_val = agg.data[agg.data > 0].min()
+                    
                 max_val = np.nanmax(agg.values)
-                vals = np.linspace(min_val, max_val, 180)[None, :]
+                
+
+                if self.model.transfer_function == 'linear':
+                    vals = np.linspace(min_val, max_val, 180)[None, :]
+                else:
+                    vals = (np.logspace(0, 
+                                        np.log1p(max_val-min_val),
+                                        base=np.e, num=180,
+                                        dtype=min_val.dtype) + min_val)[None,:]
+
                 vals_arr = DataArray(vals)
                 img = tf.interpolate(vals_arr, cmap=self.model.color_ramp,
                                      how=self.model.transfer_function)
