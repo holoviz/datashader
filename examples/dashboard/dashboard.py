@@ -5,7 +5,6 @@ from os import path
 import yaml
 import webbrowser
 import uuid
-import pdb
 
 from collections import OrderedDict
 
