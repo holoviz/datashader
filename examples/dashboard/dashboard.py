@@ -22,7 +22,10 @@ from bokeh.plotting import Figure
 from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer,
                           DynamicImageRenderer, HBox, VBox)
 
-from bokeh.models import Select, Slider, CheckboxGroup, CustomJS, ColumnDataSource, Square, HoverTool
+from bokeh.models import (Select, Slider, CheckboxGroup,
+                          CustomJS, ColumnDataSource,
+                          Square, HoverTool)
+
 from bokeh.models import Plot, Text, Circle
 from bokeh.palettes import GnBu9, OrRd9, PuRd9, YlGnBu9, Greys9
 
