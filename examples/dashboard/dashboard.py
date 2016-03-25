@@ -25,7 +25,7 @@ from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer,
 
 from bokeh.models import Select, Slider, CheckboxGroup, CustomJS, ColumnDataSource, Square, HoverTool
 from bokeh.models import Plot, Text, Circle
-from bokeh.palettes import BrBG9, PiYG9
+from bokeh.palettes import GnBu9, OrRd9, PuRd9, YlGnBu9, Greys9
 
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler
@@ -242,8 +242,11 @@ class AppState(object):
 
         # color ramps
         self.color_ramps = OrderedDict()
-        self.color_ramps['BrBG'] = BrBG9
-        self.color_ramps['PiYG'] = PiYG9
+        self.color_ramps['Orange-Red'] = list(reversed(OrRd9))[2:]
+        self.color_ramps['Green-Blue'] = list(reversed(GnBu9))[2:]
+        self.color_ramps['Purple-Red'] = list(reversed(PuRd9))[2:]
+        self.color_ramps['Yellow-Green-Blue'] = list(reversed(YlGnBu9))[2:]
+        self.color_ramps['Grays'] = list(reversed(Greys9))[2:]
         self.color_ramp = list(self.color_ramps.values())[0]
 
     def load_config_file(self, config_path):
