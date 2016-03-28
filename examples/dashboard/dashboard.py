@@ -598,7 +598,10 @@ if __name__ == '__main__':
     server = Server(app, io_loop=IOLoop(),
                     extra_patterns=[(r"/datashader", GetDataset)], port=APP_PORT)
 
-    print('Starting server at http://localhost:{}/...'.format(APP_PORT))
-    webbrowser.open('http://localhost:{}'.format(APP_PORT))
+    try:
+        print('Starting server at http://localhost:{}/...'.format(APP_PORT))
+        webbrowser.open('http://localhost:{}'.format(APP_PORT))
+    except:
+        pass
 
     server.start()
