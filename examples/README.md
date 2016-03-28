@@ -11,6 +11,7 @@ python download_sample_data.py
 The examples also require bokeh to be installed. Bokeh is available through
 either conda or pip.
 
+
 ```
 conda install bokeh
 
@@ -21,6 +22,7 @@ pip install bokeh
 
 ## Examples
 
+
 ### Dashboard
 
 An example interactive dashboard using [bokeh
@@ -29,6 +31,13 @@ integrated with a datashading pipeline. To start, run:
 
 ```
 python dashboard/dashboard.py --config dashboard/nyc_taxi.yml
+```
+
+Also available, is the [2010 Census Synthetic People dataset in `castra` format](http://s3.amazonaws.com/bokeh_data/census.castra.tar.gz)
+
+This dataset can be visualized in the dashboard example using:
+```
+python dashboard/dashboard.py --config dashboard/census.yml
 ```
 
 ### Notebooks
