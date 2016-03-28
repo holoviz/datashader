@@ -638,10 +638,17 @@ if __name__ == '__main__':
     app.add(FunctionHandler(add_roots))
     # Start server object wired to bokeh client. Instantiating ``Server``
     # directly is used to add custom http endpoint into ``extra_patterns``.
-    server = Server(app, io_loop=IOLoop(),
-                    extra_patterns=[(r"/datashader", GetDataset)], port=APP_PORT)
+    url = 'http://localhost:{}/'.format(APP_PORT)
+    print('Starting server at {}...'.format(url))
+    server = Server(app, io_loop=IOLoop(), extra_patterns=[(r"/datashader", GetDataset)], port=APP_PORT)
 
-    print('Starting server at http://localhost:{}/...'.format(APP_PORT))
-    webbrowser.open('http://localhost:{}'.format(APP_PORT))
+    try:
+        webbrowser.open(url)
+    except:
+        msg = '''Unable to open web browser;
+                 please navigate to port {} on the machine where the server is running
+                 (which may first need to be forwarded to your local machine if the server is running remotely)
+        '''.format(APP_PORT)
+        print(msg)
 
     server.start()
