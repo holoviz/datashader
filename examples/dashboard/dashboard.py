@@ -254,8 +254,6 @@ class AppState(object):
     def create_aggregate(self, plot_width, plot_height, x_range, y_range,
                          agg_field, x_field, y_field, agg_func=None):
 
-        print(">>>>>>>>>>>>>>>>>> RUNNING THE AGGREGATE!!!!!!! <<<<<<<<<<<<<<<<<<")
-
         canvas = ds.Canvas(plot_width=plot_width,
                            plot_height=plot_height,
                            x_range=x_range,
