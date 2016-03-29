@@ -66,8 +66,10 @@ class InteractiveImage(object):
             var cmd = "{cmd}(" + range_str + ")"
 
             // Execute the command on the Python kernel
-            var kernel = IPython.notebook.kernel;
-            kernel.execute(cmd, callbacks, {{silent : false}});
+            if (IPython.notebook.kernel !== undefined) {{
+                var kernel = IPython.notebook.kernel;
+                kernel.execute(cmd, callbacks, {{silent : false}});
+            }}
         }}
 
         if (!Bokeh._throttle) {{
