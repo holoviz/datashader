@@ -2,7 +2,8 @@ from __future__ import absolute_import, division, print_function
 
 from io import BytesIO
 import warnings
-
+import collections
+        
 import numpy as np
 import numba as nb
 import toolz as tz
@@ -161,7 +162,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist'):
         offset = agg.data[agg.data > 0].min()
     data = how(agg.data - offset, mask.data)
     span = [np.nanmin(data), np.nanmax(data)]
-    if isinstance(cmap,type(reversed(list()))):
+    if isinstance(cmap,collections.Iterator):
         cmap = list(cmap)
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
