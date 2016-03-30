@@ -161,6 +161,8 @@ def interpolate(agg, low=None, high=None, cmap=None, how='cbrt'):
         offset = agg.data[agg.data > 0].min()
     data = how(agg.data - offset, mask.data)
     span = [np.nanmin(data), np.nanmax(data)]
+    if isinstance(cmap,type(reversed(list()))):
+        cmap = list(cmap)
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
         span = np.linspace(span[0], span[1], len(cmap))
