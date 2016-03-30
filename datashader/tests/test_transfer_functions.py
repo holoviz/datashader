@@ -234,7 +234,7 @@ def test_spread():
                   [0xff007db7, 0xff007db7, 0xfa007f3e, 0x00000000, 0x00000000],
                   [0xfa007f3e, 0xfa007f3e, 0xfa7f7f00, 0x7dff0000, 0x7dff0000],
                   [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000],
-                  [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000L]])
+                  [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000]])
     np.testing.assert_equal(s.data, o)
 
     mask = np.array([[1, 0, 1],
