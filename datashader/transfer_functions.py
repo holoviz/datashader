@@ -61,7 +61,7 @@ def stack(*imgs, **kwargs):
     return Image(out, coords=imgs[0].coords, dims=imgs[0].dims)
 
 
-def eq_hist(data, mask=None, nbins=256):
+def eq_hist(data, mask=None, nbins=256*256):
     """Return a numpy array after histogram equalization.
 
     For use in `interpolate`.
