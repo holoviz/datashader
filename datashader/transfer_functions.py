@@ -328,8 +328,7 @@ def _square_mask(px):
 def _circle_mask(r):
     """Produce a circular mask with a diameter of ``2 * r + 1``"""
     x = np.arange(-r, r + 1, dtype='i4')
-    bound = r + 0.5 if r > 1 else r
-    return np.where(np.sqrt(x**2 + x[:, None]**2) <= bound, True, False)
+    return np.where(np.sqrt(x**2 + x[:, None]**2) <= r+0.5, True, False)
 
 
 _mask_lookup = {'square': _square_mask,
