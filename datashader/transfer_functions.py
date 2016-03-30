@@ -114,7 +114,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def interpolate(agg, low=None, high=None, cmap=None, how='cbrt'):
+def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist'):
     """Convert a 2D DataArray to an image.
 
     Data is converted to an image either by interpolating between a `low` and
@@ -182,7 +182,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='cbrt'):
     return Image(img, coords=agg.coords, dims=agg.dims)
 
 
-def colorize(agg, color_key, how='cbrt', min_alpha=20):
+def colorize(agg, color_key, how='eq_hist', min_alpha=20):
     """Color a CategoricalAggregate by field.
 
     Parameters
