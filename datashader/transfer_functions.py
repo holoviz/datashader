@@ -11,7 +11,7 @@ from PIL.Image import fromarray
 
 
 from .colors import rgb
-from .composite import composite_op_lookup, source
+from .composite import composite_op_lookup, over
 from .utils import ngjit
 
 
@@ -247,7 +247,7 @@ def set_background(img, color=None):
     if color is None:
         return img
     background = np.uint8(rgb(color) + (255,)).view('uint32')[0]
-    data = source(img.data, background)
+    data = over(img.data, background)
     return Image(data, coords=img.coords, dims=img.dims)
 
 
