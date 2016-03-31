@@ -35,6 +35,30 @@ from tornado.web import RequestHandler
 from webargs import fields
 from webargs.tornadoparser import use_args
 
+import functools
+import weakref
+
+try:
+    from functools import lru_cache
+except ImportError:
+    from fastcache import lru_cache
+
+def memoized_method(*lru_args, **lru_kwargs):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapped_func(self, *args, **kwargs):
+            # We're storing the wrapped method inside the instance. If we had
+            # a strong reference to self the instance would never die.
+            self_weak = weakref.ref(self)
+            @functools.wraps(func)
+            @lru_cache(*lru_args, **lru_kwargs)
+            def cached_method(*args, **kwargs):
+                return func(self_weak(), *args, **kwargs)
+            setattr(self, func.__name__, cached_method)
+            return cached_method(*args, **kwargs)
+        return wrapped_func
+    return decorator
+
 # http request arguments for datashing HTTP request
 ds_args = {
     'width': fields.Int(missing=800),
@@ -44,6 +68,7 @@ ds_args = {
 
 class GetDataset(RequestHandler):
     """Handles http requests for datashading."""
+
     @use_args(ds_args)
     def get(self, args):
 
@@ -53,125 +78,19 @@ class GetDataset(RequestHandler):
         self.model.map_extent = [xmin, ymin, xmax, ymax]
 
         # create image
-        cvs = ds.Canvas(plot_width=args['width'],
-                        plot_height=args['height'],
-                        x_range=(xmin, xmax),
-                        y_range=(ymin, ymax))
-
-
-        # handle categorical field
-        if self.model.field in self.model.categorical_fields:
-            agg = cvs.points(self.model.df,
-                             self.model.active_axes[1],
-                             self.model.active_axes[2],
-                             ds.count_cat(self.model.field))
-
-            pix = tf.colorize(agg,
-                              self.model.colormap,
-                              how=self.model.transfer_function)
-
-        # handle ordinal field
-        elif self.model.field in self.model.ordinal_fields:
-            agg = cvs.points(self.model.df,
-                             self.model.active_axes[1],
-                             self.model.active_axes[2],
-                             self.model.aggregate_function(self.model.field))
-
-            pix = tf.interpolate(agg, cmap=self.model.color_ramp,
-                                 how=self.model.transfer_function)
-        # handle no field
-        else:
-            agg = cvs.points(self.model.df,
-                             self.model.active_axes[1],
-                             self.model.active_axes[2])
-
-            pix = tf.interpolate(agg, cmap=self.model.color_ramp,
-                                 how=self.model.transfer_function)
-
-        if self.model.spread_size > 0:
-            pix = tf.spread(pix, px=self.model.spread_size)
+        self.model.agg = self.model.create_aggregate(args['width'],
+                                                     args['height'],
+                                                     (xmin, xmax),
+                                                     (ymin, ymax),
+                                                     self.model.field, 
+                                                     self.model.active_axes[1],
+                                                     self.model.active_axes[2],
+                                                     self.model.agg_function_name)
+        pix = self.model.render_image()
 
         def update_plots():
-
-            def downsample_categorical(aggregate, factor):
-                ys, xs, zs = aggregate.shape
-                crarr = aggregate[:ys-(ys % int(factor)),:xs-(xs % int(factor))]
-                return np.nanmean(np.concatenate([[crarr[i::factor,j::factor] 
-                                                   for i in range(factor)] 
-                                                   for j in range(factor)]), axis=0)
-
-            def downsample(aggregate, factor):
-                ys, xs = aggregate.shape
-                crarr = aggregate[:ys-(ys % int(factor)),:xs-(xs % int(factor))]
-                return np.nanmean(np.concatenate([[crarr[i::factor,j::factor] 
-                                                   for i in range(factor)] 
-                                                   for j in range(factor)]), axis=0)
-
-            # update hover layer ----------------------------------------------------
-            sq_xs = np.linspace(self.model.map_extent[0],
-                                self.model.map_extent[2],
-                                agg.shape[1] / self.model.hover_size)
-
-            sq_ys = np.linspace(self.model.map_extent[1],
-                                self.model.map_extent[3],
-                                agg.shape[0] / self.model.hover_size)
-
-            agg_xs, agg_ys = np.meshgrid(sq_xs, sq_ys)
-            self.model.hover_source.data['x'] = agg_xs.flatten()
-            self.model.hover_source.data['y'] = agg_ys.flatten()
-
-            if self.model.field in self.model.categorical_fields:
-                hover_agg = downsample_categorical(agg.values, self.model.hover_size)
-                cats = agg[agg.dims[2]].values.tolist()
-                tooltips = []
-                for i, e in enumerate(cats):
-                    self.model.hover_source.data[e] = hover_agg[:,:,i].flatten()
-                    tooltips.append((e, '@{}'.format(e)))
-                self.model.hover_tool.tooltips = tooltips
-
-            else:
-                hover_agg = downsample(agg.values, self.model.hover_size)
-                self.model.hover_source.data['value'] = hover_agg.flatten()
-                self.model.hover_tool.tooltips = [(self.model.field_title, '@value')]
-
-            # update legend ---------------------------------------------------------
-            if self.model.field in self.model.categorical_fields:
-                cat_legend = self.model.create_categorical_legend(self.model.colormap, self.model.colornames)
-                self.model.legend_side_vbox.children = [cat_legend]
-                self.model.legend_bottom_vbox.children = []
-
-            else:
-                min_val = np.nanmin(agg.values)
-
-                if min_val == 0:
-                    min_val = agg.data[agg.data > 0].min()
-                    
-                max_val = np.nanmax(agg.values)
-                
-
-                if self.model.transfer_function == 'linear':
-                    vals = np.linspace(min_val, max_val, 180)[None, :]
-                else:
-                    vals = (np.logspace(0, 
-                                        np.log1p(max_val-min_val),
-                                        base=np.e, num=180,
-                                        dtype=min_val.dtype) + min_val)[None,:]
-
-                vals_arr = DataArray(vals)
-                img = tf.interpolate(vals_arr, cmap=self.model.color_ramp,
-                                     how=self.model.transfer_function)
-                dw = max_val - min_val
-                legend_fig = self.model.create_legend(img.values,
-                                                      x=min_val,
-                                                      y=0,
-                                                      dh=18,
-                                                      dw=dw,
-                                                      x_start=min_val,
-                                                      x_end=max_val,
-                                                      y_range=(0,18))
-
-                self.model.legend_bottom_vbox.children = [legend_fig]
-                self.model.legend_side_vbox.children = []
+            self.model.update_hover()
+            self.model.update_legend()
 
         server.get_sessions('/')[0].with_document_locked(update_plots)
         # serialize to image
@@ -194,12 +113,12 @@ class AppState(object):
         self.aggregate_functions['Sum'] = ds.sum
         self.aggregate_functions['Min'] = ds.min
         self.aggregate_functions['Max'] = ds.max
-        self.aggregate_function = list(self.aggregate_functions.values())[0]
+        self.agg_function_name = list(self.aggregate_functions.keys())[0]
 
         # transfer function configuration
         self.transfer_functions = OrderedDict()
-        self.transfer_functions[u"\u221B - Cube Root"] = 'cbrt'
         self.transfer_functions['Log'] = 'log'
+        self.transfer_functions[u"\u221B - Cube Root"] = 'cbrt'
         self.transfer_functions['Linear'] = 'linear'
         self.transfer_functions['Histogram Equalization'] = 'eq_hist'
         self.transfer_function = list(self.transfer_functions.values())[0]
@@ -240,7 +159,7 @@ class AppState(object):
         self.hover_size = 8
 
         # spreading
-        self.spread_size = 1
+        self.spread_size = 0
 
         # color ramps
         self.color_ramps = OrderedDict()
@@ -330,6 +249,47 @@ class AppState(object):
         else:
             raise IOError("Unknown data file type; .csv and .castra currently supported")
 
+
+    @memoized_method(maxsize=6)
+    def create_aggregate(self, plot_width, plot_height, x_range, y_range,
+                         agg_field, x_field, y_field, agg_func=None):
+
+        canvas = ds.Canvas(plot_width=plot_width,
+                           plot_height=plot_height,
+                           x_range=x_range,
+                           y_range=y_range)
+
+        # handle categorical field
+        if agg_field in self.categorical_fields:
+            agg = canvas.points(self.df, x_field, y_field, ds.count_cat(agg_field))
+
+        # handle ordinal field
+        elif agg_field in self.ordinal_fields:
+            func = self.aggregate_functions[agg_func]
+            agg = canvas.points(self.df, x_field, y_field, func(agg_field))
+        else:
+            agg = canvas.points(self.df, x_field, y_field)
+
+        return agg
+
+    def render_image(self):
+
+        # handle categorical field
+        if self.field in self.categorical_fields:
+            pix = tf.colorize(self.agg, self.colormap, how=self.transfer_function)
+
+        # handle ordinal field
+        elif self.field in self.ordinal_fields:
+            pix = tf.interpolate(self.agg, cmap=self.color_ramp, how=self.transfer_function)
+        # handle no field
+        else:
+            pix = tf.interpolate(self.agg, cmap=self.color_ramp, how=self.transfer_function)
+
+        if self.spread_size > 0:
+            pix = tf.spread(pix, px=self.spread_size)
+
+        return pix
+
     def create_categorical_legend(self, colormap, colornames):
         plot_options = {}
         plot_options['x_range'] = Range1d(start=0, end=200)
@@ -353,6 +313,45 @@ class AppState(object):
             legend.add_glyph(Circle(x=15, y=text_y-5, fill_color=color, size=10, line_color=None, fill_alpha=0.8))
 
         return legend
+
+    def update_legend(self):
+
+        if self.field in self.categorical_fields:
+            cat_legend = self.create_categorical_legend(self.colormap, self.colornames)
+            self.legend_side_vbox.children = [cat_legend]
+            self.legend_bottom_vbox.children = []
+
+        else:
+            min_val = np.nanmin(self.agg.values)
+
+            if min_val == 0:
+                min_val = self.agg.data[self.agg.data > 0].min()
+                
+            max_val = np.nanmax(self.agg.values)
+            
+
+            if self.transfer_function == 'linear':
+                vals = np.linspace(min_val, max_val, 180)[None, :]
+            else:
+                vals = (np.logspace(0, 
+                                    np.log1p(max_val-min_val),
+                                    base=np.e, num=180,
+                                    dtype=min_val.dtype) + min_val)[None,:]
+
+            vals_arr = DataArray(vals)
+            img = tf.interpolate(vals_arr, cmap=self.color_ramp, how=self.transfer_function)
+            dw = max_val - min_val
+            legend_fig = self.create_legend(img.values,
+                                            x=min_val,
+                                            y=0,
+                                            dh=18,
+                                            dw=dw,
+                                            x_start=min_val,
+                                            x_end=max_val,
+                                            y_range=(0,18))
+
+            self.legend_bottom_vbox.children = [legend_fig]
+            self.legend_side_vbox.children = []
 
     def create_legend(self, img, x, y, dw, dh, x_start, x_end, y_range):
 
@@ -380,6 +379,48 @@ class AppState(object):
                               dw_units='screen')
         return legend_fig
 
+    def update_hover(self):
+
+        def downsample_categorical(aggregate, factor):
+            ys, xs, zs = aggregate.shape
+            crarr = aggregate[:ys-(ys % int(factor)),:xs-(xs % int(factor))]
+            return np.nanmean(np.concatenate([[crarr[i::factor,j::factor] 
+                                               for i in range(factor)] 
+                                               for j in range(factor)]), axis=0)
+
+        def downsample(aggregate, factor):
+            ys, xs = aggregate.shape
+            crarr = aggregate[:ys-(ys % int(factor)),:xs-(xs % int(factor))]
+            return np.nanmean(np.concatenate([[crarr[i::factor,j::factor] 
+                                               for i in range(factor)] 
+                                               for j in range(factor)]), axis=0)
+
+        # update hover layer ----------------------------------------------------
+        sq_xs = np.linspace(self.map_extent[0],
+                            self.map_extent[2],
+                            self.agg.shape[1] / self.hover_size)
+
+        sq_ys = np.linspace(self.map_extent[1],
+                            self.map_extent[3],
+                            self.agg.shape[0] / self.hover_size)
+
+        agg_xs, agg_ys = np.meshgrid(sq_xs, sq_ys)
+        self.hover_source.data['x'] = agg_xs.flatten()
+        self.hover_source.data['y'] = agg_ys.flatten()
+
+        if self.field in self.categorical_fields:
+            hover_agg = downsample_categorical(self.agg.values, self.hover_size)
+            cats = self.agg[self.agg.dims[2]].values.tolist()
+            tooltips = []
+            for i, e in enumerate(cats):
+                self.hover_source.data[e] = hover_agg[:,:,i].flatten()
+                tooltips.append((e, '@{}'.format(e)))
+            self.hover_tool.tooltips = tooltips
+
+        else:
+            hover_agg = downsample(self.agg.values, self.hover_size)
+            self.hover_source.data['value'] = hover_agg.flatten()
+            self.hover_tool.tooltips = [(self.field_title, '@value')]
         
 class AppView(object):
 
@@ -544,7 +585,7 @@ class AppView(object):
         self.model.hover_size = int(new)
         self.invisible_square.size = int(new)
         self.visible_square.size = int(new)
-        self.update_image()
+        self.model.update_hover()
 
     def on_spread_size_change(self, attr, old, new):
         self.model.spread_size = int(new)
@@ -555,7 +596,7 @@ class AppView(object):
         self.update_image()
 
     def on_aggregate_change(self, attr, old, new):
-        self.model.aggregate_function = self.model.aggregate_functions[new]
+        self.model.agg_function_name = new
         self.update_image()
 
     def on_transfer_function_change(self, attr, old, new):
@@ -595,10 +636,17 @@ if __name__ == '__main__':
     app.add(FunctionHandler(add_roots))
     # Start server object wired to bokeh client. Instantiating ``Server``
     # directly is used to add custom http endpoint into ``extra_patterns``.
-    server = Server(app, io_loop=IOLoop(),
-                    extra_patterns=[(r"/datashader", GetDataset)], port=APP_PORT)
+    url = 'http://localhost:{}/'.format(APP_PORT)
+    print('Starting server at {}...'.format(url))
+    server = Server(app, io_loop=IOLoop(), extra_patterns=[(r"/datashader", GetDataset)], port=APP_PORT)
 
-    print('Starting server at http://localhost:{}/...'.format(APP_PORT))
-    webbrowser.open('http://localhost:{}'.format(APP_PORT))
+    try:
+        webbrowser.open(url)
+    except:
+        msg = '''Unable to open web browser;
+                 please navigate to port {} on the machine where the server is running
+                 (which may first need to be forwarded to your local machine if the server is running remotely)
+        '''.format(APP_PORT)
+        print(msg)
 
     server.start()
