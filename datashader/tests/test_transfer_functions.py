@@ -176,9 +176,9 @@ def test_masks():
     np.testing.assert_equal(tf._square_mask(0), np.ones((1, 1), dtype='bool'))
     # Circle
     np.testing.assert_equal(tf._circle_mask(0), np.ones((1, 1), dtype='bool'))
-    out = np.array([[0, 1, 0],
+    out = np.array([[1, 1, 1],
                     [1, 1, 1],
-                    [0, 1, 0]], dtype='bool')
+                    [1, 1, 1]], dtype='bool')
     np.testing.assert_equal(tf._circle_mask(1), out)
     out = np.array([[0, 0, 1, 1, 1, 0, 0],
                     [0, 1, 1, 1, 1, 1, 0],
@@ -203,11 +203,11 @@ def test_spread():
     img = tf.Image(data, coords=coords, dims=dims)
 
     s = tf.spread(img)
-    o = np.array([[0xdc00007d, 0xdc009036, 0x7d00007d, 0x00000000, 0x00000000],
-                  [0xdc009036, 0xdc009036, 0x7d00ff00, 0x00000000, 0x00000000],
-                  [0x7d00007d, 0x7d00ff00, 0x00000000, 0x7dff0000, 0x00000000],
+    o = np.array([[0xed00863b, 0xed00863b, 0xbc00a82a, 0x00000000, 0x00000000],
+                  [0xed00863b, 0xed00863b, 0xbc00a82a, 0x00000000, 0x00000000],
+                  [0xbc00a82a, 0xbc00a82a, 0xbca85600, 0x7dff0000, 0x7dff0000],
                   [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000],
-                  [0x00000000, 0x00000000, 0x00000000, 0x7dff0000, 0x00000000]])
+                  [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000]])
     np.testing.assert_equal(s.data, o)
     assert (s.x_axis == img.x_axis).all()
     assert (s.y_axis == img.y_axis).all()
@@ -230,11 +230,11 @@ def test_spread():
     np.testing.assert_equal(s.data, o)
 
     s = tf.spread(img, how='add')
-    o = np.array([[0xff0000b7, 0xff007d7a, 0x7d00007d, 0x00000000, 0x00000000],
-                  [0xff007d7a, 0xff007d7a, 0x7d00ff00, 0x00000000, 0x00000000],
-                  [0x7d00007d, 0x7d00ff00, 0x00000000, 0x7dff0000, 0x00000000],
+    o = np.array([[0xff007db7, 0xff007db7, 0xfa007f3e, 0x00000000, 0x00000000],
+                  [0xff007db7, 0xff007db7, 0xfa007f3e, 0x00000000, 0x00000000],
+                  [0xfa007f3e, 0xfa007f3e, 0xfa7f7f00, 0x7dff0000, 0x7dff0000],
                   [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000],
-                  [0x00000000, 0x00000000, 0x00000000, 0x7dff0000, 0x00000000]])
+                  [0x00000000, 0x00000000, 0x7dff0000, 0x7dff0000, 0x7dff0000]])
     np.testing.assert_equal(s.data, o)
 
     mask = np.array([[1, 0, 1],

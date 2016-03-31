@@ -2,7 +2,8 @@ from __future__ import absolute_import, division, print_function
 
 from io import BytesIO
 import warnings
-
+import collections
+        
 import numpy as np
 import numba as nb
 import toolz as tz
@@ -11,7 +12,7 @@ from PIL.Image import fromarray
 
 
 from .colors import rgb
-from .composite import composite_op_lookup, source
+from .composite import composite_op_lookup, over
 from .utils import ngjit
 
 
@@ -61,7 +62,7 @@ def stack(*imgs, **kwargs):
     return Image(out, coords=imgs[0].coords, dims=imgs[0].dims)
 
 
-def eq_hist(data, mask=None, nbins=256):
+def eq_hist(data, mask=None, nbins=256*256):
     """Return a numpy array after histogram equalization.
 
     For use in `interpolate`.
@@ -114,7 +115,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def interpolate(agg, low=None, high=None, cmap=None, how='cbrt'):
+def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist'):
     """Convert a 2D DataArray to an image.
 
     Data is converted to an image either by interpolating between a `low` and
@@ -161,6 +162,8 @@ def interpolate(agg, low=None, high=None, cmap=None, how='cbrt'):
         offset = agg.data[agg.data > 0].min()
     data = how(agg.data - offset, mask.data)
     span = [np.nanmin(data), np.nanmax(data)]
+    if isinstance(cmap,collections.Iterator):
+        cmap = list(cmap)
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
         span = np.linspace(span[0], span[1], len(cmap))
@@ -180,7 +183,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='cbrt'):
     return Image(img, coords=agg.coords, dims=agg.dims)
 
 
-def colorize(agg, color_key, how='cbrt', min_alpha=20):
+def colorize(agg, color_key, how='eq_hist', min_alpha=20):
     """Color a CategoricalAggregate by field.
 
     Parameters
@@ -245,7 +248,7 @@ def set_background(img, color=None):
     if color is None:
         return img
     background = np.uint8(rgb(color) + (255,)).view('uint32')[0]
-    data = source(img.data, background)
+    data = over(img.data, background)
     return Image(data, coords=img.coords, dims=img.dims)
 
 
@@ -326,8 +329,7 @@ def _square_mask(px):
 def _circle_mask(r):
     """Produce a circular mask with a diameter of ``2 * r + 1``"""
     x = np.arange(-r, r + 1, dtype='i4')
-    bound = r + 0.5 if r > 1 else r
-    return np.where(np.sqrt(x**2 + x[:, None]**2) <= bound, True, False)
+    return np.where(np.sqrt(x**2 + x[:, None]**2) <= r+0.5, True, False)
 
 
 _mask_lookup = {'square': _square_mask,
