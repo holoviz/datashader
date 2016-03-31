@@ -28,6 +28,7 @@ from bokeh.models import (Select, Slider, CheckboxGroup,
 
 from bokeh.models import Plot, Text, Circle
 from bokeh.palettes import GnBu9, OrRd9, PuRd9, YlGnBu9, Greys9
+from datashader.colors import Hot, viridis
 
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler
@@ -117,15 +118,13 @@ class AppState(object):
 
         # transfer function configuration
         self.transfer_functions = OrderedDict()
+        self.transfer_functions['Histogram Equalization'] = 'eq_hist'
+        self.transfer_functions['Linear'] = 'linear'
         self.transfer_functions['Log'] = 'log'
         self.transfer_functions[u"\u221B - Cube Root"] = 'cbrt'
-        self.transfer_functions['Linear'] = 'linear'
-        self.transfer_functions['Histogram Equalization'] = 'eq_hist'
         self.transfer_function = list(self.transfer_functions.values())[0]
 
         self.basemaps = OrderedDict()
-        self.basemaps['Toner'] = ('http://tile.stamen.com/toner-background'
-                                  '/{Z}/{X}/{Y}.png')
         self.basemaps['Imagery'] = ('http://server.arcgisonline.com/ArcGIS'
                                     '/rest/services/World_Imagery/MapServer'
                                     '/tile/{Z}/{Y}/{X}.png')
@@ -133,6 +132,8 @@ class AppState(object):
                                           '/ArcGIS/rest/services'
                                           '/World_Shaded_Relief/MapServer'
                                           '/tile/{Z}/{Y}/{X}.png')
+        self.basemaps['Toner'] = ('http://tile.stamen.com/toner-background'
+                                  '/{Z}/{X}/{Y}.png')
 
         self.labels_url = ('http://tile.stamen.com/toner-labels'
                            '/{Z}/{X}/{Y}.png')
@@ -163,10 +164,13 @@ class AppState(object):
 
         # color ramps
         self.color_ramps = OrderedDict()
-        self.color_ramps['Orange-Red'] = list(reversed(OrRd9))[2:]
-        self.color_ramps['Green-Blue'] = list(reversed(GnBu9))[2:]
-        self.color_ramps['Purple-Red'] = list(reversed(PuRd9))[2:]
-        self.color_ramps['Yellow-Green-Blue'] = list(reversed(YlGnBu9))[2:]
+        self.color_ramps['Hot'] = Hot
+        self.color_ramps['Hot (reverse)'] = list(reversed(Hot))
+        self.color_ramps['Viridis'] = viridis
+        self.color_ramps['Viridis (reverse)'] = list(reversed(viridis))
+        self.color_ramps['Green-Blue'] = list(reversed(GnBu9))
+        self.color_ramps['Purple-Red'] = list(reversed(PuRd9))
+        self.color_ramps['Yellow-Green-Blue'] = list(reversed(YlGnBu9))
         self.color_ramps['Grays'] = list(reversed(Greys9))[2:]
         self.color_ramp = list(self.color_ramps.values())[0]
 
@@ -449,6 +453,9 @@ class AppView(object):
         self.fig.min_border_right = 0
         self.fig.axis.visible = False
 
+        self.fig.xgrid.grid_line_color = None
+        self.fig.ygrid.grid_line_color = None
+        
         # add tiled basemap
         self.tile_source = WMTSTileSource(url=self.model.basemap)
         self.tile_renderer = TileRenderer(tile_source=self.tile_source)
@@ -533,7 +540,7 @@ class AppView(object):
         controls.append(self.model.legend_side_vbox)
 
         # add map components
-        basemap_select = Select.create(name='Basemap', value='Toner',
+        basemap_select = Select.create(name='Basemap', value='Imagery',
                                        options=self.model.basemaps)
         basemap_select.on_change('value', self.on_basemap_change)
 
