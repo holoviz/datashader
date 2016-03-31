@@ -19,8 +19,6 @@ from .utils import ngjit
 __all__ = ['Image', 'stack', 'interpolate', 'colorize', 'set_background',
            'spread', 'dynspread']
 
-warnings.simplefilter('always', DeprecationWarning)
-
 
 class Image(xr.DataArray):
     __array_priority__ = 70
@@ -150,10 +148,13 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist'):
         # Defaults
         cmap = ['lightblue', 'darkblue']
         if low or high:
-            w = DeprecationWarning("Using `low` and `high` is deprecated. "
-                                   "Instead use `cmap=[low, high]`")
-            warnings.warn(w)
-            cmap = [low or cmap[0], high or cmap[1]]
+           import warnings
+           with warnings.catch_warnings():
+                warnings.simplefilter('always', DeprecationWarning)
+                w = DeprecationWarning("Using `low` and `high` is deprecated. "
+                                       "Instead use `cmap=[low, high]`")
+                warnings.warn(w)
+           cmap = [low or cmap[0], high or cmap[1]]
     how = _normalize_interpolate_how(how)
     offset = agg.min().data
     mask = agg.isnull()
