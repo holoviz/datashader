@@ -68,6 +68,21 @@ def test_interpolate(attr):
     assert img.equals(sol)
 
 
+def test_interpolate_bool():
+    data = ~np.eye(3, dtype='bool')
+    x = xr.DataArray(data, coords=coords, dims=dims)
+    sol = xr.DataArray(np.where(data, 4278190335, 0).astype('uint32'),
+                       coords=coords, dims=dims)
+    img = tf.interpolate(x, cmap=['pink', 'red'], how='log')
+    assert img.equals(sol)
+    img = tf.interpolate(x, cmap=['pink', 'red'], how='cbrt')
+    assert img.equals(sol)
+    img = tf.interpolate(x, cmap=['pink', 'red'], how='linear')
+    assert img.equals(sol)
+    img = tf.interpolate(x, cmap=['pink', 'red'], how='eq_hist')
+    assert img.equals(sol)
+
+
 def test_interpolate_cmap():
     cmap = ['red', (0, 255, 0), '#0000FF']
     img = tf.interpolate(agg.a, how='log', cmap=cmap)
