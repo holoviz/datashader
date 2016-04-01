@@ -1,9 +1,9 @@
 from __future__ import absolute_import, division, print_function
 
-from io import BytesIO
 import warnings
-import collections
-        
+from collections import Iterator
+from io import BytesIO
+
 import numpy as np
 import numba as nb
 import toolz as tz
@@ -148,22 +148,27 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist'):
         # Defaults
         cmap = ['lightblue', 'darkblue']
         if low or high:
-           import warnings
-           with warnings.catch_warnings():
+            with warnings.catch_warnings():
                 warnings.simplefilter('always', DeprecationWarning)
                 w = DeprecationWarning("Using `low` and `high` is deprecated. "
                                        "Instead use `cmap=[low, high]`")
                 warnings.warn(w)
-           cmap = [low or cmap[0], high or cmap[1]]
+            cmap = [low or cmap[0], high or cmap[1]]
     how = _normalize_interpolate_how(how)
-    offset = agg.min().data
-    mask = agg.isnull()
-    if offset == 0:
-        mask = mask | (agg <= 0)
-        offset = agg.data[agg.data > 0].min()
-    data = how(agg.data - offset, mask.data)
+    data = agg.data
+    if np.issubdtype(data.dtype, np.bool_):
+        mask = ~data
+        interp = data
+    else:
+        if np.issubdtype(data.dtype, np.integer):
+            mask = data == 0
+        else:
+            mask = np.isnan(data)
+        offset = data[~mask].min()
+        interp = data - offset
+    data = how(interp, mask)
     span = [np.nanmin(data), np.nanmax(data)]
-    if isinstance(cmap,collections.Iterator):
+    if isinstance(cmap, Iterator):
         cmap = list(cmap)
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
