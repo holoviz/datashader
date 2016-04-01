@@ -10,13 +10,13 @@ initial_extent:
   ymax: 4979238.441
 
 axes: 
-  - name: NYC Taxi Pickups
-    xaxis: pickup_x
-    yaxis: pickup_y
-
   - name: NYC Taxi Dropoffs
     xaxis: dropoff_x
     yaxis: dropoff_y
+
+  - name: NYC Taxi Pickups
+    xaxis: pickup_x
+    yaxis: pickup_y
 
 summary_fields:
   - name: Trip Count
