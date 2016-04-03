@@ -45,3 +45,10 @@ the bokeh channel.
 
     anaconda login
     anaconda upload $CONDA_DIR/conda-bld/*/datashader-$VERSION*.tar.bz2 -u bokeh
+
+- Write the release notes:
+
+ 1. Run `git log` to get a listing of all the changes
+ 2. Remove any covered in the previous release
+ 3. Summarize the rest to focus on user-visible changes and major new features
+ 4. Paste the notes into github, under *n* `releases`, then `Tags`, then `Edit release notes`.
