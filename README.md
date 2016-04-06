@@ -57,3 +57,11 @@ Several examples can be found in the `examples` directory.
 Additional resources are linked from the
 [datashader documentation] (http://datashader.readthedocs.org), including
 papers and talks about the approach.
+
+## Screenshots
+
+![USA census](docs/images/usa_census.jpg)
+
+![NYC races](docs/images/nyc_races.jpg)
+
+![NYC taxi](docs/images/nyc_pickups_vs_dropoffs.jpg)
