@@ -93,7 +93,7 @@ To start:
 jupyter notebook
 ```
 
-**[plotting_problems](https://anaconda.org/jbednar/plotting_problems/notebook)**
+**[plotting_pitfalls](https://anaconda.org/jbednar/plotting_pitfalls/notebook)**
 
 Motivation for the ideas behind datashader. Shows perceptual problems that
 plotting in a conventional way can lead to. Requires the HoloViews package:
