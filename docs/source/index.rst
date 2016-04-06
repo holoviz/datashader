@@ -41,7 +41,7 @@ creating these pipelines in a composable manner, using only a few lines of code:
     # **Transformation Step:**
     # Interpolate the resulting means along a logarithmic color palette from
     # "lightblue" to "darkblue"
-    >>> img = tf.interpolate(agg, 'lightblue', 'darkblue', how='log')
+    >>> img = tf.interpolate(agg, cmap=['lightblue', 'darkblue'], how='log')
 
 
 Examples
