@@ -1,19 +1,43 @@
 import math
 
+from collections import OrderedDict
+
 from bokeh.io import curdoc
 from bokeh.plotting import Figure
 from bokeh.models import ColumnDataSource, CustomJS
 from bokeh.tile_providers import STAMEN_TONER
-from bokeh.models import VBox, HBox, Paragraph
+from bokeh.models import VBox, HBox, Paragraph, Select
 from bokeh.palettes import BuGn9
 
 import pandas as pd
 
-from pdb import set_trace
-
 import datashader as ds
 import datashader.transfer_functions as tf
-import pandas as pd
+
+# Setup UI Components --------------------
+def on_time_select_change(attr, old, new):
+    global time_period, counter, time_select_options
+    time_period = time_select_options[new]
+    counter = 0
+    bin_data()
+
+def bin_data():
+    global time_period, grouped, group_count, counter, times, groups
+    grouped = df.groupby([times.hour, times.minute // time_period])
+    groups = sorted(grouped.groups.keys(), key=lambda r: (r[0], r[1]))
+    group_count = len(groups)
+    counter = 0
+
+time_select_options = OrderedDict()
+time_select_options['1 Hour'] = 60
+time_select_options['30 Minutes'] = 30
+time_select_options['15 Minutes'] = 15
+time_period = list(time_select_options.values())[0]
+
+time_select = Select.create(name="Time Period", options=time_select_options)
+time_select.on_change('value', on_time_select_change)
+
+time_text = Paragraph(text='Time Period')
 
 # load nyc taxi data -------------------------------
 path = './data/nyc_taxi.csv'
@@ -21,10 +45,12 @@ datetime_field = 'tpep_dropoff_datetime'
 cols = ['dropoff_x', 'dropoff_y', 'trip_distance', datetime_field]
 df = pd.read_csv(path, usecols=cols, parse_dates=[datetime_field]).dropna(axis=0)
 times = pd.DatetimeIndex(df[datetime_field])
-grouped = df.groupby([times.hour])
-group_count = len(grouped)
+group_count = None
+grouped = None
+groups = None
+bin_data()
 
-# manage client-side dimensions --------------------
+# Manage client-side dimensions --------------------
 def update_dims(attr, old, new):
     pass
 
@@ -51,19 +77,27 @@ if (typeof throttle != 'undefined' && throttle != null) {
 throttle = setTimeout(update_dims, 200, "replace");
 """
 
-
-# create plot -------------------------------
+# Create plot -------------------------------
 xmin = -8240227.037
 ymin = 4974203.152
 xmax = -8231283.905
 ymax = 4979238.441
-fig = Figure(x_range=(xmin, xmax), y_range=(ymin, ymax), plot_height=600, plot_width=900)
+
+fig = Figure(x_range=(xmin, xmax),
+             y_range=(ymin, ymax),
+             plot_height=600,
+             plot_width=900,
+             tools='pan,wheel_zoom')
 fig.background_fill_color = 'black'
 fig.add_tile(STAMEN_TONER, alpha=.3)
 fig.x_range.callback = CustomJS(code=dims_jscode, args=dict(plot=fig, dims=dims))
 fig.y_range.callback = CustomJS(code=dims_jscode, args=dict(plot=fig, dims=dims))
 fig.axis.visible = False
 fig.grid.grid_line_alpha = 0
+fig.min_border_left = 0
+fig.min_border_right = 0
+fig.min_border_top = 0
+fig.min_border_bottom = 0
 
 image_source = ColumnDataSource(dict(image=[], x=[], y=[], dw=[], dh=[]))
 fig.image_rgba(source=image_source, image='image', x='x', y='y', dw='dw', dh='dh', dilate=False)
@@ -97,22 +131,34 @@ def update_image(dataframe):
 
     image_source.stream(new_data, 1)
 
-time_text = Paragraph(text='Time Period')
-controls = HBox(children=[time_text])
+time_text = Paragraph(text='Time Period: 00:00 - 00:00')
+controls = HBox(children=[time_text, time_select], width=fig.plot_width)
 layout = VBox(children=[fig, controls])
 
 counter = 0
 def update_data():
-    global dims, grouped, group_count, counter, time_text
+    global dims, grouped, group_count, counter, time_text, time_period
 
     dims_data = dims.data
 
     if not dims_data['width'] or not dims_data['height']:
         return
 
-    group = counter % group_count
-    update_image(grouped.get_group(group))
-    time_text.text = 'Time Period: {}:00 - {}:00'.format(str(group).zfill(2), str(group +1).zfill(2))
+    group_num = counter % group_count
+    group = groups[group_num]
+    grouped_df = grouped.get_group(group)
+    update_image(grouped_df)
+    
+    # update time text
+    num_minute_groups = 60 // time_period
+    mins = group[1] * time_period
+    hr = group[0]
+    end_mins = ((group[1] + 1) % num_minute_groups) * time_period
+    end_hr = hr if end_mins > 0 else (hr + 1) % 24
+    time_text.text = 'Time Period: {}:{} - {}:{}'.format(str(hr).zfill(2),
+                                                         str(mins).zfill(2),
+                                                         str(end_hr).zfill(2),
+                                                         str(end_mins).zfill(2))
     counter += 1
 
 curdoc().add_root(layout)
