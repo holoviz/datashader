@@ -110,8 +110,6 @@ bin_data()
 
 # manage client-side dimensions
 dims = ColumnDataSource(data=dict(width=[], height=[], xmin=[], xmax=[], ymin=[], ymax=[]))
-dims.on_change('data', lambda a, b, c: None)
-
 dims_jscode = """
 var update_dims = function () {
     var new_data = {};
