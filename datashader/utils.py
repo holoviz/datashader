@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 from inspect import getmro
 
 import numba as nb
+import numpy as np
 from datashape import Unit
 from datashape.predicates import launder
 from datashape.typesets import real
@@ -57,3 +58,11 @@ def isreal(dt):
     """
     dt = launder(dt)
     return isinstance(dt, Unit) and dt in real
+
+def downsample_aggregate(aggregate, factor):
+    """Create downsampled aggregate factor in pixels units"""
+    ys, xs = aggregate.shape[:2]
+    crarr = aggregate[:ys-(ys % int(factor)),:xs-(xs % int(factor))]
+    return np.nanmean(np.concatenate([[crarr[i::factor,j::factor] 
+                                       for i in range(factor)] 
+                                       for j in range(factor)]), axis=0)

@@ -8,8 +8,6 @@ import uuid
 
 from collections import OrderedDict
 
-import datashader as ds
-import datashader.transfer_functions as tf
 import pandas as pd
 import numpy as np
 from xarray import DataArray
@@ -28,7 +26,12 @@ from bokeh.models import (Select, Slider, CheckboxGroup,
 
 from bokeh.models import Plot, Text, Circle
 from bokeh.palettes import GnBu9, OrRd9, PuRd9, YlGnBu9, Greys9
+
+import datashader as ds
+import datashader.transfer_functions as tf
+
 from datashader.colors import Hot, viridis
+from datashader.utils import downsample_aggregate
 
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler
@@ -385,20 +388,6 @@ class AppState(object):
 
     def update_hover(self):
 
-        def downsample_categorical(aggregate, factor):
-            ys, xs, zs = aggregate.shape
-            crarr = aggregate[:ys-(ys % int(factor)),:xs-(xs % int(factor))]
-            return np.nanmean(np.concatenate([[crarr[i::factor,j::factor] 
-                                               for i in range(factor)] 
-                                               for j in range(factor)]), axis=0)
-
-        def downsample(aggregate, factor):
-            ys, xs = aggregate.shape
-            crarr = aggregate[:ys-(ys % int(factor)),:xs-(xs % int(factor))]
-            return np.nanmean(np.concatenate([[crarr[i::factor,j::factor] 
-                                               for i in range(factor)] 
-                                               for j in range(factor)]), axis=0)
-
         # update hover layer ----------------------------------------------------
         sq_xs = np.linspace(self.map_extent[0],
                             self.map_extent[2],
@@ -412,17 +401,15 @@ class AppState(object):
         self.hover_source.data['x'] = agg_xs.flatten()
         self.hover_source.data['y'] = agg_ys.flatten()
 
+        hover_agg = downsample_aggregate(self.agg.values, self.hover_size)
         if self.field in self.categorical_fields:
-            hover_agg = downsample_categorical(self.agg.values, self.hover_size)
             cats = self.agg[self.agg.dims[2]].values.tolist()
             tooltips = []
             for i, e in enumerate(cats):
                 self.hover_source.data[e] = hover_agg[:,:,i].flatten()
                 tooltips.append((e, '@{}'.format(e)))
             self.hover_tool.tooltips = tooltips
-
         else:
-            hover_agg = downsample(self.agg.values, self.hover_size)
             self.hover_source.data['value'] = hover_agg.flatten()
             self.hover_tool.tooltips = [(self.field_title, '@value')]
         
