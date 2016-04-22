@@ -33,6 +33,8 @@ from datashader.colors import Hot, viridis
 from datashader.utils import (downsample_aggregate,
                               summarize_aggregate_values)
 
+from datashader.bokeh import add_hover_layer
+
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler
 

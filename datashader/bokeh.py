@@ -204,3 +204,68 @@ class InteractiveImage(object):
 
     def _repr_html_(self):
         return self.div
+
+class HoverLayer(object):
+
+    def __init__(self,
+                 bokeh_plot,
+                 highlight_fill_color='#79DCDE',
+                 highlight_line_color='#79DCDE',
+                 tooltips=[('Value:', '@value')],
+                 size=8):
+        """
+        Wrapper for adding a HoverTool instance to a plot tools which
+        highlights values under the user's mouse location.
+
+        Parameters
+        ----------
+        bokeh_plot : plot or figure
+            Bokeh plot the image will be drawn on
+
+        highlight_fill_color : str
+            Fill color for glyph which appears on mouse over.
+
+        highlight_line_color : str
+            Line color for glyph which appears on mouse over.
+
+        tooltips : arr
+            Tooltip information displayed when user hovers over grid cell
+            ex. [('value', '@value')]
+
+        size : int
+            Defined hover layer resolution in pixels
+            (i.e. height/width of hover grid)
+        """
+
+        self.hover_data = ColumnDataSource(data=dict(x=[], y=[], value=[]))
+
+        self.invisible_square = Square(x='x',
+                                  y='y',
+                                  fill_color=None,
+                                  line_color=None,
+                                  size=size)
+
+        self.visible_square = Square(x='x',
+                                y='y',
+                                fill_color=hightlight_fill_color,
+                                fill_alpha=.5,
+                                line_color=hightlight_line_color,
+                                line_alpha=1,
+                                size=size)
+
+        code = "source.set('selected', cb_data['index']);"
+        self._callback = CustomJS(args={'source': self.hover_data}, code=code)
+
+    def add_to_plot(self, bokeh_plot):
+
+        hover_renderer = bokeh_plot.add_glyph(hover_data,
+                                              invisible_square,
+                                              selection_glyph=visible_square,
+                                              nonselection_glyph=invisible_square)
+
+        self.hover_tool = HoverTool(tooltips=tooltips,
+                                    callback=callback,
+                                    renderers=[hover_renderer],
+                                    mode='mouse')
+
+        bokeh_plot.add_tools(self.hover_tool)
