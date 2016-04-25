@@ -7,7 +7,7 @@ except:
 
 from bokeh.embed import notebook_div
 from bokeh.document import Document
-from bokeh.models import CustomJS, ColumnDataSource
+from bokeh.models import CustomJS, ColumnDataSource, Square
 from bokeh.model import _ModelInDocument as add_to_document
 from bokeh.io import _CommsHandle
 from bokeh.util.notebook import get_comms
@@ -264,7 +264,7 @@ class HoverLayer(object):
                                               nonselection_glyph=invisible_square)
 
         self.hover_tool = HoverTool(tooltips=tooltips,
-                                    callback=callback,
+                                    callback=self._callback,
                                     renderers=[hover_renderer],
                                     mode='mouse')
 
