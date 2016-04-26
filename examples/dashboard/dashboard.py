@@ -9,7 +9,6 @@ import uuid
 from collections import OrderedDict
 
 import pandas as pd
-import numpy as np
 
 from bokeh.server.server import Server
 from bokeh.application import Application
@@ -19,9 +18,7 @@ from bokeh.plotting import Figure
 from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer,
                           DynamicImageRenderer, HBox, VBox)
 
-from bokeh.models import (Select, Slider, CheckboxGroup,
-                          CustomJS, ColumnDataSource,
-                          Square, HoverTool)
+from bokeh.models import (Select, Slider, CheckboxGroup)
 
 from bokeh.models import Plot, Text, Circle
 from bokeh.palettes import GnBu9, PuRd9, YlGnBu9, Greys9
@@ -30,10 +27,9 @@ import datashader as ds
 import datashader.transfer_functions as tf
 
 from datashader.colors import Hot, viridis
-from datashader.utils import (downsample_aggregate,
-                              summarize_aggregate_values)
+from datashader.utils import summarize_aggregate_values
 
-from datashader.bokeh import add_hover_layer
+from datashader.bokeh_ext import HoverLayer
 
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler
@@ -96,7 +92,9 @@ class GetDataset(RequestHandler):
         pix = self.model.render_image()
 
         def update_plots():
-            self.model.update_hover()
+            self.model.hover_layer.extent = self.model.map_extent
+            self.model.hover_layer.agg = self.model.agg
+
             self.model.update_legend()
 
         server.get_sessions('/')[0].with_document_locked(update_plots)
@@ -160,10 +158,6 @@ class AppState(object):
 
         # set defaults
         self.load_datasets(outofcore)
-
-        # hover
-        self.hover_source = ColumnDataSource(data=dict(x=[], y=[], val=[]))
-        self.hover_size = 8
 
         # spreading
         self.spread_size = 0
@@ -331,15 +325,15 @@ class AppState(object):
             self.legend_bottom_vbox.children = []
 
         else:
-            vals_arr = summarize_aggregate_values(self.agg, how=self.transfer_function)
+            vals_arr, min_val, max_val = summarize_aggregate_values(self.agg, how=self.transfer_function)
             img = tf.interpolate(vals_arr, cmap=self.color_ramp, how=self.transfer_function)
             legend_fig = self.create_legend(img.values,
-                                            x=vals_arr[0],
+                                            x=min_val,
                                             y=0,
                                             dh=18,
-                                            dw=vals_arr[-1] - vals_arr[0],
-                                            x_start=vals_arr[0],
-                                            x_end=vals_arr[-1],
+                                            dw=max_val - min_val,
+                                            x_start=min_val,
+                                            x_end=max_val,
                                             y_range=(0, 18))
 
             self.legend_bottom_vbox.children = [legend_fig]
@@ -371,32 +365,6 @@ class AppState(object):
                               dw_units='screen')
         return legend_fig
 
-    def update_hover(self):
-
-        # update hover layer ----------------------------------------------------
-        sq_xs = np.linspace(self.map_extent[0],
-                            self.map_extent[2],
-                            self.agg.shape[1] / self.hover_size)
-
-        sq_ys = np.linspace(self.map_extent[1],
-                            self.map_extent[3],
-                            self.agg.shape[0] / self.hover_size)
-
-        agg_xs, agg_ys = np.meshgrid(sq_xs, sq_ys)
-        self.hover_source.data['x'] = agg_xs.flatten()
-        self.hover_source.data['y'] = agg_ys.flatten()
-
-        hover_agg = downsample_aggregate(self.agg.values, self.hover_size)
-        if self.field in self.categorical_fields:
-            cats = self.agg[self.agg.dims[2]].values.tolist()
-            tooltips = []
-            for i, e in enumerate(cats):
-                self.hover_source.data[e] = hover_agg[:, :, i].flatten()
-                tooltips.append((e, '@{}'.format(e)))
-            self.hover_tool.tooltips = tooltips
-        else:
-            self.hover_source.data['value'] = hover_agg.flatten()
-            self.hover_tool.tooltips = [(self.field_title, '@value')]
 
 class AppView(object):
 
@@ -445,32 +413,13 @@ class AppView(object):
         self.fig.renderers.append(self.label_renderer)
 
         # Add a hover tool
-        self.invisible_square = Square(x='x',
-                                       y='y',
-                                       fill_color=None,
-                                       line_color=None,
-                                       size=self.model.hover_size)
+        hover_layer = HoverLayer()
+        hover_layer.field_name = self.model.field_title
+        hover_layer.is_categorical = self.model.field in self.model.categorical_fields
+        self.fig.renderers.append(hover_layer.renderer)
+        self.fig.add_tools(hover_layer.tool)
+        self.model.hover_layer = hover_layer
 
-        self.visible_square = Square(x='x',
-                                     y='y',
-                                     fill_color='#79DCDE',
-                                     fill_alpha=.5,
-                                     line_color='#79DCDE',
-                                     line_alpha=1,
-                                     size=self.model.hover_size)
-
-        cr = self.fig.add_glyph(self.model.hover_source,
-                                self.invisible_square,
-                                selection_glyph=self.visible_square,
-                                nonselection_glyph=self.invisible_square)
-
-        code = "source.set('selected', cb_data['index']);"
-        callback = CustomJS(args={'source': self.model.hover_source}, code=code)
-        self.model.hover_tool = HoverTool(tooltips=[(self.model.fields.keys()[0], "@value")],
-                                          callback=callback,
-                                          renderers=[cr],
-                                          mode='mouse')
-        self.fig.add_tools(self.model.hover_tool)
         self.model.legend_side_vbox = VBox()
         self.model.legend_bottom_vbox = VBox()
 
@@ -544,26 +493,26 @@ class AppView(object):
 
     def on_field_change(self, attr, old, new):
         self.model.field_title = new
+        self.model.hover_layer.field_name = new
         self.model.field = self.model.fields[new]
         self.update_image()
 
         if not self.model.field:
             self.aggregate_select.options = [dict(name="No Aggregates Available", value="")]
         elif self.model.field in self.model.categorical_fields:
+            self.model.hover_layer.is_categorical = True
             self.aggregate_select.options = [dict(name="Categorical", value="count_cat")]
         else:
             opts = [dict(name=k, value=k) for k in self.model.aggregate_functions.keys()]
             self.aggregate_select.options = opts
+            self.model.hover_layer.is_categorical = False
 
     def on_basemap_change(self, attr, old, new):
         self.model.basemap = self.model.basemaps[new]
         self.tile_renderer.tile_source = WMTSTileSource(url=self.model.basemap)
 
     def on_hover_size_change(self, attr, old, new):
-        self.model.hover_size = int(new)
-        self.invisible_square.size = int(new)
-        self.visible_square.size = int(new)
-        self.model.update_hover()
+        self.model.hover_layer.size = int(new)
 
     def on_spread_size_change(self, attr, old, new):
         self.model.spread_size = int(new)

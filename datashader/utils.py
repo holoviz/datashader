@@ -62,13 +62,30 @@ def isreal(dt):
     dt = launder(dt)
     return isinstance(dt, Unit) and dt in real
 
-def downsample_aggregate(aggregate, factor):
+def downsample_aggregate(aggregate, factor, how='mean'):
     """Create downsampled aggregate factor in pixels units"""
     ys, xs = aggregate.shape[:2]
     crarr = aggregate[:ys-(ys % int(factor)), :xs-(xs % int(factor))]
-    return np.nanmean(np.concatenate([[crarr[i::factor, j::factor]
-                                     for i in range(factor)]
-                                     for j in range(factor)]), axis=0)
+    concat = np.concatenate([[crarr[i::factor, j::factor]
+                            for i in range(factor)]
+                            for j in range(factor)])
+
+    if how == 'mean':
+        return np.nanmean(concat, axis=0)
+    elif how == 'sum':
+        return np.nansum(concat, axis=0)
+    elif how == 'max':
+        return np.nanmax(concat, axis=0)
+    elif how == 'min':
+        return np.nanmin(concat, axis=0)
+    elif how == 'median':
+        return np.nanmedian(concat, axis=0)
+    elif how == 'std':
+        return np.nanstd(concat, axis=0)
+    elif how == 'var':
+        return np.nanvar(concat, axis=0)
+    elif how == 'count':
+        return ~np.isnan(concat, axis=0).size
 
 def summarize_aggregate_values(aggregate, how='linear', num=180):
     """Helper function similar to np.linspace which return values from aggregate min value to aggregate max value in either linear or log space.
@@ -88,4 +105,4 @@ def summarize_aggregate_values(aggregate, how='linear', num=180):
                             base=np.e, num=num,
                             dtype=min_val.dtype) + min_val)[None, :]
 
-    return DataArray(vals)
+    return DataArray(vals), min_val, max_val

@@ -5,12 +5,15 @@ try:
 except:
     import json
 
-from bokeh.embed import notebook_div
-from bokeh.document import Document
-from bokeh.models import CustomJS, ColumnDataSource, Square
+import numpy as np
+
+from bokeh.io import notebook_div
+from bokeh.models import CustomJS, ColumnDataSource, Square, HoverTool, GlyphRenderer
 from bokeh.model import _ModelInDocument as add_to_document
 from bokeh.io import _CommsHandle
 from bokeh.util.notebook import get_comms
+
+from datashader.utils import downsample_aggregate
 
 
 class InteractiveImage(object):
@@ -44,7 +47,7 @@ class InteractiveImage(object):
         function.
     """
 
-    jscode="""
+    jscode = """
         // Define a callback to capture errors on the Python side
         function callback(msg){{
             console.log("Python callback returned unexpected message:", msg)
@@ -110,7 +113,6 @@ class InteractiveImage(object):
             self.doc = doc_handler._doc
             self.div = notebook_div(self.p, self.ref)
 
-
     def _init_callback(self):
         """
         Generate CustomJS from template.
@@ -131,7 +133,6 @@ class InteractiveImage(object):
         cb_args = dict(x_range=self.p.x_range, y_range=self.p.y_range)
         return CustomJS(args=cb_args, code=cb_code)
 
-
     def _init_image(self):
         """
         Initialize RGBA image glyph and datasource
@@ -150,7 +151,6 @@ class InteractiveImage(object):
         renderer = self.p.image_rgba(source=ds, image='image', x='x', y='y',
                                      dw='dw', dh='dh', dilate=False)
         return ds, renderer
-
 
     def update(self, ranges):
         """
@@ -172,7 +172,6 @@ class InteractiveImage(object):
         msg = self.get_update_event()
         self.comms_handle.comms.send(msg)
 
-
     def get_update_event(self):
         """
         Generate an update event json message.
@@ -184,7 +183,6 @@ class InteractiveImage(object):
                                        'model': self.ds.ref,
                                        'new': data}],
                            'references': []})
-
 
     def update_image(self, ranges):
         """
@@ -201,71 +199,116 @@ class InteractiveImage(object):
                         y=[y_range[0]], dw=[dw], dh=[dh])
         self.ds.data.update(new_data)
 
-
     def _repr_html_(self):
         return self.div
 
 class HoverLayer(object):
+    """
+    Wrapper for adding a HoverTool instance to a plot tools which
+    highlights values under the user's mouse location.
 
-    def __init__(self,
-                 bokeh_plot,
-                 highlight_fill_color='#79DCDE',
-                 highlight_line_color='#79DCDE',
-                 tooltips=[('Value:', '@value')],
-                 size=8):
-        """
-        Wrapper for adding a HoverTool instance to a plot tools which
-        highlights values under the user's mouse location.
+    Parameters
+    ----------
+    bokeh_plot : plot or figure
+        Bokeh plot the image will be drawn on
 
-        Parameters
-        ----------
-        bokeh_plot : plot or figure
-            Bokeh plot the image will be drawn on
+    highlight_fill_color : str
+        Fill color for glyph which appears on mouse over.
 
-        highlight_fill_color : str
-            Fill color for glyph which appears on mouse over.
+    highlight_line_color : str
+        Line color for glyph which appears on mouse over.
 
-        highlight_line_color : str
-            Line color for glyph which appears on mouse over.
+    size : int
+        Defined hover layer resolution in pixels
+        (i.e. height/width of hover grid)
+    """
 
-        tooltips : arr
-            Tooltip information displayed when user hovers over grid cell
-            ex. [('value', '@value')]
-
-        size : int
-            Defined hover layer resolution in pixels
-            (i.e. height/width of hover grid)
-        """
+    def __init__(self, highlight_fill_color='#79DCDE', highlight_line_color='#79DCDE', size=8):
 
         self.hover_data = ColumnDataSource(data=dict(x=[], y=[], value=[]))
 
         self.invisible_square = Square(x='x',
-                                  y='y',
-                                  fill_color=None,
-                                  line_color=None,
-                                  size=size)
+                                       y='y',
+                                       fill_color=None,
+                                       line_color=None,
+                                       size=size)
 
         self.visible_square = Square(x='x',
-                                y='y',
-                                fill_color=hightlight_fill_color,
-                                fill_alpha=.5,
-                                line_color=hightlight_line_color,
-                                line_alpha=1,
-                                size=size)
+                                     y='y',
+                                     fill_color=highlight_fill_color,
+                                     fill_alpha=.5,
+                                     line_color=highlight_line_color,
+                                     line_alpha=1,
+                                     size=size)
+        self.tooltips = []
 
         code = "source.set('selected', cb_data['index']);"
         self._callback = CustomJS(args={'source': self.hover_data}, code=code)
 
-    def add_to_plot(self, bokeh_plot):
+        self.renderer = GlyphRenderer()
+        self.renderer.data_source = self.hover_data
+        self.renderer.glyph = self.invisible_square
+        self.renderer.selection_glyph = self.visible_square
+        self.renderer.nonselection_glyph = self.invisible_square
 
-        hover_renderer = bokeh_plot.add_glyph(hover_data,
-                                              invisible_square,
-                                              selection_glyph=visible_square,
-                                              nonselection_glyph=invisible_square)
+        self.tool = HoverTool(callback=self._callback,
+                              renderers=[self.renderer],
+                              mode='mouse')
 
-        self.hover_tool = HoverTool(tooltips=tooltips,
-                                    callback=self._callback,
-                                    renderers=[hover_renderer],
-                                    mode='mouse')
+        self.extent = None
+        self.is_categorical = False
+        self.field_name = 'Value'
 
-        bokeh_plot.add_tools(self.hover_tool)
+        self._agg = None
+        self._size = size or 8
+
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, value):
+        self._size = value
+        self.invisible_square.size = value
+        self.visible_square.size = value
+
+        if self.agg is not None and self.extent is not None:
+            self.compute()
+
+    @property
+    def agg(self):
+        return self._agg
+
+    @agg.setter
+    def agg(self, value):
+        self._agg = value
+
+        if self.agg is not None and self.extent is not None:
+            self.compute()
+
+    def compute(self):
+        sq_xs = np.linspace(self.extent[0],
+                            self.extent[2],
+                            self.agg.shape[1] / self.size)
+
+        sq_ys = np.linspace(self.extent[1],
+                            self.extent[3],
+                            self.agg.shape[0] / self.size)
+
+        agg_xs, agg_ys = np.meshgrid(sq_xs, sq_ys)
+        self.hover_data.data['x'] = agg_xs.flatten()
+        self.hover_data.data['y'] = agg_ys.flatten()
+        self.hover_agg = downsample_aggregate(self.agg.values, self.size, how='mean')
+
+        tooltips = []
+        if self.is_categorical:
+            cats = self.agg[self.agg.dims[2]].values.tolist()
+            for i, e in enumerate(cats):
+                self.hover_data.data[e] = self.hover_agg[:, :, i].flatten()
+                tooltips.append((e, '@{}'.format(e)))
+        else:
+            self.hover_data.data['value'] = self.hover_agg.flatten()
+            tooltips.append((self.field_name, '@value'))
+
+        self.tool.tooltips = tooltips
+        return self.hover_agg
