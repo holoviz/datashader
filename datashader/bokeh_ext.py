@@ -12,8 +12,9 @@ from bokeh.models import CustomJS, ColumnDataSource, Square, HoverTool, GlyphRen
 from bokeh.model import _ModelInDocument as add_to_document
 from bokeh.io import _CommsHandle
 from bokeh.util.notebook import get_comms
+from bokeh.models import Plot, Text, Circle, Range1d
 
-from datashader.utils import downsample_aggregate, hold
+from datashader.utils import downsample_aggregate
 
 
 class InteractiveImage(object):
@@ -312,3 +313,49 @@ class HoverLayer(object):
 
         self.tool.tooltips = tooltips
         return self.hover_agg
+
+
+def create_categorical_legend(colormap, aliases=None):
+    '''
+    Creates a bokeh plot object with circle legend
+    swatches and text corresponding to ``colornames``.
+
+    Parameters
+    ----------
+    colormap : dict
+        Dictionary of category value to color value
+
+    aliases : dict
+        Dictionary of category value to aliases name
+    '''
+    plot_options = {}
+    plot_options['x_range'] = Range1d(start=0, end=200)
+    plot_options['y_range'] = Range1d(start=0, end=100)
+    plot_options['plot_height'] = 120
+    plot_options['plot_width'] = 190
+    plot_options['min_border_bottom'] = 0
+    plot_options['min_border_left'] = 0
+    plot_options['min_border_right'] = 0
+    plot_options['min_border_top'] = 0
+    plot_options['outline_line_width'] = 0
+    plot_options['toolbar_location'] = None
+
+    legend = Plot(**plot_options)
+
+    for i, (region, color) in enumerate(colormap.items()):
+        text_y = 95 - i * 20
+        text_val = aliases[region] if aliases else region
+        legend.add_glyph(Text(x=40,
+                              y=text_y-12,
+                              text=[text_val],
+                              text_font_size='10pt',
+                              text_color='#666666'))
+
+        legend.add_glyph(Circle(x=15,
+                                y=text_y-5,
+                                fill_color=color,
+                                size=10,
+                                line_color=None,
+                                fill_alpha=0.8))
+
+    return legend

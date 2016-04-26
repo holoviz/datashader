@@ -15,12 +15,10 @@ from bokeh.application import Application
 from bokeh.application.handlers import FunctionHandler
 
 from bokeh.plotting import Figure
-from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer,
-                          DynamicImageRenderer, HBox, VBox)
+from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer, DynamicImageRenderer, HBox, VBox)
 
 from bokeh.models import (Select, Slider, CheckboxGroup)
 
-from bokeh.models import Plot, Text, Circle
 from bokeh.palettes import GnBu9, PuRd9, YlGnBu9, Greys9
 
 import datashader as ds
@@ -29,7 +27,7 @@ import datashader.transfer_functions as tf
 from datashader.colors import Hot, viridis
 from datashader.utils import summarize_aggregate_values
 
-from datashader.bokeh_ext import HoverLayer
+from datashader.bokeh_ext import HoverLayer, create_categorical_legend
 from datashader.utils import hold
 
 from tornado.ioloop import IOLoop
@@ -68,9 +66,7 @@ class GetDataset(RequestHandler):
         pix = self.model.render_image()
 
         def update_plots():
-            self.model.hover_layer.extent = self.model.map_extent
-            self.model.hover_layer.agg = self.model.agg
-
+            self.model.update_hover()
             self.model.update_legend()
 
         server.get_sessions('/')[0].with_document_locked(update_plots)
@@ -269,34 +265,15 @@ class AppState(object):
 
         return pix
 
-    def create_categorical_legend(self, colormap, colornames):
-        plot_options = {}
-        plot_options['x_range'] = Range1d(start=0, end=200)
-        plot_options['y_range'] = Range1d(start=0, end=100)
-        plot_options['plot_height'] = 120
-        plot_options['plot_width'] = 190
-
-        plot_options['min_border_bottom'] = 0
-        plot_options['min_border_left'] = 0
-        plot_options['min_border_right'] = 0
-        plot_options['min_border_top'] = 0
-        plot_options['outline_line_width'] = 0
-        plot_options['toolbar_location'] = None
-
-        legend = Plot(**plot_options)
-        regions = list(colormap.keys())
-        colors = list(colormap.values())
-        for i, (region, color) in enumerate(zip(regions, colors)):
-            text_y = 95 - i * 20
-            legend.add_glyph(Text(x=40, y=text_y-12, text=[colornames[region]], text_font_size='10pt', text_color='#666666'))
-            legend.add_glyph(Circle(x=15, y=text_y-5, fill_color=color, size=10, line_color=None, fill_alpha=0.8))
-
-        return legend
+    def update_hover(self):
+        self.hover_layer.is_categorical = self.field in self.categorical_fields
+        self.hover_layer.extent = self.map_extent
+        self.hover_layer.agg = self.agg
 
     def update_legend(self):
 
         if self.field in self.categorical_fields:
-            cat_legend = self.create_categorical_legend(self.colormap, self.colornames)
+            cat_legend = create_categorical_legend(self.colormap, self.colornames)
             self.legend_side_vbox.children = [cat_legend]
             self.legend_bottom_vbox.children = []
 
@@ -332,7 +309,6 @@ class AppState(object):
         legend_fig.min_border_right = 15
         legend_fig.yaxis.visible = False
         legend_fig.grid.grid_line_alpha = 0
-
         legend_fig.image_rgba(image=[img],
                               x=[x],
                               y=[y],
@@ -469,8 +445,10 @@ class AppView(object):
 
     def on_field_change(self, attr, old, new):
         self.model.field_title = new
-        self.model.hover_layer.field_name = new
         self.model.field = self.model.fields[new]
+
+        self.model.hover_layer.field_name = new
+        self.model.hover_layer.is_categorical = self.model.field in self.model.categorical_fields
         self.update_image()
 
         if not self.model.field:
