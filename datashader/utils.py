@@ -106,3 +106,15 @@ def summarize_aggregate_values(aggregate, how='linear', num=180):
                             dtype=min_val.dtype) + min_val)[None, :]
 
     return DataArray(vals), min_val, max_val
+
+def hold(f):
+    '''
+    simple arg caching decorator
+    '''
+    last = []
+
+    def _(*args):
+        if not last or last[0] != args:
+            last[:] = args, f(*args)
+        return last[1]
+    return _

@@ -30,37 +30,13 @@ from datashader.colors import Hot, viridis
 from datashader.utils import summarize_aggregate_values
 
 from datashader.bokeh_ext import HoverLayer
+from datashader.utils import hold
 
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler
 
 from webargs import fields
 from webargs.tornadoparser import use_args
-
-import functools
-import weakref
-
-try:
-    from functools import lru_cache
-except ImportError:
-    from fastcache import lru_cache
-
-def memoized_method(*lru_args, **lru_kwargs):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapped_func(self, *args, **kwargs):
-            # We're storing the wrapped method inside the instance. If we had
-            # a strong reference to self the instance would never die.
-            self_weak = weakref.ref(self)
-
-            @functools.wraps(func)
-            @lru_cache(*lru_args, **lru_kwargs)
-            def cached_method(*args, **kwargs):
-                return func(self_weak(), *args, **kwargs)
-            setattr(self, func.__name__, cached_method)
-            return cached_method(*args, **kwargs)
-        return wrapped_func
-    return decorator
 
 # http request arguments for datashing HTTP request
 ds_args = {
@@ -253,7 +229,7 @@ class AppState(object):
         else:
             raise IOError("Unknown data file type; .csv and .castra currently supported")
 
-    @memoized_method(maxsize=6)
+    @hold
     def create_aggregate(self, plot_width, plot_height, x_range, y_range,
                          agg_field, x_field, y_field, agg_func=None):
 

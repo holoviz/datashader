@@ -13,7 +13,7 @@ from bokeh.model import _ModelInDocument as add_to_document
 from bokeh.io import _CommsHandle
 from bokeh.util.notebook import get_comms
 
-from datashader.utils import downsample_aggregate
+from datashader.utils import downsample_aggregate, hold
 
 
 class InteractiveImage(object):
