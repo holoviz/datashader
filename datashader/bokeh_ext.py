@@ -13,6 +13,7 @@ from bokeh.model import _ModelInDocument as add_to_document
 from bokeh.io import _CommsHandle
 from bokeh.util.notebook import get_comms
 from bokeh.models import Plot, Text, Circle, Range1d
+from bokeh.plotting import Figure
 
 from datashader.utils import downsample_aggregate
 
@@ -314,6 +315,30 @@ class HoverLayer(object):
         self.tool.tooltips = tooltips
         return self.hover_agg
 
+def create_ramp_legend(img, x, y, dw, dh, x_start, x_end, y_range, scale='linear', width=600):
+
+    x_axis_type = 'linear' if scale == 'linear' else 'log'
+    legend_fig = Figure(x_range=(x_start, x_end),
+                        plot_height=max(dh, 50),
+                        plot_width=width,
+                        lod_threshold=None,
+                        toolbar_location=None,
+                        y_range=y_range,
+                        x_axis_type=x_axis_type)
+
+    legend_fig.min_border_top = 0
+    legend_fig.min_border_bottom = 10
+    legend_fig.min_border_left = 15
+    legend_fig.min_border_right = 15
+    legend_fig.yaxis.visible = False
+    legend_fig.grid.grid_line_alpha = 0
+    legend_fig.image_rgba(image=[img],
+                          x=[x],
+                          y=[y],
+                          dw=[dw],
+                          dh=[dh],
+                          dw_units='screen')
+    return legend_fig
 
 def create_categorical_legend(colormap, aliases=None):
     '''

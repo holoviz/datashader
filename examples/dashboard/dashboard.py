@@ -27,7 +27,7 @@ import datashader.transfer_functions as tf
 from datashader.colors import Hot, viridis
 from datashader.utils import summarize_aggregate_values
 
-from datashader.bokeh_ext import HoverLayer, create_categorical_legend
+from datashader.bokeh_ext import HoverLayer, create_categorical_legend, create_ramp_legend
 from datashader.utils import hold
 
 from tornado.ioloop import IOLoop
@@ -227,7 +227,7 @@ class AppState(object):
 
     @hold
     def create_aggregate(self, plot_width, plot_height, x_range, y_range,
-                         agg_field, x_field, y_field, agg_func=None):
+                         agg_field, x_field, y_field, agg_func):
 
         canvas = ds.Canvas(plot_width=plot_width,
                            plot_height=plot_height,
@@ -280,42 +280,19 @@ class AppState(object):
         else:
             vals_arr, min_val, max_val = summarize_aggregate_values(self.agg, how=self.transfer_function)
             img = tf.interpolate(vals_arr, cmap=self.color_ramp, how=self.transfer_function)
-            legend_fig = self.create_legend(img.values,
+            legend_fig = create_ramp_legend(img.values,
                                             x=min_val,
                                             y=0,
                                             dh=18,
                                             dw=max_val - min_val,
                                             x_start=min_val,
                                             x_end=max_val,
-                                            y_range=(0, 18))
+                                            y_range=(0, 18),
+                                            scale=self.transfer_function,
+                                            width=self.plot_width)
 
             self.legend_bottom_vbox.children = [legend_fig]
             self.legend_side_vbox.children = []
-
-    def create_legend(self, img, x, y, dw, dh, x_start, x_end, y_range):
-
-        x_axis_type = 'linear' if self.transfer_function == 'linear' else 'log'
-        legend_fig = Figure(x_range=(x_start, x_end),
-                            plot_height=max(dh, 50),
-                            plot_width=self.plot_width,
-                            lod_threshold=None,
-                            toolbar_location=None,
-                            y_range=y_range,
-                            x_axis_type=x_axis_type)
-
-        legend_fig.min_border_top = 0
-        legend_fig.min_border_bottom = 10
-        legend_fig.min_border_left = 15
-        legend_fig.min_border_right = 15
-        legend_fig.yaxis.visible = False
-        legend_fig.grid.grid_line_alpha = 0
-        legend_fig.image_rgba(image=[img],
-                              x=[x],
-                              y=[y],
-                              dw=[dw],
-                              dh=[dh],
-                              dw_units='screen')
-        return legend_fig
 
 
 class AppView(object):
