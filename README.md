@@ -3,7 +3,7 @@ Datashader
 
 [![Build Status](https://travis-ci.org/bokeh/datashader.svg)](https://travis-ci.org/bokeh/datashader) 
 [![Documentation Status](https://readthedocs.org/projects/datashader/badge/?version=latest)](http://datashader.readthedocs.org/en/latest/?badge=latest)
-[![Task Status](https://badge.waffle.io/bokeh/datashader.png?label=ready&title=Tasks)](https://waffle.io/bokeh/datashader)
+[![Task Status](https://badge.waffle.io/bokeh/datashader.png?label=ready&title=tasks)](https://waffle.io/bokeh/datashader)
 
 
 Datashader is a graphics pipeline system for creating meaningful
