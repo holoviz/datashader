@@ -15,7 +15,8 @@ from bokeh.util.notebook import get_comms
 from bokeh.models import Plot, Text, Circle, Range1d
 from bokeh.plotting import Figure
 
-from datashader.utils import downsample_aggregate
+import datashader.transfer_functions as tf
+from datashader.utils import downsample_aggregate, summarize_aggregate_values
 
 
 class InteractiveImage(object):
@@ -211,8 +212,8 @@ class HoverLayer(object):
 
     Parameters
     ----------
-    bokeh_plot : plot or figure
-        Bokeh plot the image will be drawn on
+    field_name : str
+        Field title which will appear in hover tooltip
 
     highlight_fill_color : str
         Fill color for glyph which appears on mouse over.
@@ -223,9 +224,22 @@ class HoverLayer(object):
     size : int
         Defined hover layer resolution in pixels
         (i.e. height/width of hover grid)
+
+    extent : list
+        ``[xmin, ymin, xmax, ymax]`` in data coordinates representing aggregate bounds
+
+    agg : xarray
+        Datashader aggregate object (e.g. result of Canvas.points())
     """
 
-    def __init__(self, highlight_fill_color='#79DCDE', highlight_line_color='#79DCDE', size=8):
+    def __init__(self,
+                 field_name='Value',
+                 highlight_fill_color='#79DCDE',
+                 highlight_line_color='#79DCDE',
+                 size=8,
+                 is_categorical=False,
+                 extent=None,
+                 agg=None):
 
         self.hover_data = ColumnDataSource(data=dict(x=[], y=[], value=[]))
 
@@ -257,12 +271,15 @@ class HoverLayer(object):
                               renderers=[self.renderer],
                               mode='mouse')
 
-        self.extent = None
-        self.is_categorical = False
-        self.field_name = 'Value'
+        self.extent = extent
+        self.is_categorical = is_categorical
+        self.field_name = field_name
 
-        self._agg = None
+        self._agg = agg
         self._size = size or 8
+
+        if self.agg is not None and self.extent is not None:
+            self.compute()
 
     @property
     def size(self):
@@ -315,15 +332,36 @@ class HoverLayer(object):
         self.tool.tooltips = tooltips
         return self.hover_agg
 
-def create_ramp_legend(img, x, y, dw, dh, x_start, x_end, y_range, scale='linear', width=600):
+def create_ramp_legend(agg, cmap, how='linear', width=600):
+    '''
+    Helper function to create a Bokeh ``Figure`` object
+    with a color ramp corresponding to input aggregate and transfer function.
 
-    x_axis_type = 'linear' if scale == 'linear' else 'log'
-    legend_fig = Figure(x_range=(x_start, x_end),
-                        plot_height=max(dh, 50),
+    Parameters
+    ----------
+    agg : xarray
+        Datashader aggregate object (e.g. result of Canvas.points())
+
+    cmap : list of colors or matplotlib.colors.Colormap, optional
+        The colormap to use. Can be either a list of colors (in any of the
+        formats described above), or a matplotlib colormap object.
+
+    how : str
+        Datashader transfer function name (e.g. linear, log, cbrt, eq_hist)
+
+    width : int
+        Width in pixels of resulting legend figure (default=600)
+    '''
+
+    vals_arr, min_val, max_val = summarize_aggregate_values(agg, how=how)
+    img = tf.interpolate(vals_arr, cmap=cmap, how=how)
+    x_axis_type = 'linear' if how == 'linear' else 'log'
+    legend_fig = Figure(x_range=(min_val, max_val),
+                        plot_height=50,
                         plot_width=width,
                         lod_threshold=None,
                         toolbar_location=None,
-                        y_range=y_range,
+                        y_range=(0, 18),
                         x_axis_type=x_axis_type)
 
     legend_fig.min_border_top = 0
@@ -332,18 +370,19 @@ def create_ramp_legend(img, x, y, dw, dh, x_start, x_end, y_range, scale='linear
     legend_fig.min_border_right = 15
     legend_fig.yaxis.visible = False
     legend_fig.grid.grid_line_alpha = 0
-    legend_fig.image_rgba(image=[img],
-                          x=[x],
-                          y=[y],
-                          dw=[dw],
-                          dh=[dh],
+    legend_fig.image_rgba(image=[img.values],
+                          x=[min_val],
+                          y=[0],
+                          dw=[max_val - min_val],
+                          dh=[18],
                           dw_units='screen')
     return legend_fig
 
 def create_categorical_legend(colormap, aliases=None):
     '''
     Creates a bokeh plot object with circle legend
-    swatches and text corresponding to ``colornames``.
+    swatches and text corresponding to the ``colormap`` key values
+    or the optional aliases values.
 
     Parameters
     ----------
@@ -367,9 +406,9 @@ def create_categorical_legend(colormap, aliases=None):
 
     legend = Plot(**plot_options)
 
-    for i, (region, color) in enumerate(colormap.items()):
+    for i, (cat, color) in enumerate(colormap.items()):
         text_y = 95 - i * 20
-        text_val = aliases[region] if aliases else region
+        text_val = aliases[cat] if aliases else cat
         legend.add_glyph(Text(x=40,
                               y=text_y-12,
                               text=[text_val],

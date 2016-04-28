@@ -273,22 +273,14 @@ class AppState(object):
     def update_legend(self):
 
         if self.field in self.categorical_fields:
-            cat_legend = create_categorical_legend(self.colormap, self.colornames)
+            cat_legend = create_categorical_legend(self.colormap, aliases=self.colornames)
             self.legend_side_vbox.children = [cat_legend]
             self.legend_bottom_vbox.children = []
 
         else:
-            vals_arr, min_val, max_val = summarize_aggregate_values(self.agg, how=self.transfer_function)
-            img = tf.interpolate(vals_arr, cmap=self.color_ramp, how=self.transfer_function)
-            legend_fig = create_ramp_legend(img.values,
-                                            x=min_val,
-                                            y=0,
-                                            dh=18,
-                                            dw=max_val - min_val,
-                                            x_start=min_val,
-                                            x_end=max_val,
-                                            y_range=(0, 18),
-                                            scale=self.transfer_function,
+            legend_fig = create_ramp_legend(self.agg,
+                                            self.color_ramp,
+                                            how=self.transfer_function,
                                             width=self.plot_width)
 
             self.legend_bottom_vbox.children = [legend_fig]
