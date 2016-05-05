@@ -113,7 +113,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist'):
+def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255):
     """Convert a 2D DataArray to an image.
 
     Data is converted to an image either by interpolating between a `low` and
@@ -136,6 +136,8 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist'):
         2-dimensional array of magnitudes at each pixel, and a boolean mask
         array indicating missingness. They should return a numeric array of the
         same shape, with `NaN`s where the mask was True.
+    alpha : int, optional
+        Value between 0 - 255 for alpha channel resulting array.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
@@ -176,12 +178,12 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist'):
         r = np.interp(data, span, rspan, left=255).astype(np.uint8)
         g = np.interp(data, span, gspan, left=255).astype(np.uint8)
         b = np.interp(data, span, bspan, left=255).astype(np.uint8)
-        a = np.where(np.isnan(data), 0, 255).astype(np.uint8)
+        a = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
         img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
     elif callable(cmap):
         # Assume callable is matplotlib colormap
         img = cmap((data - span[0])/(span[1] - span[0]), bytes=True)
-        img[:, :, 3] = np.where(np.isnan(data), 0, 255).astype(np.uint8)
+        img[:, :, 3] = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
         img = img.view(np.uint32).reshape(data.shape)
     else:
         raise TypeError("Expected `cmap` of `matplotlib.colors.Colormap` or "
