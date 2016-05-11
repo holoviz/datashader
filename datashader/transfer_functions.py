@@ -137,7 +137,9 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255):
         array indicating missingness. They should return a numeric array of the
         same shape, with `NaN`s where the mask was True.
     alpha : int, optional
-        Value between 0 - 255 for alpha channel resulting array.
+        Value between 0 - 255 representing the alpha value of pixels which contain 
+        data (i.e. non-nan values). Regardless of this value, `NaN` values are
+        set to fully transparent.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
