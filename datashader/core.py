@@ -1,8 +1,11 @@
 from __future__ import absolute_import, division, print_function
 
+import math
+
 import numpy as np
 from datashape.predicates import istabular
 from odo import discover
+from xarray import DataArray
 
 from .utils import Dispatcher, ngjit
 
@@ -167,6 +170,61 @@ class Canvas(object):
             agg = any()
         return bypixel(source, self, Line(x, y), agg)
 
+    def raster(self,
+               source,
+               band=1,
+               nodata=np.nan,
+               replace_nodata=None):
+        """Sample a raster dataset by canvas size and bounds. Note: requires
+        `rasterio` and `scikit-image`.
+
+        Parameters
+        ----------
+        source : rasterio.Dataset
+            input datasource most likely obtain from `rasterio.open()`.
+        band : int
+            source band number : optional default=1
+        nodata : number
+            Value for nodata cells
+        replace_nodata : number
+            Replacement value for nodata cells
+
+        Returns
+        _______
+        data : xarray.Dataset
+        """
+
+        try:
+            import rasterio as rio
+            from skimage.transform import resize
+        except ImportError:
+            raise ImportError('install rasterio and skimage to use this feature')
+            
+        xmin = max(self.x_range[0], source.bounds.left)
+        ymin = max(self.y_range[0], source.bounds.bottom)
+        xmax = min(self.x_range[1], source.bounds.right)
+        ymax = min(self.y_range[1], source.bounds.top)
+        
+        dx = self.x_range[1] - self.x_range[0]
+        dy = self.y_range[1] - self.y_range[0]
+
+        width_ratio = (xmax - xmin) / dx
+        height_ratio = (ymax - ymin) / dy
+
+        w = int(math.ceil(self.plot_width * width_ratio))
+        h = int(math.ceil(self.plot_height * height_ratio))
+
+        rmin, cmin = source.index(self.x_range[0], self.y_range[0])
+        rmax, cmax = source.index(self.x_range[1], self.y_range[1])
+
+        data = source.read(1, window=((rmax, rmin), (cmin, cmax)))
+
+        if replace_nodata:
+            data[data == nodata] = replace_nodata
+
+        data = resize(np.flipud(data), (w, h), preserve_range=True)
+        attrs = dict(res=source.res[0], nodata=nodata)
+        return DataArray(data, dims=['x', 'y'], attrs=attrs)
 
 def bypixel(source, canvas, glyph, agg):
     """Compute an aggregate grouped by pixel sized bins.
