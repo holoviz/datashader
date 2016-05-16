@@ -1,17 +1,11 @@
 from __future__ import division
 
-import math
-
 from bokeh.io import curdoc
 from bokeh.plotting import Figure
 from bokeh.models import ColumnDataSource, CustomJS
 from bokeh.tile_providers import STAMEN_TONER
 
-import numpy as np
 import rasterio as rio
-
-from xarray import DataArray
-
 import datashader as ds
 import datashader.transfer_functions as tf
 from datashader.colors import Hot
@@ -21,8 +15,8 @@ def on_dims_change(attr, old, new):
 
 def update_image():
 
-    global dims, raster_data, angle, altitude
-    
+    global dims, raster_data
+
     dims_data = dims.data
 
     if not dims_data['width'] or not dims_data['height']:
@@ -54,7 +48,7 @@ def update_image():
 
 # load nyc taxi data
 path = './data/projected.tif'
-raster_data = rio.open(path) 
+raster_data = rio.open(path)
 
 # manage client-side dimensions
 dims = ColumnDataSource(data=dict(width=[], height=[], xmin=[], xmax=[], ymin=[], ymax=[]))
