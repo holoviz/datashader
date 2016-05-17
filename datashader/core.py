@@ -1,7 +1,5 @@
 from __future__ import absolute_import, division, print_function
 
-import math
-
 import numpy as np
 from datashape.predicates import istabular
 from odo import discover
@@ -173,8 +171,7 @@ class Canvas(object):
     def raster(self,
                source,
                band=1,
-               nodata=np.nan,
-               replace_nodata=None):
+               missing=None):
         """Sample a raster dataset by canvas size and bounds. Note: requires
         `rasterio` and `scikit-image`.
 
@@ -184,14 +181,17 @@ class Canvas(object):
             input datasource most likely obtain from `rasterio.open()`.
         band : int
             source band number : optional default=1
-        nodata : number
-            Value for nodata cells
-        replace_nodata : number
-            Replacement value for nodata cells
+        missing : number, optional
+            Missing flag, default is `None` and missing values are replaced with `NaN`
+            if floats, and 0 if int.
 
         Returns
-        _______
+        -------
         data : xarray.Dataset
+
+        Notes
+        -------
+        requires `rasterio` and `scikit-image`.
         """
 
         try:
@@ -211,19 +211,21 @@ class Canvas(object):
         width_ratio = (xmax - xmin) / dx
         height_ratio = (ymax - ymin) / dy
 
-        w = int(math.ceil(self.plot_width * width_ratio))
-        h = int(math.ceil(self.plot_height * height_ratio))
+        w = int(np.ceil(self.plot_width * width_ratio))
+        h = int(np.ceil(self.plot_height * height_ratio))
 
         rmin, cmin = source.index(self.x_range[0], self.y_range[0])
         rmax, cmax = source.index(self.x_range[1], self.y_range[1])
 
-        data = source.read(1, window=((rmax, rmin), (cmin, cmax)))
+        data = source.read(band, window=((rmax, rmin), (cmin, cmax)))
 
-        if replace_nodata:
-            data[data == nodata] = replace_nodata
+        if missing:
+            data[data == source.nodata] = missing
+        else:
+            data[data == source.nodata] = 0 if 'i' in data.dtype.str else np.nan
 
         data = resize(np.flipud(data), (w, h), preserve_range=True)
-        attrs = dict(res=source.res[0], nodata=nodata)
+        attrs = dict(res=source.res[0], nodata=int(source.nodata))
         return DataArray(data, dims=['x', 'y'], attrs=attrs)
 
 def bypixel(source, canvas, glyph, agg):
