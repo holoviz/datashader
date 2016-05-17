@@ -32,10 +32,7 @@ def update_image():
                        x_range=(xmin, xmax),
                        y_range=(ymin, ymax))
 
-    agg = canvas.raster(raster_data,
-                        nodata=-32768,
-                        replace_nodata=-100)
-
+    agg = canvas.raster(raster_data)
     img = tf.interpolate(agg, cmap=Hot, how='linear')
 
     new_data = {}
