@@ -171,6 +171,7 @@ class Canvas(object):
     def raster(self,
                source,
                band=1,
+               resample_method='bilinear',
                missing=None):
         """Sample a raster dataset by canvas size and bounds. Note: requires
         `rasterio` and `scikit-image`.
@@ -184,6 +185,9 @@ class Canvas(object):
         missing : number, optional
             Missing flag, default is `None` and missing values are replaced with `NaN`
             if floats, and 0 if int.
+        resample_method : str, optional default=bilinear
+            resample mode when resizing raster.
+            options include: nearest, bilinear.
 
         Returns
         -------
@@ -199,6 +203,11 @@ class Canvas(object):
             from skimage.transform import resize
         except ImportError:
             raise ImportError('install rasterio and skimage to use this feature')
+
+        resample_methods = dict(nearest=0, bilinear=1) 
+
+        if resample_method not in resample_methods.keys():
+            raise ValueError('Invalid resample method: options include {}'.format(list(resample_methods.keys())))
             
         xmin = max(self.x_range[0], source.bounds.left)
         ymin = max(self.y_range[0], source.bounds.bottom)
@@ -219,13 +228,19 @@ class Canvas(object):
 
         data = source.read(band, window=((rmax, rmin), (cmin, cmax)))
 
-        if missing:
+        if missing and source.nodata:
             data[data == source.nodata] = missing
-        else:
+        elif source.nodata:
             data[data == source.nodata] = 0 if 'i' in data.dtype.str else np.nan
+        else:
+            print('warning, rasterio source does not indicate nodata value')
 
-        data = resize(np.flipud(data), (w, h), preserve_range=True)
-        attrs = dict(res=source.res[0], nodata=int(source.nodata))
+        data = resize(np.flipud(data),
+                      (w, h),
+                      order=resample_methods[resample_method],
+                      preserve_range=True)
+
+        attrs = dict(res=source.res[0], nodata=source.nodata)
         return DataArray(data, dims=['x', 'y'], attrs=attrs)
 
 def bypixel(source, canvas, glyph, agg):
