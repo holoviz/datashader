@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 from datashape.predicates import istabular
 from odo import discover
+from xarray import DataArray
 
 from .utils import Dispatcher, ngjit
 
@@ -167,6 +168,87 @@ class Canvas(object):
             agg = any()
         return bypixel(source, self, Line(x, y), agg)
 
+    def raster(self,
+               source,
+               band=1,
+               resample_method='bilinear',
+               use_overviews=True,
+               missing=None):
+        """Sample a raster dataset by canvas size and bounds. Note: requires
+        `rasterio` and `scikit-image`.
+
+        Parameters
+        ----------
+        source : rasterio.Dataset
+            input datasource most likely obtain from `rasterio.open()`.
+        band : int
+            source band number : optional default=1
+        missing : number, optional
+            Missing flag, default is `None` and missing values are replaced with `NaN`
+            if floats, and 0 if int.
+        resample_method : str, optional default=bilinear
+            resample mode when resizing raster.
+            options include: nearest, bilinear.
+        use_overviews : bool, optional default=True
+            flag to indicate whether to use overviews or use native resolution
+
+        Returns
+        -------
+        data : xarray.Dataset
+
+        Notes
+        -------
+        requires `rasterio` and `scikit-image`.
+        """
+
+        try:
+            import rasterio as rio
+            from skimage.transform import resize
+        except ImportError:
+            raise ImportError('install rasterio and skimage to use this feature')
+
+        resample_methods = dict(nearest=0, bilinear=1) 
+
+        if resample_method not in resample_methods.keys():
+            raise ValueError('Invalid resample method: options include {}'.format(list(resample_methods.keys())))
+            
+        xmin = max(self.x_range[0], source.bounds.left)
+        ymin = max(self.y_range[0], source.bounds.bottom)
+        xmax = min(self.x_range[1], source.bounds.right)
+        ymax = min(self.y_range[1], source.bounds.top)
+        
+        dx = self.x_range[1] - self.x_range[0]
+        dy = self.y_range[1] - self.y_range[0]
+
+        width_ratio = (xmax - xmin) / dx
+        height_ratio = (ymax - ymin) / dy
+
+        w = int(np.ceil(self.plot_width * width_ratio))
+        h = int(np.ceil(self.plot_height * height_ratio))
+
+        rmin, cmin = source.index(self.x_range[0], self.y_range[0])
+        rmax, cmax = source.index(self.x_range[1], self.y_range[1])
+
+        if use_overviews:
+            data = np.empty(shape=(w, h)).astype(source.profile['dtype'])
+            data = source.read(band, out=data, window=((rmax, rmin), (cmin, cmax)))
+        else:
+            data = source.read(band, window=((rmax, rmin), (cmin, cmax)))
+
+        if missing and source.nodata:
+            data[data == source.nodata] = missing
+        elif source.nodata:
+            data[data == source.nodata] = 0 if 'i' in data.dtype.str else np.nan
+        else:
+            print('warning, rasterio source does not indicate nodata value')
+
+        data = resize(np.flipud(data),
+                      (w, h),
+                      order=resample_methods[resample_method],
+                      preserve_range=True)
+
+        attrs = dict(res=source.res[0], nodata=source.nodata)
+        return DataArray(data, dims=['x', 'y'], attrs=attrs)
 
 def bypixel(source, canvas, glyph, agg):
     """Compute an aggregate grouped by pixel sized bins.
