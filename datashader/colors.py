@@ -131,7 +131,18 @@ def rgb(x):
 Greys9 = ["#000000", "#252525", "#525252", "#737373", "#969696", "#bdbdbd", "#d9d9d9", "#f0f0f0", "#ffffff"]
 
 # Adapted from matplotlib.cm.hot to be more uniform at the high end
-Hot = ["black","maroon","darkred","red","orangered","darkorange","orange","gold","yellow","white"]
+Hot = ["black", "maroon", "darkred", "red", "orangered", "darkorange", "orange", "gold", "yellow", "white"]
+
+# pseudo terrestial elevation ramp
+Elevation = ["aqua",
+             "saddlebrown",
+             "sandybrown",
+             "darkgreen",
+             "green",
+             "limegreen",
+             "yellow",
+             "palegoldenrod",
+             "white"]
 
 def _mpl_cmdata_to_bokeh_palette(cm_data):
     """Given the data from a Matplotlib colormap as a list of three-item lists in the range 0,1.0, 
@@ -655,3 +666,4 @@ _viridis_data = [[0.267004, 0.004874, 0.329415],
                  [0.983868, 0.904867, 0.136897],
                  [0.993248, 0.906157, 0.143936]]
 viridis = _mpl_cmdata_to_bokeh_palette(_viridis_data)
+
