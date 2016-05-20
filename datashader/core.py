@@ -172,6 +172,7 @@ class Canvas(object):
                source,
                band=1,
                resample_method='bilinear',
+               use_overviews=True,
                missing=None):
         """Sample a raster dataset by canvas size and bounds. Note: requires
         `rasterio` and `scikit-image`.
@@ -188,6 +189,8 @@ class Canvas(object):
         resample_method : str, optional default=bilinear
             resample mode when resizing raster.
             options include: nearest, bilinear.
+        use_overviews : bool, optional default=True
+            flag to indicate whether to use overviews or use native resolution
 
         Returns
         -------
@@ -226,7 +229,11 @@ class Canvas(object):
         rmin, cmin = source.index(self.x_range[0], self.y_range[0])
         rmax, cmax = source.index(self.x_range[1], self.y_range[1])
 
-        data = source.read(band, window=((rmax, rmin), (cmin, cmax)))
+        if use_overviews:
+            data = np.empty(shape=(w, h)).astype(source.profile['dtype'])
+            data = source.read(band, out=data, window=((rmax, rmin), (cmin, cmax)))
+        else:
+            data = source.read(band, window=((rmax, rmin), (cmin, cmax)))
 
         if missing and source.nodata:
             data[data == source.nodata] = missing
