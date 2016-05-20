@@ -113,7 +113,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255):
+def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, span=None):
     """Convert a 2D DataArray to an image.
 
     Data is converted to an image either by interpolating between a `low` and
@@ -140,6 +140,8 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255):
         Value between 0 - 255 representing the alpha value of pixels which contain 
         data (i.e. non-nan values). Regardless of this value, `NaN` values are
         set to fully transparent.
+    span : list of min-max range
+        Min-max data values for interpolation, use this to override autoranging
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
@@ -171,7 +173,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255):
         offset = data[~mask].min()
         interp = data - offset
     data = how(interp, mask)
-    span = [np.nanmin(data), np.nanmax(data)]
+    span = span if span else [np.nanmin(data), np.nanmax(data)]
     if isinstance(cmap, Iterator):
         cmap = list(cmap)
     if isinstance(cmap, list):
