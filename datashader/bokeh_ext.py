@@ -15,8 +15,8 @@ from bokeh.util.notebook import get_comms
 from bokeh.models import Plot, Text, Circle, Range1d
 from bokeh.plotting import Figure
 
-import datashader.transfer_functions as tf
-from datashader.utils import downsample_aggregate, summarize_aggregate_values
+import .transfer_functions as tf
+from .utils import downsample_aggregate, summarize_aggregate_values
 
 
 class InteractiveImage(object):
