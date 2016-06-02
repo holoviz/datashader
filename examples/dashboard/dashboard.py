@@ -82,7 +82,7 @@ class AppState(object):
 
         self.load_config_file(config_file)
         self.plot_height = 600
-        self.plot_width = 1124
+        self.plot_width = 990
 
         self.aggregate_functions = OrderedDict()
         self.aggregate_functions['Count'] = ds.count
@@ -306,6 +306,7 @@ class AppView(object):
                           lod_threshold=None,
                           plot_width=self.model.plot_width,
                           plot_height=self.model.plot_height,
+                          background_fill_color='black',
                           y_range=self.y_range)
 
         self.fig.min_border_top = 0
