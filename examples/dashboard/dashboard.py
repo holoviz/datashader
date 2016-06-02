@@ -25,7 +25,6 @@ import datashader as ds
 import datashader.transfer_functions as tf
 
 from datashader.colors import Hot, viridis
-from datashader.utils import summarize_aggregate_values
 
 from datashader.bokeh_ext import HoverLayer, create_categorical_legend, create_ramp_legend
 from datashader.utils import hold
@@ -60,8 +59,8 @@ class GetDataset(RequestHandler):
                                                      (xmin, xmax),
                                                      (ymin, ymax),
                                                      self.model.field,
-                                                     self.model.active_axes[1],
-                                                     self.model.active_axes[2],
+                                                     self.model.active_axes['xaxis'],
+                                                     self.model.active_axes['yaxis'],
                                                      self.model.agg_function_name)
         pix = self.model.render_image()
 
@@ -157,16 +156,16 @@ class AppState(object):
         with open(config_path) as f:
             self.config = yaml.load(f.read())
 
-        # parse initial extent
-        extent = self.config['initial_extent']
-        self.map_extent = [extent['xmin'], extent['ymin'],
-                           extent['xmax'], extent['ymax']]
-
         # parse plots
         self.axes = OrderedDict()
         for p in self.config['axes']:
-            self.axes[p['name']] = (p['name'], p['xaxis'], p['yaxis'])
+            self.axes[p['name']] = p
         self.active_axes = list(self.axes.values())[0]
+
+        # parse initial extent
+        extent = self.active_axes['initial_extent']
+        self.map_extent = [extent['xmin'], extent['ymin'],
+                           extent['xmax'], extent['ymax']]
 
         # parse summary field
         self.fields = OrderedDict()
@@ -205,7 +204,7 @@ class AppState(object):
 
         axes_fields = []
         for f in self.axes.values():
-            axes_fields += [f[1], f[2]]
+            axes_fields += [f['xaxis'], f['yaxis']]
 
         load_fields = [f for f in self.fields.values() if f is not None] + axes_fields
 
