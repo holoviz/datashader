@@ -232,6 +232,10 @@ class HoverLayer(object):
 
     agg : xarray
         Datashader aggregate object (e.g. result of Canvas.points())
+
+    how : str
+        Downsample method for summarizing ordinal aggregates (default: mean).
+        Options include: mean, sum, max, min, median, std, var, count.
     """
 
     def __init__(self,
@@ -241,7 +245,17 @@ class HoverLayer(object):
                  size=8,
                  is_categorical=False,
                  extent=None,
-                 agg=None):
+                 agg=None,
+                 how='mean'):
+
+        if not agg:
+            raise ValueError("agg arg required")
+
+        if not extent:
+            raise ValueError("extent arg required")
+
+        if how not in ('mean', 'sum', 'max', 'min', 'median', 'std', 'var', 'count')
+            raise ValueError("invalid 'how' downsample method")
 
         self.hover_data = ColumnDataSource(data=dict(x=[], y=[], value=[]))
 
@@ -279,6 +293,8 @@ class HoverLayer(object):
 
         self._agg = agg
         self._size = size or 8
+
+        self.how = how
 
         if self.agg is not None and self.extent is not None:
             self.compute()
@@ -319,7 +335,7 @@ class HoverLayer(object):
         agg_xs, agg_ys = np.meshgrid(sq_xs, sq_ys)
         self.hover_data.data['x'] = agg_xs.flatten()
         self.hover_data.data['y'] = agg_ys.flatten()
-        self.hover_agg = downsample_aggregate(self.agg.values, self.size, how='mean')
+        self.hover_agg = downsample_aggregate(self.agg.values, self.size, how=self.how)
 
         tooltips = []
         if self.is_categorical:
