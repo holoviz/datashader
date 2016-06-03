@@ -254,7 +254,7 @@ class HoverLayer(object):
         if not extent:
             raise ValueError("extent arg required")
 
-        if how not in ('mean', 'sum', 'max', 'min', 'median', 'std', 'var', 'count')
+        if how not in ('mean', 'sum', 'max', 'min', 'median', 'std', 'var', 'count'):
             raise ValueError("invalid 'how' downsample method")
 
         self.hover_data = ColumnDataSource(data=dict(x=[], y=[], value=[]))
