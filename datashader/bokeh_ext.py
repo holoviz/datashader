@@ -248,7 +248,7 @@ class HoverLayer(object):
                  agg=None,
                  how='mean'):
 
-        if not agg:
+        if agg is None:
             raise ValueError("agg arg required")
 
         if not extent:

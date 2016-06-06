@@ -84,8 +84,8 @@ def downsample_aggregate(aggregate, factor, how='mean'):
         return np.nanstd(concat, axis=0)
     elif how == 'var':
         return np.nanvar(concat, axis=0)
-    elif how == 'count':
-        return ~np.isnan(concat, axis=0).size
+    else:
+        raise ValueError("Invalid 'how' downsample method. Options mean, sum, max, min, median, std, var")
 
 def summarize_aggregate_values(aggregate, how='linear', num=180):
     """Helper function similar to np.linspace which return values from aggregate min value to aggregate max value in either linear or log space.
