@@ -172,7 +172,7 @@ class Canvas(object):
                source,
                band=1,
                resample_method='bilinear',
-               use_overviews=True,
+               use_overviews=False,
                missing=None):
         """Sample a raster dataset by canvas size and bounds. Note: requires
         `rasterio` and `scikit-image`.
