@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 from datashape.predicates import istabular
 from odo import discover
-from xarray import DataArray
+from xarray import DataArray, align
 
 from .utils import Dispatcher, ngjit
 
@@ -204,30 +204,46 @@ class Canvas(object):
         try:
             import rasterio as rio
             from skimage.transform import resize
+            from affine import Affine
         except ImportError:
             raise ImportError('install rasterio and skimage to use this feature')
 
-        resample_methods = dict(nearest=0, bilinear=1) 
+        resample_methods = dict(nearest=0, bilinear=1)
 
         if resample_method not in resample_methods.keys():
             raise ValueError('Invalid resample method: options include {}'.format(list(resample_methods.keys())))
-            
+
+        # setup output array
+
+        full_data = np.empty(shape=(self.plot_width, self.plot_height)).astype(source.profile['dtype'])
+        full_xs = np.linspace(self.x_range[0], self.x_range[1], self.plot_width)
+        full_ys = np.linspace(self.y_range[0], self.y_range[1], self.plot_height)
+        attrs = dict(res=source.res[0], nodata=source.nodata)
+        full_arr =  DataArray(full_data, 
+                              coords=[('x', full_xs), ('y', full_ys)], 
+                              attrs=attrs)
+
+        # handle out-of-bounds case
+        if (self.x_range[0] >= source.bounds.right or
+            self.x_range[1] <= source.bounds.left or
+            self.y_range[0] >= source.bounds.top or
+            self.y_range[1] <= source.bounds.bottom):
+            return full_arr
+
+        # window coodinates
         xmin = max(self.x_range[0], source.bounds.left)
         ymin = max(self.y_range[0], source.bounds.bottom)
         xmax = min(self.x_range[1], source.bounds.right)
         ymax = min(self.y_range[1], source.bounds.top)
-        
-        dx = self.x_range[1] - self.x_range[0]
-        dy = self.y_range[1] - self.y_range[0]
 
-        width_ratio = (xmax - xmin) / dx
-        height_ratio = (ymax - ymin) / dy
+        width_ratio = (xmax - xmin) / (self.x_range[1] - self.x_range[0])
+        height_ratio = (ymax - ymin) / (self.y_range[1] - self.y_range[0])
 
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
 
-        rmin, cmin = source.index(self.x_range[0], self.y_range[0])
-        rmax, cmax = source.index(self.x_range[1], self.y_range[1])
+        rmin, cmin = source.index(xmin, ymin)
+        rmax, cmax = source.index(xmax, ymax)
 
         if use_overviews:
             data = np.empty(shape=(w, h)).astype(source.profile['dtype'])
@@ -242,13 +258,33 @@ class Canvas(object):
         else:
             print('warning, rasterio source does not indicate nodata value')
 
-        data = resize(np.flipud(data),
+        # TODO: this resize should go away once rasterio has overview resample
+        window_data = resize(np.flipud(data),
                       (w, h),
                       order=resample_methods[resample_method],
                       preserve_range=True)
 
         attrs = dict(res=source.res[0], nodata=source.nodata)
-        return DataArray(data, dims=['x', 'y'], attrs=attrs)
+        return DataArray(data,
+                         dims=['x', 'y'],
+                         attrs=attrs)
+
+        if w != self.plot_width or h != self.plot_height:
+            import pdb; pdb.set_trace()
+            x_res = self.x_range[1] - self.x_range[0] / self.plot_width 
+            y_res = self.y_range[1] - self.y_range[0] / self.plot_height 
+            transform = (self.x_range[0], x_res, 0.0, self.y_range[0], 0.0, y_res)
+            affine_tranform = ~Affine.from_gdal(*transform)
+            fxmin, fymin = (xmin, ymin) * affine_transform
+            fxmax, fymax = (xmax, ymax) * affine_transform
+            full_arr.data[int(fxmin):int(fxmax), int(fymin):int(fymax)] = window_data
+            return full_arr
+
+        else:
+            attrs = dict(res=source.res[0], nodata=source.nodata)
+            return DataArray(data,
+                             dims=['x', 'y'],
+                             attrs=attrs)
 
 def bypixel(source, canvas, glyph, agg):
     """Compute an aggregate grouped by pixel sized bins.
