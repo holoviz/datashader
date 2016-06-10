@@ -4,6 +4,8 @@ import pytest
 import datashader as ds
 import rasterio as rio
 
+from pytest import set_trace
+
 BASE_PATH = path.split(__file__)[0]
 DATA_PATH = path.abspath(path.join(BASE_PATH, 'data'))
 TEST_RASTER_PATH = path.join(DATA_PATH, 'world.rgb.tif')
@@ -50,3 +52,17 @@ def test_out_of_bounds_return_correct_size():
         agg = cvs.raster(src, missing=-100)
         assert agg.shape == (2,2)
         assert agg is not None
+
+def test_partial_extent_returns_correct_size():
+    with rio.open(TEST_RASTER_PATH) as src:
+        half_width = (src.bounds.right - src.bounds.left) / 2
+        half_height = (src.bounds.top - src.bounds.bottom) / 2
+        cvs = ds.Canvas(plot_width=512,
+                        plot_height=256,
+                        x_range=[src.bounds.left-half_width, src.bounds.left+half_width],
+                        y_range=[src.bounds.bottom-half_height, src.bounds.bottom+half_height])
+        agg = cvs.raster(src, missing=-100)
+        assert agg.shape == (256, 512)
+        assert agg is not None
+
+
