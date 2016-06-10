@@ -172,7 +172,7 @@ class Canvas(object):
                source,
                band=1,
                resample_method='bilinear',
-               use_overviews=False,
+               use_overviews=True,
                missing=None):
         """Sample a raster dataset by canvas size and bounds. Note: requires
         `rasterio` and `scikit-image`.
@@ -204,7 +204,6 @@ class Canvas(object):
         try:
             import rasterio as rio
             from skimage.transform import resize
-            from affine import Affine
         except ImportError:
             raise ImportError('install rasterio and skimage to use this feature')
 
@@ -214,7 +213,6 @@ class Canvas(object):
             raise ValueError('Invalid resample method: options include {}'.format(list(resample_methods.keys())))
 
         # setup output array
-
         full_data = np.empty(shape=(self.plot_width, self.plot_height)).astype(source.profile['dtype'])
         full_xs = np.linspace(self.x_range[0], self.x_range[1], self.plot_width)
         full_ys = np.linspace(self.y_range[0], self.y_range[1], self.plot_height)
@@ -222,6 +220,10 @@ class Canvas(object):
         full_arr =  DataArray(full_data, 
                               coords=[('x', full_xs), ('y', full_ys)], 
                               attrs=attrs)
+
+        x_res = (self.x_range[1] - self.x_range[0]) / self.plot_width
+        y_res = (self.y_range[1] - self.y_range[0]) / self.plot_height
+        res = max(x_res, y_res)
 
         # handle out-of-bounds case
         if (self.x_range[0] >= source.bounds.right or
@@ -238,15 +240,16 @@ class Canvas(object):
 
         width_ratio = (xmax - xmin) / (self.x_range[1] - self.x_range[0])
         height_ratio = (ymax - ymin) / (self.y_range[1] - self.y_range[0])
-
+        
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
+
 
         rmin, cmin = source.index(xmin, ymin)
         rmax, cmax = source.index(xmax, ymax)
 
         if use_overviews:
-            data = np.empty(shape=(w, h)).astype(source.profile['dtype'])
+            data = np.empty(shape=(h, w)).astype(source.profile['dtype'])
             data = source.read(band, out=data, window=((rmax, rmin), (cmin, cmax)))
         else:
             data = source.read(band, window=((rmax, rmin), (cmin, cmax)))
@@ -259,32 +262,39 @@ class Canvas(object):
             print('warning, rasterio source does not indicate nodata value')
 
         # TODO: this resize should go away once rasterio has overview resample
-        window_data = resize(np.flipud(data),
-                      (w, h),
+        data = resize(data,
+                      (h, w),
                       order=resample_methods[resample_method],
                       preserve_range=True)
 
+        if w != self.plot_width or h != self.plot_height:
+            num_height = self.plot_height - h
+            num_width = self.plot_width - w
+
+            lpad = xmin - self.x_range[0]
+            rpad = self.x_range[1] - xmax
+            lpct = lpad / (lpad + rpad) if lpad + rpad > 0 else 0
+            left = int(np.ceil(num_width * lpct))
+            right = num_width - left
+            left_pad = np.empty(shape=(self.plot_height, left)).astype(source.profile['dtype']) * np.nan
+            right_pad = np.empty(shape=(self.plot_height, right)).astype(source.profile['dtype']) * np.nan
+
+            tpad = ymin - self.y_range[0]
+            bpad = self.y_range[1] - ymax
+            tpct = tpad / (tpad + bpad) if tpad + bpad > 0 else 0
+            top = int(np.ceil(num_height * tpct))
+            bottom = num_height - top
+            top_pad = np.empty(shape=(top, w)).astype(source.profile['dtype']) * np.nan
+            bottom_pad = np.empty(shape=(bottom, w)).astype(source.profile['dtype']) * np.nan
+
+            data = np.concatenate((bottom_pad, data, top_pad), axis=0)
+            data = np.concatenate((left_pad, data, right_pad), axis=1)
+
+        data = np.flipud(data)
         attrs = dict(res=source.res[0], nodata=source.nodata)
         return DataArray(data,
                          dims=['x', 'y'],
                          attrs=attrs)
-
-        if w != self.plot_width or h != self.plot_height:
-            import pdb; pdb.set_trace()
-            x_res = self.x_range[1] - self.x_range[0] / self.plot_width 
-            y_res = self.y_range[1] - self.y_range[0] / self.plot_height 
-            transform = (self.x_range[0], x_res, 0.0, self.y_range[0], 0.0, y_res)
-            affine_tranform = ~Affine.from_gdal(*transform)
-            fxmin, fymin = (xmin, ymin) * affine_transform
-            fxmax, fymax = (xmax, ymax) * affine_transform
-            full_arr.data[int(fxmin):int(fxmax), int(fymin):int(fymax)] = window_data
-            return full_arr
-
-        else:
-            attrs = dict(res=source.res[0], nodata=source.nodata)
-            return DataArray(data,
-                             dims=['x', 'y'],
-                             attrs=attrs)
 
 def bypixel(source, canvas, glyph, agg):
     """Compute an aggregate grouped by pixel sized bins.
