@@ -2,17 +2,17 @@
 
 file: ../data/census.castra
 
-initial_extent:
-  is_geo: true
-  xmin: -13914936
-  ymin: 2632019
-  xmax: -7235767
-  ymax: 6446276
 
 axes: 
   - name: US Census Synthetic people
     xaxis: meterswest
     yaxis: metersnorth
+    initial_extent:
+      is_geo: true
+      xmin: -13914936
+      ymin: 2632019
+      xmax: -7235767
+      ymax: 6446276
 
 summary_fields:
 
