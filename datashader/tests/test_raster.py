@@ -40,3 +40,13 @@ def test_raster_set_missing():
     with rio.open(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, missing=-100)
         assert agg is not None
+
+def test_out_of_bounds_return_correct_size():
+    with rio.open(TEST_RASTER_PATH) as src:
+        cvs = ds.Canvas(plot_width=2,
+                        plot_height=2,
+                        x_range=[1e10, 1e20],
+                        y_range=[1e10, 1e20])
+        agg = cvs.raster(src, missing=-100)
+        assert agg.shape == (2,2)
+        assert agg is not None
