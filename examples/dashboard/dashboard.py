@@ -145,6 +145,9 @@ class AppState(object):
         self.color_ramps['Grays'] = list(reversed(Greys9))[2:]
         self.color_ramp = list(self.color_ramps.values())[0]
 
+        self.hover_layer = None
+        self.agg = None
+
     def load_config_file(self, config_path):
         '''load and parse yaml config file'''
 
@@ -265,9 +268,17 @@ class AppState(object):
         return pix
 
     def update_hover(self):
-        self.hover_layer.is_categorical = self.field in self.categorical_fields
-        self.hover_layer.extent = self.map_extent
-        self.hover_layer.agg = self.agg
+        if not self.hover_layer:
+            self.hover_layer = HoverLayer(field_name=self.field_title,
+                                          extent=self.map_extent,
+                                          is_categorical=self.field in self.categorical_fields,
+                                          agg=self.agg)
+            self.fig.renderers.append(self.hover_layer.renderer)
+            self.fig.add_tools(self.hover_layer.tool)
+        else:
+            self.hover_layer.is_categorical = self.field in self.categorical_fields
+            self.hover_layer.extent = self.map_extent
+            self.hover_layer.agg = self.agg
 
     def update_legend(self):
 
@@ -334,13 +345,6 @@ class AppView(object):
         self.fig.renderers.append(self.label_renderer)
 
         # Add a hover tool
-        hover_layer = HoverLayer()
-        hover_layer.field_name = self.model.field_title
-        hover_layer.is_categorical = self.model.field in self.model.categorical_fields
-        self.fig.renderers.append(hover_layer.renderer)
-        self.fig.add_tools(hover_layer.tool)
-        self.model.hover_layer = hover_layer
-
         self.model.legend_side_vbox = VBox()
         self.model.legend_bottom_vbox = VBox()
 
@@ -406,6 +410,8 @@ class AppView(object):
                                                                   self.fig,
                                                                   self.model.legend_bottom_vbox])
         self.layout = HBox(width=1366, children=[self.controls, self.map_area])
+        self.model.fig = self.fig
+        self.model.update_hover()
 
     def update_image(self):
         self.model.shader_url_vars['cachebust'] = str(uuid.uuid4())
