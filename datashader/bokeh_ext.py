@@ -248,12 +248,6 @@ class HoverLayer(object):
                  agg=None,
                  how='mean'):
 
-        if agg is None:
-            raise ValueError("agg arg required")
-
-        if not extent:
-            raise ValueError("extent arg required")
-
         if how not in ('mean', 'sum', 'max', 'min', 'median', 'std', 'var', 'count'):
             raise ValueError("invalid 'how' downsample method")
 
@@ -341,8 +335,8 @@ class HoverLayer(object):
         if self.is_categorical:
             cats = self.agg[self.agg.dims[2]].values.tolist()
             for i, e in enumerate(cats):
-                self.hover_data.data[e] = self.hover_agg[:, :, i].flatten()
-                tooltips.append((e, '@{}'.format(e)))
+                self.hover_data.data[str(e)] = self.hover_agg[:, :, i].flatten()
+                tooltips.append((str(e), '@{}'.format(str(e))))
         else:
             self.hover_data.data['value'] = self.hover_agg.flatten()
             tooltips.append((self.field_name, '@value'))
