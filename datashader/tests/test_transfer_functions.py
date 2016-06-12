@@ -335,3 +335,13 @@ def test_Image_to_bytesio():
     bytes = img1.to_bytesio()
     assert isinstance(bytes, BytesIO)
     assert bytes.tell() == 0
+
+def test_interpolate_should_handle_zeros_array():
+    data = np.array([[0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0]], dtype='uint32')
+    arr = xr.DataArray(data, dims=['x','y'])
+    img = tf.interpolate(arr, cmap=['white','black'], how='linear')
+    assert img is not None

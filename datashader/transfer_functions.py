@@ -170,7 +170,13 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
             mask = data == 0
         else:
             mask = np.isnan(data)
-        offset = data[~mask].min()
+
+        masked = data[~mask]
+        if len(masked) == 0:
+            return Image(agg.data, coords=agg.coords, dims=agg.dims, attrs=agg.attrs)
+
+        offset = masked.min()
+
         interp = data - offset
     data = how(interp, mask)
     span = span if span else [np.nanmin(data), np.nanmax(data)]
