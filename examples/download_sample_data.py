@@ -6,7 +6,13 @@ from progress import bar as progressbar
 
 import pandas as pd
 import numpy as np
-import requests
+import sys
+
+try:
+    import requests
+except ImportError:
+    print('Download script required requests package: conda install requests')
+    sys.exit(1)
 
 def _download_dataset(url):
     r = requests.get(url, stream=True)
