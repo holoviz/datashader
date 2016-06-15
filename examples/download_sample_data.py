@@ -1,8 +1,22 @@
 """Download data needed for the examples"""
 from __future__ import print_function
-from os import path, makedirs
+
+from os import path, makedirs, remove
+from progress import bar as progressbar
+
 import pandas as pd
 import numpy as np
+import requests
+
+def _download_dataset(url):
+    r = requests.get(url, stream=True)
+    output_path = path.split(url)[1]
+    with open(output_path, 'wb') as f:
+        total_length = int(r.headers.get('content-length'))
+        for chunk in progressbar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1):
+            if chunk:
+                f.write(chunk)
+                f.flush()
 
 examples_dir = path.dirname(path.realpath(__file__))
 data_dir = path.join(examples_dir, 'data')
@@ -25,7 +39,11 @@ if not path.exists(taxi_path):
     print("Downloading Taxi Data...")
     url = ('https://storage.googleapis.com/tlc-trip-data/2015/'
            'yellow_tripdata_2015-01.csv')
-    df = pd.read_csv(url)
+
+    _download_dataset(url)
+    df = pd.read_csv('yellow_tripdata_2015-01.csv')
+
+    print('Filtering Taxi Data')
     df = df.loc[(df.pickup_longitude < -73.75) &
                 (df.pickup_longitude > -74.15) &
                 (df.dropoff_longitude < -73.75) &
@@ -34,11 +52,15 @@ if not path.exists(taxi_path):
                 (df.pickup_latitude < 40.84) &
                 (df.dropoff_latitude > 40.68) &
                 (df.dropoff_latitude < 40.84)].copy()
+
+    print('Reprojecting Taxi Data')
     latlng_to_meters(df, 'pickup_latitude', 'pickup_longitude')
     latlng_to_meters(df, 'dropoff_latitude', 'dropoff_longitude')
-    df.rename(columns={'pickup_longitude':'pickup_x', 'dropoff_longitude':'dropoff_x',
-                       'pickup_latitude' :'pickup_y', 'dropoff_latitude' :'dropoff_y'},
+    df.rename(columns={'pickup_longitude': 'pickup_x', 'dropoff_longitude': 'dropoff_x',
+                       'pickup_latitude': 'pickup_y', 'dropoff_latitude': 'dropoff_y'},
               inplace=True)
     df.to_csv(taxi_path, index=False)
+    remove('yellow_tripdata_2015-01.csv')
+    
 
 print("\nAll data downloaded.")
