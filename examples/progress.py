@@ -1,6 +1,19 @@
 # -*- coding: utf-8 -*-
-
 """
+Copyright (c) 2011, Kenneth Reitz <me@kennethreitz.com>
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
 clint.textui.progress
 ~~~~~~~~~~~~~~~~~
 
@@ -115,57 +128,3 @@ def bar(it, label='', width=32, hide=None, empty_char=BAR_EMPTY_CHAR,
         for i, item in enumerate(it):
             yield item
             bar.show(i + 1)
-
-
-def dots(it, label='', hide=None, every=1):
-    """Progress iterator. Prints a dot for each item being iterated"""
-
-    count = 0
-
-    if not hide:
-        STREAM.write(label)
-
-    for i, item in enumerate(it):
-        if not hide:
-            if i % every == 0:         # True every "every" updates
-                STREAM.write(DOTS_CHAR)
-                sys.stderr.flush()
-
-        count += 1
-
-        yield item
-
-    STREAM.write('\n')
-    STREAM.flush()
-
-
-def mill(it, label='', hide=None, expected_size=None, every=1):
-    """Progress iterator. Prints a mill while iterating over the items."""
-
-    def _mill_char(_i):
-        if _i >= count:
-            return ' '
-        else:
-            return MILL_CHARS[(_i // every) % len(MILL_CHARS)]
-
-    def _show(_i):
-        if not hide:
-            if ((_i % every) == 0 or         # True every "every" updates
-                (_i == count)):            # And when we're done
-
-                STREAM.write(MILL_TEMPLATE % (
-                    label, _mill_char(_i), _i, count))
-                STREAM.flush()
-
-    count = len(it) if expected_size is None else expected_size
-
-    if count:
-        _show(0)
-
-    for i, item in enumerate(it):
-        yield item
-        _show(i + 1)
-
-    if not hide:
-        STREAM.write('\n')
-        STREAM.flush()
