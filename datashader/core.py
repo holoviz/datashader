@@ -258,8 +258,6 @@ class Canvas(object):
             data[data == source.nodata] = missing
         elif source.nodata:
             data[data == source.nodata] = 0 if 'i' in data.dtype.str else np.nan
-        else:
-            print('warning, rasterio source does not indicate nodata value')
 
         # TODO: this resize should go away once rasterio has overview resample
         data = resize(data,
