@@ -1,11 +1,39 @@
 ---
 
 data:
+
   - url: http://s3.amazonaws.com/bokeh_data/census.zip
     title: 'Census Synthetic People'
+    files:
+      - census.h5
+
   - url: http://s3.amazonaws.com/bokeh_data/austin_dem.zip
     title: 'Austin, TX Elevation Data'
+    files:
+      - austin_dem.tif
+
+  - url: http://s3.amazonaws.com/bokeh_data/mobile_landsat8.zip
+    title: 'Mobile, AL Landsat8 Data'
+    files:
+      - MERCATOR_LC80210392016114LGN00_B1.TIF
+      - MERCATOR_LC80210392016114LGN00_B2.TIF
+      - MERCATOR_LC80210392016114LGN00_B3.TIF
+      - MERCATOR_LC80210392016114LGN00_B4.TIF
+      - MERCATOR_LC80210392016114LGN00_B5.TIF
+      - MERCATOR_LC80210392016114LGN00_B6.TIF
+      - MERCATOR_LC80210392016114LGN00_B7.TIF
+      - MERCATOR_LC80210392016114LGN00_B8.TIF
+      - MERCATOR_LC80210392016114LGN00_B9.TIF
+      - MERCATOR_LC80210392016114LGN00_B10.TIF
+      - MERCATOR_LC80210392016114LGN00_B11.TIF
+      - MERCATOR_LC80210392016114LGN00_BQA.TIF
+
   - url: http://s3.amazonaws.com/bokeh_data/nyc_taxi.zip
     title: 'NYC Taxi Data'
+    files:
+      - nyc_taxi.csv
+
   - url: http://s3.amazonaws.com/bokeh_data/nyc_crime.zip
     title: 'NYC Crime Data'
+    files:
+      - nyc_crime.csv
