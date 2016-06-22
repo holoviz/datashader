@@ -194,7 +194,7 @@ def _process_dataset(dataset, output_dir):
         output_path = path.split(dataset['url'])[1]
         with open(output_path, 'wb') as f:
             total_length = int(r.headers.get('content-length'))
-            for chunk in bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1):
+            for chunk in bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
                 if chunk:
                     f.write(chunk)
                     f.flush()
