@@ -2,7 +2,7 @@
 
 - Ensure all tests pass.
 
-- Update version number in `conda.recipy/meta.yml`, `datashader/__init__.py`,
+- Update version number in `conda.recipe/meta.yml`, `datashader/__init__.py`,
   and `setup.py`. Commit.
 
 - Tag commit and push to github
