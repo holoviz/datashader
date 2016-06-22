@@ -8,4 +8,9 @@ setup(name='datashader',
       description='Data visualization toolchain based on aggregating into a grid',
       url='http://github.com/bokeh/datashader',
       install_requires=install_requires,
+      entry_points={
+          'console_scripts': [
+              'datashader-download-data = examples.download_sample_data:main'
+          ]
+      },
       packages=['datashader', 'datashader.tests'])

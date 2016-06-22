@@ -1,11 +1,17 @@
 # Datashader Examples
 
 Many of the examples rely on the NYC Taxi dataset, which can be
-downloaded by running the `download_sample_data.py` script. This may
+downloaded by running the `datashader-download-data` command which is installed with datashader. This may
 take up to 20 minutes, even on a good network connection. The dataset
 is roughly 1.5 GB on disk.
 
+```bash
+datashader-download-data
 ```
+or alternatively, you can call the download script directly:
+
+```bash
+cd examples
 python download_sample_data.py
 ```
 
@@ -60,10 +66,10 @@ conda install dask
 pip install castra
 ```
 
-You'll also need to download the 1.3GB data file
-[census.castra.tar.gz](http://s3.amazonaws.com/bokeh_data/census.castra.tar.gz)
-and unzip it into `examples/data/` (5GB unzipped), then run the
-dashboard:
+You'll also need to download the 2GB data file
+[census.h5](http://s3.amazonaws.com/bokeh_data/census.h5)
+and unzip it into `examples/data/` (7GB unzipped). If you use the download script, `datashader-download-data`
+then this will be handled for you.  With data in the correct location, run the dashboard using:
 
 ```
 python dashboard/dashboard.py -c dashboard/census.yml
