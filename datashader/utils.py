@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
+import os
+
 from inspect import getmro
 
 import numba as nb
@@ -10,7 +12,6 @@ from xarray import DataArray
 from datashape import Unit
 from datashape.predicates import launder
 from datashape.typesets import real
-
 
 ngjit = nb.jit(nopython=True, nogil=True)
 
@@ -118,3 +119,19 @@ def hold(f):
             last[:] = args, f(*args)
         return last[1]
     return _
+
+
+def export_image(img, filename, fmt=".png", _return=True, export_path=".", background=""):
+    """Given a datashader Image object, saves it to a disk file in the requested format"""
+    
+    from datashader.transfer_functions import set_background
+
+    if not os.path.exists(export_path):
+        os.mkdir(export_path)
+
+    if background:
+        img=set_background(img,background)
+        
+    img.to_pil().save(os.path.join(export_path,filename+fmt))
+    return img if _return else None
+                                    
