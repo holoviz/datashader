@@ -143,6 +143,7 @@ Plotting a 2D trajectory.
 
 Combining raster data with scatterpoint data, using the 
 census data on race along with gridded elevation data for Austin, TX.
+Requires rasterio (`conda install rasterio krb5`).
 
 **[osm](https://anaconda.org/jbednar/osm/notebook)**
 
