@@ -218,6 +218,15 @@ class AppState(object):
             for f in self.categorical_fields:
                 self.df[f] = self.df[f].astype('category')
 
+        elif data_path.endswith(".h5"):
+            from os.path import basename,splitext
+            base = splitext(basename(data_path))[0]
+            self.df = pd.read_hdf(data_path, base)
+
+            # parse categorical fields
+            for f in self.categorical_fields:
+                self.df[f] = self.df[f].astype('category')
+
         elif data_path.endswith(".castra"):
             import dask.dataframe as dd
             self.df = dd.from_castra(data_path)

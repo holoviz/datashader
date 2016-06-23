@@ -1,6 +1,6 @@
 ---
 
-file: ../data/census.castra
+file: ../data/census.h5
 
 
 axes: 
