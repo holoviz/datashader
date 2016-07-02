@@ -60,15 +60,15 @@ class InteractiveImage(object):
 
         function update_plot() {{
             callbacks = {{iopub: {{output: callback}}}};
-            var plot = Bokeh.index['{plot_id}'];
+            var plot = x_range.plots[0];
 
             // Generate a command to execute in Python
             var ranges = {{xmin: x_range.attributes.start,
                           ymin: y_range.attributes.start,
                           xmax: x_range.attributes.end,
                           ymax: y_range.attributes.end,
-                          w: Math.floor(plot.frame.get('width')),
-                          h: Math.floor(plot.frame.get('height'))}}
+                          w: Math.floor(plot.width),
+                          h: Math.floor(plot.height)}}
 
             var range_str = JSON.stringify(ranges)
             var cmd = "{cmd}(" + range_str + ")"
@@ -132,7 +132,7 @@ class InteractiveImage(object):
                                       cls=cls.__name__, ref=self.ref)
 
         # Initialize callback
-        cb_code = cls.jscode.format(plot_id=self.p._id, cmd=cmd,
+        cb_code = cls.jscode.format(cmd=cmd,
                                     ref=self.ref.replace('-', '_'),
                                     throttle=self.throttle)
         cb_args = dict(x_range=self.p.x_range, y_range=self.p.y_range)
