@@ -44,9 +44,16 @@ class InteractiveImage(object):
               w, h, **kwargs)
 
         and returning a PIL image object.
-    throttle : int
-        The throttle parameter specifies how frequently events
-        are generated in milliseconds.
+    delay : int
+        Specifies the delay between the first received event
+        and when events are actually processed. Useful to
+        ignore events generated immediately after initiating
+        zooming.
+    timeout: int
+        Determines the timeout after which the callback will
+        process new events without the previous one having
+        reported completion. Increase for very long running
+        callbacks.
     **kwargs
         Any kwargs provided here will be passed to the callback
         function.
@@ -55,42 +62,57 @@ class InteractiveImage(object):
     jscode = """
         // Define a callback to capture errors on the Python side
         function callback(msg){{
+          if (msg.msg_type == "execute_result") {{
+            if (msg.content.data['text/plain'] === "'Complete'") {{
+               if (Bokeh._queued.length) {{
+                   update_plot();
+               }} else {{
+                   Bokeh._blocked = false;
+               }}
+               Bokeh._timeout = Date.now();
+            }}
+          }} else {{
             console.log("Python callback returned unexpected message:", msg)
+          }}
         }}
+        callbacks = {{iopub: {{output: callback}}}};
 
         function update_plot() {{
-            callbacks = {{iopub: {{output: callback}}}};
-            var plot = x_range.plots[0];
-
-            // Generate a command to execute in Python
-            var ranges = {{xmin: x_range.attributes.start,
-                          ymin: y_range.attributes.start,
-                          xmax: x_range.attributes.end,
-                          ymax: y_range.attributes.end,
-                          w: Math.floor(plot.width),
-                          h: Math.floor(plot.height)}}
-
-            var range_str = JSON.stringify(ranges)
-            var cmd = "{cmd}(" + range_str + ")"
-
+            range = Bokeh._queued;
+            var cmd = "{cmd}(" + range + ")"
             // Execute the command on the Python kernel
             if (IPython.notebook.kernel !== undefined) {{
                 var kernel = IPython.notebook.kernel;
                 kernel.execute(cmd, callbacks, {{silent : false}});
             }}
+            Bokeh._queued = [];
         }}
 
-        if (!Bokeh._throttle) {{
-            Bokeh._throttle = {{}}
+        var plot = x_range.plots[0];
+        // Generate a command to execute in Python
+        var ranges = {{xmin: x_range.attributes.start,
+                       ymin: y_range.attributes.start,
+                       xmax: x_range.attributes.end,
+                       ymax: y_range.attributes.end,
+                       w: Math.floor(plot.width),
+                       h: Math.floor(plot.height)}}
+        var range_str = JSON.stringify(ranges)
+
+        if (!Bokeh._queued) {{
+            Bokeh._queued = [];
+            Bokeh._blocked = false;
+            Bokeh._timeout = Date.now();
         }}
 
-        var throttled_cb = Bokeh._throttle['{ref}'];
-        if (throttled_cb) {{
-            throttled_cb()
-        }} else if (typeof _ !== "undefined") {{
-            Bokeh._throttle['{ref}'] = _.throttle(update_plot, {throttle},
-                                                  {{leading: false}});
-            Bokeh._throttle['{ref}']()
+        timeout = Bokeh._timeout + {timeout};
+        if (typeof _ === "undefined") {{
+        }} else if ((Bokeh._blocked && (Date.now() < timeout))) {{
+            Bokeh._queued = [range_str];
+        }} else {{
+            Bokeh._queued = [range_str];
+            setTimeout(update_plot(), {delay});
+            Bokeh._blocked = true;
+            Bokeh._timeout = Date.now();
         }}
     """
 
@@ -98,13 +120,15 @@ class InteractiveImage(object):
 
     _callbacks = {}
 
-    def __init__(self, bokeh_plot, callback, throttle=500, **kwargs):
+    def __init__(self, bokeh_plot, callback, delay=200, timeout=2000,
+                 **kwargs):
         self.p = bokeh_plot
         self.callback = callback
         self.kwargs = kwargs
         self.ref = str(uuid.uuid4())
         self.comms_handle = None
-        self.throttle = throttle
+        self.delay = delay
+        self.timeout = timeout
 
         # Initialize the image and callback
         self.ds, self.renderer = self._init_image()
@@ -134,7 +158,8 @@ class InteractiveImage(object):
         # Initialize callback
         cb_code = cls.jscode.format(cmd=cmd,
                                     ref=self.ref.replace('-', '_'),
-                                    throttle=self.throttle)
+                                    delay=self.delay,
+                                    timeout=self.timeout)
         cb_args = dict(x_range=self.p.x_range, y_range=self.p.y_range)
         return CustomJS(args=cb_args, code=cb_code)
 
@@ -170,12 +195,14 @@ class InteractiveImage(object):
             Dictionary with of x/y-ranges, width and height.
         """
         if not self.comms_handle:
-            self.comms_handle = _CommsHandle(get_comms(self.ref), self.doc,
-                                             {})
+            self.comms_handle = _CommsHandle(get_comms(self.ref),
+                                             self.doc, {})
 
         self.update_image(ranges)
         msg = self.get_update_event()
         self.comms_handle.comms.send(msg)
+        return 'Complete'
+
 
     def get_update_event(self):
         """
