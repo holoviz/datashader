@@ -154,3 +154,8 @@ demonstrate working with a large dataset. Requires `dask` for
 out-of-core operation and `castra` for the fast file format.  The run
 notebook can be viewed at
 [anaconda.org](https://anaconda.org/jbednar/osm/notebook).
+
+**[Amazon.com center distance](https://anaconda.org/defusco/amz_centers/notebook)**
+
+Cities in the USA colored by their distance to the nearest Amazon.com 
+distribution center.
