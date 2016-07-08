@@ -126,7 +126,11 @@ the [NYC Taxi dataset](http://www.nyc.gov/html/tlc/html/about/trip_record_data.s
 **[census](https://anaconda.org/jbednar/census/notebook)**
 
 Plotting the [2010 US Census data](http://www.coopercenter.org/demographics/Racial-Dot-Map), 
-both to show population density and to show racial categories. 
+both to show population density and to show racial categories.  Requires pytables:
+
+```
+conda install pytables
+```
 
 **[nyc_taxi-nongeo](https://anaconda.org/jbednar/nyc_taxi-nongeo/notebook)**
 
