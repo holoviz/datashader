@@ -120,7 +120,7 @@ class InteractiveImage(object):
 
     _callbacks = {}
 
-    def __init__(self, bokeh_plot, callback, delay=200, timeout=2000,
+    def __init__(self, bokeh_plot, callback, delay=200, timeout=2000, throttle=None,
                  **kwargs):
         self.p = bokeh_plot
         self.callback = callback
@@ -129,7 +129,9 @@ class InteractiveImage(object):
         self.comms_handle = None
         self.delay = delay
         self.timeout = timeout
-
+        if throttle:
+            print("Warning: throttle parameter no longer supported; will not be accepted in future versions")
+            
         # Initialize the image and callback
         self.ds, self.renderer = self._init_image()
         callback = self._init_callback()
