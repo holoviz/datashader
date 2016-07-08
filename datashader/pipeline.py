@@ -35,15 +35,22 @@ class Pipeline(object):
     spread_fn : callable, optional
         A callable that takes the output of ``color_fn``, and returns another
         ``Image`` object. Default is ``dynspread``.
+    height_scale: float, optional
+        Factor by which to scale the provided height
+    width_scale: float, optional
+        Factor by which to scale the provided width
     """
     def __init__(self, df, glyph, agg=reductions.count(),
-                 transform_fn=identity, color_fn=tf.interpolate,  spread_fn=tf.dynspread):
+                 transform_fn=identity, color_fn=tf.interpolate,  spread_fn=tf.dynspread,
+                 width_scale=1.0, height_scale=1.0):
         self.df = df
         self.glyph = glyph
         self.agg = agg
         self.transform_fn = transform_fn
         self.color_fn = color_fn
         self.spread_fn = spread_fn
+        self.width_scale = width_scale
+        self.height_scale = height_scale
 
     def __call__(self, x_range=None, y_range=None, width=600, height=600):
         """Compute an image from the specified pipeline.
@@ -56,7 +63,8 @@ class Pipeline(object):
         width, height : int, optional
             The shape of the image
         """
-        canvas = core.Canvas(plot_width=width, plot_height=height,
+        canvas = core.Canvas(plot_width=int(width*self.width_scale), 
+                             plot_height=int(height*self.height_scale), 
                              x_range=x_range, y_range=y_range)
         bins = core.bypixel(self.df, canvas, self.glyph, self.agg)
         img = self.color_fn(self.transform_fn(bins))
