@@ -25,8 +25,9 @@ The "Census" example data is the largest file and should be the last
 thing to be downloaded, so you should be able to start running all of
 the other examples while that one completes.
 
-Most of the examples also require `bokeh` to be installed. 
-Bokeh is available through either conda or pip:
+Datashader itself is independent of other plotting libraries, but most
+of the examples also require `bokeh` (version 0.12 or higher) to be
+installed.  Bokeh is available through either conda or pip:
 
 ```
 conda install bokeh
