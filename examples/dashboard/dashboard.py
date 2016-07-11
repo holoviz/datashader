@@ -294,7 +294,6 @@ class AppState(object):
         # legends (temporarily disabled)
         return
 
-
         if self.field in self.categorical_fields:
             cat_legend = create_categorical_legend(self.colormap, aliases=self.colornames)
             self.legend_side_vbox.children = [cat_legend]
@@ -306,27 +305,18 @@ class AppState(object):
                                             how=self.transfer_function,
                                             width=self.plot_width)
 
-            self.legend_bottom_vbox.children[0] = legend_fig
+            self.legend_bottom_vbox = [legend_fig]
             self.legend_side_vbox.children = []
 
 
 
 class AppView(object):
 
+
     def __init__(self, app_model):
         self.model = app_model
         self.create_layout()
 
-    def _blank_fig(self):
-        fig = Figure(x_range=(0,1), y_range=(0,1))
-        fig.circle(x=0,y=0)
-        fig.axis.visible=False
-        fig.min_border_left=0
-        fig.min_border_right=0
-        fig.min_border_top=0
-        fig.min_border_bottom=0
-        fig.toolbar_location=None
-        return fig
 
     def create_layout(self):
 
@@ -370,8 +360,8 @@ class AppView(object):
         self.fig.renderers.append(self.label_renderer)
 
         # Add placeholder for legends (temporarily disabled)
-        # self.model.legend_side_vbox = VBox(children=[self._blank_fig()])
-        # self.model.legend_bottom_vbox = VBox(children=[self._blank_fig()])
+        # self.model.legend_side_vbox = VBox()
+        # self.model.legend_bottom_vbox = VBox()
 
         # add ui components
         controls = []
