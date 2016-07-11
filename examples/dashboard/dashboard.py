@@ -219,7 +219,7 @@ class AppState(object):
                 self.df[f] = self.df[f].astype('category')
 
         elif data_path.endswith(".h5"):
-            from os.path import basename,splitext
+            from os.path import basename, splitext
             base = splitext(basename(data_path))[0]
             self.df = pd.read_hdf(data_path, base)
 
@@ -291,6 +291,10 @@ class AppState(object):
 
     def update_legend(self):
 
+        # legends (temporarily disabled)
+        return
+
+
         if self.field in self.categorical_fields:
             cat_legend = create_categorical_legend(self.colormap, aliases=self.colornames)
             self.legend_side_vbox.children = [cat_legend]
@@ -302,8 +306,9 @@ class AppState(object):
                                             how=self.transfer_function,
                                             width=self.plot_width)
 
-            self.legend_bottom_vbox.children = [legend_fig]
+            self.legend_bottom_vbox.children[0] = legend_fig
             self.legend_side_vbox.children = []
+
 
 
 class AppView(object):
@@ -311,6 +316,17 @@ class AppView(object):
     def __init__(self, app_model):
         self.model = app_model
         self.create_layout()
+
+    def _blank_fig(self):
+        fig = Figure(x_range=(0,1), y_range=(0,1))
+        fig.circle(x=0,y=0)
+        fig.axis.visible=False
+        fig.min_border_left=0
+        fig.min_border_right=0
+        fig.min_border_top=0
+        fig.min_border_bottom=0
+        fig.toolbar_location=None
+        return fig
 
     def create_layout(self):
 
@@ -353,9 +369,9 @@ class AppView(object):
         self.label_renderer = TileRenderer(tile_source=self.label_source)
         self.fig.renderers.append(self.label_renderer)
 
-        # Add a hover tool
-        self.model.legend_side_vbox = VBox()
-        self.model.legend_bottom_vbox = VBox()
+        # Add placeholder for legends (temporarily disabled)
+        # self.model.legend_side_vbox = VBox(children=[self._blank_fig()])
+        # self.model.legend_bottom_vbox = VBox(children=[self._blank_fig()])
 
         # add ui components
         controls = []
@@ -392,7 +408,8 @@ class AppView(object):
         hover_size_slider.on_change('value', self.on_hover_size_change)
         controls.append(hover_size_slider)
 
-        controls.append(self.model.legend_side_vbox)
+        # legends (temporarily disabled)
+        # controls.append(self.model.legend_side_vbox)
 
         # add map components
         basemap_select = Select.create(name='Basemap', value='Imagery',
@@ -413,12 +430,13 @@ class AppView(object):
         map_controls = [basemap_select, basemap_opacity_slider,
                         image_opacity_slider, show_labels_chk]
 
-        self.controls = VBox(width=200, height=600, children=controls)
+        self.controls = VBox(height=600, children=controls)
         self.map_controls = HBox(width=self.fig.plot_width, children=map_controls)
-        self.map_area = VBox(width=self.fig.plot_width, children=[self.map_controls,
-                                                                  self.fig,
-                                                                  self.model.legend_bottom_vbox])
-        self.layout = HBox(width=1366, children=[self.controls, self.map_area])
+        
+        # legends (temporarily disabled)
+        self.map_area = VBox(width=900, height=600, children=[self.map_controls,
+                                                                  self.fig])
+        self.layout = HBox(width=1300, height=600, children=[self.controls, self.map_area])
         self.model.fig = self.fig
         self.model.update_hover()
 
