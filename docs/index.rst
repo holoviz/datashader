@@ -33,6 +33,14 @@ datapoint. The results are rendered into an image where the minimum
 count will be plotted in `lightblue`, the maximum in `darkblue`, and
 ranging logarithmically in between.
 
+And here are some sample outputs for data from the 2010 US census,
+each constructed using a similar set of code:
+
+.. image:: https://raw.githubusercontent.com/bokeh/datashader/master/docs/images/usa_census.jpg
+
+.. image:: https://raw.githubusercontent.com/bokeh/datashader/master/docs/images/nyc_races.jpg
+
+
 Documentation for datashader is primarily provided in the form of
 Jupyter notebooks.  To understand which plotting problems datashader
 helps you avoid, you can start with our `plotting pitfalls notebook
