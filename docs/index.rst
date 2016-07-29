@@ -26,11 +26,11 @@ To make it concrete, here's an example of what datashader code looks like:
     >>> agg = cvs.points(df, 'x_col', 'y_col', ds.mean('z_col'))
     >>> img = tf.interpolate(agg, cmap=['lightblue', 'darkblue'], how='log')
 
-This code reads a data file into a Pandas dataframe `df`, and then
-projects the fields `x_col` and `y_col` onto the x and y dimensions of
-400x400 grid, aggregating it by the mean value of the `z_col` of each
+This code reads a data file into a Pandas dataframe ``df``, and then
+projects the fields ``x_col`` and ``y_col`` onto the x and y dimensions of
+400x400 grid, aggregating it by the mean value of the ``z_col`` of each
 datapoint. The results are rendered into an image where the minimum
-count will be plotted in `lightblue`, the maximum in `darkblue`, and
+count will be plotted in ``lightblue``, the maximum in ``darkblue``, and
 ranging logarithmically in between.
 
 And here are some sample outputs for data from the 2010 US census,
@@ -50,7 +50,7 @@ notebook <https://anaconda.org/jbednar/pipeline/notebook>`_.  Or you
 may want to start with detailed case studies of datashader in action,
 such as our
 `NYC Taxi notebook <https://anaconda.org/jbednar/nyc_taxi/notebook>`_ and 
-`US Census notebook <https://anaconda.org/jbednar/census/notebook>`_
+`US Census notebook <https://anaconda.org/jbednar/census/notebook>`_.
 Additional notebooks showing how to use datashader for
 other applications or data types are viewable on `Anaconda Cloud
 <https://anaconda.org/jbednar/notebooks>`_ and can be downloaded
