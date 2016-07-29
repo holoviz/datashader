@@ -50,7 +50,7 @@ notebook <https://anaconda.org/jbednar/pipeline/notebook>`_.  Or you
 may want to start with detailed case studies of datashader in action,
 such as our
 `NYC Taxi notebook <https://anaconda.org/jbednar/nyc_taxi/notebook>`_ and 
-`US Census notebook<https://anaconda.org/jbednar/race_elevation/notebook>`_
+`US Census notebook <https://anaconda.org/jbednar/census/notebook>`_
 Additional notebooks showing how to use datashader for
 other applications or data types are viewable on `Anaconda Cloud
 <https://anaconda.org/jbednar/notebooks>`_ and can be downloaded
