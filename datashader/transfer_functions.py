@@ -201,7 +201,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
     return Image(img, coords=agg.coords, dims=agg.dims)
 
 
-def colorize(agg, color_key, how='eq_hist', min_alpha=20):
+def colorize(agg, color_key, how='eq_hist', min_alpha=40):
     """Color a CategoricalAggregate by field.
 
     Parameters
@@ -219,6 +219,8 @@ def colorize(agg, color_key, how='eq_hist', min_alpha=20):
         `NaN`s where the mask was True.
     min_alpha : float, optional
         The minimum alpha value to use for non-empty pixels, in [0, 255].
+        Use a higher value to avoid undersaturation, i.e. poorly visible
+        low-value datapoints, at the expense of the overall dynamic range.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be an instance of DataArray")

@@ -8,7 +8,7 @@ Datashader
 
 Datashader is a graphics pipeline system for creating meaningful
 representations of large amounts of data. It breaks the creation of images into
-3 steps:
+3 main steps:
 
 1. Projection
 
@@ -27,8 +27,6 @@ Using this very general pipeline, many interesting data visualizations can be
 created in a performant and scalable way. Datashader contains tools for easily
 creating these pipelines in a composable manner, using only a few lines of code.
 
-The project is under active development, and all the code and documentation is
-subject to frequent changes.
 
 ## Installation
 
@@ -50,13 +48,14 @@ python setup.py install
 
 ## Examples
 
-Several examples can be found in the `examples` directory.
+There are lots of examples available in the `examples` directory, most of
+which are viewable as notebooks on [Anaconda Cloud](https://anaconda.org/jbednar/notebooks).
 
 ## Learning more
 
 Additional resources are linked from the
 [datashader documentation] (http://datashader.readthedocs.org), including
-papers and talks about the approach.
+API documentation and papers and talks about the approach.
 
 ## Screenshots
 

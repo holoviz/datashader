@@ -2,62 +2,61 @@ Datashader
 ==========
 
 Datashader is a graphics pipeline system for creating meaningful
-representations of large amounts of data. It breaks the creation of images into
-3 steps:
+representations of large datasets quickly and flexibly. Datashader
+breaks the creation of images into a series of explicit steps that
+allow computations to be done on intermediate representations.  This
+approach allows accurate and effective visualizations to be produced
+automatically, and also makes it simple for data scientists to focus
+on particular data and relationships of interest in a principled way.
+Using highly optimized rendering routines written in Python but
+compiled to machine code using `Numba <http://numba.pydata.org>`_,
+datashader makes it practical to work with extremely large datasets
+even on standard hardware.
 
-1. Projection
-
-   Each record is projected into zero or more bins, based on a specified glyph.
-
-2. Aggregation
-
-   Reductions are computed for each bin, compressing the potentially
-   large dataset into a much smaller *aggregate*.  In practice,
-   aggregation is typically done incrementally, at the same time as
-   projection, and so it is not usually necessary to hold the entire
-   dataset in memory, but conceptually this is a separate step.
-
-3. Transformation
-
-   These aggregates are then further processed, typically to create an
-   image for display but also allowing statistics and other summary
-   information to be computed and displayed.
-
-Using this very general pipeline, many interesting data visualizations can be
-created in a performant and scalable way. Datashader contains tools for easily
-creating these pipelines in a composable manner, using only a few lines of code:
-
+To make it concrete, here's an example of what datashader code looks like:
 
 .. code-block:: python
 
     >>> import datashader as ds
     >>> import datashader.transfer_functions as tf
-
     >>> import pandas as pd
     >>> df = pd.read_csv('user_data.csv')
 
-    # **Projection & Aggregation Step:**
-    # Map each record as a point centered by the fields `x_col` and `y_col` to
-    # a 400x400 grid of bins, computing the mean of `z_col` for all records in
-    # each bin.
     >>> cvs = ds.Canvas(plot_width=400, plot_height=400)
     >>> agg = cvs.points(df, 'x_col', 'y_col', ds.mean('z_col'))
-
-    # **Transformation Step:**
-    # Interpolate the resulting means along a logarithmic color palette from
-    # "lightblue" to "darkblue"
     >>> img = tf.interpolate(agg, cmap=['lightblue', 'darkblue'], how='log')
 
+This code reads a data file into a Pandas dataframe ``df``, and then
+projects the fields ``x_col`` and ``y_col`` onto the x and y dimensions of
+400x400 grid, aggregating it by the mean value of the ``z_col`` of each
+datapoint. The results are rendered into an image where the minimum
+count will be plotted in ``lightblue``, the maximum in ``darkblue``, and
+ranging logarithmically in between.
 
-Examples
---------
+And here are some sample outputs for data from the 2010 US census,
+each constructed using a similar set of code:
 
-The repository contains several runnable examples, which can be `found here
-<https://github.com/bokeh/datashader/tree/master/examples>`_. Many of the
-examples are in the form of Jupyter notebooks. Copies of these with all the
-images and output included can be viewed on `Anaconda Cloud
-<https://anaconda.org/jbednar/notebooks>`_.
+.. image:: https://raw.githubusercontent.com/bokeh/datashader/master/docs/images/usa_census.jpg
 
+.. image:: https://raw.githubusercontent.com/bokeh/datashader/master/docs/images/nyc_races.jpg
+
+
+Documentation for datashader is primarily provided in the form of
+Jupyter notebooks.  To understand which plotting problems datashader
+helps you avoid, you can start with our `plotting pitfalls notebook
+<https://anaconda.org/jbednar/plotting_pitfalls/notebook>`_.  To see the steps
+in the datashader pipeline in detail, you can start with our `pipeline
+notebook <https://anaconda.org/jbednar/pipeline/notebook>`_.  Or you
+may want to start with detailed case studies of datashader in action,
+such as our
+`NYC Taxi notebook <https://anaconda.org/jbednar/nyc_taxi/notebook>`_ and 
+`US Census notebook <https://anaconda.org/jbednar/census/notebook>`_.
+Additional notebooks showing how to use datashader for
+other applications or data types are viewable on `Anaconda Cloud
+<https://anaconda.org/jbednar/notebooks>`_ and can be downloaded
+in runnable form at our `Github site
+<https://github.com/bokeh/datashader/tree/master/examples>`_
+    
 
 FAQ
 ---
@@ -112,14 +111,20 @@ aggregate arrays suitable for further analysis.
 Other resources
 ---------------
 
+You can watch a short talk about datashader on
+`YouTube <https://www.youtube.com/watch?v=6m3CFbKmK_c>`_.  
 `Video <http://go2.continuum.io/JN12XH0g0W0Rb300CZ00000>`_ and
 `slides <http://go2.continuum.io/V0Nc000C300W100X20HZhR0>`_ from a Feb
-2015 one-hour talk introducing Datashader are available.
+2015 one-hour talk introducing Datashader are also available, but
+do not include recent extensions to the library.
 
 Some of the original ideas for datashader were developed under the
 name Abstract Rendering, which is described in a `2014 SPIE VDA paper
 <http://www.crest.iu.edu/publications/prints/2014/Cottam2014OutOfCore.pdf>`_.
 
+The source code for datashader is maintained at our `Github site
+<https://github.com/bokeh/datashader>`_, and is documented using the
+API link on this page.
 
 .. toctree::
    :maxdepth: 1
