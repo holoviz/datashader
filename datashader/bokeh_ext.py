@@ -1,11 +1,7 @@
 from __future__ import absolute_import
 
 import uuid
-
-try:
-    import ujson as json
-except:
-    import json
+import json
 
 import numpy as np
 
