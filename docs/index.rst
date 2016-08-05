@@ -115,7 +115,7 @@ You can watch a short talk about datashader on
 `YouTube <https://www.youtube.com/watch?v=6m3CFbKmK_c>`_.  
 `Video <http://go2.continuum.io/JN12XH0g0W0Rb300CZ00000>`_ and
 `slides <http://go2.continuum.io/V0Nc000C300W100X20HZhR0>`_ from a Feb
-2015 one-hour talk introducing Datashader are also available, but
+2016 one-hour talk introducing Datashader are also available, but
 do not include recent extensions to the library.
 
 Some of the original ideas for datashader were developed under the
