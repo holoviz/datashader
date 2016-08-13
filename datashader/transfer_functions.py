@@ -16,7 +16,7 @@ from .composite import composite_op_lookup, over
 from .utils import ngjit
 
 
-__all__ = ['Image', 'stack', 'interpolate', 'colorize', 'set_background',
+__all__ = ['Image', 'stack', 'shade', 'interpolate', 'colorize', 'set_background',
            'spread', 'dynspread']
 
 
@@ -63,7 +63,7 @@ def stack(*imgs, **kwargs):
 def eq_hist(data, mask=None, nbins=256*256):
     """Return a numpy array after histogram equalization.
 
-    For use in `interpolate`.
+    For use in `shade`.
 
     Parameters
     ----------

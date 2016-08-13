@@ -31,7 +31,7 @@ class Pipeline(object):
         passing to the ``color_fn`` function.
     color_fn : callable, optional
         A callable that takes the output of ``tranform_fn``, and returns an
-        ``Image`` object. Default is ``interpolate``.
+        ``Image`` object. Default is ``shade``.
     spread_fn : callable, optional
         A callable that takes the output of ``color_fn``, and returns another
         ``Image`` object. Default is ``dynspread``.
@@ -41,7 +41,7 @@ class Pipeline(object):
         Factor by which to scale the provided width
     """
     def __init__(self, df, glyph, agg=reductions.count(),
-                 transform_fn=identity, color_fn=tf.interpolate,  spread_fn=tf.dynspread,
+                 transform_fn=identity, color_fn=tf.shade,  spread_fn=tf.dynspread,
                  width_scale=1.0, height_scale=1.0):
         self.df = df
         self.glyph = glyph
