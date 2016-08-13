@@ -271,7 +271,9 @@ def _colorize(agg, color_key, how, min_alpha):
                  dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1])
 
 
-def shade(agg, cmap=["lightblue", "darkblue"], color_key=None,
+from .colors import Sets1to3
+
+def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
           how='eq_hist', alpha=255, min_alpha=40, span=None):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
 
