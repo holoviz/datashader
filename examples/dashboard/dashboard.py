@@ -259,17 +259,7 @@ class AppState(object):
         return agg
 
     def render_image(self):
-
-        # handle categorical field
-        if self.field in self.categorical_fields:
-            pix = tf.colorize(self.agg, self.colormap, how=self.transfer_function)
-
-        # handle ordinal field
-        elif self.field in self.ordinal_fields:
-            pix = tf.interpolate(self.agg, cmap=self.color_ramp, how=self.transfer_function)
-        # handle no field
-        else:
-            pix = tf.interpolate(self.agg, cmap=self.color_ramp, how=self.transfer_function)
+        pix = tf.shade(self.agg, cmap=self.color_ramp, color_key=self.colormap, how=self.transfer_function)
 
         if self.spread_size > 0:
             pix = tf.spread(pix, px=self.spread_size)
