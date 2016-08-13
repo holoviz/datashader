@@ -33,7 +33,7 @@ def update_image():
                        y_range=(ymin, ymax))
 
     agg = canvas.raster(raster_data)
-    img = tf.interpolate(agg, cmap=Hot, how='linear')
+    img = tf.shade(agg, cmap=Hot, how='linear')
 
     new_data = {}
     new_data['image'] = [img.data]
