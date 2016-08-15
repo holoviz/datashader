@@ -16,7 +16,7 @@ from .composite import composite_op_lookup, over
 from .utils import ngjit
 
 
-__all__ = ['Image', 'stack', 'interpolate', 'colorize', 'set_background',
+__all__ = ['Image', 'stack', 'shade', 'interpolate', 'colorize', 'set_background',
            'spread', 'dynspread']
 
 
@@ -63,7 +63,7 @@ def stack(*imgs, **kwargs):
 def eq_hist(data, mask=None, nbins=256*256):
     """Return a numpy array after histogram equalization.
 
-    For use in `interpolate`.
+    For use in `shade`.
 
     Parameters
     ----------
@@ -114,7 +114,7 @@ def _normalize_interpolate_how(how):
 
 
 def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, span=None):
-    """Convert a 2D DataArray to an image.
+    """(Deprecated) Convert a 2D DataArray to an image.
 
     Data is converted to an image either by interpolating between a `low` and
     `high` color [default], or by a specified colormap.
@@ -123,7 +123,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
     ----------
     agg : DataArray
     low, high : color name or tuple, optional
-        Deprecated. The color for the low and high ends of the scale. Can be
+        The color for the low and high ends of the scale. Can be
         specified either by name, hexcode, or as a tuple of ``(red, green,
         blue)`` values.
     cmap : list of colors or matplotlib.colors.Colormap, optional
@@ -131,8 +131,8 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
         formats described above), or a matplotlib colormap object.
         Default is `["lightblue", "darkblue"]`
     how : str or callable, optional
-        The interpolation method to use. Valid strings are 'cbrt' [default],
-        'log', 'linear', and 'eq_hist'. Callables take 2 arguments - a
+        The interpolation method to use. Valid strings are 'eq_hist' [default],
+        'cbrt', 'log', 'linear', and 'eq_hist'. Callables take 2 arguments - a
         2-dimensional array of magnitudes at each pixel, and a boolean mask
         array indicating missingness. They should return a numeric array of the
         same shape, with `NaN`s where the mask was True.
@@ -145,8 +145,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
-    if agg.ndim != 2:
-        raise ValueError("agg must be 2D")
+
     if cmap is not None:
         if low or high:
             raise ValueError("Can't provide both `cmap` and `low` or `high`")
@@ -154,12 +153,19 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
         # Defaults
         cmap = ['lightblue', 'darkblue']
         if low or high:
-            with warnings.catch_warnings():
-                warnings.simplefilter('always', DeprecationWarning)
-                w = DeprecationWarning("Using `low` and `high` is deprecated. "
-                                       "Instead use `cmap=[low, high]`")
-                warnings.warn(w)
             cmap = [low or cmap[0], high or cmap[1]]
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('always', DeprecationWarning)
+        w = DeprecationWarning("`interpolate` is deprecated; use `shade` instead")
+        warnings.warn(w)
+    return _interpolate(agg, cmap, how, alpha, span)
+    
+
+
+def _interpolate(agg, cmap, how, alpha, span):
+    if agg.ndim != 2:
+        raise ValueError("agg must be 2D")
     how = _normalize_interpolate_how(how)
     data = agg.data
     if np.issubdtype(data.dtype, np.bool_):
@@ -202,7 +208,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
 
 
 def colorize(agg, color_key, how='eq_hist', min_alpha=40):
-    """Color a CategoricalAggregate by field.
+    """(Deprecated) Color a CategoricalAggregate by field.
 
     Parameters
     ----------
@@ -212,8 +218,8 @@ def colorize(agg, color_key, how='eq_hist', min_alpha=40):
         field name to colors, or an iterable of colors in the same order as the
         record fields.
     how : str or callable, optional
-        The interpolation method to use. Valid strings are 'cbrt' [default],
-        'log', and 'linear'. Callables take 2 arguments - a 2-dimensional
+        The interpolation method to use. Valid strings are 'eq_hist' [default],
+        'cbrt', 'log', and 'linear'. Callables take 2 arguments - a 2-dimensional
         array of magnitudes at each pixel, and a boolean mask array indicating
         missingness. They should return a numeric array of the same shape, with
         `NaN`s where the mask was True.
@@ -224,13 +230,25 @@ def colorize(agg, color_key, how='eq_hist', min_alpha=40):
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be an instance of DataArray")
+    
+    with warnings.catch_warnings():
+        warnings.simplefilter('always', DeprecationWarning)
+        w = DeprecationWarning("`colorize` is deprecated; use `shade` instead")
+        warnings.warn(w)
+    return _colorize(agg, color_key, how, min_alpha)
+
+
+def _colorize(agg, color_key, how, min_alpha):
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
     cats = agg.indexes[agg.dims[-1]]
+    if color_key is None:
+        raise ValueError("Color key must be provided, with at least as many " + 
+        "colors as there are categorical fields")
     if not isinstance(color_key, dict):
         color_key = dict(zip(cats, color_key))
-    if len(color_key) != len(cats):
-        raise ValueError("Number of colors doesn't match number of fields")
+    if len(color_key) < len(cats):
+        raise ValueError("Insufficient colors provided for the categorical fields available")
     if not (0 <= min_alpha <= 255):
         raise ValueError("min_alpha must be between 0 and 255")
     colors = [rgb(color_key[c]) for c in cats]
@@ -253,6 +271,80 @@ def colorize(agg, color_key, how='eq_hist', min_alpha=40):
                  dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1])
 
 
+from .colors import Sets1to3
+
+def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
+          how='eq_hist', alpha=255, min_alpha=40, span=None):
+    """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
+
+    Requires a DataArray with a single data dimension, here called the
+    "value", indexed using either 2D or 3D coordinates.
+
+    For a DataArray with 2D coordinates, the RGB channels are computed
+    from the values by interpolated lookup into the given colormap
+    'cmap'.  The A channel is then set to the given fixed 'alpha'
+    value for all non-zero values, and to zero for all zero values.
+
+    DataArrays with 3D coordinates are expected to contain values
+    distributed over different categories that are indexed by the
+    additional coordinate.  Such an array would reduce to the
+    2D-coordinate case if collapsed across the categories (e.g. if one
+    did `aggc.sum(dim='cat')` for a categorical dimension `cat`).  
+    The RGB channels for the uncollapsed, 3D case are computed by
+    averaging the colors in the provided 'color_key' (with one color
+    per category), weighted by the array's value for that category.
+    The A channel is then computed from the array's total value
+    collapsed across all categories at that location, ranging from the
+    specified 'min_alpha' to the maximum alpha value (255).
+
+    Parameters
+    ----------
+    agg : DataArray
+    cmap : list of colors or matplotlib.colors.Colormap, optional
+        The colormap to use for 2D agg arrays. Can be either a list of
+        colors (specified either by name, RGBA hexcode, or as a tuple
+        of ``(red, green, blue)`` values.), or a matplotlib colormap
+        object.  Default is `["lightblue", "darkblue"]`.
+    color_key : dict or iterable
+        The colors to use for a 3D (categorical) agg array.  Can be
+        either a ``dict`` mapping from field name to colors, or an
+        iterable of colors in the same order as the record fields, 
+        and including at least that many distinct colors.
+    how : str or callable, optional
+        The interpolation method to use, for the 'cmap' of a 2D
+        DataArray or the alpha channel of a 3D DataArray. Valid
+        strings are 'eq_hist' [default], 'cbrt' (cube root), 'log'
+        (logarithmic), and 'linear'. Callables take 2 arguments - a
+        2-dimensional array of magnitudes at each pixel, and a boolean
+        mask array indicating missingness. They should return a numeric
+        array of the same shape, with `NaN`s where the mask was True.
+    alpha : int, optional
+        Value between 0 - 255 representing the alpha value to use for
+        colormapped pixels that contain data (i.e. non-NaN values).
+        Regardless of this value, `NaN` values are set to be fully
+        transparent when doing colormapping.
+    min_alpha : float, optional
+        The minimum alpha value to use for non-empty pixels when doing
+        colormapping, in [0, 255].  Use a higher value to avoid
+        undersaturation, i.e. poorly visible low-value datapoints, at
+        the expense of the overall dynamic range.
+    span : list of min-max range, optional
+        Min and max data values to use for colormap interpolation, when
+        wishing to override autoranging.
+    """
+    if not isinstance(agg, xr.DataArray):
+        raise TypeError("agg must be instance of DataArray")
+
+    if agg.ndim == 2:
+        return _interpolate(agg, cmap, how, alpha, span)
+    elif agg.ndim == 3:
+        return _colorize(agg, color_key, how, min_alpha)
+    else: 
+        raise ValueError("agg must use 2D or 3D coordinates")
+
+
+
+        
 def set_background(img, color=None):
     """Return a new image, with the background set to `color`.
 

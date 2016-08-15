@@ -75,7 +75,7 @@ def update_image(dataframe):
     agg = canvas.points(dataframe, 'dropoff_x', 'dropoff_y',
                         ds.count('trip_distance'))
 
-    img = tf.interpolate(agg, cmap=BuGn9, how='log')
+    img = tf.shade(agg, cmap=BuGn9, how='log')
 
     new_data = {}
     new_data['image'] = [img.data]

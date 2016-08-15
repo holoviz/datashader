@@ -144,6 +144,17 @@ Elevation = ["aqua",
              "palegoldenrod",
              "white"]
 
+# Qualitative color maps, for use in colorizing categories
+# Originally from Cynthia Brewer (http://colorbrewer2.org), via Bokeh
+Set1 = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf', '#999999']
+Set2 = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494', '#b3b3b3']
+Set3 = ['#8dd3c7', '#ffffb3', '#bebada', '#fb8072', '#80b1d3', '#fdb462', '#b3de69', '#fccde5', '#d9d9d9', '#bc80bd', '#ccebc5', '#ffed6f']
+
+# Sets 1, 2, and 3 combined, minus indistinguishable colors
+Sets1to3 = Set1+Set2[0:3]+Set2[4:7]+Set3[1:2]+Set3[3:4]+Set3[5:6]+Set3[7:9]+Set3[10:]
+
+
+
 def _mpl_cmdata_to_bokeh_palette(cm_data):
     """Given the data from a Matplotlib colormap as a list of three-item lists in the range 0,1.0, 
     convert colors into the range 0,256 and return as a list of tuples"""
