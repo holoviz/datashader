@@ -190,6 +190,7 @@ class AppState(object):
         self.field = list(self.fields.values())[0]
         self.field_title = list(self.fields.keys())[0]
 
+        self.colormap = None
         if self.colormaps:
             self.colormap = self.colormaps[list(self.fields.keys())[0]]
             self.colornames = self.color_name_maps[list(self.fields.keys())[0]]
