@@ -1,25 +1,26 @@
 # Datashader Examples
 
-Some of the examples create their own synthetic datasets, but others
-require real-world sample data that will need to be downloaded first.
-The total download size is currently about 2.5GB to transfer,
-requiring about 7.5GB on disk when unpacked, which can take some time
-depending on the speed of your connection.  The files involved are
-specified in the text file `datasets.yml` in this directory and can be
-downloaded individually by hand if you prefer.  However, the easiest
-approach is just to get them all at once, by running the
-`datashader-download-data` command that is installed with datashader:
+A variety of example notebooks and applications are maintained in the
+examples/ subdirectory of the git repository, and these will be
+installed somewhere on your local system when you install datashader.
+To get a copy of the examples in your own directory so that you can
+run and edit them, you can run these commands in your terminal:
 
 ```bash
-datashader-download-data
+1. mkdir ~/datashader-examples
+2. cd ~/datashader-examples
+3. python -c 'from datashader import examples ; examples()'
+4. python download_sample_data.py
 ```
-or else (e.g. if you have a git checkout) you can call the Python
-script directly:
 
-```bash
-cd examples
-python download_sample_data.py
-```
+Steps 1-3 steps will give you a copy of the notebooks and apps, and
+step 4 will download various datasets used by them.  The total
+download size is currently about 2.5GB to transfer, requiring about
+7.5GB on disk when unpacked, which can take some time depending on the
+speed of your connection.  The files involved are specified in the
+text file `datasets.yml` that was copied to your directory in step 3,
+and instead of step 4 you can download each file individually if you
+prefer.
 
 The "Census" example data is the largest file and should be the last
 thing to be downloaded, so you should be able to start running all of

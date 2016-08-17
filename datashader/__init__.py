@@ -26,3 +26,25 @@ def test():
         sys.stderr.write("You need to install py.test to run tests.\n\n")
         raise
     pytest.main(os.path.dirname(__file__))
+
+
+def examples(path='.', verbose=False):
+    """
+    Copies the examples to the supplied path.
+    """
+
+    import os, glob
+    from shutil import copyfile
+
+    path = os.path.abspath(path)
+    if not os.path.exists(path):
+        os.makedirs(path)
+        if verbose: print('Created directory %s' % path)
+        
+    notebook_glob = os.path.join(__path__[0], '..', 'examples', '*')
+    notebooks = glob.glob(notebook_glob)
+    
+    for notebook in notebooks:
+        nb_path = os.path.join(path, os.path.basename(notebook))
+        copyfile(notebook, nb_path)
+        if verbose: print("%s copied to %s" % (os.path.basename(notebook), path))
