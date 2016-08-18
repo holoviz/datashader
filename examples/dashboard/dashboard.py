@@ -356,26 +356,29 @@ class AppView(object):
 
         # add ui components
         controls = []
-        axes_select = Select.create(name='Axes',
-                                    options=self.model.axes)
+        axes_options = zip(self.model.axes.keys(), self.model.axes.keys())
+        axes_select = Select.create(name='Axes', options=axes_options)
         axes_select.on_change('value', self.on_axes_change)
         controls.append(axes_select)
 
-        self.field_select = Select.create(name='Field', options=self.model.fields)
+        fields_options = zip(self.model.fields.keys(), self.model.fields.keys())
+        self.field_select = Select.create(name='Field', options=fields_options)
         self.field_select.on_change('value', self.on_field_change)
         controls.append(self.field_select)
 
-        self.aggregate_select = Select.create(name='Aggregate',
-                                              options=self.model.aggregate_functions)
+        agg_options = zip(self.model.aggregate_functions.keys(), self.model.aggregate_functions.keys())
+        self.aggregate_select = Select.create(name='Aggregate', options=agg_options)
         self.aggregate_select.on_change('value', self.on_aggregate_change)
         controls.append(self.aggregate_select)
 
+        transfer_options = zip(self.model.transfer_functions.keys(), self.model.transfer_functions.keys())
         transfer_select = Select.create(name='Transfer Function',
-                                        options=self.model.transfer_functions)
+                                        options=transfer_options)
         transfer_select.on_change('value', self.on_transfer_function_change)
         controls.append(transfer_select)
 
-        color_ramp_select = Select.create(name='Color Ramp', options=self.model.color_ramps)
+        color_options = zip(self.model.color_ramps.keys(), self.model.color_ramps.keys())
+        color_ramp_select = Select.create(name='Color Ramp', options=color_options)
         color_ramp_select.on_change('value', self.on_color_ramp_change)
         controls.append(color_ramp_select)
 
@@ -393,8 +396,8 @@ class AppView(object):
         # controls.append(self.model.legend_side_vbox)
 
         # add map components
-        basemap_select = Select.create(name='Basemap', value='Imagery',
-                                       options=self.model.basemaps)
+        basemap_options = zip(self.model.basemaps.keys(), self.model.basemaps.keys())
+        basemap_select = Select.create(name='Basemap', value='Imagery', options=basemap_options)
         basemap_select.on_change('value', self.on_basemap_change)
 
         image_opacity_slider = Slider(title="Opacity", value=100, start=0,
@@ -435,12 +438,12 @@ class AppView(object):
         self.update_image()
 
         if not self.model.field:
-            self.aggregate_select.options = [dict(name="No Aggregates Available", value="")]
+            self.aggregate_select.options = [("No Aggregates Available", "")]
         elif self.model.field in self.model.categorical_fields:
             self.model.hover_layer.is_categorical = True
-            self.aggregate_select.options = [dict(name="Categorical", value="count_cat")]
+            self.aggregate_select.options = [("Categorical", "count_cat")]
         else:
-            opts = [dict(name=k, value=k) for k in self.model.aggregate_functions.keys()]
+            opts = [(k, k) for k in self.model.aggregate_functions.keys()]
             self.aggregate_select.options = opts
             self.model.hover_layer.is_categorical = False
 
