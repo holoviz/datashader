@@ -28,23 +28,20 @@ def test():
     pytest.main(os.path.dirname(__file__))
 
 
-def examples(path='.', verbose=False):
+def examples(path='datashader-examples', verbose=False):
     """
     Copies the examples to the supplied path.
     """
 
     import os, glob
-    from shutil import copyfile
+    from shutil import copytree, ignore_patterns
 
-    path = os.path.abspath(path)
-    if not os.path.exists(path):
-        os.makedirs(path)
-        if verbose: print('Created directory %s' % path)
-        
-    notebook_glob = os.path.join(__path__[0], '..', 'examples', '*')
-    notebooks = glob.glob(notebook_glob)
-    
-    for notebook in notebooks:
-        nb_path = os.path.join(path, os.path.basename(notebook))
-        copyfile(notebook, nb_path)
-        if verbose: print("%s copied to %s" % (os.path.basename(notebook), path))
+    candidates = [os.path.join(__path__[0], '../examples'),
+                  os.path.join(__path__[0], '../../../../share/datashader-examples')]
+
+    for source in candidates:
+        if os.path.exists(source):
+            copytree(source, path, ignore=ignore_patterns('data','.ipynb_checkpoints','*.pyc','*~'))
+            if verbose:
+                print("%s copied to %s" % (source, path))
+            break
