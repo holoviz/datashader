@@ -46,6 +46,10 @@ conda install -c bokeh --file requirements.txt
 python setup.py install
 ```
 
+Datashader is not currently provided on pip/PyPI, to avoid broken or
+low-performance installations that come from not keeping track of
+C/C++binary dependencies such as LLVM (required by Numba).
+
 ## Examples
 
 There are lots of examples available in the `examples` directory, most of
