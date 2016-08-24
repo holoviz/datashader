@@ -8,7 +8,7 @@ run and edit them, you can run these commands in your terminal:
 
 ```bash
 1. cd ~
-2. python -c 'from datashader import examples ; examples("datashader-examples")'
+2. python -c "from datashader import examples ; examples('datashader-examples')"
 3. cd datashader-examples
 4. python download_sample_data.py
 ```
