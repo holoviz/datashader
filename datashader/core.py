@@ -40,18 +40,8 @@ class Axis(object):
     to and from axis-space respectively, and ``scale`` and ``transform`` are
     parameters describing a linear scale and translate transformation, computed
     by the ``compute_scale_and_translate`` method.
-
-    Parameters
-    ----------
-    mapper : callable
-        A mapping from data space to axis space
-    inverse_mapper : callable
-        A mapping from axis space to data space
     """
-    def __init__(self, mapper, inverse_mapper):
-        self.mapper = mapper
-        self.inverse_mapper = inverse_mapper
-
+    
     def compute_scale_and_translate(self, range, n):
         """Compute the scale and translate parameters for a linear transformation
         ``output = s * input + t``, mapping from data space to axis space.
@@ -93,10 +83,43 @@ class Axis(object):
         s, t = st
         return self.inverse_mapper((px - t)/s)
 
+    def mapper(val):
+        """A mapping from data space to axis space"""
+        raise NotImplementedError
 
-_axis_lookup = {'linear': Axis(ngjit(lambda x: x), ngjit(lambda x: x)),
-                'log': Axis(ngjit(lambda x: np.log10(x)),
-                            ngjit(lambda x: 10**x))}
+    def inverse_mapper(val):
+        """A mapping from axis space to data space"""
+        raise NotImplementedError
+    
+
+class LinearAxis(Axis):
+    """A linear Axis"""
+    @staticmethod
+    @ngjit
+    def mapper(val):
+        return val
+
+    @staticmethod
+    @ngjit
+    def inverse_mapper(val):
+        return val
+
+
+class LogAxis(Axis):
+    """A base-10 logarithmic Axis"""
+    @staticmethod
+    @ngjit
+    def mapper(val):
+        return np.log10(val)
+
+    @staticmethod
+    @ngjit
+    def inverse_mapper(val):
+        return 10**val
+
+
+    
+_axis_lookup = {'linear': LinearAxis(), 'log': LogAxis()}
 
 
 class Canvas(object):
