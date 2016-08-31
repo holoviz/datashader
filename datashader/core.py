@@ -91,6 +91,10 @@ class Axis(object):
         """A mapping from axis space to data space"""
         raise NotImplementedError
     
+    def validate(self, range):
+        """Given a range (low,high), raise an error if the range is invalid for this axis"""
+        pass
+    
 
 class LinearAxis(Axis):
     """A linear Axis"""
@@ -117,6 +121,10 @@ class LogAxis(Axis):
     def inverse_mapper(val):
         return 10**val
 
+    def validate(self, range):
+        low, high = map(self.mapper, range)
+        if not (np.isfinite(low) and np.isfinite(high)):
+            raise ValueError('Range values must be >0 for a LogAxis')
 
     
 _axis_lookup = {'linear': LinearAxis(), 'log': LogAxis()}
@@ -317,6 +325,13 @@ class Canvas(object):
                          dims=['x', 'y'],
                          attrs=attrs)
 
+    def validate(self):
+        """Check that parameter setttings are valid for this object"""        
+        self.x_axis.validate(self.x_range)
+        self.y_axis.validate(self.y_range)
+
+
+
 def bypixel(source, canvas, glyph, agg):
     """Compute an aggregate grouped by pixel sized bins.
 
@@ -338,6 +353,7 @@ def bypixel(source, canvas, glyph, agg):
     schema = dshape.measure
     glyph.validate(schema)
     agg.validate(schema)
+    canvas.validate()
     return bypixel.pipeline(source, schema, canvas, glyph, agg)
 
 
