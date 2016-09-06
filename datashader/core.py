@@ -40,18 +40,8 @@ class Axis(object):
     to and from axis-space respectively, and ``scale`` and ``transform`` are
     parameters describing a linear scale and translate transformation, computed
     by the ``compute_scale_and_translate`` method.
-
-    Parameters
-    ----------
-    mapper : callable
-        A mapping from data space to axis space
-    inverse_mapper : callable
-        A mapping from axis space to data space
     """
-    def __init__(self, mapper, inverse_mapper):
-        self.mapper = mapper
-        self.inverse_mapper = inverse_mapper
-
+    
     def compute_scale_and_translate(self, range, n):
         """Compute the scale and translate parameters for a linear transformation
         ``output = s * input + t``, mapping from data space to axis space.
@@ -93,10 +83,51 @@ class Axis(object):
         s, t = st
         return self.inverse_mapper((px - t)/s)
 
+    def mapper(val):
+        """A mapping from data space to axis space"""
+        raise NotImplementedError
 
-_axis_lookup = {'linear': Axis(ngjit(lambda x: x), ngjit(lambda x: x)),
-                'log': Axis(ngjit(lambda x: np.log10(x)),
-                            ngjit(lambda x: 10**x))}
+    def inverse_mapper(val):
+        """A mapping from axis space to data space"""
+        raise NotImplementedError
+    
+    def validate(self, range):
+        """Given a range (low,high), raise an error if the range is invalid for this axis"""
+        pass
+    
+
+class LinearAxis(Axis):
+    """A linear Axis"""
+    @staticmethod
+    @ngjit
+    def mapper(val):
+        return val
+
+    @staticmethod
+    @ngjit
+    def inverse_mapper(val):
+        return val
+
+
+class LogAxis(Axis):
+    """A base-10 logarithmic Axis"""
+    @staticmethod
+    @ngjit
+    def mapper(val):
+        return np.log10(val)
+
+    @staticmethod
+    @ngjit
+    def inverse_mapper(val):
+        return 10**val
+
+    def validate(self, range):
+        low, high = map(self.mapper, range)
+        if not (np.isfinite(low) and np.isfinite(high)):
+            raise ValueError('Range values must be >0 for a LogAxis')
+
+    
+_axis_lookup = {'linear': LinearAxis(), 'log': LogAxis()}
 
 
 class Canvas(object):
@@ -294,6 +325,13 @@ class Canvas(object):
                          dims=['x', 'y'],
                          attrs=attrs)
 
+    def validate(self):
+        """Check that parameter setttings are valid for this object"""        
+        self.x_axis.validate(self.x_range)
+        self.y_axis.validate(self.y_range)
+
+
+
 def bypixel(source, canvas, glyph, agg):
     """Compute an aggregate grouped by pixel sized bins.
 
@@ -315,6 +353,7 @@ def bypixel(source, canvas, glyph, agg):
     schema = dshape.measure
     glyph.validate(schema)
     agg.validate(schema)
+    canvas.validate()
     return bypixel.pipeline(source, schema, canvas, glyph, agg)
 
 
