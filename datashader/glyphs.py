@@ -190,7 +190,7 @@ def _build_extend_line(draw_line):
             # the entire segment.
             if np.isnan(x0) or np.isnan(y0) or np.isnan(x1) or np.isnan(y1):
                 plot_start = True
-                i += 2
+                i += 1
                 continue
 
             # Use Cohen-Sutherland to clip the segment to a bounding box
