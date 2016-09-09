@@ -203,10 +203,11 @@ class Canvas(object):
                source,
                band=1,
                resample_method='bilinear',
-               use_overviews=True,
-               missing=None):
+               use_overviews=True):
         """Sample a raster dataset by canvas size and bounds. Note: requires
-        `rasterio` and `scikit-image`.
+        `rasterio` and `scikit-image`.  Missing values (those having the value
+        indicated by the "nodata" attribute of the raster) are replaced with 
+        `NaN` if floats, and 0 if int.
 
         Parameters
         ----------
@@ -214,9 +215,6 @@ class Canvas(object):
             input datasource most likely obtain from `rasterio.open()`.
         band : int
             source band number : optional default=1
-        missing : number, optional
-            Missing flag, default is `None` and missing values are replaced with `NaN`
-            if floats, and 0 if int.
         resample_method : str, optional default=bilinear
             resample mode when resizing raster.
             options include: nearest, bilinear.
@@ -285,10 +283,7 @@ class Canvas(object):
         else:
             data = source.read(band, window=((rmax, rmin), (cmin, cmax)))
 
-        if missing and source.nodata:
-            data[data == source.nodata] = missing
-        elif source.nodata:
-            data[data == source.nodata] = 0 if 'i' in data.dtype.str else np.nan
+        data[data == source.nodata] = 0 if 'i' in data.dtype.str else np.nan
 
         # TODO: this resize should go away once rasterio has overview resample
         data = resize(data,
