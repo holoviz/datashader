@@ -86,10 +86,10 @@ class InteractiveImage(object):
 
         var plot = x_range.plots[0];
         // Generate a command to execute in Python
-        var ranges = {{xmin: x_range.attributes.start,
-                       ymin: y_range.attributes.start,
-                       xmax: x_range.attributes.end,
-                       ymax: y_range.attributes.end,
+        var ranges = {{xmin: x_range.start,
+                       ymin: y_range.start,
+                       xmax: x_range.end,
+                       ymax: y_range.end,
                        w: Math.floor(plot.width),
                        h: Math.floor(plot.height)}}
         var range_str = JSON.stringify(ranges)
@@ -127,7 +127,7 @@ class InteractiveImage(object):
         self.timeout = timeout
         if throttle:
             print("Warning: throttle parameter no longer supported; will not be accepted in future versions")
-            
+
         # Initialize the image and callback
         self.ds, self.renderer = self._init_image()
         callback = self._init_callback()
@@ -293,7 +293,7 @@ class HoverLayer(object):
                                      size=size)
         self.tooltips = []
 
-        code = "source.set('selected', cb_data['index']);"
+        code = "source.selected = cb_data['index'];"
         self._callback = CustomJS(args={'source': self.hover_data}, code=code)
 
         self.renderer = GlyphRenderer()

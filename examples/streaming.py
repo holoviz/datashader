@@ -112,14 +112,15 @@ bin_data()
 dims = ColumnDataSource(data=dict(width=[], height=[], xmin=[], xmax=[], ymin=[], ymax=[]))
 dims_jscode = """
 var update_dims = function () {
-    var new_data = {};
-    new_data['height'] = [plot.get('frame').get('height')];
-    new_data['width'] = [plot.get('frame').get('width')];
-    new_data['xmin'] = [plot.get('x_range').get('start')];
-    new_data['ymin'] = [plot.get('y_range').get('start')];
-    new_data['xmax'] = [plot.get('x_range').get('end')];
-    new_data['ymax'] = [plot.get('y_range').get('end')];
-    dims.set('data', new_data);
+    var new_data = {
+        height: [plot.frame.height],
+        width: [plot.frame.width],
+        xmin: [plot.x_range.start],
+        ymin: [plot.y_range.start],
+        xmax: [plot.x_range.end],
+        ymax: [plot.y_range.end]
+    };
+    dims.data = new_data;
 };
 
 if (typeof throttle != 'undefined' && throttle != null) {
