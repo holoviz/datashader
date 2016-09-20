@@ -420,8 +420,6 @@ class AppView(object):
 
     def update_image(self):
         self.model.shader_url_vars['cachebust'] = str(uuid.uuid4())
-        print('update_image() service_url:', self.model.service_url)        ## TEST
-        print('               extra_url_vars:', self.model.shader_url_vars)        ## TEST
         self.image_renderer.image_source = ImageSource(url=self.model.service_url,
                                                        extra_url_vars=self.model.shader_url_vars)
 
