@@ -55,7 +55,7 @@ Additional notebooks showing how to use datashader for
 other applications or data types are viewable on `Anaconda Cloud
 <https://anaconda.org/jbednar/notebooks>`_ and can be downloaded
 in runnable form at our `Github site
-<https://github.com/bokeh/datashader/tree/master/examples>`_
+<https://github.com/bokeh/datashader/tree/master/examples>`_.
     
 
 FAQ
@@ -101,8 +101,9 @@ visualizations and dashboards.  Bokeh (along with other plotting
 packages) can display images rendered by datashader, providing axes,
 interactive zooming and panning, selection, legends, hover
 information, and so on.  Sample bokeh-based plotting code is provided
-with datashader, but similar code could be developed for any other
-plotting package that can display images, and the library can also be
+with datashader, but viewers for maptlotlib are already under
+development, and similar code could be developed for any other
+plotting package that can display images.  The library can also be
 used separately, without any external plotting packages, generating
 images that can be displayed directly or saved to disk, or generating
 aggregate arrays suitable for further analysis.
