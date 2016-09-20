@@ -356,29 +356,24 @@ class AppView(object):
 
         # add ui components
         controls = []
-        axes_options = zip(self.model.axes.keys(), self.model.axes.keys())
         axes_select = Select(name='Axes', options=list(self.model.axes.keys()))
         axes_select.on_change('value', self.on_axes_change)
         controls.append(axes_select)
 
-        fields_options = zip(self.model.fields.keys(), self.model.fields.keys())
-        self.field_select = Select(name='Field', options=list(fields_options))
+        self.field_select = Select(name='Field', options=list(self.model.fields.keys()))
         self.field_select.on_change('value', self.on_field_change)
         controls.append(self.field_select)
 
-        agg_options = zip(self.model.aggregate_functions.keys(), self.model.aggregate_functions.keys())
-        self.aggregate_select = Select(name='Aggregate', options=list(agg_options))
+        self.aggregate_select = Select(name='Aggregate', options=list(self.model.aggregate_functions.keys()))
         self.aggregate_select.on_change('value', self.on_aggregate_change)
         controls.append(self.aggregate_select)
 
-        transfer_options = zip(self.model.transfer_functions.keys(), self.model.transfer_functions.keys())
         transfer_select = Select(name='Transfer Function',
-                                        options=list(transfer_options))
+                                        options=list(self.model.transfer_functions.keys()))
         transfer_select.on_change('value', self.on_transfer_function_change)
         controls.append(transfer_select)
 
-        color_options = zip(self.model.color_ramps.keys(), self.model.color_ramps.keys())
-        color_ramp_select = Select(name='Color Ramp', options=list(color_options))
+        color_ramp_select = Select(name='Color Ramp', options=list(self.model.color_ramps.keys()))
         color_ramp_select.on_change('value', self.on_color_ramp_change)
         controls.append(color_ramp_select)
 
@@ -396,8 +391,7 @@ class AppView(object):
         # controls.append(self.model.legend_side_vbox)
 
         # add map components
-        basemap_options = zip(self.model.basemaps.keys(), self.model.basemaps.keys())
-        basemap_select = Select(name='Basemap', value='Imagery', options=list(basemap_options))
+        basemap_select = Select(name='Basemap', value='Imagery', options=list(self.model.basemaps.keys()))
         basemap_select.on_change('value', self.on_basemap_change)
 
         image_opacity_slider = Slider(title="Opacity", value=100, start=0,
@@ -426,6 +420,8 @@ class AppView(object):
 
     def update_image(self):
         self.model.shader_url_vars['cachebust'] = str(uuid.uuid4())
+        print('update_image() service_url:', self.model.service_url)        ## TEST
+        print('               extra_url_vars:', self.model.shader_url_vars)        ## TEST
         self.image_renderer.image_source = ImageSource(url=self.model.service_url,
                                                        extra_url_vars=self.model.shader_url_vars)
 
