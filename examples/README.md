@@ -141,11 +141,14 @@ Scatterplots for non-geographic variables in the taxi dataset.
 
 Plotting large or multiple plots of time series (curve) data.
 
-**[trajectory](https://anaconda.org/jbednar/trajectory/notebook)**
+**[trajectory](https://anaconda.org/jbednar/trajectory/notebook)** and 
+**[opensky](https://anaconda.org/jbednar/opensky/notebook)**
 
-Plotting a 2D trajectory.
+Plotting a 2D trajectory, either for a single long 
+([random walk](https://anaconda.org/jbednar/trajectory/notebook)) or a
+[large database of flight paths](https://anaconda.org/jbednar/opensky/notebook).
 
-**[census](https://anaconda.org/jbednar/race_elevation/notebook)**
+**[race_elevation](https://anaconda.org/jbednar/race_elevation/notebook)**
 
 Combining raster data with scatterpoint data, using the 
 census data on race along with gridded elevation data for Austin, TX.
