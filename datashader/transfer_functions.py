@@ -248,9 +248,10 @@ def _colorize(agg, color_key, how, min_alpha):
     if not isinstance(color_key, dict):
         color_key = dict(zip(cats, color_key))
     if len(color_key) < len(cats):
-        raise ValueError("Insufficient colors provided for the categorical fields available")
+        raise ValueError("Insufficient colors provided ({}) for the categorical fields available ({})"\
+                         .format(len(color_key),len(cats)))
     if not (0 <= min_alpha <= 255):
-        raise ValueError("min_alpha must be between 0 and 255")
+        raise ValueError("min_alpha ({}) must be between 0 and 255".format(min_alpha))
     colors = [rgb(color_key[c]) for c in cats]
     rs, gs, bs = map(np.array, zip(*colors))
     data = agg.data
