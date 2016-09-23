@@ -53,6 +53,8 @@ class GetDataset(RequestHandler):
         xmin, ymin, xmax, ymax = map(float, selection)
         self.model.map_extent = [xmin, ymin, xmax, ymax]
 
+        glyph=self.model.glyph.get(str(self.model.field),'points')
+
         # create image
         self.model.agg = self.model.create_aggregate(args['width'],
                                                      args['height'],
@@ -61,7 +63,7 @@ class GetDataset(RequestHandler):
                                                      self.model.field,
                                                      self.model.active_axes['xaxis'],
                                                      self.model.active_axes['yaxis'],
-                                                     self.model.agg_function_name)
+                                                     self.model.agg_function_name, glyph)
         pix = self.model.render_image()
 
         def update_plots():
@@ -174,6 +176,7 @@ class AppState(object):
         self.fields = OrderedDict()
         self.colormaps = OrderedDict()
         self.color_name_maps = OrderedDict()
+        self.glyph = OrderedDict()
         self.ordinal_fields = []
         self.categorical_fields = []
         for f in self.config['summary_fields']:
@@ -187,16 +190,22 @@ class AppState(object):
             elif f['field'] != 'None':
                 self.ordinal_fields.append(f['field'])
 
+            if 'glyph' in f.keys():
+                self.glyph[f['field']]=f['glyph']
+
         self.field = list(self.fields.values())[0]
         self.field_title = list(self.fields.keys())[0]
 
         self.colormap = None
         if self.colormaps:
-            self.colormap = self.colormaps[list(self.fields.keys())[0]]
-            self.colornames = self.color_name_maps[list(self.fields.keys())[0]]
+            colormap = self.colormaps.get(self.field_title,None)
+            if colormap:
+                self.colormap = colormap
+                self.colornames = self.color_name_maps[self.field_title]
 
     def load_datasets(self, outofcore):
         data_path = self.config['file']
+        objpath = self.config.get('objpath',None)
         print('Loading Data from {}...'.format(data_path))
 
         if not path.isabs(data_path):
@@ -220,9 +229,10 @@ class AppState(object):
                 self.df[f] = self.df[f].astype('category')
 
         elif data_path.endswith(".h5"):
-            from os.path import basename, splitext
-            base = splitext(basename(data_path))[0]
-            self.df = pd.read_hdf(data_path, base)
+            if not objpath:
+                from os.path import basename, splitext
+                objpath = splitext(basename(data_path))[0]
+            self.df = pd.read_hdf(data_path, objpath)
 
             # parse categorical fields
             for f in self.categorical_fields:
@@ -239,27 +249,35 @@ class AppState(object):
 
     @hold
     def create_aggregate(self, plot_width, plot_height, x_range, y_range,
-                         agg_field, x_field, y_field, agg_func):
+                         agg_field, x_field, y_field, agg_func, glyph):
 
         canvas = ds.Canvas(plot_width=plot_width,
                            plot_height=plot_height,
                            x_range=x_range,
                            y_range=y_range)
 
+        method=getattr(canvas,glyph)
+        
         # handle categorical field
         if agg_field in self.categorical_fields:
-            agg = canvas.points(self.df, x_field, y_field, ds.count_cat(agg_field))
+            agg = method(self.df, x_field, y_field, ds.count_cat(agg_field))
 
         # handle ordinal field
         elif agg_field in self.ordinal_fields:
             func = self.aggregate_functions[agg_func]
-            agg = canvas.points(self.df, x_field, y_field, func(agg_field))
+            agg = method(self.df, x_field, y_field, func(agg_field))
         else:
-            agg = canvas.points(self.df, x_field, y_field)
+            agg = method(self.df, x_field, y_field)
 
         return agg
 
     def render_image(self):
+        if self.colormaps:
+            colormap = self.colormaps.get(self.field_title,None)
+            if colormap:
+                self.colormap = colormap
+                self.colornames = self.color_name_maps[self.field_title]
+
         pix = tf.shade(self.agg, cmap=self.color_ramp, color_key=self.colormap, how=self.transfer_function)
 
         if self.spread_size > 0:
