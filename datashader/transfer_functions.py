@@ -238,7 +238,12 @@ def colorize(agg, color_key, how='eq_hist', min_alpha=40):
     return _colorize(agg, color_key, how, min_alpha)
 
 
-def _colorize(agg, color_key, how, min_alpha):
+from .colors import Sets1to3
+
+
+def color_mapping(agg,color_key=Sets1to3):
+    """Given a 3D (categorical) agg array, returns the mapping from categories to colors"""
+
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
     cats = agg.indexes[agg.dims[-1]]
@@ -250,6 +255,15 @@ def _colorize(agg, color_key, how, min_alpha):
     if len(color_key) < len(cats):
         raise ValueError("Insufficient colors provided ({}) for the categorical fields available ({})"\
                          .format(len(color_key),len(cats)))
+
+    return {k:color_key[k] for k in cats}
+    
+    
+def _colorize(agg, color_key, how, min_alpha):
+    color_key=color_mapping(agg,color_key)
+    cats=agg.indexes[agg.dims[-1]]
+    if not set(color_key.keys()) == set(cats):
+        raise ValueError("Categories in agg {} must match categories in color_key {}".format(cats,color_key.keys()))
     if not (0 <= min_alpha <= 255):
         raise ValueError("min_alpha ({}) must be between 0 and 255".format(min_alpha))
     colors = [rgb(color_key[c]) for c in cats]
@@ -271,8 +285,6 @@ def _colorize(agg, color_key, how, min_alpha):
     return Image(np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape),
                  dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1])
 
-
-from .colors import Sets1to3
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
           how='eq_hist', alpha=255, min_alpha=40, span=None):
