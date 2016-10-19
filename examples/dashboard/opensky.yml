@@ -1,0 +1,30 @@
+---
+
+file: ../data/opensky.h5
+objpath: flights
+
+axes: 
+  - name: OpenSky Flight Paths
+    xaxis: longitude
+    yaxis: latitude
+    initial_extent:
+      is_geo: true
+      xmin: -2000000
+      ymin: 4100000
+      xmax: 2500000
+      ymax: 7800000
+
+summary_fields:
+
+  - name: Ascending vs. Descending
+    field: ascending
+    cat_colors:
+      True: blue
+      False: red
+    cat_names:
+      True: Ascending
+      False: Descending
+    glyph: line
+    
+  - name: Counts
+    field: None
