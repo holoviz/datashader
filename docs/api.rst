@@ -43,8 +43,7 @@ Transfer Functions
 .. autosummary::
 
    Image
-   interpolate
-   colorize
+   shade
    stack
    spread
    dynspread
