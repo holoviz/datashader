@@ -256,9 +256,11 @@ def _colorize(agg, color_key, how, min_alpha):
     rs, gs, bs = map(np.array, zip(*colors))
     data = agg.data
     total = data.sum(axis=2)
-    r = (data.dot(rs)/total).astype(np.uint8)
-    g = (data.dot(gs)/total).astype(np.uint8)
-    b = (data.dot(bs)/total).astype(np.uint8)
+    # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
+    with np.errstate(invalid='ignore'):
+        r = (data.dot(rs)/total).astype(np.uint8)
+        g = (data.dot(gs)/total).astype(np.uint8)
+        b = (data.dot(bs)/total).astype(np.uint8)
     offset = total.min()
     mask = np.isnan(total)
     if offset == 0:
