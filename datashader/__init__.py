@@ -7,6 +7,7 @@ from .reductions import (count, any, sum, min, max, mean, std, var, count_cat,
                          summary)
 from .glyphs import Point
 from .pipeline import Pipeline
+from . import transfer_functions as tf
 
 # Needed to build the backend dispatch
 from .pandas import *

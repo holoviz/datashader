@@ -148,6 +148,7 @@ Plotting a 2D trajectory, either for a single long
 ([random walk](https://anaconda.org/jbednar/trajectory/notebook)) or a
 [large database of flight paths](https://anaconda.org/jbednar/opensky/notebook).
 
+**[landsat](https://anaconda.org/jbednar/landsat/notebook)** and
 **[race_elevation](https://anaconda.org/jbednar/race_elevation/notebook)**
 
 Combining raster data with scatterpoint data, using the 

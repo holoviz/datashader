@@ -135,3 +135,12 @@ def export_image(img, filename, fmt=".png", _return=True, export_path=".", backg
     img.to_pil().save(os.path.join(export_path,filename+fmt))
     return img if _return else None
                                     
+
+def lnglat_to_meters(df, longitude="longitude", latitude="latitude"):
+    """
+    Given a dataframe, projects the named (latitude,longitude) columns into Web Mercator
+    coordinates in meters West and meters North of Greenwich.
+    """
+    origin_shift = np.pi * 6378137
+    df.loc[:, longitude] = df[longitude] * origin_shift / 180.0
+    df.loc[:, latitude]  = np.log(np.tan((90 + df[latitude]) * np.pi / 360.0)) * origin_shift / np.pi
