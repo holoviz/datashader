@@ -7,3 +7,4 @@ pandas >= 0.15.0
 pillow
 toolz
 xarray
+colorcet
