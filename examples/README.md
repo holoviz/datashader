@@ -133,6 +133,10 @@ both to show population density and to show racial categories.  Requires pytable
 conda install pytables
 ```
 
+There is also a [version that lets you compare congressional districts with racial categories]
+(https://anaconda.org/jbednar/census-hv-dask), which has its own installation requirements
+because of overlaying shape files.
+
 **[nyc_taxi-nongeo](https://anaconda.org/jbednar/nyc_taxi-nongeo/notebook)**
 
 Scatterplots for non-geographic variables in the taxi dataset.
