@@ -121,8 +121,9 @@ conda install -c ioam holoviews
 
 **[nyc_taxi](https://anaconda.org/jbednar/nyc_taxi/notebook)**
 
-Making geographical plots, with and without datashader, using trip data from
-the [NYC Taxi dataset](http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml).
+Making geographical plots, with and without datashader, using trip data originally from
+the [NYC Taxi dataset](http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml)
+but preprocessed using `taxi_preprocessing_example.py` for convenience.
 
 **[census](https://anaconda.org/jbednar/census/notebook)**
 
