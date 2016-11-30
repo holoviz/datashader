@@ -31,27 +31,27 @@ filetypes_storing_categories = {'parq','castra'}
 
 read = OrderedDict(csv={}, h5={}, castra={}, bcolz={}, parq={}, feather={})
 
-read["csv"]     ["pandas"] = lambda filepath,base:  pd.read_csv(filepath)
-read["csv"]     ["dask"]   = lambda filepath,base:  dd.read_csv(filepath)
-read["h5"]      ["dask"]   = lambda filepath,base:  dd.read_hdf(filepath, base)
-read["h5"]      ["pandas"] = lambda filepath,base:  pd.read_hdf(filepath, base)
-read["castra"]  ["dask"]   = lambda filepath,base:  dd.from_castra(filepath)
-read["bcolz"]   ["dask"]   = lambda filepath,base:  dd.from_bcolz(filepath, chunksize=1000000)
-read["feather"] ["pandas"] = lambda filepath,base:  feather.read_dataframe(filepath)
-read["parq"]    ["pandas"] = lambda filepath,base:  fp.ParquetFile(filepath).to_pandas()
-read["parq"]    ["dask"]   = lambda filepath,base:  dd.io.parquet.read_parquet(filepath,index='index', categories=categories)
+read["csv"]     ["pandas"] = lambda filepath:  pd.read_csv(filepath)
+read["csv"]     ["dask"]   = lambda filepath:  dd.read_csv(filepath)
+read["h5"]      ["dask"]   = lambda filepath:  dd.read_hdf(filepath, base)
+read["h5"]      ["pandas"] = lambda filepath:  pd.read_hdf(filepath, base)
+read["castra"]  ["dask"]   = lambda filepath:  dd.from_castra(filepath)
+read["bcolz"]   ["dask"]   = lambda filepath:  dd.from_bcolz(filepath, chunksize=1000000)
+read["feather"] ["pandas"] = lambda filepath:  feather.read_dataframe(filepath)
+read["parq"]    ["pandas"] = lambda filepath:  fp.ParquetFile(filepath).to_pandas()
+read["parq"]    ["dask"]   = lambda filepath:  dd.io.parquet.read_parquet(filepath,index='index', categories=categories)
 
 
 write = OrderedDict()
 
-write["csv"]          = lambda df,filepath,base:  df.to_csv(filepath)
-write["h5"]           = lambda df,filepath,base:  df.to_hdf(filepath,key=base,format='table')
-write["castra"]       = lambda df,filepath,base:  Castra(filepath, template=df,categories=categories).extend(df)
-write["bcolz"]        = lambda df,filepath,base:  bcolz.ctable.fromdataframe(df, rootdir=filepath)
-write["feather"]      = lambda df,filepath,base:  feather.write_dataframe(df, filepath)
-write["parq"]         = lambda df,filepath,base:  fp.write(filepath, df, file_scheme='hive')
-write["snappy.parq"]  = lambda df,filepath,base:  fp.write(filepath, df, file_scheme='hive', compression='SNAPPY')
-write["gz.parq"]      = lambda df,filepath,base:  fp.write(filepath, df, file_scheme='hive', compression='GZIP')
+write["csv"]          = lambda df,filepath:  df.to_csv(filepath)
+write["h5"]           = lambda df,filepath:  df.to_hdf(filepath,key=base,format='table')
+write["castra"]       = lambda df,filepath:  Castra(filepath, template=df,categories=categories).extend(df)
+write["bcolz"]        = lambda df,filepath:  bcolz.ctable.fromdataframe(df, rootdir=filepath)
+write["feather"]      = lambda df,filepath:  feather.write_dataframe(df, filepath)
+write["parq"]         = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive')
+write["snappy.parq"]  = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive', compression='SNAPPY')
+write["gz.parq"]      = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive', compression='GZIP')
 
 
 def timed_write(filepath,output_directory="times"):
@@ -71,7 +71,7 @@ def timed_write(filepath,output_directory="times"):
                     df[c]=df[c].astype(str)
             
             start = time.time()
-            write[ext](df,fname,base)
+            write[ext](df,fname)
             end = time.time()
             print("{:28} {:05.2f}".format(fname,end-start))
  
@@ -87,7 +87,7 @@ def timed_read(filepath,dftype):
     if code is None:
         return (None,None)
     start = time.time()
-    df = code(filepath,base)
+    df = code(filepath)
     for c in categories:
         df[c]=df[c].astype('category')
     end = time.time()
