@@ -26,7 +26,7 @@ base,x,y='data','x','y'
 dftype='pandas'
 categories=[]
 
-filetypes_storing_categories = {'parq','castra'} # Should also be 
+filetypes_storing_categories = {'parq','castra'}
 
 
 read = OrderedDict(csv={}, h5={}, castra={}, bcolz={}, parq={}, feather={})
