@@ -20,7 +20,7 @@ from datashader import transfer_functions as tf
 from castra import Castra
 from collections import OrderedDict
 from dask.cache import Cache
-Cache(9e9).register
+Cache(9e9).register()
 
 base,x,y='data','x','y'
 dftype='pandas'
