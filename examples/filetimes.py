@@ -18,7 +18,7 @@ import fastparquet as fp
 from datashader.utils import export_image
 from datashader import transfer_functions as tf
 from castra import Castra
-from collections import OrderedDict
+from collections import OrderedDict as odict
 from dask.cache import Cache
 
 cachesize=9e9
@@ -32,7 +32,7 @@ Cache(9e9).register()
 filetypes_storing_categories = {'parq','castra'}
 
 
-read = OrderedDict(csv={}, h5={}, castra={}, bcolz={}, feather={}, parq={})
+read = odict(csv=odict(), h5=odict(), castra=odict(), bcolz=odict(), feather=odict(), parq=odict())
 
 read["csv"]     ["pandas"] = lambda filepath:  pd.read_csv(filepath)
 read["csv"]     ["dask"]   = lambda filepath:  dd.read_csv(filepath)
@@ -49,9 +49,9 @@ read["castra"]  ["dask"]   = lambda filepath:  dd.from_castra(filepath, categori
 read["parq"]    ["dask"]   = lambda filepath:  dd.io.parquet.read_parquet(filepath,index='index', categories=categories)
 
 
-write = OrderedDict(csv={}, h5={}, castra={}, bcolz={}, feather={}, parq={})
-write["snappy.parq"]={}
-write["gz.parq"]={}
+write = odict(csv=odict(), h5=odict(), castra=odict(), bcolz=odict(), feather=odict(), parq=odict())
+write["snappy.parq"]=odict()
+write["gz.parq"]=odict()
 
 write["csv"]          ["pandas"] = lambda df,filepath:  df.to_csv(filepath)
 write["h5"]           ["pandas"] = lambda df,filepath:  df.to_hdf(filepath,key=base,format='table')
@@ -62,7 +62,7 @@ write["parq"]         ["pandas"] = lambda df,filepath:  fp.write(filepath, df, f
 write["snappy.parq"]  ["pandas"] = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive', compression='SNAPPY')
 write["gz.parq"]      ["pandas"] = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive', compression='GZIP')
 
-#write["h5"]           ["dask"]   = lambda df,filepath:  df.to_hdf(filepath, base)
+write["h5"]           ["dask"]   = lambda df,filepath:  df.to_hdf(filepath, base)
 write["parq"]         ["dask"]   = lambda df,filepath:  dd.io.parquet.to_parquet(filepath, df)
 write["snappy.parq"]  ["dask"]   = lambda df,filepath:  dd.io.parquet.to_parquet(filepath, df, compression='SNAPPY')
 write["gz.parq"]      ["dask"]   = lambda df,filepath:  dd.io.parquet.to_parquet(filepath, df, compression='GZIP')
@@ -70,7 +70,7 @@ write["gz.parq"]      ["dask"]   = lambda df,filepath:  dd.io.parquet.to_parquet
 
 def timed_write(filepath,output_directory="times",dftype=dftype):
     """Accepts any file with a dataframe readable by the given dataframe type, and writes it out as a variety of file types"""
-    df,duration=timed_read(filepath,"pandas")
+    df,duration=timed_read(filepath,dftype)
 
     for ext in write.keys():
         directory,filename = os.path.split(filepath)
@@ -85,8 +85,10 @@ def timed_write(filepath,output_directory="times",dftype=dftype):
                     df[c]=df[c].astype(str)
                     
             code = write[ext].get(dftype,None)
-            
-            if code is not None:
+
+            if code is None:
+                print("{:28} {:7} Not supported".format(fname,dftype))
+            else:
                 start = time.time()
                 code(df,fname)
                 end = time.time()
