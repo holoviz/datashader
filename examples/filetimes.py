@@ -20,16 +20,19 @@ from datashader import transfer_functions as tf
 from castra import Castra
 from collections import OrderedDict
 from dask.cache import Cache
-Cache(9e9).register()
 
+cachesize=9e9
 base,x,y='data','x','y'
 dftype='pandas'
 categories=[]
+chunksize=76668751
+
+Cache(9e9).register()
 
 filetypes_storing_categories = {'parq','castra'}
 
 
-read = OrderedDict(csv={}, h5={}, castra={}, bcolz={}, parq={}, feather={})
+read = OrderedDict(csv={}, h5={}, castra={}, bcolz={}, feather={}, parq={})
 
 read["csv"]     ["pandas"] = lambda filepath:  pd.read_csv(filepath)
 read["csv"]     ["dask"]   = lambda filepath:  dd.read_csv(filepath)
@@ -41,21 +44,32 @@ read["feather"] ["pandas"] = lambda filepath:  feather.read_dataframe(filepath)
 read["parq"]    ["pandas"] = lambda filepath:  fp.ParquetFile(filepath).to_pandas()
 read["parq"]    ["dask"]   = lambda filepath:  dd.io.parquet.read_parquet(filepath,index='index', categories=categories)
 
-
-write = OrderedDict()
-
-write["csv"]          = lambda df,filepath:  df.to_csv(filepath)
-write["h5"]           = lambda df,filepath:  df.to_hdf(filepath,key=base,format='table')
-write["castra"]       = lambda df,filepath:  Castra(filepath, template=df,categories=categories).extend(df)
-write["bcolz"]        = lambda df,filepath:  bcolz.ctable.fromdataframe(df, rootdir=filepath)
-write["feather"]      = lambda df,filepath:  feather.write_dataframe(df, filepath)
-write["parq"]         = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive')
-write["snappy.parq"]  = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive', compression='SNAPPY')
-write["gz.parq"]      = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive', compression='GZIP')
+read["h5"]      ["dask"]   = lambda filepath:  dd.read_hdf(filepath, base, chunksize=chunksize)
+read["castra"]  ["dask"]   = lambda filepath:  dd.from_castra(filepath, categories=categories)
+read["parq"]    ["dask"]   = lambda filepath:  dd.io.parquet.read_parquet(filepath,index='index', categories=categories)
 
 
-def timed_write(filepath,output_directory="times"):
-    """Accepts any file with a dataframe readable by pandas, and writes it out as a variety of file types"""
+write = OrderedDict(csv={}, h5={}, castra={}, bcolz={}, feather={}, parq={})
+write["snappy.parq"]={}
+write["gz.parq"]={}
+
+write["csv"]          ["pandas"] = lambda df,filepath:  df.to_csv(filepath)
+write["h5"]           ["pandas"] = lambda df,filepath:  df.to_hdf(filepath,key=base,format='table')
+write["castra"]       ["pandas"] = lambda df,filepath:  Castra(filepath, template=df,categories=categories).extend(df)
+write["bcolz"]        ["pandas"] = lambda df,filepath:  bcolz.ctable.fromdataframe(df, rootdir=filepath)
+write["feather"]      ["pandas"] = lambda df,filepath:  feather.write_dataframe(df, filepath)
+write["parq"]         ["pandas"] = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive')
+write["snappy.parq"]  ["pandas"] = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive', compression='SNAPPY')
+write["gz.parq"]      ["pandas"] = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive', compression='GZIP')
+
+#write["h5"]           ["dask"]   = lambda df,filepath:  df.to_hdf(filepath, base)
+write["parq"]         ["dask"]   = lambda df,filepath:  dd.io.parquet.to_parquet(filepath, df)
+write["snappy.parq"]  ["dask"]   = lambda df,filepath:  dd.io.parquet.to_parquet(filepath, df, compression='SNAPPY')
+write["gz.parq"]      ["dask"]   = lambda df,filepath:  dd.io.parquet.to_parquet(filepath, df, compression='GZIP')
+
+
+def timed_write(filepath,output_directory="times",dftype=dftype):
+    """Accepts any file with a dataframe readable by the given dataframe type, and writes it out as a variety of file types"""
     df,duration=timed_read(filepath,"pandas")
 
     for ext in write.keys():
@@ -69,11 +83,14 @@ def timed_write(filepath,output_directory="times"):
             if not filetype in filetypes_storing_categories:
                 for c in categories:
                     df[c]=df[c].astype(str)
+                    
+            code = write[ext].get(dftype,None)
             
-            start = time.time()
-            write[ext](df,fname)
-            end = time.time()
-            print("{:28} {:05.2f}".format(fname,end-start))
+            if code is not None:
+                start = time.time()
+                code(df,fname)
+                end = time.time()
+                print("{:28} {:7} {:05.2f}".format(fname,dftype,end-start))
  
             if not filetype in filetypes_storing_categories:
                 for c in categories:
