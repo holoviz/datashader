@@ -104,7 +104,7 @@ def timed_read(filepath,dftype):
     extension = extension[1:]
     filetype=extension.split(".")[-1]
     code = read[extension].get(dftype,None)
-    if code is None:
+    if code is None or not os.path.exists(filepath):
         return (None,None)
     
     start = time.time()
