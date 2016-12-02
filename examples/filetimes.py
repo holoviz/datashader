@@ -26,6 +26,8 @@ base,x,y='data','x','y'
 dftype='pandas'
 categories=[]
 chunksize=76668751
+parq_opts=dict(file_scheme='hive', has_nulls=0, write_index=False)
+cat_width=1 # Size of fixed-width string for representing categories
 
 Cache(9e9).register()
 
@@ -34,19 +36,16 @@ filetypes_storing_categories = {'parq','castra'}
 
 read = odict(csv=odict(), h5=odict(), castra=odict(), bcolz=odict(), feather=odict(), parq=odict())
 
-read["csv"]     ["pandas"] = lambda filepath:  pd.read_csv(filepath)
 read["csv"]     ["dask"]   = lambda filepath:  dd.read_csv(filepath)
-read["h5"]      ["dask"]   = lambda filepath:  dd.read_hdf(filepath, base)
-read["h5"]      ["pandas"] = lambda filepath:  pd.read_hdf(filepath, base)
-read["castra"]  ["dask"]   = lambda filepath:  dd.from_castra(filepath)
-read["bcolz"]   ["dask"]   = lambda filepath:  dd.from_bcolz(filepath, chunksize=1000000)
-read["feather"] ["pandas"] = lambda filepath:  feather.read_dataframe(filepath)
-read["parq"]    ["pandas"] = lambda filepath:  fp.ParquetFile(filepath).to_pandas()
-read["parq"]    ["dask"]   = lambda filepath:  dd.io.parquet.read_parquet(filepath,index='index', categories=categories)
-
 read["h5"]      ["dask"]   = lambda filepath:  dd.read_hdf(filepath, base, chunksize=chunksize)
 read["castra"]  ["dask"]   = lambda filepath:  dd.from_castra(filepath)
-read["parq"]    ["dask"]   = lambda filepath:  dd.io.parquet.read_parquet(filepath,index='index', categories=categories)
+read["bcolz"]   ["dask"]   = lambda filepath:  dd.from_bcolz(filepath, chunksize=1000000)
+read["parq"]    ["dask"]   = lambda filepath:  dd.io.parquet.read_parquet(filepath,index=False, categories=categories)
+
+read["csv"]     ["pandas"] = lambda filepath:  pd.read_csv(filepath)
+read["h5"]      ["pandas"] = lambda filepath:  pd.read_hdf(filepath, base)
+read["feather"] ["pandas"] = lambda filepath:  feather.read_dataframe(filepath)
+read["parq"]    ["pandas"] = lambda filepath:  fp.ParquetFile(filepath).to_pandas()
 
 
 write = odict(csv=odict(), h5=odict(), castra=odict(), bcolz=odict(), feather=odict(), parq=odict())
@@ -59,8 +58,9 @@ write["castra"]       ["pandas"] = lambda df,filepath:  Castra(filepath, templat
 write["bcolz"]        ["pandas"] = lambda df,filepath:  bcolz.ctable.fromdataframe(df, rootdir=filepath)
 write["feather"]      ["pandas"] = lambda df,filepath:  feather.write_dataframe(df, filepath)
 write["parq"]         ["pandas"] = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive')
-write["snappy.parq"]  ["pandas"] = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive', compression='SNAPPY')
-write["gz.parq"]      ["pandas"] = lambda df,filepath:  fp.write(filepath, df, file_scheme='hive', compression='GZIP')
+write["parq"]         ["pandas"] = lambda df,filepath:  fp.write(filepath, df, fixed_text={c:cat_width for c in categories}, **parq_opts)
+write["snappy.parq"]  ["pandas"] = lambda df,filepath:  fp.write(filepath, df, fixed_text={c:cat_width for c in categories}, compression='SNAPPY', **parq_opts)
+write["gz.parq"]      ["pandas"] = lambda df,filepath:  fp.write(filepath, df, fixed_text={c:cat_width for c in categories}, compression='GZIP', **parq_opts)
 
 write["h5"]           ["dask"]   = lambda df,filepath:  df.to_hdf(filepath, base)
 write["parq"]         ["dask"]   = lambda df,filepath:  dd.io.parquet.to_parquet(filepath, df)
@@ -82,7 +82,10 @@ def timed_write(filepath,output_directory="times",dftype=dftype):
             filetype=ext.split(".")[-1]
             if not filetype in filetypes_storing_categories:
                 for c in categories:
-                    df[c]=df[c].astype(str)
+                    if filetype=='parq' and dftype='pandas':
+                        df[c]=df[c].str.encode('utf8')
+                    else:
+                        df[c]=df[c].astype(str)
 
             code = write[ext].get(dftype,None)
 
