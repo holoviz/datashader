@@ -45,7 +45,7 @@ read["parq"]    ["pandas"] = lambda filepath:  fp.ParquetFile(filepath).to_panda
 read["parq"]    ["dask"]   = lambda filepath:  dd.io.parquet.read_parquet(filepath,index='index', categories=categories)
 
 read["h5"]      ["dask"]   = lambda filepath:  dd.read_hdf(filepath, base, chunksize=chunksize)
-read["castra"]  ["dask"]   = lambda filepath:  dd.from_castra(filepath, categories=categories)
+read["castra"]  ["dask"]   = lambda filepath:  dd.from_castra(filepath)
 read["parq"]    ["dask"]   = lambda filepath:  dd.io.parquet.read_parquet(filepath,index='index', categories=categories)
 
 
@@ -83,7 +83,7 @@ def timed_write(filepath,output_directory="times",dftype=dftype):
             if not filetype in filetypes_storing_categories:
                 for c in categories:
                     df[c]=df[c].astype(str)
-                    
+
             code = write[ext].get(dftype,None)
 
             if code is None:
@@ -93,7 +93,7 @@ def timed_write(filepath,output_directory="times",dftype=dftype):
                 code(df,fname)
                 end = time.time()
                 print("{:28} {:7} {:05.2f}".format(fname,dftype,end-start))
- 
+
             if not filetype in filetypes_storing_categories:
                 for c in categories:
                     df[c]=df[c].astype('category')
@@ -102,13 +102,21 @@ def timed_write(filepath,output_directory="times",dftype=dftype):
 def timed_read(filepath,dftype):
     basename, extension = os.path.splitext(filepath)
     extension = extension[1:]
+    filetype=extension.split(".")[-1]
     code = read[extension].get(dftype,None)
     if code is None:
         return (None,None)
+    
     start = time.time()
     df = code(filepath)
-    for c in categories:
-        df[c]=df[c].astype('category')
+    
+    if not filetype in filetypes_storing_categories:
+        opts={}
+        if dftype == 'pandas':
+            opts=dict(copy=False)
+        for c in categories:
+            df[c]=df[c].astype('category',**opts)
+    
     end = time.time()
 
     return df, end-start
