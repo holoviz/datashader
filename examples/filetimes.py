@@ -77,12 +77,12 @@ def timed_write(filepath,output_directory="times",dftype=dftype):
         basename, extension = os.path.splitext(filename)
         fname = output_directory+os.path.sep+basename+"."+ext
         if os.path.exists(fname):
-            print("Keeping existing "+fname)
+            print("{:28} (keeping existing)".format(fname))
         else:
             filetype=ext.split(".")[-1]
             if not filetype in filetypes_storing_categories:
                 for c in categories:
-                    if filetype=='parq' and dftype='pandas':
+                    if filetype=='parq' and dftype=='pandas':
                         df[c]=df[c].str.encode('utf8')
                     else:
                         df[c]=df[c].astype(str)
