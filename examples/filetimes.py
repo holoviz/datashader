@@ -61,7 +61,7 @@ write["h5"]           ["dask"]   = lambda df,filepath,p:  df.to_hdf(filepath, p.
 write["castra"]       ["dask"]   = lambda df,filepath,p:  df.to_castra(filepath,categories=p.categories)
 write["parq"]         ["dask"]   = lambda df,filepath,p:  dd.io.parquet.to_parquet(filepath, df)
 write["snappy.parq"]  ["dask"]   = lambda df,filepath,p:  dd.io.parquet.to_parquet(filepath, df, compression='SNAPPY')
-write["gz.parq"]      ["dask"]   = lambda df,filepath,p:  dd.io.parquet.to_parquet(filepath, df, compression='GZIP')
+#write["gz.parq"]      ["dask"]   = lambda df,filepath,p:  dd.io.parquet.to_parquet(filepath, df, compression='GZIP')
 
 write["csv"]          ["pandas"] = lambda df,filepath,p:  df.to_csv(filepath)
 write["h5"]           ["pandas"] = lambda df,filepath,p:  df.to_hdf(filepath,key=p.base,format='table')
@@ -70,7 +70,7 @@ write["bcolz"]        ["pandas"] = lambda df,filepath,p:  bcolz.ctable.fromdataf
 write["feather"]      ["pandas"] = lambda df,filepath,p:  feather.write_dataframe(df, filepath)
 write["parq"]         ["pandas"] = lambda df,filepath,p:  fp.write(filepath, df, fixed_text={c:p.cat_width for c in p.categories}, **p.parq_opts)
 write["snappy.parq"]  ["pandas"] = lambda df,filepath,p:  fp.write(filepath, df, fixed_text={c:p.cat_width for c in p.categories}, compression='SNAPPY', **p.parq_opts)
-write["gz.parq"]      ["pandas"] = lambda df,filepath,p:  fp.write(filepath, df, fixed_text={c:p.cat_width for c in p.categories}, compression='GZIP', **p.parq_opts)
+#write["gz.parq"]      ["pandas"] = lambda df,filepath,p:  fp.write(filepath, df, fixed_text={c:p.cat_width for c in p.categories}, compression='GZIP', **p.parq_opts)
 
 
 def timed_write(filepath,dftype,output_directory="times"):
