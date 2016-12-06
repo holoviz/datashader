@@ -13,6 +13,7 @@ import numpy as np
 import datashader as ds
 import bcolz
 import feather
+import dask
 import fastparquet as fp
 
 from datashader.utils import export_image
@@ -21,8 +22,11 @@ from castra import Castra
 from collections import OrderedDict as odict
 from dask.cache import Cache
 
+#from multiprocessing.pool import ThreadPool
+#dask.set_options(pool=ThreadPool(3)) # select a pecific number of threads
+
 cachesize=9e9
-    
+
 class Parameters(object):
     base,x,y='data','x','y'
     dftype='pandas'
@@ -33,7 +37,7 @@ class Parameters(object):
     columns=None
 p=Parameters()
 
-Cache(9e9).register()
+Cache(cachesize).register()
 
 filetypes_storing_categories = {'parq','castra'}
 
@@ -131,6 +135,10 @@ def timed_read(filepath,dftype):
         for c in p.categories:
             df[c]=df[c].astype('category',**opts)
     
+#    if dftype=="dask":
+#        # Force loading
+#        df = dd.from_pandas(df.compute(), npartitions=4)
+            
     end = time.time()
 
     return df, end-start
