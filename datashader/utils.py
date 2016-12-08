@@ -136,11 +136,23 @@ def export_image(img, filename, fmt=".png", _return=True, export_path=".", backg
     return img if _return else None
                                     
 
-def lnglat_to_meters(df, longitude="longitude", latitude="latitude"):
+def lnglat_to_meters(longitude,latitude):
     """
-    Given a dataframe, projects the named (latitude,longitude) columns into Web Mercator
-    coordinates in meters West and meters North of Greenwich.
+    Projects the given (longitude, latitude) values into Web Mercator
+    coordinates (meters East of Greenwich and meters North of the Equator).
+
+    Longitude and latitude can be provided as scalars, Pandas columns,
+    or Numpy arrays, and will be returned in the same form.
+    
+    Examples:
+       easting, northing = lnglat_to_meters(-40.71,74)
+
+       easting, northing = lnglat_to_meters(np.array([-74]),np.array([40.71]))
+
+       df=pandas.DataFrame(dict(longitude=np.array([-74]),latitude=np.array([40.71])))
+       df.loc[:, 'longitude'], df.loc[:, 'latitude'] = lnglat_to_meters(df.longitude,df.latitude) 
     """
     origin_shift = np.pi * 6378137
-    df.loc[:, longitude] = df[longitude] * origin_shift / 180.0
-    df.loc[:, latitude]  = np.log(np.tan((90 + df[latitude]) * np.pi / 360.0)) * origin_shift / np.pi
+    easting   = longitude * origin_shift / 180.0
+    northing  = np.log(np.tan((90 + latitude) * np.pi / 360.0)) * origin_shift / np.pi
+    return (easting, northing)
