@@ -149,8 +149,8 @@ class Canvas(object):
                  x_axis_type='linear', y_axis_type='linear'):
         self.plot_width = plot_width
         self.plot_height = plot_height
-        self.x_range = tuple(x_range) if x_range else x_range
-        self.y_range = tuple(y_range) if y_range else y_range
+        self.x_range = tuple(x_range) if x_range is not None else x_range
+        self.y_range = tuple(y_range) if y_range is not None else y_range
         self.x_axis = _axis_lookup[x_axis_type]
         self.y_axis = _axis_lookup[y_axis_type]
 
