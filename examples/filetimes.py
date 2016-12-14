@@ -20,12 +20,9 @@ from datashader.utils import export_image
 from datashader import transfer_functions as tf
 from castra import Castra
 from collections import OrderedDict as odict
-from dask.cache import Cache
 
 #from multiprocessing.pool import ThreadPool
 #dask.set_options(pool=ThreadPool(3)) # select a pecific number of threads
-
-cachesize=9e9
 
 class Parameters(object):
     base,x,y='data','x','y'
@@ -35,9 +32,27 @@ class Parameters(object):
     parq_opts=dict(file_scheme='hive', has_nulls=0, write_index=False)
     cat_width=1 # Size of fixed-width string for representing categories
     columns=None
+    cachesize=9e9
+
 p=Parameters()
 
-Cache(cachesize).register()
+if __name__ == '__main__':
+    if len(sys.argv)<=1:
+        print(__doc__)
+        sys.exit(1)
+
+    filepath = sys.argv[1]
+    basename, extension = os.path.splitext(filepath)
+
+    if len(sys.argv)>2: p.dftype      = sys.argv[2]
+    if len(sys.argv)>3: p.base        = sys.argv[3]
+    if len(sys.argv)>4: p.x           = sys.argv[4]
+    if len(sys.argv)>5: p.y           = sys.argv[5]
+    if len(sys.argv)>6: p.categories  = sys.argv[6:]
+
+from dask.cache import Cache
+Cache(p.cachesize).register()
+
 
 filetypes_storing_categories = {'parq','castra'}
 
@@ -72,8 +87,8 @@ write["h5"]           ["pandas"] = lambda df,filepath,p:  df.to_hdf(filepath,key
 write["castra"]       ["pandas"] = lambda df,filepath,p:  Castra(filepath, template=df,categories=p.categories).extend(df)
 write["bcolz"]        ["pandas"] = lambda df,filepath,p:  bcolz.ctable.fromdataframe(df, rootdir=filepath)
 write["feather"]      ["pandas"] = lambda df,filepath,p:  feather.write_dataframe(df, filepath)
-write["parq"]         ["pandas"] = lambda df,filepath,p:  fp.write(filepath, df, fixed_text={c:p.cat_width for c in p.categories}, **p.parq_opts)
-write["snappy.parq"]  ["pandas"] = lambda df,filepath,p:  fp.write(filepath, df, fixed_text={c:p.cat_width for c in p.categories}, compression='SNAPPY', **p.parq_opts)
+write["parq"]         ["pandas"] = lambda df,filepath,p:  fp.write(filepath, df, **p.parq_opts)
+write["snappy.parq"]  ["pandas"] = lambda df,filepath,p:  fp.write(filepath, df, compression='SNAPPY', **p.parq_opts)
 #write["gz.parq"]      ["pandas"] = lambda df,filepath,p:  fp.write(filepath, df, fixed_text={c:p.cat_width for c in p.categories}, compression='GZIP', **p.parq_opts)
 
 
@@ -127,7 +142,7 @@ def timed_read(filepath,dftype):
     p.columns=[p.x]+[p.y]+p.categories
     
     df = code(filepath,p)
-    
+
     if not filetype in filetypes_storing_categories:
         opts=odict()
         if dftype == 'pandas':
@@ -135,10 +150,11 @@ def timed_read(filepath,dftype):
         for c in p.categories:
             df[c]=df[c].astype('category',**opts)
     
-#    if dftype=="dask":
-#        # Force loading
-#        df = dd.from_pandas(df.compute(), npartitions=4)
-            
+    if dftype=='dask':
+        # Force loading
+        # df = dd.from_pandas(df.compute(), npartitions=4)
+        pass
+    
     end = time.time()
 
     return df, end-start
@@ -163,18 +179,6 @@ def get_size(path):
 
 
 if __name__ == '__main__':
-    if len(sys.argv)<=1:
-        print(__doc__)
-        sys.exit(1)
-
-    filepath = sys.argv[1]
-    basename, extension = os.path.splitext(filepath)
-
-    if len(sys.argv)>2: p.dftype      = sys.argv[2]
-    if len(sys.argv)>3: p.base        = sys.argv[3]
-    if len(sys.argv)>4: p.x           = sys.argv[4]
-    if len(sys.argv)>5: p.y           = sys.argv[5]
-    if len(sys.argv)>6: p.categories  = sys.argv[6:]
     df,loadtime = timed_read(filepath,p.dftype)
 
     if df is None:
