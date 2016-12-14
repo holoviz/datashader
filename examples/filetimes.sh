@@ -18,7 +18,6 @@
 /usr/bin/time python filetimes.py ${1}.castra      dask    census meterswest metersnorth race 2>&1 | tr '\n' ' ' | sed -e 's/ real.*/\n/'
 /usr/bin/time python filetimes.py ${1}.castra      pandas  census meterswest metersnorth race 2>&1 | tr '\n' ' ' | sed -e 's/ real.*/\n/'
 /usr/bin/time python filetimes.py ${1}.bcolz       dask    census meterswest metersnorth race 2>&1 | tr '\n' ' ' | sed -e 's/ real.*/\n/'
-/usr/bin/time python filetimes.py ${1}.bcolz       pandas  census meterswest metersnorth race 2>&1 | tr '\n' ' ' | sed -e 's/ real.*/\n/'
 /usr/bin/time python filetimes.py ${1}.h5          dask    census meterswest metersnorth race 2>&1 | tr '\n' ' ' | sed -e 's/ real.*/\n/'
 /usr/bin/time python filetimes.py ${1}.h5          pandas  census meterswest metersnorth race 2>&1 | tr '\n' ' ' | sed -e 's/ real.*/\n/'
 /usr/bin/time python filetimes.py ${1}.csv         dask    census meterswest metersnorth race 2>&1 | tr '\n' ' ' | sed -e 's/ real.*/\n/'
