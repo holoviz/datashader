@@ -2,10 +2,11 @@
 # Usage:
 #    conda-env create -f filetimes.yml
 #    source activate filetimes
-#    conda remove dask fastparquet
-#    pip install --upgrade git+git://github.com/dask/dask.git@b6ba65dd788581f3bb589684f4f09c8c92f43607
-#    pip install --upgrade git+git://github.com/dask/fastparquet.git@446edefcdc0cca785ed3d9039d5668f77e0e580c
+#    pip install --upgrade git+git://github.com/dask/dask.git@4ae1a203860bd67f09057778c0da5af533b9fcc6
+#    pip install --upgrade git+git://github.com/dask/fastparquet.git@ea1680d99ee664905b1c006117411ac4e8a9dae0
+#    pip install --upgrade git+git://github.com/numba/numba.git@c80e0a3dfe86c99c474a5fbe7f657b0bab26ada2
 #    pip install --upgrade git+git://github.com/blaze/castra.git@1ae53dfcafdd469f0df4620172bf7f6dffb3d5dd
+#    pip install --upgrade git+git://github.com/bokeh/datashader.git@f69047ebb762431e14ef87ba43272e5ea0860d0f
 #    mkdir times
 #    python -c "import filetimes as ft ; ft.p.base='census' ; ft.p.x='meterswest' ; ft.p.y='metersnorth' ; ft.p.categories=['race']; ft.timed_write('data/tinycensus.csv',dftype='pandas')"
 #    # (or 'data/census.h5' and/or dftype='dask')
