@@ -6,7 +6,10 @@ Test files may be generated starting from any file format supported by Pandas:
   python -c "import filetimes ; filetimes.base='<hdf5base>' ; filetimes.categories=['<cat1>','<cat2>']; filetimes.timed_write('<file>')"
 """
 
-import io, os, os.path, sys, time, shutil, glob
+import time
+global_start = time.time()
+
+import io, os, os.path, sys, shutil, glob
 import pandas as pd
 import dask.dataframe as dd
 import numpy as np
@@ -190,6 +193,8 @@ if __name__ == '__main__':
     
     in_size  = get_size(filepath)
     out_size = get_size("{}.png".format(filepath))
+    
+    global_end = time.time()
+    print("{:28} {:6}  Aggregate1:{:06.2f} ({:06.2f}+{:06.2f})  Aggregate2:{:06.2f}  In:{:011d}  Out:{:011d}  Total:{:06.2f}"\
+          .format(filepath, p.dftype, loadtime+aggtime1, loadtime, aggtime1, aggtime2, in_size, out_size, global_end-global_start))
 
-    print("{:28} {:6}  Total:{:06.2f}  Load:{:06.2f}  Aggregate1:{:06.2f}  Aggregate2:{:06.2f}  In:{:011d}  Out:{:011d}"\
-          .format(filepath, p.dftype, loadtime+aggtime1, loadtime, aggtime1, aggtime2, in_size, out_size))
