@@ -20,7 +20,7 @@ ${timer} python filetimes.py ${1}.snappy.parq dask    census meterswest metersno
 ${timer} python filetimes.py ${1}.parq        pandas  census meterswest metersnorth race
 ${timer} python filetimes.py ${1}.snappy.parq pandas  census meterswest metersnorth race
 ${timer} python filetimes.py ${1}.castra      dask    census meterswest metersnorth race
-${timer} python filetimes.py ${1}.castra      pandas  census meterswest metersnorth race
+#${timer} python filetimes.py ${1}.castra      pandas  census meterswest metersnorth race
 ${timer} python filetimes.py ${1}.bcolz       dask    census meterswest metersnorth race
 ${timer} python filetimes.py ${1}.h5          dask    census meterswest metersnorth race
 ${timer} python filetimes.py ${1}.h5          pandas  census meterswest metersnorth race
