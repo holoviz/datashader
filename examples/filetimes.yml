@@ -1,8 +1,10 @@
 name: filetimes
 dependencies:
+- bokeh
+- matplotlib
+- jupyter
 - bcolz=1.0.0=py35_0
 - bokeh::datashader=0.4.0=py35_0
-- conda-forge::fastparquet=0.0.1post2=py35_0
 - conda-forge::feather-format=0.3.1=py35_1
 - dask=0.10.1=py35_0
 - hdf5=1.8.17=1
@@ -19,3 +21,4 @@ dependencies:
   - bloscpack==0.10.0
   - cachey==0.1.1
   - tables==3.3.0
+  - fastparquet==0.0.4post1
