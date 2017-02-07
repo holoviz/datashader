@@ -60,7 +60,7 @@ Cache(p.cachesize).register()
 filetypes_storing_categories = {'parq','castra'}
 
 
-read = odict([(f,odict()) for f in ["csv","h5","castra","bcolz","feather","parq"]])
+read = odict([(f,odict()) for f in ["parq","bcolz","feather","castra","h5","csv"]])
                
 read["csv"]     ["dask"]   = lambda filepath,p:  dd.read_csv(filepath, usecols=p.columns)
 read["h5"]      ["dask"]   = lambda filepath,p:  dd.read_hdf(filepath, p.base, chunksize=p.chunksize, columns=p.columns)
@@ -74,15 +74,13 @@ read["feather"] ["pandas"] = lambda filepath,p:  feather.read_dataframe(filepath
 read["parq"]    ["pandas"] = lambda filepath,p:  fp.ParquetFile(filepath).to_pandas()
 
 
-write = odict([(f,odict()) for f in ["csv","h5","castra","bcolz","feather","parq"]])
-write["snappy.parq"]=odict()
-write["gz.parq"]=odict()
+write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","castra","h5","csv"]])
 
 write["csv"]          ["dask"]   = lambda df,filepath,p:  df.to_csv(filepath.replace(".csv","*.csv"))
 write["h5"]           ["dask"]   = lambda df,filepath,p:  df.to_hdf(filepath, p.base)
 write["castra"]       ["dask"]   = lambda df,filepath,p:  df.to_castra(filepath,categories=p.categories)
-write["parq"]         ["dask"]   = lambda df,filepath,p:  dd.io.parquet.to_parquet(filepath, df)
-write["snappy.parq"]  ["dask"]   = lambda df,filepath,p:  dd.io.parquet.to_parquet(filepath, df, compression='SNAPPY')
+write["parq"]         ["dask"]   = lambda df,filepath,p:  dd.io.parquet.to_parquet(filepath, df) ## **p.parq_opts
+write["snappy.parq"]  ["dask"]   = lambda df,filepath,p:  dd.io.parquet.to_parquet(filepath, df, compression='SNAPPY') ## **p.parq_opts
 #write["gz.parq"]      ["dask"]   = lambda df,filepath,p:  dd.io.parquet.to_parquet(filepath, df, compression='GZIP')
 
 write["csv"]          ["pandas"] = lambda df,filepath,p:  df.to_csv(filepath)
