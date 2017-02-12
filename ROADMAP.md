@@ -14,18 +14,18 @@ If you need any of the functionality listed below and want to help make it a pri
   - "alpha" (opacity) should be supported for non-categorical shade() just as for categorical aggregates ([#244](../../issues/244)), which will make it simpler to overlay data onto backgrounds.
   - Should be able to aggregate any field categorically, not just counts ([#140](../../issues/140))
 
-3. **Large graph/network layout rendering**
+3. **Optimizing file formats** ([#129](../../issues/129))
 
 4. **Better integration with external plotting libraries (Bokeh, HoloViews, matplotlib)**
+  - Datashader needs to provide functions for supporting hover information, legends, colorbars, and interactivity, which each plotting library can then use ([#126](../../issues/126), [#127](../../issues/127), [#136](../../issues/136), [#251](../../issues/251))
   - HoloViews supports basic operations with aggregate arrays, but will need extensions to be able to handle everything possible in datashader itself.
   - There is a draft of Matplotlib support ([#200](../../issues/200)), but it will need significant work before it is usable for most purposes.
-  - Datashader needs to provide functions for supporting hover information, legends, colorbars, and interactivity, which each plotting library can then use ([#126](../../issues/126), [#127](../../issues/127), [#136](../../issues/136), [#251](../../issues/251))
   - HoloViews should be able to allow users to set criteria for when datashader will be substituted for a Points or Path plot, based on size
-  - Support for Bokeh server ([#97](../../issues/97), [#147](../../issues/147), [#271](../../issues/271), https://github.com/ioam/holoviews/issues/694)
+  - Support for Bokeh server ([#97](../../issues/97), [#147](../../issues/147), [#271](../../issues/271), [HoloViews #694](https://github.com/ioam/holoviews/issues/694))
 
-5. **Support for rendering surfaces (as orthgraphic projections) from arbitrary samples** ([#181](../../issues/181))
+5. **Large graph/network layout rendering**
 
-6. **Optimizing file formats** ([#129](../../issues/129))
+6. **Support for rendering surfaces (as orthgraphic projections) from arbitrary samples** ([#181](../../issues/181))
 
 7. **Optimizing data access (via quadtree/kdtree dataset partitioning) and deployment** (as slippy-map tiles [#246](../../issues/246))
 
