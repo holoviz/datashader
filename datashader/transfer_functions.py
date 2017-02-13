@@ -458,14 +458,16 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over'):
     according to a given shape, merging pixels using a specified compositing
     operator. This can be useful to make sparse plots more visible. Dynamic
     spreading determines how many pixels to spread based on a density
-    heuristic.
+    heuristic.  Spreading starts at 1 pixel, and stops when the fraction
+    of adjacent non-empty pixels reaches the specified threshold, or
+    the max_px is reached, whichever comes first.
 
     Parameters
     ----------
     img : Image
     threshold : float, optional
-        A tuning parameter in [0, 1]. Indicates the minimum value for the
-        density heuristic.
+        A tuning parameter in [0, 1], with higher values giving more 
+        spreading.  
     max_px : int, optional
         Maximum number of pixels to spread on all sides.
     shape : str, optional
