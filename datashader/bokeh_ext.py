@@ -384,7 +384,7 @@ def create_ramp_legend(agg, cmap, how='linear', width=600):
         formats described above), or a matplotlib colormap object.
 
     how : str
-        Datashader transfer function name (e.g. linear, log, cbrt, eq_hist)
+        Datashader transfer function name (either linear or log)
 
     width : int
         Width in pixels of resulting legend figure (default=600)
@@ -392,7 +392,8 @@ def create_ramp_legend(agg, cmap, how='linear', width=600):
 
     vals_arr, min_val, max_val = summarize_aggregate_values(agg, how=how)
     img = tf.shade(vals_arr, cmap=cmap, how=how)
-    x_axis_type = 'linear' if how == 'linear' else 'log'
+    x_axis_type = how
+    assert(x_axis_type == 'linear' or x_axis_type=='log')
     legend_fig = Figure(x_range=(min_val, max_val),
                         plot_height=50,
                         plot_width=width,
