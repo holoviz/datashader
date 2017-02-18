@@ -23,9 +23,9 @@ class _PointLike(Glyph):
         return (self.x, self.y)
 
     def validate(self, in_dshape):
-        if not isreal(in_dshape.measure[self.x]):
+        if not isreal(in_dshape.measure[str(self.x)]):
             raise ValueError('x must be real')
-        elif not isreal(in_dshape.measure[self.y]):
+        elif not isreal(in_dshape.measure[str(self.y)]):
             raise ValueError('y must be real')
 
     def _compute_x_bounds(self, df):
