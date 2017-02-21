@@ -16,8 +16,8 @@ install:
   # Install dependencies
   - conda create -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - conda install dask numba numpy pandas pillow pytest toolz xarray datashape odo gdal scikit-image colorcet
-  - pip install rasterio
+  - conda install dask numba numpy pandas pillow pytest toolz xarray datashape odo gdal scikit-image colorcet rasterio
+
   # Optional dependencies, for testing only
   - conda install matplotlib
 

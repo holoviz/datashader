@@ -283,7 +283,9 @@ class Canvas(object):
         else:
             data = source.read(band, window=((rmax, rmin), (cmin, cmax)))
 
-        data[data == source.nodata] = 0 if 'i' in data.dtype.str else np.nan
+
+        is_int = np.issubdtype(data.dtype, np.integer)
+        data[data == np.array(source.nodata)] = 0 if is_int else np.nan
 
         # TODO: this resize should go away once rasterio has overview resample
         data = resize(data,
