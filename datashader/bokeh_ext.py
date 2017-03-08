@@ -7,7 +7,8 @@ import numpy as np
 
 from bokeh.io import notebook_div
 from bokeh.models import CustomJS, ColumnDataSource, Square, HoverTool, GlyphRenderer
-from bokeh.model import _ModelInDocument as add_to_document
+from bokeh.model import Model  # _ModelInDocument as add_to_document
+from bokeh.document import Document
 from bokeh.io import _CommsHandle
 from bokeh.util.notebook import get_comms
 from bokeh.models import Plot, Text, Circle, Range1d
@@ -15,6 +16,57 @@ from bokeh.plotting import Figure
 
 from . import transfer_functions as tf
 from .utils import downsample_aggregate, summarize_aggregate_values
+
+
+class _AddToDocument(object):
+    # 'models' can be a single Model, a single Document, or a list of either
+    def __init__(self, models):
+
+        self._to_remove_after = []
+        if not isinstance(models, list):
+            models = [models]
+
+        self._doc = _find_some_document(models)
+        if self._doc is None:
+            # oh well - just make up a doc
+            self._doc = Document()
+
+        for model in models:
+            if isinstance(model, Model):
+                if model.document is None:
+                    self._to_remove_after.append(model)
+
+    def __exit__(self, type, value, traceback):
+        for model in self._to_remove_after:
+            model.document.remove_root(model)
+
+    def __enter__(self):
+        for model in self._to_remove_after:
+            self._doc.add_root(model)
+
+
+def _find_some_document(models):
+    # First try the easy stuff...
+    doc = None
+    for model in models:
+        if isinstance(model, Document):
+            doc = model
+            break
+        elif isinstance(model, Model):
+            if model.document is not None:
+                doc = model.document
+                break
+
+    # Now look in children of models
+    if doc is None:
+        for model in models:
+            if isinstance(model, Model):
+                for r in model.references():
+                    if r.document is not None:
+                        doc = r.document
+                        break
+
+    return doc
 
 
 class InteractiveImage(object):
@@ -135,7 +187,7 @@ class InteractiveImage(object):
         self.p.y_range.callback = callback
 
         # Initialize document
-        doc_handler = add_to_document(self.p)
+        doc_handler = _AddToDocument(self.p)
         with doc_handler:
             self.doc = doc_handler._doc
             self.div = notebook_div(self.p, self.ref)
