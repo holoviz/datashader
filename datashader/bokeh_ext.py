@@ -6,8 +6,9 @@ import json
 import numpy as np
 
 from bokeh.io import notebook_div
-from bokeh.models import CustomJS, ColumnDataSource, Square, HoverTool, GlyphRenderer
-from bokeh.model import _ModelInDocument as add_to_document
+from bokeh.document import Document
+from bokeh.models import (Model, CustomJS, ColumnDataSource, Square,
+                          HoverTool, GlyphRenderer)
 from bokeh.io import _CommsHandle
 from bokeh.util.notebook import get_comms
 from bokeh.models import Plot, Text, Circle, Range1d
@@ -134,11 +135,6 @@ class InteractiveImage(object):
         self.p.x_range.callback = callback
         self.p.y_range.callback = callback
 
-        # Initialize document
-        doc_handler = add_to_document(self.p)
-        with doc_handler:
-            self.doc = doc_handler._doc
-            self.div = notebook_div(self.p, self.ref)
 
     def _init_callback(self):
         """
@@ -230,7 +226,12 @@ class InteractiveImage(object):
         self.ds.data.update(new_data)
 
     def _repr_html_(self):
-        return self.div
+        self.doc = Document()
+        for m in self.p.references():
+            m._document = None
+        self.doc.add_root(self.p)
+        return notebook_div(self.p, self.ref)
+
 
 class HoverLayer(object):
     """
