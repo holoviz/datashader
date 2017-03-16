@@ -37,3 +37,12 @@ data:
     title: 'Census Synthetic People'
     files:
       - census.h5
+
+  - url: http://www2.census.gov/geo/tiger/GENZ2015/shp/cb_2015_us_cd114_5m.zip
+    title: "Geographic Region Boundary Shapefile"
+    files:
+      - cb_2015_us_cd114_5m
+  - url: https://pypi.python.org/packages/fe/33/9fa773d6f2f11d95f24e590190220e23badfea3725ed71d78908fbfd4a14/pylzma-0.4.8.tar.gz
+    title: "pylzma package"
+    files:
+      - pylzma-0.4.8.tar.gz
