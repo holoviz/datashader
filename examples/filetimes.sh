@@ -1,7 +1,6 @@
 #!/bin/sh
 # Usage:
 #    conda-env create -f filetimes.yml
-#    patch --verbose -b -p4 -d $CONDA_PREFIX/lib/python3.5/site-packages/fastparquet < fastparquet.type_mismatch.patch
 #    source activate filetimes
 #    mkdir times
 #    python -c "import filetimes as ft ; ft.p.base='census' ; ft.p.x='meterswest' ; ft.p.y='metersnorth' ; ft.p.categories=['race']; ft.timed_write('data/tinycensus.csv',dftype='pandas')"
