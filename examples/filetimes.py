@@ -42,7 +42,7 @@ class Parameters(object):
 p=Parameters()
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(epilog=__doc__)
+    parser = argparse.ArgumentParser(epilog=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('filepath')
     parser.add_argument('dftype')
     parser.add_argument('base')
