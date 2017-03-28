@@ -1,24 +1,29 @@
 name: filetimes
+channels:
+- defaults
+- conda-forge
+- bccp # for cachey
 dependencies:
 - bokeh
 - matplotlib
 - jupyter
-- bcolz=1.0.0=py35_0
+- bcolz=1.1.2=np111py35_0
 - bokeh::datashader=0.4.0=py35_0
 - conda-forge::feather-format=0.3.1=py35_1
-- dask=0.10.1=py35_0
+- dask=0.14.1=py35_0
 - hdf5=1.8.17=1
-- numba=0.29.0=np111py35_0
-- numexpr=2.6.0=np111py35_0
+- numba=0.31.0=np111py35_0
+- numexpr=2.6.2=np111py35_0
 - numpy=1.11.1=py35_0
-- pandas=0.18.1=np111py35_0
+- pandas=0.19.2=np111py35_0
 - pytest
 - python=3.5.2=0
 - python-snappy=0.5=py35_0
-- snappy=1.1.3=0
+- snappy=1.1.4=1
+- fastparquet==0.0.5
+- cachey==0.1.1
+- bloscpack==0.10.0
+- blosc==1.9.2
 - pip:
-  - blosc==1.3.3
-  - bloscpack==0.10.0
-  - cachey==0.1.1
   - tables==3.3.0
-  - fastparquet==0.0.4post1
+  - castra==0.1.7
