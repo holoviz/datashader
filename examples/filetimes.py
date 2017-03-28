@@ -29,6 +29,7 @@ from collections import OrderedDict as odict
 #from multiprocessing.pool import ThreadPool
 #dask.set_options(pool=ThreadPool(3)) # select a pecific number of threads
 
+# Toggled by a command-line argument
 DEBUG = False
 
 class Parameters(object):
@@ -36,10 +37,16 @@ class Parameters(object):
     dftype='pandas'
     categories=[]
     chunksize=76668751
-    parq_opts=dict(file_scheme='hive', has_nulls=0, write_index=False)
     cat_width=1 # Size of fixed-width string for representing categories
     columns=None
     cachesize=9e9
+
+    @property
+    def parq_opts(self):
+        return dict(file_scheme='hive',
+                    has_nulls=(False if self.dftype == 'pandas' else 0),
+                    write_index=False)
+
 
 p=Parameters()
 
@@ -104,13 +111,13 @@ def benchmark(fn, args):
 
 read = odict([(f,odict()) for f in ["parq","bcolz","feather","castra","h5","csv"]])
                
-read["csv"]     ["dask"]   = lambda filepath,p:  benchmark(dd.read_csv, (filepath,)) # Kwargs(usecols=p.columns)))
+read["csv"]     ["dask"]   = lambda filepath,p:  benchmark(dd.read_csv, (filepath, Kwargs(usecols=p.columns)))
 read["h5"]      ["dask"]   = lambda filepath,p:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)))
 #read["castra"]  ["dask"]   = lambda filepath,p:  benchmark(dd.from_castra, (filepath,))
 read["bcolz"]   ["dask"]   = lambda filepath,p:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)))
 read["parq"]    ["dask"]   = lambda filepath,p:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, categories=p.categories, columns=p.columns)))
 
-read["csv"]     ["pandas"] = lambda filepath,p:  benchmark(pd.read_csv, (filepath,)) # Kwargs(usecols=p.columns)))
+read["csv"]     ["pandas"] = lambda filepath,p:  benchmark(pd.read_csv, (filepath, Kwargs(usecols=p.columns)))
 read["h5"]      ["pandas"] = lambda filepath,p:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)))
 read["feather"] ["pandas"] = lambda filepath,p:  benchmark(feather.read_dataframe, (filepath,))
 def read_parq_pandas(__filepath):
@@ -135,7 +142,7 @@ def write_castra_pandas(__filepath, __df, __cats):
 write["castra"]       ["pandas"] = lambda df,filepath,p:  benchmark(write_castra_pandas, (filepath, df, p.categories))
 write["bcolz"]        ["pandas"] = lambda df,filepath,p:  benchmark(bcolz.ctable.fromdataframe, (df, Kwargs(rootdir=filepath)))
 write["feather"]      ["pandas"] = lambda df,filepath,p:  benchmark(feather.write_dataframe, (df, filepath))
-write["parq"]         ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, p.parq_opts))
+write["parq"]         ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(**p.parq_opts)))
 write["snappy.parq"]  ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(compression='SNAPPY', **p.parq_opts)))
 #write["gz.parq"]      ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(fixed_text={c:p.cat_width for c in p.categories}, compression='GZIP', **p.parq_opts)))
 
