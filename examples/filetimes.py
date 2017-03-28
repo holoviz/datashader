@@ -50,26 +50,6 @@ class Parameters(object):
 
 p=Parameters()
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(epilog=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('filepath')
-    parser.add_argument('dftype')
-    parser.add_argument('base')
-    parser.add_argument('x')
-    parser.add_argument('y')
-    parser.add_argument('categories', nargs='+')
-    parser.add_argument('--debug', action='store_true')
-    args = parser.parse_args()
-
-    filepath = args.filepath
-    basename, extension = os.path.splitext(filepath)
-    p.dftype      = args.dftype
-    p.base        = args.base
-    p.x           = args.x
-    p.y           = args.y
-    p.categories  = args.categories
-    DEBUG = args.debug
-
 
 from dask.cache import Cache
 Cache(p.cachesize).register()
@@ -127,14 +107,14 @@ read["parq"]    ["pandas"] = lambda filepath,p:  benchmark(read_parq_pandas, (fi
 
 write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","castra","h5","csv"]])
 
-write["csv"]          ["dask"]   = lambda df,filepath,p:  benchmark(df.to_csv, (filepath.replace(".csv","*.csv"),))
+write["csv"]          ["dask"]   = lambda df,filepath,p:  benchmark(df.to_csv, (filepath.replace(".csv","*.csv"), Kwargs(index=False)))
 write["h5"]           ["dask"]   = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, p.base))
 #write["castra"]       ["dask"]   = lambda df,filepath,p:  benchmark(df.to_castra, (filepath, Kwargs(categories=p.categories)))
 write["parq"]         ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parquet, (filepath, df)) # **p.parq_opts
 write["snappy.parq"]  ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parquet, (filepath, df, Kwargs(compression='SNAPPY'))) ## **p.parq_opts
 write["gz.parq"]      ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parquet, (filepath, df, Kwargs(compression='GZIP')))
 
-write["csv"]          ["pandas"] = lambda df,filepath,p:  benchmark(df.to_csv, (filepath,))
+write["csv"]          ["pandas"] = lambda df,filepath,p:  benchmark(df.to_csv, (filepath, Kwargs(index=False)))
 write["h5"]           ["pandas"] = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, Kwargs(key=p.base, format='table')))
 
 def write_castra_pandas(__filepath, __df, __cats):
@@ -169,7 +149,7 @@ def timed_write(filepath,dftype,output_directory="times"):
             code = write[ext].get(dftype,None)
 
             if code is None:
-                print("{:28} {:7} Not supported".format(fname,dftype))
+                print("{:28} {:7} Operation not supported".format(fname,dftype))
             else:
                 duration, res = code(df,fname,p)
                 print("{:28} {:7} {:05.2f}".format(fname,dftype,duration))
@@ -185,11 +165,17 @@ def timed_read(filepath,dftype):
     filetype=extension.split(".")[-1]
     code = read[extension].get(dftype,None)
 
-    if filetype=="csv" and dftype=="dask":
-        filepath = filepath.replace(".csv","*.csv")
+    if filetype=="csv":
+        if dftype=="dask":
+            filepath = filepath.replace(".csv","*.csv")
+        else:
+            filepath = glob.glob(filepath.replace(".csv","*.csv"))[0]
     
-    if code is None or not glob.glob(filepath):
-        return (None,None)
+    if code is None:
+        return (None,-1)
+
+    if not glob.glob(filepath):
+        return (None,-2)
     
     p.columns=[p.x]+[p.y]+p.categories
     
@@ -228,12 +214,34 @@ def get_size(path):
     return total
 
 
-if __name__ == '__main__':
+def main(argv):
+    parser = argparse.ArgumentParser(epilog=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('filepath')
+    parser.add_argument('dftype')
+    parser.add_argument('base')
+    parser.add_argument('x')
+    parser.add_argument('y')
+    parser.add_argument('categories', nargs='+')
+    parser.add_argument('--debug', action='store_true')
+    args = parser.parse_args(argv[1:])
+
+    filepath = args.filepath
+    basename, extension = os.path.splitext(filepath)
+    p.dftype      = args.dftype
+    p.base        = args.base
+    p.x           = args.x
+    p.y           = args.y
+    p.categories  = args.categories
+    DEBUG = args.debug
+
     df,loadtime = timed_read(filepath,p.dftype)
 
     if df is None:
-        print("{:28} {:6}  Not supported".format(filepath, p.dftype))
-        sys.exit(1)
+        if loadtime == -1:
+            print("{:28} {:6}  Operation not supported".format(filepath, p.dftype))
+        elif loadtime == -2:
+            print("{:28} {:6}  File does not exist".format(filepath, p.dftype))
+        return 1
 
     img,aggtime1 = timed_agg(df,filepath,5,5)
     img,aggtime2 = timed_agg(df,filepath)
@@ -244,3 +252,9 @@ if __name__ == '__main__':
     global_end = time.time()
     print("{:28} {:6}  Aggregate1:{:06.2f} ({:06.2f}+{:06.2f})  Aggregate2:{:06.2f}  In:{:011d}  Out:{:011d}  Total:{:06.2f}"\
           .format(filepath, p.dftype, loadtime+aggtime1, loadtime, aggtime1, aggtime2, in_size, out_size, global_end-global_start))
+
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
