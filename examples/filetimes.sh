@@ -1,4 +1,7 @@
 #!/bin/sh
+
+#    \rm -rf times && mkdir times && python -c "import filetimes as ft ; ft.p.base='census' ; ft.p.x='meterswest' ; ft.p.y='metersnorth' ; ft.p.categories=['race']; ft.timed_write('data/tinycensus.csv',dftype='dask')"
+
 # Usage:
 #    conda-env create -f filetimes.yml
 #    source activate filetimes

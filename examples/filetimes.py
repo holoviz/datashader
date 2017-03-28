@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Simple test of read and write times for columnar data formats:
+
+"""
+Simple test of read and write times for columnar data formats:
   python filetimes.py <filepath> [pandas|dask [hdf5base [xcolumn [ycolumn] [categories...]]]]
 
 Test files may be generated starting from any file format supported by Pandas:
@@ -87,8 +89,9 @@ def benchmark(fn, args):
         kwargs.update(lastarg)
 
     if DEBUG:
-        pretty_kwargs = ', '.join(['{}={}'.format(k, v) for k,v in kwargs.items()])
-        print('{}({}{})'.format(fn.__name__, ', '.join(posargs), ', '+pretty_kwargs if pretty_kwargs else '', flush=True))
+        printable_posargs = ', '.join([str(posarg.head()) if hasattr(posarg, 'head') else str(posarg) for posarg in posargs])
+        printable_kwargs = ', '.join(['{}={}'.format(k, v) for k,v in kwargs.items()])
+        print('{}({}{})'.format(fn.__name__, printable_posargs, ', '+printable_kwargs if printable_kwargs else '', flush=True))
 
     # Benchmark fn when run on posargs and kwargs
     start = time.time()
@@ -101,13 +104,13 @@ def benchmark(fn, args):
 
 read = odict([(f,odict()) for f in ["parq","bcolz","feather","castra","h5","csv"]])
                
-read["csv"]     ["dask"]   = lambda filepath,p:  benchmark(dd.read_csv, (filepath, Kwargs(usecols=p.columns)))
+read["csv"]     ["dask"]   = lambda filepath,p:  benchmark(dd.read_csv, (filepath,)) # Kwargs(usecols=p.columns)))
 read["h5"]      ["dask"]   = lambda filepath,p:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)))
 #read["castra"]  ["dask"]   = lambda filepath,p:  benchmark(dd.from_castra, (filepath,))
 read["bcolz"]   ["dask"]   = lambda filepath,p:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)))
-read["parq"]    ["dask"]   = lambda filepath,p:  benchmark(dd.io.parquet.read_parquet, (filepath, Kwargs(index=False, categories=p.categories, columns=p.columns)))
+read["parq"]    ["dask"]   = lambda filepath,p:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, categories=p.categories, columns=p.columns)))
 
-read["csv"]     ["pandas"] = lambda filepath,p:  benchmark(pd.read_csv, (filepath, Kwargs(usecols=p.columns)))
+read["csv"]     ["pandas"] = lambda filepath,p:  benchmark(pd.read_csv, (filepath,)) # Kwargs(usecols=p.columns)))
 read["h5"]      ["pandas"] = lambda filepath,p:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)))
 read["feather"] ["pandas"] = lambda filepath,p:  benchmark(feather.read_dataframe, (filepath,))
 def read_parq_pandas(__filepath):
@@ -117,12 +120,12 @@ read["parq"]    ["pandas"] = lambda filepath,p:  benchmark(read_parq_pandas, (fi
 
 write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","castra","h5","csv"]])
 
-write["csv"]          ["dask"]   = lambda df,filepath,p:  benchmark(df.to_csv, (filepath.replace(".csv","*.csv")))
+write["csv"]          ["dask"]   = lambda df,filepath,p:  benchmark(df.to_csv, (filepath.replace(".csv","*.csv"),))
 write["h5"]           ["dask"]   = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, p.base))
-write["castra"]       ["dask"]   = lambda df,filepath,p:  benchmark(df.to_castra, (filepath, Kwargs(categories=p.categories)))
-write["parq"]         ["dask"]   = lambda df,filepath,p:  benchmark(dd.io.parquet.to_parquet, (filepath, df)) ## **p.parq_opts
-write["snappy.parq"]  ["dask"]   = lambda df,filepath,p:  benchmark(dd.io.parquet.to_parquet, (filepath, df, Kwargs(compression='SNAPPY'))) ## **p.parq_opts
-#write["gz.parq"]      ["dask"]   = lambda df,filepath,p:  benchmark(dd.io.parquet.to_parquet, (filepath, df, Kwargs(compression='GZIP')))
+#write["castra"]       ["dask"]   = lambda df,filepath,p:  benchmark(df.to_castra, (filepath, Kwargs(categories=p.categories)))
+write["parq"]         ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parquet, (filepath, df)) # **p.parq_opts
+write["snappy.parq"]  ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parquet, (filepath, df, Kwargs(compression='SNAPPY'))) ## **p.parq_opts
+write["gz.parq"]      ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parquet, (filepath, df, Kwargs(compression='GZIP')))
 
 write["csv"]          ["pandas"] = lambda df,filepath,p:  benchmark(df.to_csv, (filepath,))
 write["h5"]           ["pandas"] = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, Kwargs(key=p.base, format='table')))
@@ -151,7 +154,7 @@ def timed_write(filepath,dftype,output_directory="times"):
             filetype=ext.split(".")[-1]
             if not filetype in filetypes_storing_categories:
                 for c in p.categories:
-                    if filetype=='parq' and dftype=='pandas':
+                    if filetype == 'parq' and df[c].dtype == 'object':
                         df[c]=df[c].str.encode('utf8')
                     else:
                         df[c]=df[c].astype(str)
@@ -234,4 +237,3 @@ if __name__ == '__main__':
     global_end = time.time()
     print("{:28} {:6}  Aggregate1:{:06.2f} ({:06.2f}+{:06.2f})  Aggregate2:{:06.2f}  In:{:011d}  Out:{:011d}  Total:{:06.2f}"\
           .format(filepath, p.dftype, loadtime+aggtime1, loadtime, aggtime1, aggtime2, in_size, out_size, global_end-global_start))
-
