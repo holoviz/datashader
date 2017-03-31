@@ -25,6 +25,6 @@ dependencies:
 - cachey==0.1.1
 - bloscpack==0.10.0
 - blosc==1.9.2
+- pytables==3.3.0
 - pip:
-  - tables==3.3.0
   - castra==0.1.7
