@@ -90,12 +90,12 @@ def benchmark(fn, args):
 
 
 read = odict([(f,odict()) for f in ["parq","bcolz","feather","castra","h5","csv"]])
-               
+
 read["csv"]     ["dask"]   = lambda filepath,p:  benchmark(dd.read_csv, (filepath, Kwargs(usecols=p.columns)))
 read["h5"]      ["dask"]   = lambda filepath,p:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)))
 #read["castra"]  ["dask"]   = lambda filepath,p:  benchmark(dd.from_castra, (filepath,))
 read["bcolz"]   ["dask"]   = lambda filepath,p:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)))
-read["parq"]    ["dask"]   = lambda filepath,p:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, categories=p.categories, columns=p.columns)))
+read["parq"]    ["dask"]   = lambda filepath,p:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns))) # categories=p.categories, 
 
 read["csv"]     ["pandas"] = lambda filepath,p:  benchmark(pd.read_csv, (filepath, Kwargs(usecols=p.columns)))
 read["h5"]      ["pandas"] = lambda filepath,p:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)))
@@ -215,6 +215,8 @@ def get_size(path):
 
 
 def main(argv):
+    global DEBUG
+
     parser = argparse.ArgumentParser(epilog=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('filepath')
     parser.add_argument('dftype')

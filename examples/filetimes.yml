@@ -2,6 +2,7 @@ name: filetimes
 channels:
 - defaults
 - conda-forge
+- gbrener # for updated python-snappy (releases GIL)
 - bccp # for cachey
 dependencies:
 - bokeh
@@ -18,7 +19,7 @@ dependencies:
 - pandas=0.19.2=np111py35_0
 - pytest
 - python=3.5.2=0
-- python-snappy=0.5=py35_0
+- python-snappy=0.5=py35_1
 - snappy=1.1.4=1
 - fastparquet==0.0.5
 - cachey==0.1.1

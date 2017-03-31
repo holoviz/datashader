@@ -14,8 +14,8 @@
 timer=/usr/bin/time
 timer="" # External timing disabled to avoid unhelpful "Command terminated abnormally" messages
 
-${timer} python filetimes.py ${1}.parq        dask    census meterswest metersnorth race ${2:+--debug}
-${timer} python filetimes.py ${1}.snappy.parq dask    census meterswest metersnorth race ${2:+--debug}
+#${timer} python filetimes.py ${1}.parq        dask    census meterswest metersnorth race ${2:+--debug}
+#${timer} python filetimes.py ${1}.snappy.parq dask    census meterswest metersnorth race ${2:+--debug}
 ${timer} python filetimes.py ${1}.parq        pandas  census meterswest metersnorth race ${2:+--debug}
 ${timer} python filetimes.py ${1}.snappy.parq pandas  census meterswest metersnorth race ${2:+--debug}
 ${timer} python filetimes.py ${1}.castra      dask    census meterswest metersnorth race ${2:+--debug}
