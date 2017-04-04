@@ -43,17 +43,10 @@ class Parameters(object):
 
     @property
     def parq_opts(self):
-        return dict(file_scheme='hive',
-                    has_nulls=(False if self.dftype == 'pandas' else 0),
-                    write_index=False)
+        return dict(file_scheme='hive', has_nulls=False, write_index=False)
 
 
 p=Parameters()
-
-
-from dask.cache import Cache
-Cache(p.cachesize).register()
-
 
 filetypes_storing_categories = {'parq','castra'}
 
@@ -64,9 +57,11 @@ class Kwargs(dict):
     """
     pass
 
-def benchmark(fn, args):
+def benchmark(fn, args, dftype=None, filetype=None):
     """Benchmark when "fn" function gets called on "args" tuple.
     "args" may have a Kwargs instance at the end.
+    If "dftype" is provided, it may be used to convert columns to
+    categorical dtypes after reading.
     """
     posargs = list(args)
     kwargs = {}
@@ -83,6 +78,21 @@ def benchmark(fn, args):
     # Benchmark fn when run on posargs and kwargs
     start = time.time()
     res = fn(*posargs, **kwargs)
+
+    # If we're loading data
+    if filetype is not None and dftype is not None:
+        if filetype not in filetypes_storing_categories:
+            opts=odict()
+            if dftype == 'pandas':
+                opts['copy']=False
+            for c in p.categories:
+                res[c]=res[c].astype('category',**opts)
+
+        if dftype=='dask':
+            # Force loading
+            # df = dd.from_pandas(df.compute(), npartitions=4)
+            pass
+
     end = time.time()
 
     return end-start, res
@@ -91,18 +101,18 @@ def benchmark(fn, args):
 
 read = odict([(f,odict()) for f in ["parq","bcolz","feather","castra","h5","csv"]])
 
-read["csv"]     ["dask"]   = lambda filepath,p:  benchmark(dd.read_csv, (filepath, Kwargs(usecols=p.columns)))
-read["h5"]      ["dask"]   = lambda filepath,p:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)))
-#read["castra"]  ["dask"]   = lambda filepath,p:  benchmark(dd.from_castra, (filepath,))
-read["bcolz"]   ["dask"]   = lambda filepath,p:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)))
-read["parq"]    ["dask"]   = lambda filepath,p:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns))) # categories=p.categories, 
+read["csv"]     ["dask"]   = lambda filepath,p,dftype,filetype:  benchmark(dd.read_csv, (filepath, Kwargs(usecols=p.columns)), dftype, filetype)
+read["h5"]      ["dask"]   = lambda filepath,p,dftype,filetype:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)), dftype, filetype)
+#read["castra"]  ["dask"]   = lambda filepath,p,dftype,filetype:  benchmark(dd.from_castra, (filepath,), dftype, filetype)
+read["bcolz"]   ["dask"]   = lambda filepath,p,dftype,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), dftype, filetype)
+read["parq"]    ["dask"]   = lambda filepath,p,dftype,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), dftype, filetype) # categories=p.categories, 
 
-read["csv"]     ["pandas"] = lambda filepath,p:  benchmark(pd.read_csv, (filepath, Kwargs(usecols=p.columns)))
-read["h5"]      ["pandas"] = lambda filepath,p:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)))
-read["feather"] ["pandas"] = lambda filepath,p:  benchmark(feather.read_dataframe, (filepath,))
+read["csv"]     ["pandas"] = lambda filepath,p,dftype,filetype:  benchmark(pd.read_csv, (filepath, Kwargs(usecols=p.columns)), dftype, filetype)
+read["h5"]      ["pandas"] = lambda filepath,p,dftype,filetype:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)), dftype, filetype)
+read["feather"] ["pandas"] = lambda filepath,p,dftype,filetype:  benchmark(feather.read_dataframe, (filepath,), dftype, filetype)
 def read_parq_pandas(__filepath):
     return fp.ParquetFile(__filepath).to_pandas()
-read["parq"]    ["pandas"] = lambda filepath,p:  benchmark(read_parq_pandas, (filepath,))
+read["parq"]    ["pandas"] = lambda filepath,p,dftype,filetype:  benchmark(read_parq_pandas, (filepath,), dftype, filetype)
 
 
 write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","castra","h5","csv"]])
@@ -179,19 +189,7 @@ def timed_read(filepath,dftype):
     
     p.columns=[p.x]+[p.y]+p.categories
     
-    duration, df = code(filepath,p)
-
-    if not filetype in filetypes_storing_categories:
-        opts=odict()
-        if dftype == 'pandas':
-            opts['copy']=False
-        for c in p.categories:
-            df[c]=df[c].astype('category',**opts)
-    
-    if dftype=='dask':
-        # Force loading
-        # df = dd.from_pandas(df.compute(), npartitions=4)
-        pass
+    duration, df = code(filepath,p,dftype,filetype)
     
     return df, duration
 
@@ -225,7 +223,15 @@ def main(argv):
     parser.add_argument('y')
     parser.add_argument('categories', nargs='+')
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--cache-enabled', action='store_true')
     args = parser.parse_args(argv[1:])
+
+    if args.cache_enabled:
+        from dask.cache import Cache
+        Cache(p.cachesize).register()
+        print("Cache enabled")
+    else:
+        print("Cache disabled")
 
     filepath = args.filepath
     basename, extension = os.path.splitext(filepath)
