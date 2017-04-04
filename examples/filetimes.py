@@ -57,11 +57,11 @@ class Kwargs(dict):
     """
     pass
 
-def benchmark(fn, args, dftype=None, filetype=None):
+def benchmark(fn, args, filetype=None):
     """Benchmark when "fn" function gets called on "args" tuple.
     "args" may have a Kwargs instance at the end.
-    If "dftype" is provided, it may be used to convert columns to
-    categorical dtypes after reading.
+    If "filetype" is provided, it may be used to convert columns to
+    categorical dtypes after reading (the "loading" is assumed).
     """
     posargs = list(args)
     kwargs = {}
@@ -80,15 +80,15 @@ def benchmark(fn, args, dftype=None, filetype=None):
     res = fn(*posargs, **kwargs)
 
     # If we're loading data
-    if filetype is not None and dftype is not None:
+    if filetype is not None:
         if filetype not in filetypes_storing_categories:
             opts=odict()
-            if dftype == 'pandas':
+            if p.dftype == 'pandas':
                 opts['copy']=False
             for c in p.categories:
                 res[c]=res[c].astype('category',**opts)
 
-        if dftype=='dask':
+        if p.dftype == 'dask':
             # Force loading
             # df = dd.from_pandas(df.compute(), npartitions=4)
             pass
@@ -101,18 +101,18 @@ def benchmark(fn, args, dftype=None, filetype=None):
 
 read = odict([(f,odict()) for f in ["parq","bcolz","feather","castra","h5","csv"]])
 
-read["csv"]     ["dask"]   = lambda filepath,p,dftype,filetype:  benchmark(dd.read_csv, (filepath, Kwargs(usecols=p.columns)), dftype, filetype)
-read["h5"]      ["dask"]   = lambda filepath,p,dftype,filetype:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)), dftype, filetype)
-#read["castra"]  ["dask"]   = lambda filepath,p,dftype,filetype:  benchmark(dd.from_castra, (filepath,), dftype, filetype)
-read["bcolz"]   ["dask"]   = lambda filepath,p,dftype,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), dftype, filetype)
-read["parq"]    ["dask"]   = lambda filepath,p,dftype,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), dftype, filetype) # categories=p.categories, 
+read["csv"]     ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_csv, (filepath, Kwargs(usecols=p.columns)), filetype)
+read["h5"]      ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)), filetype)
+#read["castra"]  ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_castra, (filepath,), filetype)
+read["bcolz"]   ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), filetype)
+read["parq"]    ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype) # categories=p.categories, 
 
-read["csv"]     ["pandas"] = lambda filepath,p,dftype,filetype:  benchmark(pd.read_csv, (filepath, Kwargs(usecols=p.columns)), dftype, filetype)
-read["h5"]      ["pandas"] = lambda filepath,p,dftype,filetype:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)), dftype, filetype)
-read["feather"] ["pandas"] = lambda filepath,p,dftype,filetype:  benchmark(feather.read_dataframe, (filepath,), dftype, filetype)
+read["csv"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_csv, (filepath, Kwargs(usecols=p.columns)), filetype)
+read["h5"]      ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)), filetype)
+read["feather"] ["pandas"] = lambda filepath,p,filetype:  benchmark(feather.read_dataframe, (filepath,), filetype)
 def read_parq_pandas(__filepath):
     return fp.ParquetFile(__filepath).to_pandas()
-read["parq"]    ["pandas"] = lambda filepath,p,dftype,filetype:  benchmark(read_parq_pandas, (filepath,), dftype, filetype)
+read["parq"]    ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
 
 
 write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","castra","h5","csv"]])
@@ -139,6 +139,7 @@ write["snappy.parq"]  ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (f
 
 def timed_write(filepath,dftype,output_directory="times"):
     """Accepts any file with a dataframe readable by the given dataframe type, and writes it out as a variety of file types"""
+    p.dftype = dftype # This function may get called from outside main()
     df,duration=timed_read(filepath,dftype)
 
     for ext in write.keys():
@@ -189,7 +190,7 @@ def timed_read(filepath,dftype):
     
     p.columns=[p.x]+[p.y]+p.categories
     
-    duration, df = code(filepath,p,dftype,filetype)
+    duration, df = code(filepath,p,filetype)
     
     return df, duration
 
@@ -244,7 +245,7 @@ def main(argv):
     p.categories  = args.categories
     DEBUG = args.debug
 
-    df,loadtime = timed_read(filepath,p.dftype)
+    df,loadtime = timed_read(filepath, p.dftype)
 
     if df is None:
         if loadtime == -1:
