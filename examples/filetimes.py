@@ -229,9 +229,11 @@ def main(argv):
     if args.cache_enabled:
         from dask.cache import Cache
         Cache(p.cachesize).register()
-        print("Cache enabled")
+        if args.debug:
+            print("Cache enabled")
     else:
-        print("Cache disabled")
+        if args.debug:
+            print("Cache disabled")
 
     filepath = args.filepath
     basename, extension = os.path.splitext(filepath)
