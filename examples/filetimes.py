@@ -29,8 +29,9 @@ from collections import OrderedDict as odict
 #from multiprocessing.pool import ThreadPool
 #dask.set_options(pool=ThreadPool(3)) # select a pecific number of threads
 
-# Toggled by a command-line argument
+# Toggled by command-line arguments
 DEBUG = False
+DD_FORCE_LOAD = False
 
 class Parameters(object):
     base,x,y='data','x','y'
@@ -43,17 +44,10 @@ class Parameters(object):
 
     @property
     def parq_opts(self):
-        return dict(file_scheme='hive',
-                    has_nulls=(False if self.dftype == 'pandas' else 0),
-                    write_index=False)
+        return dict(file_scheme='hive', has_nulls=False, write_index=False)
 
 
 p=Parameters()
-
-
-from dask.cache import Cache
-Cache(p.cachesize).register()
-
 
 filetypes_storing_categories = {'parq','castra'}
 
@@ -64,9 +58,11 @@ class Kwargs(dict):
     """
     pass
 
-def benchmark(fn, args):
+def benchmark(fn, args, filetype=None):
     """Benchmark when "fn" function gets called on "args" tuple.
     "args" may have a Kwargs instance at the end.
+    If "filetype" is provided, it may be used to convert columns to
+    categorical dtypes after reading (the "loading" is assumed).
     """
     posargs = list(args)
     kwargs = {}
@@ -78,11 +74,27 @@ def benchmark(fn, args):
     if DEBUG:
         printable_posargs = ', '.join([str(posarg.head()) if hasattr(posarg, 'head') else str(posarg) for posarg in posargs])
         printable_kwargs = ', '.join(['{}={}'.format(k, v) for k,v in kwargs.items()])
-        print('{}({}{})'.format(fn.__name__, printable_posargs, ', '+printable_kwargs if printable_kwargs else '', flush=True))
+        print('DEBUG: {}({}{})'.format(fn.__name__, printable_posargs, ', '+printable_kwargs if printable_kwargs else '', flush=True))
 
     # Benchmark fn when run on posargs and kwargs
     start = time.time()
     res = fn(*posargs, **kwargs)
+
+    # If we're loading data
+    if filetype is not None:
+        if filetype not in filetypes_storing_categories:
+            opts=odict()
+            if p.dftype == 'pandas':
+                opts['copy']=False
+            for c in p.categories:
+                res[c]=res[c].astype('category',**opts)
+
+        # Force loading
+        if p.dftype == 'dask' and DD_FORCE_LOAD:
+            if DEBUG:
+                print("DEBUG: Force-loading Dask dataframe")
+            df = res.persist()
+
     end = time.time()
 
     return end-start, res
@@ -90,19 +102,19 @@ def benchmark(fn, args):
 
 
 read = odict([(f,odict()) for f in ["parq","bcolz","feather","castra","h5","csv"]])
-               
-read["csv"]     ["dask"]   = lambda filepath,p:  benchmark(dd.read_csv, (filepath, Kwargs(usecols=p.columns)))
-read["h5"]      ["dask"]   = lambda filepath,p:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)))
-#read["castra"]  ["dask"]   = lambda filepath,p:  benchmark(dd.from_castra, (filepath,))
-read["bcolz"]   ["dask"]   = lambda filepath,p:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)))
-read["parq"]    ["dask"]   = lambda filepath,p:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, categories=p.categories, columns=p.columns)))
 
-read["csv"]     ["pandas"] = lambda filepath,p:  benchmark(pd.read_csv, (filepath, Kwargs(usecols=p.columns)))
-read["h5"]      ["pandas"] = lambda filepath,p:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)))
-read["feather"] ["pandas"] = lambda filepath,p:  benchmark(feather.read_dataframe, (filepath,))
+read["csv"]     ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_csv, (filepath, Kwargs(usecols=p.columns)), filetype)
+read["h5"]      ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)), filetype)
+#read["castra"]  ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_castra, (filepath,), filetype)
+read["bcolz"]   ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), filetype)
+read["parq"]    ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype) # categories=p.categories, 
+
+read["csv"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_csv, (filepath, Kwargs(usecols=p.columns)), filetype)
+read["h5"]      ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)), filetype)
+read["feather"] ["pandas"] = lambda filepath,p,filetype:  benchmark(feather.read_dataframe, (filepath,), filetype)
 def read_parq_pandas(__filepath):
     return fp.ParquetFile(__filepath).to_pandas()
-read["parq"]    ["pandas"] = lambda filepath,p:  benchmark(read_parq_pandas, (filepath,))
+read["parq"]    ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
 
 
 write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","castra","h5","csv"]])
@@ -129,6 +141,7 @@ write["snappy.parq"]  ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (f
 
 def timed_write(filepath,dftype,output_directory="times"):
     """Accepts any file with a dataframe readable by the given dataframe type, and writes it out as a variety of file types"""
+    p.dftype = dftype # This function may get called from outside main()
     df,duration=timed_read(filepath,dftype)
 
     for ext in write.keys():
@@ -179,19 +192,7 @@ def timed_read(filepath,dftype):
     
     p.columns=[p.x]+[p.y]+p.categories
     
-    duration, df = code(filepath,p)
-
-    if not filetype in filetypes_storing_categories:
-        opts=odict()
-        if dftype == 'pandas':
-            opts['copy']=False
-        for c in p.categories:
-            df[c]=df[c].astype('category',**opts)
-    
-    if dftype=='dask':
-        # Force loading
-        # df = dd.from_pandas(df.compute(), npartitions=4)
-        pass
+    duration, df = code(filepath,p,filetype)
     
     return df, duration
 
@@ -215,6 +216,8 @@ def get_size(path):
 
 
 def main(argv):
+    global DEBUG, DD_FORCE_LOAD
+
     parser = argparse.ArgumentParser(epilog=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('filepath')
     parser.add_argument('dftype')
@@ -222,8 +225,22 @@ def main(argv):
     parser.add_argument('x')
     parser.add_argument('y')
     parser.add_argument('categories', nargs='+')
-    parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--debug', action='store_true', help='Enable increased verbosity and DEBUG messages')
+    parser.add_argument('--cache', choices=('persist', 'cachey'), default=None, help='Enable caching: "persist" causes Dask dataframes to force loading into memory; "cachey" uses dask.cache.Cache with a cachesize of {}. Caching is disabled by default'.format(int(p.cachesize)))
     args = parser.parse_args(argv[1:])
+
+    if args.cache is None:
+        if args.debug:
+            print("DEBUG: Cache disabled")
+    else:
+        if args.cache == 'cachey':
+            from dask.cache import Cache
+            Cache(p.cachesize).register()
+        elif args.cache == 'persist':
+            DD_FORCE_LOAD = True
+
+        if args.debug:
+            print('DEBUG: Cache "{}" mode enabled'.format(args.cache))
 
     filepath = args.filepath
     basename, extension = os.path.splitext(filepath)
@@ -234,7 +251,7 @@ def main(argv):
     p.categories  = args.categories
     DEBUG = args.debug
 
-    df,loadtime = timed_read(filepath,p.dftype)
+    df,loadtime = timed_read(filepath, p.dftype)
 
     if df is None:
         if loadtime == -1:
