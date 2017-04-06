@@ -93,7 +93,7 @@ def benchmark(fn, args, filetype=None):
         if p.dftype == 'dask' and DD_FORCE_LOAD:
             if DEBUG:
                 print("DEBUG: Force-loading Dask dataframe")
-            df = dd.from_pandas(res.compute(), npartitions=4)
+            df = res.persist()
 
     end = time.time()
 
@@ -225,19 +225,22 @@ def main(argv):
     parser.add_argument('x')
     parser.add_argument('y')
     parser.add_argument('categories', nargs='+')
-    parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--dd-force-load', action='store_true', help='Force loading of dask dataframe (on read)')
-    parser.add_argument('--cache-enabled', action='store_true')
+    parser.add_argument('--debug', action='store_true', help='Enable increased verbosity and DEBUG messages')
+    parser.add_argument('--cache', choices=('persist', 'cachey'), default=None, help='Enable caching: "persist" causes Dask dataframes to force loading into memory; "cachey" uses dask.cache.Cache with a cachesize of {}. Caching is disabled by default'.format(int(p.cachesize)))
     args = parser.parse_args(argv[1:])
 
-    if args.cache_enabled:
-        from dask.cache import Cache
-        Cache(p.cachesize).register()
-        if args.debug:
-            print("DEBUG: Cache enabled")
-    else:
+    if args.cache is None:
         if args.debug:
             print("DEBUG: Cache disabled")
+    else:
+        if args.cache == 'cachey':
+            from dask.cache import Cache
+            Cache(p.cachesize).register()
+        elif args.cache == 'persist':
+            DD_FORCE_LOAD = True
+
+        if args.debug:
+            print('DEBUG: Cache "{}" mode enabled'.format(args.cache))
 
     filepath = args.filepath
     basename, extension = os.path.splitext(filepath)
@@ -247,7 +250,6 @@ def main(argv):
     p.y           = args.y
     p.categories  = args.categories
     DEBUG = args.debug
-    DD_FORCE_LOAD = args.dd_force_load
 
     df,loadtime = timed_read(filepath, p.dftype)
 
