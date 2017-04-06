@@ -10,6 +10,7 @@
 #    python -c "import filetimes as ft ; ft.p.base='census' ; ft.p.x='meterswest' ; ft.p.y='metersnorth' ; ft.p.categories=['race']; ft.timed_write('data/tinycensus.csv',dftype='pandas')"
 #    # (or 'data/census.h5' and/or dftype='dask')
 #    ./filetimes.sh times/tinycensus
+#    # (add a second argument to filetimes.sh to set the caching mode)
 #    # (add a third argument to filetimes.sh to set the ft.DEBUG variable)
 #
 #    More examples of filetimes.sh:
