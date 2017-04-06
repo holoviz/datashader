@@ -29,8 +29,9 @@ from collections import OrderedDict as odict
 #from multiprocessing.pool import ThreadPool
 #dask.set_options(pool=ThreadPool(3)) # select a pecific number of threads
 
-# Toggled by a command-line argument
+# Toggled by command-line arguments
 DEBUG = False
+DD_FORCE_LOAD = False
 
 class Parameters(object):
     base,x,y='data','x','y'
@@ -73,7 +74,7 @@ def benchmark(fn, args, filetype=None):
     if DEBUG:
         printable_posargs = ', '.join([str(posarg.head()) if hasattr(posarg, 'head') else str(posarg) for posarg in posargs])
         printable_kwargs = ', '.join(['{}={}'.format(k, v) for k,v in kwargs.items()])
-        print('{}({}{})'.format(fn.__name__, printable_posargs, ', '+printable_kwargs if printable_kwargs else '', flush=True))
+        print('DEBUG: {}({}{})'.format(fn.__name__, printable_posargs, ', '+printable_kwargs if printable_kwargs else '', flush=True))
 
     # Benchmark fn when run on posargs and kwargs
     start = time.time()
@@ -88,10 +89,11 @@ def benchmark(fn, args, filetype=None):
             for c in p.categories:
                 res[c]=res[c].astype('category',**opts)
 
-        if p.dftype == 'dask':
-            # Force loading
-            # df = dd.from_pandas(df.compute(), npartitions=4)
-            pass
+        # Force loading
+        if p.dftype == 'dask' and DD_FORCE_LOAD:
+            if DEBUG:
+                print("DEBUG: Force-loading Dask dataframe")
+            df = dd.from_pandas(res.compute(), npartitions=4)
 
     end = time.time()
 
@@ -214,7 +216,7 @@ def get_size(path):
 
 
 def main(argv):
-    global DEBUG
+    global DEBUG, DD_FORCE_LOAD
 
     parser = argparse.ArgumentParser(epilog=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('filepath')
@@ -224,6 +226,7 @@ def main(argv):
     parser.add_argument('y')
     parser.add_argument('categories', nargs='+')
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--dd-force-load', action='store_true', help='Force loading of dask dataframe (on read)')
     parser.add_argument('--cache-enabled', action='store_true')
     args = parser.parse_args(argv[1:])
 
@@ -231,10 +234,10 @@ def main(argv):
         from dask.cache import Cache
         Cache(p.cachesize).register()
         if args.debug:
-            print("Cache enabled")
+            print("DEBUG: Cache enabled")
     else:
         if args.debug:
-            print("Cache disabled")
+            print("DEBUG: Cache disabled")
 
     filepath = args.filepath
     basename, extension = os.path.splitext(filepath)
@@ -244,6 +247,7 @@ def main(argv):
     p.y           = args.y
     p.categories  = args.categories
     DEBUG = args.debug
+    DD_FORCE_LOAD = args.dd_force_load
 
     df,loadtime = timed_read(filepath, p.dftype)
 
