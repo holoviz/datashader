@@ -27,8 +27,8 @@ timer="" # External timing disabled to avoid unhelpful "Command terminated abnor
 # Display each command if a third argument is provided
 test -n "$3" && set -x
 
-#${timer} python filetimes.py ${1}.parq        dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-#${timer} python filetimes.py ${1}.snappy.parq dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.parq        dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.snappy.parq dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.parq        pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.snappy.parq pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.castra      dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}

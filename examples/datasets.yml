@@ -36,4 +36,4 @@ data:
   - url: http://s3.amazonaws.com/bokeh_data/census.zip
     title: 'Census Synthetic People'
     files:
-      - census.h5
+      - census.parq
