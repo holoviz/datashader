@@ -261,10 +261,10 @@ def main(argv):
 
     if DEBUG:
         print('DEBUG: Memory usage (after read):\t{} bytes'.format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, flush=True))
-        mem_usage = df.memory_usage(deep=True)
-        print('DEBUG: DataFrame size:\t\t\t{} bytes'.format(mem_usage.sum(), flush=True))
     img,aggtime1 = timed_agg(df,filepath,5,5)
     if DEBUG:
+        mem_usage = df.memory_usage(deep=True)
+        print('DEBUG: DataFrame size:\t\t\t{} bytes'.format(mem_usage.sum(), flush=True))
         print('DEBUG: Memory usage (after agg1):\t{} bytes'.format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, flush=True))
 
     img,aggtime2 = timed_agg(df,filepath)
