@@ -206,6 +206,10 @@ def get_size(path):
     return total
 
 
+def get_proc_mem():
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
+
+
 def main(argv):
     global DEBUG, DD_FORCE_LOAD
 
@@ -249,7 +253,7 @@ def main(argv):
             filepath = glob.glob(filepath.replace(".csv","*.csv"))[0]
     
     if DEBUG:
-        print('DEBUG: Memory usage (before read):\t{} bytes'.format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, flush=True))
+        print('DEBUG: Memory usage (before read):\t{} MB'.format(get_proc_mem(), flush=True))
     df,loadtime = timed_read(filepath, p.dftype)
 
     if df is None:
@@ -260,16 +264,18 @@ def main(argv):
         return 1
 
     if DEBUG:
-        print('DEBUG: Memory usage (after read):\t{} bytes'.format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, flush=True))
+        print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem(), flush=True))
     img,aggtime1 = timed_agg(df,filepath,5,5)
     if DEBUG:
-        mem_usage = df.memory_usage(deep=True)
-        print('DEBUG: DataFrame size:\t\t\t{} bytes'.format(mem_usage.sum(), flush=True))
-        print('DEBUG: Memory usage (after agg1):\t{} bytes'.format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, flush=True))
+        mem_usage = df.memory_usage(deep=True).sum()
+        if p.dftype == 'dask':
+            mem_usage = mem_usage.compute()
+        print('DEBUG: DataFrame size:\t\t\t{} MB'.format(mem_usage / 1e6, flush=True))
+        print('DEBUG: Memory usage (after agg1):\t{} MB'.format(get_proc_mem(), flush=True))
 
     img,aggtime2 = timed_agg(df,filepath)
     if DEBUG:
-        print('DEBUG: Memory usage (after agg2):\t{} bytes'.format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, flush=True))
+        print('DEBUG: Memory usage (after agg2):\t{} MB'.format(get_proc_mem(), flush=True))
     
     in_size  = get_size(filepath)
     out_size = get_size(filepath+".png")
