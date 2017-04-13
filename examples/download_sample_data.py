@@ -163,10 +163,10 @@ class DirectoryContext(object):
     def __init__(self, path):
         self.old_dir = os.getcwd()
         self.new_dir = path
- 
+
     def __enter__(self):
         os.chdir(self.new_dir)
- 
+
     def __exit__(self, *args):
         os.chdir(self.old_dir)
 
@@ -176,10 +176,18 @@ def _process_dataset(dataset, output_dir):
         os.makedirs(output_dir)
 
     with DirectoryContext(output_dir) as d:
-        
-        requires_download = False
 
-        for f in dataset.get('files', []):
+        requires_download = False
+        file_listing = dataset.get('file_listing')
+        if file_listing:
+            # Split something like: "unzip_lidars:get_list_of_zips"
+            module, func = file_listing.split(':')
+            file_listing = getattr(__import__(module), func)
+            files = file_listing()
+            modes = ('wb',)
+        else:
+            files = dataset.get('files', [])
+        for f in files:
             if not path.exists(f):
                 requires_download = True
                 break
@@ -193,7 +201,7 @@ def _process_dataset(dataset, output_dir):
         r = requests.get(dataset['url'], stream=True)
         output_path = path.split(dataset['url'])[1]
         with open(output_path, 'wb') as f:
-            total_length = int(r.headers.get('content-length'))
+            total_length = int(r.headers.get('content-length') or 1000)
             for chunk in bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
                 if chunk:
                     f.write(chunk)
@@ -213,6 +221,7 @@ def _process_dataset(dataset, output_dir):
                 tar.extractall()
             os.remove(output_path)
         elif output_path.endswith("zip"):
+            print('output_path', output_path)
             with zipfile.ZipFile(output_path, 'r') as zipf:
                 zipf.extractall()
             os.remove(output_path)

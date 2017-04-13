@@ -42,7 +42,7 @@ data:
     title: "Geographic Region Boundary Shapefile"
     files:
       - cb_2015_us_cd114_5m
-  - url: https://pypi.python.org/packages/fe/33/9fa773d6f2f11d95f24e590190220e23badfea3725ed71d78908fbfd4a14/pylzma-0.4.8.tar.gz
-    title: "pylzma package"
-    files:
-      - pylzma-0.4.8.tar.gz
+
+  - url: http://pugetsoundlidar.org/lidardata/newdata/2016/PSLC_KingCounty_Delivery1/BE_ASCII.html
+    title: "Puget Sound LiDAR Consortium"
+    file_listing: "unzip_lidars:get_list_of_zips"
