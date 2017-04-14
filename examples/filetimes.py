@@ -90,7 +90,7 @@ def benchmark(fn, args, filetype=None):
         if p.dftype == 'dask' and DD_FORCE_LOAD:
             if DEBUG:
                 print("DEBUG: Force-loading Dask dataframe", flush=True)
-            df = res.persist()
+            res = res.persist()
 
     end = time.time()
 
