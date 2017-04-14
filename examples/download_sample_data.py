@@ -178,15 +178,15 @@ def _process_dataset(dataset, output_dir):
     with DirectoryContext(output_dir) as d:
 
         requires_download = False
-        file_listing = dataset.get('file_listing')
-        if file_listing:
+        get_files = dataset.get('get_files')
+        if get_files:
             # Split something like: "unzip_lidars:get_list_of_zips"
-            module, func = file_listing.split(':')
-            file_listing = getattr(__import__(module), func)
-            files = file_listing()
-            modes = ('wb',)
-        else:
-            files = dataset.get('files', [])
+            module, func = get_files.split(':')
+            get_files = getattr(__import__(module), func)
+            for url in get_files():
+                process_one_file(dataset, url=url)
+            return
+        files = dataset.get('files', [])
         for f in files:
             if not path.exists(f):
                 requires_download = True
@@ -195,36 +195,46 @@ def _process_dataset(dataset, output_dir):
         if not requires_download:
             print('Skipping {0}'.format(dataset['title']))
             return
+        process_one_file(dataset)
 
 
-        print('Downloading {0}'.format(dataset['title']))
-        r = requests.get(dataset['url'], stream=True)
-        output_path = path.split(dataset['url'])[1]
+def process_one_file(dataset, url=None):
+
+    print('Downloading {0}'.format(dataset['title']))
+    r = requests.get(url or dataset['url'], stream=True)
+    output_path = path.split(dataset['url'])[1]
+    try:
         with open(output_path, 'wb') as f:
-            total_length = int(r.headers.get('content-length') or 1000)
+            total_length = int(r.headers.get('content-length'))
             for chunk in bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
                 if chunk:
                     f.write(chunk)
                     f.flush()
+    except:
+        # Don't leave a half-written zip file
+        if path.exists(output_path):
+            os.remove(output_path)
+        raise
 
-        # extract content
-        if output_path.endswith("tar.gz"):
-            with tarfile.open(output_path, "r:gz") as tar:
-                tar.extractall()
-            os.remove(output_path)
-        elif output_path.endswith("tar"):
-            with tarfile.open(output_path, "r:") as tar:
-                tar.extractall()
-            os.remove(output_path)
-        elif output_path.endswith("tar.bz2"):
-            with tarfile.open(output_path, "r:bz2") as tar:
-                tar.extractall()
-            os.remove(output_path)
-        elif output_path.endswith("zip"):
-            print('output_path', output_path)
-            with zipfile.ZipFile(output_path, 'r') as zipf:
-                zipf.extractall()
-            os.remove(output_path)
+    # extract content
+    if output_path.endswith("tar.gz"):
+        with tarfile.open(output_path, "r:gz") as tar:
+            tar.extractall()
+        os.remove(output_path)
+    elif output_path.endswith("tar"):
+        with tarfile.open(output_path, "r:") as tar:
+            tar.extractall()
+        os.remove(output_path)
+    elif output_path.endswith("tar.bz2"):
+        with tarfile.open(output_path, "r:bz2") as tar:
+            tar.extractall()
+        os.remove(output_path)
+    elif output_path.endswith("zip"):
+        with zipfile.ZipFile(output_path, 'r') as zipf:
+            zipf.extractall()
+        os.remove(output_path)
+    elif output_path.endswith('7z'):
+        tuple(unzip_lidars.unzip_7z(output_path))
 
 def main():
 

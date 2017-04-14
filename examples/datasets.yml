@@ -33,16 +33,12 @@ data:
       - MERCATOR_LC80210392016114LGN00_B11.TIF
       - MERCATOR_LC80210392016114LGN00_BQA.TIF
 
-  - url: http://s3.amazonaws.com/bokeh-data/census.zip
-    title: 'Census Synthetic People'
-    files:
-      - census.h5
-
-  - url: http://www2.census.gov/geo/tiger/GENZ2015/shp/cb_2015_us_cd114_5m.zip
-    title: "Geographic Region Boundary Shapefile"
-    files:
-      - cb_2015_us_cd114_5m
-
   - url: http://pugetsoundlidar.org/lidardata/newdata/2016/PSLC_KingCounty_Delivery1/BE_ASCII.html
     title: "Puget Sound LiDAR Consortium"
-    file_listing: "unzip_lidars:get_list_of_zips"
+    get_files: "unzip_lidar:get_list_of_zips"
+
+  - url: http://s3.amazonaws.com/datashader-data/census.parq
+    title: 'Census Synthetic People'
+    files:
+      - census.parq
+
