@@ -49,7 +49,7 @@ p=Parameters()
 filetypes_storing_categories = {'parq','castra'}
 
 
-class Kwargs(dict):
+class Kwargs(odict):
     """Used to distinguish between dictionary argument values, and
     keyword-arguments.
     """

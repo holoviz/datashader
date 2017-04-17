@@ -19,8 +19,7 @@ def dask_pipeline(df, schema, canvas, glyph, summary):
     dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary)
 
     get = _globals['get'] or df._default_get
-    dsk.update(df.dask)
-    dsk = df._optimize(dsk, name)
+    dsk.update(df._optimize(df.dask, df._keys()))
 
     return get(dsk, name)
 
