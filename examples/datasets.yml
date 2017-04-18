@@ -33,9 +33,34 @@ data:
       - MERCATOR_LC80210392016114LGN00_B11.TIF
       - MERCATOR_LC80210392016114LGN00_BQA.TIF
 
-  - url: http://pugetsoundlidar.org/lidardata/newdata/2016/PSLC_KingCounty_Delivery1/BE_ASCII.html
+  - url: http://s3.amazonaws.com/datashader-data/puget_sound_lidar.zip
     title: "Puget Sound LiDAR Consortium"
-    get_files: "unzip_lidar:get_list_of_zips"
+    files:
+      - q47122d2101.7z
+      - q47122d2102.7z
+      - q47122d2103.7z
+      - q47122d2104.7z
+      - q47122d2105.7z
+      - q47122d2106.7z
+      - q47122d2107.7z
+      - q47122d2108.7z
+      - q47122d2109.7z
+      - q47122d2110.7z
+      - q47122d2111.7z
+      - q47122d2112.7z
+      - q47122d2113.7z
+      - q47122d2114.7z
+      - q47122d2115.7z
+      - q47122d2116.7z
+      - q47122d2117.7z
+      - q47122d2118.7z
+      - q47122d2119.7z
+      - q47122d2120.7z
+      - q47122d2121.7z
+      - q47122d2122.7z
+      - q47122d2123.7z
+      - q47122d2124.7z
+      - q47122d2125.7z
 
   - url: http://s3.amazonaws.com/datashader-data/census.parq
     title: 'Census Synthetic People'

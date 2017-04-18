@@ -24,23 +24,29 @@ clint.textui.progress
 This module provides the progressbar functionality.
 
 """
+from collections import OrderedDict
+from os import path
+import glob
+import os
+import subprocess
 import sys
-import time
+sys.path.append(path.dirname(path.abspath(__file__))) # unzip_lidars import
 import tarfile
+import time
 import zipfile
 
-import os
 import yaml
-
 try:
     import requests
 except ImportError:
     print('this download script requires the requests module: conda install requests')
     sys.exit(1)
 
-from collections import OrderedDict
-
-from os import path
+try:
+    from py7zlib import Archive7z
+except:
+    subprocess.check_output(['pip', 'install', 'pylzma'], env=os.environ)
+    from py7zlib import Archive7z
 
 STREAM = sys.stderr
 
@@ -170,7 +176,27 @@ class DirectoryContext(object):
     def __exit__(self, *args):
         os.chdir(self.old_dir)
 
-def _process_dataset(dataset, output_dir):
+
+def _unzip_7z(data_dir, fname, delete_7z=True):
+    try:
+        arc = Archive7z(open(fname, 'rb'))
+        print(arc)
+    except:
+        print('FAILED ON 7Z', fname)
+        raise
+    fnames = arc.filenames
+    files = arc.files
+    for fn, fi in zip(fnames, files):
+        gnd = os.path.join(data_dir, os.path.basename(fn))
+        if not os.path.exists(os.path.dirname(gnd)):
+            os.mkdir(os.path.dirname(gnd))
+        with open(gnd, 'w') as f:
+            f.write(fi.read().decode())
+        if delete_7z:
+            os.remove(fname)
+
+
+def _process_dataset(dataset, output_dir, here):
 
     if not path.exists(output_dir):
         os.makedirs(output_dir)
@@ -178,16 +204,7 @@ def _process_dataset(dataset, output_dir):
     with DirectoryContext(output_dir) as d:
 
         requires_download = False
-        get_files = dataset.get('get_files')
-        if get_files:
-            # Split something like: "unzip_lidars:get_list_of_zips"
-            module, func = get_files.split(':')
-            get_files = getattr(__import__(module), func)
-            for url in get_files():
-                process_one_file(dataset, url=url)
-            return
-        files = dataset.get('files', [])
-        for f in files:
+        for f in dataset.get('files', []):
             if not path.exists(f):
                 requires_download = True
                 break
@@ -195,46 +212,43 @@ def _process_dataset(dataset, output_dir):
         if not requires_download:
             print('Skipping {0}'.format(dataset['title']))
             return
-        process_one_file(dataset)
 
+        print('Downloading {0}'.format(dataset['title']))
+        r = requests.get(dataset['url'], stream=True)
+        output_path = path.split(dataset['url'])[1]
+        try:
+            with open(output_path, 'wb') as f:
+                total_length = int(r.headers.get('content-length'))
+                for chunk in bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
+                    if chunk:
+                        f.write(chunk)
+                        f.flush()
+        except:
+            # Don't leave a half-written zip file
+            if path.exists(output_path):
+                os.remove(output_path)
+            raise
 
-def process_one_file(dataset, url=None):
-
-    print('Downloading {0}'.format(dataset['title']))
-    r = requests.get(url or dataset['url'], stream=True)
-    output_path = path.split(dataset['url'])[1]
-    try:
-        with open(output_path, 'wb') as f:
-            total_length = int(r.headers.get('content-length'))
-            for chunk in bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
-                if chunk:
-                    f.write(chunk)
-                    f.flush()
-    except:
-        # Don't leave a half-written zip file
-        if path.exists(output_path):
+        # extract content
+        if output_path.endswith("tar.gz"):
+            with tarfile.open(output_path, "r:gz") as tar:
+                tar.extractall()
             os.remove(output_path)
-        raise
+        elif output_path.endswith("tar"):
+            with tarfile.open(output_path, "r:") as tar:
+                tar.extractall()
+            os.remove(output_path)
+        elif output_path.endswith("tar.bz2"):
+            with tarfile.open(output_path, "r:bz2") as tar:
+                tar.extractall()
+            os.remove(output_path)
+        elif output_path.endswith("zip"):
+            with zipfile.ZipFile(output_path, 'r') as zipf:
+                zipf.extractall()
+            for f in glob.glob(path.join(here, 'data', '*.7z')):
+                tuple(_unzip_7z(f))
+            os.remove(output_path)
 
-    # extract content
-    if output_path.endswith("tar.gz"):
-        with tarfile.open(output_path, "r:gz") as tar:
-            tar.extractall()
-        os.remove(output_path)
-    elif output_path.endswith("tar"):
-        with tarfile.open(output_path, "r:") as tar:
-            tar.extractall()
-        os.remove(output_path)
-    elif output_path.endswith("tar.bz2"):
-        with tarfile.open(output_path, "r:bz2") as tar:
-            tar.extractall()
-        os.remove(output_path)
-    elif output_path.endswith("zip"):
-        with zipfile.ZipFile(output_path, 'r') as zipf:
-            zipf.extractall()
-        os.remove(output_path)
-    elif output_path.endswith('7z'):
-        tuple(unzip_lidars.unzip_7z(output_path))
 
 def main():
 
@@ -245,7 +259,7 @@ def main():
         for topic, downloads in info.items():
             output_dir = path.join(here, topic)
             for d in downloads:
-                _process_dataset(d, output_dir)
+                _process_dataset(d, output_dir, here)
 
 if __name__ == '__main__':
     main()
