@@ -24,23 +24,28 @@ clint.textui.progress
 This module provides the progressbar functionality.
 
 """
+from collections import OrderedDict
+from os import path
+import glob
+import os
+import subprocess
 import sys
-import time
 import tarfile
+import time
 import zipfile
 
-import os
 import yaml
-
 try:
     import requests
 except ImportError:
     print('this download script requires the requests module: conda install requests')
     sys.exit(1)
 
-from collections import OrderedDict
-
-from os import path
+try:
+    from py7zlib import Archive7z
+except:
+    subprocess.check_output(['pip', 'install', 'pylzma'], env=os.environ)
+    from py7zlib import Archive7z
 
 STREAM = sys.stderr
 
@@ -163,22 +168,42 @@ class DirectoryContext(object):
     def __init__(self, path):
         self.old_dir = os.getcwd()
         self.new_dir = path
- 
+
     def __enter__(self):
         os.chdir(self.new_dir)
- 
+
     def __exit__(self, *args):
         os.chdir(self.old_dir)
 
-def _process_dataset(dataset, output_dir):
+
+def _url_to_binary_write(url, output_path, title):
+    print('Downloading {0}'.format(title))
+    resp = requests.get(url, stream=True)
+    try:
+        with open(output_path, 'wb') as f:
+            total_length = int(resp.headers.get('content-length'))
+            for chunk in bar(resp.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
+    except:
+        # Don't leave a half-written zip file
+        if path.exists(output_path):
+            os.remove(output_path)
+        raise
+
+
+def _process_dataset(dataset, output_dir, here):
 
     if not path.exists(output_dir):
         os.makedirs(output_dir)
 
     with DirectoryContext(output_dir) as d:
-        
-        requires_download = False
 
+        requires_download = False
+        if dataset.get('func'):
+            func = globals()[dataset['func']]
+            return func(here, **dataset)
         for f in dataset.get('files', []):
             if not path.exists(f):
                 requires_download = True
@@ -188,17 +213,8 @@ def _process_dataset(dataset, output_dir):
             print('Skipping {0}'.format(dataset['title']))
             return
 
-
-        print('Downloading {0}'.format(dataset['title']))
-        r = requests.get(dataset['url'], stream=True)
         output_path = path.split(dataset['url'])[1]
-        with open(output_path, 'wb') as f:
-            total_length = int(r.headers.get('content-length'))
-            for chunk in bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
-                if chunk:
-                    f.write(chunk)
-                    f.flush()
-
+        _url_to_binary_write(dataset['url'], output_path, dataset['title'])
         # extract content
         if output_path.endswith("tar.gz"):
             with tarfile.open(output_path, "r:gz") as tar:
@@ -217,6 +233,40 @@ def _process_dataset(dataset, output_dir):
                 zipf.extractall()
             os.remove(output_path)
 
+
+def _unzip_7z(fname, delete_7z=True):
+    try:
+        arc = Archive7z(open(fname, 'rb'))
+    except:
+        print('FAILED ON 7Z', fname)
+        raise
+    fnames = arc.filenames
+    files = arc.files
+    data_dir = os.path.dirname(fname)
+    for fn, fi in zip(fnames, files):
+        gnd = path.join(data_dir, os.path.basename(fn))
+        if not os.path.exists(os.path.dirname(gnd)):
+            os.mkdir(os.path.dirname(gnd))
+        with open(gnd, 'w') as f:
+            f.write(fi.read().decode())
+        if delete_7z:
+            os.remove(fname)
+
+
+def download_puget_sound_lidar(here, files, url, **dataset):
+    urls = [url.replace('.html', '/' + _.strip())
+            for _ in files]
+    output_paths = [path.join(here, 'data', os.path.basename(fname))
+                    for fname in files]
+    title_fmt = 'Puget Sound Lidar {} of {}'
+    for idx, (url, output_path) in enumerate(zip(urls, output_paths)):
+        if os.path.exists(output_path.replace('7z', 'gnd')):
+            print('Skipping {0}'.format(title_fmt.format(idx + 1, len(urls))))
+            continue
+        _url_to_binary_write(url, output_path, title_fmt.format(idx + 1, len(urls)))
+        _unzip_7z(output_path, delete_7z=True)
+
+
 def main():
 
     here = contrib_dir = path.abspath(path.join(path.split(__file__)[0]))
@@ -226,7 +276,7 @@ def main():
         for topic, downloads in info.items():
             output_dir = path.join(here, topic)
             for d in downloads:
-                _process_dataset(d, output_dir)
+                _process_dataset(d, output_dir, here)
 
 if __name__ == '__main__':
     main()
