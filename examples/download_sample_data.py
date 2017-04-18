@@ -24,23 +24,29 @@ clint.textui.progress
 This module provides the progressbar functionality.
 
 """
+from collections import OrderedDict
+from os import path
+import glob
+import os
+import subprocess
 import sys
-import time
+sys.path.append(path.dirname(path.abspath(__file__))) # unzip_lidars import
 import tarfile
+import time
 import zipfile
 
-import os
 import yaml
-
 try:
     import requests
 except ImportError:
     print('this download script requires the requests module: conda install requests')
     sys.exit(1)
 
-from collections import OrderedDict
-
-from os import path
+try:
+    from py7zlib import Archive7z
+except:
+    subprocess.check_output(['pip', 'install', 'pylzma'], env=os.environ)
+    from py7zlib import Archive7z
 
 STREAM = sys.stderr
 
@@ -163,22 +169,41 @@ class DirectoryContext(object):
     def __init__(self, path):
         self.old_dir = os.getcwd()
         self.new_dir = path
- 
+
     def __enter__(self):
         os.chdir(self.new_dir)
- 
+
     def __exit__(self, *args):
         os.chdir(self.old_dir)
 
-def _process_dataset(dataset, output_dir):
+
+def _unzip_7z(data_dir, fname, delete_7z=True):
+    try:
+        arc = Archive7z(open(fname, 'rb'))
+        print(arc)
+    except:
+        print('FAILED ON 7Z', fname)
+        raise
+    fnames = arc.filenames
+    files = arc.files
+    for fn, fi in zip(fnames, files):
+        gnd = os.path.join(data_dir, os.path.basename(fn))
+        if not os.path.exists(os.path.dirname(gnd)):
+            os.mkdir(os.path.dirname(gnd))
+        with open(gnd, 'w') as f:
+            f.write(fi.read().decode())
+        if delete_7z:
+            os.remove(fname)
+
+
+def _process_dataset(dataset, output_dir, here):
 
     if not path.exists(output_dir):
         os.makedirs(output_dir)
 
     with DirectoryContext(output_dir) as d:
-        
-        requires_download = False
 
+        requires_download = False
         for f in dataset.get('files', []):
             if not path.exists(f):
                 requires_download = True
@@ -188,16 +213,21 @@ def _process_dataset(dataset, output_dir):
             print('Skipping {0}'.format(dataset['title']))
             return
 
-
         print('Downloading {0}'.format(dataset['title']))
         r = requests.get(dataset['url'], stream=True)
         output_path = path.split(dataset['url'])[1]
-        with open(output_path, 'wb') as f:
-            total_length = int(r.headers.get('content-length'))
-            for chunk in bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
-                if chunk:
-                    f.write(chunk)
-                    f.flush()
+        try:
+            with open(output_path, 'wb') as f:
+                total_length = int(r.headers.get('content-length'))
+                for chunk in bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
+                    if chunk:
+                        f.write(chunk)
+                        f.flush()
+        except:
+            # Don't leave a half-written zip file
+            if path.exists(output_path):
+                os.remove(output_path)
+            raise
 
         # extract content
         if output_path.endswith("tar.gz"):
@@ -215,7 +245,10 @@ def _process_dataset(dataset, output_dir):
         elif output_path.endswith("zip"):
             with zipfile.ZipFile(output_path, 'r') as zipf:
                 zipf.extractall()
+            for f in glob.glob(path.join(here, 'data', '*.7z')):
+                tuple(_unzip_7z(f))
             os.remove(output_path)
+
 
 def main():
 
@@ -226,7 +259,7 @@ def main():
         for topic, downloads in info.items():
             output_dir = path.join(here, topic)
             for d in downloads:
-                _process_dataset(d, output_dir)
+                _process_dataset(d, output_dir, here)
 
 if __name__ == '__main__':
     main()
