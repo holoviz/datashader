@@ -11,7 +11,7 @@ Test files may be generated starting from any file format supported by Pandas:
 import time
 global_start = time.time()
 
-import io, os, os.path, sys, shutil, glob, argparse
+import io, os, os.path, sys, shutil, glob, argparse, resource
 import pandas as pd
 import dask.dataframe as dd
 import numpy as np
@@ -41,10 +41,7 @@ class Parameters(object):
     cat_width=1 # Size of fixed-width string for representing categories
     columns=None
     cachesize=9e9
-
-    @property
-    def parq_opts(self):
-        return dict(file_scheme='hive', has_nulls=False, write_index=False)
+    parq_opts=dict(file_scheme='hive', has_nulls=False, write_index=False)
 
 
 p=Parameters()
@@ -52,7 +49,7 @@ p=Parameters()
 filetypes_storing_categories = {'parq','castra'}
 
 
-class Kwargs(dict):
+class Kwargs(odict):
     """Used to distinguish between dictionary argument values, and
     keyword-arguments.
     """
@@ -92,8 +89,8 @@ def benchmark(fn, args, filetype=None):
         # Force loading
         if p.dftype == 'dask' and DD_FORCE_LOAD:
             if DEBUG:
-                print("DEBUG: Force-loading Dask dataframe")
-            df = res.persist()
+                print("DEBUG: Force-loading Dask dataframe", flush=True)
+            res = res.persist()
 
     end = time.time()
 
@@ -149,7 +146,7 @@ def timed_write(filepath,dftype,output_directory="times"):
         basename, extension = os.path.splitext(filename)
         fname = output_directory+os.path.sep+basename+"."+ext
         if os.path.exists(fname):
-            print("{:28} (keeping existing)".format(fname))
+            print("{:28} (keeping existing)".format(fname), flush=True)
         else:
             filetype=ext.split(".")[-1]
             if not filetype in filetypes_storing_categories:
@@ -162,10 +159,10 @@ def timed_write(filepath,dftype,output_directory="times"):
             code = write[ext].get(dftype,None)
 
             if code is None:
-                print("{:28} {:7} Operation not supported".format(fname,dftype))
+                print("{:28} {:7} Operation not supported".format(fname,dftype), flush=True)
             else:
                 duration, res = code(df,fname,p)
-                print("{:28} {:7} {:05.2f}".format(fname,dftype,duration))
+                print("{:28} {:7} {:05.2f}".format(fname,dftype,duration), flush=True)
 
             if not filetype in filetypes_storing_categories:
                 for c in p.categories:
@@ -178,12 +175,6 @@ def timed_read(filepath,dftype):
     filetype=extension.split(".")[-1]
     code = read[extension].get(dftype,None)
 
-    if filetype=="csv":
-        if dftype=="dask":
-            filepath = filepath.replace(".csv","*.csv")
-        else:
-            filepath = glob.glob(filepath.replace(".csv","*.csv"))[0]
-    
     if code is None:
         return (None,-1)
 
@@ -215,6 +206,10 @@ def get_size(path):
     return total
 
 
+def get_proc_mem():
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
+
+
 def main(argv):
     global DEBUG, DD_FORCE_LOAD
 
@@ -231,7 +226,7 @@ def main(argv):
 
     if args.cache is None:
         if args.debug:
-            print("DEBUG: Cache disabled")
+            print("DEBUG: Cache disabled", flush=True)
     else:
         if args.cache == 'cachey':
             from dask.cache import Cache
@@ -240,7 +235,7 @@ def main(argv):
             DD_FORCE_LOAD = True
 
         if args.debug:
-            print('DEBUG: Cache "{}" mode enabled'.format(args.cache))
+            print('DEBUG: Cache "{}" mode enabled'.format(args.cache), flush=True)
 
     filepath = args.filepath
     basename, extension = os.path.splitext(filepath)
@@ -251,24 +246,43 @@ def main(argv):
     p.categories  = args.categories
     DEBUG = args.debug
 
+    if filepath.endswith("csv"):
+        if p.dftype=="dask":
+            filepath = filepath.replace(".csv", "*.csv")
+        else:
+            filepath = glob.glob(filepath.replace(".csv","*.csv"))[0]
+    
+    if DEBUG:
+        print('DEBUG: Memory usage (before read):\t{} MB'.format(get_proc_mem(), flush=True))
     df,loadtime = timed_read(filepath, p.dftype)
 
     if df is None:
         if loadtime == -1:
-            print("{:28} {:6}  Operation not supported".format(filepath, p.dftype))
+            print("{:28} {:6}  Operation not supported".format(filepath, p.dftype), flush=True)
         elif loadtime == -2:
-            print("{:28} {:6}  File does not exist".format(filepath, p.dftype))
+            print("{:28} {:6}  File does not exist".format(filepath, p.dftype), flush=True)
         return 1
 
+    if DEBUG:
+        print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem(), flush=True))
     img,aggtime1 = timed_agg(df,filepath,5,5)
+    if DEBUG:
+        mem_usage = df.memory_usage(deep=True).sum()
+        if p.dftype == 'dask':
+            mem_usage = mem_usage.compute()
+        print('DEBUG: DataFrame size:\t\t\t{} MB'.format(mem_usage / 1e6, flush=True))
+        print('DEBUG: Memory usage (after agg1):\t{} MB'.format(get_proc_mem(), flush=True))
+
     img,aggtime2 = timed_agg(df,filepath)
+    if DEBUG:
+        print('DEBUG: Memory usage (after agg2):\t{} MB'.format(get_proc_mem(), flush=True))
     
     in_size  = get_size(filepath)
-    out_size = get_size("{}.png".format(filepath))
+    out_size = get_size(filepath+".png")
     
     global_end = time.time()
     print("{:28} {:6}  Aggregate1:{:06.2f} ({:06.2f}+{:06.2f})  Aggregate2:{:06.2f}  In:{:011d}  Out:{:011d}  Total:{:06.2f}"\
-          .format(filepath, p.dftype, loadtime+aggtime1, loadtime, aggtime1, aggtime2, in_size, out_size, global_end-global_start))
+          .format(filepath, p.dftype, loadtime+aggtime1, loadtime, aggtime1, aggtime2, in_size, out_size, global_end-global_start), flush=True)
 
     return 0
 
