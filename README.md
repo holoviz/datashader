@@ -1,7 +1,7 @@
 Datashader
 ----------
 
-[![Build Status](https://travis-ci.org/bokeh/datashader.svg)](https://travis-ci.org/bokeh/datashader) 
+[![Build Status](https://travis-ci.org/bokeh/datashader.svg)](https://travis-ci.org/bokeh/datashader)
 [![Documentation Status](https://readthedocs.org/projects/datashader/badge/?version=latest)](http://datashader.readthedocs.org/en/latest/?badge=latest)
 [![Task Status](https://badge.waffle.io/bokeh/datashader.png?label=ready&title=tasks)](https://waffle.io/bokeh/datashader)
 
@@ -49,6 +49,22 @@ python setup.py install
 Datashader is not currently provided on pip/PyPI, to avoid broken or
 low-performance installations that come from not keeping track of
 C/C++binary dependencies such as LLVM (required by Numba).
+
+One way to easily install `datashader` and related GIS and visualization tools is to install `earth-env` ([source code](http://github.com/ContinuumIO/earth-env)) with one a command like the following for Python 3.6 (change the `-36` part for Python versions 2.7, 3.4, 3.5, or 3.6):
+
+```
+conda env create psteinberg/earth-env-36
+```
+
+The command above will download the `earth-env-36` environment from [anaconda.org](http://anaconda.org).  `earth-env` aims to solve version conflicts among gdal and rasterio and other file readers for GeoTiff, NetCDF, HDF4, HDF5 formats.  The downloaded and installed conda environment can optionally be named with the `--name` argument to `conda env create`.
+
+The `earth-env` environment `yaml` specification files can be downloaded with `anaconda` as follows (change the `-36` part for other Python versions):
+
+```
+anaconda download psteinberg/earth-env-36
+```
+
+Issue tracking and source for earth-env are [in the earth-env github repo](https://github.com/ContinuumIO/earth-env/issues).
 
 ## Examples
 
