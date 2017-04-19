@@ -41,11 +41,7 @@ except ImportError:
     print('this download script requires the requests module: conda install requests')
     sys.exit(1)
 
-try:
-    from py7zlib import Archive7z
-except:
-    subprocess.check_output(['pip', 'install', 'pylzma'], env=os.environ)
-    from py7zlib import Archive7z
+from py7zlib import Archive7z
 
 STREAM = sys.stderr
 
