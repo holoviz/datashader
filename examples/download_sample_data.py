@@ -267,15 +267,20 @@ def _process_dataset(dataset, output_dir, here):
             urls = [url + f for f in dataset['files']]
             output_paths = [os.path.join(here, 'data', fname)
                             for fname in dataset['files']]
+            unpacked = ['.'.join(output_path.split('.')[:-1]) + '.*'
+                        for output_path in output_paths]
         else:
             urls = [url]
             output_paths = [path.split(url)[1]]
-        for idx, (url, output_path) in enumerate(zip(urls, output_paths)):
+            unpacked = dataset['files']
+            if not isinstance(unpacked, (tuple, list)):
+                unpacked = [unpacked]
+        zipped = zip(urls, output_paths, unpacked)
+        for idx, (url, output_path, unpack) in enumerate(zipped):
             running_title = title_fmt.format(idx + 1, len(urls))
-            output_pattern = '.'.join(output_path.split('.')[:-1]) + '.*'
-            if glob.glob(output_pattern):
-                # Skip a file like:
-                #    q47122d2101.7z if q47122d2101.gnd exists
+            if glob.glob(unpack):
+                # Skip a file if a similar one is downloaded, e.g.:
+                #    skip q47122d2101.7z if q47122d2101.gnd exists
                 print('Skipping {0}'.format(running_title))
                 continue
             _url_to_binary_write(url, output_path, running_title)
