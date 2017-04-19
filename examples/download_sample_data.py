@@ -70,6 +70,7 @@ class Bar(object):
 
     def __init__(self, label='', width=32, hide=None, empty_char=BAR_EMPTY_CHAR,
                  filled_char=BAR_FILLED_CHAR, expected_size=None, every=1):
+        '''Bar is a class for printing the status of downloads'''
         self.label = label
         self.width = width
         self.hide = hide
@@ -146,6 +147,7 @@ def bar(it, label='', width=32, hide=None, empty_char=BAR_EMPTY_CHAR,
             yield item
             bar.show(i + 1)
 
+
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     class OrderedLoader(Loader):
         pass
@@ -156,6 +158,7 @@ def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
         yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
         construct_mapping)
     return yaml.load(stream, OrderedLoader)
+
 
 class DirectoryContext(object):
     """
@@ -173,6 +176,9 @@ class DirectoryContext(object):
 
 
 def _url_to_binary_write(url, output_path, title):
+    '''Given a url, output_path and title,
+    write the contents of a requests get operation to
+    the url in binary mode and print the title of operation'''
     print('Downloading {0}'.format(title))
     resp = requests.get(url, stream=True)
     try:
@@ -189,48 +195,11 @@ def _url_to_binary_write(url, output_path, title):
         raise
 
 
-def _process_dataset(dataset, output_dir, here):
-
-    if not path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    with DirectoryContext(output_dir) as d:
-
-        requires_download = False
-        if dataset.get('func'):
-            func = globals()[dataset['func']]
-            return func(here, **dataset)
-        for f in dataset.get('files', []):
-            if not path.exists(f):
-                requires_download = True
-                break
-
-        if not requires_download:
-            print('Skipping {0}'.format(dataset['title']))
-            return
-
-        output_path = path.split(dataset['url'])[1]
-        _url_to_binary_write(dataset['url'], output_path, dataset['title'])
-        # extract content
-        if output_path.endswith("tar.gz"):
-            with tarfile.open(output_path, "r:gz") as tar:
-                tar.extractall()
-            os.remove(output_path)
-        elif output_path.endswith("tar"):
-            with tarfile.open(output_path, "r:") as tar:
-                tar.extractall()
-            os.remove(output_path)
-        elif output_path.endswith("tar.bz2"):
-            with tarfile.open(output_path, "r:bz2") as tar:
-                tar.extractall()
-            os.remove(output_path)
-        elif output_path.endswith("zip"):
-            with zipfile.ZipFile(output_path, 'r') as zipf:
-                zipf.extractall()
-            os.remove(output_path)
-
-
-def _unzip_7z(fname, delete_7z=True):
+def _unzip_7z(fname):
+    '''This function will decompress a 7zip file, typically
+    a file ending in .7z (see lidar example in datasets.yml).
+    The lidar example downloads 7zips and extracts text files
+    (.gnd) files with this function'''
     try:
         arc = Archive7z(open(fname, 'rb'))
     except:
@@ -245,26 +214,103 @@ def _unzip_7z(fname, delete_7z=True):
             os.mkdir(os.path.dirname(gnd))
         with open(gnd, 'w') as f:
             f.write(fi.read().decode())
-        if delete_7z:
-            os.remove(fname)
 
 
-def download_puget_sound_lidar(here, files, url, **dataset):
+def _extract_downloaded_archive(output_path):
+    '''Extract a local archive, e.g. zip or tar, then
+    delete the archive'''
+    if output_path.endswith("tar.gz"):
+        with tarfile.open(output_path, "r:gz") as tar:
+            tar.extractall()
+    elif output_path.endswith("tar"):
+        with tarfile.open(output_path, "r:") as tar:
+            tar.extractall()
+    elif output_path.endswith("tar.bz2"):
+        with tarfile.open(output_path, "r:bz2") as tar:
+            tar.extractall()
+    elif output_path.endswith("zip"):
+        with zipfile.ZipFile(output_path, 'r') as zipf:
+            zipf.extractall()
+    elif output_path.endswith('7z'):
+        _unzip_7z(output_path)
+    os.remove(output_path)
+
+
+def _process_dataset(dataset, output_dir, here):
+    '''Process each download spec in datasets.yml
+
+    Typically each dataset list entry in the yml has
+    "files" and "url" and "title" keys/values to show
+    local files that must be present / extracted from
+    a decompression of contents downloaded from the url.
+
+    If a dataset has a "tag" key then it is expected
+    a special case is handled in _handle_special_cases
+    (see the lidar dataset for an example)'''
+
+    if not path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    with DirectoryContext(output_dir) as d:
+        requires_download = False
+        for f in dataset.get('files', []):
+            if not path.exists(f):
+                requires_download = True
+                break
+
+        if not requires_download:
+            print('Skipping {0}'.format(dataset['title']))
+            return
+        tag = dataset.get('tag')
+        if not tag:
+            output_path = path.split(dataset['url'])[1]
+            _url_to_binary_write(dataset['url'], output_path, dataset['title'])
+            _extract_downloaded_archive(output_path)
+        else:
+            _handle_special_cases(here, **dataset)
+
+
+def _lidar_url_to_files(here, url, files):
+    '''The lidar dataset has a 25 ca. 130 MB
+    7zips to download and unpack.  This func
+    modifies a URL pattern'''
     urls = [url.replace('.html', '/' + _.strip())
             for _ in files]
-    output_paths = [path.join(here, 'data', os.path.basename(fname))
+    compressed = [path.join(here, 'data', os.path.basename(fname))
+                  for fname in files]
+    decompressed = [fname.replace('7z', 'gnd')
                     for fname in files]
-    title_fmt = 'Puget Sound Lidar {} of {}'
-    for idx, (url, output_path) in enumerate(zip(urls, output_paths)):
-        if os.path.exists(output_path.replace('7z', 'gnd')):
-            print('Skipping {0}'.format(title_fmt.format(idx + 1, len(urls))))
+    return urls, compressed, decompressed
+
+
+def _handle_special_cases(here, **dataset):
+    '''Some datasets have a number of medium sized compressed files
+    that need to be downloaded but most have a single zip archive
+    that is unpacked to many files.  the lidar dataset uses this
+    logic. Each special case dataset must have a "tag" to define which
+    special case it is, e.g. "lidar" below.
+    '''
+    tag = dataset['tag']
+    files = dataset.get('files') or []
+    url = dataset['url']
+    title = dataset['title']
+    title_fmt = title + ' {} of {}'
+    if tag == 'lidar':
+        urls, compressed, decompressed = _lidar_url_to_files(here, url, files)
+        srcs_targets = zip(urls, compressed, decompressed)
+    elif tag:
+        raise NotImplementedError('For a many-file dataset, see the example in the lidar dataset of datasets.yml and define a special case here if needed')
+    for idx, (url, output_path, decompressed) in enumerate(srcs_targets):
+        running_title = title_fmt.format(idx + 1, len(urls))
+        if os.path.exists(decompressed):
+            print('Skipping {0}'.format(running_title))
             continue
-        _url_to_binary_write(url, output_path, title_fmt.format(idx + 1, len(urls)))
-        _unzip_7z(output_path, delete_7z=True)
+        _url_to_binary_write(url, output_path, running_title)
+        _extract_downloaded_archive(output_path)
 
 
 def main():
-
+    '''Download each dataset specified by datasets.yml in this directory'''
     here = contrib_dir = path.abspath(path.join(path.split(__file__)[0]))
     info_file = path.join(here, 'datasets.yml')
     with open(info_file) as f:
