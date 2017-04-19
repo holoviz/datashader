@@ -1,7 +1,7 @@
 Datashader
 ----------
 
-[![Build Status](https://travis-ci.org/bokeh/datashader.svg)](https://travis-ci.org/bokeh/datashader) 
+[![Build Status](https://travis-ci.org/bokeh/datashader.svg)](https://travis-ci.org/bokeh/datashader)
 [![Documentation Status](https://readthedocs.org/projects/datashader/badge/?version=latest)](http://datashader.readthedocs.org/en/latest/?badge=latest)
 [![Task Status](https://badge.waffle.io/bokeh/datashader.png?label=ready&title=tasks)](https://waffle.io/bokeh/datashader)
 
@@ -49,6 +49,16 @@ python setup.py install
 Datashader is not currently provided on pip/PyPI, to avoid broken or
 low-performance installations that come from not keeping track of
 C/C++binary dependencies such as LLVM (required by Numba).
+
+One way to easily install `datashader` and related GIS and visualization tools is to install the conda environment from the `examples` directory of a local datashader repository clone:
+
+```
+cd examples
+conda env create
+source activate ds
+```
+
+Note on Windows to replace `source activate ds` with `activate ds`.
 
 ## Examples
 

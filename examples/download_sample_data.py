@@ -24,23 +24,24 @@ clint.textui.progress
 This module provides the progressbar functionality.
 
 """
+from collections import OrderedDict
+from os import path
+import glob
+import os
+import subprocess
 import sys
-import time
 import tarfile
+import time
 import zipfile
 
-import os
 import yaml
-
 try:
     import requests
 except ImportError:
     print('this download script requires the requests module: conda install requests')
     sys.exit(1)
 
-from collections import OrderedDict
-
-from os import path
+from py7zlib import Archive7z
 
 STREAM = sys.stderr
 
@@ -69,6 +70,7 @@ class Bar(object):
 
     def __init__(self, label='', width=32, hide=None, empty_char=BAR_EMPTY_CHAR,
                  filled_char=BAR_FILLED_CHAR, expected_size=None, every=1):
+        '''Bar is a class for printing the status of downloads'''
         self.label = label
         self.width = width
         self.hide = hide
@@ -145,6 +147,7 @@ def bar(it, label='', width=32, hide=None, empty_char=BAR_EMPTY_CHAR,
             yield item
             bar.show(i + 1)
 
+
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     class OrderedLoader(Loader):
         pass
@@ -156,6 +159,7 @@ def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
         construct_mapping)
     return yaml.load(stream, OrderedLoader)
 
+
 class DirectoryContext(object):
     """
     Context Manager for changing directories
@@ -163,22 +167,92 @@ class DirectoryContext(object):
     def __init__(self, path):
         self.old_dir = os.getcwd()
         self.new_dir = path
- 
+
     def __enter__(self):
         os.chdir(self.new_dir)
- 
+
     def __exit__(self, *args):
         os.chdir(self.old_dir)
 
-def _process_dataset(dataset, output_dir):
 
+def _url_to_binary_write(url, output_path, title):
+    '''Given a url, output_path and title,
+    write the contents of a requests get operation to
+    the url in binary mode and print the title of operation'''
+    print('Downloading {0}'.format(title))
+    resp = requests.get(url, stream=True)
+    try:
+        with open(output_path, 'wb') as f:
+            total_length = int(resp.headers.get('content-length'))
+            for chunk in bar(resp.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
+    except:
+        # Don't leave a half-written zip file
+        if path.exists(output_path):
+            os.remove(output_path)
+        raise
+
+
+def _unzip_7z(fname):
+    '''This function will decompress a 7zip file, typically
+    a file ending in .7z (see lidar example in datasets.yml).
+    The lidar example downloads 7zips and extracts text files
+    (.gnd) files with this function'''
+    try:
+        arc = Archive7z(open(fname, 'rb'))
+    except:
+        print('FAILED ON 7Z', fname)
+        raise
+    fnames = arc.filenames
+    files = arc.files
+    data_dir = os.path.dirname(fname)
+    for fn, fi in zip(fnames, files):
+        gnd = path.join(data_dir, os.path.basename(fn))
+        if not os.path.exists(os.path.dirname(gnd)):
+            os.mkdir(os.path.dirname(gnd))
+        with open(gnd, 'w') as f:
+            f.write(fi.read().decode())
+
+
+def _extract_downloaded_archive(output_path):
+    '''Extract a local archive, e.g. zip or tar, then
+    delete the archive'''
+    if output_path.endswith("tar.gz"):
+        with tarfile.open(output_path, "r:gz") as tar:
+            tar.extractall()
+    elif output_path.endswith("tar"):
+        with tarfile.open(output_path, "r:") as tar:
+            tar.extractall()
+    elif output_path.endswith("tar.bz2"):
+        with tarfile.open(output_path, "r:bz2") as tar:
+            tar.extractall()
+    elif output_path.endswith("zip"):
+        with zipfile.ZipFile(output_path, 'r') as zipf:
+            zipf.extractall()
+    elif output_path.endswith('7z'):
+        _unzip_7z(output_path)
+    os.remove(output_path)
+
+
+def _process_dataset(dataset, output_dir, here):
+    '''Process each download spec in datasets.yml
+
+    Typically each dataset list entry in the yml has
+    "files" and "url" and "title" keys/values to show
+    local files that must be present / extracted from
+    a decompression of contents downloaded from the url.
+
+    If a url endswith '/', then all files given
+    are assumed to be added to the url pattern at the
+    end
+    '''
     if not path.exists(output_dir):
         os.makedirs(output_dir)
 
     with DirectoryContext(output_dir) as d:
-        
         requires_download = False
-
         for f in dataset.get('files', []):
             if not path.exists(f):
                 requires_download = True
@@ -187,38 +261,34 @@ def _process_dataset(dataset, output_dir):
         if not requires_download:
             print('Skipping {0}'.format(dataset['title']))
             return
+        url = dataset['url']
+        title_fmt = dataset['title'] + ' {} of {}'
+        if url.endswith('/'):
+            urls = [url + f for f in dataset['files']]
+            output_paths = [os.path.join(here, 'data', fname)
+                            for fname in dataset['files']]
+            unpacked = ['.'.join(output_path.split('.')[:-1]) + '.*'
+                        for output_path in output_paths]
+        else:
+            urls = [url]
+            output_paths = [path.split(url)[1]]
+            unpacked = dataset['files']
+            if not isinstance(unpacked, (tuple, list)):
+                unpacked = [unpacked]
+        zipped = zip(urls, output_paths, unpacked)
+        for idx, (url, output_path, unpack) in enumerate(zipped):
+            running_title = title_fmt.format(idx + 1, len(urls))
+            if glob.glob(unpack):
+                # Skip a file if a similar one is downloaded, e.g.:
+                #    skip q47122d2101.7z if q47122d2101.gnd exists
+                print('Skipping {0}'.format(running_title))
+                continue
+            _url_to_binary_write(url, output_path, running_title)
+            _extract_downloaded_archive(output_path)
 
-
-        print('Downloading {0}'.format(dataset['title']))
-        r = requests.get(dataset['url'], stream=True)
-        output_path = path.split(dataset['url'])[1]
-        with open(output_path, 'wb') as f:
-            total_length = int(r.headers.get('content-length'))
-            for chunk in bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1, every=1000):
-                if chunk:
-                    f.write(chunk)
-                    f.flush()
-
-        # extract content
-        if output_path.endswith("tar.gz"):
-            with tarfile.open(output_path, "r:gz") as tar:
-                tar.extractall()
-            os.remove(output_path)
-        elif output_path.endswith("tar"):
-            with tarfile.open(output_path, "r:") as tar:
-                tar.extractall()
-            os.remove(output_path)
-        elif output_path.endswith("tar.bz2"):
-            with tarfile.open(output_path, "r:bz2") as tar:
-                tar.extractall()
-            os.remove(output_path)
-        elif output_path.endswith("zip"):
-            with zipfile.ZipFile(output_path, 'r') as zipf:
-                zipf.extractall()
-            os.remove(output_path)
 
 def main():
-
+    '''Download each dataset specified by datasets.yml in this directory'''
     here = contrib_dir = path.abspath(path.join(path.split(__file__)[0]))
     info_file = path.join(here, 'datasets.yml')
     with open(info_file) as f:
@@ -226,7 +296,7 @@ def main():
         for topic, downloads in info.items():
             output_dir = path.join(here, topic)
             for d in downloads:
-                _process_dataset(d, output_dir)
+                _process_dataset(d, output_dir, here)
 
 if __name__ == '__main__':
     main()
