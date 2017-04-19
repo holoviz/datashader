@@ -33,11 +33,8 @@ data:
       - MERCATOR_LC80210392016114LGN00_B11.TIF
       - MERCATOR_LC80210392016114LGN00_BQA.TIF
 
-  - url: http://pugetsoundlidar.org/lidardata/newdata/2016/PSLC_KingCounty_Delivery1/BE_ASCII.html
+  - url: http://pugetsoundlidar.org/lidardata/newdata/2016/PSLC_KingCounty_Delivery1/BE_ASCII/
     title: "Puget Sound Lidar"
-    # The "tag" below is used for downloading logic in
-    # _handle_special_cases (download_sample_data.py function)
-    tag: lidar
     files:
       - q47122d2101.7z
       - q47122d2102.7z

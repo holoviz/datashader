@@ -244,10 +244,10 @@ def _process_dataset(dataset, output_dir, here):
     local files that must be present / extracted from
     a decompression of contents downloaded from the url.
 
-    If a dataset has a "tag" key then it is expected
-    a special case is handled in _handle_special_cases
-    (see the lidar dataset for an example)'''
-
+    If a url endswith '/', then all files given
+    are assumed to be added to the url pattern at the
+    end
+    '''
     if not path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -261,52 +261,25 @@ def _process_dataset(dataset, output_dir, here):
         if not requires_download:
             print('Skipping {0}'.format(dataset['title']))
             return
-        tag = dataset.get('tag')
-        if not tag:
-            output_path = path.split(dataset['url'])[1]
-            _url_to_binary_write(dataset['url'], output_path, dataset['title'])
-            _extract_downloaded_archive(output_path)
+        url = dataset['url']
+        title_fmt = dataset['title'] + ' {} of {}'
+        if url.endswith('/'):
+            urls = [url + f for f in dataset['files']]
+            output_paths = [os.path.join(here, 'data', fname)
+                            for fname in dataset['files']]
         else:
-            _handle_special_cases(here, **dataset)
-
-
-def _lidar_url_to_files(here, url, files):
-    '''The lidar dataset has a 25 ca. 130 MB
-    7zips to download and unpack.  This func
-    modifies a URL pattern'''
-    urls = [url.replace('.html', '/' + _.strip())
-            for _ in files]
-    compressed = [path.join(here, 'data', os.path.basename(fname))
-                  for fname in files]
-    decompressed = [fname.replace('7z', 'gnd')
-                    for fname in files]
-    return urls, compressed, decompressed
-
-
-def _handle_special_cases(here, **dataset):
-    '''Some datasets have a number of medium sized compressed files
-    that need to be downloaded but most have a single zip archive
-    that is unpacked to many files.  the lidar dataset uses this
-    logic. Each special case dataset must have a "tag" to define which
-    special case it is, e.g. "lidar" below.
-    '''
-    tag = dataset['tag']
-    files = dataset.get('files') or []
-    url = dataset['url']
-    title = dataset['title']
-    title_fmt = title + ' {} of {}'
-    if tag == 'lidar':
-        urls, compressed, decompressed = _lidar_url_to_files(here, url, files)
-        srcs_targets = zip(urls, compressed, decompressed)
-    elif tag:
-        raise NotImplementedError('For a many-file dataset, see the example in the lidar dataset of datasets.yml and define a special case here if needed')
-    for idx, (url, output_path, decompressed) in enumerate(srcs_targets):
-        running_title = title_fmt.format(idx + 1, len(urls))
-        if os.path.exists(decompressed):
-            print('Skipping {0}'.format(running_title))
-            continue
-        _url_to_binary_write(url, output_path, running_title)
-        _extract_downloaded_archive(output_path)
+            urls = [url]
+            output_paths = [path.split(url)[1]]
+        for idx, (url, output_path) in enumerate(zip(urls, output_paths)):
+            running_title = title_fmt.format(idx + 1, len(urls))
+            output_pattern = '.'.join(output_path.split('.')[:-1]) + '.*'
+            if glob.glob(output_pattern):
+                # Skip a file like:
+                #    q47122d2101.7z if q47122d2101.gnd exists
+                print('Skipping {0}'.format(running_title))
+                continue
+            _url_to_binary_write(url, output_path, running_title)
+            _extract_downloaded_archive(output_path)
 
 
 def main():
