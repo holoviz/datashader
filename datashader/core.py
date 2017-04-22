@@ -49,8 +49,8 @@ class Axis(object):
         Parameters
         ----------
         range : tuple
-            A tuple representing the boundary inclusive range ``[min, max]``
-            along the axis, in data space.
+            A tuple representing the range ``[min, max]`` along the axis, in
+            data space. min is inclusive and max is exclusive.
         n : int
             The number of bins along the axis.
 
@@ -61,7 +61,7 @@ class Axis(object):
 
         """
         start, end = map(self.mapper, range)
-        s = (n - 1)/(end - start)
+        s = n/(end - start)
         t = -start * s
         return s, t
 

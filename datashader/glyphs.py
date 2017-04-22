@@ -57,7 +57,7 @@ class Point(_PointLike):
             for i in range(xs.shape[0]):
                 x = xs[i]
                 y = ys[i]
-                if (xmin <= x <= xmax) and (ymin <= y <= ymax):
+                if (xmin <= x < xmax) and (ymin <= y < ymax):
                     append(i,
                            int(x_mapper(x) * sx + tx),
                            int(y_mapper(y) * sy + ty),
