@@ -18,6 +18,57 @@ from . import transfer_functions as tf
 from .utils import downsample_aggregate, summarize_aggregate_values
 
 
+class _AddToDocument(object):
+    # 'models' can be a single Model, a single Document, or a list of either
+    def __init__(self, models):
+
+        self._to_remove_after = []
+        if not isinstance(models, list):
+            models = [models]
+
+        self._doc = _find_some_document(models)
+        if self._doc is None:
+            # oh well - just make up a doc
+            self._doc = Document()
+
+        for model in models:
+            if isinstance(model, Model):
+                if model.document is None:
+                    self._to_remove_after.append(model)
+
+    def __exit__(self, type, value, traceback):
+        for model in self._to_remove_after:
+            model.document.remove_root(model)
+
+    def __enter__(self):
+        for model in self._to_remove_after:
+            self._doc.add_root(model)
+
+
+def _find_some_document(models):
+    # First try the easy stuff...
+    doc = None
+    for model in models:
+        if isinstance(model, Document):
+            doc = model
+            break
+        elif isinstance(model, Model):
+            if model.document is not None:
+                doc = model.document
+                break
+
+    # Now look in children of models
+    if doc is None:
+        for model in models:
+            if isinstance(model, Model):
+                for r in model.references():
+                    if r.document is not None:
+                        doc = r.document
+                        break
+
+    return doc
+
+
 class InteractiveImage(object):
     """
     Bokeh-based interactive image object that updates on pan/zoom
