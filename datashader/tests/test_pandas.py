@@ -72,7 +72,7 @@ def test_sum():
 
 
 def test_min():
-    out = xr.DataArray(df.i64.reshape((2, 2, 5)).min(axis=2).astype('f8').T,
+    out = xr.DataArray(df.i64.values.reshape((2, 2, 5)).min(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
     assert_eq(c.points(df, 'x', 'y', ds.min('i32')), out)
     assert_eq(c.points(df, 'x', 'y', ds.min('i64')), out)
