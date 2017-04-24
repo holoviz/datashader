@@ -168,8 +168,8 @@ class InteractiveImage(object):
 
     _callbacks = {}
 
-    def __init__(self, bokeh_plot, callback, delay=200, timeout=2000, throttle=None,
-                 **kwargs):
+    def __init__(self, bokeh_plot, callback, delay=200, timeout=2000,
+                 throttle=None, **kwargs):
         self.p = bokeh_plot
         self.callback = callback
         self.kwargs = kwargs
@@ -178,7 +178,8 @@ class InteractiveImage(object):
         self.delay = delay
         self.timeout = timeout
         if throttle:
-            print("Warning: throttle parameter no longer supported; will not be accepted in future versions")
+            print("Warning: throttle parameter no longer supported; "
+                  "will not be accepted in future versions")
 
         # Initialize the image and callback
         self.ds, self.renderer = self._init_image()
@@ -329,7 +330,8 @@ class HoverLayer(object):
                  agg=None,
                  how='mean'):
 
-        if how not in ('mean', 'sum', 'max', 'min', 'median', 'std', 'var', 'count'):
+        if how not in ('mean', 'sum', 'max', 'min', 'median', 'std', 'var',
+                       'count'):
             raise ValueError("invalid 'how' downsample method")
 
         self.hover_data = ColumnDataSource(data=dict(x=[], y=[], value=[]))
@@ -410,7 +412,8 @@ class HoverLayer(object):
         agg_xs, agg_ys = np.meshgrid(sq_xs, sq_ys)
         self.hover_data.data['x'] = agg_xs.flatten()
         self.hover_data.data['y'] = agg_ys.flatten()
-        self.hover_agg = downsample_aggregate(self.agg.values, self.size, how=self.how)
+        self.hover_agg = downsample_aggregate(self.agg.values, self.size,
+                                              how=self.how)
 
         tooltips = []
         if self.is_categorical:
@@ -424,6 +427,7 @@ class HoverLayer(object):
 
         self.tool.tooltips = tooltips
         return self.hover_agg
+
 
 def create_ramp_legend(agg, cmap, how='linear', width=600):
     '''
@@ -449,7 +453,7 @@ def create_ramp_legend(agg, cmap, how='linear', width=600):
     vals_arr, min_val, max_val = summarize_aggregate_values(agg, how=how)
     img = tf.shade(vals_arr, cmap=cmap, how=how)
     x_axis_type = how
-    assert(x_axis_type == 'linear' or x_axis_type=='log')
+    assert(x_axis_type == 'linear' or x_axis_type == 'log')
     legend_fig = Figure(x_range=(min_val, max_val),
                         plot_height=50,
                         plot_width=width,
@@ -471,6 +475,7 @@ def create_ramp_legend(agg, cmap, how='linear', width=600):
                           dh=[18],
                           dw_units='screen')
     return legend_fig
+
 
 def create_categorical_legend(colormap, aliases=None):
     '''
