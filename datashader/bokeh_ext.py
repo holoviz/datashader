@@ -186,6 +186,11 @@ class InteractiveImage(object):
         self.p.x_range.callback = callback
         self.p.y_range.callback = callback
 
+        # Initialize document
+        doc_handler = _AddToDocument(self.p)
+        with doc_handler:
+            self.doc = doc_handler._doc
+            self.div = notebook_div(self.p, self.ref)
 
     def _init_callback(self):
         """
@@ -247,7 +252,6 @@ class InteractiveImage(object):
         msg = self.get_update_event()
         self.comms_handle.comms.send(msg)
         return 'Complete'
-
 
     def get_update_event(self):
         """
