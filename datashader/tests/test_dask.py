@@ -154,6 +154,7 @@ def test_multiple_aggregates():
 
 
 def test_log_axis():
+    # Upper bound for scale/index of x-axis
     x_max_index = 10 ** (1 / (2 / np.log10(11)))
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
     out = xr.DataArray(sol, coords=[np.array([0., 1.]), np.array([1., x_max_index])],
