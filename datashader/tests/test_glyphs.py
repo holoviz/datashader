@@ -123,7 +123,7 @@ def test_draw_line_vertical_horizontal():
 
 def test_extend_lines():
     xs = np.array([0, -2, -2, 0, 0])
-    ys = np.array([-1,  -1,  1.1, 1.1, -1])
+    ys = np.array([-1, -1, 1.1, 1.1, -1])
     out = np.array([[0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0],
                     [0, 1, 1, 1, 0],

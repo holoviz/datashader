@@ -41,7 +41,7 @@ class Pipeline(object):
         Factor by which to scale the provided width
     """
     def __init__(self, df, glyph, agg=reductions.count(),
-                 transform_fn=identity, color_fn=tf.shade,  spread_fn=tf.dynspread,
+                 transform_fn=identity, color_fn=tf.shade, spread_fn=tf.dynspread,
                  width_scale=1.0, height_scale=1.0):
         self.df = df
         self.glyph = glyph
@@ -63,8 +63,8 @@ class Pipeline(object):
         width, height : int, optional
             The shape of the image
         """
-        canvas = core.Canvas(plot_width=int(width*self.width_scale), 
-                             plot_height=int(height*self.height_scale), 
+        canvas = core.Canvas(plot_width=int(width*self.width_scale),
+                             plot_height=int(height*self.height_scale),
                              x_range=x_range, y_range=y_range)
         bins = core.bypixel(self.df, canvas, self.glyph, self.agg)
         img = self.color_fn(self.transform_fn(bins))
