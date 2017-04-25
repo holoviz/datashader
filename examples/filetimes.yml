@@ -8,7 +8,7 @@ dependencies:
 - conda-forge::feather-format=0.3.1=py35_1
 - dask=0.14.1=py35_0
 - hdf5=1.8.17=1
-- numba=0.32.0=np112py35_0
+- numba::numba=0.33.0.dev=np112py35_21
 - numexpr=2.6.2=np112py35_0
 - numpy=1.12.1=py35_0
 - pandas=0.19.2=np112py35_1
