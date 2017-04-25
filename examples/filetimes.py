@@ -136,8 +136,10 @@ write["snappy.parq"]  ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (f
 #write["gz.parq"]      ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(fixed_text={c:p.cat_width for c in p.categories}, compression='GZIP', **p.parq_opts)))
 
 
-def timed_write(filepath,dftype,output_directory="times"):
+def timed_write(filepath,dftype,fsize='double',output_directory="times"):
     """Accepts any file with a dataframe readable by the given dataframe type, and writes it out as a variety of file types"""
+    assert fsize in ('single', 'double')
+
     p.dftype = dftype # This function may get called from outside main()
     df,duration=timed_read(filepath,dftype)
 
@@ -155,6 +157,12 @@ def timed_write(filepath,dftype,output_directory="times"):
                         df[c]=df[c].str.encode('utf8')
                     else:
                         df[c]=df[c].astype(str)
+
+            # Convert doubles to floats when writing out datasets
+            if fsize == 'single':
+                for colname in df.columns:
+                    if df[colname].dtype == 'float64':
+                        df[colname] = df[colname].astype(np.float32)
 
             code = write[ext].get(dftype,None)
 
@@ -230,7 +238,8 @@ def main(argv):
     else:
         if args.cache == 'cachey':
             from dask.cache import Cache
-            Cache(p.cachesize).register()
+            cache = Cache(p.cachesize)
+            cache.register()
         elif args.cache == 'persist':
             DD_FORCE_LOAD = True
 
@@ -265,12 +274,17 @@ def main(argv):
 
     if DEBUG:
         print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem(), flush=True))
+
     img,aggtime1 = timed_agg(df,filepath,5,5)
     if DEBUG:
-        mem_usage = df.memory_usage(deep=True).sum()
+        mem_usage = df.memory_usage(deep=True)
         if p.dftype == 'dask':
             mem_usage = mem_usage.compute()
-        print('DEBUG: DataFrame size:\t\t\t{} MB'.format(mem_usage / 1e6, flush=True))
+        print('DEBUG:', mem_usage, flush=True)
+        mem_usage_total = mem_usage.sum()
+        print('DEBUG: DataFrame size:\t\t\t{} MB'.format(mem_usage_total / 1e6, flush=True))
+        for colname in df.columns:
+            print('DEBUG: column "{}" dtype: {}'.format(colname, df[colname].dtype))
         print('DEBUG: Memory usage (after agg1):\t{} MB'.format(get_proc_mem(), flush=True))
 
     img,aggtime2 = timed_agg(df,filepath)
