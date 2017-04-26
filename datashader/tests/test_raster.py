@@ -4,8 +4,6 @@ import pytest
 import datashader as ds
 import rasterio as rio
 
-from pytest import set_trace
-
 BASE_PATH = path.split(__file__)[0]
 DATA_PATH = path.abspath(path.join(BASE_PATH, 'data'))
 TEST_RASTER_PATH = path.join(DATA_PATH, 'world.rgb.tif')
@@ -18,25 +16,30 @@ with rio.open(TEST_RASTER_PATH) as src:
                     x_range=x_range,
                     y_range=y_range)
 
+
 def test_raster_aggregate_default():
     with rio.open(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src)
         assert agg is not None
+
 
 def test_raster_aggregate_nearest():
     with rio.open(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, resample_method='nearest')
         assert agg is not None
 
+
 def test_raster_aggregate_with_overviews():
     with rio.open(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, use_overviews=True)
         assert agg is not None
 
+
 def test_raster_aggregate_without_overviews():
     with rio.open(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, use_overviews=False)
         assert agg is not None
+
 
 def test_out_of_bounds_return_correct_size():
     with rio.open(TEST_RASTER_PATH) as src:
@@ -45,8 +48,9 @@ def test_out_of_bounds_return_correct_size():
                         x_range=[1e10, 1e20],
                         y_range=[1e10, 1e20])
         agg = cvs.raster(src)
-        assert agg.shape == (2,2)
+        assert agg.shape == (2, 2)
         assert agg is not None
+
 
 def test_partial_extent_returns_correct_size():
     with rio.open(TEST_RASTER_PATH) as src:
@@ -59,5 +63,3 @@ def test_partial_extent_returns_correct_size():
         agg = cvs.raster(src)
         assert agg.shape == (256, 512)
         assert agg is not None
-
-

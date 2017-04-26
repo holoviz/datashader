@@ -154,9 +154,8 @@ Set3 = ['#8dd3c7', '#ffffb3', '#bebada', '#fb8072', '#80b1d3', '#fdb462', '#b3de
 Sets1to3 = Set1+Set2[0:3]+Set2[4:7]+Set3[1:2]+Set3[3:4]+Set3[5:6]+Set3[7:9]+Set3[10:]
 
 
-
 def _mpl_cmdata_to_bokeh_palette(cm_data):
-    """Given the data from a Matplotlib colormap as a list of three-item lists in the range 0,1.0, 
+    """Given the data from a Matplotlib colormap as a list of three-item lists in the range 0,1.0,
     convert colors into the range 0,256 and return as a list of tuples"""
     return [(int(r*256),int(g*256),int(b*256)) for r,g,b in cm_data]
 
@@ -417,7 +416,7 @@ _inferno_data = [[0.001462, 0.000466, 0.013866],
                  [0.976511, 0.989753, 0.616760],
                  [0.982257, 0.994109, 0.631017],
                  [0.988362, 0.998364, 0.644924]]
-inferno=_mpl_cmdata_to_bokeh_palette(_inferno_data)
+inferno = _mpl_cmdata_to_bokeh_palette(_inferno_data)
 
 # Copied from matplotlib/_cm_listed.py
 _viridis_data = [[0.267004, 0.004874, 0.329415],
@@ -684,9 +683,9 @@ def colormap_select(base_colormap, start=0, end=1.0, reverse=False):
     Given a colormap in the form of a list, such as a Bokeh palette,
     return a version of the colormap reversed if requested, and selecting
     a subset (on a scale 0,1.0) of the elements in the colormap list.
-    
+
     For instance:
-    
+
     >>> cmap = ["#000000", "#969696", "#d9d9d9", "#ffffff"]
     >>> colormap_select(cmap,reverse=True)
     ['#ffffff', '#d9d9d9', '#969696', '#000000']

@@ -7,8 +7,8 @@ import numpy as np
 
 from bokeh.io import notebook_div
 from bokeh.document import Document
-from bokeh.models import (Model, CustomJS, ColumnDataSource, Square,
-                          HoverTool, GlyphRenderer)
+from bokeh.models import (CustomJS, ColumnDataSource, Square, HoverTool,
+                          GlyphRenderer)
 from bokeh.io import _CommsHandle
 from bokeh.util.notebook import get_comms
 from bokeh.models import Plot, Text, Circle, Range1d
@@ -135,7 +135,6 @@ class InteractiveImage(object):
         self.p.x_range.callback = callback
         self.p.y_range.callback = callback
 
-
     def _init_callback(self):
         """
         Generate CustomJS from template.
@@ -196,7 +195,6 @@ class InteractiveImage(object):
         msg = self.get_update_event()
         self.comms_handle.comms.send(msg)
         return 'Complete'
-
 
     def get_update_event(self):
         """
@@ -370,6 +368,7 @@ class HoverLayer(object):
         self.tool.tooltips = tooltips
         return self.hover_agg
 
+
 def create_ramp_legend(agg, cmap, how='linear', width=600):
     '''
     Helper function to create a Bokeh ``Figure`` object
@@ -394,7 +393,7 @@ def create_ramp_legend(agg, cmap, how='linear', width=600):
     vals_arr, min_val, max_val = summarize_aggregate_values(agg, how=how)
     img = tf.shade(vals_arr, cmap=cmap, how=how)
     x_axis_type = how
-    assert(x_axis_type == 'linear' or x_axis_type=='log')
+    assert x_axis_type == 'linear' or x_axis_type == 'log'
     legend_fig = Figure(x_range=(min_val, max_val),
                         plot_height=50,
                         plot_width=width,
@@ -416,6 +415,7 @@ def create_ramp_legend(agg, cmap, how='linear', width=600):
                           dh=[18],
                           dw_units='screen')
     return legend_fig
+
 
 def create_categorical_legend(colormap, aliases=None):
     '''

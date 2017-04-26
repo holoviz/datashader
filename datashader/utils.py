@@ -63,6 +63,7 @@ def isreal(dt):
     dt = launder(dt)
     return isinstance(dt, Unit) and dt in real
 
+
 def downsample_aggregate(aggregate, factor, how='mean'):
     """Create downsampled aggregate factor in pixels units"""
     ys, xs = aggregate.shape[:2]
@@ -88,6 +89,7 @@ def downsample_aggregate(aggregate, factor, how='mean'):
     else:
         raise ValueError("Invalid 'how' downsample method. Options mean, sum, max, min, median, std, var")
 
+
 def summarize_aggregate_values(aggregate, how='linear', num=180):
     """Helper function similar to np.linspace which return values from aggregate min value to aggregate max value in either linear or log space.
     """
@@ -108,6 +110,7 @@ def summarize_aggregate_values(aggregate, how='linear', num=180):
 
     return DataArray(vals), min_val, max_val
 
+
 def hold(f):
     '''
     simple arg caching decorator
@@ -123,20 +126,20 @@ def hold(f):
 
 def export_image(img, filename, fmt=".png", _return=True, export_path=".", background=""):
     """Given a datashader Image object, saves it to a disk file in the requested format"""
-    
+
     from datashader.transfer_functions import set_background
 
     if not os.path.exists(export_path):
         os.mkdir(export_path)
 
     if background:
-        img=set_background(img,background)
-        
-    img.to_pil().save(os.path.join(export_path,filename+fmt))
-    return img if _return else None
-                                    
+        img = set_background(img, background)
 
-def lnglat_to_meters(longitude,latitude):
+    img.to_pil().save(os.path.join(export_path, filename + fmt))
+    return img if _return else None
+
+
+def lnglat_to_meters(longitude, latitude):
     """
     Projects the given (longitude, latitude) values into Web Mercator
     coordinates (meters East of Greenwich and meters North of the Equator).
@@ -144,19 +147,21 @@ def lnglat_to_meters(longitude,latitude):
     Longitude and latitude can be provided as scalars, Pandas columns,
     or Numpy arrays, and will be returned in the same form.  Lists
     or tuples will be converted to Numpy arrays.
-    
+
     Examples:
        easting, northing = lnglat_to_meters(-40.71,74)
 
        easting, northing = lnglat_to_meters(np.array([-74]),np.array([40.71]))
 
        df=pandas.DataFrame(dict(longitude=np.array([-74]),latitude=np.array([40.71])))
-       df.loc[:, 'longitude'], df.loc[:, 'latitude'] = lnglat_to_meters(df.longitude,df.latitude) 
+       df.loc[:, 'longitude'], df.loc[:, 'latitude'] = lnglat_to_meters(df.longitude,df.latitude)
     """
-    if isinstance(longitude, (list, tuple)): longitude=np.array(longitude)
-    if isinstance(latitude,  (list, tuple)): latitude =np.array(latitude)
+    if isinstance(longitude, (list, tuple)):
+        longitude = np.array(longitude)
+    if isinstance(latitude, (list, tuple)):
+        latitude = np.array(latitude)
 
     origin_shift = np.pi * 6378137
-    easting   = longitude * origin_shift / 180.0
-    northing  = np.log(np.tan((90 + latitude) * np.pi / 360.0)) * origin_shift / np.pi
+    easting = longitude * origin_shift / 180.0
+    northing = np.log(np.tan((90 + latitude) * np.pi / 360.0)) * origin_shift / np.pi
     return (easting, northing)

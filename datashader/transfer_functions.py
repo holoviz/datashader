@@ -11,7 +11,7 @@ import xarray as xr
 from PIL.Image import fromarray
 
 
-from .colors import rgb
+from .colors import rgb, Sets1to3
 from .composite import composite_op_lookup, over
 from .utils import ngjit
 
@@ -137,7 +137,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
         array indicating missingness. They should return a numeric array of the
         same shape, with `NaN`s where the mask was True.
     alpha : int, optional
-        Value between 0 - 255 representing the alpha value of pixels which contain 
+        Value between 0 - 255 representing the alpha value of pixels which contain
         data (i.e. non-nan values). Regardless of this value, `NaN` values are
         set to fully transparent.
     span : list of min-max range
@@ -160,7 +160,6 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
         w = DeprecationWarning("`interpolate` is deprecated; use `shade` instead")
         warnings.warn(w)
     return _interpolate(agg, cmap, how, alpha, span)
-    
 
 
 def _interpolate(agg, cmap, how, alpha, span):
@@ -230,7 +229,7 @@ def colorize(agg, color_key, how='eq_hist', min_alpha=40):
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be an instance of DataArray")
-    
+
     with warnings.catch_warnings():
         warnings.simplefilter('always', DeprecationWarning)
         w = DeprecationWarning("`colorize` is deprecated; use `shade` instead")
@@ -243,13 +242,13 @@ def _colorize(agg, color_key, how, min_alpha):
         raise ValueError("agg must be 3D")
     cats = agg.indexes[agg.dims[-1]]
     if color_key is None:
-        raise ValueError("Color key must be provided, with at least as many " + 
-        "colors as there are categorical fields")
+        raise ValueError("Color key must be provided, with at least as many " +
+                         "colors as there are categorical fields")
     if not isinstance(color_key, dict):
         color_key = dict(zip(cats, color_key))
     if len(color_key) < len(cats):
-        raise ValueError("Insufficient colors provided ({}) for the categorical fields available ({})"\
-                         .format(len(color_key),len(cats)))
+        raise ValueError("Insufficient colors provided ({}) for the categorical fields available ({})"
+                         .format(len(color_key), len(cats)))
     if not (0 <= min_alpha <= 255):
         raise ValueError("min_alpha ({}) must be between 0 and 255".format(min_alpha))
     colors = [rgb(color_key[c]) for c in cats]
@@ -274,8 +273,6 @@ def _colorize(agg, color_key, how, min_alpha):
                  dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1])
 
 
-from .colors import Sets1to3
-
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
           how='eq_hist', alpha=255, min_alpha=40, span=None):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
@@ -292,7 +289,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     distributed over different categories that are indexed by the
     additional coordinate.  Such an array would reduce to the
     2D-coordinate case if collapsed across the categories (e.g. if one
-    did `aggc.sum(dim='cat')` for a categorical dimension `cat`).  
+    did `aggc.sum(dim='cat')` for a categorical dimension `cat`).
     The RGB channels for the uncollapsed, 3D case are computed by
     averaging the colors in the provided 'color_key' (with one color
     per category), weighted by the array's value for that category.
@@ -311,7 +308,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     color_key : dict or iterable
         The colors to use for a 3D (categorical) agg array.  Can be
         either a ``dict`` mapping from field name to colors, or an
-        iterable of colors in the same order as the record fields, 
+        iterable of colors in the same order as the record fields,
         and including at least that many distinct colors.
     how : str or callable, optional
         The interpolation method to use, for the 'cmap' of a 2D
@@ -342,12 +339,10 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         return _interpolate(agg, cmap, how, alpha, span)
     elif agg.ndim == 3:
         return _colorize(agg, color_key, how, min_alpha)
-    else: 
+    else:
         raise ValueError("agg must use 2D or 3D coordinates")
 
 
-
-        
 def set_background(img, color=None):
     """Return a new image, with the background set to `color`.
 
@@ -466,8 +461,8 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over'):
     ----------
     img : Image
     threshold : float, optional
-        A tuning parameter in [0, 1], with higher values giving more 
-        spreading.  
+        A tuning parameter in [0, 1], with higher values giving more
+        spreading.
     max_px : int, optional
         Maximum number of pixels to spread on all sides.
     shape : str, optional

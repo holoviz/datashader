@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 from datashape.predicates import istabular
 from odo import discover
-from xarray import DataArray, align
+from xarray import DataArray
 
 from .utils import Dispatcher, ngjit
 
@@ -41,7 +41,7 @@ class Axis(object):
     parameters describing a linear scale and translate transformation, computed
     by the ``compute_scale_and_translate`` method.
     """
-    
+
     def compute_scale_and_translate(self, range, n):
         """Compute the scale and translate parameters for a linear transformation
         ``output = s * input + t``, mapping from data space to axis space.
@@ -90,11 +90,11 @@ class Axis(object):
     def inverse_mapper(val):
         """A mapping from axis space to data space"""
         raise NotImplementedError
-    
+
     def validate(self, range):
         """Given a range (low,high), raise an error if the range is invalid for this axis"""
         pass
-    
+
 
 class LinearAxis(Axis):
     """A linear Axis"""
@@ -126,7 +126,7 @@ class LogAxis(Axis):
         if not (np.isfinite(low) and np.isfinite(high)):
             raise ValueError('Range values must be >0 for a LogAxis')
 
-    
+
 _axis_lookup = {'linear': LinearAxis(), 'log': LogAxis()}
 
 
@@ -206,7 +206,7 @@ class Canvas(object):
                use_overviews=True):
         """Sample a raster dataset by canvas size and bounds. Note: requires
         `rasterio` and `scikit-image`.  Missing values (those having the value
-        indicated by the "nodata" attribute of the raster) are replaced with 
+        indicated by the "nodata" attribute of the raster) are replaced with
         `NaN` if floats, and 0 if int.
 
         Parameters
@@ -246,13 +246,9 @@ class Canvas(object):
         full_xs = np.linspace(self.x_range[0], self.x_range[1], self.plot_width)
         full_ys = np.linspace(self.y_range[0], self.y_range[1], self.plot_height)
         attrs = dict(res=source.res[0], nodata=source.nodata)
-        full_arr =  DataArray(full_data, 
-                              coords=[('x', full_xs), ('y', full_ys)], 
-                              attrs=attrs)
-
-        x_res = (self.x_range[1] - self.x_range[0]) / self.plot_width
-        y_res = (self.y_range[1] - self.y_range[0]) / self.plot_height
-        res = max(x_res, y_res)
+        full_arr = DataArray(full_data,
+                             coords=[('x', full_xs), ('y', full_ys)],
+                             attrs=attrs)
 
         # handle out-of-bounds case
         if (self.x_range[0] >= source.bounds.right or
@@ -269,10 +265,9 @@ class Canvas(object):
 
         width_ratio = (xmax - xmin) / (self.x_range[1] - self.x_range[0])
         height_ratio = (ymax - ymin) / (self.y_range[1] - self.y_range[0])
-        
+
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
-
 
         rmin, cmin = source.index(xmin, ymin)
         rmax, cmax = source.index(xmax, ymax)
@@ -282,7 +277,6 @@ class Canvas(object):
             data = source.read(band, out=data, window=((rmax, rmin), (cmin, cmax)))
         else:
             data = source.read(band, window=((rmax, rmin), (cmin, cmax)))
-
 
         is_int = np.issubdtype(data.dtype, np.integer)
         data[data == np.array(source.nodata)] = 0 if is_int else np.nan
@@ -323,10 +317,9 @@ class Canvas(object):
                          attrs=attrs)
 
     def validate(self):
-        """Check that parameter setttings are valid for this object"""        
+        """Check that parameter setttings are valid for this object"""
         self.x_axis.validate(self.x_range)
         self.y_axis.validate(self.y_range)
-
 
 
 def bypixel(source, canvas, glyph, agg):
