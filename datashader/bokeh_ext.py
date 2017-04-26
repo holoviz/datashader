@@ -18,6 +18,57 @@ from . import transfer_functions as tf
 from .utils import downsample_aggregate, summarize_aggregate_values
 
 
+class _AddToDocument(object):
+    # 'models' can be a single Model, a single Document, or a list of either
+    def __init__(self, models):
+
+        self._to_remove_after = []
+        if not isinstance(models, list):
+            models = [models]
+
+        self._doc = _find_some_document(models)
+        if self._doc is None:
+            # oh well - just make up a doc
+            self._doc = Document()
+
+        for model in models:
+            if isinstance(model, Model):
+                if model.document is None:
+                    self._to_remove_after.append(model)
+
+    def __exit__(self, type, value, traceback):
+        for model in self._to_remove_after:
+            model.document.remove_root(model)
+
+    def __enter__(self):
+        for model in self._to_remove_after:
+            self._doc.add_root(model)
+
+
+def _find_some_document(models):
+    # First try the easy stuff...
+    doc = None
+    for model in models:
+        if isinstance(model, Document):
+            doc = model
+            break
+        elif isinstance(model, Model):
+            if model.document is not None:
+                doc = model.document
+                break
+
+    # Now look in children of models
+    if doc is None:
+        for model in models:
+            if isinstance(model, Model):
+                for r in model.references():
+                    if r.document is not None:
+                        doc = r.document
+                        break
+
+    return doc
+
+
 class InteractiveImage(object):
     """
     Bokeh-based interactive image object that updates on pan/zoom
@@ -117,8 +168,8 @@ class InteractiveImage(object):
 
     _callbacks = {}
 
-    def __init__(self, bokeh_plot, callback, delay=200, timeout=2000, throttle=None,
-                 **kwargs):
+    def __init__(self, bokeh_plot, callback, delay=200, timeout=2000,
+                 throttle=None, **kwargs):
         self.p = bokeh_plot
         self.callback = callback
         self.kwargs = kwargs
@@ -127,7 +178,8 @@ class InteractiveImage(object):
         self.delay = delay
         self.timeout = timeout
         if throttle:
-            print("Warning: throttle parameter no longer supported; will not be accepted in future versions")
+            print("Warning: throttle parameter no longer supported; "
+                  "will not be accepted in future versions")
 
         # Initialize the image and callback
         self.ds, self.renderer = self._init_image()
@@ -135,6 +187,11 @@ class InteractiveImage(object):
         self.p.x_range.callback = callback
         self.p.y_range.callback = callback
 
+        # Initialize document
+        doc_handler = _AddToDocument(self.p)
+        with doc_handler:
+            self.doc = doc_handler._doc
+            self.div = notebook_div(self.p, self.ref)
 
     def _init_callback(self):
         """
@@ -196,7 +253,6 @@ class InteractiveImage(object):
         msg = self.get_update_event()
         self.comms_handle.comms.send(msg)
         return 'Complete'
-
 
     def get_update_event(self):
         """
@@ -274,7 +330,8 @@ class HoverLayer(object):
                  agg=None,
                  how='mean'):
 
-        if how not in ('mean', 'sum', 'max', 'min', 'median', 'std', 'var', 'count'):
+        if how not in ('mean', 'sum', 'max', 'min', 'median', 'std', 'var',
+                       'count'):
             raise ValueError("invalid 'how' downsample method")
 
         self.hover_data = ColumnDataSource(data=dict(x=[], y=[], value=[]))
@@ -355,7 +412,8 @@ class HoverLayer(object):
         agg_xs, agg_ys = np.meshgrid(sq_xs, sq_ys)
         self.hover_data.data['x'] = agg_xs.flatten()
         self.hover_data.data['y'] = agg_ys.flatten()
-        self.hover_agg = downsample_aggregate(self.agg.values, self.size, how=self.how)
+        self.hover_agg = downsample_aggregate(self.agg.values, self.size,
+                                              how=self.how)
 
         tooltips = []
         if self.is_categorical:
@@ -369,6 +427,7 @@ class HoverLayer(object):
 
         self.tool.tooltips = tooltips
         return self.hover_agg
+
 
 def create_ramp_legend(agg, cmap, how='linear', width=600):
     '''
@@ -394,7 +453,7 @@ def create_ramp_legend(agg, cmap, how='linear', width=600):
     vals_arr, min_val, max_val = summarize_aggregate_values(agg, how=how)
     img = tf.shade(vals_arr, cmap=cmap, how=how)
     x_axis_type = how
-    assert(x_axis_type == 'linear' or x_axis_type=='log')
+    assert(x_axis_type == 'linear' or x_axis_type == 'log')
     legend_fig = Figure(x_range=(min_val, max_val),
                         plot_height=50,
                         plot_width=width,
@@ -416,6 +475,7 @@ def create_ramp_legend(agg, cmap, how='linear', width=600):
                           dh=[18],
                           dw_units='screen')
     return legend_fig
+
 
 def create_categorical_legend(colormap, aliases=None):
     '''
