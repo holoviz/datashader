@@ -1,11 +1,13 @@
+from dask.async import get_sync
+from dask.context import set_options
+import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 import xarray as xr
-import dask.dataframe as dd
-from dask.context import set_options
-from dask.async import get_sync
 
 import datashader as ds
+
+import pytest
 
 set_options(get=get_sync)
 
@@ -25,13 +27,13 @@ df.f64[2] = np.nan
 
 ddf = dd.from_pandas(df, npartitions=3)
 
-c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
-c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
-                   y_range=(0, 1), x_axis_type='log')
-c_logy = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1),
-                   y_range=(1, 10), y_axis_type='log')
-c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
-                    y_range=(1, 10), x_axis_type='log', y_axis_type='log')
+c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 2), y_range=(0, 2))
+c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 11),
+                   y_range=(0, 2), x_axis_type='log')
+c_logy = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 2),
+                   y_range=(1, 11), y_axis_type='log')
+c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 11),
+                    y_range=(1, 11), x_axis_type='log', y_axis_type='log')
 
 coords = [np.arange(2, dtype='f8'), np.arange(2, dtype='f8')]
 dims = ['y_axis', 'x_axis']
@@ -152,14 +154,16 @@ def test_multiple_aggregates():
 
 
 def test_log_axis():
+    # Upper bound for scale/index of x-axis
+    x_max_index = 10 ** (1 / (2 / np.log10(11)))
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.array([0., 1.]), np.array([1., 10.])],
+    out = xr.DataArray(sol, coords=[np.array([0., 1.]), np.array([1., x_max_index])],
                        dims=dims)
     assert_eq(c_logx.points(ddf, 'log_x', 'y', ds.count('i32')), out)
-    out = xr.DataArray(sol, coords=[np.array([1., 10.]), np.array([0., 1.])],
+    out = xr.DataArray(sol, coords=[np.array([1., x_max_index]), np.array([0., 1.])],
                        dims=dims)
     assert_eq(c_logy.points(ddf, 'x', 'log_y', ds.count('i32')), out)
-    out = xr.DataArray(sol, coords=[np.array([1., 10.]), np.array([1., 10.])],
+    out = xr.DataArray(sol, coords=[np.array([1., x_max_index]), np.array([1., x_max_index])],
                        dims=dims)
     assert_eq(c_logxy.points(ddf, 'log_x', 'log_y', ds.count('i32')), out)
 
@@ -169,15 +173,15 @@ def test_line():
                        'y': [0, -4, 0, 1, 2, 2.1, 4, 20, 30, 4, 0]})
     ddf = dd.from_pandas(df, npartitions=3)
     cvs = ds.Canvas(plot_width=7, plot_height=7,
-                    x_range=(-3, 3), y_range=(-3, 3))
+                    x_range=(-3, 4), y_range=(-3, 4))
     agg = cvs.line(ddf, 'x', 'y', ds.count())
     sol = np.array([[0, 0, 1, 0, 1, 0, 0],
                     [0, 1, 0, 0, 0, 1, 0],
                     [1, 0, 0, 0, 0, 0, 1],
                     [0, 0, 0, 0, 0, 0, 0],
-                    [1, 0, 0, 0, 0, 0, 1],
+                    [3, 0, 0, 0, 0, 0, 1],
                     [0, 2, 0, 0, 0, 1, 0],
                     [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.arange(-3, 4), np.arange(-3, 4)],
+    out = xr.DataArray(sol, coords=[np.arange(-3., 4.), np.arange(-3., 4.)],
                        dims=['y_axis', 'x_axis'])
     assert_eq(agg, out)
