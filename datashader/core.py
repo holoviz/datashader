@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
+import math
+
 import numpy as np
 from datashape.predicates import istabular
 from odo import discover
@@ -61,6 +63,10 @@ class Axis(object):
 
         """
         start, end = map(self.mapper, range)
+
+        if math.isinf(start) or math.isnan(start) or math.isinf(end) or math.isnan(end):
+            raise ValueError("Axis range must be a real number after transformation")
+        
         s = (n - 1)/(end - start)
         t = -start * s
         return s, t
@@ -153,6 +159,12 @@ class Canvas(object):
         self.y_range = tuple(y_range) if y_range is not None else y_range
         self.x_axis = _axis_lookup[x_axis_type]
         self.y_axis = _axis_lookup[y_axis_type]
+
+        if x_axis_type=='log' and x_range and x_range[0]<=0:
+            raise ValueError("x_range must be >0 for a log x axis")
+        if y_axis_type=='log' and y_range and y_range[0]<=0:
+            raise ValueError("y_range must be >0 for a log y axis")
+
 
     def points(self, source, x, y, agg=None):
         """Compute a reduction by pixel, mapping data to pixels as points.
