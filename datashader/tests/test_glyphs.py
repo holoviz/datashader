@@ -128,7 +128,7 @@ def test_extend_lines():
                     [0, 0, 0, 0, 0],
                     [0, 1, 1, 1, 0],
                     [0, 1, 0, 1, 0],
-                    [0, 1, 0, 1, 0]])
+                    [0, 0, 0, 0, 0]])
     agg = new_agg()
     extend_line(vt, bounds, xs, ys, False, agg)
     np.testing.assert_equal(agg, out)
@@ -141,10 +141,10 @@ def test_extend_lines():
     xs = np.array([2, 1, 0, -1, -4, -1, -100, -1, 2])
     ys = np.array([-1, -2, -3, -4, -1, 2, 100, 2, -1])
     out = np.array([[0, 1, 0, 1, 0],
-                    [1, 0, 0, 0, 1],
+                    [1, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0],
-                    [1, 0, 0, 0, 1],
-                    [0, 1, 0, 1, 0]])
+                    [1, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0]])
     agg = new_agg()
     extend_line(vt, bounds, xs, ys, True, agg)
     np.testing.assert_equal(agg, out)
@@ -163,5 +163,5 @@ def test_extend_lines_nan():
     ys = np.array([-3, -2, np.nan, 0, 1])
     agg = new_agg()
     extend_line(vt, bounds, xs, ys, True, agg)
-    out = np.diag([1, 1, 0, 1, 1])
+    out = np.diag([1, 1, 0, 1, 0])
     np.testing.assert_equal(agg, out)

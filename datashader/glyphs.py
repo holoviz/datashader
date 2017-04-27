@@ -179,6 +179,9 @@ def _build_extend_line(draw_line):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
         sx, tx, sy, ty = vt
         xmin, xmax, ymin, ymax = bounds
+        # Adjustments for exclusive upper bounds for x and y
+        xmax -= 1
+        ymax -= 1
         nrows = xs.shape[0]
         i = 0
         while i < nrows - 1:
