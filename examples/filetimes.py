@@ -154,7 +154,6 @@ write["feather"]      ["pandas"] = lambda df,filepath,p:  benchmark(feather.writ
 write["parq"]         ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(**p.parq_opts)))
 write["gz.parq"]  ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(compression='GZIP', **p.parq_opts)))
 write["snappy.parq"]  ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(compression='SNAPPY', **p.parq_opts)))
-#write["gz.parq"]      ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(fixed_text={c:p.cat_width for c in p.categories}, compression='GZIP', **p.parq_opts)))
 
 
 def timed_write(filepath,dftype,fsize='double',output_directory="times"):
