@@ -98,7 +98,7 @@ def benchmark(fn, args, filetype=None):
     
 
 
-read = odict([(f,odict()) for f in ["parq","bcolz","feather","castra","h5","csv"]])
+read = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","castra","h5","csv"]])
 
 def read_csv_dask(__filepath, usecols=None):
     # Pandas writes CSV files out as a single file
@@ -111,7 +111,10 @@ read["csv"]     ["dask"]   = lambda filepath,p,filetype:  benchmark(read_csv_das
 read["h5"]      ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)), filetype)
 #read["castra"]  ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_castra, (filepath,), filetype)
 read["bcolz"]   ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), filetype)
-read["parq"]    ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype) # categories=p.categories, 
+read["parq"]    ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
+read["gz.parq"]    ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
+read["snappy.parq"]    ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
+
 
 def read_csv_pandas(__filepath, usecols=None):
     # Pandas writes CSV files out as a single file
@@ -127,6 +130,8 @@ read["feather"] ["pandas"] = lambda filepath,p,filetype:  benchmark(feather.read
 def read_parq_pandas(__filepath):
     return fp.ParquetFile(__filepath).to_pandas()
 read["parq"]    ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
+read["gz.parq"]    ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
+read["snappy.parq"]    ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
 
 
 write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","castra","h5","csv"]])

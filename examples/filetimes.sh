@@ -30,8 +30,10 @@ test -n "$3" && set -x
 
 ${timer} python filetimes.py ${1}.parq        dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.snappy.parq dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.gz.parq     dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.parq        pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.snappy.parq pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.gz.parq     pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.castra      dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.castra      pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.bcolz       dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
