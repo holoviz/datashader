@@ -100,13 +100,28 @@ def benchmark(fn, args, filetype=None):
 
 read = odict([(f,odict()) for f in ["parq","bcolz","feather","castra","h5","csv"]])
 
-read["csv"]     ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_csv, (filepath, Kwargs(usecols=p.columns)), filetype)
+def read_csv_dask(__filepath, usecols=None):
+    # Pandas writes CSV files out as a single file
+    if os.path.isfile(__filepath):
+        return dd.read_csv(__filepath, usecols=usecols)
+    # Dask may have written out CSV files in partitions
+    filepath_expr = __filepath.replace('.csv', '*.csv')
+    return dd.read_csv(filepath_expr, usecols=usecols)
+read["csv"]     ["dask"]   = lambda filepath,p,filetype:  benchmark(read_csv_dask, (filepath, Kwargs(usecols=p.columns)), filetype)
 read["h5"]      ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)), filetype)
 #read["castra"]  ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_castra, (filepath,), filetype)
 read["bcolz"]   ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), filetype)
 read["parq"]    ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype) # categories=p.categories, 
 
-read["csv"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_csv, (filepath, Kwargs(usecols=p.columns)), filetype)
+def read_csv_pandas(__filepath, usecols=None):
+    # Pandas writes CSV files out as a single file
+    if os.path.isfile(__filepath):
+        return pd.read_csv(__filepath, usecols=usecols)
+    # Dask may have written out CSV files in partitions
+    filepath_expr = __filepath.replace('.csv', '*.csv')
+    filepaths = glob.glob(filepath_expr)
+    return pd.concat((pd.read_csv(f, usecols=usecols) for f in filepaths))
+read["csv"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(read_csv_pandas, (filepath, Kwargs(usecols=p.columns)), filetype)
 read["h5"]      ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)), filetype)
 read["feather"] ["pandas"] = lambda filepath,p,filetype:  benchmark(feather.read_dataframe, (filepath,), filetype)
 def read_parq_pandas(__filepath):
@@ -132,6 +147,7 @@ write["castra"]       ["pandas"] = lambda df,filepath,p:  benchmark(write_castra
 write["bcolz"]        ["pandas"] = lambda df,filepath,p:  benchmark(bcolz.ctable.fromdataframe, (df, Kwargs(rootdir=filepath)))
 write["feather"]      ["pandas"] = lambda df,filepath,p:  benchmark(feather.write_dataframe, (df, filepath))
 write["parq"]         ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(**p.parq_opts)))
+write["gz.parq"]  ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(compression='GZIP', **p.parq_opts)))
 write["snappy.parq"]  ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(compression='SNAPPY', **p.parq_opts)))
 #write["gz.parq"]      ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(fixed_text={c:p.cat_width for c in p.categories}, compression='GZIP', **p.parq_opts)))
 
@@ -184,11 +200,13 @@ def timed_read(filepath,dftype):
     code = read[extension].get(dftype,None)
 
     if code is None:
-        return (None,-1)
+        return (None, -1)
 
-    if not glob.glob(filepath):
-        return (None,-2)
-    
+    # Dask doesn't (yet) have write support for bcolz nor feather,
+    # (reads fail due to "file not found")
+    if filetype in ('bcolz', 'feather') and not os.path.isfile(filepath):
+        return (None, -2)
+
     p.columns=[p.x]+[p.y]+p.categories
     
     duration, df = code(filepath,p,filetype)
@@ -206,11 +224,22 @@ def timed_agg(df, filepath, plot_width=int(900), plot_height=int(900*7.0/12)):
 
 
 def get_size(path):
-    total = os.path.getsize(path) if os.path.isfile(path) else 0
+    total = 0
+
+    # CSV files are broken up by dask when they're written out
+    if os.path.isfile(path):
+        return os.path.getsize(path)
+    elif path.endswith('csv'):
+        for csv_fpath in glob.glob(path.replace('.csv', '*.csv')):
+            total += os.path.getsize(csv_fpath)
+        return total
+
+    # If path is a directory (such as parquet), sum all files in directory
     for dirpath, dirnames, filenames in os.walk(path):
         for f in filenames:
             fp = os.path.join(dirpath, f)
             total += os.path.getsize(fp)
+
     return total
 
 
@@ -255,12 +284,6 @@ def main(argv):
     p.categories  = args.categories
     DEBUG = args.debug
 
-    if filepath.endswith("csv"):
-        if p.dftype=="dask":
-            filepath = filepath.replace(".csv", "*.csv")
-        else:
-            filepath = glob.glob(filepath.replace(".csv","*.csv"))[0]
-    
     if DEBUG:
         print('DEBUG: Memory usage (before read):\t{} MB'.format(get_proc_mem(), flush=True))
     df,loadtime = timed_read(filepath, p.dftype)
