@@ -33,7 +33,7 @@ not, install `conda`, then use `conda` to install the others). From inside the
 toplevel directory:
 
 ```bash
-conda build conda.recipe/ --python 2.7 --python 3.4 --python 3.5
+conda build conda.recipe/ --python 2.7 --python 3.4 --python 3.5 --python 3.6
 ```
 
 Next, `cd` into the folder where the builds end up.
