@@ -11,7 +11,7 @@ Test files may be generated starting from any file format supported by Pandas:
 import time
 global_start = time.time()
 
-import io, os, os.path, sys, shutil, glob, argparse, resource
+import io, os, os.path, sys, shutil, glob, argparse, resource, multiprocessing
 import pandas as pd
 import dask.dataframe as dd
 import numpy as np
@@ -27,10 +27,12 @@ from collections import OrderedDict as odict
 
 #from multiprocessing.pool import ThreadPool
 #dask.set_options(pool=ThreadPool(3)) # select a pecific number of threads
+from dask import distributed
 
 # Toggled by command-line arguments
 DEBUG = False
 DD_FORCE_LOAD = False
+DASK_CLIENT = None
 
 class Parameters(object):
     base,x,y='data','x','y'
@@ -41,6 +43,7 @@ class Parameters(object):
     columns=None
     cachesize=9e9
     parq_opts=dict(file_scheme='hive', has_nulls=False, write_index=False)
+    n_workers=multiprocessing.cpu_count()
 
 
 p=Parameters()
@@ -85,11 +88,17 @@ def benchmark(fn, args, filetype=None):
             for c in p.categories:
                 res[c]=res[c].astype('category',**opts)
 
-        # Force loading
+        # Force loading (--cache=persist was provided)
         if p.dftype == 'dask' and DD_FORCE_LOAD:
-            if DEBUG:
-                print("DEBUG: Force-loading Dask dataframe", flush=True)
-            res = res.persist()
+            if DASK_CLIENT is not None:
+                # 2017-04-28: This combination leads to a large drop in
+                #   aggregation performance (both --distributed and
+                #   --cache=persist were provided)
+                res = DASK_CLIENT.persist(res)
+            else:
+                if DEBUG:
+                    print("DEBUG: Force-loading Dask dataframe", flush=True)
+                res = res.persist()
 
     end = time.time()
 
@@ -110,7 +119,7 @@ read["csv"]          ["dask"]   = lambda filepath,p,filetype:  benchmark(read_cs
 read["h5"]           ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)), filetype)
 def read_feather_dask(filepath):
     df = feather.read_dataframe(filepath, columns=p.columns)
-    return dd.from_pandas(df, npartitions=os.cpu_count())
+    return dd.from_pandas(df, npartitions=p.n_workers)
 read["feather"]      ["dask"] = lambda filepath,p,filetype:  benchmark(read_feather_dask, (filepath,), filetype)
 read["bcolz"]        ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), filetype)
 read["parq"]         ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
@@ -251,7 +260,7 @@ def get_proc_mem():
 
 
 def main(argv):
-    global DEBUG, DD_FORCE_LOAD
+    global DEBUG, DD_FORCE_LOAD, DASK_CLIENT
 
     parser = argparse.ArgumentParser(epilog=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('filepath')
@@ -262,6 +271,7 @@ def main(argv):
     parser.add_argument('categories', nargs='+')
     parser.add_argument('--debug', action='store_true', help='Enable increased verbosity and DEBUG messages')
     parser.add_argument('--cache', choices=('persist', 'cachey'), default=None, help='Enable caching: "persist" causes Dask dataframes to force loading into memory; "cachey" uses dask.cache.Cache with a cachesize of {}. Caching is disabled by default'.format(int(p.cachesize)))
+    parser.add_argument('--distributed', action='store_true', help='Enable the distributed scheduler instead of the threaded, which is the default.')
     args = parser.parse_args(argv[1:])
 
     if args.cache is None:
@@ -277,6 +287,17 @@ def main(argv):
 
         if args.debug:
             print('DEBUG: Cache "{}" mode enabled'.format(args.cache), flush=True)
+
+    if args.dftype == 'dask' and args.distributed:
+        local_cluster = distributed.LocalCluster(n_workers=p.n_workers, threads_per_worker=1)
+        DASK_CLIENT = distributed.Client(local_cluster)
+        if args.debug:
+            print('DEBUG: "distributed" scheduler is enabled')
+    else:
+        if args.dftype != 'dask' and args.distributed:
+            raise ValueError('--distributed argument is only available with the dask dataframe type (not pandas)')
+        if args.debug:
+            print('DEBUG: "threaded" scheduler is enabled')
 
     filepath = args.filepath
     basename, extension = os.path.splitext(filepath)
