@@ -11,7 +11,7 @@ Test files may be generated starting from any file format supported by Pandas:
 import time
 global_start = time.time()
 
-import io, os, os.path, sys, shutil, glob, argparse, resource
+import io, os, os.path, sys, shutil, glob, argparse, resource, multiprocessing
 import pandas as pd
 import dask.dataframe as dd
 import numpy as np
@@ -23,15 +23,16 @@ import fastparquet as fp
 
 from datashader.utils import export_image
 from datashader import transfer_functions as tf
-from castra import Castra
 from collections import OrderedDict as odict
 
 #from multiprocessing.pool import ThreadPool
 #dask.set_options(pool=ThreadPool(3)) # select a pecific number of threads
+from dask import distributed
 
 # Toggled by command-line arguments
 DEBUG = False
 DD_FORCE_LOAD = False
+DASK_CLIENT = None
 
 class Parameters(object):
     base,x,y='data','x','y'
@@ -42,11 +43,12 @@ class Parameters(object):
     columns=None
     cachesize=9e9
     parq_opts=dict(file_scheme='hive', has_nulls=False, write_index=False)
+    n_workers=multiprocessing.cpu_count()
 
 
 p=Parameters()
 
-filetypes_storing_categories = {'parq','castra'}
+filetypes_storing_categories = {'parq'}
 
 
 class Kwargs(odict):
@@ -86,11 +88,17 @@ def benchmark(fn, args, filetype=None):
             for c in p.categories:
                 res[c]=res[c].astype('category',**opts)
 
-        # Force loading
+        # Force loading (--cache=persist was provided)
         if p.dftype == 'dask' and DD_FORCE_LOAD:
-            if DEBUG:
-                print("DEBUG: Force-loading Dask dataframe", flush=True)
-            res = res.persist()
+            if DASK_CLIENT is not None:
+                # 2017-04-28: This combination leads to a large drop in
+                #   aggregation performance (both --distributed and
+                #   --cache=persist were provided)
+                res = DASK_CLIENT.persist(res)
+            else:
+                if DEBUG:
+                    print("DEBUG: Force-loading Dask dataframe", flush=True)
+                res = res.persist()
 
     end = time.time()
 
@@ -98,61 +106,66 @@ def benchmark(fn, args, filetype=None):
     
 
 
-read = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","castra","h5","csv"]])
+read = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","h5","csv"]])
 
-def read_csv_dask(__filepath, usecols=None):
+def read_csv_dask(filepath, usecols=None):
     # Pandas writes CSV files out as a single file
-    if os.path.isfile(__filepath):
-        return dd.read_csv(__filepath, usecols=usecols)
+    if os.path.isfile(filepath):
+        return dd.read_csv(filepath, usecols=usecols)
     # Dask may have written out CSV files in partitions
-    filepath_expr = __filepath.replace('.csv', '*.csv')
+    filepath_expr = filepath.replace('.csv', '*.csv')
     return dd.read_csv(filepath_expr, usecols=usecols)
-read["csv"]     ["dask"]   = lambda filepath,p,filetype:  benchmark(read_csv_dask, (filepath, Kwargs(usecols=p.columns)), filetype)
-read["h5"]      ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)), filetype)
-#read["castra"]  ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_castra, (filepath,), filetype)
-read["bcolz"]   ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), filetype)
-read["parq"]    ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
-read["gz.parq"]    ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
-read["snappy.parq"]    ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
-
-
-def read_csv_pandas(__filepath, usecols=None):
+read["csv"]          ["dask"]   = lambda filepath,p,filetype:  benchmark(read_csv_dask, (filepath, Kwargs(usecols=p.columns)), filetype)
+read["h5"]           ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_hdf, (filepath, p.base, Kwargs(chunksize=p.chunksize, columns=p.columns)), filetype)
+def read_feather_dask(filepath):
+    df = feather.read_dataframe(filepath, columns=p.columns)
+    return dd.from_pandas(df, npartitions=p.n_workers)
+read["feather"]      ["dask"] = lambda filepath,p,filetype:  benchmark(read_feather_dask, (filepath,), filetype)
+read["bcolz"]        ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), filetype)
+read["parq"]         ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
+read["gz.parq"]      ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
+read["snappy.parq"]  ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
+def read_csv_pandas(filepath, usecols=None):
     # Pandas writes CSV files out as a single file
-    if os.path.isfile(__filepath):
-        return pd.read_csv(__filepath, usecols=usecols)
+    if os.path.isfile(filepath):
+        return pd.read_csv(filepath, usecols=usecols)
     # Dask may have written out CSV files in partitions
-    filepath_expr = __filepath.replace('.csv', '*.csv')
+    filepath_expr = filepath.replace('.csv', '*.csv')
     filepaths = glob.glob(filepath_expr)
     return pd.concat((pd.read_csv(f, usecols=usecols) for f in filepaths))
-read["csv"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(read_csv_pandas, (filepath, Kwargs(usecols=p.columns)), filetype)
-read["h5"]      ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)), filetype)
-read["feather"] ["pandas"] = lambda filepath,p,filetype:  benchmark(feather.read_dataframe, (filepath,), filetype)
-def read_parq_pandas(__filepath):
-    return fp.ParquetFile(__filepath).to_pandas()
-read["parq"]    ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
-read["gz.parq"]    ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
-read["snappy.parq"]    ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
+read["csv"]         ["pandas"] = lambda filepath,p,filetype:  benchmark(read_csv_pandas, (filepath, Kwargs(usecols=p.columns)), filetype)
+read["h5"]          ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)), filetype)
+read["feather"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(feather.read_dataframe, (filepath,), filetype)
+def read_bcolz_pandas(filepath, chunksize=None):
+    return bcolz.ctable(rootdir=filepath).todataframe(columns=p.columns)
+read["bcolz"]       ["pandas"]   = lambda filepath,p,filetype:  benchmark(read_bcolz_pandas, (filepath, Kwargs(chunksize=1000000)), filetype)
+def read_parq_pandas(filepath):
+    return fp.ParquetFile(filepath).to_pandas()
+read["parq"]        ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
+read["gz.parq"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
+read["snappy.parq"] ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
 
 
-write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","castra","h5","csv"]])
+write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","h5","csv"]])
 
 write["csv"]          ["dask"]   = lambda df,filepath,p:  benchmark(df.to_csv, (filepath.replace(".csv","*.csv"), Kwargs(index=False)))
 write["h5"]           ["dask"]   = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, p.base))
-#write["castra"]       ["dask"]   = lambda df,filepath,p:  benchmark(df.to_castra, (filepath, Kwargs(categories=p.categories)))
+def write_bcolz_dask(filepath, df):
+    return bcolz.ctable.fromdataframe(df.compute(), rootdir=filepath)
+write["bcolz"]        ["dask"] = lambda df,filepath,p:  benchmark(write_bcolz_dask, (filepath, df))
+def write_feather_dask(filepath, df):
+    return feather.write_dataframe(df.compute(), filepath)
+write["feather"]      ["dask"] = lambda df,filepath,p:  benchmark(write_feather_dask, (filepath, df))
 write["parq"]         ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parquet, (filepath, df)) # **p.parq_opts
 write["snappy.parq"]  ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parquet, (filepath, df, Kwargs(compression='SNAPPY'))) ## **p.parq_opts
 write["gz.parq"]      ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parquet, (filepath, df, Kwargs(compression='GZIP')))
 
 write["csv"]          ["pandas"] = lambda df,filepath,p:  benchmark(df.to_csv, (filepath, Kwargs(index=False)))
 write["h5"]           ["pandas"] = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, Kwargs(key=p.base, format='table')))
-
-def write_castra_pandas(__filepath, __df, __cats):
-    return Castra(__filepath, template=__df, categories=__cats).extend(__df)
-write["castra"]       ["pandas"] = lambda df,filepath,p:  benchmark(write_castra_pandas, (filepath, df, p.categories))
 write["bcolz"]        ["pandas"] = lambda df,filepath,p:  benchmark(bcolz.ctable.fromdataframe, (df, Kwargs(rootdir=filepath)))
 write["feather"]      ["pandas"] = lambda df,filepath,p:  benchmark(feather.write_dataframe, (df, filepath))
 write["parq"]         ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(**p.parq_opts)))
-write["gz.parq"]  ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(compression='GZIP', **p.parq_opts)))
+write["gz.parq"]      ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(compression='GZIP', **p.parq_opts)))
 write["snappy.parq"]  ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(compression='SNAPPY', **p.parq_opts)))
 
 
@@ -206,11 +219,6 @@ def timed_read(filepath,dftype):
     if code is None:
         return (None, -1)
 
-    # Dask doesn't (yet) have write support for bcolz nor feather,
-    # (reads fail due to "file not found")
-    if filetype in ('bcolz', 'feather') and not os.path.isfile(filepath):
-        return (None, -2)
-
     p.columns=[p.x]+[p.y]+p.categories
     
     duration, df = code(filepath,p,filetype)
@@ -252,7 +260,7 @@ def get_proc_mem():
 
 
 def main(argv):
-    global DEBUG, DD_FORCE_LOAD
+    global DEBUG, DD_FORCE_LOAD, DASK_CLIENT
 
     parser = argparse.ArgumentParser(epilog=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('filepath')
@@ -263,6 +271,7 @@ def main(argv):
     parser.add_argument('categories', nargs='+')
     parser.add_argument('--debug', action='store_true', help='Enable increased verbosity and DEBUG messages')
     parser.add_argument('--cache', choices=('persist', 'cachey'), default=None, help='Enable caching: "persist" causes Dask dataframes to force loading into memory; "cachey" uses dask.cache.Cache with a cachesize of {}. Caching is disabled by default'.format(int(p.cachesize)))
+    parser.add_argument('--distributed', action='store_true', help='Enable the distributed scheduler instead of the threaded, which is the default.')
     args = parser.parse_args(argv[1:])
 
     if args.cache is None:
@@ -278,6 +287,17 @@ def main(argv):
 
         if args.debug:
             print('DEBUG: Cache "{}" mode enabled'.format(args.cache), flush=True)
+
+    if args.dftype == 'dask' and args.distributed:
+        local_cluster = distributed.LocalCluster(n_workers=p.n_workers, threads_per_worker=1)
+        DASK_CLIENT = distributed.Client(local_cluster)
+        if args.debug:
+            print('DEBUG: "distributed" scheduler is enabled')
+    else:
+        if args.dftype != 'dask' and args.distributed:
+            raise ValueError('--distributed argument is only available with the dask dataframe type (not pandas)')
+        if args.debug:
+            print('DEBUG: "threaded" scheduler is enabled')
 
     filepath = args.filepath
     basename, extension = os.path.splitext(filepath)
@@ -295,8 +315,6 @@ def main(argv):
     if df is None:
         if loadtime == -1:
             print("{:28} {:6}  Operation not supported".format(filepath, p.dftype), flush=True)
-        elif loadtime == -2:
-            print("{:28} {:6}  File does not exist".format(filepath, p.dftype), flush=True)
         return 1
 
     if DEBUG:
