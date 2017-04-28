@@ -25,7 +25,7 @@ To make it concrete, here's an example of what datashader code looks like:
 
     >>> cvs = ds.Canvas(plot_width=400, plot_height=400)
     >>> agg = cvs.points(df, 'x_col', 'y_col', ds.mean('z_col'))
-    >>> img = tf.interpolate(agg, cmap=['lightblue', 'darkblue'], how='log')
+    >>> img = tf.shade(agg, cmap=['lightblue', 'darkblue'], how='log')
 
 This code reads a data file into a Pandas dataframe ``df``, and then
 projects the fields ``x_col`` and ``y_col`` onto the x and y dimensions of
