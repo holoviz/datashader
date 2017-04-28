@@ -131,14 +131,15 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
         formats described above), or a matplotlib colormap object.
         Default is `["lightblue", "darkblue"]`
     how : str or callable, optional
-        The interpolation method to use. Valid strings are 'eq_hist' [default],
-        'cbrt', 'log', 'linear', and 'eq_hist'. Callables take 2 arguments - a
-        2-dimensional array of magnitudes at each pixel, and a boolean mask
-        array indicating missingness. They should return a numeric array of the
-        same shape, with `NaN`s where the mask was True.
+        The interpolation method to use. Valid strings are 'eq_hist'
+        [default], 'cbrt', 'log', and 'linear'. Callables take
+        2 arguments - a 2-dimensional array of magnitudes at each pixel,
+        and a boolean mask array indicating missingness. They should
+        return a numeric array of the same shape, with ``NaN`` values
+        where the mask was True.
     alpha : int, optional
         Value between 0 - 255 representing the alpha value of pixels which contain
-        data (i.e. non-nan values). Regardless of this value, `NaN` values are
+        data (i.e. non-nan values). Regardless of this value, ``NaN`` values are
         set to fully transparent.
     span : list of min-max range
         Min-max data values for interpolation, use this to override autoranging
@@ -221,7 +222,7 @@ def colorize(agg, color_key, how='eq_hist', min_alpha=40):
         'cbrt', 'log', and 'linear'. Callables take 2 arguments - a 2-dimensional
         array of magnitudes at each pixel, and a boolean mask array indicating
         missingness. They should return a numeric array of the same shape, with
-        `NaN`s where the mask was True.
+        `NaN` values where the mask was True.
     min_alpha : float, optional
         The minimum alpha value to use for non-empty pixels, in [0, 255].
         Use a higher value to avoid undersaturation, i.e. poorly visible
@@ -282,20 +283,20 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
 
     For a DataArray with 2D coordinates, the RGB channels are computed
     from the values by interpolated lookup into the given colormap
-    'cmap'.  The A channel is then set to the given fixed 'alpha'
+    ``cmap``.  The A channel is then set to the given fixed ``alpha``
     value for all non-zero values, and to zero for all zero values.
 
     DataArrays with 3D coordinates are expected to contain values
     distributed over different categories that are indexed by the
     additional coordinate.  Such an array would reduce to the
     2D-coordinate case if collapsed across the categories (e.g. if one
-    did `aggc.sum(dim='cat')` for a categorical dimension `cat`).
+    did ``aggc.sum(dim='cat')`` for a categorical dimension ``cat``).
     The RGB channels for the uncollapsed, 3D case are computed by
-    averaging the colors in the provided 'color_key' (with one color
+    averaging the colors in the provided ``color_key`` (with one color
     per category), weighted by the array's value for that category.
     The A channel is then computed from the array's total value
     collapsed across all categories at that location, ranging from the
-    specified 'min_alpha' to the maximum alpha value (255).
+    specified ``min_alpha`` to the maximum alpha value (255).
 
     Parameters
     ----------
@@ -304,24 +305,25 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         The colormap to use for 2D agg arrays. Can be either a list of
         colors (specified either by name, RGBA hexcode, or as a tuple
         of ``(red, green, blue)`` values.), or a matplotlib colormap
-        object.  Default is `["lightblue", "darkblue"]`.
+        object.  Default is ``["lightblue", "darkblue"]``.
     color_key : dict or iterable
         The colors to use for a 3D (categorical) agg array.  Can be
         either a ``dict`` mapping from field name to colors, or an
         iterable of colors in the same order as the record fields,
         and including at least that many distinct colors.
     how : str or callable, optional
-        The interpolation method to use, for the 'cmap' of a 2D
+        The interpolation method to use, for the ``cmap`` of a 2D
         DataArray or the alpha channel of a 3D DataArray. Valid
         strings are 'eq_hist' [default], 'cbrt' (cube root), 'log'
         (logarithmic), and 'linear'. Callables take 2 arguments - a
         2-dimensional array of magnitudes at each pixel, and a boolean
         mask array indicating missingness. They should return a numeric
-        array of the same shape, with `NaN`s where the mask was True.
+        array of the same shape, with ``NaN`` values where the mask was
+        True.
     alpha : int, optional
         Value between 0 - 255 representing the alpha value to use for
         colormapped pixels that contain data (i.e. non-NaN values).
-        Regardless of this value, `NaN` values are set to be fully
+        Regardless of this value, ``NaN`` values are set to be fully
         transparent when doing colormapping.
     min_alpha : float, optional
         The minimum alpha value to use for non-empty pixels when doing
