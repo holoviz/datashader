@@ -53,10 +53,10 @@ other applications or data types are viewable on `Anaconda Cloud`_
 and can be downloaded in runnable form from the `datashader examples`_
 on GitHub.
 
-.. _`Plotting Pitfalls`: https://anaconda.org/jbednar/plotting_pitfalls/notebook
-.. _`Pipeline`: https://anaconda.org/jbednar/pipeline/notebook
-.. _`NYC Taxi`: https://anaconda.org/jbednar/nyc_taxi/notebook
-.. _`US Census`: https://anaconda.org/jbednar/census/notebook
+.. _`Plotting Pitfalls`: https://github.com/bokeh/datashader/blob/master/examples/plotting_pitfalls.ipynb
+.. _`Pipeline`: https://github.com/bokeh/datashader/blob/master/examples/pipeline.ipynb
+.. _`NYC Taxi`: https://github.com/bokeh/datashader/blob/master/examples/nyc_taxi.ipynb
+.. _`US Census`: https://github.com/bokeh/datashader/blob/master/examples/census.ipynb
 .. _`Anaconda Cloud`: https://anaconda.org/jbednar/notebooks
 .. _`datashader examples`: https://github.com/bokeh/datashader/tree/master/examples
 
