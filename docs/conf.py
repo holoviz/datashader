@@ -54,7 +54,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'datashader'
-copyright = u'2016, datashader contributors'
+copyright = u'2016, Continuum Analytics'
 author = u'datashader contributors'
 
 # The version info for the project you're documenting, acts as replacement for
