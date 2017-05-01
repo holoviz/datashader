@@ -95,6 +95,7 @@ def benchmark(fn, args, filetype=None):
                 #   aggregation performance (both --distributed and
                 #   --cache=persist were provided)
                 res = DASK_CLIENT.persist(res)
+                distributed.wait(res)
             else:
                 if DEBUG:
                     print("DEBUG: Force-loading Dask dataframe", flush=True)
