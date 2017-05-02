@@ -26,51 +26,17 @@ The "Census" example data is the largest file and should be the last
 thing to be downloaded, so you should be able to start running all of
 the other examples while that one completes.
 
-Datashader itself is independent of other plotting libraries, but most
-of the examples also require `bokeh` (version 0.12 or higher).
-
-Prior to running the notebook examples, install all dependencies using:
+Datashader itself is independent of other plotting libraries, but many of
+the examples do use various plotting libraries, including Bokeh, 
+HoloViews, and matplotlib.  To install these libraries and other
+dependencies, you can run:
 
 ```
 conda env create --file examples/environment.yml
 source activate ds
 ```
 
-The dashboard example may have other dependencies as listed below.
-
-
-## Dashboard
-
-An example interactive dashboard using
-[bokeh server](http://bokeh.pydata.org/en/latest/docs/user_guide/server.html)
-integrated with a datashading pipeline.  Requires webargs and (on Python2)
-fastcache:
-
-```
-pip install webargs
-conda install fastcache
-```
-
-To start, launch it with one of the supported datasets specified:
-
-```
-python dashboard/dashboard.py -c dashboard/nyc_taxi.yml
-python dashboard/dashboard.py -c dashboard/census.yml
-```
-
-The '.yml' configuration file sets up the dashboard to use one of the
-datasets downloaded above. You can write similar configuration files
-for working with other datasets of your own, while adding features to
-`dashboard.py` itself if needed.
-
-If you have less than 16GB of RAM on your machine, you will want to
-add the "-o" option before "-c" to tell it to work out of core instead
-of loading all data into memory, though doing so will make interactive
-use substantially slower than if sufficient memory were available.
-
-To launch multiple dashboards at once, you'll need to add "-p 5001"
-(etc.) to select a unique port number for the web page to use for
-communicating with the Bokeh server.
+The dashboard example has additional dependencies as listed below.
 
 ## Notebooks
 
@@ -79,11 +45,10 @@ these with all the images and output included are hosted at [Anaconda
 Cloud](https://anaconda.org/jbednar/notebooks). To run these notebooks on your
 own system, start up a Jupyter notebook server:
 
-To start:
-
 ```
-jupyter notebook
+jupyter notebook --NotebookApp.iopub_data_rate_limit=100000000
 ```
+(The data_rate setting here is required with Jupyter 5.0, but can be omitted for earlier or later versions).
 
 **[plotting_pitfalls](https://anaconda.org/jbednar/plotting_pitfalls/notebook)**
 
@@ -148,3 +113,37 @@ viewed at [anaconda.org](https://anaconda.org/jbednar/osm/notebook).
 
 Cities in the USA colored by their distance to the nearest Amazon.com 
 distribution center.
+
+
+## Dashboard
+
+An example interactive dashboard using
+[bokeh server](http://bokeh.pydata.org/en/latest/docs/user_guide/server.html)
+integrated with a datashading pipeline.  Requires webargs and (on Python2)
+fastcache:
+
+```
+pip install webargs
+conda install fastcache
+```
+
+To start, launch it with one of the supported datasets specified:
+
+```
+python dashboard/dashboard.py -c dashboard/nyc_taxi.yml
+python dashboard/dashboard.py -c dashboard/census.yml
+```
+
+The '.yml' configuration file sets up the dashboard to use one of the
+datasets downloaded above. You can write similar configuration files
+for working with other datasets of your own, while adding features to
+`dashboard.py` itself if needed.
+
+If you have less than 16GB of RAM on your machine, you will want to
+add the "-o" option before "-c" to tell it to work out of core instead
+of loading all data into memory, though doing so will make interactive
+use substantially slower than if sufficient memory were available.
+
+To launch multiple dashboards at once, you'll need to add "-p 5001"
+(etc.) to select a unique port number for the web page to use for
+communicating with the Bokeh server.
