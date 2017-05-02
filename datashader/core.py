@@ -317,7 +317,7 @@ class Canvas(object):
                          attrs=attrs)
 
     def validate(self):
-        """Check that parameter setttings are valid for this object"""
+        """Check that parameter settings are valid for this object"""
         self.x_axis.validate(self.x_range)
         self.y_axis.validate(self.y_range)
 

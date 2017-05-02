@@ -9,9 +9,10 @@ approach allows accurate and effective visualizations to be produced
 automatically, and also makes it simple for data scientists to focus
 on particular data and relationships of interest in a principled way.
 Using highly optimized rendering routines written in Python but
-compiled to machine code using `Numba <http://numba.pydata.org>`_,
-datashader makes it practical to work with extremely large datasets
-even on standard hardware.
+compiled to machine code using `Numba`_, datashader makes it practical
+to work with extremely large datasets even on standard hardware.
+
+.. _`Numba`: http://numba.pydata.org
 
 To make it concrete, here's an example of what datashader code looks like:
 
@@ -24,7 +25,7 @@ To make it concrete, here's an example of what datashader code looks like:
 
     >>> cvs = ds.Canvas(plot_width=400, plot_height=400)
     >>> agg = cvs.points(df, 'x_col', 'y_col', ds.mean('z_col'))
-    >>> img = tf.interpolate(agg, cmap=['lightblue', 'darkblue'], how='log')
+    >>> img = tf.shade(agg, cmap=['lightblue', 'darkblue'], how='log')
 
 This code reads a data file into a Pandas dataframe ``df``, and then
 projects the fields ``x_col`` and ``y_col`` onto the x and y dimensions of
@@ -36,27 +37,29 @@ ranging logarithmically in between.
 And here are some sample outputs for data from the 2010 US census,
 each constructed using a similar set of code:
 
-.. image:: https://raw.githubusercontent.com/bokeh/datashader/master/docs/images/usa_census.jpg
+.. image:: images/usa_census.jpg
 
-.. image:: https://raw.githubusercontent.com/bokeh/datashader/master/docs/images/nyc_races.jpg
+.. image:: images/nyc_races.jpg
 
 
 Documentation for datashader is primarily provided in the form of
 Jupyter notebooks.  To understand which plotting problems datashader
-helps you avoid, you can start with our `plotting pitfalls notebook
-<https://anaconda.org/jbednar/plotting_pitfalls/notebook>`_.  To see the steps
-in the datashader pipeline in detail, you can start with our `pipeline
-notebook <https://anaconda.org/jbednar/pipeline/notebook>`_.  Or you
-may want to start with detailed case studies of datashader in action,
-such as our
-`NYC Taxi notebook <https://anaconda.org/jbednar/nyc_taxi/notebook>`_ and 
-`US Census notebook <https://anaconda.org/jbednar/census/notebook>`_.
-Additional notebooks showing how to use datashader for
-other applications or data types are viewable on `Anaconda Cloud
-<https://anaconda.org/jbednar/notebooks>`_ and can be downloaded
-in runnable form at our `Github site
-<https://github.com/bokeh/datashader/tree/master/examples>`_.
-    
+helps you avoid, you can start with our `Plotting Pitfalls`_ notebook.
+To see the steps in the datashader pipeline in detail, you can start
+with our `Pipeline`_ notebook.  Or you may want to start with detailed
+case studies of datashader in action, such as our `NYC Taxi`_ and
+`US Census`_.  Additional notebooks showing how to use datashader for
+other applications or data types are viewable on `Anaconda Cloud`_
+and can be downloaded in runnable form from the `datashader examples`_
+on GitHub.
+
+.. _`Plotting Pitfalls`: https://github.com/bokeh/datashader/blob/master/examples/plotting_pitfalls.ipynb
+.. _`Pipeline`: https://github.com/bokeh/datashader/blob/master/examples/pipeline.ipynb
+.. _`NYC Taxi`: https://github.com/bokeh/datashader/blob/master/examples/nyc_taxi.ipynb
+.. _`US Census`: https://github.com/bokeh/datashader/blob/master/examples/census.ipynb
+.. _`Anaconda Cloud`: https://anaconda.org/jbednar/notebooks
+.. _`datashader examples`: https://github.com/bokeh/datashader/tree/master/examples
+
 
 FAQ
 ---
@@ -79,17 +82,19 @@ at all of it at once, then datashader can probably help you.
 **A:** If you have a very small number of data points (in the hundreds
 or thousands) or curves (in the tens or several tens, each with
 hundreds or thousands of points), then conventional plotting packages
-like `bokeh <https://bokeh.pydata.org>`_ may be more suitable.  With
-conventional browser-based packages, all of the data points are passed
-directly to the browser for display, allowing specific interaction
-with each curve or point, including display of metadata, linking to
-sources, etc.  This approach offers the most flexibility *per point*
-or *per curve*, but rapidly runs into limitations on how much data can
-be processed by the browser, and how much can be displayed on screen
-and resolved by the human visual system.  If you are not having such
-problems, i.e., your data is easily handled by your plotting
-infrastructure and you can easily see and work with all your data
-onscreen already, then you probably don't need datashader.
+like `Bokeh`_ may be more suitable.  With conventional browser-based
+packages, all of the data points are passed directly to the browser for
+display, allowing specific interaction with each curve or point,
+including display of metadata, linking to sources, etc.  This approach
+offers the most flexibility *per point* or *per curve*, but rapidly
+runs into limitations on how much data can be processed by the browser,
+and how much can be displayed on screen and resolved by the human
+visual system.  If you are not having such problems, i.e., your data is
+easily handled by your plotting infrastructure and you can easily see
+and work with all your data onscreen already, then you probably don't
+need datashader.
+
+.. _`Bokeh`: https://bokeh.pydata.org
 
 
 **Q:** Is datashader part of bokeh?
@@ -112,20 +117,25 @@ aggregate arrays suitable for further analysis.
 Other resources
 ---------------
 
-You can watch a short talk about datashader on
-`YouTube <https://www.youtube.com/watch?v=6m3CFbKmK_c>`_.  
-`Video <http://go2.continuum.io/JN12XH0g0W0Rb300CZ00000>`_ and
-`slides <http://go2.continuum.io/V0Nc000C300W100X20HZhR0>`_ from a Feb
-2016 one-hour talk introducing Datashader are also available, but
-do not include recent extensions to the library.
+You can watch a short talk about datashader on YouTube:
+`Datashader: Revealing the Structure of Genuinely Big Data`_.
+The video, `Visualizing Billions of Points of Data`_, and its `slides`_
+from a February 2016 one-hour talk introducing Datashader are also
+available, but do not include recent extensions to the library.
+
+.. _`Datashader: Revealing the Structure of Genuinely Big Data`: https://www.youtube.com/watch?v=6m3CFbKmK_c
+.. _`Visualizing Billions of Points of Data`: http://go2.continuum.io/JN12XH0g0W0Rb300CZ00000
+.. _`slides`: http://go2.continuum.io/V0Nc000C300W100X20HZhR0
 
 Some of the original ideas for datashader were developed under the
-name Abstract Rendering, which is described in a `2014 SPIE VDA paper
-<http://www.crest.iu.edu/publications/prints/2014/Cottam2014OutOfCore.pdf>`_.
+name Abstract Rendering, which is described in a `2014 SPIE VDA paper`_.
 
-The source code for datashader is maintained at our `Github site
-<https://github.com/bokeh/datashader>`_, and is documented using the
-API link on this page.
+.. _`2014 SPIE VDA paper`: http://www.crest.iu.edu/publications/prints/2014/Cottam2014OutOfCore.pdf
+
+The source code for datashader is maintained at our `Github site`_, and
+is documented using the API link on this page.
+
+.. _`GitHub site`: https://github.com/bokeh/datashader
 
 .. toctree::
    :maxdepth: 1

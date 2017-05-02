@@ -5,19 +5,47 @@ Entry Points
 ------------
 
 .. currentmodule:: datashader
+
+**Canvas**
+
 .. autosummary::
 
    Canvas
+   Canvas.line
+   Canvas.points
+   Canvas.raster
+   Canvas.validate
+
+.. currentmodule:: datashader
+
+**Pipeline**
+
+.. autosummary::
+
    Pipeline
 
 Glyphs
 ------
 
 .. currentmodule:: datashader.glyphs
+
+**Point**
+
 .. autosummary::
 
    Point
+   Point.inputs
+   Point.validate
+
+.. currentmodule:: datashader.glyphs
+
+**Line**
+
+.. autosummary::
+
    Line
+   Line.inputs
+   Line.validate
 
 Reductions
 ----------
@@ -25,29 +53,42 @@ Reductions
 .. currentmodule:: datashader.reductions
 .. autosummary::
 
-   count
    any
-   sum
-   min
+   count
+   count_cat
+   m2
    max
    mean
-   var
+   min
    std
-   count_cat
+   sum
    summary
+   var
 
 Transfer Functions
 ------------------
 
 .. currentmodule:: datashader.transfer_functions
+
+**Image**
+
 .. autosummary::
 
    Image
-   shade
-   stack
-   spread
+   Image.to_bytesio
+   Image.to_pil
+
+.. currentmodule:: datashader.transfer_functions
+
+**Other**
+
+.. autosummary::
+
    dynspread
    set_background
+   shade
+   spread
+   stack
 
 Definitions
 -----------
@@ -64,6 +105,7 @@ Definitions
 .. autoclass:: count
 .. autoclass:: any
 .. autoclass:: sum
+.. autoclass:: m2
 .. autoclass:: min
 .. autoclass:: max
 .. autoclass:: mean
