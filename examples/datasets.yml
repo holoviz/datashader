@@ -67,3 +67,31 @@ data:
     files:
       - census.parq
 
+  - url: http://rredc.nrel.gov/solar/old_data/nsrdb/1991-2010/targzs/
+    title: 'Solar Radiation NREL - NSRDB'
+    files:
+      - 726710.tar.gz
+      - 725690.tar.gz
+      - 725640.tar.gz
+      - 726700.tar.gz
+      - 725685.tar.gz
+      - 725686.tar.gz
+      - 725775.tar.gz
+      - 726650.tar.gz
+      - 725776.tar.gz
+      - 726654.tar.gz
+      - 725760.tar.gz
+      - 725645.tar.gz
+      - 725745.tar.gz
+      - 725765.tar.gz
+      - 725744.tar.gz
+      - 726660.tar.gz
+      - 726667.tar.gz
+      - 725763.tar.gz
+      - 726665.tar.gz
+
+  - url: http://rredc.nrel.gov/solar/old_data/nsrdb/1991-2010/NSRDB_StationsMeta.csv
+    title: 'Solar Radiation NREL - NSRDB Meta'
+    files:
+      - NSRDB_StationsMeta.csv
+

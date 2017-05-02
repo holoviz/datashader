@@ -222,18 +222,22 @@ def _extract_downloaded_archive(output_path):
     if output_path.endswith("tar.gz"):
         with tarfile.open(output_path, "r:gz") as tar:
             tar.extractall()
+        os.remove(output_path)
     elif output_path.endswith("tar"):
         with tarfile.open(output_path, "r:") as tar:
             tar.extractall()
+        os.remove(output_path)
     elif output_path.endswith("tar.bz2"):
         with tarfile.open(output_path, "r:bz2") as tar:
             tar.extractall()
+        os.remove(output_path)
     elif output_path.endswith("zip"):
         with zipfile.ZipFile(output_path, 'r') as zipf:
             zipf.extractall()
+        os.remove(output_path)
     elif output_path.endswith('7z'):
         _unzip_7z(output_path)
-    os.remove(output_path)
+        os.remove(output_path)
 
 
 def _process_dataset(dataset, output_dir, here):
@@ -267,7 +271,8 @@ def _process_dataset(dataset, output_dir, here):
             urls = [url + f for f in dataset['files']]
             output_paths = [os.path.join(here, 'data', fname)
                             for fname in dataset['files']]
-            unpacked = ['.'.join(output_path.split('.')[:-1]) + '.*'
+
+            unpacked = ['.'.join(output_path.split('.')[:(-2 if output_path.endswith('gz') else -1)]) + '*'
                         for output_path in output_paths]
         else:
             urls = [url]
@@ -278,7 +283,7 @@ def _process_dataset(dataset, output_dir, here):
         zipped = zip(urls, output_paths, unpacked)
         for idx, (url, output_path, unpack) in enumerate(zipped):
             running_title = title_fmt.format(idx + 1, len(urls))
-            if glob.glob(unpack):
+            if glob.glob(unpack) or os.path.exists(unpack.replace('*','')):
                 # Skip a file if a similar one is downloaded, e.g.:
                 #    skip q47122d2101.7z if q47122d2101.gnd exists
                 print('Skipping {0}'.format(running_title))
