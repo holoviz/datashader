@@ -27,18 +27,16 @@ thing to be downloaded, so you should be able to start running all of
 the other examples while that one completes.
 
 Datashader itself is independent of other plotting libraries, but most
-of the examples also require `bokeh` (version 0.12 or higher) to be
-installed.  Bokeh is available through either conda or pip:
+of the examples also require `bokeh` (version 0.12 or higher).
+
+Prior to running the notebook examples, install all dependencies using:
 
 ```
-conda install bokeh
-```
-or
-```
-pip install bokeh
+conda env create --file examples/environment.yml
+source activate ds
 ```
 
-Specific examples may have other dependencies as listed below.
+The dashboard example may have other dependencies as listed below.
 
 
 ## Dashboard
@@ -79,15 +77,7 @@ communicating with the Bokeh server.
 Most of the examples are in the form of runnable Jupyter notebooks. Copies of
 these with all the images and output included are hosted at [Anaconda
 Cloud](https://anaconda.org/jbednar/notebooks). To run these notebooks on your
-own system, install and start up a Jupyter notebook server:
-
-```
-conda install jupyter
-```
-or
-```
-pip install jupyter
-```
+own system, start up a Jupyter notebook server:
 
 To start:
 
@@ -100,12 +90,7 @@ jupyter notebook
 Motivation for the ideas behind datashader. Shows perceptual problems
 that plotting in a conventional way can lead to. Re-running it locally
 is usually not required, since the filled out version at the link
-above has the full data. If you do wish to re-run it, you will need to
-install the HoloViews package:
-
-```
-conda install -c ioam holoviews
-```
+above has the full data.
 
 **[pipeline](https://anaconda.org/jbednar/pipeline/notebook)**
 
@@ -114,10 +99,6 @@ pipeline, giving an overview of how to configure and use each
 component provided.  Most useful when you have looked at the other
 example dashboards and the notebooks below, and are ready to start
 working with your own data.
-
-```
-conda install -c ioam holoviews
-```
 
 **[nyc_taxi](https://anaconda.org/jbednar/nyc_taxi/notebook)**
 
@@ -128,15 +109,11 @@ but preprocessed using `taxi_preprocessing_example.py` for convenience.
 **[census](https://anaconda.org/jbednar/census/notebook)**
 
 Plotting the [2010 US Census data](http://www.coopercenter.org/demographics/Racial-Dot-Map), 
-both to show population density and to show racial categories.  Requires pytables:
-
-```
-conda install pytables
-```
+both to show population density and to show racial categories.
 
 There is also a [version that lets you compare congressional districts with racial categories]
-(https://anaconda.org/jbednar/census-hv-dask), which has its own installation requirements
-because of overlaying shape files.
+(https://anaconda.org/jbednar/census-hv-dask), which has its own installation
+requirements because of overlaying shape files.
 
 **[nyc_taxi-nongeo](https://anaconda.org/jbednar/nyc_taxi-nongeo/notebook)**
 
@@ -158,17 +135,14 @@ Plotting a 2D trajectory, either for a single long
 
 Combining raster data with scatterpoint data, using the 
 census data on race along with gridded elevation data for Austin, TX.
-Requires rasterio (`conda install rasterio krb5 scikit-image`).
 
 **[osm](https://anaconda.org/jbednar/osm/notebook)**
 
-Plotting the 2.7 billion gps coordinates made available by [open street
+Plotting the 2.7 billion GPS coordinates made available by [open street
 map](https://blog.openstreetmap.org/2012/04/01/bulk-gps-point-data/). This
-dataset is not provided by the download script, and the notebook is only included to
-demonstrate working with a large dataset. Requires `dask` for
-out-of-core operation and `castra` for the fast file format.  The run
-notebook can be viewed at
-[anaconda.org](https://anaconda.org/jbednar/osm/notebook).
+dataset is not provided by the download script, and the notebook is only
+included to demonstrate working with a large dataset. The run notebook can be
+viewed at [anaconda.org](https://anaconda.org/jbednar/osm/notebook).
 
 **[Amazon.com center distance](https://anaconda.org/defusco/amz_centers/notebook)**
 
