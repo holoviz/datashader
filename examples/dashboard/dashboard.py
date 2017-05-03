@@ -102,11 +102,11 @@ class AppState(object):
         self.transfer_function = list(self.transfer_functions.values())[0]
 
         self.basemaps = OrderedDict()
-        self.basemaps['Imagery'] = ('http://server.arcgisonline.com/ArcGIS'
+        self.basemaps['Imagery'] = ('http://server.arcgisonline.com/arcgis'
                                     '/rest/services/World_Imagery/MapServer'
                                     '/tile/{Z}/{Y}/{X}.png')
         self.basemaps['Shaded Relief'] = ('http://services.arcgisonline.com'
-                                          '/ArcGIS/rest/services'
+                                          '/arcgis/rest/services'
                                           '/World_Shaded_Relief/MapServer'
                                           '/tile/{Z}/{Y}/{X}.png')
         self.basemaps['Toner'] = ('http://tile.stamen.com/toner-background'
