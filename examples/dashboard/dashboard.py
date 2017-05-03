@@ -15,7 +15,7 @@ from bokeh.application import Application
 from bokeh.application.handlers import FunctionHandler
 
 from bokeh.plotting import Figure
-from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer, DynamicImageRenderer, HBox, VBox)
+from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer, DynamicImageRenderer, Row, Column)
 
 from bokeh.models import (Select, Slider, CheckboxGroup)
 
@@ -369,8 +369,8 @@ class AppView(object):
         self.fig.renderers.append(self.label_renderer)
 
         # Add placeholder for legends (temporarily disabled)
-        # self.model.legend_side_vbox = VBox()
-        # self.model.legend_bottom_vbox = VBox()
+        # self.model.legend_side_vbox = Column()
+        # self.model.legend_bottom_vbox = Column()
 
         # add ui components
         controls = []
@@ -426,13 +426,13 @@ class AppView(object):
         map_controls = [basemap_select, basemap_opacity_slider,
                         image_opacity_slider, show_labels_chk]
 
-        self.controls = VBox(height=600, children=controls)
-        self.map_controls = HBox(width=self.fig.plot_width, children=map_controls)
+        self.controls = Column(height=600, children=controls)
+        self.map_controls = Row(width=self.fig.plot_width, children=map_controls)
 
         # legends (temporarily disabled)
-        self.map_area = VBox(width=900, height=600, children=[self.map_controls,
+        self.map_area = Column(width=900, height=600, children=[self.map_controls,
                                                                   self.fig])
-        self.layout = HBox(width=1300, height=600, children=[self.controls, self.map_area])
+        self.layout = Row(width=1300, height=600, children=[self.controls, self.map_area])
         self.model.fig = self.fig
         self.model.update_hover()
 
