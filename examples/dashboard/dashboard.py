@@ -3,7 +3,6 @@ from __future__ import absolute_import, print_function, division
 import argparse
 from os import path
 import yaml
-import webbrowser
 import uuid
 
 from collections import OrderedDict
@@ -42,6 +41,7 @@ ds_args = {
     'select': fields.Str(missing=""),
 }
 
+
 class GetDataset(RequestHandler):
     """Handles http requests for datashading."""
 
@@ -53,7 +53,7 @@ class GetDataset(RequestHandler):
         xmin, ymin, xmax, ymax = map(float, selection)
         self.model.map_extent = [xmin, ymin, xmax, ymax]
 
-        glyph=self.model.glyph.get(str(self.model.field),'points')
+        glyph = self.model.glyph.get(str(self.model.field), 'points')
 
         # create image
         self.model.agg = self.model.create_aggregate(args['width'],
@@ -75,6 +75,7 @@ class GetDataset(RequestHandler):
         img_io = pix.to_bytesio()
         self.write(img_io.getvalue())
         self.set_header("Content-type", "image/png")
+
 
 class AppState(object):
     """Simple value object to hold app state"""
@@ -191,21 +192,21 @@ class AppState(object):
                 self.ordinal_fields.append(f['field'])
 
             if 'glyph' in f.keys():
-                self.glyph[f['field']]=f['glyph']
+                self.glyph[f['field']] = f['glyph']
 
         self.field = list(self.fields.values())[0]
         self.field_title = list(self.fields.keys())[0]
 
         self.colormap = None
         if self.colormaps:
-            colormap = self.colormaps.get(self.field_title,None)
+            colormap = self.colormaps.get(self.field_title, None)
             if colormap:
                 self.colormap = colormap
                 self.colornames = self.color_name_maps[self.field_title]
 
     def load_datasets(self, outofcore):
         data_path = self.config['file']
-        objpath = self.config.get('objpath',None)
+        objpath = self.config.get('objpath', None)
         print('Loading Data from {}...'.format(data_path))
 
         if not path.isabs(data_path):
@@ -256,8 +257,8 @@ class AppState(object):
                            x_range=x_range,
                            y_range=y_range)
 
-        method=getattr(canvas,glyph)
-        
+        method = getattr(canvas, glyph)
+
         # handle categorical field
         if agg_field in self.categorical_fields:
             agg = method(self.df, x_field, y_field, ds.count_cat(agg_field))
@@ -273,7 +274,7 @@ class AppState(object):
 
     def render_image(self):
         if self.colormaps:
-            colormap = self.colormaps.get(self.field_title,None)
+            colormap = self.colormaps.get(self.field_title, None)
             if colormap:
                 self.colormap = colormap
                 self.colornames = self.color_name_maps[self.field_title]
@@ -318,17 +319,12 @@ class AppState(object):
             self.legend_side_vbox.children = []
 
 
-
 class AppView(object):
-
-
     def __init__(self, app_model):
         self.model = app_model
         self.create_layout()
 
-
     def create_layout(self):
-
         # create figure
         self.x_range = Range1d(start=self.model.map_extent[0],
                                end=self.model.map_extent[2], bounds=None)
@@ -387,7 +383,7 @@ class AppView(object):
         controls.append(self.aggregate_select)
 
         transfer_select = Select(name='Transfer Function',
-                                        options=list(self.model.transfer_functions.keys()))
+                                 options=list(self.model.transfer_functions.keys()))
         transfer_select.on_change('value', self.on_transfer_function_change)
         controls.append(transfer_select)
 
@@ -430,9 +426,10 @@ class AppView(object):
         self.map_controls = Row(width=self.fig.plot_width, children=map_controls)
 
         # legends (temporarily disabled)
-        self.map_area = Column(width=900, height=600, children=[self.map_controls,
-                                                                  self.fig])
-        self.layout = Row(width=1300, height=600, children=[self.controls, self.map_area])
+        self.map_area = Column(width=900, height=600,
+                               children=[self.map_controls, self.fig])
+        self.layout = Row(width=1300, height=600,
+                          children=[self.controls, self.map_area])
         self.model.fig = self.fig
         self.model.update_hover()
 
