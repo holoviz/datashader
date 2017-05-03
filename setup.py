@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
 with open('requirements.txt') as f:
     install_requires = f.read().strip().split('\n')
@@ -8,4 +8,6 @@ setup(name='datashader',
       description='Data visualization toolchain based on aggregating into a grid',
       url='http://github.com/bokeh/datashader',
       install_requires=install_requires,
-      packages=['datashader', 'datashader.tests'])
+      packages=find_packages(),
+      zip_safe=False,
+      include_package_data=True)

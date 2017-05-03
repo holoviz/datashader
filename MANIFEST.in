@@ -1,0 +1,3 @@
+global-exclude .git*
+recursive-include examples *.py *.ipynb *.md *.sh *.yml
+prune examples/.ipynb_checkpoints
