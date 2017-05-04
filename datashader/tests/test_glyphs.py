@@ -69,7 +69,7 @@ def test_draw_line():
                     [0, 0, 0, 1, 0],
                     [0, 0, 1, 0, 0],
                     [0, 1, 0, 0, 0],
-                    [1, 0, 0, 0, 0]])
+                    [0, 0, 0, 0, 0]])
     agg = new_agg()
     draw_line(vt, bounds, x0, y0, x1, y1, 0, True, False, agg)
     np.testing.assert_equal(agg, out)

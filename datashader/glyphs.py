@@ -127,13 +127,29 @@ def _build_draw_line(append, x_mapper, y_mapper):
     @ngjit
     def draw_line(vt, bounds, x0, y0, x1, y1, i, plot_start, clipped,
                   *aggs_and_cols):
-        """Draw a line using Bresenham's algorithm"""
+        """Draw a line using Bresenham's algorithm
+
+        This method maps points with float coordinates onto a pixel grid. The
+        given bounds have an inclusive lower bound and exclusive upper bound.
+        Any pixels drawn on the x-axis or y-axis upper bound are ignored.
+
+        The vertices of the line segment and the bounds are scaled and
+        transformed onto the pixel grid before use in the calculations.
+        """
         sx, tx, sy, ty = vt
-        # Project to pixel space
+        xmin, xmax, ymin, ymax = bounds
+
+        # Project vertices to pixel space
         x0i = int(x_mapper(x0) * sx + tx)
         y0i = int(y_mapper(y0) * sy + ty)
         x1i = int(x_mapper(x1) * sx + tx)
         y1i = int(y_mapper(y1) * sy + ty)
+
+        # Project bounds to pixel space
+        xmin = int(x_mapper(xmin) * sx + tx)
+        xmax = int(x_mapper(xmax) * sx + tx)
+        ymin = int(y_mapper(ymin) * sy + ty)
+        ymax = int(y_mapper(ymax) * sy + ty)
 
         dx = x1i - x0i
         ix = (dx > 0) - (dx < 0)
@@ -144,13 +160,15 @@ def _build_draw_line(append, x_mapper, y_mapper):
         dy = abs(dy) * 2
 
         if plot_start:
-            append(i, x0i, y0i, *aggs_and_cols)
+            if (xmin <= x0i < xmax) and (ymin <= y0i < ymax):
+                append(i, x0i, y0i, *aggs_and_cols)
 
         if dx >= dy:
             # If vertices weren't clipped and are concurrent in integer space,
             # call append and return, as the second vertex won't be hit below.
             if not clipped and not (dx | dy):
-                append(i, x0i, y0i, *aggs_and_cols)
+                if (xmin <= x0i < xmax) and (ymin <= y0i < ymax):
+                    append(i, x0i, y0i, *aggs_and_cols)
                 return
             error = 2*dy - dx
             while x0i != x1i:
@@ -159,7 +177,8 @@ def _build_draw_line(append, x_mapper, y_mapper):
                     y0i += iy
                 error += 2 * dy
                 x0i += ix
-                append(i, x0i, y0i, *aggs_and_cols)
+                if (xmin <= x0i < xmax) and (ymin <= y0i < ymax):
+                    append(i, x0i, y0i, *aggs_and_cols)
         else:
             error = 2*dx - dy
             while y0i != y1i:
@@ -168,7 +187,8 @@ def _build_draw_line(append, x_mapper, y_mapper):
                     x0i += ix
                 error += 2 * dx
                 y0i += iy
-                append(i, x0i, y0i, *aggs_and_cols)
+                if (xmin <= x0i < xmax) and (ymin <= y0i < ymax):
+                    append(i, x0i, y0i, *aggs_and_cols)
 
     return draw_line
 
@@ -179,9 +199,6 @@ def _build_extend_line(draw_line):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
         sx, tx, sy, ty = vt
         xmin, xmax, ymin, ymax = bounds
-        # Adjustments for exclusive upper bounds for x and y
-        xmax -= 1
-        ymax -= 1
         nrows = xs.shape[0]
         i = 0
         while i < nrows - 1:
