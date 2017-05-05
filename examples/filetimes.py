@@ -228,13 +228,13 @@ def timed_read(filepath,dftype):
 
 
 CACHED_RANGES = (None, None)
-def timed_agg(df, filepath, plot_width=int(900), plot_height=int(900*7.0/12), recalc_ranges=False):
+def timed_agg(df, filepath, plot_width=int(900), plot_height=int(900*7.0/12), cache_ranges=True):
     global CACHED_RANGES
     start = time.time()
     cvs = ds.Canvas(plot_width, plot_height, x_range=CACHED_RANGES[0], y_range=CACHED_RANGES[1])
     agg = cvs.points(df, p.x, p.y)
     end = time.time()
-    if not recalc_ranges:
+    if cache_ranges:
         CACHED_RANGES = (cvs.x_range, cvs.y_range)
     img = export_image(tf.shade(agg),filepath,export_path=".")
     return img, end-start
@@ -326,7 +326,7 @@ def main(argv):
     if DEBUG:
         print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem(), flush=True))
 
-    img,aggtime1 = timed_agg(df,filepath,5,5,recalc_ranges=args.recalc_ranges)
+    img,aggtime1 = timed_agg(df,filepath,5,5,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
         mem_usage = df.memory_usage(deep=True)
         if p.dftype == 'dask':
@@ -338,7 +338,7 @@ def main(argv):
             print('DEBUG: column "{}" dtype: {}'.format(colname, df[colname].dtype))
         print('DEBUG: Memory usage (after agg1):\t{} MB'.format(get_proc_mem(), flush=True))
 
-    img,aggtime2 = timed_agg(df,filepath,recalc_ranges=args.recalc_ranges)
+    img,aggtime2 = timed_agg(df,filepath,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
         print('DEBUG: Memory usage (after agg2):\t{} MB'.format(get_proc_mem(), flush=True))
     

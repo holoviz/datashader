@@ -28,10 +28,12 @@ class _PointLike(Glyph):
         elif not isreal(in_dshape.measure[self.y]):
             raise ValueError('y must be real')
 
+    @memoize
     def _compute_x_bounds(self, df):
         xs = df[self.x].values
         return np.nanmin(xs), np.nanmax(xs)
 
+    @memoize
     def _compute_y_bounds(self, df):
         ys = df[self.y].values
         return np.nanmin(ys), np.nanmax(ys)
