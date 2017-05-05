@@ -148,8 +148,9 @@ def _build_draw_line(append, map_onto_pixel):
         given bounds have an inclusive lower bound and exclusive upper bound.
         Any pixels drawn on the x-axis or y-axis upper bound are ignored.
 
-        The vertices of the line segment and the bounds are scaled and
-        transformed onto the pixel grid before use in the calculations.
+        The vertices of the line segment are scaled and transformed onto the
+        pixel grid before use in the calculations. The given bounds are
+        assumed to have already been scaled and transformed.
         """
         x0i, x1i, y0i, y1i = map_onto_pixel(vt, x0, x1, y0, y1)
         xmin, xmax, ymin, ymax = bounds
