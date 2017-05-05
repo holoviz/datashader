@@ -8,7 +8,7 @@ channels:
 
 dependencies:
  - attrs
- - bokeh=0.12.6dev3
+ - bokeh>=0.12.6dev3
  - cartopy
  - colorcet
  - dask
