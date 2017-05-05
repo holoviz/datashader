@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division
 
 from toolz import memoize
+from dask.dataframe.hashing import hash_pandas_object
 import numpy as np
 
 from .core import Expr
@@ -28,13 +29,27 @@ class _PointLike(Glyph):
         elif not isreal(in_dshape.measure[self.y]):
             raise ValueError('y must be real')
 
-    @memoize
     def _compute_x_bounds(self, df):
         xs = df[self.x].values
         return np.nanmin(xs), np.nanmax(xs)
 
-    @memoize
     def _compute_y_bounds(self, df):
+        ys = df[self.y].values
+        return np.nanmin(ys), np.nanmax(ys)
+
+    @memoize
+    def _compute_x_bounds_hashable(self, df):
+        """Same as ``PointLike._compute_x_bounds``, but memoized because
+        ``df`` is immutable/hashable (a Dask dataframe).
+        """
+        xs = df[self.x].values
+        return np.nanmin(xs), np.nanmax(xs)
+
+    @memoize
+    def _compute_y_bounds_hashable(self, df):
+        """Same as ``PointLike._compute_y_bounds``, but memoized because
+        ``df`` is immutable/hashable (a Dask dataframe).
+        """
         ys = df[self.y].values
         return np.nanmin(ys), np.nanmax(ys)
 
