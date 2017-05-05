@@ -25,13 +25,8 @@ def dask_pipeline(df, schema, canvas, glyph, summary):
 
 
 def shape_bounds_st_and_axis(df, canvas, glyph):
-    # Cache the x and y ranges during the first aggregation
-    if canvas.x_range is None:
-        canvas.x_range = glyph._compute_x_bounds(df)
-    if canvas.y_range is None:
-        canvas.y_range = glyph._compute_y_bounds(df)
-    x_range = canvas.x_range
-    y_range = canvas.y_range
+    x_range = canvas.x_range or glyph._compute_x_bounds(df)
+    y_range = canvas.y_range or glyph._compute_y_bounds(df)
     x_min, x_max, y_min, y_max = bounds = compute(*(x_range + y_range))
     x_range, y_range = (x_min, x_max), (y_min, y_max)
     width = canvas.plot_width

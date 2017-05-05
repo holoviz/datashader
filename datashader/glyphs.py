@@ -30,11 +30,11 @@ class _PointLike(Glyph):
 
     def _compute_x_bounds(self, df):
         xs = df[self.x].values
-        return xs.min(), xs.max()
+        return np.nanmin(xs), np.nanmax(xs)
 
     def _compute_y_bounds(self, df):
         ys = df[self.y].values
-        return ys.min(), ys.max()
+        return np.nanmin(ys), np.nanmax(ys)
 
 
 class Point(_PointLike):

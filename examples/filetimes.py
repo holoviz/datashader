@@ -232,7 +232,7 @@ def timed_agg(df, filepath, plot_width=int(900), plot_height=int(900*7.0/12), re
     global CACHED_RANGES
     start = time.time()
     cvs = ds.Canvas(plot_width, plot_height, x_range=CACHED_RANGES[0], y_range=CACHED_RANGES[1])
-    agg = cvs.points(df, p.x, p.y, recalc_ranges=recalc_ranges)
+    agg = cvs.points(df, p.x, p.y)
     end = time.time()
     if not recalc_ranges:
         CACHED_RANGES = (cvs.x_range, cvs.y_range)
