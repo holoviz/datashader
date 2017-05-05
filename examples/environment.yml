@@ -1,5 +1,6 @@
 name: ds
 channels:
+ - bokeh/label/dev
  - conda-forge
  - ioam/label/dev
  - ioam
@@ -7,7 +8,7 @@ channels:
 
 dependencies:
  - attrs
- - bokeh
+ - bokeh>=0.12.6dev3
  - cartopy
  - colorcet
  - dask
