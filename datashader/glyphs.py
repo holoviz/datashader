@@ -89,10 +89,11 @@ class Line(_PointLike):
         y_name = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
+            mapped_bounds = map_onto_pixel(vt, *bounds)
             xs = df[x_name].values
             ys = df[y_name].values
             cols = aggs + info(df)
-            extend_line(vt, bounds, xs, ys, plot_start, *cols)
+            extend_line(vt, bounds, mapped_bounds, xs, ys, plot_start, *cols)
 
         return extend
 
@@ -151,7 +152,7 @@ def _build_draw_line(append, map_onto_pixel):
         transformed onto the pixel grid before use in the calculations.
         """
         x0i, x1i, y0i, y1i = map_onto_pixel(vt, x0, x1, y0, y1)
-        xmin, xmax, ymin, ymax = map_onto_pixel(vt, *bounds)
+        xmin, xmax, ymin, ymax = bounds
 
         dx = x1i - x0i
         ix = (dx > 0) - (dx < 0)
@@ -197,7 +198,7 @@ def _build_draw_line(append, map_onto_pixel):
 
 def _build_extend_line(draw_line):
     @ngjit
-    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+    def extend_line(vt, bounds, mapped_bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
         sx, tx, sy, ty = vt
         xmin, xmax, ymin, ymax = bounds
@@ -257,7 +258,7 @@ def _build_extend_line(draw_line):
                                                     ymin, ymax)
 
             if accept:
-                draw_line(vt, bounds, x0, y0, x1, y1, i, plot_start, clipped,
+                draw_line(vt, mapped_bounds, x0, y0, x1, y1, i, plot_start, clipped,
                           *aggs_and_cols)
                 plot_start = False
             i += 1
