@@ -82,7 +82,8 @@ class Line(_PointLike):
     """
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_line = _build_draw_line(append, x_mapper, y_mapper)
+        map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
+        draw_line = _build_draw_line(append, map_onto_pixel)
         extend_line = _build_extend_line(draw_line)
         x_name = self.x
         y_name = self.y
@@ -122,7 +123,20 @@ def _compute_outcode(x, y, xmin, xmax, ymin, ymax):
     return code
 
 
-def _build_draw_line(append, x_mapper, y_mapper):
+def _build_map_onto_pixel(x_mapper, y_mapper):
+    @ngjit
+    def map_onto_pixel(vt, x0, x1, y0, y1):
+        """Map points onto pixel grid"""
+        sx, tx, sy, ty = vt
+        return (int(x_mapper(x0) * sx + tx),
+                int(x_mapper(x1) * sx + tx),
+                int(y_mapper(y0) * sy + ty),
+                int(y_mapper(y1) * sy + ty))
+
+    return map_onto_pixel
+
+
+def _build_draw_line(append, map_onto_pixel):
     """Specialize a line plotting kernel for a given append/axis combination"""
     @ngjit
     def draw_line(vt, bounds, x0, y0, x1, y1, i, plot_start, clipped,
@@ -136,20 +150,8 @@ def _build_draw_line(append, x_mapper, y_mapper):
         The vertices of the line segment and the bounds are scaled and
         transformed onto the pixel grid before use in the calculations.
         """
-        sx, tx, sy, ty = vt
-        xmin, xmax, ymin, ymax = bounds
-
-        # Project vertices to pixel space
-        x0i = int(x_mapper(x0) * sx + tx)
-        y0i = int(y_mapper(y0) * sy + ty)
-        x1i = int(x_mapper(x1) * sx + tx)
-        y1i = int(y_mapper(y1) * sy + ty)
-
-        # Project bounds to pixel space
-        xmin = int(x_mapper(xmin) * sx + tx)
-        xmax = int(x_mapper(xmax) * sx + tx)
-        ymin = int(y_mapper(ymin) * sy + ty)
-        ymax = int(y_mapper(ymax) * sy + ty)
+        x0i, x1i, y0i, y1i = map_onto_pixel(vt, x0, x1, y0, y1)
+        xmin, xmax, ymin, ymax = map_onto_pixel(vt, *bounds)
 
         dx = x1i - x0i
         ix = (dx > 0) - (dx < 0)

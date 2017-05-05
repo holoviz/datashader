@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from datashader.glyphs import Point, _build_draw_line, _build_extend_line
+from datashader.glyphs import Point, _build_draw_line, _build_extend_line, _build_map_onto_pixel
 from datashader.utils import ngjit
 
 
@@ -31,7 +31,8 @@ def new_agg():
 
 
 mapper = ngjit(lambda x: x)
-draw_line = _build_draw_line(append, mapper, mapper)
+map_onto_pixel = _build_map_onto_pixel(mapper, mapper)
+draw_line = _build_draw_line(append, map_onto_pixel)
 extend_line = _build_extend_line(draw_line)
 
 bounds = (-3, 1, -3, 1)
