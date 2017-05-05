@@ -29,10 +29,12 @@ class _PointLike(Glyph):
             raise ValueError('y must be real')
 
     def _compute_x_bounds(self, df):
-        return df[self.x].min(), df[self.x].max()
+        xs = df[self.x].values
+        return xs.min(), xs.max()
 
     def _compute_y_bounds(self, df):
-        return df[self.y].min(), df[self.y].max()
+        ys = df[self.y].values
+        return ys.min(), ys.max()
 
 
 class Point(_PointLike):

@@ -138,23 +138,35 @@ class Canvas(object):
     plot_width, plot_height : int, optional
         Width and height of the output aggregate in pixels.
     x_range, y_range : tuple, optional
-        A tuple representing the bounds inclusive space ``[min, max]`` along
-        the axis.
+        A tuple representing the bounds inclusive space ``[min, max]`` along the
+        axis. These will be calculated and cached by datashader during the first
+        aggregation, if not provided. The cached values may be
+        invalidated/recalculated by providing the ``recalc_ranges`` keyword
+        argument to the ``Canvas.points()`` and/or ``Canvas.line()`` methods.
     x_axis_type, y_axis_type : str, optional
         The type of the axis. Valid options are ``'linear'`` [default], and
         ``'log'``.
+    cache_ranges : bool, optional
+        Whether to cache x_range and y_range variables when they get
+        updated. Default is ``True``. This provides a speedup by relying on the
+        x and y data remaining unchanged between data aggregations. If the x or
+        y data may have changed, one may either set this option to ``False``, or
+        provide the ``recalc_ranges=True`` when calling ``Canvas.points()``
+        and/or ``Canvas.line()``.
     """
     def __init__(self, plot_width=600, plot_height=600,
                  x_range=None, y_range=None,
-                 x_axis_type='linear', y_axis_type='linear'):
+                 x_axis_type='linear', y_axis_type='linear',
+                 cache_ranges=True):
         self.plot_width = plot_width
         self.plot_height = plot_height
-        self.x_range = tuple(x_range) if x_range is not None else x_range
-        self.y_range = tuple(y_range) if y_range is not None else y_range
+        self.x_range = tuple(x_range) if x_range is not None else None
+        self.y_range = tuple(y_range) if y_range is not None else None
         self.x_axis = _axis_lookup[x_axis_type]
         self.y_axis = _axis_lookup[y_axis_type]
+        self.cache_ranges = cache_ranges
 
-    def points(self, source, x, y, agg=None):
+    def points(self, source, x, y, agg=None, recalc_ranges=False):
         """Compute a reduction by pixel, mapping data to pixels as points.
 
         Parameters
@@ -165,14 +177,22 @@ class Canvas(object):
             Column names for the x and y coordinates of each point.
         agg : Reduction, optional
             Reduction to compute. Default is ``count()``.
+        recalc_ranges : bool, optional
+            Recalculate the ranges that datashader calculated/cached during the
+            first aggregation. Default is ``False``. This option should only be
+            used if the dataframe's x or y data was altered after the ``Canvas``
+            was created.
         """
         from .glyphs import Point
         from .reductions import count
+        if not self.cache_ranges or recalc_ranges:
+            self.x_range = None
+            self.y_range = None
         if agg is None:
             agg = count()
         return bypixel(source, self, Point(x, y), agg)
 
-    def line(self, source, x, y, agg=None):
+    def line(self, source, x, y, agg=None, recalc_ranges=False):
         """Compute a reduction by pixel, mapping data to pixels as a line.
 
         For aggregates that take in extra fields, the interpolated bins will
@@ -192,9 +212,17 @@ class Canvas(object):
             Column names for the x and y coordinates of each vertex.
         agg : Reduction, optional
             Reduction to compute. Default is ``any()``.
+        recalc_ranges : bool, optional
+            Recalculate the ranges that datashader calculated/cached during the
+            first aggregation. Default is ``False``. This option should only be
+            used if the dataframe's x or y data was altered after the ``Canvas``
+            was created.
         """
         from .glyphs import Line
         from .reductions import any
+        if not self.cache_ranges or recalc_ranges:
+            self.x_range = None
+            self.y_range = None
         if agg is None:
             agg = any()
         return bypixel(source, self, Line(x, y), agg)
