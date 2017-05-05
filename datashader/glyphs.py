@@ -201,7 +201,6 @@ def _build_extend_line(draw_line):
     @ngjit
     def extend_line(vt, bounds, mapped_bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
-        sx, tx, sy, ty = vt
         xmin, xmax, ymin, ymax = bounds
         nrows = xs.shape[0]
         i = 0
