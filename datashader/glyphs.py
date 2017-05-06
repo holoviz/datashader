@@ -29,25 +29,41 @@ class _PointLike(Glyph):
         elif not isreal(in_dshape.measure[self.y]):
             raise ValueError('y must be real')
 
-    def _compute_x_bounds(self, df):
-        xs = df[self.x].values
-        return np.nanmin(xs), np.nanmax(xs)
+    @staticmethod
+    @ngjit
+    def _compute_x_bounds_pandas(xs):
+        minval = maxval = xs[0]
+        for x in xs:
+            if not np.isnan(x):
+                if x < minval:
+                    minval = x
+                elif x > maxval:
+                    maxval = x
+        return minval, maxval
 
-    def _compute_y_bounds(self, df):
-        ys = df[self.y].values
-        return np.nanmin(ys), np.nanmax(ys)
+    @staticmethod
+    @ngjit
+    def _compute_y_bounds_pandas(ys):
+        minval = maxval = ys[0]
+        for y in ys:
+            if not np.isnan(y):
+                if y < minval:
+                    minval = y
+                elif y > maxval:
+                    maxval = y
+        return minval, maxval
 
     @memoize
-    def _compute_x_bounds_hashable(self, df):
-        """Same as ``PointLike._compute_x_bounds``, but memoized because
+    def _compute_x_bounds_dask(self, df):
+        """Like ``PointLike._compute_x_bounds``, but memoized because
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         xs = df[self.x].values
         return np.nanmin(xs), np.nanmax(xs)
 
     @memoize
-    def _compute_y_bounds_hashable(self, df):
-        """Same as ``PointLike._compute_y_bounds``, but memoized because
+    def _compute_y_bounds_dask(self, df):
+        """Like ``PointLike._compute_y_bounds``, but memoized because
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         ys = df[self.y].values
