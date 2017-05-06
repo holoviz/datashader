@@ -83,16 +83,21 @@ class Line(_PointLike):
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
-        draw_line = _build_draw_line(append, map_onto_pixel)
-        extend_line = _build_extend_line(draw_line)
+        draw_line = _build_draw_line(append)
+        extend_line = _build_extend_line(draw_line, map_onto_pixel)
         x_name = self.x
         y_name = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            mapped_bounds = map_onto_pixel(vt, *bounds)
+            # Scale/transform float bounds to integer space and adjust for
+            # exclusive upper bounds
+            xmin, xmax, ymin, ymax = map_onto_pixel(vt, *bounds)
+            mapped_bounds = (xmin, xmax - 1, ymin, ymax - 1)
+
             xs = df[x_name].values
             ys = df[y_name].values
             cols = aggs + info(df)
+
             extend_line(vt, bounds, mapped_bounds, xs, ys, plot_start, *cols)
 
         return extend
@@ -137,24 +142,20 @@ def _build_map_onto_pixel(x_mapper, y_mapper):
     return map_onto_pixel
 
 
-def _build_draw_line(append, map_onto_pixel):
+def _build_draw_line(append):
     """Specialize a line plotting kernel for a given append/axis combination"""
     @ngjit
-    def draw_line(vt, bounds, x0, y0, x1, y1, i, plot_start, clipped,
-                  *aggs_and_cols):
+    def draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped, *aggs_and_cols):
         """Draw a line using Bresenham's algorithm
 
-        This method maps points with float coordinates onto a pixel grid. The
-        given bounds have an inclusive lower bound and exclusive upper bound.
-        Any pixels drawn on the x-axis or y-axis upper bound are ignored.
+        This method plots a line segment with integer coordinates onto a pixel
+        grid. The vertices are assumed to have already been scaled, transformed,
+        and clipped within the bounds.
 
-        The vertices of the line segment are scaled and transformed onto the
-        pixel grid before use in the calculations. The given bounds are
-        assumed to have already been scaled and transformed.
+        The following algorithm is the more general Bresenham's algorithm that
+        works with both float and integer coordinates. A future performance
+        improvement would replace this algorithm with the integer-specific one.
         """
-        x0i, x1i, y0i, y1i = map_onto_pixel(vt, x0, x1, y0, y1)
-        xmin, xmax, ymin, ymax = bounds
-
         dx = x1i - x0i
         ix = (dx > 0) - (dx < 0)
         dx = abs(dx) * 2
@@ -164,15 +165,13 @@ def _build_draw_line(append, map_onto_pixel):
         dy = abs(dy) * 2
 
         if plot_start:
-            if (xmin <= x0i < xmax) and (ymin <= y0i < ymax):
-                append(i, x0i, y0i, *aggs_and_cols)
+            append(i, x0i, y0i, *aggs_and_cols)
 
         if dx >= dy:
             # If vertices weren't clipped and are concurrent in integer space,
             # call append and return, as the second vertex won't be hit below.
             if not clipped and not (dx | dy):
-                if (xmin <= x0i < xmax) and (ymin <= y0i < ymax):
-                    append(i, x0i, y0i, *aggs_and_cols)
+                append(i, x0i, y0i, *aggs_and_cols)
                 return
             error = 2*dy - dx
             while x0i != x1i:
@@ -181,8 +180,7 @@ def _build_draw_line(append, map_onto_pixel):
                     y0i += iy
                 error += 2 * dy
                 x0i += ix
-                if (xmin <= x0i < xmax) and (ymin <= y0i < ymax):
-                    append(i, x0i, y0i, *aggs_and_cols)
+                append(i, x0i, y0i, *aggs_and_cols)
         else:
             error = 2*dx - dy
             while y0i != y1i:
@@ -191,17 +189,16 @@ def _build_draw_line(append, map_onto_pixel):
                     x0i += ix
                 error += 2 * dx
                 y0i += iy
-                if (xmin <= x0i < xmax) and (ymin <= y0i < ymax):
-                    append(i, x0i, y0i, *aggs_and_cols)
+                append(i, x0i, y0i, *aggs_and_cols)
 
     return draw_line
 
 
-def _build_extend_line(draw_line):
+def _build_extend_line(draw_line, map_onto_pixel):
     @ngjit
     def extend_line(vt, bounds, mapped_bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
-        xmin, xmax, ymin, ymax = bounds
+        xmin, xmax, ymin, ymax = mapped_bounds
         nrows = xs.shape[0]
         i = 0
         while i < nrows - 1:
@@ -209,6 +206,7 @@ def _build_extend_line(draw_line):
             y0 = ys[i]
             x1 = xs[i + 1]
             y1 = ys[i + 1]
+
             # If any of the coordinates are NaN, there's a discontinuity. Skip
             # the entire segment.
             if np.isnan(x0) or np.isnan(y0) or np.isnan(x1) or np.isnan(y1):
@@ -216,9 +214,11 @@ def _build_extend_line(draw_line):
                 i += 1
                 continue
 
+            x0i, x1i, y0i, y1i = map_onto_pixel(vt, x0, x1, y0, y1)
+
             # Use Cohen-Sutherland to clip the segment to a bounding box
-            outcode0 = _compute_outcode(x0, y0, xmin, xmax, ymin, ymax)
-            outcode1 = _compute_outcode(x1, y1, xmin, xmax, ymin, ymax)
+            outcode0 = _compute_outcode(x0i, y0i, xmin, xmax, ymin, ymax)
+            outcode1 = _compute_outcode(x1i, y1i, xmin, xmax, ymin, ymax)
 
             accept = False
             clipped = False
@@ -234,32 +234,31 @@ def _build_extend_line(draw_line):
                     clipped = True
                     outcode_out = outcode0 if outcode0 else outcode1
                     if outcode_out & TOP:
-                        x = x0 + (x1 - x0) * (ymax - y0) / (y1 - y0)
+                        x = x0i + int((x1i - x0i) * (ymax - y0i) / (y1i - y0i))
                         y = ymax
                     elif outcode_out & BOTTOM:
-                        x = x0 + (x1 - x0) * (ymin - y0) / (y1 - y0)
+                        x = x0i + int((x1i - x0i) * (ymin - y0i) / (y1i - y0i))
                         y = ymin
                     elif outcode_out & RIGHT:
-                        y = y0 + (y1 - y0) * (xmax - x0) / (x1 - x0)
+                        y = y0i + int((y1i - y0i) * (xmax - x0i) / (x1i - x0i))
                         x = xmax
                     elif outcode_out & LEFT:
-                        y = y0 + (y1 - y0) * (xmin - x0) / (x1 - x0)
+                        y = y0i + int((y1i - y0i) * (xmin - x0i) / (x1i - x0i))
                         x = xmin
 
                     if outcode_out == outcode0:
-                        x0, y0 = x, y
-                        outcode0 = _compute_outcode(x0, y0, xmin, xmax,
+                        x0i, y0i = x, y
+                        outcode0 = _compute_outcode(x0i, y0i, xmin, xmax,
                                                     ymin, ymax)
-                        # If x0 is clipped, we need to plot the new start
+                        # If x0i is clipped, we need to plot the new start
                         plot_start = True
                     else:
-                        x1, y1 = x, y
-                        outcode1 = _compute_outcode(x1, y1, xmin, xmax,
+                        x1i, y1i = x, y
+                        outcode1 = _compute_outcode(x1i, y1i, xmin, xmax,
                                                     ymin, ymax)
 
             if accept:
-                draw_line(vt, mapped_bounds, x0, y0, x1, y1, i, plot_start, clipped,
-                          *aggs_and_cols)
+                draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped, *aggs_and_cols)
                 plot_start = False
             i += 1
 
