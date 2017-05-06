@@ -31,7 +31,7 @@ class _PointLike(Glyph):
 
     @staticmethod
     @ngjit
-    def _compute_x_bounds_pandas(xs):
+    def _compute_x_bounds(xs):
         minval = maxval = xs[0]
         for x in xs:
             if not np.isnan(x):
@@ -43,7 +43,7 @@ class _PointLike(Glyph):
 
     @staticmethod
     @ngjit
-    def _compute_y_bounds_pandas(ys):
+    def _compute_y_bounds(ys):
         minval = maxval = ys[0]
         for y in ys:
             if not np.isnan(y):
