@@ -153,7 +153,7 @@ def test_multiple_aggregates():
     assert_eq(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
 
 
-def test_log_axis():
+def test_log_axis_points():
     # Upper bound for scale/index of x-axis
     x_max_index = 10 ** (1 / (2 / np.log10(11)))
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
@@ -185,3 +185,18 @@ def test_line():
     out = xr.DataArray(sol, coords=[np.arange(-3., 4.), np.arange(-3., 4.)],
                        dims=['y_axis', 'x_axis'])
     assert_eq(agg, out)
+
+
+def test_log_axis_line():
+    # Upper bound for scale/index of x-axis
+    x_max_index = 10 ** (1 / (2 / np.log10(11)))
+    sol = np.array([[5, 5], [5, 5]], dtype='i4')
+    out = xr.DataArray(sol, coords=[np.array([0., 1.]), np.array([1., x_max_index])],
+                       dims=dims)
+    assert_eq(c_logx.line(ddf, 'log_x', 'y', ds.count('i32')), out)
+    out = xr.DataArray(sol, coords=[np.array([1., x_max_index]), np.array([0., 1.])],
+                       dims=dims)
+    assert_eq(c_logy.line(ddf, 'x', 'log_y', ds.count('i32')), out)
+    out = xr.DataArray(sol, coords=[np.array([1., x_max_index]), np.array([1., x_max_index])],
+                       dims=dims)
+    assert_eq(c_logxy.line(ddf, 'log_x', 'log_y', ds.count('i32')), out)
