@@ -38,7 +38,7 @@ class _PointLike(Glyph):
             if not np.isnan(x):
                 if np.isnan(minval) or x < minval:
                     minval = x
-                elif np.isnan(maxval) x > maxval:
+                elif np.isnan(maxval) or x > maxval:
                     maxval = x
         if np.isnan(minval) or np.isnan(maxval):
             raise ValueError('All x coordinates are NaN.')
