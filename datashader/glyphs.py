@@ -34,12 +34,20 @@ class _PointLike(Glyph):
         if len(xs) == 0:
             raise ValueError('x coordinate array is empty.')
         minval = maxval = xs[0]
-        for x in xs:
+        idx = 1
+        while idx < len(xs) and np.isnan(minval) and np.isnan(maxval):
+            x = xs[idx]
             if not np.isnan(x):
-                if np.isnan(minval) or x < minval:
+                minval = maxval = x
+            idx += 1
+        while idx < len(xs):
+            x = xs[idx]
+            if not np.isnan(x):
+                if x < minval:
                     minval = x
-                elif np.isnan(maxval) or x > maxval:
+                elif x > maxval:
                     maxval = x
+            idx += 1
         if np.isnan(minval) or np.isnan(maxval):
             raise ValueError('All x coordinates are NaN.')
         return minval, maxval
@@ -50,12 +58,20 @@ class _PointLike(Glyph):
         if len(ys) == 0:
             raise ValueError('y coordinate array is empty.')
         minval = maxval = ys[0]
-        for y in ys:
+        idx = 1
+        while idx < len(ys) and np.isnan(minval) and np.isnan(maxval):
+            y = ys[idx]
             if not np.isnan(y):
-                if np.isnan(minval) or y < minval:
+                minval = maxval = y
+            idx += 1
+        while idx < len(ys):
+            y = ys[idx]
+            if not np.isnan(y):
+                if y < minval:
                     minval = y
-                elif np.isnan(maxval) or y > maxval:
+                elif y > maxval:
                     maxval = y
+            idx += 1
         if np.isnan(minval) or np.isnan(maxval):
             raise ValueError('All y coordinates are NaN.')
         return minval, maxval
