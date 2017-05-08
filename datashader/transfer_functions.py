@@ -196,14 +196,24 @@ def _interpolate(agg, cmap, how, alpha, span):
         b = np.interp(data, span, bspan, left=255).astype(np.uint8)
         a = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
         img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
+    elif isinstance(cmap, str) or isinstance(cmap, tuple):
+        color = rgb(cmap)
+        aspan = np.arange(0, alpha+1)
+        rspan, gspan, bspan = np.repeat(list(zip(color)), len(aspan), axis=1)
+        span = np.linspace(span[0], span[1], len(aspan))
+        r = np.interp(data, span, rspan, left=255).astype(np.uint8)
+        g = np.interp(data, span, gspan, left=255).astype(np.uint8)
+        b = np.interp(data, span, bspan, left=255).astype(np.uint8)
+        a = np.interp(data, span, aspan, left=0, right=255).astype(np.uint8)
+        img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
     elif callable(cmap):
         # Assume callable is matplotlib colormap
         img = cmap((data - span[0])/(span[1] - span[0]), bytes=True)
         img[:, :, 3] = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
         img = img.view(np.uint32).reshape(data.shape)
     else:
-        raise TypeError("Expected `cmap` of `matplotlib.colors.Colormap` or "
-                        "`list`, got: '{0}'".format(type(cmap)))
+        raise TypeError("Expected `cmap` of `matplotlib.colors.Colormap`, "
+                        "`list`, `str`, or `tuple`; got: '{0}'".format(type(cmap)))
     return Image(img, coords=agg.coords, dims=agg.dims)
 
 
