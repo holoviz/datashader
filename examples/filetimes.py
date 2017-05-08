@@ -227,11 +227,15 @@ def timed_read(filepath,dftype):
     return df, duration
 
 
-def timed_agg(df, filepath, plot_width=int(900), plot_height=int(900*7.0/12)):
+CACHED_RANGES = (None, None)
+def timed_agg(df, filepath, plot_width=int(900), plot_height=int(900*7.0/12), cache_ranges=True):
+    global CACHED_RANGES
     start = time.time()
-    cvs = ds.Canvas(plot_width, plot_height)
+    cvs = ds.Canvas(plot_width, plot_height, x_range=CACHED_RANGES[0], y_range=CACHED_RANGES[1])
     agg = cvs.points(df, p.x, p.y)
     end = time.time()
+    if cache_ranges:
+        CACHED_RANGES = (cvs.x_range, cvs.y_range)
     img = export_image(tf.shade(agg),filepath,export_path=".")
     return img, end-start
 
@@ -273,6 +277,7 @@ def main(argv):
     parser.add_argument('--debug', action='store_true', help='Enable increased verbosity and DEBUG messages')
     parser.add_argument('--cache', choices=('persist', 'cachey'), default=None, help='Enable caching: "persist" causes Dask dataframes to force loading into memory; "cachey" uses dask.cache.Cache with a cachesize of {}. Caching is disabled by default'.format(int(p.cachesize)))
     parser.add_argument('--distributed', action='store_true', help='Enable the distributed scheduler instead of the threaded, which is the default.')
+    parser.add_argument('--recalc-ranges', action='store_true', help='Tell datashader to recalculate the ranges on each aggregation, instead of caching them (by default).')
     args = parser.parse_args(argv[1:])
 
     if args.cache is None:
@@ -321,7 +326,7 @@ def main(argv):
     if DEBUG:
         print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem(), flush=True))
 
-    img,aggtime1 = timed_agg(df,filepath,5,5)
+    img,aggtime1 = timed_agg(df,filepath,5,5,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
         mem_usage = df.memory_usage(deep=True)
         if p.dftype == 'dask':
@@ -333,7 +338,7 @@ def main(argv):
             print('DEBUG: column "{}" dtype: {}'.format(colname, df[colname].dtype))
         print('DEBUG: Memory usage (after agg1):\t{} MB'.format(get_proc_mem(), flush=True))
 
-    img,aggtime2 = timed_agg(df,filepath)
+    img,aggtime2 = timed_agg(df,filepath,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
         print('DEBUG: Memory usage (after agg2):\t{} MB'.format(get_proc_mem(), flush=True))
     
