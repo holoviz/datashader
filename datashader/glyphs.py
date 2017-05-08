@@ -1,7 +1,6 @@
 from __future__ import absolute_import, division
 
 from toolz import memoize
-from dask.dataframe.hashing import hash_pandas_object
 import numpy as np
 
 from .core import Expr
@@ -32,25 +31,33 @@ class _PointLike(Glyph):
     @staticmethod
     @ngjit
     def _compute_x_bounds(xs):
+        if len(xs) == 0:
+            raise ValueError('x coordinate array is empty.')
         minval = maxval = xs[0]
         for x in xs:
             if not np.isnan(x):
-                if x < minval:
+                if np.isnan(minval) or x < minval:
                     minval = x
-                elif x > maxval:
+                elif np.isnan(maxval) x > maxval:
                     maxval = x
+        if np.isnan(minval) or np.isnan(maxval):
+            raise ValueError('All x coordinates are NaN.')
         return minval, maxval
 
     @staticmethod
     @ngjit
     def _compute_y_bounds(ys):
+        if len(ys) == 0:
+            raise ValueError('y coordinate array is empty.')
         minval = maxval = ys[0]
         for y in ys:
             if not np.isnan(y):
-                if y < minval:
+                if np.isnan(minval) or y < minval:
                     minval = y
-                elif y > maxval:
+                elif np.isnan(maxval) or y > maxval:
                     maxval = y
+        if np.isnan(minval) or np.isnan(maxval):
+            raise ValueError('All y coordinates are NaN.')
         return minval, maxval
 
     @memoize
