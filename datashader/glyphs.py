@@ -31,23 +31,13 @@ class _PointLike(Glyph):
     @staticmethod
     @ngjit
     def _compute_x_bounds(xs):
-        if len(xs) == 0:
-            raise ValueError('x coordinate array is empty.')
         minval = maxval = xs[0]
-        idx = 1
-        while idx < len(xs) and np.isnan(minval) and np.isnan(maxval):
-            x = xs[idx]
+        for x in xs:
             if not np.isnan(x):
-                minval = maxval = x
-            idx += 1
-        while idx < len(xs):
-            x = xs[idx]
-            if not np.isnan(x):
-                if x < minval:
+                if np.isnan(minval) or x < minval:
                     minval = x
-                elif x > maxval:
+                if np.isnan(maxval) or x > maxval:
                     maxval = x
-            idx += 1
         if np.isnan(minval) or np.isnan(maxval):
             raise ValueError('All x coordinates are NaN.')
         return minval, maxval
@@ -55,23 +45,13 @@ class _PointLike(Glyph):
     @staticmethod
     @ngjit
     def _compute_y_bounds(ys):
-        if len(ys) == 0:
-            raise ValueError('y coordinate array is empty.')
         minval = maxval = ys[0]
-        idx = 1
-        while idx < len(ys) and np.isnan(minval) and np.isnan(maxval):
-            y = ys[idx]
+        for y in ys:
             if not np.isnan(y):
-                minval = maxval = y
-            idx += 1
-        while idx < len(ys):
-            y = ys[idx]
-            if not np.isnan(y):
-                if y < minval:
+                if np.isnan(minval) or y < minval:
                     minval = y
-                elif y > maxval:
+                if np.isnan(maxval) or y > maxval:
                     maxval = y
-            idx += 1
         if np.isnan(minval) or np.isnan(maxval):
             raise ValueError('All y coordinates are NaN.')
         return minval, maxval
