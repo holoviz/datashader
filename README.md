@@ -68,7 +68,7 @@ which are viewable as notebooks on [Anaconda Cloud](https://anaconda.org/jbednar
 ## Learning more
 
 Additional resources are linked from the
-[datashader documentation] (http://datashader.readthedocs.org), including
+[datashader documentation](http://datashader.readthedocs.org), including
 API documentation and papers and talks about the approach.
 
 ## Screenshots
