@@ -4,6 +4,7 @@ channels:
  - conda-forge
  - ioam/label/dev
  - ioam
+ - numba
  - scitools/label/dev
 
 dependencies:
