@@ -62,8 +62,8 @@ data:
       - q47122d2124.7z
       - q47122d2125.7z
 
-  - url: http://s3.amazonaws.com/datashader-data/census.zip
+  - url: http://s3.amazonaws.com/datashader-data/census.snappy.parq.zip
     title: 'Census Synthetic People'
     files:
-      - census.parq
+      - census.snappy.parq
 
