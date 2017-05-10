@@ -33,6 +33,7 @@ dependencies:
  - python=3.6
  - rasterio
  - requests
+ - scikit-image
  - scipy
  - shapely
  - statsmodels
