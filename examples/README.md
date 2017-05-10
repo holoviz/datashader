@@ -46,7 +46,7 @@ Cloud](https://anaconda.org/jbednar/notebooks). To run these notebooks on your
 own system, start up a Jupyter notebook server:
 
 ```
-jupyter notebook --NotebookApp.iopub_data_rate_limit=100000000
+BOKEH_RESOURCES=inline jupyter notebook --NotebookApp.iopub_data_rate_limit=100000000
 ```
 (The data_rate setting here is required with Jupyter 5.0, but can be omitted for earlier or later versions).
 
