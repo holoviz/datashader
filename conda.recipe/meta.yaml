@@ -2,6 +2,10 @@ package:
   name: datashader
   version: 0.5.0dev1
 
+extra:
+  channels:
+    - numba
+
 requirements:
   build:
     - python
