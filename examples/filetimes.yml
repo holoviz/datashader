@@ -15,7 +15,7 @@ dependencies:
 - python=3.5.2=0
 - python-snappy=0.5=py35_0
 - snappy=1.1.4=1
-- fastparquet==0.0.6
+- conda-forge::fastparquet==0.0.6
 - bccp::cachey==0.1.1
 - bloscpack==0.10.0
 - blosc==1.9.2
