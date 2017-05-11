@@ -1,40 +1,48 @@
 Performance
 ===========
 
-General
--------
+Datashader is designed to make it simple to work with even very large
+datasets.  To get good performance, it is essential that each step in
+the overall processing pipeline be set up appropriately.  Below we
+share some of our suggestions based on our own `Benchmarking`_ and
+optimization experience, which should help you obtain suitable
+performance in your own work.
 
-When interacting with data on the filesystem, store it in the
-`Apache Parquet`_ format when possible. Snappy compression should be
-used when writing out parquet files, and the data should rely on
-categorical dtypes (when possible) before writing the parquet files,
-as parquet supports categoricals in its binary format.
 
+File formats
+------------
+
+Based on our `testing with various file formats`_, we recommend
+storing any large columnar datasets in the `Apache Parquet`_ format
+when possible, using the `fastparquet`_ library with "Snappy" compression:
+
+.. _`Benchmarking`: https://github.com/bokeh/datashader/issues/313
+.. _`testing with various file formats`: https://github.com/bokeh/datashader/issues/129
 .. _`Apache Parquet`: https://parquet.apache.org/
+.. _`fastparquet`: https://github.com/dask/fastparquet
 
 .. code-block:: python
 
     >>> import dask.dataframe as dd
     >>> dd.to_parquet(filename, df, compression="SNAPPY")
 
-In addition, use the categorical dtype for columns with data that takes
-on a limited, fixed number of possible values. Categorical columns use a
-more memory-efficient data representation and are optimized for common
-operations such as sorting and finding uniques. Example of how to
-convert a column to the categorical dtype:
+If your data includes categorical values that take on a limited, fixed
+number of possible values (e.g. "Male", "Female"), With parquet,
+categorical columns use a more memory-efficient data representation
+and are optimized for common operations such as sorting and finding
+uniques. Before saving, just convert the column as follows:
 
 .. code-block:: python
 
     >>> df[colname] = df[colname].astype('category')
 
-There is also promise with improving datashader's performance even
-further by using single-precision floats (``numpy.float32``) instead of
-double-precision floats (``numpy.float64``). In past experiments this
-cut down the time to load data off of disk (assuming the data was
-written out in single-precision float) as well as datashader's
-aggregation times. Care should be taken using this approach, as using
-single-precision (in any software application, not just datashader)
-leads to different numerical results than double-precision.
+By default, numerical datasets typically use 64-bit floats, but many
+applications do not require 64-bit precision when aggregating over a
+very large number of datapoints to show a distribution.  Using 32-bit
+floats reduces storage and memory requirements in half, and also
+typically greatly speeds up computations because only half as much
+data needs to be accessed in memory.  If applicable to your particular
+situation, just convert the data type before generating the file:
 
 .. code-block:: python
 
@@ -44,14 +52,19 @@ leads to different numerical results than double-precision.
 Single machine
 --------------
 
-A rule-of-thumb for the number of partitions to use while converting
-Pandas dataframes into Dask dataframes is ``multiprocessing.cpu_count()``.
-This allows Dask to use one thread per core for parallelizing
-computations.
+Datashader supports both Pandas and Dask dataframes, but Dask
+dataframes typically give higher performance even on a single machine,
+because it makes good use of all available cores, and it also supports
+out-of-core operation for datasets larger than memory.
 
-When the entire dataset fits into memory at once, persist the dataframe
-as a Dask dataframe prior to passing it into datashader. One example of
-how to do this:
+Dasks works on chunks of the data at any one time, called partitions.
+With dask on a single machine, a rule of thumb for the number of
+partitions to use is ``multiprocessing.cpu_count()``, which allows
+Dask to use one thread per core for parallelizing computations.
+
+When the entire dataset fits into memory at once, you can persist the data
+as a Dask dataframe prior to passing it into datashader, to ensure that 
+data only needs to be loaded once:
 
 .. code-block:: python
 
@@ -63,8 +76,9 @@ how to do this:
     >>> cvs = datashader.Canvas(...)
     >>> agg = cvs.points(dask_df, ...)
 
-When the entire dataset doesn't fit into memory at once, use the
-distributed scheduler without persisting. For example:
+When the entire dataset doesn't fit into memory at once, you should not
+use `persist`.  In our tests of this scenario, dask's distributed scheduler gave 
+better performance than the default scheduler, even on single machines:
 
 .. code-block:: python
 
@@ -81,7 +95,9 @@ distributed scheduler without persisting. For example:
 Multiple machines
 -----------------
 
-Use the distributed scheduler to farm computations out to remote
-machines. ``client.persist(dask_df)`` may help in certain cases, but be
-sure to include ``distributed.wait()`` to block until the data is read
-into RAM on each worker.
+To use multiple nodes (different machines) at once, you can use a Dask
+dataframe with the distributed scheduler as shown
+above. ``client.persist(dask_df)`` may help in certain cases, but if
+you are doing profiling of the aggregation step, be sure to include
+``distributed.wait()`` to block until the data is read into RAM on
+each worker.
