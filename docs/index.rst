@@ -142,3 +142,4 @@ is documented using the API link on this page.
    :hidden:
 
    api.rst
+   performance.rst
