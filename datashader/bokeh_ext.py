@@ -351,9 +351,10 @@ class HoverLayer(object):
                             self.agg.shape[0] / self.size)
 
         agg_xs, agg_ys = np.meshgrid(sq_xs, sq_ys)
+        self.hover_agg = downsample_aggregate(self.agg.values, self.size, how=self.how)
         self.hover_data.data['x'] = agg_xs.flatten()
         self.hover_data.data['y'] = agg_ys.flatten()
-        self.hover_agg = downsample_aggregate(self.agg.values, self.size, how=self.how)
+        self.hover_data.data['value'] = self.hover_agg.flatten()
 
         tooltips = []
         if self.is_categorical:
@@ -362,7 +363,6 @@ class HoverLayer(object):
                 self.hover_data.data[str(e)] = self.hover_agg[:, :, i].flatten()
                 tooltips.append((str(e), '@{}'.format(str(e))))
         else:
-            self.hover_data.data['value'] = self.hover_agg.flatten()
             tooltips.append((self.field_name, '@value'))
 
         self.tool.tooltips = tooltips
