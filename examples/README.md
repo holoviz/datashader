@@ -50,6 +50,14 @@ jupyter notebook --NotebookApp.iopub_data_rate_limit=100000000
 ```
 (The data_rate setting here is required with Jupyter 5.0, but can be omitted for earlier or later versions).
 
+If you want the generated notebooks to work without an internet connection or
+with an unreliable connection (e.g. if you see `Loading BokehJS ...` but never
+`BokekJS sucessfully loaded`), then restart the Jupyter notebook server using:
+
+```
+BOKEH_RESOURCES=inline jupyter notebook --NotebookApp.iopub_data_rate_limit=100000000
+```
+
 **[plotting_pitfalls](https://anaconda.org/jbednar/plotting_pitfalls/notebook)**
 
 Motivation for the ideas behind datashader. Shows perceptual problems
