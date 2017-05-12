@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-__version__ = '0.5.0dev1'
+__version__ = '0.5.0'
 
 from .core import Canvas
 from .reductions import (count, any, sum, min, max, mean, std, var, count_cat,
