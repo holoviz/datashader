@@ -239,6 +239,12 @@ class AppState(object):
             for f in self.categorical_fields:
                 self.df[f] = self.df[f].astype('category')
 
+        elif data_path.endswith(".parq"):
+            import dask.dataframe as dd
+            self.df = dd.io.parquet.read_parquet(data_path)
+            if not outofcore:
+                self.df = self.df.persist()
+
         elif data_path.endswith(".castra"):
             import dask.dataframe as dd
             self.df = dd.from_castra(data_path)
