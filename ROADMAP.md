@@ -11,10 +11,10 @@ If you need any of the functionality listed below and want to help make it a pri
   - The notebooks should nearly all be reworked to use HoloViews, to make them simpler and to use a recommended workflow.
 
 2. **More consistent and powerful shading and aggregation**
-  - "alpha" (opacity) should be supported for non-categorical shade() just as for categorical aggregates ([#244](../../issues/244)), which will make it simpler to overlay data onto backgrounds.
+  - ~~"alpha" (opacity) should be supported for non-categorical shade() just as for categorical aggregates ([#244](../../issues/244)), which will make it simpler to overlay data onto backgrounds.~~ [Now available, as of datashader 0.5.0]
   - Should be able to aggregate any field categorically, not just counts ([#140](../../issues/140))
 
-3. **Optimizing file formats** ([#129](../../issues/129))
+3. ~~**Optimizing file formats** ([#129](../../issues/129))~~  [Done, as of datashader 0.5.0]
 
 4. **Better integration with external plotting libraries (Bokeh, HoloViews, matplotlib)**
   - Datashader needs to provide functions for supporting hover information, legends, colorbars, and interactivity, which each plotting library can then use ([#126](../../issues/126), [#127](../../issues/127), [#136](../../issues/136), [#251](../../issues/251))
@@ -34,7 +34,7 @@ If you need any of the functionality listed below and want to help make it a pri
 
 9. **Visualizing uncertainty, anomalies, stability**
   - Example of plotting points with associated probabilities ([#102](../../issues/102))
-  - Tools for anomaly detection ([#116](../../issues/116))
+  - ~~Tools for anomaly detection ([#116](../../issues/116))~~  [Now available in holoviews 1.7.0; see [holoviews_datashader notebook](https://anaconda.org/jbednar/holoviews_datashader)]
   - Tools for stability analysis ([#115](../../issues/115))
 
 10. **Misc:**
@@ -48,4 +48,4 @@ If you need any of the functionality listed below and want to help make it a pri
   -  [#14](../../issues/14)  Changes that appear to require Bokeh extensions
   -  [#13](../../issues/13)  Axis labels (in lat/lon?) for examples like dashboard.py
   - [#242](../../issues/242) Spatiotemporal data animation
-  - [#273](../../issues/273) Add LIDAR example
+  - ~~[#273](../../issues/273) Add LIDAR example~~ [Now in examples/lidar.ipynb, as of datashader 0.5.0]
