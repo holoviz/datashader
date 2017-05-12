@@ -293,6 +293,10 @@ class AppState(object):
         return pix
 
     def update_hover(self):
+
+        # hover (temporarily disabled)
+        return
+
         if not self.hover_layer:
             self.hover_layer = HoverLayer(field_name=self.field_title,
                                           extent=self.map_extent,
@@ -402,10 +406,11 @@ class AppView(object):
         spread_size_slider.on_change('value', self.on_spread_size_change)
         controls.append(spread_size_slider)
 
-        hover_size_slider = Slider(title="Hover Size (px)", value=8, start=4,
-                                   end=30, step=1)
-        hover_size_slider.on_change('value', self.on_hover_size_change)
-        controls.append(hover_size_slider)
+        # hover (temporarily disabled)
+        #hover_size_slider = Slider(title="Hover Size (px)", value=8, start=4,
+        #                           end=30, step=1)
+        #hover_size_slider.on_change('value', self.on_hover_size_change)
+        #controls.append(hover_size_slider)
 
         # legends (temporarily disabled)
         # controls.append(self.model.legend_side_vbox)
