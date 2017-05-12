@@ -351,20 +351,21 @@ class HoverLayer(object):
                             self.agg.shape[0] / self.size)
 
         agg_xs, agg_ys = np.meshgrid(sq_xs, sq_ys)
+        new_hover_data = {'x': agg_xs.flatten(), 'y': agg_ys.flatten()}
         self.hover_agg = downsample_aggregate(self.agg.values, self.size, how=self.how)
-        self.hover_data.data['x'] = agg_xs.flatten()
-        self.hover_data.data['y'] = agg_ys.flatten()
-        self.hover_data.data['value'] = self.hover_agg.flatten()
 
         tooltips = []
         if self.is_categorical:
             cats = self.agg[self.agg.dims[2]].values.tolist()
             for i, e in enumerate(cats):
-                self.hover_data.data[str(e)] = self.hover_agg[:, :, i].flatten()
+                new_hover_data[str(e)] = self.hover_agg[:, :, i].flatten()
                 tooltips.append((str(e), '@{}'.format(str(e))))
         else:
+            new_hover_data['value'] = self.hover_agg.flatten()
             tooltips.append((self.field_name, '@value'))
 
+        self.hover_data.data.clear()
+        self.hover_data.data.update(new_hover_data)
         self.tool.tooltips = tooltips
         return self.hover_agg
 
