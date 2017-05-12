@@ -6,9 +6,9 @@ Datashader
 [![Task Status](https://badge.waffle.io/bokeh/datashader.png?label=ready&title=tasks)](https://waffle.io/bokeh/datashader)
 
 
-Datashader is a graphics pipeline system for creating meaningful
-representations of large amounts of data. It breaks the creation of images into
-3 main steps:
+Datashader is a graphics pipeline system for automating the process of
+creating meaningful representations of large amounts of data. Datashader
+breaks the creation of images into 3 main steps:
 
 1. Projection
 
@@ -26,6 +26,9 @@ representations of large amounts of data. It breaks the creation of images into
 Using this very general pipeline, many interesting data visualizations can be
 created in a performant and scalable way. Datashader contains tools for easily
 creating these pipelines in a composable manner, using only a few lines of code.
+Datashader can be used on its own, but it is also designed to work as
+a pre-processing stage in a plotting library, allowing that library
+to work with much larger datasets than it would otherwise.
 
 
 ## Installation
@@ -50,20 +53,16 @@ Datashader is not currently provided on pip/PyPI, to avoid broken or
 low-performance installations that come from not keeping track of
 C/C++binary dependencies such as LLVM (required by Numba).
 
-One way to easily install `datashader` and related GIS and visualization tools is to install the conda environment from the `examples` directory of a local datashader repository clone:
-
-```
-cd examples
-conda env create
-source activate ds
-```
-
-Note on Windows to replace `source activate ds` with `activate ds`.
-
 ## Examples
 
-There are lots of examples available in the `examples` directory, most of
-which are viewable as notebooks on [Anaconda Cloud](https://anaconda.org/jbednar/notebooks).
+There are lots of demonstrations and case studies available in the 
+[`examples` directory](https://github.com/bokeh/datashader/tree/master/examples) of
+the github repository, which are viewable as rendered notebooks on
+[Anaconda Cloud](https://anaconda.org/jbednar/notebooks).  See the
+[examples README](https://raw.githubusercontent.com/bokeh/datashader/master/examples/README.md)
+for instructions on obtaining local copies of the examples and the
+data and libraries they require so that you can use them as starting
+points for your own work.
 
 ## Learning more
 

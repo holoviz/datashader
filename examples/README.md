@@ -1,8 +1,8 @@
 # Datashader Examples
 
 A variety of example notebooks and applications are maintained in the
-examples/ subdirectory of the git repository, and these will be
-installed somewhere on your local system when you install datashader.
+examples/ subdirectory of Datashader's git repository, and these will be
+installed somewhere on your local system when you install Datashader.
 To get a copy of the examples in your own directory so that you can
 run and edit them, you can run these commands in your terminal:
 
@@ -35,6 +35,9 @@ dependencies, you can run:
 conda env create --file examples/environment.yml
 source activate ds
 ```
+
+(On Windows, replace `source activate ds` with `activate ds`.)
+
 
 The dashboard example has additional dependencies as listed below.
 
