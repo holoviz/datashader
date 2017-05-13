@@ -15,7 +15,7 @@ environment:
 
 install:
   # Update path
-  -  "SET PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
+  -  "SET PATH=%CONDA%;%CONDA%\\Scripts;%PATH%"
 
   # Update conda
   - "conda config --set always_yes yes --set changeps1 no"
