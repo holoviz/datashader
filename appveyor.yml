@@ -24,7 +24,7 @@ install:
   # Install dependencies
   - "conda create -n test-environment python=%PY%"
   - "activate test-environment"
-  - "conda install dask numba numpy panda pillow pytest toolz xarray datashape odo colorcet rasterio scikit-image"
+  - "conda install dask numba numpy pandas pillow pytest toolz xarray datashape odo colorcet rasterio scikit-image"
 
   # Optional dependencies, for testing only
   - "conda install matplotlib"
