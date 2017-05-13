@@ -1,0 +1,34 @@
+environment:
+  matrix:
+    - PY: "2.7"
+      PYTHON: "C:\\Python27-x64"
+      CONDA: "C:\\Miniconda-x64"
+    - PY: "3.4"
+      PYTHON: "C:\\Python34-x64"
+      CONDA: "C:\\Miniconda3-x64"
+    - PY: "3.5"
+      PYTHON: "C:\\Python35-x64"
+      CONDA: "C:\\Miniconda35-x64"
+    - PY: "3.6"
+      PYTHON: "C:\\Python36-x64"
+      CONDA: "C:\\Miniconda36-x64"
+
+install:
+  # Install conda
+  - "%CONDA%\\conda config --set always_yes yes --set changeps1 no"
+  - "%CONDA%\\conda update conda"
+
+  # Install dependencies
+  - "%CONDA%\\conda create -n test-environment python=%PY%"
+  - "%CONDA%\\activate test-environment"
+  - "%CONDA%\\conda install dask numba numpy panda pillow pytest toolz xarray datashape odo colorcet rasterio scikit-image"
+
+  # Optional dependencies, for testing only
+  - "%CONDA%\\conda install matplotlib"
+
+  - "%PYTHON%\\python.exe setup.py develop --no-deps"
+
+build: off
+
+test_script:
+  - "%PYTHON%\\Scripts\\pytest.exe -x -v datashader"
