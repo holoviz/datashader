@@ -18,12 +18,10 @@ from bokeh.models import (Range1d, ImageSource, WMTSTileSource, TileRenderer, Dy
 
 from bokeh.models import (Select, Slider, CheckboxGroup)
 
-from bokeh.palettes import GnBu9, PuRd9, YlGnBu9, Greys9
-
 import datashader as ds
 import datashader.transfer_functions as tf
 
-from datashader.colors import Hot, viridis
+from colorcet import palette
 
 from datashader.bokeh_ext import HoverLayer, create_categorical_legend, create_ramp_legend
 from datashader.utils import hold
@@ -40,6 +38,13 @@ ds_args = {
     'height': fields.Int(missing=600),
     'select': fields.Str(missing=""),
 }
+
+
+def odict_to_front(odict,key):
+    """Given an OrderedDict, move the item with the given key to the front."""
+    front_item = [(key,odict[key])]
+    other_items = [(k,v) for k,v in odict.items() if k is not key]
+    return OrderedDict(front_item+other_items)
 
 
 class GetDataset(RequestHandler):
@@ -137,16 +142,11 @@ class AppState(object):
         self.spread_size = 0
 
         # color ramps
-        self.color_ramps = OrderedDict()
-        self.color_ramps['Hot'] = Hot
-        self.color_ramps['Hot (reverse)'] = list(reversed(Hot))
-        self.color_ramps['Viridis'] = viridis
-        self.color_ramps['Viridis (reverse)'] = list(reversed(viridis))
-        self.color_ramps['Green-Blue'] = list(reversed(GnBu9))
-        self.color_ramps['Purple-Red'] = list(reversed(PuRd9))
-        self.color_ramps['Yellow-Green-Blue'] = list(reversed(YlGnBu9))
-        self.color_ramps['Grays'] = list(reversed(Greys9))[2:]
-        self.color_ramp = list(self.color_ramps.values())[0]
+        default_palette = "fire"
+        named_palettes = {k:p for k,p in palette.items() if not '_' in k}
+        sorted_palettes = OrderedDict(sorted(named_palettes.items()))
+        self.color_ramps = odict_to_front(sorted_palettes,default_palette)
+        self.color_ramp  = palette[default_palette]
 
         self.hover_layer = None
         self.agg = None
