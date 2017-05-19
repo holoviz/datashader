@@ -67,6 +67,11 @@ data:
     files:
       - census.snappy.parq
 
+  - url: http://s3.amazonaws.com/datashader-data/osm-1billion.snappy.parq.zip
+    title: 'OSM'
+    files:
+      - osm-1billion.snappy.parq
+
   - url: http://rredc.nrel.gov/solar/old_data/nsrdb/1991-2010/targzs/
     title: 'Solar Radiation NREL - NSRDB'
     files:
