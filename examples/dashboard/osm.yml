@@ -1,0 +1,19 @@
+---
+
+file: ../data/osm-1billion.snappy.parq
+
+
+axes: 
+  - name: Open Street Map Locations
+    xaxis: x
+    yaxis: y
+    initial_extent:
+      is_geo: true
+      xmin: -20026376.39
+      ymin: -8010550
+      xmax: 20026376.39
+      ymax: 12015825
+
+summary_fields:
+  - name: Count
+    field: None
