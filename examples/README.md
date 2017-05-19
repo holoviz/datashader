@@ -118,7 +118,9 @@ Plotting the 2.7 billion GPS coordinates made available by [open street
 map](https://blog.openstreetmap.org/2012/04/01/bulk-gps-point-data/). This
 dataset is not provided by the download script, and the notebook is only
 included to demonstrate working with a large dataset. The run notebook can be
-viewed at [anaconda.org](https://anaconda.org/jbednar/osm/notebook).
+viewed at [anaconda.org](https://anaconda.org/jbednar/osm). A 
+[1-billion-point subset](https://anaconda.org/jbednar/osm-1billion) is also 
+available for separate download.
 
 **[Amazon.com center distance](https://anaconda.org/defusco/amz_centers/notebook)**
 
@@ -143,6 +145,8 @@ To start, launch it with one of the supported datasets specified:
 ```
 python dashboard/dashboard.py -c dashboard/nyc_taxi.yml
 python dashboard/dashboard.py -c dashboard/census.yml
+python dashboard/dashboard.py -c dashboard/opensky.yml
+python dashboard/dashboard.py -c dashboard/osm.yml
 ```
 
 The '.yml' configuration file sets up the dashboard to use one of the
@@ -157,4 +161,5 @@ use substantially slower than if sufficient memory were available.
 
 To launch multiple dashboards at once, you'll need to add "-p 5001"
 (etc.) to select a unique port number for the web page to use for
-communicating with the Bokeh server.
+communicating with the Bokeh server.  Otherwise, be sure to kill the
+server process before launching another instance.
