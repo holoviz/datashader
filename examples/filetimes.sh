@@ -3,10 +3,6 @@
 # Usage:
 #    conda env create -f filetimes.yml
 #    source activate filetimes
-#    conda uninstall --force dask fastparquet python-snappy
-#    pip install --no-cache-dir --upgrade git+https://github.com/dask/dask@964b377    # auto-detect categoricals for dd.read_parquet
-#    pip install --no-cache-dir --upgrade git+https://github.com/dask/fastparquet@4106c30    # auto-detect categoricals for dd.read_parquet
-#    pip install --no-cache-dir --upgrade git+https://github.com/andrix/python-snappy@0d1ab38    # For releasing the GIL. May need to pin llvmlite to the version that numba depends on
 #    mkdir times
 #    python -c "import filetimes as ft ; ft.p.base='census' ; ft.p.x='meterswest' ; ft.p.y='metersnorth' ; ft.p.categories=['race']; ft.DD_FORCE_LOAD=True; ft.DEBUG=True; ft.timed_write('data/tinycensus.csv',dftype='pandas',fsize='double')"
 #    # (dftype can also be 'dask', fsize can also be 'single')
