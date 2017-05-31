@@ -41,8 +41,6 @@ except ImportError:
     print('this download script requires the requests module: conda install requests')
     sys.exit(1)
 
-from py7zlib import Archive7z
-
 STREAM = sys.stderr
 
 BAR_TEMPLATE = '%s[%s%s] %i/%i - %s\r'
@@ -195,27 +193,6 @@ def _url_to_binary_write(url, output_path, title):
         raise
 
 
-def _unzip_7z(fname):
-    '''This function will decompress a 7zip file, typically
-    a file ending in .7z (see lidar example in datasets.yml).
-    The lidar example downloads 7zips and extracts text files
-    (.gnd) files with this function'''
-    try:
-        arc = Archive7z(open(fname, 'rb'))
-    except:
-        print('FAILED ON 7Z', fname)
-        raise
-    fnames = arc.filenames
-    files = arc.files
-    data_dir = os.path.dirname(fname)
-    for fn, fi in zip(fnames, files):
-        gnd = path.join(data_dir, os.path.basename(fn))
-        if not os.path.exists(os.path.dirname(gnd)):
-            os.mkdir(os.path.dirname(gnd))
-        with open(gnd, 'w') as f:
-            f.write(fi.read().decode())
-
-
 def _extract_downloaded_archive(output_path):
     '''Extract a local archive, e.g. zip or tar, then
     delete the archive'''
@@ -234,9 +211,6 @@ def _extract_downloaded_archive(output_path):
     elif output_path.endswith("zip"):
         with zipfile.ZipFile(output_path, 'r') as zipf:
             zipf.extractall()
-        os.remove(output_path)
-    elif output_path.endswith('7z'):
-        _unzip_7z(output_path)
         os.remove(output_path)
 
 
@@ -284,8 +258,8 @@ def _process_dataset(dataset, output_dir, here):
         for idx, (url, output_path, unpack) in enumerate(zipped):
             running_title = title_fmt.format(idx + 1, len(urls))
             if glob.glob(unpack) or os.path.exists(unpack.replace('*','')):
-                # Skip a file if a similar one is downloaded, e.g.:
-                #    skip q47122d2101.7z if q47122d2101.gnd exists
+                # Skip a file if a similar one is downloaded:
+                # i.e. one that has same name but dif't extension
                 print('Skipping {0}'.format(running_title))
                 continue
             _url_to_binary_write(url, output_path, running_title)
