@@ -46,4 +46,3 @@ dependencies:
  - jupyter_dashboards
  - pip:
    - cachey
-   - pylzma
