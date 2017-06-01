@@ -166,7 +166,7 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
 def _interpolate(agg, cmap, how, alpha, span):
     if agg.ndim != 2:
         raise ValueError("agg must be 2D")
-    how = _normalize_interpolate_how(how)
+    interpolater = _normalize_interpolate_how(how)
     data = agg.data
     if np.issubdtype(data.dtype, np.bool_):
         mask = ~data
@@ -184,8 +184,18 @@ def _interpolate(agg, cmap, how, alpha, span):
         offset = masked.min()
 
         interp = data - offset
-    data = how(interp, mask)
-    span = span if span else [np.nanmin(data), np.nanmax(data)]
+        
+    data = interpolater(interp, mask)
+    if span is None:
+        span = [np.nanmin(data), np.nanmax(data)]
+    else:
+        if how == 'eq_hist':
+            # For eq_hist to work with span, we'll need to store the histogram
+            # from the data and then apply it to the span argument.
+            raise ValueError("span is not (yet) valid to use with eq_hist")
+        span = interpolater(span,0)
+
+        
     if isinstance(cmap, Iterator):
         cmap = list(cmap)
     if isinstance(cmap, list):
