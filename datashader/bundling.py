@@ -1,10 +1,14 @@
 from __future__ import absolute_import, division, print_function
 
-from dask import compute, delayed
 from math import ceil
+
+from dask import compute, delayed
+from pandas import DataFrame
 from skimage.filters import gaussian, sobel_h, sobel_v
+
 import numba as nb
 import numpy as np
+import pandas as pd
 
 from .utils import ngjit
 
@@ -21,12 +25,10 @@ def distance_between(a, b):
     return (((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2))**(0.5)
 
 
-@ngjit
+@nb.jit
 def resample_segment(segments, new_segments, min_segment_length=MIN_SEG, max_segment_length=MAX_SEG):
-
     next_point = np.array([0.0, 0.0])
     current_point = segments[0]
-
     pos = 0
     index = 1
     while index < len(segments):
@@ -56,9 +58,8 @@ def resample_segment(segments, new_segments, min_segment_length=MIN_SEG, max_seg
     return new_segments
 
 
-@ngjit
+@nb.jit
 def calculate_length(segments, min_segment_length=MIN_SEG, max_segment_length=MAX_SEG):
-
     next_point = np.array([0.0, 0.0])
     current_point = segments[0]
     index = 1
@@ -105,7 +106,7 @@ def resample_edges(edge_segments, min_segment_length=MIN_SEG, max_segment_length
     return replaced_edges
 
 
-@ngjit
+@nb.jit
 def smooth_segment(segments, tension):
     seg_length = len(segments) - 2
     for i in range(1, seg_length):
@@ -173,7 +174,53 @@ def get_gradients(img):
     return (vert, horiz)
 
 
-def bundle(edges, initial_bandwidth=0.05, decay=0.7, iterations=4, batch_size=20000):
+def _from_pandas(nodes, edges):
+    def minmax_scale(series):
+        minimum, maximum = np.min(series), np.max(series)
+        return (series - minimum) / (maximum - minimum)
+
+    nodes['x'] = minmax_scale(nodes['x'])
+    nodes['y'] = minmax_scale(nodes['y'])
+
+    df = pd.merge(nodes, edges, left_index=True, right_on=['source'])
+    df = df.rename(columns={'x': 'src_x', 'y': 'src_y'})
+
+    df = pd.merge(nodes, df, left_index=True, right_on=['target'])
+    df = df.rename(columns={'x': 'dst_x', 'y': 'dst_y'})
+
+    df = df.filter(items=['src_x', 'src_y', 'dst_x', 'dst_y'])
+
+    edge_segments = []
+    for edge in df.get_values():
+        segments = [[edge[0], edge[1]], [edge[2], edge[3]]]
+        edge_segments.append(np.array(segments))
+    return edge_segments
+
+
+def _to_pandas(edge_segments):
+    # Need to put a [np.nan, np.nan] between edges
+    def edge_iterator():
+        for edge in edge_segments:
+            yield edge
+            yield np.array([[np.nan, np.nan]])
+
+    df = DataFrame(np.concatenate(list(edge_iterator())))
+    df.columns = ['x', 'y']
+    return df
+
+
+def nop_bundle(nodes, edges, initial_bandwidth=0.05, decay=0.7, iterations=4, batch_size=20000):
+    # Import from Pandas DataFrame
+    edges = _from_pandas(nodes, edges)
+
+    # Convert to Pandas DataFrame
+    return _to_pandas(edges)
+
+
+def bundle(nodes, edges, initial_bandwidth=0.05, decay=0.7, iterations=4, batch_size=20000):
+    # Import from Pandas DataFrame
+    edges = _from_pandas(nodes, edges)
+
     # This is simply to let the work split out over multiple cores
     edge_batches = list(batches(edges, batch_size))
 
@@ -214,4 +261,6 @@ def bundle(edges, initial_bandwidth=0.05, decay=0.7, iterations=4, batch_size=20
     new_segs = []
     for batch in edge_segments:
         new_segs.extend(batch)
-    return new_segs
+
+    # Convert to Pandas DataFrame
+    return _to_pandas(new_segs)
