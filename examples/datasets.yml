@@ -95,3 +95,9 @@ data:
     files:
       - NSRDB_StationsMeta.csv
 
+  - url: http://s3.amazonaws.com/datashader-data/edge-bundling.snappy.parq.zip
+    title: 'Graph for Edge Bundling'
+    files:
+      - nodes.snappy.parq
+      - edges.snappy.parq
+
