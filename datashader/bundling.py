@@ -174,7 +174,7 @@ def get_gradients(img):
     return (vert, horiz)
 
 
-def _from_pandas(nodes, edges):
+def _convert_graph_to_edge_segments(nodes, edges):
     def minmax_scale(series):
         minimum, maximum = np.min(series), np.max(series)
         return (series - minimum) / (maximum - minimum)
@@ -197,7 +197,7 @@ def _from_pandas(nodes, edges):
     return edge_segments
 
 
-def _to_pandas(edge_segments):
+def _convert_edge_segments_to_dataframe(edge_segments):
     # Need to put a [np.nan, np.nan] between edges
     def edge_iterator():
         for edge in edge_segments:
@@ -210,16 +210,16 @@ def _to_pandas(edge_segments):
 
 
 def nop_bundle(nodes, edges, initial_bandwidth=0.05, decay=0.7, iterations=4, batch_size=20000):
-    # Import from Pandas DataFrame
-    edges = _from_pandas(nodes, edges)
+    # Convert graph into list of edge segments
+    edges = _convert_graph_to_edge_segments(nodes, edges)
 
-    # Convert to Pandas DataFrame
-    return _to_pandas(edges)
+    # Convert list of edge segments to Pandas dataframe
+    return _convert_edge_segments_to_dataframe(edges)
 
 
 def bundle(nodes, edges, initial_bandwidth=0.05, decay=0.7, iterations=4, batch_size=20000):
-    # Import from Pandas DataFrame
-    edges = _from_pandas(nodes, edges)
+    # Convert graph into list of edge segments
+    edges = _convert_graph_to_edge_segments(nodes, edges)
 
     # This is simply to let the work split out over multiple cores
     edge_batches = list(batches(edges, batch_size))
@@ -262,5 +262,5 @@ def bundle(nodes, edges, initial_bandwidth=0.05, decay=0.7, iterations=4, batch_
     for batch in edge_segments:
         new_segs.extend(batch)
 
-    # Convert to Pandas DataFrame
-    return _to_pandas(new_segs)
+    # Convert list of edge segments to Pandas dataframe
+    return _convert_edge_segments_to_dataframe(new_segs)
