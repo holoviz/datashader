@@ -209,7 +209,7 @@ def _convert_edge_segments_to_dataframe(edge_segments):
     return df
 
 
-def nop_bundle(nodes, edges, initial_bandwidth=0.05, decay=0.7, iterations=4, batch_size=20000):
+def directly_connect_edges(nodes, edges, initial_bandwidth=0.05, decay=0.7, iterations=4, batch_size=20000):
     # Convert graph into list of edge segments
     edges = _convert_graph_to_edge_segments(nodes, edges)
 
