@@ -9,15 +9,9 @@ from skimage.filters import gaussian, sobel_h, sobel_v
 import numba as nb
 import numpy as np
 import pandas as pd
+import param
 
 from .utils import ngjit
-
-
-ACCURACY = 500
-
-MIN_SEG = 0.008
-MAX_SEG = 0.016
-TENSION = 0.3
 
 
 @ngjit
@@ -26,7 +20,7 @@ def distance_between(a, b):
 
 
 @nb.jit
-def resample_segment(segments, new_segments, min_segment_length=MIN_SEG, max_segment_length=MAX_SEG):
+def resample_segment(segments, new_segments, min_segment_length, max_segment_length):
     next_point = np.array([0.0, 0.0])
     current_point = segments[0]
     pos = 0
@@ -59,7 +53,7 @@ def resample_segment(segments, new_segments, min_segment_length=MIN_SEG, max_seg
 
 
 @nb.jit
-def calculate_length(segments, min_segment_length=MIN_SEG, max_segment_length=MAX_SEG):
+def calculate_length(segments, min_segment_length, max_segment_length):
     next_point = np.array([0.0, 0.0])
     current_point = segments[0]
     index = 1
@@ -89,7 +83,7 @@ def calculate_length(segments, min_segment_length=MIN_SEG, max_segment_length=MA
     return any_change, total
 
 
-def resample_edge(segments, min_segment_length=MIN_SEG, max_segment_length=MAX_SEG):
+def resample_edge(segments, min_segment_length, max_segment_length):
     change, total_resamples = calculate_length(segments, min_segment_length, max_segment_length)
     if not change:
         return segments
@@ -99,7 +93,7 @@ def resample_edge(segments, min_segment_length=MIN_SEG, max_segment_length=MAX_S
 
 
 @delayed
-def resample_edges(edge_segments, min_segment_length=MIN_SEG, max_segment_length=MAX_SEG):
+def resample_edges(edge_segments, min_segment_length, max_segment_length):
     replaced_edges = []
     for segments in edge_segments:
         replaced_edges.append(resample_edge(segments, min_segment_length, max_segment_length))
@@ -122,28 +116,29 @@ def smooth(edge_segments, tension):
 
 
 @ngjit
-def advect_segments(segments, vert, horiz):
+def advect_segments(segments, vert, horiz, accuracy):
     for i in range(1, len(segments) - 1):
-        x = int(segments[i][0] * ACCURACY)
-        y = int(segments[i][1] * ACCURACY)
-        segments[i][0] = segments[i][0] + horiz[x, y] / ACCURACY
-        segments[i][1] = segments[i][1] + vert[x, y] / ACCURACY
+        x = int(segments[i][0] * accuracy)
+        y = int(segments[i][1] * accuracy)
+        segments[i][0] = segments[i][0] + horiz[x, y] / accuracy
+        segments[i][1] = segments[i][1] + vert[x, y] / accuracy
         segments[i][0] = max(0, min(segments[i][0], 1))
         segments[i][1] = max(0, min(segments[i][1], 1))
 
 
-def advect_and_resample(vert, horiz, segments, iterations=50):
+def advect_and_resample(vert, horiz, segments, iterations, accuracy, min_segment_length, max_segment_length):
     for it in range(iterations):
-        advect_segments(segments, vert, horiz)
+        advect_segments(segments, vert, horiz, accuracy)
         if it % 2 == 0:
-            segments = resample_edge(segments)
+            segments = resample_edge(segments, min_segment_length, max_segment_length)
     return segments
 
 
 @delayed
-def advect_resample_all(gradients, edge_segments):
+def advect_resample_all(gradients, edge_segments, iterations, accuracy, min_segment_length, max_segment_length):
     vert, horiz = gradients
-    return [advect_and_resample(vert, horiz, edges) for edges in edge_segments]
+    return [advect_and_resample(vert, horiz, edges, iterations, accuracy, min_segment_length, max_segment_length)
+            for edges in edge_segments]
 
 
 def batches(l, n):
@@ -153,11 +148,11 @@ def batches(l, n):
 
 
 @delayed
-def draw_to_surface(edge_segments, bandwidth):
-    img = np.zeros((ACCURACY + 1, ACCURACY + 1))
+def draw_to_surface(edge_segments, bandwidth, accuracy):
+    img = np.zeros((accuracy + 1, accuracy + 1))
     for segments in edge_segments:
         for point in segments:
-            img[int(point[0] * ACCURACY), int(point[1] * ACCURACY)] += 1
+            img[int(point[0] * accuracy), int(point[1] * accuracy)] += 1
     return gaussian(img, sigma=bandwidth / 2)
 
 
@@ -210,8 +205,6 @@ def _convert_edge_segments_to_dataframe(edge_segments):
 
 
 
-import param
-
 class directly_connect_edges(param.ParameterizedFunction):
     """
     Convert a graph into paths suitable for datashading.
@@ -257,6 +250,23 @@ class hammer_bundle(directly_connect_edges):
     batch_size = param.Integer(default=20000,bounds=(1,None),doc="""
         Number of edges to process together""")
 
+    
+    tension = param.Number(default=0.3,bounds=(0,None),precedence=-0.5,doc="""
+        Exponential smoothing factor to use when smoothing""")
+
+    accuracy = param.Integer(default=500,bounds=(1,None),precedence=-0.5,doc="""
+        Number of entries in table for...""")
+
+    advect_iterations = param.Integer(default=50,bounds=(0,None),precedence=-0.5,doc="""
+        Number of iterations to move edges along gradients""")
+
+    min_segment_length = param.Number(default=0.008,bounds=(0,None),precedence=-0.5,doc="""
+        Minimum length (in data space?) for an edge segment""")
+
+    max_segment_length = param.Number(default=0.016,bounds=(0,None),precedence=-0.5,doc="""
+        Maximum length (in data space?) for an edge segment""")
+
+    
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self,params)
 
@@ -268,36 +278,37 @@ class hammer_bundle(directly_connect_edges):
     
         # This gets the edges split into lots of small segments
         # Doing this inside a delayed function lowers the transmission overhead
-        edge_segments = [resample_edges(batch) for batch in edge_batches]
+        edge_segments = [resample_edges(batch, p.min_segment_length, p.max_segment_length) for batch in edge_batches]
     
         for i in range(p.iterations):
             # Each step, the size of the 'blur' shrinks
-            bandwidth = p.initial_bandwidth * p.decay**(i + 1) * ACCURACY
+            bandwidth = p.initial_bandwidth * p.decay**(i + 1) * p.accuracy
     
             # If it's this small, there won't be a change anyway
             if bandwidth < 2:
                 break
     
             # Draw the density maps and combine them
-            images = [draw_to_surface(segment, bandwidth) for segment in edge_segments]
+            images = [draw_to_surface(segment, bandwidth, p.accuracy) for segment in edge_segments]
             overall_image = sum(images)
     
             gradients = get_gradients(overall_image)
     
             # Move edges along the gradients and resample when necessary
             # This could include smoothing to adjust the amount a graph can change
-            edge_segments = [advect_resample_all(gradients, segment) for segment in edge_segments]
+            edge_segments = [advect_resample_all(gradients, segment, p.advect_iterations, p.accuracy, p.min_segment_length, p.max_segment_length)
+                             for segment in edge_segments]
     
         # Do a final resample to a smaller size for nicer rendering
-        edge_segments = [resample_edges(segment, MIN_SEG / 2, MAX_SEG / 2) for segment in edge_segments]
-    
+        edge_segments = [resample_edges(segment, p.min_segment_length, p.max_segment_length) for segment in edge_segments]
+        
         # Finally things can be sent for computation
         edge_segments = compute(edge_segments)[0]
     
         # Smooth out the graph
         for i in range(10):
             for batch in edge_segments:
-                smooth(batch, TENSION)
+                smooth(batch, p.tension)
     
         # Flatten things
         new_segs = []
