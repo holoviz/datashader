@@ -95,9 +95,9 @@ data:
     files:
       - NSRDB_StationsMeta.csv
 
-  - url: http://s3.amazonaws.com/datashader-data/edge-bundling.snappy.parq.zip
-    title: 'Graph for Edge Bundling'
+  - url: http://s3.amazonaws.com/datashader-data/calvert_uk_research2017.snappy.parq.zip
+    title: 'Graph for Edge Bundling (Calvert UK Research 2017)'
     files:
-      - nodes.snappy.parq
-      - edges.snappy.parq
+      - calvert_uk_research2017_nodes.snappy.parq
+      - calvert_uk_research2017_edges.snappy.parq
 
