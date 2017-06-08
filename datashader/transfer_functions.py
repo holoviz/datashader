@@ -160,10 +160,10 @@ def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, s
         warnings.simplefilter('always', DeprecationWarning)
         w = DeprecationWarning("`interpolate` is deprecated; use `shade` instead")
         warnings.warn(w)
-    return _interpolate(agg, cmap, how, alpha, span)
+    return _interpolate(agg, cmap, how, alpha, span, 40)
 
 
-def _interpolate(agg, cmap, how, alpha, span):
+def _interpolate(agg, cmap, how, alpha, span, min_alpha):
     if agg.ndim != 2:
         raise ValueError("agg must be 2D")
     interpolater = _normalize_interpolate_how(how)
@@ -208,7 +208,7 @@ def _interpolate(agg, cmap, how, alpha, span):
         img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
     elif isinstance(cmap, str) or isinstance(cmap, tuple):
         color = rgb(cmap)
-        aspan = np.arange(0, alpha+1)
+        aspan = np.arange(min_alpha, alpha+1)
         rspan, gspan, bspan = np.repeat(list(zip(color)), len(aspan), axis=1)
         span = np.linspace(span[0], span[1], len(aspan))
         r = np.interp(data, span, rspan, left=255).astype(np.uint8)
@@ -358,7 +358,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         raise TypeError("agg must be instance of DataArray")
 
     if agg.ndim == 2:
-        return _interpolate(agg, cmap, how, alpha, span)
+        return _interpolate(agg, cmap, how, alpha, span, min_alpha)
     elif agg.ndim == 3:
         return _colorize(agg, color_key, how, min_alpha)
     else:

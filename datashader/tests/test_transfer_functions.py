@@ -96,9 +96,9 @@ def test_interpolate_cmap():
 @pytest.mark.parametrize('cmap', ['black', (0, 0, 0), '#000000'])
 def test_interpolate_cmap_non_categorical_alpha(cmap):
     img = tf.interpolate(agg.a, how='log', cmap=cmap)
-    sol = np.array([[         0,          0, 1509949440],
-                    [2399141888,          0, 3523215360],
-                    [3925868544, 4278190080,          0]])
+    sol = np.array([[         0,  671088640, 1946157056],
+                    [2701131776,          0, 3640655872],
+                    [3976200192, 4278190080,          0]])
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
 
