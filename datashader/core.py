@@ -212,7 +212,7 @@ class Canvas(object):
         Parameters
         ----------
         source : xarray.DataArray
-            input datasource most likely obtain from `xarray.open_rasterio()`.
+            input datasource most likely obtained from `xarray.open_rasterio()`.
         band : int
             source band number : optional default=1
         resample_method : str, optional default=bilinear
