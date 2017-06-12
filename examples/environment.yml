@@ -38,7 +38,7 @@ dependencies:
  - shapely
  - statsmodels
  - tblib
- - xarray
+ - xarray>=0.9.6 # For xarray.open_rasterio()
  - yaml
  - fastparquet
  - snappy
