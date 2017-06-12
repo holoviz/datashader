@@ -64,3 +64,9 @@ target/
 
 #Editor files
 *~
+
+# Example output, notes
+examples/times
+examples/data
+examples/export
+**.org

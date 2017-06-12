@@ -205,14 +205,14 @@ class Canvas(object):
                resample_method='bilinear',
                use_overviews=True):
         """Sample a raster dataset by canvas size and bounds. Note: requires
-        `rasterio` and `scikit-image`.  Missing values (those having the value
-        indicated by the "nodata" attribute of the raster) are replaced with
-        `NaN` if floats, and 0 if int.
+        `xarray`, `rasterio`, and `scikit-image`.  Missing values (those having
+        the value indicated by the "nodata" attribute of the raster) are
+        replaced with `NaN` if floats, and 0 if int.
 
         Parameters
         ----------
-        source : rasterio.Dataset
-            input datasource most likely obtain from `rasterio.open()`.
+        source : xarray.DataArray
+            input datasource most likely obtain from `xarray.open_rasterio()`.
         band : int
             source band number : optional default=1
         resample_method : str, optional default=bilinear
@@ -227,7 +227,7 @@ class Canvas(object):
 
         Notes
         -------
-        requires `rasterio` and `scikit-image`.
+        requires `xarray`, `rasterio`, and `scikit-image`.
         """
 
         try:
@@ -242,26 +242,26 @@ class Canvas(object):
             raise ValueError('Invalid resample method: options include {}'.format(list(resample_methods.keys())))
 
         # setup output array
-        full_data = np.empty(shape=(self.plot_width, self.plot_height)).astype(source.profile['dtype'])
+        full_data = np.empty(shape=(self.plot_width, self.plot_height)).astype(source.dtype)
         full_xs = np.linspace(self.x_range[0], self.x_range[1], self.plot_width)
         full_ys = np.linspace(self.y_range[0], self.y_range[1], self.plot_height)
-        attrs = dict(res=source.res[0], nodata=source.nodata)
+        attrs = dict(res=source._file_obj.res[0], nodata=source._file_obj.nodata)
         full_arr = DataArray(full_data,
                              coords=[('x', full_xs), ('y', full_ys)],
                              attrs=attrs)
 
         # handle out-of-bounds case
-        if (self.x_range[0] >= source.bounds.right or
-            self.x_range[1] <= source.bounds.left or
-            self.y_range[0] >= source.bounds.top or
-            self.y_range[1] <= source.bounds.bottom):
+        if (self.x_range[0] >= source._file_obj.bounds.right or
+            self.x_range[1] <= source._file_obj.bounds.left or
+            self.y_range[0] >= source._file_obj.bounds.top or
+            self.y_range[1] <= source._file_obj.bounds.bottom):
             return full_arr
 
         # window coodinates
-        xmin = max(self.x_range[0], source.bounds.left)
-        ymin = max(self.y_range[0], source.bounds.bottom)
-        xmax = min(self.x_range[1], source.bounds.right)
-        ymax = min(self.y_range[1], source.bounds.top)
+        xmin = max(self.x_range[0], source._file_obj.bounds.left)
+        ymin = max(self.y_range[0], source._file_obj.bounds.bottom)
+        xmax = min(self.x_range[1], source._file_obj.bounds.right)
+        ymax = min(self.y_range[1], source._file_obj.bounds.top)
 
         width_ratio = (xmax - xmin) / (self.x_range[1] - self.x_range[0])
         height_ratio = (ymax - ymin) / (self.y_range[1] - self.y_range[0])
@@ -269,17 +269,17 @@ class Canvas(object):
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
 
-        rmin, cmin = source.index(xmin, ymin)
-        rmax, cmax = source.index(xmax, ymax)
+        rmin, cmin = source._file_obj.index(xmin, ymin)
+        rmax, cmax = source._file_obj.index(xmax, ymax)
 
         if use_overviews:
-            data = np.empty(shape=(h, w)).astype(source.profile['dtype'])
-            data = source.read(band, out=data, window=((rmax, rmin), (cmin, cmax)))
+            data = np.empty(shape=(h, w)).astype(source.dtype)
+            data = source._file_obj.read(band, out=data, window=((rmax, rmin), (cmin, cmax)))
         else:
-            data = source.read(band, window=((rmax, rmin), (cmin, cmax)))
+            data = source._file_obj.read(band, window=((rmax, rmin), (cmin, cmax)))
 
         is_int = np.issubdtype(data.dtype, np.integer)
-        data[data == np.array(source.nodata)] = 0 if is_int else np.nan
+        data[data == np.array(source._file_obj.nodata)] = 0 if is_int else np.nan
 
         # TODO: this resize should go away once rasterio has overview resample
         data = resize(data,
@@ -296,22 +296,22 @@ class Canvas(object):
             lpct = lpad / (lpad + rpad) if lpad + rpad > 0 else 0
             left = int(np.ceil(num_width * lpct))
             right = num_width - left
-            left_pad = np.empty(shape=(self.plot_height, left)).astype(source.profile['dtype']) * np.nan
-            right_pad = np.empty(shape=(self.plot_height, right)).astype(source.profile['dtype']) * np.nan
+            left_pad = np.empty(shape=(self.plot_height, left)).astype(source.dtype) * np.nan
+            right_pad = np.empty(shape=(self.plot_height, right)).astype(source.dtype) * np.nan
 
             tpad = ymin - self.y_range[0]
             bpad = self.y_range[1] - ymax
             tpct = tpad / (tpad + bpad) if tpad + bpad > 0 else 0
             top = int(np.ceil(num_height * tpct))
             bottom = num_height - top
-            top_pad = np.empty(shape=(top, w)).astype(source.profile['dtype']) * np.nan
-            bottom_pad = np.empty(shape=(bottom, w)).astype(source.profile['dtype']) * np.nan
+            top_pad = np.empty(shape=(top, w)).astype(source.dtype) * np.nan
+            bottom_pad = np.empty(shape=(bottom, w)).astype(source.dtype) * np.nan
 
             data = np.concatenate((bottom_pad, data, top_pad), axis=0)
             data = np.concatenate((left_pad, data, right_pad), axis=1)
 
         data = np.flipud(data)
-        attrs = dict(res=source.res[0], nodata=source.nodata)
+        attrs = dict(res=source._file_obj.res[0], nodata=source._file_obj.nodata)
         return DataArray(data,
                          dims=['x', 'y'],
                          attrs=attrs)
