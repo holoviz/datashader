@@ -1,3 +1,16 @@
+"""Bundle a graph's edges to emphasize the graph structure.
+
+Given a large graph, the underlying structure can be obscured by edges in close
+proximity. To uncover the group structure for clearer visualization, edges are
+split into smaller edges and bundled with neighbors.
+
+Ian Calvert's `Edgehammer`_ is the original implementation of the main
+algorithm.
+
+.. _Edgehammer:
+   https://gitlab.com/ianjcalvert/edgehammer
+"""
+
 from __future__ import absolute_import, division, print_function
 
 from math import ceil
@@ -16,6 +29,7 @@ from .utils import ngjit
 
 @ngjit
 def distance_between(a, b):
+    """Find the Euclidean distance between two points."""
     return (((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2))**(0.5)
 
 
@@ -170,6 +184,18 @@ def get_gradients(img):
 
 
 def _convert_graph_to_edge_segments(nodes, edges):
+    """
+    Merge graph dataframes into a list of edge segments.
+
+    Given a graph defined as a pair of dataframes (nodes and edges), the
+    nodes (id, coordinates) and edges (id, source, target) are joined by
+    node id to create a single dataframe with each source/target of an
+    edge replaced with the respective coordinates.
+
+    All node points are normalized to the range (0, 1) using min-max
+    scaling.
+    """
+
     def minmax_scale(series):
         minimum, maximum = np.min(series), np.max(series)
         return (series - minimum) / (maximum - minimum)
@@ -193,6 +219,14 @@ def _convert_graph_to_edge_segments(nodes, edges):
 
 
 def _convert_edge_segments_to_dataframe(edge_segments):
+    """
+    Convert list of edge segments into a dataframe.
+
+    For all edge segments, we create a dataframe to represent a path
+    as successive points separated by a point with NaN as the x or y
+    value.
+    """
+
     # Need to put a [np.nan, np.nan] between edges
     def edge_iterator():
         for edge in edge_segments:
