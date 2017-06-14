@@ -64,6 +64,45 @@ def isreal(dt):
     return isinstance(dt, Unit) and dt in real
 
 
+def calc_bbox(xs, ys, res):
+    """Calculate the bounding-box of a raster, and return it in a four-element
+    tuple: (xmin, ymin, xmax, ymax). This assumes a flat-earth crs to do an
+    affine transformation with the "Augmented Matrix" approach (does not handle
+    reprojections):
+    https://en.wikipedia.org/wiki/Affine_transformation#Augmented_matrix
+    
+    Parameters
+    ----------
+    xs : numpy.array
+        1D NumPy array of floats representing the x-values of a raster. This
+        likely originated from an xarray.DataArray or xarray.Dataset object
+        (xr.open_rasterio).
+    ys : numpy.array
+        1D NumPy array of floats representing the y-values of a raster. This
+        likely originated from an xarray.DataArray or xarray.Dataset object
+        (xr.open_rasterio).
+    res : tuple
+        Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
+        sizes"), respectively.
+    """
+    xmin = ymin = np.inf
+    xmax = ymax = -np.inf
+    Ab = np.array([[res[0], 0.,      xs.min()],
+                   [0.,     -res[1], ys.max()],
+                   [0.,     0.,      1.]])
+    for x_, y_ in [(0, 0), (0, len(ys)), (len(xs), 0), (len(xs), len(ys))]:
+        x, y, _ = np.dot(Ab, np.array([x_, y_, 1.]))
+        if x < xmin:
+            xmin = x
+        if x > xmax:
+            xmax = x
+        if y < ymin:
+            ymin = y
+        if y > ymax:
+            ymax = y
+    return xmin, ymin, xmax, ymax
+
+
 def downsample_aggregate(aggregate, factor, how='mean'):
     """Create downsampled aggregate factor in pixels units"""
     ys, xs = aggregate.shape[:2]

@@ -5,7 +5,7 @@ from datashape.predicates import istabular
 from odo import discover
 from xarray import DataArray
 
-from .utils import Dispatcher, ngjit
+from .utils import Dispatcher, ngjit, calc_bbox
 
 
 class Expr(object):
@@ -205,9 +205,9 @@ class Canvas(object):
                resample_method='bilinear',
                use_overviews=True):
         """Sample a raster dataset by canvas size and bounds. Note: requires
-        `xarray`, `rasterio`, and `scikit-image`.  Missing values (those having
-        the value indicated by the "nodata" attribute of the raster) are
-        replaced with `NaN` if floats, and 0 if int.
+        `rasterio`, and `gridtools`.  Missing values (those having the value
+        indicated by the "nodata" attribute of the raster) are replaced with
+        `NaN` if floats, and 0 if int.
 
         Parameters
         ----------
@@ -227,41 +227,28 @@ class Canvas(object):
 
         Notes
         -------
-        requires `xarray`, `rasterio`, and `scikit-image`.
+        requires `rasterio` and `gridtools`.
         """
-
         try:
             import rasterio as rio
             from skimage.transform import resize
+            #import gridtools.resampling as gtr
         except ImportError:
-            raise ImportError('install rasterio and skimage to use this feature')
+            raise ImportError('install rasterio and gridtools to use this feature')
 
         resample_methods = dict(nearest=0, bilinear=1)
 
         if resample_method not in resample_methods.keys():
             raise ValueError('Invalid resample method: options include {}'.format(list(resample_methods.keys())))
 
-        # setup output array
-        full_data = np.empty(shape=(self.plot_width, self.plot_height)).astype(source.dtype)
-        full_xs = np.linspace(self.x_range[0], self.x_range[1], self.plot_width)
-        full_ys = np.linspace(self.y_range[0], self.y_range[1], self.plot_height)
-        attrs = dict(res=source._file_obj.res[0], nodata=source._file_obj.nodata)
-        full_arr = DataArray(full_data,
-                             coords=[('x', full_xs), ('y', full_ys)],
-                             attrs=attrs)
-
-        # handle out-of-bounds case
-        if (self.x_range[0] >= source._file_obj.bounds.right or
-            self.x_range[1] <= source._file_obj.bounds.left or
-            self.y_range[0] >= source._file_obj.bounds.top or
-            self.y_range[1] <= source._file_obj.bounds.bottom):
-            return full_arr
+        res = source._file_obj.res
+        left, bottom, right, top = calc_bbox(source.x.values, source.y.values, res)
 
         # window coodinates
-        xmin = max(self.x_range[0], source._file_obj.bounds.left)
-        ymin = max(self.y_range[0], source._file_obj.bounds.bottom)
-        xmax = min(self.x_range[1], source._file_obj.bounds.right)
-        ymax = min(self.y_range[1], source._file_obj.bounds.top)
+        xmin = max(self.x_range[0], left)
+        ymin = max(self.y_range[0], bottom)
+        xmax = min(self.x_range[1], right)
+        ymax = min(self.y_range[1], top)
 
         width_ratio = (xmax - xmin) / (self.x_range[1] - self.x_range[0])
         height_ratio = (ymax - ymin) / (self.y_range[1] - self.y_range[0])
@@ -269,20 +256,7 @@ class Canvas(object):
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
 
-        rmin, cmin = source._file_obj.index(xmin, ymin)
-        rmax, cmax = source._file_obj.index(xmax, ymax)
-
-        if use_overviews:
-            data = np.empty(shape=(h, w)).astype(source.dtype)
-            data = source._file_obj.read(band, out=data, window=((rmax, rmin), (cmin, cmax)))
-        else:
-            data = source._file_obj.read(band, window=((rmax, rmin), (cmin, cmax)))
-
-        is_int = np.issubdtype(data.dtype, np.integer)
-        data[data == np.array(source._file_obj.nodata)] = 0 if is_int else np.nan
-
-        # TODO: this resize should go away once rasterio has overview resample
-        data = resize(data,
+        data = resize(source.data[0],
                       (h, w),
                       order=resample_methods[resample_method],
                       preserve_range=True)
@@ -311,7 +285,7 @@ class Canvas(object):
             data = np.concatenate((left_pad, data, right_pad), axis=1)
 
         data = np.flipud(data)
-        attrs = dict(res=source._file_obj.res[0], nodata=source._file_obj.nodata)
+        attrs = dict(res=res[0], nodata=source._file_obj.nodata)
         return DataArray(data,
                          dims=['x', 'y'],
                          attrs=attrs)
