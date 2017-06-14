@@ -6,6 +6,7 @@ from odo import discover
 from xarray import DataArray
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox
+from .resampling import resample_2d
 
 
 class Expr(object):
@@ -205,9 +206,9 @@ class Canvas(object):
                resample_method='bilinear',
                use_overviews=True):
         """Sample a raster dataset by canvas size and bounds. Note: requires
-        `rasterio`, and `scikit-image`.  Missing values (those having the value
-        indicated by the "nodata" attribute of the raster) are replaced with
-        `NaN` if floats, and 0 if int.
+        `rasterio`. Missing values (those having the value indicated by the
+        "nodata" attribute of the raster) are replaced with `NaN` if floats, and
+        0 if int.
 
         Parameters
         ----------
@@ -227,13 +228,12 @@ class Canvas(object):
 
         Notes
         -------
-        requires `rasterio` and `scikit-image`.
+        requires `rasterio`.
         """
         try:
             import rasterio as rio
-            from skimage.transform import resize
         except ImportError:
-            raise ImportError('install rasterio and scikit-image to use this feature')
+            raise ImportError('install rasterio to use this feature')
 
         resample_methods = dict(nearest=0, bilinear=1)
 
@@ -258,10 +258,9 @@ class Canvas(object):
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
 
-        data = resize(source.data[0],
-                      (h, w),
-                      order=resample_methods[resample_method],
-                      preserve_range=True)
+        data = resample_2d(source.values[0].astype(np.float32), w, h)
+        #ds_method=resample_methods[resample_method],
+        #us_method=resample_methods[resample_method],
 
         if w != self.plot_width or h != self.plot_height:
             num_height = self.plot_height - h
