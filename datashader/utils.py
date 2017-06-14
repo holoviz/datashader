@@ -64,6 +64,16 @@ def isreal(dt):
     return isinstance(dt, Unit) and dt in real
 
 
+def calc_res(raster):
+    """Calculate the resolution of xarray.DataArray raster and return it as the
+    two-tuple (xres, yres).
+    """
+    w, h = raster.shape[2], raster.shape[1]
+    xres = (raster.x.values[w-1] - raster.x.values[0]) / (w - 1)
+    yres = (raster.y.values[0] - raster.y.values[h-1]) / (h - 1)
+    return xres, yres
+
+
 def calc_bbox(xs, ys, res):
     """Calculate the bounding-box of a raster, and return it in a four-element
     tuple: (xmin, ymin, xmax, ymax). This assumes a flat-earth crs to do an

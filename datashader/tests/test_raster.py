@@ -3,6 +3,7 @@ from os import path
 import pytest
 import datashader as ds
 import xarray as xr
+import numpy as np
 
 BASE_PATH = path.split(__file__)[0]
 DATA_PATH = path.abspath(path.join(BASE_PATH, 'data'))
@@ -63,3 +64,28 @@ def test_partial_extent_returns_correct_size():
         agg = cvs.raster(src)
         assert agg.shape == (256, 512)
         assert agg is not None
+
+
+def test_calc_res():
+    """Assert that resolution is calculated correctly when using the xarray
+    rasterio backend.
+    """
+    import rasterio
+    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+        xr_res = ds.utils.calc_res(src)
+    with rasterio.open(TEST_RASTER_PATH) as src:
+        rio_res = src.res
+    assert np.allclose(xr_res, rio_res)
+
+
+def test_calc_bbox():
+    """Assert that bounding boxes are calculated correctly when using the xarray
+    rasterio backend.
+    """
+    import rasterio
+    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+        xr_res = ds.utils.calc_res(src)
+        xr_bounds = ds.utils.calc_bbox(src.x.values, src.y.values, xr_res)
+    with rasterio.open(TEST_RASTER_PATH) as src:
+        rio_bounds = src.bounds
+    assert np.allclose(xr_bounds, rio_bounds)
