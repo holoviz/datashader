@@ -48,9 +48,12 @@ def test_out_of_bounds_return_correct_size():
                         plot_height=2,
                         x_range=[1e10, 1e20],
                         y_range=[1e10, 1e20])
-        agg = cvs.raster(src)
-        assert agg.shape == (2, 2)
-        assert agg is not None
+        try:
+            agg = cvs.raster(src)
+        except ValueError:
+            pass
+        else:
+            assert False
 
 
 def test_partial_extent_returns_correct_size():
