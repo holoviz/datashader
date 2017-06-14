@@ -28,6 +28,8 @@ requirements:
 test:
   requires:
     - pytest >=2.8.5
+    - rasterio >=1.0
+
   imports:
     - datashader
 
