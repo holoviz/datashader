@@ -5,7 +5,7 @@ from datashape.predicates import istabular
 from odo import discover
 from xarray import DataArray
 
-from .utils import Dispatcher, ngjit, calc_bbox
+from .utils import Dispatcher, ngjit, calc_res, calc_bbox
 
 
 class Expr(object):
@@ -241,7 +241,7 @@ class Canvas(object):
         if resample_method not in resample_methods.keys():
             raise ValueError('Invalid resample method: options include {}'.format(list(resample_methods.keys())))
 
-        res = source._file_obj.res
+        res = calc_res(source)
         left, bottom, right, top = calc_bbox(source.x.values, source.y.values, res)
 
         # window coodinates
