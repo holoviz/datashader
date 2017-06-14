@@ -6,6 +6,12 @@ python:
     - "3.5"
     - "3.6"
 
+matrix:
+  fast_finish: True
+  # Allow py3.4 to fail; conda-forge no longer supports it
+  allow_failures:
+    - python: "3.4"
+
 install:
   # Install conda
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh

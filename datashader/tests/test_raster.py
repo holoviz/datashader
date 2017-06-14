@@ -26,16 +26,18 @@ def test_raster_aggregate_default():
 
 def test_raster_aggregate_nearest():
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
-        agg = cvs.raster(src, resample_method='nearest')
+        agg = cvs.raster(src, upsample_method='nearest')
         assert agg is not None
 
 
+@pytest.mark.skip('use_overviews opt no longer supported; may be re-implemented in the future')
 def test_raster_aggregate_with_overviews():
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, use_overviews=True)
         assert agg is not None
 
 
+@pytest.mark.skip('use_overviews opt no longer supported; may be re-implemented in the future')
 def test_raster_aggregate_without_overviews():
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, use_overviews=False)
@@ -94,3 +96,30 @@ def test_calc_bbox():
     with rasterio.open(TEST_RASTER_PATH) as src:
         rio_bounds = src.bounds
     assert np.allclose(xr_bounds, rio_bounds)
+
+
+def test_resample_methods():
+    """Assert that an error is raised when incorrect upsample and/or downsample
+    methods are provided to cvs.raster().
+    """
+    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+        try:
+            agg = cvs.raster(src, upsample_method='santaclaus', downsample_method='toothfairy')
+        except ValueError:
+            pass
+        else:
+            assert False
+
+        try:
+            agg = cvs.raster(src, upsample_method='honestlawyer')
+        except ValueError:
+            pass
+        else:
+            assert False
+
+        try:
+            agg = cvs.raster(src, downsample_method='tenantfriendlylease')
+        except ValueError:
+            pass
+        else:
+            assert False

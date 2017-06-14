@@ -6,7 +6,9 @@ from odo import discover
 from xarray import DataArray
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox
-from .resampling import resample_2d
+from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
+                         DS_MEAN, DS_MODE, DS_VAR, DS_STD)
+
 
 
 class Expr(object):
@@ -203,8 +205,8 @@ class Canvas(object):
     def raster(self,
                source,
                band=1,
-               resample_method='bilinear',
-               use_overviews=True):
+               upsample_method='linear',
+               downsample_method='mean'):
         """Sample a raster dataset by canvas size and bounds. Note: requires
         `rasterio`. Missing values (those having the value indicated by the
         "nodata" attribute of the raster) are replaced with `NaN` if floats, and
@@ -213,14 +215,15 @@ class Canvas(object):
         Parameters
         ----------
         source : xarray.DataArray
-            input datasource most likely obtained from `xarray.open_rasterio()`.
-        band : int
-            source band number : optional default=1
-        resample_method : str, optional default=bilinear
-            resample mode when resizing raster.
-            options include: nearest, bilinear.
-        use_overviews : bool, optional default=True
-            flag to indicate whether to use overviews or use native resolution
+            input datasource most likely obtain from `xr.open_rasterio()`.
+        band : int (unused)
+            source band number : optional default=1. Not yet implemented.
+        upsample_method : str, optional default=linear
+            resample mode when upsampling raster.
+            options include: nearest, linear.
+        downsample_method : str, optional default=mean
+            resample mode when downsampling raster.
+            options include: first, last, mean, mode, var, std
 
         Returns
         -------
@@ -235,10 +238,20 @@ class Canvas(object):
         except ImportError:
             raise ImportError('install rasterio to use this feature')
 
-        resample_methods = dict(nearest=0, bilinear=1)
+        upsample_methods = dict(nearest=US_NEAREST,
+                                linear=US_LINEAR)
 
-        if resample_method not in resample_methods.keys():
-            raise ValueError('Invalid resample method: options include {}'.format(list(resample_methods.keys())))
+        downsample_methods = dict(first=DS_FIRST,
+                                  last=DS_LAST,
+                                  mean=DS_MEAN,
+                                  mode=DS_MODE,
+                                  var=DS_VAR,
+                                  std=DS_STD)
+
+        if upsample_method not in upsample_methods.keys():
+            raise ValueError('Invalid upsample method: options include {}'.format(list(upsample_methods.keys())))
+        if downsample_method not in downsample_methods.keys():
+            raise ValueError('Invalid downsample method: options include {}'.format(list(downsample_methods.keys())))
 
         res = calc_res(source)
         left, bottom, right, top = calc_bbox(source.x.values, source.y.values, res)
@@ -258,9 +271,10 @@ class Canvas(object):
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
 
-        data = resample_2d(source.values[0].astype(np.float32), w, h)
-        #ds_method=resample_methods[resample_method],
-        #us_method=resample_methods[resample_method],
+        data = resample_2d(source.values[0].astype(np.float32),
+                           w, h,
+                           ds_method=downsample_methods[downsample_method],
+                           us_method=upsample_methods[upsample_method])
 
         if w != self.plot_width or h != self.plot_height:
             num_height = self.plot_height - h
