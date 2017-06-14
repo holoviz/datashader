@@ -253,8 +253,8 @@ class Canvas(object):
         width_ratio = (xmax - xmin) / (self.x_range[1] - self.x_range[0])
         height_ratio = (ymax - ymin) / (self.y_range[1] - self.y_range[0])
 
-        w = int(np.ceil(self.plot_width * width_ratio))
-        h = int(np.ceil(self.plot_height * height_ratio))
+        w = max(int(np.ceil(self.plot_width * width_ratio)), self.plot_width)
+        h = max(int(np.ceil(self.plot_height * height_ratio)), self.plot_height)
 
         data = resize(source.data[0],
                       (h, w),
