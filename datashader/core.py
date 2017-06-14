@@ -205,7 +205,7 @@ class Canvas(object):
                resample_method='bilinear',
                use_overviews=True):
         """Sample a raster dataset by canvas size and bounds. Note: requires
-        `rasterio`, and `gridtools`.  Missing values (those having the value
+        `rasterio`, and `scikit-image`.  Missing values (those having the value
         indicated by the "nodata" attribute of the raster) are replaced with
         `NaN` if floats, and 0 if int.
 
@@ -227,14 +227,13 @@ class Canvas(object):
 
         Notes
         -------
-        requires `rasterio` and `gridtools`.
+        requires `rasterio` and `scikit-image`.
         """
         try:
             import rasterio as rio
             from skimage.transform import resize
-            #import gridtools.resampling as gtr
         except ImportError:
-            raise ImportError('install rasterio and gridtools to use this feature')
+            raise ImportError('install rasterio and scikit-image to use this feature')
 
         resample_methods = dict(nearest=0, bilinear=1)
 
