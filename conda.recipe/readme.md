@@ -33,6 +33,7 @@ not, install `conda`, then use `conda` to install the others). From inside the
 toplevel directory:
 
 ```bash
+conda config --append channels ioam
 conda build conda.recipe/ --python 2.7
 conda build conda.recipe/ --python 3.4
 conda build conda.recipe/ --python 3.5
