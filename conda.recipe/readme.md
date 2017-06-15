@@ -63,6 +63,12 @@ anaconda login
 anaconda upload $CONDA_DIR/conda-bld/*/datashader-$VERSION*.tar.bz2 -u bokeh
 ```
 
+If you are uploading a dev release, then add the `dev` label.
+
+```bash
+anaconda upload $CONDA_DIR/conda-bld/*/datashader-$VERSION*.tar.bz2 -u bokeh -l dev
+```
+
 - Write the release notes:
 
  1. Run `git log` to get a listing of all the changes
