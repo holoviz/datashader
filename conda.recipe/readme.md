@@ -1,5 +1,7 @@
 ## Release Procedure
 
+- Ensure git repository is clear of unmerged/untracked files.
+
 - Ensure all tests pass.
 
 - Update version number in `conda.recipe/meta.yaml`, `datashader/__init__.py`,
