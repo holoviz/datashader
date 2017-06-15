@@ -11,8 +11,8 @@ def nodes():
     # Four nodes arranged at the corners of a 200x200 square with one node
     # at the center
     nodes_df = pd.DataFrame({'id': np.arange(5),
-                            'x': [0, -100, 100, -100, 100],
-                            'y': [0, 100, 100, -100, -100]})
+                             'x': [0, -100, 100, -100, 100],
+                             'y': [0, 100, 100, -100, -100]})
     nodes_df.set_index('id')
     return nodes_df
 
@@ -22,8 +22,8 @@ def edges():
     # Four edges originating from the center node and connected to each
     # corner
     edges_df = pd.DataFrame({'id': np.arange(4),
-                            'source': np.zeros(4),
-                            'target': np.arange(1, 5)})
+                             'source': np.zeros(4),
+                             'target': np.arange(1, 5)})
     edges_df.set_index('id')
     return edges_df
 
