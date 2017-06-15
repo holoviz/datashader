@@ -84,7 +84,7 @@ def calculate_length(segments, min_segment_length, max_segment_length):
         elif distance > max_segment_length:
             any_change = True
             # Linear subsample
-            points = ceil(distance / ((max_segment_length + min_segment_length) / 2))
+            points = int(ceil(distance / ((max_segment_length + min_segment_length) / 2)))
             total += points
             current_point = next_point
             index += 1
@@ -337,7 +337,7 @@ class hammer_bundle(directly_connect_edges):
         edge_segments = [resample_edges(segment, p.min_segment_length, p.max_segment_length) for segment in edge_segments]
         
         # Finally things can be sent for computation
-        edge_segments = compute(edge_segments)[0]
+        edge_segments = compute(*edge_segments)
     
         # Smooth out the graph
         for i in range(10):
