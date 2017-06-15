@@ -8,3 +8,4 @@ pillow
 toolz
 xarray
 colorcet
+param >=1.5.1,<2.0
