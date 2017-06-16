@@ -35,32 +35,32 @@ eq_hist_sol['c'] = eq_hist_sol['b']
 
 
 @pytest.mark.parametrize(['attr'], ['a', 'b', 'c'])
-def test_interpolate(attr):
+def test_shade(attr):
     x = getattr(agg, attr)
     cmap = ['pink', 'red']
-    img = tf.interpolate(x, cmap=cmap, how='log')
+    img = tf.shade(x, cmap=cmap, how='log')
     sol = np.array([[0, 4291543295, 4286741503],
                     [4283978751, 0, 4280492543],
                     [4279242751, 4278190335, 0]], dtype='u4')
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.interpolate(x, cmap=cmap, how='cbrt')
+    img = tf.shade(x, cmap=cmap, how='cbrt')
     sol = np.array([[0, 4291543295, 4284176127],
                     [4282268415, 0, 4279834879],
                     [4278914047, 4278190335, 0]], dtype='u4')
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.interpolate(x, cmap=cmap, how='linear')
+    img = tf.shade(x, cmap=cmap, how='linear')
     sol = np.array([[0, 4291543295, 4289306879],
                     [4287070463, 0, 4282597631],
                     [4280361215, 4278190335, 0]])
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.interpolate(x, cmap=cmap, how='eq_hist')
+    img = tf.shade(x, cmap=cmap, how='eq_hist')
     sol = xr.DataArray(eq_hist_sol[attr], coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.interpolate(x, cmap=cmap,
-                         how=lambda x, mask: np.where(mask, np.nan, x ** 2))
+    img = tf.shade(x, cmap=cmap,
+                   how=lambda x, mask: np.where(mask, np.nan, x ** 2))
     sol = np.array([[0, 4291543295, 4291148543],
                     [4290030335, 0, 4285557503],
                     [4282268415, 4278190335, 0]], dtype='u4')
@@ -68,24 +68,24 @@ def test_interpolate(attr):
     assert img.equals(sol)
 
 
-def test_interpolate_bool():
+def test_shade_bool():
     data = ~np.eye(3, dtype='bool')
     x = xr.DataArray(data, coords=coords, dims=dims)
     sol = xr.DataArray(np.where(data, 4278190335, 0).astype('uint32'),
                        coords=coords, dims=dims)
-    img = tf.interpolate(x, cmap=['pink', 'red'], how='log')
+    img = tf.shade(x, cmap=['pink', 'red'], how='log')
     assert img.equals(sol)
-    img = tf.interpolate(x, cmap=['pink', 'red'], how='cbrt')
+    img = tf.shade(x, cmap=['pink', 'red'], how='cbrt')
     assert img.equals(sol)
-    img = tf.interpolate(x, cmap=['pink', 'red'], how='linear')
+    img = tf.shade(x, cmap=['pink', 'red'], how='linear')
     assert img.equals(sol)
-    img = tf.interpolate(x, cmap=['pink', 'red'], how='eq_hist')
+    img = tf.shade(x, cmap=['pink', 'red'], how='eq_hist')
     assert img.equals(sol)
 
 
-def test_interpolate_cmap():
+def test_shade_cmap():
     cmap = ['red', (0, 255, 0), '#0000FF']
-    img = tf.interpolate(agg.a, how='log', cmap=cmap)
+    img = tf.shade(agg.a, how='log', cmap=cmap)
     sol = np.array([[0, 4278190335, 4278236489],
                     [4280344064, 0, 4289091584],
                     [4292225024, 4294901760, 0]])
@@ -94,8 +94,8 @@ def test_interpolate_cmap():
 
 
 @pytest.mark.parametrize('cmap', ['black', (0, 0, 0), '#000000'])
-def test_interpolate_cmap_non_categorical_alpha(cmap):
-    img = tf.interpolate(agg.a, how='log', cmap=cmap)
+def test_shade_cmap_non_categorical_alpha(cmap):
+    img = tf.shade(agg.a, how='log', cmap=cmap)
     sol = np.array([[         0,  671088640, 1946157056],
                     [2701131776,          0, 3640655872],
                     [3976200192, 4278190080,          0]])
@@ -103,19 +103,17 @@ def test_interpolate_cmap_non_categorical_alpha(cmap):
     assert img.equals(sol)
 
 
-def test_interpolate_cmap_errors():
-    cmap = ['red', (0, 255, 0), '#0000FF']
+def test_shade_cmap_errors():
+    with pytest.raises(ValueError):
+        tf.shade(agg.a, cmap='foo')
 
     with pytest.raises(ValueError):
-        tf.interpolate(agg.a, cmap='foo')
-
-    with pytest.raises(ValueError):
-        tf.interpolate(agg.a, low='red', cmap=cmap)
+        tf.shade(agg.a, cmap=[])
 
 
-def test_interpolate_mpl_cmap():
+def test_shade_mpl_cmap():
     cm = pytest.importorskip('matplotlib.cm')
-    img = tf.interpolate(agg.a, how='log', cmap=cm.viridis)
+    img = tf.shade(agg.a, how='log', cmap=cm.viridis)
     sol = np.array([[5505348, 4283695428, 4287524142],
                     [4287143710, 5505348, 4282832267],
                     [4280213706, 4280608765, 5505348]])
@@ -123,7 +121,7 @@ def test_interpolate_mpl_cmap():
     assert img.equals(sol)
 
 
-def test_colorize():
+def test_shade_category():
     coords = [np.array([0, 1]), np.array([2, 5])]
     cat_agg = xr.DataArray(np.array([[(0, 12, 0), (3, 0, 3)],
                                     [(12, 12, 12), (24, 0, 0)]]),
@@ -132,25 +130,29 @@ def test_colorize():
 
     colors = [(255, 0, 0), '#0000FF', 'orange']
 
-    img = tf.colorize(cat_agg, colors, how='log', min_alpha=20)
+    img = tf.shade(cat_agg, color_key=colors, how='log', min_alpha=20)
     sol = np.array([[2583625728, 335565567],
                     [4283774890, 3707764991]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert img.equals(sol)
+
     colors = dict(zip('abc', colors))
-    img = tf.colorize(cat_agg, colors, how='cbrt', min_alpha=20)
+
+    img = tf.shade(cat_agg, color_key=colors, how='cbrt', min_alpha=20)
     sol = np.array([[2650734592, 335565567],
                     [4283774890, 3657433343]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.colorize(cat_agg, colors, how='linear', min_alpha=20)
+
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
     sol = np.array([[1140785152, 335565567],
                     [4283774890, 2701132031]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert img.equals(sol)
-    img = tf.colorize(cat_agg, colors,
-                      how=lambda x, m: np.where(m, np.nan, x) ** 2,
-                      min_alpha=20)
+
+    img = tf.shade(cat_agg, color_key=colors,
+                   how=lambda x, m: np.where(m, np.nan, x) ** 2,
+                   min_alpha=20)
     sol = np.array([[503250944, 335565567],
                     [4283774890, 1744830719]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
@@ -352,12 +354,12 @@ def test_Image_to_bytesio():
     assert bytes.tell() == 0
 
 
-def test_interpolate_should_handle_zeros_array():
+def test_shade_should_handle_zeros_array():
     data = np.array([[0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0]], dtype='uint32')
     arr = xr.DataArray(data, dims=['x', 'y'])
-    img = tf.interpolate(arr, cmap=['white', 'black'], how='linear')
+    img = tf.shade(arr, cmap=['white', 'black'], how='linear')
     assert img is not None

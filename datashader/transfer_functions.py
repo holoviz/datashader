@@ -16,8 +16,7 @@ from .composite import composite_op_lookup, over
 from .utils import ngjit
 
 
-__all__ = ['Image', 'stack', 'shade', 'interpolate', 'colorize', 'set_background',
-           'spread', 'dynspread']
+__all__ = ['Image', 'stack', 'shade', 'set_background', 'spread', 'dynspread']
 
 
 class Image(xr.DataArray):
@@ -114,56 +113,6 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def interpolate(agg, low=None, high=None, cmap=None, how='eq_hist', alpha=255, span=None):
-    """(Deprecated) Convert a 2D DataArray to an image.
-
-    Data is converted to an image either by interpolating between a `low` and
-    `high` color [default], or by a specified colormap.
-
-    Parameters
-    ----------
-    agg : DataArray
-    low, high : color name or tuple, optional
-        The color for the low and high ends of the scale. Can be
-        specified either by name, hexcode, or as a tuple of ``(red, green,
-        blue)`` values.
-    cmap : list of colors or matplotlib.colors.Colormap, optional
-        The colormap to use. Can be either a list of colors (in any of the
-        formats described above), or a matplotlib colormap object.
-        Default is `["lightblue", "darkblue"]`
-    how : str or callable, optional
-        The interpolation method to use. Valid strings are 'eq_hist'
-        [default], 'cbrt', 'log', and 'linear'. Callables take
-        2 arguments - a 2-dimensional array of magnitudes at each pixel,
-        and a boolean mask array indicating missingness. They should
-        return a numeric array of the same shape, with ``NaN`` values
-        where the mask was True.
-    alpha : int, optional
-        Value between 0 - 255 representing the alpha value of pixels which contain
-        data (i.e. non-nan values). Regardless of this value, ``NaN`` values are
-        set to fully transparent.
-    span : list of min-max range
-        Min-max data values for interpolation, use this to override autoranging
-    """
-    if not isinstance(agg, xr.DataArray):
-        raise TypeError("agg must be instance of DataArray")
-
-    if cmap is not None:
-        if low or high:
-            raise ValueError("Can't provide both `cmap` and `low` or `high`")
-    else:
-        # Defaults
-        cmap = ['lightblue', 'darkblue']
-        if low or high:
-            cmap = [low or cmap[0], high or cmap[1]]
-
-    with warnings.catch_warnings():
-        warnings.simplefilter('always', DeprecationWarning)
-        w = DeprecationWarning("`interpolate` is deprecated; use `shade` instead")
-        warnings.warn(w)
-    return _interpolate(agg, cmap, how, alpha, span, 40)
-
-
 def _interpolate(agg, cmap, how, alpha, span, min_alpha):
     if agg.ndim != 2:
         raise ValueError("agg must be 2D")
@@ -226,37 +175,6 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha):
         raise TypeError("Expected `cmap` of `matplotlib.colors.Colormap`, "
                         "`list`, `str`, or `tuple`; got: '{0}'".format(type(cmap)))
     return Image(img, coords=agg.coords, dims=agg.dims)
-
-
-def colorize(agg, color_key, how='eq_hist', min_alpha=40):
-    """(Deprecated) Color a CategoricalAggregate by field.
-
-    Parameters
-    ----------
-    agg : DataArray
-    color_key : dict or iterable
-        A mapping of fields to colors. Can be either a ``dict`` mapping from
-        field name to colors, or an iterable of colors in the same order as the
-        record fields.
-    how : str or callable, optional
-        The interpolation method to use. Valid strings are 'eq_hist' [default],
-        'cbrt', 'log', and 'linear'. Callables take 2 arguments - a 2-dimensional
-        array of magnitudes at each pixel, and a boolean mask array indicating
-        missingness. They should return a numeric array of the same shape, with
-        `NaN` values where the mask was True.
-    min_alpha : float, optional
-        The minimum alpha value to use for non-empty pixels, in [0, 255].
-        Use a higher value to avoid undersaturation, i.e. poorly visible
-        low-value datapoints, at the expense of the overall dynamic range.
-    """
-    if not isinstance(agg, xr.DataArray):
-        raise TypeError("agg must be an instance of DataArray")
-
-    with warnings.catch_warnings():
-        warnings.simplefilter('always', DeprecationWarning)
-        w = DeprecationWarning("`colorize` is deprecated; use `shade` instead")
-        warnings.warn(w)
-    return _colorize(agg, color_key, how, min_alpha)
 
 
 def _colorize(agg, color_key, how, min_alpha):
