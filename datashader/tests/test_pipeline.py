@@ -16,9 +16,9 @@ def test_pipeline():
     pipeline = ds.Pipeline(df, ds.Point('x', 'y'))
     img = pipeline((0, 1), (0, 1), 2, 2)
     agg = cvs.points(df, 'x', 'y', ds.count())
-    assert img.equals(tf.interpolate(agg))
+    assert img.equals(tf.shade(agg))
 
-    color_fn = lambda agg: tf.interpolate(agg, 'pink', 'red')
+    color_fn = lambda agg: tf.shade(agg, 'pink', 'red')
     pipeline.color_fn = color_fn
     img = pipeline((0, 1), (0, 1), 2, 2)
     assert img.equals(color_fn(agg))
@@ -31,4 +31,4 @@ def test_pipeline():
     pipeline = ds.Pipeline(df, ds.Point('x', 'y'), ds.sum('f64'))
     img = pipeline((0, 1), (0, 1), 2, 2)
     agg = cvs.points(df, 'x', 'y', ds.sum('f64'))
-    assert img.equals(tf.interpolate(agg))
+    assert img.equals(tf.shade(agg))
