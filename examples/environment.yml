@@ -1,4 +1,4 @@
-name: ds
+aramname: ds
 channels:
  - bokeh/label/dev
  - conda-forge
@@ -26,6 +26,7 @@ dependencies:
  - numba
  - numpy
  - pandas
+ - param>=1.5.1
  - paramnb
  - pyproj
  - pytables
