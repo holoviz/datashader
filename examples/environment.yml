@@ -1,4 +1,4 @@
-aramname: ds
+name: ds
 channels:
  - bokeh/label/dev
  - conda-forge
