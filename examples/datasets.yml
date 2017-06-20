@@ -17,6 +17,22 @@ data:
     files:
       - nyc_taxi.csv
 
+  - url: http://s3.amazonaws.com/datashader-data/calvert_uk_research2017.snappy.parq.zip
+    title: 'Graph for Edge Bundling (Calvert UK Research 2017)'
+    files:
+      - calvert_uk_research2017_nodes.snappy.parq
+      - calvert_uk_research2017_edges.snappy.parq
+
+  - url: http://s3.amazonaws.com/datashader-data/calvert_uk_research2017_nodes.zip
+    title: 'Institutions for Edge Bundling (Calvert UK Research 2017)'
+    files:
+      - calvert_uk_research2017_nodes.csv
+
+  - url: http://s3.amazonaws.com/datashader-data/census.snappy.parq.zip
+    title: 'Census Synthetic People'
+    files:
+      - census.snappy.parq
+
   - url: http://s3.amazonaws.com/datashader-data/mobile_landsat8.zip
     title: 'Mobile, AL Landsat8 Data'
     files:
@@ -62,11 +78,6 @@ data:
       - q47122d2124.gnd
       - q47122d2125.gnd
 
-  - url: http://s3.amazonaws.com/datashader-data/census.snappy.parq.zip
-    title: 'Census Synthetic People'
-    files:
-      - census.snappy.parq
-
   - url: http://rredc.nrel.gov/solar/old_data/nsrdb/1991-2010/targzs/
     title: 'Solar Radiation NREL - NSRDB'
     files:
@@ -94,14 +105,3 @@ data:
     title: 'Solar Radiation NREL - NSRDB Meta'
     files:
       - NSRDB_StationsMeta.csv
-
-  - url: http://s3.amazonaws.com/datashader-data/calvert_uk_research2017.snappy.parq.zip
-    title: 'Graph for Edge Bundling (Calvert UK Research 2017)'
-    files:
-      - calvert_uk_research2017_nodes.snappy.parq
-      - calvert_uk_research2017_edges.snappy.parq
-
-  - url: http://s3.amazonaws.com/datashader-data/calvert_uk_research2017_nodes.zip
-    title: 'Institutions for Edge Bundling (Calvert UK Research 2017)'
-    files:
-      - calvert_uk_research2017_nodes.csv

@@ -34,57 +34,37 @@ to work with much larger datasets than it would otherwise.
 
 ## Installation
 
-Datashader is available on most platforms using the 
-[`conda` package manager](https://conda.io/docs/install/quick.html),
-from the `bokeh` channel:
+The best way to get started with Datashader is install it together
+with our extensive set of examples, following the instructions in the
+[examples README](https://raw.githubusercontent.com/bokeh/datashader/master/examples/README.md).
 
-```
+If all you need is datashader itself, without any of the files used in
+the examples, you can install it from the `bokeh` channel using the using the
+[`conda` package manager](https://conda.io/docs/install/quick.html):
+
+```bash
 conda install -c bokeh datashader
 ```
 
-If you wish, you can manually install from the git repository to allow
-local modifications to the source code:
+If you want to get the very latest unreleased changes to datashader
+(e.g. to edit the source code yourself), you can tell Python to 
+use a git clone instead:
 
-```
+```bash
+
 git clone https://github.com/bokeh/datashader.git
 cd datashader
-conda install -c bokeh --file requirements.txt
-python setup.py develop
+pip install -e .
 ```
 
-Datashader is not currently provided on pip/PyPI, to avoid broken or
+Datashader itself is not currently provided on pip/PyPI, to avoid broken or
 low-performance installations that come from not keeping track of
 C/C++binary dependencies such as LLVM (required by Numba).
 
 
-## Examples
-
-The above commands will install only the minimal dependencies required
-to run datashader itself. Datashader also ships with a large number of
-[example files and notebooks](https://anaconda.org/jbednar/notebooks).
-If you have installed datashader and want to run these yourself, just
-follow the instructions at the [examples README](https://raw.githubusercontent.com/bokeh/datashader/master/examples/README.md).
-
-If you want to skip a step, you can install datashader together with
-all the examples and datafiles in a single environment if you download the
-[conda ds environment file](https://raw.githubusercontent.com/bokeh/datashader/master/examples/environment.yml),
-name it "environment.yml" on your local machine, then do:
-
-```
-conda env create environment.yml
-source activate ds
-```
-
-(or `activate ds`, on Windows).  You can then follow the instructions
-in the
-[examples README](https://raw.githubusercontent.com/bokeh/datashader/master/examples/README.md),
-skipping step 4 as the required packages will already be installed.  You should 
-now be able to run the examples and use them as a starting point for your own work.
-
-
 ## Learning more
 
-Additional resources are linked from the
+After working through the examples, you can find additional resources linked from the
 [datashader documentation](http://datashader.readthedocs.org), including
 API documentation and papers and talks about the approach.
 

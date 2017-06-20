@@ -1,50 +1,52 @@
 # Datashader Examples
 
-A large set of example notebooks and applications is provided with
-Datashader, illustrating how to use it with a variety of external
-libraries and datasets.
+The best way to understand how Datashader works is to try out our
+extensive set of examples. Static versions of most of them are
+provided on [Anaconda Cloud](https://anaconda.org/jbednar/notebooks),
+but for the full experience with dynamic updating you will need to
+install them on a live server. To get started, first go to your home
+directory and download the current list of everything needed for the
+examples:
 
-Once you follow the [steps for installing datashader](https://github.com/bokeh/datashader/blob/master/README.md#installation) ,
-you can run the following commands from your terminal (command) prompt
-to get a local copy of the examples, libraries, and datasets:
+- Download the [conda ds environment file](https://raw.githubusercontent.com/bokeh/datashader/master/examples/environment.yml) and save it as `environment.yml`.
+
+Then run the following commands in your terminal (command) prompt, from wherever you saved `environment.yml`:
 
 ```bash
-1. cd ~
-2. python -c "from datashader import examples ; examples('datashader-examples')"
-3. cd datashader-examples
-4. conda env create --file environment.yml
-5. source activate ds
-6. python download_sample_data.py
+1. conda env create --file environment.yml
+2. source activate ds
+3. python -c "from datashader import examples ; examples('datashader-examples')"
+4. cd datashader-examples
+5. python download_sample_data.py
 ```
 
-(On Windows, replace `source activate ds` with `activate ds`.)
+Step 1 will read `environment.yml`, create a new Conda environment
+named `ds`, and install of the libraries needed into that environment
+(including datashader itself). It will use Python 3.6 by default, but
+you can edit that file to specify a different Python version if you
+prefer (which may require changing some of the dependencies in some
+cases).
 
-Steps 1-3 will copy the examples from wherever they ended up into a
-subdirectory `datashader-examples` in your home directory.
-
-Step 4 will read the file `environment.yml` included with the
-examples, create a new Conda environment named `ds`, and install of
-the dependencies listed in it into that environment. It will use
-Python 3.6 by default, but you can edit that file to specify a
-different Python version if you prefer (which may require changing
-some of the dependencies in some cases).
-
-Step 5 will activate the `ds` environment, using it for all subsequent
-commands. You will need to re-run step 5 after closing your terminal
+Step 2 will activate the `ds` environment, using it for all subsequent
+commands. You will need to re-run step 2 after closing your terminal
 or rebooting your machine, if you want to use anything in the `ds`
-environment.
+environment.  On Windows, you need to replace `source activate ds`
+with `activate ds`.
 
-Step 6 will download the sample data required for the examples. The total
-download size is currently about 2.5GB to transfer, requiring about
-7.5GB on disk when unpacked, which can take some time depending on the
-speed of your connection.  The files involved are specified in the
-text file `datasets.yml` in the examples directory, and you are welcome
-to edit that file or to download the individual files specified therein
-manually if you prefer, putting them into a subdirectory `data/`.
+Step 3 will copy the datashader examples from wherever Conda placed
+them into a subdirectory `datashader-examples`.
 
-The "Census" example data is the largest file and should be the last
-thing to be downloaded, so you should be able to start running all of
-the other examples while that one completes.
+Steps 4-5 will download the sample data required for the examples. The
+total download size is currently about 3GB to transfer, requiring
+about 9GB on disk when unpacked, which can take some time depending on
+the speed of your connection.  The files involved are specified in the
+text file `datasets.yml` in the `datashader-examples` directory, and
+you are welcome to edit that file or to download the individual files
+specified therein manually if you prefer, as long as you put them into
+a subdirectory `data/` so the examples can find them.  Once these
+steps have completed, you will be ready to run any of the examples
+listed below.
+
 
 ## Notebooks
 
@@ -71,7 +73,7 @@ BOKEH_RESOURCES=inline jupyter notebook --NotebookApp.iopub_data_rate_limit=1000
 Motivation for the ideas behind datashader. Shows perceptual problems
 that plotting in a conventional way can lead to. Re-running it locally
 is usually not required, since the filled out version at the link
-above has the full data.
+above has essentially the full data involved.
 
 **[pipeline](https://anaconda.org/jbednar/pipeline/notebook)**
 
@@ -92,9 +94,17 @@ but preprocessed using `taxi_preprocessing_example.py` for convenience.
 Plotting the [2010 US Census data](http://www.coopercenter.org/demographics/Racial-Dot-Map), 
 both to show population density and to show racial categories.
 
-There is also a [version that lets you compare congressional districts with racial categories]
-(https://anaconda.org/jbednar/census-hv-dask), which has its own installation
-requirements because of overlaying shape files.
+There is also a
+[version showing how to visualize this data very simply using HoloViews](https://anaconda.org/jbednar/census-hv),
+and a more complex one with additional dependencies that lets you
+[compare congressional districts with racial categories]
+(https://anaconda.org/jbednar/census-hv-dask).
+
+**[holoviews_datashader](https://anaconda.org/jbednar/holoviews_datashader/notebook)**
+
+How to use the separate [HoloViews](http://holoviews.org) package
+to lay out and overlay datashader and non-datashader plots flexibly, 
+making it simple to add dynamic datashader-based plots as needed.
 
 **[nyc_taxi-nongeo](https://anaconda.org/jbednar/nyc_taxi-nongeo/notebook)**
 
@@ -111,26 +121,35 @@ Plotting a 2D trajectory, either for a single long
 ([random walk](https://anaconda.org/jbednar/trajectory/notebook)) or a
 [large database of flight paths](https://anaconda.org/jbednar/opensky/notebook).
 
-**[landsat](https://anaconda.org/jbednar/landsat/notebook)** and
-**[race_elevation](https://anaconda.org/jbednar/race_elevation/notebook)**
+**[edge_bundling](https://anaconda.org/jbednar/edge_bundling/notebook)**
 
-Combining raster data with scatterpoint data, using the 
-census data on race along with gridded elevation data for Austin, TX.
+Plotting graph/network datasets, with or without bundling the edges
+together to show structure.
 
-**[osm](https://anaconda.org/jbednar/osm/notebook)**
+**[2.7-billion-point OSM](https://anaconda.org/jbednar/osm/notebook)** and
+[1-billion-point OSM](https://anaconda.org/jbednar/osm-1billion).
 
-Plotting the 2.7 billion GPS coordinates made available by [open street
-map](https://blog.openstreetmap.org/2012/04/01/bulk-gps-point-data/). This
-dataset is not provided by the download script, and the notebook is only
-included to demonstrate working with a large dataset. The run notebook can be
-viewed at [anaconda.org](https://anaconda.org/jbednar/osm). A 
-[1-billion-point subset](https://anaconda.org/jbednar/osm-1billion) is also 
-available for separate download.
+Datashader supports [dask](http://dask.pydata.org) dataframes that
+make it simple to work with out-of-core datasets (too large for the
+physical memory on the machine) and distributed processing (across
+cores or nodes). These examples show how to work with the 2.7 billion
+GPS coordinates made available by
+[open street map](https://blog.openstreetmap.org/2012/04/01/bulk-gps-point-data/),
+or a 1-billion-point subset of them that fits into memory on a 16GB
+machine. 
 
 **[Amazon.com center distance](https://anaconda.org/defusco/amz_centers/notebook)**
 
 Cities in the USA colored by their distance to the nearest Amazon.com 
 distribution center.
+
+**[landsat](https://anaconda.org/jbednar/landsat/notebook)**,
+**[race_elevation](https://anaconda.org/jbednar/race_elevation/notebook)**,
+**[lidar](https://anaconda.org/jbednar/lidar/notebook)**, and
+**[solar](https://anaconda.org/jbednar/solar/notebook)**
+
+Various work-in-progress notebooks about using satellite, LIDAR, and
+other weather/climate data with Datashader.
 
 
 ## Dashboard
@@ -151,12 +170,13 @@ python dashboard/dashboard.py -c dashboard/osm.yml
 The '.yml' configuration file sets up the dashboard to use one of the
 datasets downloaded above. You can write similar configuration files
 for working with other datasets of your own, while adding features to
-`dashboard.py` itself if needed.
+`dashboard.py` itself if needed to support them.
 
-If you have less than 16GB of RAM on your machine, you will want to
-add the "-o" option before "-c" to tell it to work out of core instead
-of loading all data into memory, though doing so will make interactive
-use substantially slower than if sufficient memory were available.
+For most of these datasets, if you have less than 16GB of RAM on your
+machine, you will want to add the "-o" option before "-c" to tell it
+to work out of core instead of loading all data into memory.  However,
+doing so will make interactive use substantially slower than if
+sufficient memory were available.
 
 To launch multiple dashboards at once, you'll need to add "-p 5001"
 (etc.) to select a unique port number for the web page to use for
