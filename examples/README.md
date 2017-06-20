@@ -127,14 +127,14 @@ Plotting graph/network datasets, with or without bundling the edges
 together to show structure.
 
 **[2.7-billion-point OSM](https://anaconda.org/jbednar/osm/notebook)** and
-[1-billion-point OSM](https://anaconda.org/jbednar/osm-1billion).
+**[1-billion-point OSM](https://anaconda.org/jbednar/osm-1billion)**.
 
 Datashader supports [dask](http://dask.pydata.org) dataframes that
 make it simple to work with out-of-core datasets (too large for the
 physical memory on the machine) and distributed processing (across
 cores or nodes). These examples show how to work with the 2.7 billion
 GPS coordinates made available by
-[open street map](https://blog.openstreetmap.org/2012/04/01/bulk-gps-point-data/),
+[Open Street Map](https://blog.openstreetmap.org/2012/04/01/bulk-gps-point-data/),
 or a 1-billion-point subset of them that fits into memory on a 16GB
 machine. 
 
