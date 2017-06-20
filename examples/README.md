@@ -1,45 +1,50 @@
 # Datashader Examples
 
-A variety of example notebooks and applications are maintained in the
-examples/ subdirectory of Datashader's git repository, and these will be
-installed somewhere on your local system when you install Datashader.
-To get a copy of the examples in your own directory so that you can
-run and edit them, you can run these commands in your terminal:
+A large set of example notebooks and applications is provided with
+Datashader, illustrating how to use it with a variety of external
+libraries and datasets.
+
+Once you follow the [steps for installing datashader](https://github.com/bokeh/datashader/blob/master/README.md#installation) ,
+you can run the following commands from your terminal (command) prompt
+to get a local copy of the examples, libraries, and datasets:
 
 ```bash
 1. cd ~
 2. python -c "from datashader import examples ; examples('datashader-examples')"
 3. cd datashader-examples
-4. python download_sample_data.py
-```
-
-Steps 1-3 steps will give you a copy of the notebooks and apps, and
-step 4 will download various datasets used by them.  The total
-download size is currently about 2.5GB to transfer, requiring about
-7.5GB on disk when unpacked, which can take some time depending on the
-speed of your connection.  The files involved are specified in the
-text file `datasets.yml` that was copied to your directory in step 3,
-and instead of step 4 you can download each file individually if you
-prefer.
-
-The "Census" example data is the largest file and should be the last
-thing to be downloaded, so you should be able to start running all of
-the other examples while that one completes.
-
-Datashader itself is independent of other plotting libraries, but many of
-the examples do use various plotting libraries, including Bokeh, 
-HoloViews, and matplotlib.  To install these libraries and other
-dependencies, you can run:
-
-```
-conda env create --file examples/environment.yml
-source activate ds
+4. conda env create --file environment.yml
+5. source activate ds
+6. python download_sample_data.py
 ```
 
 (On Windows, replace `source activate ds` with `activate ds`.)
 
+Steps 1-3 will copy the examples from wherever they ended up into a
+subdirectory `datashader-examples` in your home directory.
 
-The dashboard example has additional dependencies as listed below.
+Step 4 will read the file `environment.yml` included with the
+examples, create a new Conda environment named `ds`, and install of
+the dependencies listed in it into that environment. It will use
+Python 3.6 by default, but you can edit that file to specify a
+different Python version if you prefer (which may require changing
+some of the dependencies in some cases).
+
+Step 5 will activate the `ds` environment, using it for all subsequent
+commands. You will need to re-run step 5 after closing your terminal
+or rebooting your machine, if you want to use anything in the `ds`
+environment.
+
+Step 6 will download the sample data required for the examples. The total
+download size is currently about 2.5GB to transfer, requiring about
+7.5GB on disk when unpacked, which can take some time depending on the
+speed of your connection.  The files involved are specified in the
+text file `datasets.yml` in the examples directory, and you are welcome
+to edit that file or to download the individual files specified therein
+manually if you prefer, putting them into a subdirectory `data/`.
+
+The "Census" example data is the largest file and should be the last
+thing to be downloaded, so you should be able to start running all of
+the other examples while that one completes.
 
 ## Notebooks
 
@@ -132,13 +137,7 @@ distribution center.
 
 An example interactive dashboard using
 [bokeh server](http://bokeh.pydata.org/en/latest/docs/user_guide/server.html)
-integrated with a datashading pipeline.  Requires webargs and (on Python2)
-fastcache:
-
-```
-pip install webargs
-conda install fastcache
-```
+integrated with a datashading pipeline.
 
 To start, launch it with one of the supported datasets specified:
 
