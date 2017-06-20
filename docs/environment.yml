@@ -13,3 +13,4 @@ dependencies:
     - pillow >=3.1.1
     - xarray >=0.7.0
     - toolz >=0.7.4
+    - sphinx_rtd_theme
