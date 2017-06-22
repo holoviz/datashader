@@ -59,7 +59,7 @@ pip install -e .
 
 Datashader itself is not currently available on PyPI, to avoid broken or
 low-performance installations that come from not keeping track of
-C/C++binary dependencies such as LLVM (required by Numba).
+C/C++ binary dependencies such as LLVM (required by Numba).
 
 To run the test suite, first install pytest (e.g. ``conda install
 pytest``), then run ``py.test datashader`` in your datashader source
