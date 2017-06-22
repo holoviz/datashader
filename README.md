@@ -57,7 +57,7 @@ cd datashader
 pip install -e .
 ```
 
-Datashader itself is not currently provided on pip/PyPI, to avoid broken or
+Datashader itself is not currently available on PyPI, to avoid broken or
 low-performance installations that come from not keeping track of
 C/C++binary dependencies such as LLVM (required by Numba).
 
