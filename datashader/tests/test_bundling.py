@@ -1,9 +1,10 @@
+import pytest
+skimage = pytest.importorskip("skimage")
+
 import numpy as np
 import pandas as pd
 
 from datashader.bundling import directly_connect_edges, hammer_bundle
-
-import pytest
 
 
 @pytest.fixture
