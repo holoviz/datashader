@@ -1,6 +1,8 @@
+import pytest
+rasterio = pytest.importorskip("rasterio")
+
 from os import path
 
-import pytest
 import datashader as ds
 import xarray as xr
 import numpy as np
@@ -77,7 +79,6 @@ def test_calc_res():
     """Assert that resolution is calculated correctly when using the xarray
     rasterio backend.
     """
-    import rasterio
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         xr_res = ds.utils.calc_res(src)
     with rasterio.open(TEST_RASTER_PATH) as src:
@@ -89,7 +90,6 @@ def test_calc_bbox():
     """Assert that bounding boxes are calculated correctly when using the xarray
     rasterio backend.
     """
-    import rasterio
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         xr_res = ds.utils.calc_res(src)
         xr_bounds = ds.utils.calc_bbox(src.x.values, src.y.values, xr_res)

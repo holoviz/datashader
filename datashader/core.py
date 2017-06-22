@@ -207,10 +207,11 @@ class Canvas(object):
                band=1,
                upsample_method='linear',
                downsample_method='mean'):
-        """Sample a raster dataset by canvas size and bounds. Note: requires
-        `rasterio`. Missing values (those having the value indicated by the
-        "nodata" attribute of the raster) are replaced with `NaN` if floats, and
-        0 if int.
+        """Sample a raster dataset by canvas size and bounds. 
+
+        Missing values (those having the value indicated by the
+        "nodata" attribute of the raster) are replaced with `NaN` if
+        floats, and 0 if int.
 
         Parameters
         ----------
@@ -229,15 +230,7 @@ class Canvas(object):
         -------
         data : xarray.Dataset
 
-        Notes
-        -------
-        requires `rasterio`.
         """
-        try:
-            import rasterio as rio
-        except ImportError:
-            raise ImportError('install rasterio to use this feature')
-
         upsample_methods = dict(nearest=US_NEAREST,
                                 linear=US_LINEAR)
 
