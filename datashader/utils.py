@@ -68,9 +68,18 @@ def calc_res(raster):
     """Calculate the resolution of xarray.DataArray raster and return it as the
     two-tuple (xres, yres).
     """
-    w, h = raster.shape[2], raster.shape[1]
-    xres = (raster.x.values[w-1] - raster.x.values[0]) / (w - 1)
-    yres = (raster.y.values[0] - raster.y.values[h-1]) / (h - 1)
+    if raster.ndim == 2:
+        h, w = raster.shape
+        ydim, xdim = raster.dims
+    elif raster.ndim == 3:
+        h, w = raster.shape[1:]
+        ydim, xdim = raster.dims[1:]
+    else:
+        raise ValueError("Could not determine dimensionality of the raster")
+    xcoords = raster[xdim].values
+    ycoords = raster[ydim].values
+    xres = (xcoords[-1] - xcoords[0]) / (w - 1)
+    yres = (ycoords[0] - ycoords[-1]) / (h - 1)
     return xres, yres
 
 def calc_bbox(xs, ys, res):
@@ -95,11 +104,14 @@ def calc_bbox(xs, ys, res):
         Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
         sizes"), respectively.
     """
+    ybound = ys.min() if res[1] < 0 else ys.max()
+    xbound = xs.max() if res[0] < 0 else xs.min()
+
     xmin = ymin = np.inf
     xmax = ymax = -np.inf
-    Ab = np.array([[res[0], 0.,      xs.min()],
-                   [0.,     -res[1], ys.max()],
-                   [0.,     0.,      1.]])
+    Ab = np.array([[res[0],  0.,      xbound],
+                   [0.,      -res[1], ybound],
+                   [0.,      0.,      1.]])
     for x_, y_ in [(0, 0), (0, len(ys)), (len(xs), 0), (len(xs), len(ys))]:
         x, y, _ = np.dot(Ab, np.array([x_, y_, 1.]))
         if x < xmin:
@@ -139,8 +151,11 @@ def get_indices(x, y, xs, ys, res):
         Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
         sizes"), respectively.
     """
-    Ab = np.array([[res[0], 0.,      xs.min()],
-                   [0.,     -res[1], ys.max()],
+    ybound = ys.min() if res[1] < 0 else ys.max()
+    xbound = xs.max() if res[0] < 0 else xs.min()
+
+    Ab = np.array([[res[0], 0.,      xbound],
+                   [0.,     -res[1], ybound],
                    [0.,     0.,      1.]])
     nrows, ncols = Ab.shape
     A = Ab[:nrows-1, :ncols-1]
@@ -152,6 +167,45 @@ def get_indices(x, y, xs, ys, res):
     affine_inv = np.hstack([A_, b_])
     x_, y_, _ = np.dot(affine_inv, np.array([x, y, 1.]))
     return int(x_), int(y_)
+
+
+def orient_array(raster, res, band):
+    """
+    Return array with canonical orientation (by using res) to reorient
+    along x- and y-axis.
+    """
+    if raster.ndim == 2:
+        array = raster.data
+    else:
+        array = raster.data[band-1]
+    if res[0] < 0:
+        array = array[:, ::-1]
+    if res[1] > 0:
+        array = array[::-1]
+    return array
+
+
+def compute_coords(width, height, x_range, y_range, res):
+    """
+    Computes DataArray coordinates aligned at the bin edges
+    """
+    xpad = (x_range[1]-x_range[0])/width
+    ypad = (y_range[1]-y_range[0])/height
+    if res[0] < 0:
+        x0, x1 = x_range[::-1]
+        x0 -= xpad
+    else:
+        x0, x1 = x_range
+        x1 -= xpad
+    xs = np.linspace(x0, x1, width)
+    if res[1] > 0:
+        y0, y1 = y_range[::-1]
+        y0 -= ypad
+    else:
+        y0, y1 = y_range
+        y1 -= ypad
+    ys = np.linspace(y0, y1, height)
+    return xs, ys
 
 
 def downsample_aggregate(aggregate, factor, how='mean'):

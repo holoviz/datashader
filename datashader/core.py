@@ -5,7 +5,7 @@ from datashape.predicates import istabular
 from odo import discover
 from xarray import DataArray
 
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox, get_indices
+from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices
 from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
                          DS_MEAN, DS_MODE, DS_VAR, DS_STD)
 
@@ -247,7 +247,13 @@ class Canvas(object):
             raise ValueError('Invalid downsample method: options include {}'.format(list(downsample_methods.keys())))
 
         res = calc_res(source)
-        left, bottom, right, top = calc_bbox(source.x.values, source.y.values, res)
+        if source.ndim == 2:
+            ydim, xdim = source.dims
+        else:
+            ydim, xdim = source.dims[1:]
+        left, bottom, right, top = calc_bbox(source[xdim].values, source[ydim].values, res)
+        array = orient_array(source, res, band)
+        dtype = array.dtype
 
         # window coordinates
         xmin = max(self.x_range[0], left)
@@ -264,12 +270,18 @@ class Canvas(object):
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
 
-        cmin, rmin = get_indices(xmin, ymin, source.x.values, source.y.values, res)
-        cmax, rmax = get_indices(xmax, ymax, source.x.values, source.y.values, res)
-        source_window = source[:, rmin:rmax, cmin:cmax]
+        cmin, rmin = get_indices(xmin, ymin, source[xdim].values, source[ydim].values, res)
+        cmax, rmax = get_indices(xmax, ymax, source[xdim].values, source[ydim].values, res)
+        if rmin > rmax:
+            rmin, rmax = rmax, rmin
+        if cmin > cmax:
+            cmin, cmax = cmax, cmin
+        if array.ndim == 2:
+            source_window = array[rmin:rmax, cmin:cmax]
+        else:
+            source_window = array[:, rmin:rmax, cmin:cmax]
 
-        data = resample_2d(source_window.values[0].astype(np.float32),
-                           w, h,
+        data = resample_2d(source_window.astype(np.float32), w, h,
                            ds_method=downsample_methods[downsample_method],
                            us_method=upsample_methods[upsample_method])
 
@@ -296,11 +308,16 @@ class Canvas(object):
             data = np.concatenate((bottom_pad, data, top_pad), axis=0)
             data = np.concatenate((left_pad, data, right_pad), axis=1)
 
-        data = np.flipud(data)
-        attrs = dict(res=res[0], nodata=source._file_obj.nodata)
-        return DataArray(data,
-                         dims=['x', 'y'],
-                         attrs=attrs)
+        xs, ys = compute_coords(self.plot_width, self.plot_height, self.x_range, self.y_range, res)
+        # Reorient to original orientation
+        if res[1] > 0: data = data[::-1]
+        if res[0] < 0: data = data[:, ::-1]
+        # Restore original dtype
+        data = data.astype(dtype)
+        attrs = dict(res=res[0])
+        if source._file_obj is not None:
+            attrs['nodata'] = source._file_obj.nodata
+        return DataArray(data, coords={xdim: xs, ydim: ys}, dims=[ydim, xdim], attrs=attrs)
 
     def validate(self):
         """Check that parameter settings are valid for this object"""
