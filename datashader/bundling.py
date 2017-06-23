@@ -101,7 +101,7 @@ def resample_edge(segments, min_segment_length, max_segment_length):
     change, total_resamples = calculate_length(segments, min_segment_length, max_segment_length)
     if not change:
         return segments
-    resampled = np.empty((total_resamples, 2))
+    resampled = np.empty((total_resamples, 3))
     resample_segment(segments, resampled, min_segment_length, max_segment_length)
     return resampled
 
@@ -166,7 +166,7 @@ def draw_to_surface(edge_segments, bandwidth, accuracy):
     img = np.zeros((accuracy + 1, accuracy + 1))
     for segments in edge_segments:
         for point in segments:
-            img[int(point[0] * accuracy), int(point[1] * accuracy)] += 1
+            img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]
     return gaussian(img, sigma=bandwidth / 2)
 
 
@@ -188,9 +188,10 @@ def _convert_graph_to_edge_segments(nodes, edges):
     Merge graph dataframes into a list of edge segments.
 
     Given a graph defined as a pair of dataframes (nodes and edges), the
-    nodes (id, coordinates) and edges (id, source, target) are joined by
-    node id to create a single dataframe with each source/target of an
-    edge replaced with the respective coordinates.
+    nodes (id, coordinates) and edges (id, source, target, weight) are
+    joined by node id to create a single dataframe with each source/target
+    of an edge (including its optional weight) replaced with the respective
+    coordinates.
 
     All node points are normalized to the range (0, 1) using min-max
     scaling.
@@ -209,11 +210,14 @@ def _convert_graph_to_edge_segments(nodes, edges):
     df = pd.merge(nodes, df, left_index=True, right_on=['target'])
     df = df.rename(columns={'x': 'dst_x', 'y': 'dst_y'})
 
-    df = df.filter(items=['src_x', 'src_y', 'dst_x', 'dst_y'])
+    if 'weight' not in edges:
+        df['weight'] = 1
+
+    df = df.filter(items=['src_x', 'src_y', 'dst_x', 'dst_y', 'weight'])
 
     edge_segments = []
     for edge in df.get_values():
-        segments = [[edge[0], edge[1]], [edge[2], edge[3]]]
+        segments = [[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]]
         edge_segments.append(np.array(segments))
     return edge_segments
 
@@ -231,10 +235,10 @@ def _convert_edge_segments_to_dataframe(edge_segments):
     def edge_iterator():
         for edge in edge_segments:
             yield edge
-            yield np.array([[np.nan, np.nan]])
+            yield np.array([[np.nan, np.nan, np.nan]])
 
     df = DataFrame(np.concatenate(list(edge_iterator())))
-    df.columns = ['x', 'y']
+    df.columns = ['x', 'y', 'weight']
     return df
 
 
