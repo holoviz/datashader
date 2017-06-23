@@ -242,7 +242,6 @@ def _convert_edge_segments_to_dataframe(edge_segments):
     return df
 
 
-
 class directly_connect_edges(param.ParameterizedFunction):
     """
     Convert a graph into paths suitable for datashading.
@@ -255,7 +254,7 @@ class directly_connect_edges(param.ParameterizedFunction):
     def __call__(self, nodes, edges):
         """
         Convert a graph data structure into a path structure for plotting
-        
+
         Given a set of nodes (as a dataframe with a unique ID for each
         node) and a set of edges (as a dataframe with with columns for the
         source and destination IDs for each edge), returns a dataframe
@@ -275,7 +274,7 @@ class hammer_bundle(directly_connect_edges):
     Breaks each edge into a path with multiple line segments, and
     iteratively curves this path to bundle edges into groups.
     """
-    
+
     initial_bandwidth = param.Number(default=0.05,bounds=(0.0,None),doc="""
         Initial value of the bandwidth....""")
 
@@ -288,7 +287,6 @@ class hammer_bundle(directly_connect_edges):
     batch_size = param.Integer(default=20000,bounds=(1,None),doc="""
         Number of edges to process together""")
 
-    
     tension = param.Number(default=0.3,bounds=(0,None),precedence=-0.5,doc="""
         Exponential smoothing factor to use when smoothing""")
 
@@ -304,54 +302,53 @@ class hammer_bundle(directly_connect_edges):
     max_segment_length = param.Number(default=0.016,bounds=(0,None),precedence=-0.5,doc="""
         Maximum length (in data space?) for an edge segment""")
 
-    
     def __call__(self, nodes, edges, **params):
-        p = param.ParamOverrides(self,params)
+        p = param.ParamOverrides(self, params)
 
         # Convert graph into list of edge segments
         edges = _convert_graph_to_edge_segments(nodes, edges)
-    
+
         # This is simply to let the work split out over multiple cores
         edge_batches = list(batches(edges, p.batch_size))
-    
+
         # This gets the edges split into lots of small segments
         # Doing this inside a delayed function lowers the transmission overhead
         edge_segments = [resample_edges(batch, p.min_segment_length, p.max_segment_length) for batch in edge_batches]
-    
+
         for i in range(p.iterations):
             # Each step, the size of the 'blur' shrinks
             bandwidth = p.initial_bandwidth * p.decay**(i + 1) * p.accuracy
-    
+
             # If it's this small, there won't be a change anyway
             if bandwidth < 2:
                 break
-    
+
             # Draw the density maps and combine them
             images = [draw_to_surface(segment, bandwidth, p.accuracy) for segment in edge_segments]
             overall_image = sum(images)
-    
+
             gradients = get_gradients(overall_image)
-    
+
             # Move edges along the gradients and resample when necessary
             # This could include smoothing to adjust the amount a graph can change
             edge_segments = [advect_resample_all(gradients, segment, p.advect_iterations, p.accuracy, p.min_segment_length, p.max_segment_length)
                              for segment in edge_segments]
-    
+
         # Do a final resample to a smaller size for nicer rendering
         edge_segments = [resample_edges(segment, p.min_segment_length, p.max_segment_length) for segment in edge_segments]
-        
+
         # Finally things can be sent for computation
         edge_segments = compute(*edge_segments)
-    
+
         # Smooth out the graph
         for i in range(10):
             for batch in edge_segments:
                 smooth(batch, p.tension)
-    
+
         # Flatten things
         new_segs = []
         for batch in edge_segments:
             new_segs.extend(batch)
-    
+
         # Convert list of edge segments to Pandas dataframe
         return _convert_edge_segments_to_dataframe(new_segs)
