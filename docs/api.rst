@@ -24,6 +24,15 @@ Entry Points
 
    Pipeline
 
+Edge Bundling
+-------------
+
+.. currentmodule:: datashader.bundling
+.. autosummary::
+
+   directly_connect_edges
+   hammer_bundle
+
 Glyphs
 ------
 
@@ -96,6 +105,10 @@ Definitions
 .. currentmodule:: datashader
 .. autoclass:: Canvas
 .. autoclass:: Pipeline
+
+.. currentmodule:: datashader.bundling
+.. autoclass:: directly_connect_edges
+.. autoclass:: hammer_bundle
 
 .. currentmodule:: datashader.glyphs
 .. autoclass:: Point
