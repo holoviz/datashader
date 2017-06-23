@@ -67,18 +67,18 @@ def test_any():
 
 
 def test_sum():
-    out = xr.DataArray(df.i32.reshape((2, 2, 5)).sum(axis=2, dtype='f8').T,
+    out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).sum(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.sum('i32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.sum('i64')), out)
-    out = xr.DataArray(np.nansum(df.f64.reshape((2, 2, 5)), axis=2).T,
+    out = xr.DataArray(np.nansum(df.f64.values.reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.sum('f32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.sum('f64')), out)
 
 
 def test_min():
-    out = xr.DataArray(df.i64.reshape((2, 2, 5)).min(axis=2).astype('f8').T,
+    out = xr.DataArray(df.i64.values.reshape((2, 2, 5)).min(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.min('i32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.min('i64')), out)
@@ -87,7 +87,7 @@ def test_min():
 
 
 def test_max():
-    out = xr.DataArray(df.i64.reshape((2, 2, 5)).max(axis=2).astype('f8').T,
+    out = xr.DataArray(df.i64.values.reshape((2, 2, 5)).max(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.max('i32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.max('i64')), out)
@@ -96,33 +96,33 @@ def test_max():
 
 
 def test_mean():
-    out = xr.DataArray(df.i32.reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
+    out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.mean('i32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.mean('i64')), out)
-    out = xr.DataArray(np.nanmean(df.f64.reshape((2, 2, 5)), axis=2).T,
+    out = xr.DataArray(np.nanmean(df.f64.values.reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.mean('f32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.mean('f64')), out)
 
 
 def test_var():
-    out = xr.DataArray(df.i32.reshape((2, 2, 5)).var(axis=2, dtype='f8').T,
+    out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).var(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.var('i32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.var('i64')), out)
-    out = xr.DataArray(np.nanvar(df.f64.reshape((2, 2, 5)), axis=2).T,
+    out = xr.DataArray(np.nanvar(df.f64.values.reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.var('f32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.var('f64')), out)
 
 
 def test_std():
-    out = xr.DataArray(df.i32.reshape((2, 2, 5)).std(axis=2, dtype='f8').T,
+    out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).std(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.std('i32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.std('i64')), out)
-    out = xr.DataArray(np.nanstd(df.f64.reshape((2, 2, 5)), axis=2).T,
+    out = xr.DataArray(np.nanstd(df.f64.values.reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.std('f32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.std('f64')), out)
@@ -147,9 +147,9 @@ def test_multiple_aggregates():
                               i32_count=ds.count('i32')))
 
     f = lambda x: xr.DataArray(x, coords=coords, dims=dims)
-    assert_eq(agg.f64_std, f(np.nanstd(df.f64.reshape((2, 2, 5)), axis=2).T))
-    assert_eq(agg.f64_mean, f(np.nanmean(df.f64.reshape((2, 2, 5)), axis=2).T))
-    assert_eq(agg.i32_sum, f(df.i32.reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
+    assert_eq(agg.f64_std, f(np.nanstd(df.f64.values.reshape((2, 2, 5)), axis=2).T))
+    assert_eq(agg.f64_mean, f(np.nanmean(df.f64.values.reshape((2, 2, 5)), axis=2).T))
+    assert_eq(agg.i32_sum, f(df.i32.values.reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
     assert_eq(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
 
 

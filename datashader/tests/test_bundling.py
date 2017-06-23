@@ -29,31 +29,37 @@ def edges():
     return edges_df
 
 
-def assert_eq(a, b):
-    assert a.equals(b)
-
-
 def test_directly_connect(nodes, edges):
     # Expect four lines starting at center (0.5, 0.5) and terminating
     # at a different corner and NaN
-    data = pd.DataFrame({'x': [0.5, 0.0, np.nan, 0.5, 1.0, np.nan,
-                               0.5, 0.0, np.nan, 0.5, 1.0, np.nan],
-                         'y': [0.5, 1.0, np.nan, 0.5, 1.0, np.nan,
-                               0.5, 0.0, np.nan, 0.5, 0.0, np.nan]})
-    expected = pd.DataFrame(data)
+    data = pd.DataFrame({'x':
+                            [0.5, 0.0, np.nan, 0.5, 1.0, np.nan,
+                             0.5, 0.0, np.nan, 0.5, 1.0, np.nan],
+                         'y':
+                            [0.5, 1.0, np.nan, 0.5, 1.0, np.nan,
+                             0.5, 0.0, np.nan, 0.5, 0.0, np.nan],
+                         'weight':
+                            [1.0, 1.0, np.nan, 1.0, 1.0, np.nan,
+                             1.0, 1.0, np.nan, 1.0, 1.0, np.nan]})
+    expected = pd.DataFrame(data, columns=['x', 'y', 'weight'])
 
     given = directly_connect_edges(nodes, edges)
-    assert_eq(given, expected)
+    assert given.equals(expected)
 
 
 def test_hammer_bundle(nodes, edges):
     # Expect four lines starting at center (0.5, 0.5) and terminating
     # with NaN
-    data = pd.DataFrame({'x': [0.5, np.nan, 0.5, np.nan,
-                               0.5, np.nan, 0.5, np.nan],
-                         'y': [0.5, np.nan, 0.5, np.nan,
-                               0.5, np.nan, 0.5, np.nan]})
-    expected = pd.DataFrame(data)
+    data = pd.DataFrame({'x':
+                            [0.5, np.nan, 0.5, np.nan,
+                             0.5, np.nan, 0.5, np.nan],
+                         'y':
+                            [0.5, np.nan, 0.5, np.nan,
+                             0.5, np.nan, 0.5, np.nan],
+                         'weight':
+                            [1.0, np.nan, 1.0, np.nan,
+                             1.0, np.nan, 1.0, np.nan]})
+    expected = pd.DataFrame(data, columns=['x', 'y', 'weight'])
 
     df = hammer_bundle(nodes, edges)
 
@@ -63,4 +69,4 @@ def test_hammer_bundle(nodes, edges):
     given.sort_index(inplace=True)
     given.reset_index(drop=True, inplace=True)
 
-    assert_eq(given, expected)
+    assert given.equals(expected)
