@@ -5,7 +5,7 @@ from datashape.predicates import istabular
 from odo import discover
 from xarray import DataArray
 
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox
+from .utils import Dispatcher, ngjit, calc_res, calc_bbox, get_indices
 from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
                          DS_MEAN, DS_MODE, DS_VAR, DS_STD)
 
@@ -249,7 +249,7 @@ class Canvas(object):
         res = calc_res(source)
         left, bottom, right, top = calc_bbox(source.x.values, source.y.values, res)
 
-        # window coodinates
+        # window coordinates
         xmin = max(self.x_range[0], left)
         ymin = max(self.y_range[0], bottom)
         xmax = min(self.x_range[1], right)
@@ -264,7 +264,11 @@ class Canvas(object):
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
 
-        data = resample_2d(source.values[0].astype(np.float32),
+        rmin, cmin = get_indices(xmin, ymin, source.x.values, source.y.values, res)
+        rmax, cmax = get_indices(xmax, ymax, source.x.values, source.y.values, res)
+        source_window = source[:, rmin:rmax, cmin:cmax]
+
+        data = resample_2d(source_window.values[0].astype(np.float32),
                            w, h,
                            ds_method=downsample_methods[downsample_method],
                            us_method=upsample_methods[upsample_method])
@@ -278,16 +282,16 @@ class Canvas(object):
             lpct = lpad / (lpad + rpad) if lpad + rpad > 0 else 0
             left = int(np.ceil(num_width * lpct))
             right = num_width - left
-            left_pad = np.empty(shape=(self.plot_height, left)).astype(source.dtype) * np.nan
-            right_pad = np.empty(shape=(self.plot_height, right)).astype(source.dtype) * np.nan
+            left_pad = np.empty(shape=(self.plot_height, left)).astype(source_window.dtype) * np.nan
+            right_pad = np.empty(shape=(self.plot_height, right)).astype(source_window.dtype) * np.nan
 
             tpad = ymin - self.y_range[0]
             bpad = self.y_range[1] - ymax
             tpct = tpad / (tpad + bpad) if tpad + bpad > 0 else 0
             top = int(np.ceil(num_height * tpct))
             bottom = num_height - top
-            top_pad = np.empty(shape=(top, w)).astype(source.dtype) * np.nan
-            bottom_pad = np.empty(shape=(bottom, w)).astype(source.dtype) * np.nan
+            top_pad = np.empty(shape=(top, w)).astype(source_window.dtype) * np.nan
+            bottom_pad = np.empty(shape=(bottom, w)).astype(source_window.dtype) * np.nan
 
             data = np.concatenate((bottom_pad, data, top_pad), axis=0)
             data = np.concatenate((left_pad, data, right_pad), axis=1)
