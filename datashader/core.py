@@ -264,8 +264,8 @@ class Canvas(object):
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
 
-        rmin, cmin = get_indices(xmin, ymin, source.x.values, source.y.values, res)
-        rmax, cmax = get_indices(xmax, ymax, source.x.values, source.y.values, res)
+        cmin, rmin = get_indices(xmin, ymin, source.x.values, source.y.values, res)
+        cmax, rmax = get_indices(xmax, ymax, source.x.values, source.y.values, res)
         source_window = source[:, rmin:rmax, cmin:cmax]
 
         data = resample_2d(source_window.values[0].astype(np.float32),
