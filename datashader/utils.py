@@ -75,9 +75,9 @@ def calc_res(raster):
 
 def calc_bbox(xs, ys, res):
     """Calculate the bounding-box of a raster, and return it in a four-element
-    tuple: (xmin, ymin, xmax, ymax). This assumes a flat-earth crs to do an
-    Affine transformation with the "Augmented Matrix" approach (does not handle
-    reprojections):
+    tuple: (xmin, ymin, xmax, ymax). This assumes a flat-earth coordinate 
+    reference system, to do an affine transformation with the
+    "Augmented Matrix" approach (does not handle reprojections):
     https://en.wikipedia.org/wiki/Affine_transformation#Augmented_matrix
     
     Parameters
@@ -114,10 +114,10 @@ def calc_bbox(xs, ys, res):
 
 def get_indices(x, y, xs, ys, res):
     """Return indices corresponding to transformed coordinates (x, y).
-    This assumes that a flat-earth crs to perform an inverse Affine
-    transformation, as described here:
-    https://en.wikipedia.org/wiki/Affine_transformation#Groups
-    It also assumes that the Affine transformation matrix is invertible.
+    This assumes that a flat-earth coordinate reference system, to
+    perform an inverse affine transformation, as described here:
+    https://en.wikipedia.org/wiki/Affine_transformation#Groups 
+    It also assumes that the affine transformation matrix is invertible.
     
     Parameters
     ----------
@@ -147,8 +147,8 @@ def get_indices(x, y, xs, ys, res):
     A_ = np.vstack([A_inv, np.zeros(A_inv.shape[1])])
     neg__Ainv__dot__b = -np.dot(A_inv, b)
     b_ = np.hstack([neg__Ainv__dot__b, [1]]).reshape(neg__Ainv__dot__b.shape[0]+1, 1)
-    Affine_inv = np.hstack([A_, b_])
-    x_, y_, _ = np.dot(Affine_inv, np.array([x, y, 1.]))
+    affine_inv = np.hstack([A_, b_])
+    x_, y_, _ = np.dot(affine_inv, np.array([x, y, 1.]))
     return int(x_), int(y_)
 
 
