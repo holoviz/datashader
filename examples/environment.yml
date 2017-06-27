@@ -1,10 +1,9 @@
-name: ds
+name: ds-test2
 channels:
  - bokeh/label/dev
  - conda-forge
  - ioam/label/dev
  - ioam
- - numba
  - scitools/label/dev
 
 dependencies:
