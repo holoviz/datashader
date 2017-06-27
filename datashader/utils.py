@@ -74,10 +74,11 @@ def calc_res(raster):
     return xres, yres
 
 def calc_bbox(xs, ys, res):
-    """Calculate the bounding-box of a raster, and return it in a four-element
-    tuple: (xmin, ymin, xmax, ymax). This assumes a flat-earth coordinate 
-    reference system, to do an affine transformation with the
-    "Augmented Matrix" approach (does not handle reprojections):
+    """Calculate the bounding box of a raster, and return it in a four-element
+    tuple: (xmin, ymin, xmax, ymax). This calculation assumes the raster is
+    uniformly sampled (equivalent to a flat-earth assumption, for geographic
+    data) so that an affine transform (using the "Augmented Matrix" approach) 
+    suffices:
     https://en.wikipedia.org/wiki/Affine_transformation#Augmented_matrix
     
     Parameters
@@ -114,10 +115,11 @@ def calc_bbox(xs, ys, res):
 
 def get_indices(x, y, xs, ys, res):
     """Return indices corresponding to transformed coordinates (x, y).
-    This assumes that a flat-earth coordinate reference system, to
-    perform an inverse affine transformation, as described here:
+    This calculation assumes the raster is uniformly sampled
+    (equivalent to a flat-earth assumption, for geographic data) with
+    an invertible affine transformation matrix, so that an inverse
+    affine transform can be used:
     https://en.wikipedia.org/wiki/Affine_transformation#Groups 
-    It also assumes that the affine transformation matrix is invertible.
     
     Parameters
     ----------
