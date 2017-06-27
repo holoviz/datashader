@@ -1,4 +1,4 @@
-name: ds-test2
+name: ds
 channels:
  - bokeh/label/dev
  - conda-forge
