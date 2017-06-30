@@ -207,7 +207,7 @@ def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
     scaling.
 
     We also return the dimensions of each point in the final dataframe and
-    the accumulator function for draw to an image.
+    the accumulator function for drawing to an image.
     """
 
     def minmax_scale(series):
