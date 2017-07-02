@@ -47,17 +47,18 @@ conda install -c bokeh datashader
 ```
 
 If you want to get the very latest unreleased changes to datashader
-(e.g. to edit the source code yourself), you can tell Python to 
-use a git clone instead:
+(e.g. to edit the source code yourself), first install using conda 
+as above to ensure the dependencies are installed, and you can
+then tell Python to use a git clone instead:
 
 ```bash
-
+conda remove datashader
 git clone https://github.com/bokeh/datashader.git
 cd datashader
 pip install -e .
 ```
 
-Datashader itself is not currently available on PyPI, to avoid broken or
+Datashader is not currently available on PyPI, to avoid broken or
 low-performance installations that come from not keeping track of
 C/C++ binary dependencies such as LLVM (required by Numba).
 
