@@ -52,7 +52,7 @@ as above to ensure the dependencies are installed, and you can
 then tell Python to use a git clone instead:
 
 ```bash
-conda remove datashader
+conda remove --force datashader
 git clone https://github.com/bokeh/datashader.git
 cd datashader
 pip install -e .
