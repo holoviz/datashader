@@ -6,9 +6,7 @@ from odo import discover
 from xarray import DataArray
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, get_indices
-from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
-                         DS_MEAN, DS_MODE, DS_VAR, DS_STD)
-
+from .resampling import resample_2d, upsample_linear, downsample_mean
 
 
 class Expr(object):
@@ -205,8 +203,8 @@ class Canvas(object):
     def raster(self,
                source,
                band=1,
-               upsample_method='linear',
-               downsample_method='mean'):
+               upsample_method=upsample_linear,
+               downsample_method=downsample_mean):
         """Sample a raster dataset by canvas size and bounds. 
 
         Missing values (those having the value indicated by the
@@ -231,21 +229,6 @@ class Canvas(object):
         data : xarray.Dataset
 
         """
-        upsample_methods = dict(nearest=US_NEAREST,
-                                linear=US_LINEAR)
-
-        downsample_methods = dict(first=DS_FIRST,
-                                  last=DS_LAST,
-                                  mean=DS_MEAN,
-                                  mode=DS_MODE,
-                                  var=DS_VAR,
-                                  std=DS_STD)
-
-        if upsample_method not in upsample_methods.keys():
-            raise ValueError('Invalid upsample method: options include {}'.format(list(upsample_methods.keys())))
-        if downsample_method not in downsample_methods.keys():
-            raise ValueError('Invalid downsample method: options include {}'.format(list(downsample_methods.keys())))
-
         res = calc_res(source)
         left, bottom, right, top = calc_bbox(source.x.values, source.y.values, res)
 
@@ -270,8 +253,8 @@ class Canvas(object):
 
         data = resample_2d(source_window.values[0].astype(np.float32),
                            w, h,
-                           ds_method=downsample_methods[downsample_method],
-                           us_method=upsample_methods[upsample_method])
+                           ds_method=downsample_method,
+                           us_method=upsample_method)
 
         if w != self.plot_width or h != self.plot_height:
             num_height = self.plot_height - h

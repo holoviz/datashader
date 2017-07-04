@@ -1,134 +1,172 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import param
 from .utils import ngjit
-
-#: Interpolation method for upsampling: Take nearest source grid cell, even if it is invalid.
-US_NEAREST = 10
-#: Interpolation method for upsampling: Bi-linear interpolation between the 4 nearest source grid cells.
-US_LINEAR = 11
-
-#: Aggregation method for downsampling: Take first valid source grid cell, ignore contribution areas.
-DS_FIRST = 50
-#: Aggregation method for downsampling: Take last valid source grid cell, ignore contribution areas.
-DS_LAST = 51
-# DS_MIN = 52
-# DS_MAX = 53
-#: Aggregation method for downsampling: Compute average of all valid source grid cells,
-#: with weights given by contribution area.
-DS_MEAN = 54
-# DS_MEDIAN = 55
-#: Aggregation method for downsampling: Compute most frequently seen valid source grid cell,
-#: with frequency given by contribution area. Note that this mode can use an additional keyword argument
-#: *mode_rank* which can be used to generate the n-th mode. See :py:function:`downsample_2d`.
-DS_MODE = 56
-#: Aggregation method for downsampling: Compute the biased weighted estimator of variance
-#: (see https://en.wikipedia.org/wiki/Mean_square_weighted_deviation), with weights given by contribution area.
-DS_VAR = 57
-#: Aggregation method for downsampling: Compute the corresponding standard deviation to the biased weighted estimator
-#: of variance
-#: (see https://en.wikipedia.org/wiki/Mean_square_weighted_deviation), with weights given by contribution area.
-DS_STD = 58
 
 #: Constant indicating an empty 2-D mask
 _NOMASK2D = np.ma.getmaskarray(np.ma.array([[0]], mask=[[0]]))
 
 _EPS = 1e-10
 
+# TODO: tidy docstrings
 
-def resample_2d(src, w, h, ds_method=DS_MEAN, us_method=US_LINEAR, fill_value=None, mode_rank=1, out=None):
+# wrappers around _upsample_2d()
+class UpsampleMethod(param.ParameterizedFunction):
+    __abstract = True
+    method = None
+    def __call__(self,src,mask,use_mask,fill_value,out,**params):
+        #p = param.ParamOverrides(params)
+        return _upsample_2d(src,mask,use_mask,self.method,fill_value,out)
+
+class upsample_nearest(UpsampleMethod):
+    """Take nearest source grid cell, even if it is
+          invalid."""
+    # TODO: figure out what can be passed to jit'd fn 
+    #method = b"nearest" # TODO python 2
+    method = 1
+
+class upsample_linear(UpsampleMethod):
+    """Bi-linear interpolation between the 4 nearest
+          source grid cells."""
+    #method = b"linear"
+    method = 2
+
+
+# wrappers around _downsample_2d()
+class DownsampleMethod(param.ParameterizedFunction):
+    __abstract = True
+    method = None
+    def __call__(self,src,mask,use_mask,fill_value,out,**params):
+        p = param.ParamOverrides(self, params)
+        return _downsample_2d(src,mask,use_mask,self.method,fill_value,out,**p)
+
+class downsample_first(DownsampleMethod):
+    """Take first valid source grid cell, ignore contribution areas."""
+    #method = b"first"
+    method = 10
+
+class downsample_last(DownsampleMethod):
+    """Take last valid source grid cell, ignore contribution areas."""
+    #method = b"last"
+    method = 11
+    
+class downsample_mean(DownsampleMethod):
+    """
+    Compute average of all valid source grid cells,
+    with weights given by contribution area.
+    """
+    method = 12
+    #method = b"mean"
+        
+class downsample_mode(DownsampleMethod):
+    """
+    Compute most frequently seen valid source grid cell, with
+    frequency given by contribution area.
+    """
+    #method = b"mode"
+    method = 13
+    
+    rank = param.Integer(default=1,bounds=(0,None),doc="""
+    can be used to generate the n-th mode
+    or
+    The rank of the frequency determined by the *ds_method* ``DS_MODE``. One (the default) means
+    most frequent value, zwo means second most frequent value, and so forth.""")
+    
+class downsample_var(DownsampleMethod):
+    """
+    Compute the biased weighted estimator of variance (see
+    https://en.wikipedia.org/wiki/Mean_square_weighted_deviation),
+    with weights given by contribution area.
+    """
+    #method = b"var"
+    method = 14
+    
+class downsample_std(DownsampleMethod):
+    """
+    Compute the corresponding standard deviation to the biased
+    weighted estimator of variance (see
+    https://en.wikipedia.org/wiki/Mean_square_weighted_deviation),
+    with weights given by contribution area.
+    """
+    #method = b"std"
+    method = 15
+
+
+# TODO: PR doc dropping upsample, downsample interfaces (but could
+# restore)
+
+class resample_2d(param.ParameterizedFunction):
     """
     Resample a 2-D grid to a new resolution.
-
-    :param src: 2-D *ndarray*
-    :param w: *int*
-        New grid width
-    :param h:  *int*
-        New grid height
-    :param ds_method: one of the *DS_* constants, optional
-        Grid cell aggregation method for a possible downsampling
-    :param us_method: one of the *US_* constants, optional
-        Grid cell interpolation method for a possible upsampling
-    :param fill_value: *scalar*, optional
-        If ``None``, it is taken from **src** if it is a masked array,
-        otherwise from *out* if it is a masked array,
-        otherwise numpy's default value is used.
-    :param mode_rank: *scalar*, optional
-        The rank of the frequency determined by the *ds_method* ``DS_MODE``. One (the default) means
-        most frequent value, zwo means second most frequent value, and so forth.
-    :param out: 2-D *ndarray*, optional
-        Alternate output array in which to place the result. The default is *None*; if provided, it must have the same
-        shape as the expected output.
-    :return: An resampled version of the *src* array.
     """
-    out = _get_out(out, src, (h, w))
-    if out is None:
+    # TODO: or did I mean to use instances?
+    ds_method = param.ClassSelector(DownsampleMethod,default=downsample_mean,is_instance=False,doc="""
+        grid cell aggregation method for a possible downsampling.""")
+
+    us_method = param.ClassSelector(UpsampleMethod,default=upsample_linear,is_instance=False,doc="""
+        Grid cell interpolation method for a possible upsampling""")
+
+    # :param fill_value: *scalar*, optional
+    fill_value = param.Number(default=None, doc="""
+        If ``None``, it is taken from **src** if it is a masked array otherwise from *out* if it is a masked array, otherwise numpy's default value is used.""")
+    
+    # TODO: WIP, you are here - shrinking this down to put in __call__
+    @staticmethod
+    def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value, out):
+        src_w = src.shape[-1]
+        src_h = src.shape[-2]
+        out_w = out.shape[-1]
+        out_h = out.shape[-2]
+        
+        if out_w < src_w and out_h < src_h:
+            return ds_method(src, mask, use_mask, fill_value, out)
+        elif out_w < src_w:
+            if out_h > src_h:
+                temp = np.zeros((src_h, out_w), dtype=src.dtype)
+                temp = ds_method(src, mask, use_mask, fill_value, temp)
+                # todo - write test & fix: must use mask=np.ma.getmaskarray(temp) here if use_mask==True
+                return us_method(temp, mask, use_mask, fill_value, out)
+            else:
+                return ds_method(src, mask, use_mask, fill_value, out)
+        elif out_h < src_h:
+            if out_w > src_w:
+                temp = np.zeros((out_h, src_w), dtype=src.dtype)
+                temp = ds_method(src, mask, use_mask, fill_value, temp)
+                # todo - write test & fix: must use mask=np.ma.getmaskarray(temp) here if use_mask==True
+                return us_method(temp, mask, use_mask, fill_value, out)
+            else:
+                return ds_method(src, mask, use_mask, fill_value, out)
+        elif out_w > src_w or out_h > src_h:
+            return us_method(src, mask, use_mask, fill_value, out)
         return src
-    mask, use_mask = _get_mask(src)
-    fill_value = _get_fill_value(fill_value, src, out)
-    return _mask_or_not(_resample_2d(src, mask, use_mask, ds_method, us_method, fill_value, mode_rank, out),
-                        src, fill_value)
+        
 
+    def __call__(self, src, w, h, out=None, **params):
+        """
+        :param src: 2-D *ndarray*
+        :param w: *int*
+            New grid width
+        :param h:  *int*
+            New grid height
+        :param out: 2-D *ndarray*, optional
+            Alternate output array in which to place the result. The default is *None*; if provided, it must have the same
+            shape as the expected output.
 
-def upsample_2d(src, w, h, method=US_LINEAR, fill_value=None, out=None):
-    """
-    Upsample a 2-D grid to a higher resolution by interpolating original grid cells.
-
-    :param src: 2-D *ndarray*
-    :param w: *int*
-        Grid width, which must be greater than or equal to *src.shape[-1]*
-    :param h:  *int*
-        Grid height, which must be greater than or equal to *src.shape[-2]*
-    :param method: one of the *US_* constants, optional
-        Grid cell interpolation method
-    :param fill_value: *scalar*, optional
-        If ``None``, it is taken from **src** if it is a masked array,
-        otherwise from *out* if it is a masked array,
-        otherwise numpy's default value is used.
-    :param out: 2-D *ndarray*, optional
-        Alternate output array in which to place the result. The default is *None*; if provided, it must have the same
-        shape as the expected output.
-    :return: An upsampled version of the *src* array.
-    """
-    out = _get_out(out, src, (h, w))
-    if out is None:
-        return src
-    mask, use_mask = _get_mask(src)
-    fill_value = _get_fill_value(fill_value, src, out)
-    return _mask_or_not(_upsample_2d(src, mask, use_mask, method, fill_value, out), src, fill_value)
-
-
-def downsample_2d(src, w, h, method=DS_MEAN, fill_value=None, mode_rank=1, out=None):
-    """
-    Downsample a 2-D grid to a lower resolution by aggregating original grid cells.
-
-    :param src: 2-D *ndarray*
-    :param w: *int*
-        Grid width, which must be less than or equal to *src.shape[-1]*
-    :param h:  *int*
-        Grid height, which must be less than or equal to *src.shape[-2]*
-    :param method: one of the *DS_* constants, optional
-        Grid cell aggregation method
-    :param fill_value: *scalar*, optional
-        If ``None``, it is taken from **src** if it is a masked array,
-        otherwise from *out* if it is a masked array,
-        otherwise numpy's default value is used.
-    :param mode_rank: *scalar*, optional
-        The rank of the frequency determined by the *method* ``DS_MODE``. One (the default) means
-        most frequent value, zwo means second most frequent value, and so forth.
-    :param out: 2-D *ndarray*, optional
-        Alternate output array in which to place the result. The default is *None*; if provided, it must have the same
-        shape as the expected output.
-    :return: A downsampled version of the *src* array.
-    """
-    if method == DS_MODE and mode_rank < 1:
-        raise ValueError('mode_rank must be >= 1')
-    out = _get_out(out, src, (h, w))
-    if out is None:
-        return src
-    mask, use_mask = _get_mask(src)
-    fill_value = _get_fill_value(fill_value, src, out)
-    return _mask_or_not(_downsample_2d(src, mask, use_mask, method, fill_value, mode_rank, out), src, fill_value)
+        :return: An resampled version of the *src* array.
+        """
+        p = param.ParamOverrides(self,params)
+        
+        out = _get_out(out, src, (h, w))
+        if out is None:
+            return src
+        mask, use_mask = _get_mask(src)
+        fill_value = _get_fill_value(p.fill_value, src, out)
+        
+        return _mask_or_not(
+            self._resample_2d(src, mask, use_mask, p.ds_method, p.us_method, fill_value, out),
+            src, fill_value)
+    
 
 
 def _get_out(out, src, shape):
@@ -172,37 +210,7 @@ def _get_fill_value(fill_value, src, out):
             # use numpy's default fill_value
             fill_value = np.ma.array([0], mask=[False], dtype=src.dtype).fill_value
     return fill_value
-
-
-@ngjit
-def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value, mode_rank, out):
-    src_w = src.shape[-1]
-    src_h = src.shape[-2]
-    out_w = out.shape[-1]
-    out_h = out.shape[-2]
-
-    if out_w < src_w and out_h < src_h:
-        return _downsample_2d(src, mask, use_mask, ds_method, fill_value, mode_rank, out)
-    elif out_w < src_w:
-        if out_h > src_h:
-            temp = np.zeros((src_h, out_w), dtype=src.dtype)
-            temp = _downsample_2d(src, mask, use_mask, ds_method, fill_value, mode_rank, temp)
-            # todo - write test & fix: must use mask=np.ma.getmaskarray(temp) here if use_mask==True
-            return _upsample_2d(temp, mask, use_mask, us_method, fill_value, out)
-        else:
-            return _downsample_2d(src, mask, use_mask, ds_method, fill_value, mode_rank, out)
-    elif out_h < src_h:
-        if out_w > src_w:
-            temp = np.zeros((out_h, src_w), dtype=src.dtype)
-            temp = _downsample_2d(src, mask, use_mask, ds_method, fill_value, mode_rank, temp)
-            # todo - write test & fix: must use mask=np.ma.getmaskarray(temp) here if use_mask==True
-            return _upsample_2d(temp, mask, use_mask, us_method, fill_value, out)
-        else:
-            return _downsample_2d(src, mask, use_mask, ds_method, fill_value, mode_rank, out)
-    elif out_w > src_w or out_h > src_h:
-        return _upsample_2d(src, mask, use_mask, us_method, fill_value, out)
-    return src
-
+    
 
 @ngjit
 def _upsample_2d(src, mask, use_mask, method, fill_value, out):
@@ -217,7 +225,9 @@ def _upsample_2d(src, mask, use_mask, method, fill_value, out):
     if out_w < src_w or out_h < src_h:
         raise ValueError("invalid target size")
 
-    if method == US_NEAREST:
+    #if method == upsample_nearest.method:
+    if method == 1:
+    #if method == b"nearest":
         scale_x = src_w / out_w
         scale_y = src_h / out_h
         for out_y in range(out_h):
@@ -230,7 +240,9 @@ def _upsample_2d(src, mask, use_mask, method, fill_value, out):
                 else:
                     out[out_y, out_x] = fill_value
 
-    elif method == US_LINEAR:
+    #elif method == upsample_linear.method:
+    elif method == 2:
+    #elif method == b"linear":
         scale_x = (src_w - 1.0) / ((out_w - 1.0) if out_w > 1 else 1.0)
         scale_y = (src_h - 1.0) / ((out_h - 1.0) if out_h > 1 else 1.0)
         for out_y in range(out_h):
@@ -292,9 +304,11 @@ def _upsample_2d(src, mask, use_mask, method, fill_value, out):
 
     return out
 
+    
+# TODO: haven't dealt with rank yet; default of 1 should not be left.
 
 @ngjit
-def _downsample_2d(src, mask, use_mask, method, fill_value, mode_rank, out):
+def _downsample_2d(src, mask, use_mask, method, fill_value, out, rank=1):
     src_w = src.shape[-1]
     src_h = src.shape[-2]
     out_w = out.shape[-1]
@@ -309,7 +323,8 @@ def _downsample_2d(src, mask, use_mask, method, fill_value, mode_rank, out):
     scale_x = src_w / out_w
     scale_y = src_h / out_h
 
-    if method == DS_FIRST or method == DS_LAST:
+    #if method == b"first" or method==b"last":
+    if method == 10 or method==11:
         for out_y in range(out_h):
             src_yf0 = scale_y * out_y
             src_yf1 = src_yf0 + scale_y
@@ -331,14 +346,15 @@ def _downsample_2d(src, mask, use_mask, method, fill_value, mode_rank, out):
                         v = src[src_y, src_x]
                         if np.isfinite(v) and not (use_mask and mask[src_y, src_x]):
                             value = v
-                            if method == DS_FIRST:
+                            #if method == b"first":
+                            if method == 10:    
                                 done = True
                                 break
                     if done:
                         break
                 out[out_y, out_x] = value
 
-    elif method == DS_MODE:
+    elif method == 13: #b"mode":
         max_value_count = int(scale_x + 1) * int(scale_y + 1)
         values = np.zeros((max_value_count,), dtype=src.dtype)
         frequencies = np.zeros((max_value_count,), dtype=np.uint32)
@@ -384,27 +400,28 @@ def _downsample_2d(src, mask, use_mask, method, fill_value, mode_rank, out):
                                 value_count += 1
                 w_max = -1.
                 value = fill_value
-                if mode_rank == 1:
+                if rank == 1:
                     for i in range(value_count):
                         w = frequencies[i]
                         if w > w_max:
                             w_max = w
                             value = values[i]
-                elif mode_rank <= max_value_count:
-                    max_frequencies = np.full(mode_rank, -1.0, dtype=np.float64)
-                    indices = np.zeros(mode_rank, dtype=np.int64)
+                elif rank <= max_value_count:
+                    max_frequencies = np.full(rank, -1.0, dtype=np.float64)
+                    indices = np.zeros(rank, dtype=np.int64)
                     for i in range(value_count):
                         w = frequencies[i]
-                        for j in range(mode_rank):
+                        for j in range(rank):
                             if w > max_frequencies[j]:
                                 max_frequencies[j] = w
                                 indices[j] = i
                                 break
-                    value = values[indices[mode_rank - 1]]
+                    value = values[indices[rank - 1]]
 
                 out[out_y, out_x] = value
 
-    elif method == DS_MEAN:
+    #elif method == b"mean":
+    elif method == 12:        
         for out_y in range(out_h):
             src_yf0 = scale_y * out_y
             src_yf1 = src_yf0 + scale_y
@@ -443,7 +460,8 @@ def _downsample_2d(src, mask, use_mask, method, fill_value, mode_rank, out):
                 else:
                     out[out_y, out_x] = v_sum / w_sum
 
-    elif method == DS_VAR or method == DS_STD:
+    #elif method == b"var" or method == b"std":
+    elif method == 14 or method == 15:        
         for out_y in range(out_h):
             src_yf0 = scale_y * out_y
             src_yf1 = src_yf0 + scale_y
@@ -485,7 +503,8 @@ def _downsample_2d(src, mask, use_mask, method, fill_value, mode_rank, out):
                     out[out_y, out_x] = fill_value
                 else:
                     out[out_y, out_x] = (wvv_sum * w_sum - wv_sum * wv_sum) / w_sum / w_sum
-        if method == DS_STD:
+        #if method == b"std":
+        if method == 15:                       
             out = np.sqrt(out)
     else:
         raise ValueError('invalid upsampling method')
