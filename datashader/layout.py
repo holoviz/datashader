@@ -1,6 +1,6 @@
 """Assign coordinates to the nodes of a graph.
 
-Timothée Poisot's `nxfa2` is the original implementation of the main
+Timothee Poisot's `nxfa2` is the original implementation of the main
 algorithm.
 
 .. _nxfa2:
