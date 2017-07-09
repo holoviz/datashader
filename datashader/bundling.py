@@ -214,6 +214,7 @@ def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
         minimum, maximum = np.min(series), np.max(series)
         return (series - minimum) / (maximum - minimum)
 
+    nodes = nodes.copy()
     nodes['x'] = minmax_scale(nodes['x'])
     nodes['y'] = minmax_scale(nodes['y'])
 
