@@ -73,12 +73,12 @@ def calc_res(raster):
     yres = (raster.y.values[0] - raster.y.values[h-1]) / (h - 1)
     return xres, yres
 
-
 def calc_bbox(xs, ys, res):
-    """Calculate the bounding-box of a raster, and return it in a four-element
-    tuple: (xmin, ymin, xmax, ymax). This assumes a flat-earth crs to do an
-    affine transformation with the "Augmented Matrix" approach (does not handle
-    reprojections):
+    """Calculate the bounding box of a raster, and return it in a four-element
+    tuple: (xmin, ymin, xmax, ymax). This calculation assumes the raster is
+    uniformly sampled (equivalent to a flat-earth assumption, for geographic
+    data) so that an affine transform (using the "Augmented Matrix" approach) 
+    suffices:
     https://en.wikipedia.org/wiki/Affine_transformation#Augmented_matrix
     
     Parameters
@@ -111,6 +111,47 @@ def calc_bbox(xs, ys, res):
         if y > ymax:
             ymax = y
     return xmin, ymin, xmax, ymax
+
+
+def get_indices(x, y, xs, ys, res):
+    """Return indices corresponding to transformed coordinates (x, y).
+    This calculation assumes the raster is uniformly sampled
+    (equivalent to a flat-earth assumption, for geographic data) with
+    an invertible affine transformation matrix, so that an inverse
+    affine transform can be used:
+    https://en.wikipedia.org/wiki/Affine_transformation#Groups 
+    
+    Parameters
+    ----------
+    x : float
+        x-coordinate of the transformed point.
+    y : float
+        y-coordinate of the transformed point.
+    xs : numpy.array
+        1D NumPy array of floats representing the x-values of a raster. This
+        likely originated from an xarray.DataArray or xarray.Dataset object
+        (xr.open_rasterio).
+    ys : numpy.array
+        1D NumPy array of floats representing the y-values of a raster. This
+        likely originated from an xarray.DataArray or xarray.Dataset object
+        (xr.open_rasterio).
+    res : tuple
+        Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
+        sizes"), respectively.
+    """
+    Ab = np.array([[res[0], 0.,      xs.min()],
+                   [0.,     -res[1], ys.max()],
+                   [0.,     0.,      1.]])
+    nrows, ncols = Ab.shape
+    A = Ab[:nrows-1, :ncols-1]
+    b = Ab[:, ncols-1][:nrows-1]
+    A_inv = np.linalg.inv(A)
+    A_ = np.vstack([A_inv, np.zeros(A_inv.shape[1])])
+    neg__Ainv__dot__b = -np.dot(A_inv, b)
+    b_ = np.hstack([neg__Ainv__dot__b, [1]]).reshape(neg__Ainv__dot__b.shape[0]+1, 1)
+    affine_inv = np.hstack([A_, b_])
+    x_, y_, _ = np.dot(affine_inv, np.array([x, y, 1.]))
+    return int(x_), int(y_)
 
 
 def downsample_aggregate(aggregate, factor, how='mean'):
