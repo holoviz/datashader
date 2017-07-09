@@ -51,33 +51,28 @@ class forceatlas2_layout(param.ParameterizedFunction):
        http://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0098679&type=printable
     """
 
-    def __call__(self, nodes, edges, iterations=10, linlog=False, nohubs=False, k=None, dim=2):
-        """
-        Parameters
-        ----------
-        nodes : pandas.DataFrame
-            The nodes of a graph
-        edges : pandas.DataFrame
-            The edges of a graph
-        iterations : int
-            Number of iterations
-        linlog : bool
-            Whether to use logarithmic attraction force
-        nohubs : bool
-            Whether to grant authorities (nodes with a high indegree) a
-            more central position than hubs (nodes with a high outdegree)
-        k : float
-            Compensates for the repulsion for nodes that are far away
-            from the center. Defaults to the inverse of the number of
-            nodes.
-        dim : int
-            Coordinate dimensions of each node.
+    iterations = param.Integer(default=10, bounds=(1, None), doc="""
+        Number of passes for the layout algorithm""")
 
-        Returns
-        -------
-        nodes : pandas.DataFrame
-        """
+    linlog = param.Boolean(False, doc="""
+        Whether to use logarithmic attraction force""")
 
+    nohubs = param.Boolean(False, doc="""
+        Whether to grant authorities (nodes with a high indegree) a
+        more central position than hubs (nodes with a high outdegree)""")
+
+    k = param.Number(default=None, doc="""
+        Compensates for the repulsion for nodes that are far away
+        from the center. Defaults to the inverse of the number of
+        nodes.""")
+
+    dim = param.Integer(default=2, bounds=(1, None), doc="""
+        Coordinate dimensions of each node""")
+
+    def __call__(self, nodes, edges, **params):
+        p = param.ParamOverrides(self, params)
+
+        # Convert graph into sparse adjacency matrix and array of points
         nnodes = len(nodes)
         points = _extract_points_from_nodes(nodes)
         A = _convert_edges_to_sparse_matrix(edges)
