@@ -77,8 +77,8 @@ class forceatlas2_layout(param.ParameterizedFunction):
         points = _extract_points_from_nodes(nodes)
         A = _convert_edges_to_sparse_matrix(edges)
 
-        if k is None:
-            k = np.sqrt(1.0 / nnodes)
+        if p.k is None:
+            p.k = np.sqrt(1.0 / nnodes)
 
         # the initial "temperature" is about .1 of domain area (=1x1)
         # this is the largest step allowed in the dynamics.
@@ -86,9 +86,9 @@ class forceatlas2_layout(param.ParameterizedFunction):
 
         # simple cooling scheme.
         # linearly step down by dt on each iteration so last iteration is size dt.
-        dt = t / float(iterations + 1)
-        displacement = np.zeros((dim, nnodes))
-        for iteration in range(iterations):
+        dt = t / float(p.iterations + 1)
+        displacement = np.zeros((p.dim, nnodes))
+        for iteration in range(p.iterations):
             displacement *= 0
             for i in range(A.shape[0]):
                 # difference between this row's node position and all others
@@ -104,13 +104,13 @@ class forceatlas2_layout(param.ParameterizedFunction):
                 ai = np.asarray(A.getrowview(i).toarray())
 
                 # displacement "force"
-                dist = k * k / distance ** 2
+                dist = p.k * p.k / distance ** 2
 
-                if nohubs:
+                if p.nohubs:
                     dist = dist / float(ai.sum(axis=1) + 1)
-                if linlog:
+                if p.linlog:
                     dist = np.log(dist + 1)
-                displacement[:, i] += (delta * (dist - ai * distance / k)).sum(axis=1)
+                displacement[:, i] += (delta * (dist - ai * distance / p.k)).sum(axis=1)
 
             # update points
             length = np.sqrt((displacement ** 2).sum(axis=0))
