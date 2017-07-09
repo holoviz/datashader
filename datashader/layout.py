@@ -15,34 +15,30 @@ import param
 import scipy as sp
 
 
-def _convert_graph_with_positions_to_dataframes(graph, pos):
-    """
-    Convert NetworkX graph with associated positions into two dataframes.
+def _extract_points_from_nodes(nodes):
+    if 'x' in nodes.columns and 'y' in nodes.columns:
+        points = np.asarray(nodes[['x', 'y']])
+    else:
+        points = np.asarray(np.random.random((len(nodes), 2)))
+    return points
 
-    In a NetworkX graph, each edge can have its own independent attributes. One
-    edge can have a different set of attributes than another edge. This means
-    we have to assign a default weight value when converting to dataframes.
-    """
-    nodes = pd.DataFrame()
-    for node, xy in zip(graph, pos):
-        nodes = nodes.append({'id': node, 'x': xy[0], 'y': xy[1]}, ignore_index=True)
 
-    nodes['id'].astype(np.int32)
-    nodes = nodes.set_index('id')
+def _convert_edges_to_sparse_matrix(edges):
+    nedges = len(edges)
 
-    edges = pd.DataFrame()
-    for edge in graph.edges():
-        edge_attributes = graph[edge[0]][edge[1]]
-        if 'weight' in edge_attributes:
-            weight = edge_attributes['weight']
-        else:
-            weight = 1
-        edges = edges.append({'source': edge[0], 'target': edge[1], 'weight': weight}, ignore_index=True)
+    if 'weight' in edges:
+        weights = edges['weights']
+    else:
+        weights = np.ones(nedges)
 
-    edges['source'].astype(np.int32)
-    edges['target'].astype(np.int32)
+    A = sp.sparse.coo_matrix((weights, (edges['source'], edges['target'])), shape=(nedges, nedges))
+    return A.tolil()
 
-    return nodes, edges
+
+def _merge_points_with_nodes(nodes, points):
+    nodes['x'] = points[:, 0]
+    nodes['y'] = points[:, 1]
+    return nodes
 
 
 class forceatlas2_layout(param.ParameterizedFunction):
@@ -55,18 +51,18 @@ class forceatlas2_layout(param.ParameterizedFunction):
        http://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0098679&type=printable
     """
 
-    def __call__(self, graph, iterations=10, linlog=False, pos=None, nohubs=False, k=None, dim=2):
+    def __call__(self, nodes, edges, iterations=10, linlog=False, nohubs=False, k=None, dim=2):
         """
         Parameters
         ----------
-        graph : networkx.Graph
-            The NetworkX graph to layout
+        nodes : pandas.DataFrame
+            The nodes of a graph
+        edges : pandas.DataFrame
+            The edges of a graph
         iterations : int
             Number of iterations
         linlog : bool
             Whether to use logarithmic attraction force
-        pos : ndarray
-            Initial positions for the given nodes
         nohubs : bool
             Whether to grant authorities (nodes with a high indegree) a
             more central position than hubs (nodes with a high outdegree)
@@ -79,25 +75,13 @@ class forceatlas2_layout(param.ParameterizedFunction):
 
         Returns
         -------
-        nodes, edges : pandas.DataFrame
+        nodes : pandas.DataFrame
         """
-        try:
-            import networkx as nx
-        except ImportError:
-            raise ImportError('install networkx to use this feature')
 
-        # This comes from the sparse FR layout in NetworkX
-        A = nx.to_scipy_sparse_matrix(graph, dtype='f')
-        nnodes, _ = A.shape
+        nnodes = len(nodes)
+        points = _extract_points_from_nodes(nodes)
+        A = _convert_edges_to_sparse_matrix(edges)
 
-        try:
-            A = A.tolil()
-        except Exception:
-            A = (sp.sparse.coo_matrix(A)).tolil()
-        if pos is None:
-            pos = np.asarray(np.random.random((nnodes, dim)), dtype=A.dtype)
-        else:
-            pos = pos.astype(A.dtype)
         if k is None:
             k = np.sqrt(1.0 / nnodes)
 
@@ -113,7 +97,7 @@ class forceatlas2_layout(param.ParameterizedFunction):
             displacement *= 0
             for i in range(A.shape[0]):
                 # difference between this row's node position and all others
-                delta = (pos[i] - pos).T
+                delta = (points[i] - points).T
 
                 # distance between points
                 distance = np.sqrt((delta ** 2).sum(axis=0))
@@ -133,13 +117,13 @@ class forceatlas2_layout(param.ParameterizedFunction):
                     dist = np.log(dist + 1)
                 displacement[:, i] += (delta * (dist - ai * distance / k)).sum(axis=1)
 
-            # update positions
+            # update points
             length = np.sqrt((displacement ** 2).sum(axis=0))
             length = np.where(length < 0.01, 0.01, length)
-            pos += (displacement * t / length).T
+            points += (displacement * t / length).T
 
             # cool temperature
             t -= dt
 
-        # Return the layout
-        return _convert_graph_with_positions_to_dataframes(graph, pos)
+        # Return the nodes with updated positions
+        return _merge_points_with_nodes(nodes, points)
