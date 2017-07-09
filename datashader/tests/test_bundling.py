@@ -41,6 +41,13 @@ def weighted_edges():
     return edges_df
 
 
+def test_immutable_nodes(nodes, edges):
+    # Expect nodes to remain immutable after any bundling operation
+    original = nodes.copy()
+    directly_connect_edges(nodes, edges)
+    assert original.equals(nodes)
+
+
 def test_directly_connect_with_weights(nodes, weighted_edges):
     # Expect four lines starting at center (0.5, 0.5) and terminating
     # at a different corner and NaN
