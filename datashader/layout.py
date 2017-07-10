@@ -9,8 +9,8 @@ algorithm.
 
 from __future__ import absolute_import, division, print_function
 
+import numba as nb
 import numpy as np
-import pandas as pd
 import param
 import scipy as sp
 
@@ -38,6 +38,43 @@ def _merge_points_with_nodes(nodes, points):
     n['x'] = points[:, 0]
     n['y'] = points[:, 1]
     return n
+
+
+@nb.jit(nogil=True)
+def cooling(matrix, points, temperature, params):
+    dt = temperature / float(params.iterations + 1)
+    displacement = np.zeros((params.dim, len(points)))
+    for iteration in range(params.iterations):
+        displacement *= 0
+        for i in range(matrix.shape[0]):
+            # difference between this row's node position and all others
+            delta = (points[i] - points).T
+
+            # distance between points
+            distance = np.sqrt((delta ** 2).sum(axis=0))
+
+            # enforce minimum distance of 0.01
+            distance = np.where(distance < 0.01, 0.01, distance)
+
+            # the adjacency matrix row
+            ai = np.asarray(matrix.getrowview(i).toarray())
+
+            # displacement "force"
+            dist = params.k * params.k / distance ** 2
+
+            if params.nohubs:
+                dist = dist / float(ai.sum(axis=1) + 1)
+            if params.linlog:
+                dist = np.log(dist + 1)
+            displacement[:, i] += (delta * (dist - ai * distance / params.k)).sum(axis=1)
+
+        # update points
+        length = np.sqrt((displacement ** 2).sum(axis=0))
+        length = np.where(length < 0.01, 0.01, length)
+        points += (displacement * temperature / length).T
+
+        # cool temperature
+        temperature -= dt
 
 
 class forceatlas2_layout(param.ParameterizedFunction):
@@ -72,52 +109,19 @@ class forceatlas2_layout(param.ParameterizedFunction):
         p = param.ParamOverrides(self, params)
 
         # Convert graph into sparse adjacency matrix and array of points
-        nnodes = len(nodes)
         points = _extract_points_from_nodes(nodes)
-        A = _convert_edges_to_sparse_matrix(edges)
+        matrix = _convert_edges_to_sparse_matrix(edges)
 
         if p.k is None:
-            p.k = np.sqrt(1.0 / nnodes)
+            p.k = np.sqrt(1.0 / len(points))
 
         # the initial "temperature" is about .1 of domain area (=1x1)
         # this is the largest step allowed in the dynamics.
-        t = 0.1
+        temperature = 0.1
 
         # simple cooling scheme.
         # linearly step down by dt on each iteration so last iteration is size dt.
-        dt = t / float(p.iterations + 1)
-        displacement = np.zeros((p.dim, nnodes))
-        for iteration in range(p.iterations):
-            displacement *= 0
-            for i in range(A.shape[0]):
-                # difference between this row's node position and all others
-                delta = (points[i] - points).T
-
-                # distance between points
-                distance = np.sqrt((delta ** 2).sum(axis=0))
-
-                # enforce minimum distance of 0.01
-                distance = np.where(distance < 0.01, 0.01, distance)
-
-                # the adjacency matrix row
-                ai = np.asarray(A.getrowview(i).toarray())
-
-                # displacement "force"
-                dist = p.k * p.k / distance ** 2
-
-                if p.nohubs:
-                    dist = dist / float(ai.sum(axis=1) + 1)
-                if p.linlog:
-                    dist = np.log(dist + 1)
-                displacement[:, i] += (delta * (dist - ai * distance / p.k)).sum(axis=1)
-
-            # update points
-            length = np.sqrt((displacement ** 2).sum(axis=0))
-            length = np.where(length < 0.01, 0.01, length)
-            points += (displacement * t / length).T
-
-            # cool temperature
-            t -= dt
+        cooling(matrix, points, temperature, p)
 
         # Return the nodes with updated positions
         return _merge_points_with_nodes(nodes, points)
