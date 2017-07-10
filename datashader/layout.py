@@ -24,21 +24,20 @@ def _extract_points_from_nodes(nodes):
 
 
 def _convert_edges_to_sparse_matrix(edges):
-    nedges = len(edges)
-
     if 'weight' in edges:
-        weights = edges['weights']
+        weights = edges['weight']
     else:
-        weights = np.ones(nedges)
+        weights = np.ones(len(edges))
 
-    A = sp.sparse.coo_matrix((weights, (edges['source'], edges['target'])), shape=(nedges, nedges))
+    A = sp.sparse.coo_matrix((weights, (edges['source'], edges['target'])))
     return A.tolil()
 
 
 def _merge_points_with_nodes(nodes, points):
-    nodes['x'] = points[:, 0]
-    nodes['y'] = points[:, 1]
-    return nodes
+    n = nodes.copy()
+    n['x'] = points[:, 0]
+    n['y'] = points[:, 1]
+    return n
 
 
 class forceatlas2_layout(param.ParameterizedFunction):
