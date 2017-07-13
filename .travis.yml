@@ -27,11 +27,15 @@ install:
 
   # Optional dependencies, for testing only
   - conda install matplotlib
+  # Dependencies for lint checking only
+  - conda install jupyter flake8
 
   - python setup.py develop --no-deps
 
 script:
     - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then py.test datashader --doctest-modules --doctest-ignore-import-errors --verbose; else py.test datashader --verbose; fi
+    # lint checking of example notebooks (ugly)
+    - for NB in examples/*.ipynb; do sed -e 's/"[ ]*%/"#%/' "$NB" > "${NB}~"; done && jupyter nbconvert examples/*.ipynb~ --to script --output-dir examples/lint && flake8 --ignore=E,W examples/lint/*.py
 
 notifications:
   email: false
