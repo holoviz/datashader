@@ -27,6 +27,8 @@ install:
 
   # Optional dependencies, for testing only
   - conda install matplotlib
+  # Dependencies for lint checking only
+  - conda install jupyter
 
   - python setup.py develop --no-deps
 
