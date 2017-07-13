@@ -28,7 +28,7 @@ install:
   # Optional dependencies, for testing only
   - conda install matplotlib
   # Dependencies for lint checking only
-  - conda install jupyter
+  - conda install jupyter flake8
 
   - python setup.py develop --no-deps
 
