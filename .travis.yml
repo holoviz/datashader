@@ -34,8 +34,8 @@ install:
 
 script:
     - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then py.test datashader --doctest-modules --doctest-ignore-import-errors --verbose; else py.test datashader --verbose; fi
-    # cheap lint checking of example notebooks
-    - for NB in examples/*.ipynb; do echo "$NB" && sed -e 's/"%/"#%/' "$NB" | jupyter nbconvert --to script --stdin --stdout | flake8 --ignore=E,W -; done;
+    # lint checking of example notebooks (ugly)
+    - for NB in examples/*.ipynb; do sed -e 's/"[ ]*%/"#%/' "$NB" > "${NB}~"; done && jupyter nbconvert examples/*.ipynb~ --to script && flake8 --ignore=E,W examples/*.py
 
 notifications:
   email: false
