@@ -1,10 +1,4 @@
 """Assign coordinates to the nodes of a graph.
-
-Timothee Poisot's `nxfa2` is the original implementation of the main
-algorithm.
-
-.. _nxfa2:
-   https://github.com/tpoisot/nxfa2
 """
 
 from __future__ import absolute_import, division, print_function
@@ -79,12 +73,18 @@ def cooling(matrix, points, temperature, params):
 
 class forceatlas2_layout(param.ParameterizedFunction):
     """
-    Assign coordinates to the nodes of a graph.
+    Assign coordinates to the nodes using force-directed algorithm.
 
-    This is a force-directed graph layout algorithm.
+    This is a force-directed graph layout algorithm called
+    `ForceAtlas2`.
+
+    Timothee Poisot's `nxfa2` is the original implementation of this
+    algorithm.
 
     .. _ForceAtlas2:
        http://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0098679&type=printable
+    .. _nxfa2:
+       https://github.com/tpoisot/nxfa2
     """
 
     iterations = param.Integer(default=10, bounds=(1, None), doc="""
@@ -125,3 +125,67 @@ class forceatlas2_layout(param.ParameterizedFunction):
 
         # Return the nodes with updated positions
         return _merge_points_with_nodes(nodes, points)
+
+
+@nb.jit(nogil=True)
+def _create_random_xy_values(df, seed):
+    np.random.seed(seed)
+
+    points = np.asarray(np.random.random((len(df), 2)))
+    df['x'] = points[:, 0]
+    df['y'] = points[:, 1]
+    return df
+
+
+class random_layout(param.ParameterizedFunction):
+    """
+    Assign coordinates to the nodes randomly.
+    """
+
+    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
+        Random seed used to initialize the pseudo-random number
+        generator.""")
+
+    def __call__(self, nodes, edges, **params):
+        p = param.ParamOverrides(self, params)
+
+        return _create_random_xy_values(nodes.copy(), seed=p.seed)
+
+
+@nb.jit(nogil=True)
+def _create_xy_values_on_unit_circle(df, uniform, seed):
+    np.random.seed(seed)
+
+    r = 0.5  # radius
+    x0, y0 = 0.5, 0.5  # center of unit circle
+    circumference = 2 * np.pi
+
+    if uniform:
+        thetas = np.arange(circumference, step=circumference/len(df))
+    else:
+        thetas = np.asarray(np.random.random((len(df),))) * circumference
+
+    df['x'] = x0 + r * np.cos(thetas)
+    df['y'] = y0 + r * np.sin(thetas)
+
+    return df
+
+
+class circular_layout(param.ParameterizedFunction):
+    """
+    Assign coordinates to the nodes along a circle.
+
+    The points on the circle can be spaced either uniformly or randomly.
+    """
+
+    uniform = param.Boolean(True, doc="""
+        Whether to distribute nodes evenly on circle""")
+
+    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
+        Random seed used to initialize the pseudo-random number
+        generator.""")
+
+    def __call__(self, nodes, edges, **params):
+        p = param.ParamOverrides(self, params)
+
+        return _create_xy_values_on_unit_circle(nodes.copy(), uniform=p.uniform, seed=p.seed)
