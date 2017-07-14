@@ -4,7 +4,7 @@
 #    conda env create -f filetimes.yml
 #    source activate filetimes
 #    mkdir times
-#    python -c "import filetimes as ft ; ft.p.base='census' ; ft.p.x='meterswest' ; ft.p.y='metersnorth' ; ft.p.categories=['race']; ft.DD_FORCE_LOAD=True; ft.DEBUG=True; ft.timed_write('data/tinycensus.csv',dftype='pandas',fsize='double')"
+#    python -c "import filetimes as ft ; ft.p.base='census' ; ft.p.x='easting' ; ft.p.y='northing' ; ft.p.categories=['race']; ft.DD_FORCE_LOAD=True; ft.DEBUG=True; ft.timed_write('data/tinycensus.csv',dftype='pandas',fsize='double')"
 #    # (dftype can also be 'dask', fsize can also be 'single')
 #    ./filetimes.sh times/tinycensus
 #    # (add a second argument to filetimes.sh to set the caching mode)
@@ -24,18 +24,18 @@ timer="" # External timing disabled to avoid unhelpful "Command terminated abnor
 # Display each command if a third argument is provided
 test -n "$3" && set -x
 
-${timer} python filetimes.py ${1}.parq         dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.snappy.parq  dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.gz.parq      dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.bcolz        dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.h5           dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.csv          dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.feather      dask    census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.parq         dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.snappy.parq  dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.gz.parq      dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.bcolz        dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.h5           dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.csv          dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.feather      dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
 
-${timer} python filetimes.py ${1}.parq         pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.snappy.parq  pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.gz.parq      pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.bcolz        pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.h5           pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.csv          pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.feather      pandas  census meterswest metersnorth race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.parq         pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.snappy.parq  pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.gz.parq      pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.bcolz        pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.h5           pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.csv          pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
+${timer} python filetimes.py ${1}.feather      pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
