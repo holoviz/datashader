@@ -10,9 +10,24 @@ import scipy as sp
 
 
 class LayoutAlgorithm(param.ParameterizedFunction):
+    """
+    Baseclass for all graph layout algorithms.
+    """
+
     __abstract = True
 
     def __call__(self, nodes, edges, **params):
+        """
+        This method takes two dataframes representing a graph's nodes
+        and edges respectively. For the nodes dataframe, the only
+        column is id. For the edges dataframe, the columns are id,
+        source, target, and (optionally) weight.
+
+        Each layout algorithm will use the two dataframes as appropriate to
+        assign positions to the nodes. Upon generating positions, this
+        method will return a copy of the original nodes dataframe with
+        two additional columns for the x and y coordinates.
+        """
         return NotImplementedError
 
 
