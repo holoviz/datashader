@@ -8,7 +8,8 @@ from __future__ import absolute_import, division
 
 import numpy as np
 import param
-from ._resampling import _upsample_2d, _downsample_2d
+import ._resampling as gtr # gridtools.resampling
+
 
 #: Constant indicating an empty 2-D mask
 _NOMASK2D = np.ma.getmaskarray(np.ma.array([[0]], mask=[[0]]))
@@ -45,42 +46,42 @@ class Sample2D(param.ParameterizedFunction):
 
 class Upsample(Sample2D):
     __abstract = True
-    _sampler = staticmethod(_upsample_2d)
+    _sampler = staticmethod(gtr._upsample_2d)
     
 class upsample_nearest(Upsample):
     """Take nearest source grid cell, even if it is invalid."""
-    _method = 10
+    _method = gtr.US_NEAREST
 
 class upsample_linear(Upsample):
     """Bi-linear interpolation between the 4 nearest source grid cells."""
-    _method = 11
+    _method = gtr.US_LINEAR
 
 
 class Downsample(Sample2D):
     __abstract = True
-    _sampler = staticmethod(_downsample_2d)
+    _sampler = staticmethod(gtr._downsample_2d)
 
 class downsample_first(Downsample):
     """Take first valid source grid cell, ignore contribution areas."""
-    _method = 50
+    _method = gtr.DS_FIRST
 
 class downsample_last(Downsample):
     """Take last valid source grid cell, ignore contribution areas."""
-    _method = 51
+    _method = gtr.DS_LAST
     
 class downsample_mean(Downsample):
     """
     Compute average of all valid source grid cells,
     with weights given by contribution area.
     """
-    _method = 54
+    _method = gtr.DS_MEAN
         
 class downsample_mode(Downsample):
     """
     Compute most frequently seen valid source grid cell, with
     frequency given by contribution area.
     """
-    _method = 56
+    _method = gtr.DS_MODE
     
     rank = param.Integer(default=1,bounds=(0,None),doc="""
         The rank of the frequency. One (the default) means most frequent
@@ -92,7 +93,7 @@ class downsample_var(Downsample):
     https://en.wikipedia.org/wiki/Mean_square_weighted_deviation),
     with weights given by contribution area.
     """
-    _method = 57
+    _method = gtr.DS_VAR
     
 class downsample_std(Downsample):
     """
@@ -101,7 +102,7 @@ class downsample_std(Downsample):
     https://en.wikipedia.org/wiki/Mean_square_weighted_deviation),
     with weights given by contribution area.
     """
-    _method = 58
+    _method = gtr.DS_STD
 
 
 class resample_2d(param.ParameterizedFunction):
