@@ -9,6 +9,72 @@ import param
 import scipy as sp
 
 
+class LayoutAlgorithm(param.ParameterizedFunction):
+    __abstract = True
+
+    def __call__(self, nodes, edges, **params):
+        return NotImplementedError
+
+
+class random_layout(LayoutAlgorithm):
+    """
+    Assign coordinates to the nodes randomly.
+    """
+
+    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
+        Random seed used to initialize the pseudo-random number
+        generator.""")
+
+    def __call__(self, nodes, edges, **params):
+        p = param.ParamOverrides(self, params)
+
+        np.random.seed(p.seed)
+
+        df = nodes.copy()
+        points = np.asarray(np.random.random((len(df), 2)))
+
+        df['x'] = points[:, 0]
+        df['y'] = points[:, 1]
+
+        return df
+
+
+class circular_layout(LayoutAlgorithm):
+    """
+    Assign coordinates to the nodes along a circle.
+
+    The points on the circle can be spaced either uniformly or randomly.
+    """
+
+    uniform = param.Boolean(True, doc="""
+        Whether to distribute nodes evenly on circle""")
+
+    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
+        Random seed used to initialize the pseudo-random number
+        generator.""")
+
+    def __call__(self, nodes, edges, **params):
+        p = param.ParamOverrides(self, params)
+
+        np.random.seed(p.seed)
+
+        r = 0.5  # radius
+        x0, y0 = 0.5, 0.5  # center of unit circle
+        circumference = 2 * np.pi
+
+        df = nodes.copy()
+
+        if p.uniform:
+            thetas = np.arange(circumference, step=circumference/len(df))
+        else:
+            thetas = np.asarray(np.random.random((len(df),))) * circumference
+
+        df['x'] = x0 + r * np.cos(thetas)
+        df['y'] = y0 + r * np.sin(thetas)
+
+        return df
+
+
 def _extract_points_from_nodes(nodes):
     if 'x' in nodes.columns and 'y' in nodes.columns:
         points = np.asarray(nodes[['x', 'y']])
@@ -71,7 +137,7 @@ def cooling(matrix, points, temperature, params):
         temperature -= dt
 
 
-class forceatlas2_layout(param.ParameterizedFunction):
+class forceatlas2_layout(LayoutAlgorithm):
     """
     Assign coordinates to the nodes using force-directed algorithm.
 
@@ -105,8 +171,14 @@ class forceatlas2_layout(param.ParameterizedFunction):
     dim = param.Integer(default=2, bounds=(1, None), doc="""
         Coordinate dimensions of each node""")
 
+    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
+        Random seed used to initialize the pseudo-random number
+        generator.""")
+
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
+
+        np.random.seed(p.seed)
 
         # Convert graph into sparse adjacency matrix and array of points
         points = _extract_points_from_nodes(nodes)
@@ -125,67 +197,3 @@ class forceatlas2_layout(param.ParameterizedFunction):
 
         # Return the nodes with updated positions
         return _merge_points_with_nodes(nodes, points)
-
-
-@nb.jit(nogil=True)
-def _create_random_xy_values(df, seed):
-    np.random.seed(seed)
-
-    points = np.asarray(np.random.random((len(df), 2)))
-    df['x'] = points[:, 0]
-    df['y'] = points[:, 1]
-    return df
-
-
-class random_layout(param.ParameterizedFunction):
-    """
-    Assign coordinates to the nodes randomly.
-    """
-
-    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
-        Random seed used to initialize the pseudo-random number
-        generator.""")
-
-    def __call__(self, nodes, edges, **params):
-        p = param.ParamOverrides(self, params)
-
-        return _create_random_xy_values(nodes.copy(), seed=p.seed)
-
-
-@nb.jit(nogil=True)
-def _create_xy_values_on_unit_circle(df, uniform, seed):
-    np.random.seed(seed)
-
-    r = 0.5  # radius
-    x0, y0 = 0.5, 0.5  # center of unit circle
-    circumference = 2 * np.pi
-
-    if uniform:
-        thetas = np.arange(circumference, step=circumference/len(df))
-    else:
-        thetas = np.asarray(np.random.random((len(df),))) * circumference
-
-    df['x'] = x0 + r * np.cos(thetas)
-    df['y'] = y0 + r * np.sin(thetas)
-
-    return df
-
-
-class circular_layout(param.ParameterizedFunction):
-    """
-    Assign coordinates to the nodes along a circle.
-
-    The points on the circle can be spaced either uniformly or randomly.
-    """
-
-    uniform = param.Boolean(True, doc="""
-        Whether to distribute nodes evenly on circle""")
-
-    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
-        Random seed used to initialize the pseudo-random number
-        generator.""")
-
-    def __call__(self, nodes, edges, **params):
-        p = param.ParamOverrides(self, params)
-
-        return _create_xy_values_on_unit_circle(nodes.copy(), uniform=p.uniform, seed=p.seed)
