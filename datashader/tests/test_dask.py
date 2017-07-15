@@ -7,8 +7,6 @@ import xarray as xr
 
 import datashader as ds
 
-import pytest
-
 set_options(get=get_sync)
 
 df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),

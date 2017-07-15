@@ -11,14 +11,13 @@ Test files may be generated starting from any file format supported by Pandas:
 import time
 global_start = time.time()
 
-import io, os, os.path, sys, shutil, glob, argparse, resource, multiprocessing
+import os, os.path, sys, glob, argparse, resource, multiprocessing
 import pandas as pd
 import dask.dataframe as dd
 import numpy as np
 import datashader as ds
 import bcolz
 import feather
-import dask
 import fastparquet as fp
 
 from datashader.utils import export_image
