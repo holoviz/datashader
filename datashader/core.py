@@ -204,7 +204,7 @@ class Canvas(object):
 
     def raster(self,
                source,
-               band=1,
+               band=None,
                upsample_method='linear',
                downsample_method='mean'):
         """Sample a raster dataset by canvas size and bounds.
@@ -217,8 +217,8 @@ class Canvas(object):
         ----------
         source : xarray.DataArray
             input datasource most likely obtain from `xr.open_rasterio()`.
-        band : int (unused)
-            source band number : optional default=1. Not yet implemented.
+        band : int
+            source band number : optional default=None
         upsample_method : str, optional default=linear
             resample mode when upsampling raster.
             options include: nearest, linear.
@@ -247,13 +247,12 @@ class Canvas(object):
             raise ValueError('Invalid downsample method: options include {}'.format(list(downsample_methods.keys())))
 
         res = calc_res(source)
-        if source.ndim == 2:
-            ydim, xdim = source.dims
-        else:
-            ydim, xdim = source.dims[1:]
+        ydim, xdim = source.dims if source.ndim == 2 else source.dims[1:]
         left, bottom, right, top = calc_bbox(source[xdim].values, source[ydim].values, res)
         array = orient_array(source, res, band)
         dtype = array.dtype
+        if dtype.kind != 'f':
+            array = array.astype(np.float64)
 
         # window coordinates
         xmin = max(self.x_range[0], left)
@@ -272,18 +271,20 @@ class Canvas(object):
 
         cmin, rmin = get_indices(xmin, ymin, source[xdim].values, source[ydim].values, res)
         cmax, rmax = get_indices(xmax, ymax, source[xdim].values, source[ydim].values, res)
-        if rmin > rmax:
-            rmin, rmax = rmax, rmin
-        if cmin > cmax:
-            cmin, cmax = cmax, cmin
-        if array.ndim == 2:
-            source_window = array[rmin:rmax, cmin:cmax]
-        else:
-            source_window = array[:, rmin:rmax, cmin:cmax]
+        if rmin > rmax: rmin, rmax = rmax, rmin
+        if cmin > cmax: cmin, cmax = cmax, cmin
 
-        data = resample_2d(source_window.astype(np.float32), w, h,
-                           ds_method=downsample_methods[downsample_method],
-                           us_method=upsample_methods[upsample_method])
+        kwargs = dict(w=w, h=h, ds_method=downsample_methods[downsample_method],
+                      us_method=upsample_methods[upsample_method])
+        if array.ndim == 2:
+            source_window = array[rmin:rmax+1, cmin:cmax+1]
+            data = resample_2d(source_window, **kwargs)
+        else:
+            source_window = array[:, rmin:rmax+1, cmin:cmax+1]
+            arrays = []
+            for arr in source_window:
+                arrays.append(resample_2d(arr, **kwargs))
+            data = np.dstack(arrays)
 
         if w != self.plot_width or h != self.plot_height:
             num_height = self.plot_height - h
@@ -308,16 +309,28 @@ class Canvas(object):
             data = np.concatenate((bottom_pad, data, top_pad), axis=0)
             data = np.concatenate((left_pad, data, right_pad), axis=1)
 
-        xs, ys = compute_coords(self.plot_width, self.plot_height, self.x_range, self.y_range, res)
-        # Reorient to original orientation
+        # Reorient array to original orientation
         if res[1] > 0: data = data[::-1]
         if res[0] < 0: data = data[:, ::-1]
+
         # Restore original dtype
         data = data.astype(dtype)
+
+        # Compute DataArray metadata
+        xs, ys = compute_coords(self.plot_width, self.plot_height, self.x_range, self.y_range, res)
+        coords = {xdim: xs, ydim: ys}
+        dims = [ydim, xdim]
         attrs = dict(res=res[0])
         if source._file_obj is not None:
             attrs['nodata'] = source._file_obj.nodata
-        return DataArray(data, coords={xdim: xs, ydim: ys}, dims=[ydim, xdim], attrs=attrs)
+
+        # Handle DataArray with bands
+        if data.ndim == 3:
+            data = data.transpose([2, 0, 1])
+            band_dim = source.dims[0]
+            coords[band_dim] = source.coords[band_dim]
+            dims = [band_dim]+dims
+        return DataArray(data, coords=coords, dims=dims, attrs=attrs)
 
     def validate(self):
         """Check that parameter settings are valid for this object"""

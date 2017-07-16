@@ -89,7 +89,7 @@ def calc_bbox(xs, ys, res):
     data) so that an affine transform (using the "Augmented Matrix" approach) 
     suffices:
     https://en.wikipedia.org/wiki/Affine_transformation#Augmented_matrix
-    
+
     Parameters
     ----------
     xs : numpy.array
@@ -122,7 +122,10 @@ def calc_bbox(xs, ys, res):
             ymin = y
         if y > ymax:
             ymax = y
-    return xmin, ymin, xmax, ymax
+    xpad, ypad = abs(res[0])/2., abs(res[1])/2.
+    if res[0] < 0 and res[1] > 0:
+        xpad, ypad = -xpad, -ypad
+    return xmin-xpad, ymin-ypad, xmax-xpad, ymax-ypad
 
 
 def get_indices(x, y, xs, ys, res):
@@ -171,39 +174,67 @@ def get_indices(x, y, xs, ys, res):
 
 def orient_array(raster, res, band):
     """
-    Return array with canonical orientation (by using res) to reorient
-    along x- and y-axis.
+    Reorients the array to a canonical orientation depending on
+    whether the x and y-resolution values are positive or negative.
+
+    Parameters
+    ----------
+    raster : DataArray
+        xarray DataArray to be reoriented
+    res : tuple
+        Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
+        sizes"), respectively.
+    band : int
+        Index of the raster band to be reoriented (optional)
+
+    Returns
+    -------
+    array : numpy.ndarray
+        Reoriented 2d NumPy ndarray
     """
-    if raster.ndim == 2:
-        array = raster.data
+    array = raster.data
+    if array.ndim == 2:
+        if res[0] < 0: array = array[:, ::-1]
+        if res[1] > 0: array = array[::-1]
     else:
-        array = raster.data[band-1]
-    if res[0] < 0:
-        array = array[:, ::-1]
-    if res[1] > 0:
-        array = array[::-1]
+        if band is not None: array = array[band-1]
+        if res[0] < 0: array = array[:, :, ::-1]
+        if res[1] > 0: array = array[:, ::-1]
     return array
 
 
 def compute_coords(width, height, x_range, y_range, res):
     """
-    Computes DataArray coordinates aligned at the bin edges
+    Computes DataArray coordinates at bin centers
+
+    Parameters
+    ----------
+    width : int
+        Number of coordinates along the x-axis
+    height : int
+        Number of coordinates along the y-axis
+    x_range : tuple
+        Left and right edge of the coordinates
+    y_range : tuple
+        Bottom and top edges of the coordinates
+    res : tuple
+        Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
+        sizes"), respectively.
+
+    Returns
+    -------
+    xs : numpy.ndarray
+        1D array of x-coordinates
+    ys : numpy.ndarray
+        1D array of y-coordinates
     """
-    xpad = (x_range[1]-x_range[0])/width
-    ypad = (y_range[1]-y_range[0])/height
-    if res[0] < 0:
-        x0, x1 = x_range[::-1]
-        x0 -= xpad
-    else:
-        x0, x1 = x_range
-        x1 -= xpad
+    (x0, x1), (y0, y1) = x_range, y_range
+    xpad, ypad = abs(res[0]/2.), -abs(res[1]/2.)
+    x0, x1 = x0+xpad, x1-xpad
+    y0, y1 = y0-ypad, y1+ypad
+    if res[0] < 0: x0, x1 = x1, x0
+    if res[1] > 0: y0, y1 = y1, y0
     xs = np.linspace(x0, x1, width)
-    if res[1] > 0:
-        y0, y1 = y_range[::-1]
-        y0 -= ypad
-    else:
-        y0, y1 = y_range
-        y1 -= ypad
     ys = np.linspace(y0, y1, height)
     return xs, ys
 
