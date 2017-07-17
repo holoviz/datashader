@@ -2,17 +2,16 @@ from __future__ import absolute_import
 
 __version__ = '0.6.0dev3'
 
-from .core import Canvas
-from .reductions import (count, any, sum, min, max, mean, std, var, count_cat,
-                         summary)
-from .glyphs import Point
-from .pipeline import Pipeline
-from . import transfer_functions as tf
+from .core import Canvas                                 # noqa (API import)
+from .reductions import (count, any, sum, min, max,      # noqa (API import)
+                         mean, std, var, count_cat, summary)
+from .glyphs import Point                                # noqa (API import)
+from .pipeline import Pipeline                           # noqa (API import)
+from . import transfer_functions as tf                   # noqa (API import)
 
-# Needed to build the backend dispatch
-from .pandas import *
+from .pandas import *                        # noqa (build backend dispatch)
 try:
-    from .dask import *
+    from .dask import *                      # noqa (build backend dispatch)
 except ImportError:
     pass
 
