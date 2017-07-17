@@ -53,7 +53,7 @@ def test_out_of_bounds_return_correct_size():
                         x_range=[1e10, 1e20],
                         y_range=[1e10, 1e20])
         try:
-            agg = cvs.raster(src)
+            cvs.raster(src)
         except ValueError:
             pass
         else:
@@ -104,21 +104,21 @@ def test_resample_methods():
     """
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         try:
-            agg = cvs.raster(src, upsample_method='santaclaus', downsample_method='toothfairy')
+            cvs.raster(src, upsample_method='santaclaus', downsample_method='toothfairy')
         except ValueError:
             pass
         else:
             assert False
 
         try:
-            agg = cvs.raster(src, upsample_method='honestlawyer')
+            cvs.raster(src, upsample_method='honestlawyer')
         except ValueError:
             pass
         else:
             assert False
 
         try:
-            agg = cvs.raster(src, downsample_method='tenantfriendlylease')
+            cvs.raster(src, downsample_method='tenantfriendlylease')
         except ValueError:
             pass
         else:
