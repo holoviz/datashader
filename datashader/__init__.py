@@ -9,9 +9,9 @@ from .glyphs import Point                                # noqa (API import)
 from .pipeline import Pipeline                           # noqa (API import)
 from . import transfer_functions as tf                   # noqa (API import)
 
-from .pandas import *                        # noqa (build backend dispatch)
+from . import pandas                         # noqa (build backend dispatch)
 try:
-    from .dask import *                      # noqa (build backend dispatch)
+    from . import dask                       # noqa (build backend dispatch)
 except ImportError:
     pass
 
