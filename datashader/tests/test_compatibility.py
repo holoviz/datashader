@@ -6,9 +6,8 @@ from datashader.compatibility import apply, _exec
 def test__exec():
     c = "def foo(a):\n    return bar(a) + 1"
     namespace = {'bar': lambda a: a + 1}
-    # Define a different local ``bar`` to ensure that names are pulled from
-    # namespace, not locals
-    bar = lambda a: a - 1
+    bar = lambda a: a - 1  # noqa (define a different local ``bar`` to ensure
+                           # that names are pulled from namespace, not locals)
     _exec(c, namespace)
     foo = namespace['foo']
     assert foo(1) == 3
