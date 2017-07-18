@@ -28,7 +28,6 @@ from collections import OrderedDict
 from os import path
 import glob
 import os
-import subprocess
 import sys
 import tarfile
 import time
@@ -229,7 +228,7 @@ def _process_dataset(dataset, output_dir, here):
     if not path.exists(output_dir):
         os.makedirs(output_dir)
 
-    with DirectoryContext(output_dir) as d:
+    with DirectoryContext(output_dir):
         requires_download = False
         for f in dataset.get('files', []):
             if not path.exists(f):
@@ -268,7 +267,7 @@ def _process_dataset(dataset, output_dir, here):
 
 def main():
     '''Download each dataset specified by datasets.yml in this directory'''
-    here = contrib_dir = path.abspath(path.join(path.split(__file__)[0]))
+    here = path.abspath(path.join(path.split(__file__)[0]))
     info_file = path.join(here, 'datasets.yml')
     with open(info_file) as f:
         info = ordered_load(f.read())

@@ -4,7 +4,6 @@ import xarray as xr
 
 import datashader as ds
 
-import pytest
 
 
 df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
