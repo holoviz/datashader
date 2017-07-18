@@ -1,10 +1,4 @@
 """Assign coordinates to the nodes of a graph.
-
-Timothee Poisot's `nxfa2` is the original implementation of the main
-algorithm.
-
-.. _nxfa2:
-   https://github.com/tpoisot/nxfa2
 """
 
 from __future__ import absolute_import, division, print_function
@@ -13,6 +7,87 @@ import numba as nb
 import numpy as np
 import param
 import scipy as sp
+
+
+class LayoutAlgorithm(param.ParameterizedFunction):
+    """
+    Baseclass for all graph layout algorithms.
+    """
+
+    __abstract = True
+
+    def __call__(self, nodes, edges, **params):
+        """
+        This method takes two dataframes representing a graph's nodes
+        and edges respectively. For the nodes dataframe, the only
+        column is id. For the edges dataframe, the columns are id,
+        source, target, and (optionally) weight.
+
+        Each layout algorithm will use the two dataframes as appropriate to
+        assign positions to the nodes. Upon generating positions, this
+        method will return a copy of the original nodes dataframe with
+        two additional columns for the x and y coordinates.
+        """
+        return NotImplementedError
+
+
+class random_layout(LayoutAlgorithm):
+    """
+    Assign coordinates to the nodes randomly.
+    """
+
+    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
+        Random seed used to initialize the pseudo-random number
+        generator.""")
+
+    def __call__(self, nodes, edges, **params):
+        p = param.ParamOverrides(self, params)
+
+        np.random.seed(p.seed)
+
+        df = nodes.copy()
+        points = np.asarray(np.random.random((len(df), 2)))
+
+        df['x'] = points[:, 0]
+        df['y'] = points[:, 1]
+
+        return df
+
+
+class circular_layout(LayoutAlgorithm):
+    """
+    Assign coordinates to the nodes along a circle.
+
+    The points on the circle can be spaced either uniformly or randomly.
+    """
+
+    uniform = param.Boolean(True, doc="""
+        Whether to distribute nodes evenly on circle""")
+
+    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
+        Random seed used to initialize the pseudo-random number
+        generator.""")
+
+    def __call__(self, nodes, edges, **params):
+        p = param.ParamOverrides(self, params)
+
+        np.random.seed(p.seed)
+
+        r = 0.5  # radius
+        x0, y0 = 0.5, 0.5  # center of unit circle
+        circumference = 2 * np.pi
+
+        df = nodes.copy()
+
+        if p.uniform:
+            thetas = np.arange(circumference, step=circumference/len(df))
+        else:
+            thetas = np.asarray(np.random.random((len(df),))) * circumference
+
+        df['x'] = x0 + r * np.cos(thetas)
+        df['y'] = y0 + r * np.sin(thetas)
+
+        return df
 
 
 def _extract_points_from_nodes(nodes):
@@ -77,14 +152,20 @@ def cooling(matrix, points, temperature, params):
         temperature -= dt
 
 
-class forceatlas2_layout(param.ParameterizedFunction):
+class forceatlas2_layout(LayoutAlgorithm):
     """
-    Assign coordinates to the nodes of a graph.
+    Assign coordinates to the nodes using force-directed algorithm.
 
-    This is a force-directed graph layout algorithm.
+    This is a force-directed graph layout algorithm called
+    `ForceAtlas2`.
+
+    Timothee Poisot's `nxfa2` is the original implementation of this
+    algorithm.
 
     .. _ForceAtlas2:
        http://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0098679&type=printable
+    .. _nxfa2:
+       https://github.com/tpoisot/nxfa2
     """
 
     iterations = param.Integer(default=10, bounds=(1, None), doc="""
@@ -105,8 +186,14 @@ class forceatlas2_layout(param.ParameterizedFunction):
     dim = param.Integer(default=2, bounds=(1, None), doc="""
         Coordinate dimensions of each node""")
 
+    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
+        Random seed used to initialize the pseudo-random number
+        generator.""")
+
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
+
+        np.random.seed(p.seed)
 
         # Convert graph into sparse adjacency matrix and array of points
         points = _extract_points_from_nodes(nodes)
