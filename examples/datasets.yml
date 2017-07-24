@@ -105,3 +105,9 @@ data:
     title: 'Solar Radiation NREL - NSRDB Meta'
     files:
       - NSRDB_StationsMeta.csv
+
+  - url: http://s3.amazonaws.com/datashader-data/maccdc2012_graph.zip
+    title: 'National CyberWatch Mid-Atlantic Collegiate Cyber Defense Competition'
+    files:
+      - maccdc2012_nodes.parq
+      - maccdc2012_edges.parq
