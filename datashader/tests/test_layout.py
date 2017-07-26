@@ -45,12 +45,14 @@ def weighted_edges():
 
 def test_forceatlas2_positioned_nodes_with_unweighted_edges(nodes, edges):
     df = forceatlas2_layout(nodes, edges)
-    assert df.equals(nodes)
+    assert len(nodes) == len(df)
+    assert not df.equals(nodes)
 
 
 def test_forceatlas2_positioned_nodes_with_weighted_edges(nodes, weighted_edges):
     df = forceatlas2_layout(nodes, weighted_edges)
-    assert df.equals(nodes)
+    assert len(nodes) == len(df)
+    assert not df.equals(nodes)
 
 
 def test_forceatlas2_unpositioned_nodes_with_unweighted_edges(nodes_without_positions, edges):

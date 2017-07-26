@@ -98,14 +98,23 @@ def _extract_points_from_nodes(nodes):
     return points
 
 
-def _convert_edges_to_sparse_matrix(edges):
-    if 'weight' in edges:
-        weights = edges['weight']
+def _convert_graph_to_sparse_matrix(nodes, edges, dtype=None, format='csr'):
+    nlen = len(nodes)
+    if 'id' in nodes:
+        index = dict(zip(nodes['id'].values, range(nlen)))
     else:
-        weights = np.ones(len(edges))
+        index = dict(zip(nodes.index.values, range(nlen)))
 
-    A = sp.sparse.coo_matrix((weights, (edges['source'], edges['target'])))
-    return A.tolil()
+    if 'weight' not in edges:
+        edges = edges.copy()
+        edges['weight'] = np.ones(len(edges))
+
+    rows, cols, data = zip(*((index[src], index[dst], weight)
+                             for src, dst, weight in [tuple(edge) for edge in edges.values]
+                             if src in index and dst in index))
+
+    M = sp.sparse.coo_matrix((data, (rows, cols)), shape=(nlen, nlen), dtype=dtype)
+    return M.asformat(format)
 
 
 def _merge_points_with_nodes(nodes, points):
@@ -132,7 +141,7 @@ def cooling(matrix, points, temperature, params):
             distance = np.where(distance < 0.01, 0.01, distance)
 
             # the adjacency matrix row
-            ai = np.asarray(matrix.getrowview(i).toarray())
+            ai = matrix[i].toarray()
 
             # displacement "force"
             dist = params.k * params.k / distance ** 2
@@ -197,7 +206,7 @@ class forceatlas2_layout(LayoutAlgorithm):
 
         # Convert graph into sparse adjacency matrix and array of points
         points = _extract_points_from_nodes(nodes)
-        matrix = _convert_edges_to_sparse_matrix(edges)
+        matrix = _convert_graph_to_sparse_matrix(nodes, edges)
 
         if p.k is None:
             p.k = np.sqrt(1.0 / len(points))
