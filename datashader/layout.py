@@ -100,7 +100,10 @@ def _extract_points_from_nodes(nodes):
 
 def _convert_graph_to_sparse_matrix(nodes, edges, dtype=None, format='csr'):
     nlen = len(nodes)
-    index = dict(zip(nodes['id'].values, range(nlen)))
+    if 'id' in nodes:
+        index = dict(zip(nodes['id'].values, range(nlen)))
+    else:
+        index = dict(zip(nodes.index.values, range(nlen)))
 
     if 'weight' not in edges:
         edges = edges.copy()
