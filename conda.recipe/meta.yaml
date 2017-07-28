@@ -5,6 +5,7 @@ package:
 extra:
   channels:
     - numba
+    - gbrener
 
 requirements:
   build:
