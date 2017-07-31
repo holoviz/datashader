@@ -82,7 +82,7 @@ class Axis(object):
         -------
         index : ndarray
         """
-        px = np.arange(n)
+        px = np.arange(n)+0.5
         s, t = st
         return self.inverse_mapper((px - t)/s)
 
@@ -207,7 +207,7 @@ class Canvas(object):
                band=1,
                upsample_method='linear',
                downsample_method='mean'):
-        """Sample a raster dataset by canvas size and bounds. 
+        """Sample a raster dataset by canvas size and bounds.
 
         Missing values (those having the value indicated by the
         "nodata" attribute of the raster) are replaced with `NaN` if
