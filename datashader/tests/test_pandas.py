@@ -29,7 +29,7 @@ c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 11),
                     y_range=(1, 11), x_axis_type='log', y_axis_type='log')
 
 coords = [np.arange(2, dtype='f8')+0.5, np.arange(2, dtype='f8')+0.5]
-dims = ['y_axis', 'x_axis']
+dims = ['y', 'x']
 
 
 def assert_eq(agg, b):
@@ -155,13 +155,13 @@ def test_log_axis_points():
     logcoords = 10**((px-t)/s)
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
     out = xr.DataArray(sol, coords=[np.array([0.5, 1.5]), logcoords],
-                       dims=dims)
+                       dims=['y', 'log_x'])
     assert_eq(c_logx.points(df, 'log_x', 'y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, np.array([0.5, 1.5])],
-                       dims=dims)
+                       dims=['log_y', 'x'])
     assert_eq(c_logy.points(df, 'x', 'log_y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, logcoords],
-                       dims=dims)
+                       dims=['log_y', 'log_x'])
     assert_eq(c_logxy.points(df, 'log_x', 'log_y', ds.count('i32')), out)
 
 
@@ -179,7 +179,7 @@ def test_line():
                     [0, 2, 0, 0, 0, 1, 0],
                     [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
     out = xr.DataArray(sol, coords=[np.arange(-3., 4.)+0.5, np.arange(-3., 4.)+0.5],
-                       dims=['y_axis', 'x_axis'])
+                       dims=['y', 'x'])
     assert_eq(agg, out)
 
 
@@ -192,11 +192,11 @@ def test_log_axis_line():
     logcoords = 10**((px-t)/s)
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
     out = xr.DataArray(sol, coords=[np.array([0.5, 1.5]), logcoords],
-                       dims=dims)
+                       dims=['y', 'log_x'])
     assert_eq(c_logx.line(df, 'log_x', 'y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, np.array([0.5, 1.5])],
-                       dims=dims)
+                       dims=['log_y', 'x'])
     assert_eq(c_logy.line(df, 'x', 'log_y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, logcoords],
-                       dims=dims)
+                       dims=['log_y', 'log_x'])
     assert_eq(c_logxy.line(df, 'log_x', 'log_y', ds.count('i32')), out)

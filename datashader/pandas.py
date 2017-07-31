@@ -29,4 +29,4 @@ def pandas_pipeline(df, schema, canvas, glyph, summary):
     bases = create((height, width))
     extend(bases, df, x_st + y_st, x_range + y_range)
 
-    return finalize(bases, coords=[y_axis, x_axis], dims=['y_axis', 'x_axis'])
+    return finalize(bases, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])

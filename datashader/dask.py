@@ -68,7 +68,7 @@ def default(glyph, df, schema, canvas, summary):
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k)) for (k2, k) in zip(keys2, keys))
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(coords=axis, dims=['y_axis', 'x_axis']))
+                 dict(coords=axis, dims=[glyph.y, glyph.x]))
     return dsk, name
 
 
@@ -99,5 +99,5 @@ def line(glyph, df, schema, canvas, summary):
         dsk[(name, i)] = (chunk, (old_name, i - 1), (old_name, i))
     keys2 = [(name, i) for i in range(df.npartitions)]
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(coords=axis, dims=['y_axis', 'x_axis']))
+                 dict(coords=axis, dims=[glyph.y, glyph.x]))
     return dsk, name
