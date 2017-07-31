@@ -104,8 +104,8 @@ def calc_bbox(xs, ys, res):
         Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
         sizes"), respectively.
     """
-    ybound = ys.min() if res[1] < 0 else ys.max()
     xbound = xs.max() if res[0] < 0 else xs.min()
+    ybound = ys.min() if res[1] < 0 else ys.max()
 
     xmin = ymin = np.inf
     xmax = ymax = -np.inf
@@ -114,18 +114,12 @@ def calc_bbox(xs, ys, res):
                    [0.,      0.,      1.]])
     for x_, y_ in [(0, 0), (0, len(ys)), (len(xs), 0), (len(xs), len(ys))]:
         x, y, _ = np.dot(Ab, np.array([x_, y_, 1.]))
-        if x < xmin:
-            xmin = x
-        if x > xmax:
-            xmax = x
-        if y < ymin:
-            ymin = y
-        if y > ymax:
-            ymax = y
-    xpad, ypad = abs(res[0])/2., abs(res[1])/2.
-    if res[0] < 0 and res[1] > 0:
-        xpad, ypad = -xpad, -ypad
-    return xmin-xpad, ymin-ypad, xmax-xpad, ymax-ypad
+        if x < xmin: xmin = x
+        if x > xmax: xmax = x
+        if y < ymin: ymin = y
+        if y > ymax: ymax = y
+    xpad, ypad = res[0]/2., res[1]/2.
+    return xmin-xpad, ymin+ypad, xmax-xpad, ymax+ypad
 
 
 def get_indices(x, y, xs, ys, res):
