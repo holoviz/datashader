@@ -5,7 +5,7 @@ from datashape.predicates import istabular
 from odo import discover
 from xarray import DataArray
 
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox, get_indices
+from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices
 from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
                          DS_MEAN, DS_MODE, DS_VAR, DS_STD)
 
@@ -204,10 +204,16 @@ class Canvas(object):
 
     def raster(self,
                source,
-               band=1,
+               layer=None,
                upsample_method='linear',
                downsample_method='mean'):
         """Sample a raster dataset by canvas size and bounds.
+
+        Handles 2D or 3D xarray DataArrays, assuming that the last two
+        array dimensions are the y- and x-axis that are to be
+        resampled. If a 3D array is supplied a layer may be specified
+        to resample to select the layer along the first dimension to
+        resample.
 
         Missing values (those having the value indicated by the
         "nodata" attribute of the raster) are replaced with `NaN` if
@@ -217,8 +223,8 @@ class Canvas(object):
         ----------
         source : xarray.DataArray
             input datasource most likely obtain from `xr.open_rasterio()`.
-        band : int (unused)
-            source band number : optional default=1. Not yet implemented.
+        layer : int
+            source layer number : optional default=None
         upsample_method : str, optional default=linear
             resample mode when upsampling raster.
             options include: nearest, linear.
@@ -247,7 +253,12 @@ class Canvas(object):
             raise ValueError('Invalid downsample method: options include {}'.format(list(downsample_methods.keys())))
 
         res = calc_res(source)
-        left, bottom, right, top = calc_bbox(source.x.values, source.y.values, res)
+        ydim, xdim = source.dims[-2:]
+        left, bottom, right, top = calc_bbox(source[xdim].values, source[ydim].values, res)
+        array = orient_array(source, res, layer)
+        dtype = array.dtype
+        if dtype.kind != 'f':
+            array = array.astype(np.float64)
 
         # window coordinates
         xmin = max(self.x_range[0], left)
@@ -264,14 +275,24 @@ class Canvas(object):
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
 
-        cmin, rmin = get_indices(xmin, ymin, source.x.values, source.y.values, res)
-        cmax, rmax = get_indices(xmax, ymax, source.x.values, source.y.values, res)
-        source_window = source[:, rmin:rmax, cmin:cmax]
+        cmin, rmin = get_indices(xmin, ymin, source[xdim].values, source[ydim].values, res)
+        cmax, rmax = get_indices(xmax, ymax, source[xdim].values, source[ydim].values, res)
+        if rmin > rmax: rmin, rmax = rmax, rmin
+        if cmin > cmax: cmin, cmax = cmax, cmin
 
-        data = resample_2d(source_window.values[0].astype(np.float32),
-                           w, h,
-                           ds_method=downsample_methods[downsample_method],
-                           us_method=upsample_methods[upsample_method])
+        kwargs = dict(w=w, h=h, ds_method=downsample_methods[downsample_method],
+                      us_method=upsample_methods[upsample_method])
+        if array.ndim == 2:
+            source_window = array[rmin:rmax+1, cmin:cmax+1]
+            data = resample_2d(source_window, **kwargs)
+            layers = 1
+        else:
+            source_window = array[:, rmin:rmax+1, cmin:cmax+1]
+            arrays = []
+            for arr in source_window:
+                arrays.append(resample_2d(arr, **kwargs))
+            data = np.dstack(arrays)
+            layers = len(arrays)
 
         if w != self.plot_width or h != self.plot_height:
             num_height = self.plot_height - h
@@ -282,25 +303,48 @@ class Canvas(object):
             lpct = lpad / (lpad + rpad) if lpad + rpad > 0 else 0
             left = int(np.ceil(num_width * lpct))
             right = num_width - left
-            left_pad = np.empty(shape=(self.plot_height, left)).astype(source_window.dtype) * np.nan
-            right_pad = np.empty(shape=(self.plot_height, right)).astype(source_window.dtype) * np.nan
+            lshape, rshape = (self.plot_height, left), (self.plot_height, right)
+            if layers > 1:
+                lshape, rshape = lshape + (layers,), rshape + (layers,)
+            left_pad = np.empty(shape=lshape).astype(source_window.dtype) * np.nan
+            right_pad = np.empty(shape=rshape).astype(source_window.dtype) * np.nan
 
             tpad = ymin - self.y_range[0]
             bpad = self.y_range[1] - ymax
             tpct = tpad / (tpad + bpad) if tpad + bpad > 0 else 0
             top = int(np.ceil(num_height * tpct))
             bottom = num_height - top
-            top_pad = np.empty(shape=(top, w)).astype(source_window.dtype) * np.nan
-            bottom_pad = np.empty(shape=(bottom, w)).astype(source_window.dtype) * np.nan
+            tshape, bshape = (top, w), (bottom, w)
+            if layers > 1:
+                tshape, bshape = tshape + (layers,), bshape + (layers,)
+            top_pad = np.empty(shape=tshape).astype(source_window.dtype) * np.nan
+            bottom_pad = np.empty(shape=bshape).astype(source_window.dtype) * np.nan
 
             data = np.concatenate((bottom_pad, data, top_pad), axis=0)
             data = np.concatenate((left_pad, data, right_pad), axis=1)
 
-        data = np.flipud(data)
-        attrs = dict(res=res[0], nodata=source._file_obj.nodata)
-        return DataArray(data,
-                         dims=['x', 'y'],
-                         attrs=attrs)
+        # Reorient array to original orientation
+        if res[1] > 0: data = data[::-1]
+        if res[0] < 0: data = data[:, ::-1]
+
+        # Restore original dtype
+        data = data.astype(dtype)
+
+        # Compute DataArray metadata
+        xs, ys = compute_coords(self.plot_width, self.plot_height, self.x_range, self.y_range, res)
+        coords = {xdim: xs, ydim: ys}
+        dims = [ydim, xdim]
+        attrs = dict(res=res[0])
+        if source._file_obj is not None:
+            attrs['nodata'] = source._file_obj.nodata
+
+        # Handle DataArray with layers
+        if data.ndim == 3:
+            data = data.transpose([2, 0, 1])
+            layer_dim = source.dims[0]
+            coords[layer_dim] = source.coords[layer_dim]
+            dims = [layer_dim]+dims
+        return DataArray(data, coords=coords, dims=dims, attrs=attrs)
 
     def validate(self):
         """Check that parameter settings are valid for this object"""

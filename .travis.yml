@@ -24,6 +24,7 @@ install:
   - conda create -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
   - conda install dask numba numpy pandas pillow pytest toolz xarray datashape odo colorcet rasterio scikit-image param
+  - conda install -c gbrener -c conda-forge xarray # remove this line when xarray >= 0.9.7
 
   # Optional dependencies, for testing only
   - conda install matplotlib

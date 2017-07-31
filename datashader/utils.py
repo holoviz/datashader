@@ -68,9 +68,12 @@ def calc_res(raster):
     """Calculate the resolution of xarray.DataArray raster and return it as the
     two-tuple (xres, yres).
     """
-    w, h = raster.shape[2], raster.shape[1]
-    xres = (raster.x.values[w-1] - raster.x.values[0]) / (w - 1)
-    yres = (raster.y.values[0] - raster.y.values[h-1]) / (h - 1)
+    h, w = raster.shape[-2:]
+    ydim, xdim = raster.dims[-2:]
+    xcoords = raster[xdim].values
+    ycoords = raster[ydim].values
+    xres = (xcoords[-1] - xcoords[0]) / (w - 1)
+    yres = (ycoords[0] - ycoords[-1]) / (h - 1)
     return xres, yres
 
 def calc_bbox(xs, ys, res):
@@ -80,7 +83,7 @@ def calc_bbox(xs, ys, res):
     data) so that an affine transform (using the "Augmented Matrix" approach) 
     suffices:
     https://en.wikipedia.org/wiki/Affine_transformation#Augmented_matrix
-    
+
     Parameters
     ----------
     xs : numpy.array
@@ -95,22 +98,22 @@ def calc_bbox(xs, ys, res):
         Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
         sizes"), respectively.
     """
+    xbound = xs.max() if res[0] < 0 else xs.min()
+    ybound = ys.min() if res[1] < 0 else ys.max()
+
     xmin = ymin = np.inf
     xmax = ymax = -np.inf
-    Ab = np.array([[res[0], 0.,      xs.min()],
-                   [0.,     -res[1], ys.max()],
-                   [0.,     0.,      1.]])
+    Ab = np.array([[res[0],  0.,      xbound],
+                   [0.,      -res[1], ybound],
+                   [0.,      0.,      1.]])
     for x_, y_ in [(0, 0), (0, len(ys)), (len(xs), 0), (len(xs), len(ys))]:
         x, y, _ = np.dot(Ab, np.array([x_, y_, 1.]))
-        if x < xmin:
-            xmin = x
-        if x > xmax:
-            xmax = x
-        if y < ymin:
-            ymin = y
-        if y > ymax:
-            ymax = y
-    return xmin, ymin, xmax, ymax
+        if x < xmin: xmin = x
+        if x > xmax: xmax = x
+        if y < ymin: ymin = y
+        if y > ymax: ymax = y
+    xpad, ypad = res[0]/2., res[1]/2.
+    return xmin-xpad, ymin+ypad, xmax-xpad, ymax+ypad
 
 
 def get_indices(x, y, xs, ys, res):
@@ -139,8 +142,11 @@ def get_indices(x, y, xs, ys, res):
         Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
         sizes"), respectively.
     """
-    Ab = np.array([[res[0], 0.,      xs.min()],
-                   [0.,     -res[1], ys.max()],
+    ybound = ys.min() if res[1] < 0 else ys.max()
+    xbound = xs.max() if res[0] < 0 else xs.min()
+
+    Ab = np.array([[res[0], 0.,      xbound],
+                   [0.,     -res[1], ybound],
                    [0.,     0.,      1.]])
     nrows, ncols = Ab.shape
     A = Ab[:nrows-1, :ncols-1]
@@ -152,6 +158,73 @@ def get_indices(x, y, xs, ys, res):
     affine_inv = np.hstack([A_, b_])
     x_, y_, _ = np.dot(affine_inv, np.array([x, y, 1.]))
     return int(x_), int(y_)
+
+
+def orient_array(raster, res, layer):
+    """
+    Reorients the array to a canonical orientation depending on
+    whether the x and y-resolution values are positive or negative.
+
+    Parameters
+    ----------
+    raster : DataArray
+        xarray DataArray to be reoriented
+    res : tuple
+        Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
+        sizes"), respectively.
+    layer : int
+        Index of the raster layer to be reoriented (optional)
+
+    Returns
+    -------
+    array : numpy.ndarray
+        Reoriented 2d NumPy ndarray
+    """
+    array = raster.data
+    if array.ndim == 2:
+        if res[0] < 0: array = array[:, ::-1]
+        if res[1] > 0: array = array[::-1]
+    else:
+        if layer is not None: array = array[layer-1]
+        if res[0] < 0: array = array[:, :, ::-1]
+        if res[1] > 0: array = array[:, ::-1]
+    return array
+
+
+def compute_coords(width, height, x_range, y_range, res):
+    """
+    Computes DataArray coordinates at bin centers
+
+    Parameters
+    ----------
+    width : int
+        Number of coordinates along the x-axis
+    height : int
+        Number of coordinates along the y-axis
+    x_range : tuple
+        Left and right edge of the coordinates
+    y_range : tuple
+        Bottom and top edges of the coordinates
+    res : tuple
+        Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
+        sizes"), respectively.
+
+    Returns
+    -------
+    xs : numpy.ndarray
+        1D array of x-coordinates
+    ys : numpy.ndarray
+        1D array of y-coordinates
+    """
+    (x0, x1), (y0, y1) = x_range, y_range
+    xpad, ypad = abs(res[0]/2.), -abs(res[1]/2.)
+    x0, x1 = x0+xpad, x1-xpad
+    y0, y1 = y0-ypad, y1+ypad
+    if res[0] < 0: x0, x1 = x1, x0
+    if res[1] > 0: y0, y1 = y1, y0
+    xs = np.linspace(x0, x1, width)
+    ys = np.linspace(y0, y1, height)
+    return xs, ys
 
 
 def downsample_aggregate(aggregate, factor, how='mean'):
