@@ -28,7 +28,7 @@ c_logy = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 2),
 c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 11),
                     y_range=(1, 11), x_axis_type='log', y_axis_type='log')
 
-coords = [np.arange(2, dtype='f8'), np.arange(2, dtype='f8')]
+coords = [np.arange(2, dtype='f8')+0.5, np.arange(2, dtype='f8')+0.5]
 dims = ['y_axis', 'x_axis']
 
 
@@ -148,15 +148,19 @@ def test_multiple_aggregates():
 
 def test_log_axis_points():
     # Upper bound for scale/index of x-axis
-    x_max_index = 10 ** (1 / (2 / np.log10(11)))
+    start, end = map(np.log10, (1, 11))
+    s = 2/(end - start)
+    t = -start * s
+    px = np.arange(2)+0.5
+    logcoords = 10**((px-t)/s)
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.array([0., 1.]), np.array([1., x_max_index])],
+    out = xr.DataArray(sol, coords=[np.array([0.5, 1.5]), logcoords],
                        dims=dims)
     assert_eq(c_logx.points(df, 'log_x', 'y', ds.count('i32')), out)
-    out = xr.DataArray(sol, coords=[np.array([1., x_max_index]), np.array([0., 1.])],
+    out = xr.DataArray(sol, coords=[logcoords, np.array([0.5, 1.5])],
                        dims=dims)
     assert_eq(c_logy.points(df, 'x', 'log_y', ds.count('i32')), out)
-    out = xr.DataArray(sol, coords=[np.array([1., x_max_index]), np.array([1., x_max_index])],
+    out = xr.DataArray(sol, coords=[logcoords, logcoords],
                        dims=dims)
     assert_eq(c_logxy.points(df, 'log_x', 'log_y', ds.count('i32')), out)
 
@@ -174,21 +178,25 @@ def test_line():
                     [1, 0, 0, 0, 0, 0, 1],
                     [0, 2, 0, 0, 0, 1, 0],
                     [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.arange(-3., 4.), np.arange(-3., 4.)],
+    out = xr.DataArray(sol, coords=[np.arange(-3., 4.)+0.5, np.arange(-3., 4.)+0.5],
                        dims=['y_axis', 'x_axis'])
     assert_eq(agg, out)
 
 
 def test_log_axis_line():
     # Upper bound for scale/index of x-axis
-    x_max_index = 10 ** (1 / (2 / np.log10(11)))
+    start, end = map(np.log10, (1, 11))
+    s = 2/(end - start)
+    t = -start * s
+    px = np.arange(2)+0.5
+    logcoords = 10**((px-t)/s)
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.array([0., 1.]), np.array([1., x_max_index])],
+    out = xr.DataArray(sol, coords=[np.array([0.5, 1.5]), logcoords],
                        dims=dims)
     assert_eq(c_logx.line(df, 'log_x', 'y', ds.count('i32')), out)
-    out = xr.DataArray(sol, coords=[np.array([1., x_max_index]), np.array([0., 1.])],
+    out = xr.DataArray(sol, coords=[logcoords, np.array([0.5, 1.5])],
                        dims=dims)
     assert_eq(c_logy.line(df, 'x', 'log_y', ds.count('i32')), out)
-    out = xr.DataArray(sol, coords=[np.array([1., x_max_index]), np.array([1., x_max_index])],
+    out = xr.DataArray(sol, coords=[logcoords, logcoords],
                        dims=dims)
     assert_eq(c_logxy.line(df, 'log_x', 'log_y', ds.count('i32')), out)
