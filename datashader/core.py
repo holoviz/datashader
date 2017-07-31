@@ -204,14 +204,16 @@ class Canvas(object):
 
     def raster(self,
                source,
-               band=None,
+               layer=None,
                upsample_method='linear',
                downsample_method='mean'):
         """Sample a raster dataset by canvas size and bounds.
 
         Handles 2D or 3D xarray DataArrays, assuming that the last two
         array dimensions are the y- and x-axis that are to be
-        resampled.
+        resampled. If a 3D array is supplied a layer may be specified
+        to resample to select the layer along the first dimension to
+        resample.
 
         Missing values (those having the value indicated by the
         "nodata" attribute of the raster) are replaced with `NaN` if
@@ -221,8 +223,8 @@ class Canvas(object):
         ----------
         source : xarray.DataArray
             input datasource most likely obtain from `xr.open_rasterio()`.
-        band : int
-            source band number : optional default=None
+        layer : int
+            source layer number : optional default=None
         upsample_method : str, optional default=linear
             resample mode when upsampling raster.
             options include: nearest, linear.
@@ -253,7 +255,7 @@ class Canvas(object):
         res = calc_res(source)
         ydim, xdim = source.dims[-2:]
         left, bottom, right, top = calc_bbox(source[xdim].values, source[ydim].values, res)
-        array = orient_array(source, res, band)
+        array = orient_array(source, res, layer)
         dtype = array.dtype
         if dtype.kind != 'f':
             array = array.astype(np.float64)
@@ -283,14 +285,14 @@ class Canvas(object):
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
             data = resample_2d(source_window, **kwargs)
-            bands = 1
+            layers = 1
         else:
             source_window = array[:, rmin:rmax+1, cmin:cmax+1]
             arrays = []
             for arr in source_window:
                 arrays.append(resample_2d(arr, **kwargs))
             data = np.dstack(arrays)
-            bands = len(arrays)
+            layers = len(arrays)
 
         if w != self.plot_width or h != self.plot_height:
             num_height = self.plot_height - h
@@ -302,8 +304,8 @@ class Canvas(object):
             left = int(np.ceil(num_width * lpct))
             right = num_width - left
             lshape, rshape = (self.plot_height, left), (self.plot_height, right)
-            if bands > 1:
-                lshape, rshape = lshape + (bands,), rshape + (bands,)
+            if layers > 1:
+                lshape, rshape = lshape + (layers,), rshape + (layers,)
             left_pad = np.empty(shape=lshape).astype(source_window.dtype) * np.nan
             right_pad = np.empty(shape=rshape).astype(source_window.dtype) * np.nan
 
@@ -313,8 +315,8 @@ class Canvas(object):
             top = int(np.ceil(num_height * tpct))
             bottom = num_height - top
             tshape, bshape = (top, w), (bottom, w)
-            if bands > 1:
-                tshape, bshape = tshape + (bands,), bshape + (bands,)
+            if layers > 1:
+                tshape, bshape = tshape + (layers,), bshape + (layers,)
             top_pad = np.empty(shape=tshape).astype(source_window.dtype) * np.nan
             bottom_pad = np.empty(shape=bshape).astype(source_window.dtype) * np.nan
 
@@ -336,12 +338,12 @@ class Canvas(object):
         if source._file_obj is not None:
             attrs['nodata'] = source._file_obj.nodata
 
-        # Handle DataArray with bands
+        # Handle DataArray with layers
         if data.ndim == 3:
             data = data.transpose([2, 0, 1])
-            band_dim = source.dims[0]
-            coords[band_dim] = source.coords[band_dim]
-            dims = [band_dim]+dims
+            layer_dim = source.dims[0]
+            coords[layer_dim] = source.coords[layer_dim]
+            dims = [layer_dim]+dims
         return DataArray(data, coords=coords, dims=dims, attrs=attrs)
 
     def validate(self):

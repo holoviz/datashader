@@ -160,7 +160,7 @@ def get_indices(x, y, xs, ys, res):
     return int(x_), int(y_)
 
 
-def orient_array(raster, res, band):
+def orient_array(raster, res, layer):
     """
     Reorients the array to a canonical orientation depending on
     whether the x and y-resolution values are positive or negative.
@@ -172,8 +172,8 @@ def orient_array(raster, res, band):
     res : tuple
         Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
         sizes"), respectively.
-    band : int
-        Index of the raster band to be reoriented (optional)
+    layer : int
+        Index of the raster layer to be reoriented (optional)
 
     Returns
     -------
@@ -185,7 +185,7 @@ def orient_array(raster, res, band):
         if res[0] < 0: array = array[:, ::-1]
         if res[1] > 0: array = array[::-1]
     else:
-        if band is not None: array = array[band-1]
+        if layer is not None: array = array[layer-1]
         if res[0] < 0: array = array[:, :, ::-1]
         if res[1] > 0: array = array[:, ::-1]
     return array

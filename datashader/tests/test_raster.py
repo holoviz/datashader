@@ -75,7 +75,7 @@ def test_partial_extent_returns_correct_size():
         assert agg is not None
 
 
-def test_partial_extent_with_band_returns_correct_size():
+def test_partial_extent_with_layer_returns_correct_size():
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         res = ds.utils.calc_res(src)
         left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
@@ -85,7 +85,7 @@ def test_partial_extent_with_band_returns_correct_size():
                         plot_height=256,
                         x_range=[left-half_width, left+half_width],
                         y_range=[bottom-half_height, bottom+half_height])
-        agg = cvs.raster(src, band=1)
+        agg = cvs.raster(src, layer=1)
         assert agg.shape == (256, 512)
         assert agg is not None
 
