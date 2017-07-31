@@ -279,12 +279,14 @@ class Canvas(object):
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
             data = resample_2d(source_window, **kwargs)
+            bands = 1
         else:
             source_window = array[:, rmin:rmax+1, cmin:cmax+1]
             arrays = []
             for arr in source_window:
                 arrays.append(resample_2d(arr, **kwargs))
             data = np.dstack(arrays)
+            bands = len(arrays)
 
         if w != self.plot_width or h != self.plot_height:
             num_height = self.plot_height - h
@@ -295,16 +297,22 @@ class Canvas(object):
             lpct = lpad / (lpad + rpad) if lpad + rpad > 0 else 0
             left = int(np.ceil(num_width * lpct))
             right = num_width - left
-            left_pad = np.empty(shape=(self.plot_height, left)).astype(source_window.dtype) * np.nan
-            right_pad = np.empty(shape=(self.plot_height, right)).astype(source_window.dtype) * np.nan
+            lshape, rshape = (self.plot_height, left), (self.plot_height, right)
+            if bands > 1:
+                lshape, rshape = lshape + (bands,), rshape + (bands,)
+            left_pad = np.empty(shape=lshape).astype(source_window.dtype) * np.nan
+            right_pad = np.empty(shape=rshape).astype(source_window.dtype) * np.nan
 
             tpad = ymin - self.y_range[0]
             bpad = self.y_range[1] - ymax
             tpct = tpad / (tpad + bpad) if tpad + bpad > 0 else 0
             top = int(np.ceil(num_height * tpct))
             bottom = num_height - top
-            top_pad = np.empty(shape=(top, w)).astype(source_window.dtype) * np.nan
-            bottom_pad = np.empty(shape=(bottom, w)).astype(source_window.dtype) * np.nan
+            tshape, bshape = (top, w), (bottom, w)
+            if bands > 1:
+                tshape, bshape = tshape + (bands,), bshape + (bands,)
+            top_pad = np.empty(shape=tshape).astype(source_window.dtype) * np.nan
+            bottom_pad = np.empty(shape=bshape).astype(source_window.dtype) * np.nan
 
             data = np.concatenate((bottom_pad, data, top_pad), axis=0)
             data = np.concatenate((left_pad, data, right_pad), axis=1)
