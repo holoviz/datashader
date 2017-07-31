@@ -68,9 +68,9 @@ directory.
 
 ## Learning more
 
-After working through the examples, you can find additional resources linked from the
-[datashader documentation](http://datashader.readthedocs.org), including
-API documentation and papers and talks about the approach.
+After working through the examples, you can find additional resources linked
+from the [datashader documentation](http://datashader.readthedocs.org),
+including API documentation and papers and talks about the approach.
 
 ## Screenshots
 
