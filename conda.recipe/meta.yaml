@@ -6,6 +6,7 @@ extra:
   channels:
     - numba
     - gbrener
+    - conda-forge
 
 requirements:
   build:
