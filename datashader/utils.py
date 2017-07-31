@@ -68,14 +68,8 @@ def calc_res(raster):
     """Calculate the resolution of xarray.DataArray raster and return it as the
     two-tuple (xres, yres).
     """
-    if raster.ndim == 2:
-        h, w = raster.shape
-        ydim, xdim = raster.dims
-    elif raster.ndim == 3:
-        h, w = raster.shape[1:]
-        ydim, xdim = raster.dims[1:]
-    else:
-        raise ValueError("Could not determine dimensionality of the raster")
+    h, w = raster.shape[-2:]
+    ydim, xdim = raster.dims[-2:]
     xcoords = raster[xdim].values
     ycoords = raster[ydim].values
     xres = (xcoords[-1] - xcoords[0]) / (w - 1)

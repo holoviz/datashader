@@ -209,6 +209,10 @@ class Canvas(object):
                downsample_method='mean'):
         """Sample a raster dataset by canvas size and bounds.
 
+        Handles 2D or 3D xarray DataArrays, assuming that the last two
+        array dimensions are the y- and x-axis that are to be
+        resampled.
+
         Missing values (those having the value indicated by the
         "nodata" attribute of the raster) are replaced with `NaN` if
         floats, and 0 if int.
@@ -247,7 +251,7 @@ class Canvas(object):
             raise ValueError('Invalid downsample method: options include {}'.format(list(downsample_methods.keys())))
 
         res = calc_res(source)
-        ydim, xdim = source.dims if source.ndim == 2 else source.dims[1:]
+        ydim, xdim = source.dims[-2:]
         left, bottom, right, top = calc_bbox(source[xdim].values, source[ydim].values, res)
         array = orient_array(source, res, band)
         dtype = array.dtype
