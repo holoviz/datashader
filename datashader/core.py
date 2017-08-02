@@ -320,7 +320,7 @@ class Canvas(object):
             top_pad = np.empty(shape=tshape).astype(source_window.dtype) * np.nan
             bottom_pad = np.empty(shape=bshape).astype(source_window.dtype) * np.nan
 
-            data = np.concatenate((bottom_pad, data, top_pad), axis=0)
+            data = np.concatenate((top_pad, data, bottom_pad), axis=0)
             data = np.concatenate((left_pad, data, right_pad), axis=1)
 
         # Reorient array to original orientation
