@@ -6,12 +6,10 @@ from inspect import getmro
 
 import numba as nb
 import numpy as np
+import pandas as pd
 
 from xarray import DataArray
-
-from datashape import Unit
-from datashape.predicates import launder
-from datashape.typesets import real
+import datashape
 
 ngjit = nb.jit(nopython=True, nogil=True)
 
@@ -60,9 +58,8 @@ def isreal(dt):
     >>> isreal('complex64')
     False
     """
-    dt = launder(dt)
-    return isinstance(dt, Unit) and dt in real
-
+    dt = datashape.predicates.launder(dt)
+    return isinstance(dt, datashape.Unit) and dt in datashape.typesets.real
 
 def calc_res(raster):
     """Calculate the resolution of xarray.DataArray raster and return it as the
@@ -330,3 +327,32 @@ def lnglat_to_meters(longitude, latitude):
     easting = longitude * origin_shift / 180.0
     northing = np.log(np.tan((90 + latitude) * np.pi / 360.0)) * origin_shift / np.pi
     return (easting, northing)
+
+# Heavily inspired by (and upstreamed back into) odo
+def dshape_from_pandas_helper(col):
+    if isinstance(col.dtype, type(pd.Categorical.dtype)):
+        cat_dshape = datashape.dshape('{} * {}'.format(
+            len(col.cat.categories),
+            col.cat.categories.dtype,
+        ))
+        return datashape.Categorical(col.cat.categories.values,
+                                     type=cat_dshape,
+                                     ordered=col.cat.categorical.ordered)
+    elif col.dtype.kind == 'M':
+        tz = getattr(col.dtype, 'tz', None)
+        if tz is not None:
+            # Pandas stores this as a pytz.tzinfo, but DataShape wants a string
+            tz = str(tz)
+        return datashape.Option(datashape.DateTime(tz=tz))
+    dshape = datashape.CType.from_numpy_dtype(col.dtype)
+    dshape = datashape.string if dshape == datashape.object_ else dshape
+    if dshape in (datashape.string, datashape.datetime_):
+        return datashape.Option(dshape)
+    return dshape
+
+def dshape_from_pandas(df):
+    return len(df) * datashape.Record([(k, dshape_from_pandas_helper(df[k]))
+                                       for k in df.columns])
+
+def dshape_from_dask(df):
+    return datashape.var * dshape_from_pandas(df.head()).measure
