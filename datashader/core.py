@@ -7,7 +7,7 @@ from xarray import DataArray
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices
 from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
-                         DS_MEAN, DS_MODE, DS_VAR, DS_STD)
+                         DS_MEAN, DS_MODE, DS_VAR, DS_STD, DS_MIN, DS_MAX)
 
 
 
@@ -245,7 +245,9 @@ class Canvas(object):
                                   mean=DS_MEAN,
                                   mode=DS_MODE,
                                   var=DS_VAR,
-                                  std=DS_STD)
+                                  std=DS_STD,
+                                  min=DS_MIN,
+                                  max=DS_MAX)
 
         if upsample_method not in upsample_methods.keys():
             raise ValueError('Invalid upsample method: options include {}'.format(list(upsample_methods.keys())))

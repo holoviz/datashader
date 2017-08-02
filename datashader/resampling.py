@@ -12,8 +12,10 @@ US_LINEAR = 11
 DS_FIRST = 50
 #: Aggregation method for downsampling: Take last valid source grid cell, ignore contribution areas.
 DS_LAST = 51
-# DS_MIN = 52
-# DS_MAX = 53
+#: Aggregation method for downsampling: Take the minimum source grid cell value, ignore contribution areas.
+DS_MIN = 52
+#: Aggregation method for downsampling: Take the maximum source grid cell value, ignore contribution areas.
+DS_MAX = 53
 #: Aggregation method for downsampling: Compute average of all valid source grid cells,
 #: with weights given by contribution area.
 DS_MEAN = 54
@@ -337,6 +339,39 @@ def _downsample_2d(src, mask, use_mask, method, fill_value, mode_rank, out):
                     if done:
                         break
                 out[out_y, out_x] = value
+    elif method in [DS_MIN, DS_MAX]:
+        for out_y in range(out_h):
+            src_yf0 = scale_y * out_y
+            src_yf1 = src_yf0 + scale_y
+            src_y0 = int(src_yf0)
+            src_y1 = int(src_yf1)
+            if src_y1 == src_yf1 and src_y1 > src_y0:
+                src_y1 -= 1
+            for out_x in range(out_w):
+                src_xf0 = scale_x * out_x
+                src_xf1 = src_xf0 + scale_x
+                src_x0 = int(src_xf0)
+                src_x1 = int(src_xf1)
+                if src_x1 == src_xf1 and src_x1 > src_x0:
+                    src_x1 -= 1
+                if method == DS_MIN:
+                    value = np.inf
+                else:
+                    value = -np.inf
+                for src_y in range(src_y0, src_y1 + 1):
+                    for src_x in range(src_x0, src_x1 + 1):
+                        v = src[src_y, src_x]
+                        if np.isfinite(v) and not (use_mask and mask[src_y, src_x]):
+                            if method == DS_MIN:
+                                if v < value:
+                                    value = v
+                            else:
+                                if v > value:
+                                    value = v
+                if np.isfinite(value):
+                    out[out_y, out_x] = value
+                else:
+                    out[out_y, out_x] = fill_value
 
     elif method == DS_MODE:
         max_value_count = int(scale_x + 1) * int(scale_y + 1)
