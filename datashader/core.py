@@ -1,11 +1,11 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from datashape.predicates import istabular
-from odo import discover
+import pandas as pd
+import dask.dataframe as dd
 from xarray import DataArray
 
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices
+from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask
 from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
                          DS_MEAN, DS_MODE, DS_VAR, DS_STD)
 
@@ -351,7 +351,6 @@ class Canvas(object):
         self.x_axis.validate(self.x_range)
         self.y_axis.validate(self.y_range)
 
-
 def bypixel(source, canvas, glyph, agg):
     """Compute an aggregate grouped by pixel sized bins.
 
@@ -367,9 +366,12 @@ def bypixel(source, canvas, glyph, agg):
     glyph : Glyph
     agg : Reduction
     """
-    dshape = discover(source)
-    if not istabular(dshape):
-        raise ValueError("source must be tabular")
+    if isinstance(source, pd.DataFrame):
+        dshape = dshape_from_pandas(source)
+    elif isinstance(source, dd.DataFrame):
+        dshape = dshape_from_dask(source)
+    else:
+        raise ValueError("source must be a pandas or dask DataFrame")
     schema = dshape.measure
     glyph.validate(schema)
     agg.validate(schema)

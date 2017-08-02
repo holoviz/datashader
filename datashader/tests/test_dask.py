@@ -1,4 +1,4 @@
-from dask.async import get_sync
+from dask.local import get_sync
 from dask.context import set_options
 import dask.dataframe as dd
 import numpy as np
