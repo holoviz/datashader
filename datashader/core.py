@@ -283,7 +283,7 @@ class Canvas(object):
         if cmin > cmax: cmin, cmax = cmax, cmin
 
         kwargs = dict(w=w, h=h, ds_method=downsample_methods[downsample_method],
-                      us_method=upsample_methods[upsample_method])
+                      us_method=upsample_methods[upsample_method], fill_value=np.NaN)
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
             data = resample_2d(source_window, **kwargs)
