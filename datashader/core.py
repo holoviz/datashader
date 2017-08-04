@@ -10,7 +10,6 @@ from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
                          DS_MEAN, DS_MODE, DS_VAR, DS_STD, DS_MIN, DS_MAX)
 
 
-
 class Expr(object):
     """Base class for expression-like objects.
 
@@ -368,10 +367,21 @@ def bypixel(source, canvas, glyph, agg):
     glyph : Glyph
     agg : Reduction
     """
+    cols_to_keep = []
+    agg_cols = set()
+    if hasattr(agg, 'values'):
+        for subagg in agg.values:
+            agg_cols.add(subagg.column)
+    else:
+        agg_cols.add(agg.column)
+    some_cats = source[
+        [colname for colname in source.columns.values
+         if source[colname].dtype.name != 'category' or colname in agg_cols]
+    ]
     if isinstance(source, pd.DataFrame):
-        dshape = dshape_from_pandas(source)
+        dshape = dshape_from_pandas(some_cats)
     elif isinstance(source, dd.DataFrame):
-        dshape = dshape_from_dask(source)
+        dshape = dshape_from_dask(some_cats)
     else:
         raise ValueError("source must be a pandas or dask DataFrame")
     schema = dshape.measure
