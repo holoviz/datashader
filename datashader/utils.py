@@ -328,8 +328,11 @@ def lnglat_to_meters(longitude, latitude):
     northing = np.log(np.tan((90 + latitude) * np.pi / 360.0)) * origin_shift / np.pi
     return (easting, northing)
 
-# Heavily inspired by (and upstreamed back into) odo
+# Heavily inspired by odo
 def dshape_from_pandas_helper(col):
+    """Return an object from datashape.coretypes given a column from a pandas
+    dataframe.
+    """
     if isinstance(col.dtype, type(pd.Categorical.dtype)):
         cat_dshape = datashape.dshape('{} * {}'.format(
             len(col.cat.categories),
@@ -351,8 +354,11 @@ def dshape_from_pandas_helper(col):
     return dshape
 
 def dshape_from_pandas(df):
+    """Return a datashape.DataShape object given a pandas dataframe."""
     return len(df) * datashape.Record([(k, dshape_from_pandas_helper(df[k]))
                                        for k in df.columns])
 
 def dshape_from_dask(df):
+    """Return a datashape.DataShape object given a dask dataframe."""
     return datashape.var * dshape_from_pandas(df.head()).measure
+
