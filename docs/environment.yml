@@ -10,5 +10,5 @@ dependencies:
     - numpy >=1.7
     - pandas >=0.15.0
     - pillow >=3.1.1
-    - xarray >=0.7.0
+    - xarray >=0.9.6
     - toolz >=0.7.4
