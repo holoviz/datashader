@@ -352,6 +352,7 @@ class Canvas(object):
         self.x_axis.validate(self.x_range)
         self.y_axis.validate(self.y_range)
 
+
 def bypixel(source, canvas, glyph, agg):
     """Compute an aggregate grouped by pixel sized bins.
 
@@ -367,21 +368,25 @@ def bypixel(source, canvas, glyph, agg):
     glyph : Glyph
     agg : Reduction
     """
-    cols_to_keep = []
-    agg_cols = set()
-    if hasattr(agg, 'values'):
-        for subagg in agg.values:
-            agg_cols.add(subagg.column)
+    # Avoid datashape.Categorical instantiation bottleneck
+    # by only retaining the necessary columns:
+    # https://github.com/bokeh/datashader/issues/396
+    if 'category' in str(source.dtypes.values):
+        cols_to_keep = [glyph.x, glyph.y]
+        if hasattr(agg, 'values'):
+            for subagg in agg.values:
+                if subagg.column is not None:
+                    cols_to_keep.append(subagg.column)
+        elif agg.column is not None:
+            cols_to_keep.append(agg.column)
+        src = source[cols_to_keep]
     else:
-        agg_cols.add(agg.column)
-    some_cats = source[
-        [colname for colname in source.columns.values
-         if source[colname].dtype.name != 'category' or colname in agg_cols]
-    ]
-    if isinstance(source, pd.DataFrame):
-        dshape = dshape_from_pandas(some_cats)
-    elif isinstance(source, dd.DataFrame):
-        dshape = dshape_from_dask(some_cats)
+        src = source
+
+    if isinstance(src, pd.DataFrame):
+        dshape = dshape_from_pandas(src)
+    elif isinstance(src, dd.DataFrame):
+        dshape = dshape_from_dask(src)
     else:
         raise ValueError("source must be a pandas or dask DataFrame")
     schema = dshape.measure
