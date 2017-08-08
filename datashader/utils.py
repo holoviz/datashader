@@ -61,6 +61,7 @@ def isreal(dt):
     dt = datashape.predicates.launder(dt)
     return isinstance(dt, datashape.Unit) and dt in datashape.typesets.real
 
+
 def calc_res(raster):
     """Calculate the resolution of xarray.DataArray raster and return it as the
     two-tuple (xres, yres).
@@ -72,6 +73,7 @@ def calc_res(raster):
     xres = (xcoords[-1] - xcoords[0]) / (w - 1)
     yres = (ycoords[0] - ycoords[-1]) / (h - 1)
     return xres, yres
+
 
 def calc_bbox(xs, ys, res):
     """Calculate the bounding box of a raster, and return it in a four-element
@@ -328,6 +330,7 @@ def lnglat_to_meters(longitude, latitude):
     northing = np.log(np.tan((90 + latitude) * np.pi / 360.0)) * origin_shift / np.pi
     return (easting, northing)
 
+
 # Heavily inspired by odo
 def dshape_from_pandas_helper(col):
     """Return an object from datashape.coretypes given a column from a pandas
@@ -353,6 +356,7 @@ def dshape_from_pandas_helper(col):
         return datashape.Option(dshape)
     return dshape
 
+
 def dshape_from_pandas(df):
     """Return a datashape.DataShape object given a pandas dataframe."""
     return len(df) * datashape.Record([(k, dshape_from_pandas_helper(df[k]))
@@ -362,3 +366,6 @@ def dshape_from_dask(df):
     """Return a datashape.DataShape object given a dask dataframe."""
     return datashape.var * dshape_from_pandas(df.head()).measure
 
+categoricals_in_dtypes = np.vectorize(lambda dtype: dtype.name == 'category', otypes='?')
+def categorical_in_dtypes(dtype_arr):
+    return categoricals_in_dtypes(dtype_arr).any()

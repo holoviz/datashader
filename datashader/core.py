@@ -5,7 +5,7 @@ import pandas as pd
 import dask.dataframe as dd
 from xarray import DataArray
 
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask
+from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask, categorical_in_dtypes
 from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
                          DS_MEAN, DS_MODE, DS_VAR, DS_STD, DS_MIN, DS_MAX)
 
@@ -371,7 +371,7 @@ def bypixel(source, canvas, glyph, agg):
     # Avoid datashape.Categorical instantiation bottleneck
     # by only retaining the necessary columns:
     # https://github.com/bokeh/datashader/issues/396
-    if 'category' in str(source.dtypes.values):
+    if categorical_in_dtypes(source.dtypes.values):
         cols_to_keep = [glyph.x, glyph.y]
         if hasattr(agg, 'values'):
             for subagg in agg.values:
