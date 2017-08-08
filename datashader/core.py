@@ -373,19 +373,17 @@ def bypixel(source, canvas, glyph, agg):
     # by only retaining the necessary columns:
     # https://github.com/bokeh/datashader/issues/396
     if categorical_in_dtypes(source.dtypes.values):
-        # Use an OrderedDict as an "OrderedSet",
-        # since we want to preserve column ordering
-        # without duplicates.
-        cols_to_keep = OrderedDict()
-        cols_to_keep[glyph.x] = None
-        cols_to_keep[glyph.y] = None
+        # Preserve column ordering without duplicates
+        cols_to_keep = OrderedDict({col: False for col in source.columns})
+        cols_to_keep[glyph.x] = True
+        cols_to_keep[glyph.y] = True
         if hasattr(agg, 'values'):
             for subagg in agg.values:
                 if subagg.column is not None:
-                    cols_to_keep[subagg.column] = None
+                    cols_to_keep[subagg.column] = True
         elif agg.column is not None:
-            cols_to_keep[agg.column] = None
-        src = source[list(cols_to_keep)]
+            cols_to_keep[agg.column] = True
+        src = source[[col for col, keepit in cols_to_keep.items() if keepit]]
     else:
         src = source
 
