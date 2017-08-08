@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 from xarray import DataArray
+from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask, categorical_in_dtypes
 from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
@@ -372,14 +373,19 @@ def bypixel(source, canvas, glyph, agg):
     # by only retaining the necessary columns:
     # https://github.com/bokeh/datashader/issues/396
     if categorical_in_dtypes(source.dtypes.values):
-        cols_to_keep = [glyph.x, glyph.y]
+        # Use an OrderedDict as an "OrderedSet",
+        # since we want to preserve column ordering
+        # without duplicates.
+        cols_to_keep = OrderedDict()
+        cols_to_keep[glyph.x] = None
+        cols_to_keep[glyph.y] = None
         if hasattr(agg, 'values'):
             for subagg in agg.values:
                 if subagg.column is not None:
-                    cols_to_keep.append(subagg.column)
+                    cols_to_keep[subagg.column] = None
         elif agg.column is not None:
-            cols_to_keep.append(agg.column)
-        src = source[cols_to_keep]
+            cols_to_keep[agg.column] = None
+        src = source[list(cols_to_keep)]
     else:
         src = source
 
