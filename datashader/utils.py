@@ -362,9 +362,11 @@ def dshape_from_pandas(df):
     return len(df) * datashape.Record([(k, dshape_from_pandas_helper(df[k]))
                                        for k in df.columns])
 
+
 def dshape_from_dask(df):
     """Return a datashape.DataShape object given a dask dataframe."""
     return datashape.var * dshape_from_pandas(df.head()).measure
+
 
 categoricals_in_dtypes = np.vectorize(lambda dtype: dtype.name == 'category', otypes='?')
 def categorical_in_dtypes(dtype_arr):
