@@ -111,3 +111,5 @@ data:
     files:
       - maccdc2012_nodes.parq
       - maccdc2012_edges.parq
+      - maccdc2012_full_nodes.parq
+      - maccdc2012_full_edges.parq
