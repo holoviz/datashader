@@ -1,5 +1,7 @@
 ## Release Procedure
 
+NOTE: remove everything from `examples/data` prior to building
+
 - Ensure git repository is clear of unmerged/untracked files.
 
 - Ensure all tests pass.
