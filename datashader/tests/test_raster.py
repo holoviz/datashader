@@ -110,7 +110,7 @@ def test_calc_bbox():
         xr_bounds = ds.utils.calc_bbox(src.x.values, src.y.values, xr_res)
     with rasterio.open(TEST_RASTER_PATH) as src:
         rio_bounds = src.bounds
-    assert np.allclose(xr_bounds, rio_bounds)
+    assert np.allclose(xr_bounds, rio_bounds, atol=1.0)  # allow for absolute diff of 1.0
 
 
 def test_raster_both_ascending():
