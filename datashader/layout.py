@@ -109,8 +109,10 @@ def _convert_graph_to_sparse_matrix(nodes, edges, dtype=None, format='csr'):
         edges = edges.copy()
         edges['weight'] = np.ones(len(edges))
 
+    edge_values = edges[['source', 'target', 'weight']].values
+
     rows, cols, data = zip(*((index[src], index[dst], weight)
-                             for src, dst, weight in [tuple(edge) for edge in edges.values]
+                             for src, dst, weight in [tuple(edge) for edge in edge_values]
                              if src in index and dst in index))
 
     M = sp.sparse.coo_matrix((data, (rows, cols)), shape=(nlen, nlen), dtype=dtype)
