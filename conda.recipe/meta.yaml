@@ -30,6 +30,7 @@ test:
   requires:
     - pytest >=2.8.5
     - rasterio
+    - scipy
 
   imports:
     - datashader

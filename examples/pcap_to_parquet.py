@@ -64,7 +64,8 @@ def to_parquet(filename, prefix="maccdc2012"):
                 addresses.append(ip_to_integer(m.group('address')))
 
                 nodes = nodes.union(addresses)
-                key = (protocol, *sorted(addresses))
+                src, dst = sorted(addresses)
+                key = (protocol, src, dst)
 
                 # Extract packet size
                 nbytes = int(fields[-1])
