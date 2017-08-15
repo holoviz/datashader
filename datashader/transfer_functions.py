@@ -128,7 +128,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha):
 
         masked = data[~mask]
         if len(masked) == 0:
-            return Image(agg.data.view(np.uint32), coords=agg.coords, dims=agg.dims, attrs=agg.attrs)
+            return Image(agg.data.astype(np.uint32), coords=agg.coords, dims=agg.dims, attrs=agg.attrs)
 
         offset = masked.min()
 
