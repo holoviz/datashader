@@ -177,6 +177,78 @@ def test_raster_x_descending_y_ascending():
     assert np.allclose(agg.Y.values, ys)
 
 
+def test_raster_integer_nan_value():
+    """
+    Ensure custom nan_value is handled correctly for integer arrays.
+    """
+    cvs = ds.Canvas(plot_height=2, plot_width=2, x_range=(0, 1), y_range=(0,1))
+    array = np.array([[9999, 1, 2, 3], [4, 9999, 6, 7], [8, 9, 9999, 11]])
+    coords = {'x': np.linspace(0, 1, 4), 'y': np.linspace(0, 1, 3)}
+    xr_array = xr.DataArray(array, coords=coords, dims=['y', 'x'])
+
+    agg = cvs.raster(xr_array, downsample_method='max', nan_value=9999)
+    expected = np.array([[4, 7], [9, 11]])
+
+    assert np.allclose(agg.data, expected)
+    assert agg.data.dtype.kind == 'i'
+    assert np.allclose(agg.x.values, np.array([0.25, 0.75]))
+    assert np.allclose(agg.y.values, np.array([0.25, 0.75]))
+
+
+def test_raster_float_nan_value():
+    """
+    Ensure default nan_value is handled correctly for float arrays
+    """
+    cvs = ds.Canvas(plot_height=2, plot_width=2, x_range=(0, 1), y_range=(0,1))
+    array = np.array([[np.NaN, 1., 2., 3.], [4., np.NaN, 6., 7.], [8., 9., np.NaN, 11.]])
+    coords = {'x': np.linspace(0, 1, 4), 'y': np.linspace(0, 1, 3)}
+    xr_array = xr.DataArray(array, coords=coords, dims=['y', 'x'])
+
+    agg = cvs.raster(xr_array, downsample_method='max')
+    expected = np.array([[4, 7], [9, 11]])
+
+    assert np.allclose(agg.data, expected)
+    assert agg.data.dtype.kind == 'f'
+    assert np.allclose(agg.x.values, np.array([0.25, 0.75]))
+    assert np.allclose(agg.y.values, np.array([0.25, 0.75]))
+
+
+def test_raster_integer_nan_value_padding():
+    """
+    Ensure that the padding values respect the supplied nan_value.
+    """
+
+    cvs = ds.Canvas(plot_height=3, plot_width=3, x_range=(0, 2), y_range=(0, 2))
+    array = np.array([[9999, 1, 2, 3], [4, 9999, 6, 7], [8, 9, 9999, 11]])
+    xr_array = xr.DataArray(array, coords={'x': np.linspace(0, 1, 4), 'y': np.linspace(0, 1, 3)}, dims=['y', 'x'])
+
+    agg = cvs.raster(xr_array, downsample_method='max', nan_value=9999)
+    expected = np.array([[4, 7, 9999], [9, 11, 9999], [9999, 9999, 9999]])
+
+    assert np.allclose(agg.data, expected)
+    assert agg.data.dtype.kind == 'i'
+    assert np.allclose(agg.x.values, np.array([1/3., 1.0, 5/3.]))
+    assert np.allclose(agg.y.values, np.array([1/3., 1.0, 5/3.]))
+
+
+def test_raster_float_nan_value_padding():
+    """
+    Ensure that the padding values respect the supplied nan_value.
+    """
+
+    cvs = ds.Canvas(plot_height=3, plot_width=3, x_range=(0, 2), y_range=(0, 2))
+    array = np.array([[np.nan, 1., 2., 3.], [4., np.nan, 6., 7.], [8., 9., np.nan, 11.]])
+    xr_array = xr.DataArray(array, coords={'x': np.linspace(0, 1, 4), 'y': np.linspace(0, 1, 3)}, dims=['y', 'x'])
+
+    agg = cvs.raster(xr_array, downsample_method='max')
+    expected = np.array([[4., 7., np.nan], [9., 11., np.nan], [np.nan, np.nan, np.nan]])
+
+    assert np.allclose(agg.data, expected, equal_nan=True)
+    assert agg.data.dtype.kind == 'f'
+    assert np.allclose(agg.x.values, np.array([1/3., 1.0, 5/3.]))
+    assert np.allclose(agg.y.values, np.array([1/3., 1.0, 5/3.]))
+
+
 def test_resample_methods():
     """Assert that an error is raised when incorrect upsample and/or downsample
     methods are provided to cvs.raster().

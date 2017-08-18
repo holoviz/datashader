@@ -206,7 +206,8 @@ class Canvas(object):
                source,
                layer=None,
                upsample_method='linear',
-               downsample_method='mean'):
+               downsample_method='mean',
+               nan_value=None):
         """Sample a raster dataset by canvas size and bounds.
 
         Handles 2D or 3D xarray DataArrays, assuming that the last two
@@ -231,6 +232,9 @@ class Canvas(object):
         downsample_method : str, optional default=mean
             resample mode when downsampling raster.
             options include: first, last, mean, mode, var, std
+        nan_value : int or float, optional
+            Optional nan_value which will be masked out when applying
+            the resampling.
 
         Returns
         -------
@@ -262,6 +266,13 @@ class Canvas(object):
         if dtype.kind != 'f':
             array = array.astype(np.float64)
 
+        if nan_value is not None:
+            mask = array==nan_value
+            array = np.ma.masked_array(array, mask=mask, fill_value=nan_value)
+            fill_value = nan_value
+        else:
+            fill_value = np.NaN
+
         # window coordinates
         xmin = max(self.x_range[0], left)
         ymin = max(self.y_range[0], bottom)
@@ -283,7 +294,7 @@ class Canvas(object):
         if cmin > cmax: cmin, cmax = cmax, cmin
 
         kwargs = dict(w=w, h=h, ds_method=downsample_methods[downsample_method],
-                      us_method=upsample_methods[upsample_method], fill_value=np.NaN)
+                      us_method=upsample_methods[upsample_method], fill_value=fill_value)
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
             data = resample_2d(source_window, **kwargs)
@@ -308,8 +319,8 @@ class Canvas(object):
             lshape, rshape = (self.plot_height, left), (self.plot_height, right)
             if layers > 1:
                 lshape, rshape = lshape + (layers,), rshape + (layers,)
-            left_pad = np.empty(shape=lshape).astype(source_window.dtype) * np.nan
-            right_pad = np.empty(shape=rshape).astype(source_window.dtype) * np.nan
+            left_pad = np.full(lshape, fill_value, source_window.dtype)
+            right_pad = np.full(rshape, fill_value, source_window.dtype)
 
             tpad = ymin - self.y_range[0]
             bpad = self.y_range[1] - ymax
@@ -319,8 +330,8 @@ class Canvas(object):
             tshape, bshape = (top, w), (bottom, w)
             if layers > 1:
                 tshape, bshape = tshape + (layers,), bshape + (layers,)
-            top_pad = np.empty(shape=tshape).astype(source_window.dtype) * np.nan
-            bottom_pad = np.empty(shape=bshape).astype(source_window.dtype) * np.nan
+            top_pad = np.full(tshape, fill_value, source_window.dtype)
+            bottom_pad = np.full(bshape, fill_value, source_window.dtype)
 
             data = np.concatenate((top_pad, data, bottom_pad), axis=0)
             data = np.concatenate((left_pad, data, right_pad), axis=1)
@@ -328,6 +339,10 @@ class Canvas(object):
         # Reorient array to original orientation
         if res[1] > 0: data = data[::-1]
         if res[0] < 0: data = data[:, ::-1]
+
+        # Restore nan_value from masked array
+        if nan_value is not None:
+            data = data.filled()
 
         # Restore original dtype
         data = data.astype(dtype)
