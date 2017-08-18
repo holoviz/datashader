@@ -319,8 +319,8 @@ class Canvas(object):
             lshape, rshape = (self.plot_height, left), (self.plot_height, right)
             if layers > 1:
                 lshape, rshape = lshape + (layers,), rshape + (layers,)
-            left_pad = np.empty(shape=lshape).astype(source_window.dtype) * np.nan
-            right_pad = np.empty(shape=rshape).astype(source_window.dtype) * np.nan
+            left_pad = np.full(lshape, fill_value, source_window.dtype)
+            right_pad = np.full(rshape, fill_value, source_window.dtype)
 
             tpad = ymin - self.y_range[0]
             bpad = self.y_range[1] - ymax
@@ -330,8 +330,8 @@ class Canvas(object):
             tshape, bshape = (top, w), (bottom, w)
             if layers > 1:
                 tshape, bshape = tshape + (layers,), bshape + (layers,)
-            top_pad = np.empty(shape=tshape).astype(source_window.dtype) * np.nan
-            bottom_pad = np.empty(shape=bshape).astype(source_window.dtype) * np.nan
+            top_pad = np.full(tshape, fill_value, source_window.dtype)
+            bottom_pad = np.full(bshape, fill_value, source_window.dtype)
 
             data = np.concatenate((top_pad, data, bottom_pad), axis=0)
             data = np.concatenate((left_pad, data, right_pad), axis=1)
