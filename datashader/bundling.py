@@ -203,20 +203,9 @@ def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
     of an edge (including its optional weight) replaced with the respective
     coordinates.
 
-    All node points are normalized to the range (0, 1) using min-max
-    scaling.
-
     We also return the dimensions of each point in the final dataframe and
     the accumulator function for drawing to an image.
     """
-
-    def minmax_scale(series):
-        minimum, maximum = np.min(series), np.max(series)
-        return (series - minimum) / (maximum - minimum)
-
-    nodes = nodes.copy()
-    nodes['x'] = minmax_scale(nodes['x'])
-    nodes['y'] = minmax_scale(nodes['y'])
 
     df = pd.merge(nodes, edges, left_index=True, right_on=['source'])
     df = df.rename(columns={'x': 'src_x', 'y': 'src_y'})
@@ -330,6 +319,21 @@ class hammer_bundle(directly_connect_edges):
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
 
+        # Calculate min/max for coordinates
+        xmin, xmax = np.min(nodes['x']), np.max(nodes['x'])
+        ymin, ymax = np.min(nodes['y']), np.max(nodes['y'])
+
+        def minmax_normalize(X, lower, upper):
+            return (X - lower) / (upper - lower)
+
+        def minmax_denormalize(X, lower, upper):
+            return X * (upper - lower) + lower
+
+        # Normalize coordinates
+        nodes = nodes.copy()
+        nodes['x'] = minmax_normalize(nodes['x'], xmin, xmax)
+        nodes['y'] = minmax_normalize(nodes['y'], ymin, ymax)
+
         # Convert graph into list of edge segments
         edges, point_dims, accumulator = _convert_graph_to_edge_segments(nodes, edges)
 
@@ -376,4 +380,10 @@ class hammer_bundle(directly_connect_edges):
             new_segs.extend(batch)
 
         # Convert list of edge segments to Pandas dataframe
-        return _convert_edge_segments_to_dataframe(new_segs, point_dims)
+        df = _convert_edge_segments_to_dataframe(new_segs, point_dims)
+
+        # Denormalize coordinates
+        df['x'] = minmax_denormalize(df['x'], xmin, xmax)
+        df['y'] = minmax_denormalize(df['y'], ymin, ymax)
+
+        return df
