@@ -281,6 +281,16 @@ class directly_connect_edges(param.ParameterizedFunction):
         return _convert_edge_segments_to_dataframe(edges, point_dims)
 
 
+@nb.jit
+def minmax_normalize(X, lower, upper):
+    return (X - lower) / (upper - lower)
+
+
+@nb.jit
+def minmax_denormalize(X, lower, upper):
+    return X * (upper - lower) + lower
+
+
 class hammer_bundle(directly_connect_edges):
     """
     Iteratively group edges and return as paths suitable for datashading.
@@ -322,12 +332,6 @@ class hammer_bundle(directly_connect_edges):
         # Calculate min/max for coordinates
         xmin, xmax = np.min(nodes['x']), np.max(nodes['x'])
         ymin, ymax = np.min(nodes['y']), np.max(nodes['y'])
-
-        def minmax_normalize(X, lower, upper):
-            return (X - lower) / (upper - lower)
-
-        def minmax_denormalize(X, lower, upper):
-            return X * (upper - lower) + lower
 
         # Normalize coordinates
         nodes = nodes.copy()
