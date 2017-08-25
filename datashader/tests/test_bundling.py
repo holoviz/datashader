@@ -52,11 +52,11 @@ def test_directly_connect_with_weights(nodes, weighted_edges):
     # Expect four lines starting at center (0.5, 0.5) and terminating
     # at a different corner and NaN
     data = pd.DataFrame({'x':
-                            [0.5, 0.0, np.nan, 0.5, 1.0, np.nan,
-                             0.5, 0.0, np.nan, 0.5, 1.0, np.nan],
+                            [0.0, -100.0, np.nan, 0.0, 100.0, np.nan,
+                             0.0, -100.0, np.nan, 0.0, 100.0, np.nan],
                          'y':
-                            [0.5, 1.0, np.nan, 0.5, 1.0, np.nan,
-                             0.5, 0.0, np.nan, 0.5, 0.0, np.nan]})
+                            [0.0, 100.0, np.nan, 0.0, 100.0, np.nan,
+                             0.0, -100.0, np.nan, 0.0, -100.0, np.nan]})
     expected = pd.DataFrame(data, columns=['x', 'y'])
 
     given = directly_connect_edges(nodes, weighted_edges)
@@ -67,11 +67,11 @@ def test_directly_connect_without_weights(nodes, edges):
     # Expect four lines starting at center (0.5, 0.5) and terminating
     # at a different corner and NaN
     data = pd.DataFrame({'x':
-                            [0.5, 0.0, np.nan, 0.5, 1.0, np.nan,
-                             0.5, 0.0, np.nan, 0.5, 1.0, np.nan],
+                            [0.0, -100.0, np.nan, 0.0, 100.0, np.nan,
+                             0.0, -100.0, np.nan, 0.0, 100.0, np.nan],
                          'y':
-                            [0.5, 1.0, np.nan, 0.5, 1.0, np.nan,
-                             0.5, 0.0, np.nan, 0.5, 0.0, np.nan]})
+                            [0.0, 100.0, np.nan, 0.0, 100.0, np.nan,
+                             0.0, -100.0, np.nan, 0.0, -100.0, np.nan]})
     expected = pd.DataFrame(data, columns=['x', 'y'])
 
     given = directly_connect_edges(nodes, edges)
@@ -79,14 +79,14 @@ def test_directly_connect_without_weights(nodes, edges):
 
 
 def test_hammer_bundle_with_weights(nodes, weighted_edges):
-    # Expect four lines starting at center (0.5, 0.5) and terminating
+    # Expect four lines starting at center (0.0, 0.0) and terminating
     # with NaN
     data = pd.DataFrame({'x':
-                            [0.5, np.nan, 0.5, np.nan,
-                             0.5, np.nan, 0.5, np.nan],
+                            [0.0, np.nan, 0.0, np.nan,
+                             0.0, np.nan, 0.0, np.nan],
                          'y':
-                            [0.5, np.nan, 0.5, np.nan,
-                             0.5, np.nan, 0.5, np.nan],
+                            [0.0, np.nan, 0.0, np.nan,
+                             0.0, np.nan, 0.0, np.nan],
                          'weight':
                             [1.0, np.nan, 1.0, np.nan,
                              1.0, np.nan, 1.0, np.nan]})
@@ -94,7 +94,7 @@ def test_hammer_bundle_with_weights(nodes, weighted_edges):
 
     df = hammer_bundle(nodes, weighted_edges)
 
-    starts = df[(df.x == 0.5) & (df.y == 0.5)]
+    starts = df[(df.x == 0.0) & (df.y == 0.0)]
     ends = df[df.isnull().any(axis=1)]
     given = pd.concat([starts, ends])
     given.sort_index(inplace=True)
@@ -104,19 +104,19 @@ def test_hammer_bundle_with_weights(nodes, weighted_edges):
 
 
 def test_hammer_bundle_without_weights(nodes, edges):
-    # Expect four lines starting at center (0.5, 0.5) and terminating
+    # Expect four lines starting at center (0.0, 0.0) and terminating
     # with NaN
     data = pd.DataFrame({'x':
-                            [0.5, np.nan, 0.5, np.nan,
-                             0.5, np.nan, 0.5, np.nan],
+                            [0.0, np.nan, 0.0, np.nan,
+                             0.0, np.nan, 0.0, np.nan],
                          'y':
-                            [0.5, np.nan, 0.5, np.nan,
-                             0.5, np.nan, 0.5, np.nan]})
+                            [0.0, np.nan, 0.0, np.nan,
+                             0.0, np.nan, 0.0, np.nan]})
     expected = pd.DataFrame(data, columns=['x', 'y'])
 
     df = hammer_bundle(nodes, edges)
 
-    starts = df[(df.x == 0.5) & (df.y == 0.5)]
+    starts = df[(df.x == 0.0) & (df.y == 0.0)]
     ends = df[df.isnull().any(axis=1)]
     given = pd.concat([starts, ends])
     given.sort_index(inplace=True)
