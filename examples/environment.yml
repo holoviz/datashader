@@ -16,7 +16,7 @@ dependencies:
  - dill
  - distributed
  - geoviews
- - holoviews
+ - ioam::holoviews>=1.8.3
  - iris
  - jupyter
  - krb5
