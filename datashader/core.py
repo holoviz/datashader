@@ -280,7 +280,7 @@ class Canvas(object):
         ah, aw = array.shape if array.ndim == 2 else array.shape[1:]
         cmin, rmin = get_indices(xmin, ymin, source[xdim].values, source[ydim].values, res)
         cmax, rmax = get_indices(xmax, ymax, source[xdim].values, source[ydim].values, res)
-        rmin, rmax = ah-rmin, ah-rmax
+        rmin, rmax = ah-rmin-1, ah-rmax-1
         if rmin > rmax: rmin, rmax = rmax, rmin
         if cmin > cmax: cmin, cmax = cmax, cmin
 
