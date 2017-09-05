@@ -12,7 +12,7 @@ from PIL.Image import fromarray
 
 from .colors import rgb, Sets1to3
 from .composite import composite_op_lookup, over
-from .utils import ngjit, calc_res, orient_array
+from .utils import ngjit, orient_array
 
 
 __all__ = ['Image', 'stack', 'shade', 'set_background', 'spread', 'dynspread']
