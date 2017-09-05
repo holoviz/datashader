@@ -193,8 +193,10 @@ def _colorize(agg, color_key, how, min_alpha):
         raise ValueError("min_alpha ({}) must be between 0 and 255".format(min_alpha))
     colors = [rgb(color_key[c]) for c in cats]
     rs, gs, bs = map(np.array, zip(*colors))
-    res = calc_res(agg)
-    data = orient_array(agg, res)
+    # Reorient array (transposing the category dimension first)
+    agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
+    res = calc_res(agg_t)
+    data = orient_array(agg_t, res).transpose([1, 2, 0])
     total = data.sum(axis=2)
     # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
     with np.errstate(divide='ignore', invalid='ignore'):
