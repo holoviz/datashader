@@ -116,8 +116,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha):
     if agg.ndim != 2:
         raise ValueError("agg must be 2D")
     interpolater = _normalize_interpolate_how(how)
-    res = calc_res(agg)
-    data = orient_array(agg, res)
+    data = orient_array(agg)
     if np.issubdtype(data.dtype, np.bool_):
         mask = ~data
         interp = data
@@ -195,8 +194,7 @@ def _colorize(agg, color_key, how, min_alpha):
     rs, gs, bs = map(np.array, zip(*colors))
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
-    res = calc_res(agg_t)
-    data = orient_array(agg_t, res).transpose([1, 2, 0])
+    data = orient_array(agg_t).transpose([1, 2, 0])
     total = data.sum(axis=2)
     # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
     with np.errstate(divide='ignore', invalid='ignore'):
