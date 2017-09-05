@@ -157,7 +157,7 @@ def get_indices(x, y, xs, ys, res):
     return int(x_), int(y_)
 
 
-def orient_array(raster, res, layer):
+def orient_array(raster, res, layer=None):
     """
     Reorients the array to a canonical orientation depending on
     whether the x and y-resolution values are positive or negative.

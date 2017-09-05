@@ -12,7 +12,7 @@ from PIL.Image import fromarray
 
 from .colors import rgb, Sets1to3
 from .composite import composite_op_lookup, over
-from .utils import ngjit
+from .utils import ngjit, calc_res, orient_array
 
 
 __all__ = ['Image', 'stack', 'shade', 'set_background', 'spread', 'dynspread']
@@ -116,7 +116,8 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha):
     if agg.ndim != 2:
         raise ValueError("agg must be 2D")
     interpolater = _normalize_interpolate_how(how)
-    data = agg.data
+    res = calc_res(agg)
+    data = orient_array(agg, res)
     if np.issubdtype(data.dtype, np.bool_):
         mask = ~data
         interp = data
@@ -192,7 +193,8 @@ def _colorize(agg, color_key, how, min_alpha):
         raise ValueError("min_alpha ({}) must be between 0 and 255".format(min_alpha))
     colors = [rgb(color_key[c]) for c in cats]
     rs, gs, bs = map(np.array, zip(*colors))
-    data = agg.data
+    res = calc_res(agg)
+    data = orient_array(agg, res)
     total = data.sum(axis=2)
     # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
     with np.errstate(divide='ignore', invalid='ignore'):
