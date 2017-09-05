@@ -159,7 +159,7 @@ def get_indices(x, y, xs, ys, res):
     return int(x_), int(y_)
 
 
-def orient_array(raster, res, layer):
+def orient_array(raster, res=None, layer=None):
     """
     Reorients the array to a canonical orientation depending on
     whether the x and y-resolution values are positive or negative.
@@ -179,12 +179,14 @@ def orient_array(raster, res, layer):
     array : numpy.ndarray
         Reoriented 2d NumPy ndarray
     """
+    if res is None:
+        res = calc_res(raster)
     array = raster.data
+    if layer is not None: array = array[layer-1]
     if array.ndim == 2:
         if res[0] < 0: array = array[:, ::-1]
         if res[1] > 0: array = array[::-1]
     else:
-        if layer is not None: array = array[layer-1]
         if res[0] < 0: array = array[:, :, ::-1]
         if res[1] > 0: array = array[:, ::-1]
     return array
