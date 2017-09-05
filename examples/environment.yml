@@ -43,6 +43,7 @@ dependencies:
  - fastparquet
 #- fastcache # Only required for Python2, for the dashboard/
  - snappy
+ - cffi # required for python-snappy
  - python-snappy
  - jupyter_dashboards
  - pip:
