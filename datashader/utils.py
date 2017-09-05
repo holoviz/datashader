@@ -178,11 +178,11 @@ def orient_array(raster, res, layer=None):
         Reoriented 2d NumPy ndarray
     """
     array = raster.data
+    if layer is not None: array = array[layer-1]
     if array.ndim == 2:
         if res[0] < 0: array = array[:, ::-1]
         if res[1] > 0: array = array[::-1]
     else:
-        if layer is not None: array = array[layer-1]
         if res[0] < 0: array = array[:, :, ::-1]
         if res[1] > 0: array = array[:, ::-1]
     return array
