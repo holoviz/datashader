@@ -212,6 +212,7 @@ def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
 
     df = pd.merge(nodes, df, left_index=True, right_on=['target'])
     df = df.rename(columns={'x': 'dst_x', 'y': 'dst_y'})
+    df = df.sort_index()
 
     if ignore_weights or 'weight' not in edges:
         point_dims = 2
