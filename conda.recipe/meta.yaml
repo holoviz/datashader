@@ -1,6 +1,6 @@
 package:
   name: datashader
-  version: 0.6.0
+  version: 0.6.1dev1
 
 extra:
   channels:
