@@ -207,10 +207,10 @@ def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
     the accumulator function for drawing to an image.
     """
 
-    df = pd.merge(nodes, edges, left_index=True, right_on=['source'])
+    df = pd.merge(edges, nodes, left_on=['source'], right_index=True)
     df = df.rename(columns={'x': 'src_x', 'y': 'src_y'})
 
-    df = pd.merge(nodes, df, left_index=True, right_on=['target'])
+    df = pd.merge(df, nodes, left_on=['target'], right_index=True)
     df = df.rename(columns={'x': 'dst_x', 'y': 'dst_y'})
     df = df.sort_index()
 
