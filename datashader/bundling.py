@@ -183,6 +183,16 @@ def get_gradients(img):
     return (vert, horiz)
 
 
+@nb.jit
+def make_constant_segment(edge):
+    return np.array([[edge[0], edge[1]], [edge[2], edge[3]]])
+
+
+@nb.jit
+def make_weighted_segment(edge):
+    return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]])
+
+
 @ngjit
 def constant_accumulator(img, point, accuracy):
     img[int(point[0] * accuracy), int(point[1] * accuracy)] += 1
@@ -217,20 +227,19 @@ def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
     if ignore_weights or 'weight' not in edges:
         point_dims = 2
         filter_columns = ['src_x', 'src_y', 'dst_x', 'dst_y']
-        create_segments_from_edge = lambda edge: [[edge[0], edge[1]], [edge[2], edge[3]]]
+        create_segment_from_edge = make_constant_segment
         accumulator = constant_accumulator
     else:
         point_dims = 3
         filter_columns = ['src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
-        create_segments_from_edge = lambda edge: [[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]]
+        create_segment_from_edge = make_weighted_segment
         accumulator = weighted_accumulator
 
     df = df.filter(items=filter_columns)
 
     edge_segments = []
     for edge in df.get_values():
-        segments = create_segments_from_edge(edge)
-        edge_segments.append(np.array(segments))
+        edge_segments.append(create_segment_from_edge(edge))
     return edge_segments, point_dims, accumulator
 
 
