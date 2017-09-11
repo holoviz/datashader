@@ -23,7 +23,7 @@ def edges():
     # Four edges originating from the center node and connected to each
     # corner
     edges_df = pd.DataFrame({'id': np.arange(4),
-                             'source': np.zeros(4),
+                             'source': np.zeros(4, dtype=np.int),
                              'target': np.arange(1, 5)})
     edges_df.set_index('id')
     return edges_df
@@ -34,7 +34,7 @@ def weighted_edges():
     # Four weighted edges originating from the center node and connected
     # to each corner
     edges_df = pd.DataFrame({'id': np.arange(4),
-                             'source': np.zeros(4),
+                             'source': np.zeros(4, dtype=np.int),
                              'target': np.arange(1, 5),
                              'weight': np.ones(4)})
     edges_df.set_index('id')
@@ -51,13 +51,16 @@ def test_immutable_nodes(nodes, edges):
 def test_directly_connect_with_weights(nodes, weighted_edges):
     # Expect four lines starting at center (0.5, 0.5) and terminating
     # at a different corner and NaN
-    data = pd.DataFrame({'x':
+    data = pd.DataFrame({'edge_id':
+                            [1.0, 1.0, np.nan, 2.0, 2.0, np.nan,
+                             3.0, 3.0, np.nan, 4.0, 4.0, np.nan],
+                         'x':
                             [0.0, -100.0, np.nan, 0.0, 100.0, np.nan,
                              0.0, -100.0, np.nan, 0.0, 100.0, np.nan],
                          'y':
                             [0.0, 100.0, np.nan, 0.0, 100.0, np.nan,
                              0.0, -100.0, np.nan, 0.0, -100.0, np.nan]})
-    expected = pd.DataFrame(data, columns=['x', 'y'])
+    expected = pd.DataFrame(data, columns=['edge_id', 'x', 'y'])
 
     given = directly_connect_edges(nodes, weighted_edges)
     assert given.equals(expected)
@@ -66,13 +69,16 @@ def test_directly_connect_with_weights(nodes, weighted_edges):
 def test_directly_connect_without_weights(nodes, edges):
     # Expect four lines starting at center (0.5, 0.5) and terminating
     # at a different corner and NaN
-    data = pd.DataFrame({'x':
+    data = pd.DataFrame({'edge_id':
+                            [1.0, 1.0, np.nan, 2.0, 2.0, np.nan,
+                             3.0, 3.0, np.nan, 4.0, 4.0, np.nan],
+                         'x':
                             [0.0, -100.0, np.nan, 0.0, 100.0, np.nan,
                              0.0, -100.0, np.nan, 0.0, 100.0, np.nan],
                          'y':
                             [0.0, 100.0, np.nan, 0.0, 100.0, np.nan,
                              0.0, -100.0, np.nan, 0.0, -100.0, np.nan]})
-    expected = pd.DataFrame(data, columns=['x', 'y'])
+    expected = pd.DataFrame(data, columns=['edge_id', 'x', 'y'])
 
     given = directly_connect_edges(nodes, edges)
     assert given.equals(expected)
@@ -81,7 +87,10 @@ def test_directly_connect_without_weights(nodes, edges):
 def test_hammer_bundle_with_weights(nodes, weighted_edges):
     # Expect four lines starting at center (0.0, 0.0) and terminating
     # with NaN
-    data = pd.DataFrame({'x':
+    data = pd.DataFrame({'edge_id':
+                            [1.0, np.nan, 2.0, np.nan,
+                             3.0, np.nan, 4.0, np.nan],
+                         'x':
                             [0.0, np.nan, 0.0, np.nan,
                              0.0, np.nan, 0.0, np.nan],
                          'y':
@@ -90,7 +99,7 @@ def test_hammer_bundle_with_weights(nodes, weighted_edges):
                          'weight':
                             [1.0, np.nan, 1.0, np.nan,
                              1.0, np.nan, 1.0, np.nan]})
-    expected = pd.DataFrame(data, columns=['x', 'y', 'weight'])
+    expected = pd.DataFrame(data, columns=['edge_id', 'x', 'y', 'weight'])
 
     df = hammer_bundle(nodes, weighted_edges)
 
@@ -106,13 +115,16 @@ def test_hammer_bundle_with_weights(nodes, weighted_edges):
 def test_hammer_bundle_without_weights(nodes, edges):
     # Expect four lines starting at center (0.0, 0.0) and terminating
     # with NaN
-    data = pd.DataFrame({'x':
+    data = pd.DataFrame({'edge_id':
+                            [1.0, np.nan, 2.0, np.nan,
+                             3.0, np.nan, 4.0, np.nan],
+                         'x':
                             [0.0, np.nan, 0.0, np.nan,
                              0.0, np.nan, 0.0, np.nan],
                          'y':
                             [0.0, np.nan, 0.0, np.nan,
                              0.0, np.nan, 0.0, np.nan]})
-    expected = pd.DataFrame(data, columns=['x', 'y'])
+    expected = pd.DataFrame(data, columns=['edge_id', 'x', 'y'])
 
     df = hammer_bundle(nodes, edges)
 

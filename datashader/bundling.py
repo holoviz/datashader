@@ -119,8 +119,8 @@ def smooth_segment(segments, tension):
     seg_length = len(segments) - 2
     for i in range(1, seg_length):
         previous, current, next_point = segments[i - 1], segments[i], segments[i + 1]
-        current[0] = ((1 - tension) * current[0]) + (tension * (previous[0] + next_point[0]) / 2)
         current[1] = ((1 - tension) * current[1]) + (tension * (previous[1] + next_point[1]) / 2)
+        current[2] = ((1 - tension) * current[2]) + (tension * (previous[2] + next_point[2]) / 2)
 
 
 @nb.jit
@@ -132,12 +132,12 @@ def smooth(edge_segments, tension):
 @ngjit
 def advect_segments(segments, vert, horiz, accuracy):
     for i in range(1, len(segments) - 1):
-        x = int(segments[i][0] * accuracy)
-        y = int(segments[i][1] * accuracy)
-        segments[i][0] = segments[i][0] + horiz[x, y] / accuracy
-        segments[i][1] = segments[i][1] + vert[x, y] / accuracy
-        segments[i][0] = max(0, min(segments[i][0], 1))
+        x = int(segments[i][1] * accuracy)
+        y = int(segments[i][2] * accuracy)
+        segments[i][1] = segments[i][1] + horiz[x, y] / accuracy
+        segments[i][2] = segments[i][2] + vert[x, y] / accuracy
         segments[i][1] = max(0, min(segments[i][1], 1))
+        segments[i][2] = max(0, min(segments[i][2], 1))
 
 
 def advect_and_resample(vert, horiz, segments, iterations, accuracy, min_segment_length, max_segment_length, segment_class):
@@ -184,38 +184,8 @@ def get_gradients(img):
 
 
 class UnweightedSegment(object):
-    columns = ['x', 'y']
-    merged_columns = ['src_x', 'src_y', 'dst_x', 'dst_y']
-
-    @staticmethod
-    @nb.jit
-    def create_point():
-        return np.array([0.0] * 2)
-
-    @staticmethod
-    @nb.jit
-    def create_empty_points(n):
-        return np.empty((n, 2))
-
-    @staticmethod
-    @nb.jit
-    def create_segment(edge):
-        return np.array([[edge[0], edge[1]], [edge[2], edge[3]]])
-
-    @staticmethod
-    @nb.jit
-    def create_delimiter():
-        return np.array([[np.nan] * 2])
-
-    @staticmethod
-    @ngjit
-    def accumulate(img, point, accuracy):
-        img[int(point[0] * accuracy), int(point[1] * accuracy)] += 1
-
-
-class WeightedSegment(object):
-    columns = ['x', 'y', 'weight']
-    merged_columns = ['src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
+    columns = ['edge_id', 'x', 'y']
+    merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
     @nb.jit
@@ -230,7 +200,7 @@ class WeightedSegment(object):
     @staticmethod
     @nb.jit
     def create_segment(edge):
-        return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]])
+        return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]])
 
     @staticmethod
     @nb.jit
@@ -240,7 +210,37 @@ class WeightedSegment(object):
     @staticmethod
     @ngjit
     def accumulate(img, point, accuracy):
-        img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]
+        img[int(point[1] * accuracy), int(point[2] * accuracy)] += 1
+
+
+class WeightedSegment(object):
+    columns = ['edge_id', 'x', 'y', 'weight']
+    merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
+
+    @staticmethod
+    @nb.jit
+    def create_point():
+        return np.array([0.0] * 4)
+
+    @staticmethod
+    @nb.jit
+    def create_empty_points(n):
+        return np.empty((n, 4))
+
+    @staticmethod
+    @nb.jit
+    def create_segment(edge):
+        return np.array([[edge[0], edge[1], edge[2], edge[5]], [edge[0], edge[3], edge[4], edge[5]]])
+
+    @staticmethod
+    @nb.jit
+    def create_delimiter():
+        return np.array([[np.nan] * 4])
+
+    @staticmethod
+    @ngjit
+    def accumulate(img, point, accuracy):
+        img[int(point[1] * accuracy), int(point[2] * accuracy)] += point[3]
 
 
 def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
@@ -251,7 +251,8 @@ def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
     nodes (id, coordinates) and edges (id, source, target, weight) are
     joined by node id to create a single dataframe with each source/target
     of an edge (including its optional weight) replaced with the respective
-    coordinates.
+    coordinates. For both nodes and edges, each id column is assumed to be
+    the index.
 
     We also return the dimensions of each point in the final dataframe and
     the accumulator function for drawing to an image.
@@ -262,7 +263,10 @@ def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
 
     df = pd.merge(df, nodes, left_on=['target'], right_index=True)
     df = df.rename(columns={'x': 'dst_x', 'y': 'dst_y'})
+
     df = df.sort_index()
+    df = df.reset_index()
+    df = df.rename(columns={'id': 'edge_id'})
 
     if ignore_weights or 'weight' not in edges:
         segment_class = UnweightedSegment
