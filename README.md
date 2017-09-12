@@ -36,7 +36,7 @@ to work with much larger datasets than it would otherwise.
 
 The best way to get started with Datashader is install it together
 with our extensive set of examples, following the instructions in the
-[examples README](https://raw.githubusercontent.com/bokeh/datashader/master/examples/README.md).
+[examples README](/examples/README.md).
 
 If all you need is datashader itself, without any of the files used in
 the examples, you can install it from the `bokeh` channel using the using the
