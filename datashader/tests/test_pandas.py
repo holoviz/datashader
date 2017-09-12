@@ -146,6 +146,21 @@ def test_multiple_aggregates():
     assert_eq(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
 
 
+def test_auto_range_points():
+    df = pd.DataFrame({'time': [1, 2, 3],
+                       'x': [1.0, 1.1, 1.2],
+                       'y': [1.0, 1.1, 1.2]})
+    cvs = ds.Canvas(plot_width=15, plot_height=15)
+    agg = cvs.points(df, 'x', 'y', ds.count('time'))
+
+    sol = np.zeros((15, 15), int)
+    sol[0, 0] = 1
+    sol[7, 7] = 1
+    sol[14, 14] = 1
+
+    np.testing.assert_equal(agg.data, sol)
+
+
 def test_log_axis_points():
     # Upper bound for scale/index of x-axis
     start, end = map(np.log10, (1, 11))

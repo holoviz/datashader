@@ -40,7 +40,7 @@ class _PointLike(Glyph):
                     maxval = x
         if np.isnan(minval) or np.isnan(maxval):
             raise ValueError('All x coordinates are NaN.')
-        return minval, maxval
+        return minval, maxval + np.spacing(maxval)
 
     @staticmethod
     @ngjit
@@ -54,7 +54,7 @@ class _PointLike(Glyph):
                     maxval = y
         if np.isnan(minval) or np.isnan(maxval):
             raise ValueError('All y coordinates are NaN.')
-        return minval, maxval
+        return minval, maxval + np.spacing(maxval)
 
     @memoize
     def _compute_x_bounds_dask(self, df):
@@ -62,7 +62,8 @@ class _PointLike(Glyph):
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         xs = df[self.x].values
-        return np.nanmin(xs), np.nanmax(xs)
+        minval, maxval = np.nanmin(xs), np.nanmax(xs)
+        return minval, maxval + np.spacing(maxval)
 
     @memoize
     def _compute_y_bounds_dask(self, df):
@@ -70,7 +71,8 @@ class _PointLike(Glyph):
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         ys = df[self.y].values
-        return np.nanmin(ys), np.nanmax(ys)
+        minval, maxval = np.nanmin(ys), np.nanmax(ys)
+        return minval, maxval + np.spacing(maxval)
 
 
 class Point(_PointLike):
