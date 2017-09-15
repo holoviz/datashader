@@ -60,8 +60,6 @@ class Axis(object):
         Returns
         -------
         s, t : floats
-            Parameters represe
-
         """
         start, end = map(self.mapper, range)
         s = n/(end - start)
