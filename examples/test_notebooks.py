@@ -42,6 +42,7 @@ run_skip = [
     "examples/osm-1billion.ipynb",
     "examples/osm.ipynb",
     "examples/packet_capture_graph.ipynb",
+    "examples/plotting_pitfalls.ipynb",     # requires holoviews
     "examples/race_elevation.ipynb",
     "examples/solar.ipynb"
 ]
