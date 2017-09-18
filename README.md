@@ -1,7 +1,8 @@
 Datashader
 ----------
 
-[![Build Status](https://travis-ci.org/bokeh/datashader.svg?branch=master)](https://travis-ci.org/bokeh/datashader)
+[![Travis build Status](https://travis-ci.org/bokeh/datashader.svg?branch=master)](https://travis-ci.org/bokeh/datashader)
+[![Appveyor build status](https://ci.appveyor.com/api/projects/status/h3lwh6ju4hfcgkm8/branch/master?svg=true)](https://ci.appveyor.com/project/bokeh-integrations/datashader/branch/master)
 [![Documentation Status](https://readthedocs.org/projects/datashader/badge/?version=latest)](http://datashader.readthedocs.org/en/latest/?badge=latest)
 [![Task Status](https://badge.waffle.io/bokeh/datashader.png?label=ready&title=tasks)](https://waffle.io/bokeh/datashader)
 
