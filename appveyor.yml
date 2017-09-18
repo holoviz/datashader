@@ -13,6 +13,12 @@ environment:
       PYTHON: "C:\\Python36-x64"
       CONDA: "C:\\Miniconda36-x64"
 
+matrix:
+  allow_failures:
+    - PY: "3.4"
+      PYTHON: "C:\\Python34-x64"
+      CONDA: "C:\\Miniconda3-x64"
+
 install:
   # Update path
   -  "SET PATH=%CONDA%;%CONDA%\\Scripts;%PATH%"
