@@ -3,21 +3,12 @@ environment:
     - PY: "2.7"
       PYTHON: "C:\\Python27-x64"
       CONDA: "C:\\Miniconda-x64"
-    - PY: "3.4"
-      PYTHON: "C:\\Python34-x64"
-      CONDA: "C:\\Miniconda3-x64"
     - PY: "3.5"
       PYTHON: "C:\\Python35-x64"
       CONDA: "C:\\Miniconda35-x64"
     - PY: "3.6"
       PYTHON: "C:\\Python36-x64"
       CONDA: "C:\\Miniconda36-x64"
-
-matrix:
-  allow_failures:
-    - PY: "3.4"
-      PYTHON: "C:\\Python34-x64"
-      CONDA: "C:\\Miniconda3-x64"
 
 install:
   # Update path
@@ -30,15 +21,16 @@ install:
   # Install dependencies
   - "conda create -n test-environment python=%PY%"
   - "activate test-environment"
+  # TODO: does not match linux/osx (see https://github.com/bokeh/datashader/issues/404)
   - "conda install dask numba numpy pandas pillow pytest toolz xarray datashape colorcet scikit-image param"
   - "conda install rasterio -c conda-forge"
-
   # Optional dependencies, for testing only
   - "conda install matplotlib"
   # Dependencies for notebook checking only
   - "conda install jupyter"
 
   - "python setup.py develop --no-deps"
+  - "conda env export"
 
 build: off
 
