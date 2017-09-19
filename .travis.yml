@@ -1,9 +1,7 @@
-# Since Python doesn't work on osx travis images (see
-# https://github.com/travis-ci/travis-ci/issues/4729), and because
-# this project installs miniconda and uses conda rather than using
-# travis's python, we're deliberately not using travis's
-# language=python option.
-
+# We deliberately don't use travis's language=python option because
+# we install miniconda and use conda to get python. Additionally, 
+# Travis's auto-install of python doesn't work on osx images (see
+# https://github.com/travis-ci/travis-ci/issues/4729).
 language: generic
 
 os:
