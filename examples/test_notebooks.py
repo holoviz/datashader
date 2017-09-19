@@ -56,6 +56,7 @@ run_cell_timeout = 360
 
 notebooks = sorted([x.replace(os.path.sep,"/") for x in glob.glob(nbdir+"/*.ipynb")])
 
+checked = []
 errored = []
 run_skipped = []
 
@@ -77,6 +78,7 @@ if do_what=="run":
             cmd += " --allow-errors"
         print(cmd)
         r = os.system(cmd)
+        checked.append(nb)
         if r!=0:
             errored.append(nb)
 
@@ -85,20 +87,25 @@ elif sys.argv[1]=='lint':
         cmd = """sed -e 's/%/#%/' {f} > {f}~ && jupyter nbconvert {f}~ --to python --PythonExporter.file_extension=.py~ && flake8 --ignore=E,W {p}""".format(f=nb,p=nb[0:-5]+'py~')
         print(cmd)
         r = os.system(cmd)
+        checked.append(nb)
         if r!=0:
             errored.append(nb)
 else:
     raise
 
-
-print("%s error(s):"%len(errored))
+print("%s checked"%len(checked))
+if len(checked)>0: pprint.pprint(checked)
+print()
+print("%s error(s)"%len(errored))
 if len(errored)>0: pprint.pprint(errored)
+print()
 
 if do_what == 'run':
-    print("%s skipped:"%len(run_skipped))
+    print("%s skipped"%len(run_skipped))
     if len(run_skipped)>0: pprint.pprint(run_skipped)
+    print()
     if len(run_allow_error) > 0:
-        print("Note: the following notebooks ran but were not checked for errors:")
+        print("Note: the following notebooks were not checked for run errors:")
         pprint.pprint(run_allow_error)
 
 sys.exit(len(errored))
