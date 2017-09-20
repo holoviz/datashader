@@ -48,7 +48,8 @@ def test_immutable_nodes(nodes, edges):
     assert original.equals(nodes)
 
 
-def test_directly_connect_with_weights(nodes, weighted_edges):
+@pytest.mark.parametrize("include_edge_id", [True, False])
+def test_directly_connect_with_weights(nodes, weighted_edges, include_edge_id):
     # Expect four lines starting at center (0.5, 0.5) and terminating
     # at a different corner and NaN
     data = pd.DataFrame({'edge_id':
@@ -60,13 +61,15 @@ def test_directly_connect_with_weights(nodes, weighted_edges):
                          'y':
                             [0.0, 100.0, np.nan, 0.0, 100.0, np.nan,
                              0.0, -100.0, np.nan, 0.0, -100.0, np.nan]})
-    expected = pd.DataFrame(data, columns=['edge_id', 'x', 'y'])
+    columns = ['edge_id', 'x', 'y'] if include_edge_id else ['x', 'y']
+    expected = pd.DataFrame(data, columns=columns)
 
-    given = directly_connect_edges(nodes, weighted_edges)
+    given = directly_connect_edges(nodes, weighted_edges, include_edge_id=include_edge_id)
     assert given.equals(expected)
 
 
-def test_directly_connect_without_weights(nodes, edges):
+@pytest.mark.parametrize("include_edge_id", [True, False])
+def test_directly_connect_without_weights(nodes, edges, include_edge_id):
     # Expect four lines starting at center (0.5, 0.5) and terminating
     # at a different corner and NaN
     data = pd.DataFrame({'edge_id':
@@ -78,13 +81,15 @@ def test_directly_connect_without_weights(nodes, edges):
                          'y':
                             [0.0, 100.0, np.nan, 0.0, 100.0, np.nan,
                              0.0, -100.0, np.nan, 0.0, -100.0, np.nan]})
-    expected = pd.DataFrame(data, columns=['edge_id', 'x', 'y'])
+    columns = ['edge_id', 'x', 'y'] if include_edge_id else ['x', 'y']
+    expected = pd.DataFrame(data, columns=columns)
 
-    given = directly_connect_edges(nodes, edges)
+    given = directly_connect_edges(nodes, edges, include_edge_id=include_edge_id)
     assert given.equals(expected)
 
 
-def test_hammer_bundle_with_weights(nodes, weighted_edges):
+@pytest.mark.parametrize("include_edge_id", [True, False])
+def test_hammer_bundle_with_weights(nodes, weighted_edges, include_edge_id):
     # Expect four lines starting at center (0.0, 0.0) and terminating
     # with NaN
     data = pd.DataFrame({'edge_id':
@@ -99,9 +104,10 @@ def test_hammer_bundle_with_weights(nodes, weighted_edges):
                          'weight':
                             [1.0, np.nan, 1.0, np.nan,
                              1.0, np.nan, 1.0, np.nan]})
-    expected = pd.DataFrame(data, columns=['edge_id', 'x', 'y', 'weight'])
+    columns = ['edge_id', 'x', 'y', 'weight'] if include_edge_id else ['x', 'y', 'weight']
+    expected = pd.DataFrame(data, columns=columns)
 
-    df = hammer_bundle(nodes, weighted_edges)
+    df = hammer_bundle(nodes, weighted_edges, include_edge_id=include_edge_id)
 
     starts = df[(df.x == 0.0) & (df.y == 0.0)]
     ends = df[df.isnull().any(axis=1)]
@@ -112,7 +118,8 @@ def test_hammer_bundle_with_weights(nodes, weighted_edges):
     assert given.equals(expected)
 
 
-def test_hammer_bundle_without_weights(nodes, edges):
+@pytest.mark.parametrize("include_edge_id", [True, False])
+def test_hammer_bundle_without_weights(nodes, edges, include_edge_id):
     # Expect four lines starting at center (0.0, 0.0) and terminating
     # with NaN
     data = pd.DataFrame({'edge_id':
@@ -124,9 +131,10 @@ def test_hammer_bundle_without_weights(nodes, edges):
                          'y':
                             [0.0, np.nan, 0.0, np.nan,
                              0.0, np.nan, 0.0, np.nan]})
-    expected = pd.DataFrame(data, columns=['edge_id', 'x', 'y'])
+    columns = ['edge_id', 'x', 'y'] if include_edge_id else ['x', 'y']
+    expected = pd.DataFrame(data, columns=columns)
 
-    df = hammer_bundle(nodes, edges)
+    df = hammer_bundle(nodes, edges, include_edge_id=include_edge_id)
 
     starts = df[(df.x == 0.0) & (df.y == 0.0)]
     ends = df[df.isnull().any(axis=1)]

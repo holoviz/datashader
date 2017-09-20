@@ -184,18 +184,24 @@ def get_gradients(img):
 
 
 class UnweightedSegment(object):
+    ndims = 3
     columns = ['edge_id', 'x', 'y']
     merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
-    @staticmethod
+    @classmethod
     @nb.jit
-    def create_point():
-        return np.array([0.0] * 3)
+    def create_point(cls):
+        return np.array([0.0] * cls.ndims)
 
-    @staticmethod
+    @classmethod
     @nb.jit
-    def create_empty_points(n):
-        return np.empty((n, 3))
+    def create_empty_points(cls, n):
+        return np.empty((n, cls.ndims))
+
+    @classmethod
+    @nb.jit
+    def create_delimiter(cls):
+        return np.array([[np.nan] * cls.ndims])
 
     @staticmethod
     @nb.jit
@@ -203,29 +209,61 @@ class UnweightedSegment(object):
         return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]])
 
     @staticmethod
-    @nb.jit
-    def create_delimiter():
-        return np.array([[np.nan] * 3])
-
-    @staticmethod
     @ngjit
     def accumulate(img, point, accuracy):
         img[int(point[1] * accuracy), int(point[2] * accuracy)] += 1
 
 
+class EdgelessUnweightedSegment(object):
+    ndims = 2
+    columns = ['x', 'y']
+    merged_columns = ['src_x', 'src_y', 'dst_x', 'dst_y']
+
+    @classmethod
+    @nb.jit
+    def create_point(cls):
+        return np.array([0.0] * cls.ndims)
+
+    @classmethod
+    @nb.jit
+    def create_empty_points(cls, n):
+        return np.empty((n, cls.ndims))
+
+    @classmethod
+    @nb.jit
+    def create_delimiter(cls):
+        return np.array([[np.nan] * cls.ndims])
+
+    @staticmethod
+    @nb.jit
+    def create_segment(edge):
+        return np.array([[edge[0], edge[1]], [edge[2], edge[3]]])
+
+    @staticmethod
+    @ngjit
+    def accumulate(img, point, accuracy):
+        img[int(point[0] * accuracy), int(point[1] * accuracy)] += 1
+
+
 class WeightedSegment(object):
+    ndims = 4
     columns = ['edge_id', 'x', 'y', 'weight']
     merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
 
-    @staticmethod
+    @classmethod
     @nb.jit
-    def create_point():
-        return np.array([0.0] * 4)
+    def create_point(cls):
+        return np.array([0.0] * cls.ndims)
 
-    @staticmethod
+    @classmethod
     @nb.jit
-    def create_empty_points(n):
-        return np.empty((n, 4))
+    def create_empty_points(cls, n):
+        return np.empty((n, cls.ndims))
+
+    @classmethod
+    @nb.jit
+    def create_delimiter(cls):
+        return np.array([[np.nan] * cls.ndims])
 
     @staticmethod
     @nb.jit
@@ -233,17 +271,43 @@ class WeightedSegment(object):
         return np.array([[edge[0], edge[1], edge[2], edge[5]], [edge[0], edge[3], edge[4], edge[5]]])
 
     @staticmethod
-    @nb.jit
-    def create_delimiter():
-        return np.array([[np.nan] * 4])
-
-    @staticmethod
     @ngjit
     def accumulate(img, point, accuracy):
         img[int(point[1] * accuracy), int(point[2] * accuracy)] += point[3]
 
 
-def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
+class EdgelessWeightedSegment(object):
+    ndims = 3
+    columns = ['x', 'y', 'weight']
+    merged_columns = ['src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
+
+    @classmethod
+    @nb.jit
+    def create_point(cls):
+        return np.array([0.0] * cls.ndims)
+
+    @classmethod
+    @nb.jit
+    def create_empty_points(cls, n):
+        return np.empty((n, cls.ndims))
+
+    @classmethod
+    @nb.jit
+    def create_delimiter(cls):
+        return np.array([[np.nan] * cls.ndims])
+
+    @staticmethod
+    @nb.jit
+    def create_segment(edge):
+        return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]])
+
+    @staticmethod
+    @ngjit
+    def accumulate(img, point, accuracy):
+        img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]
+
+
+def _convert_graph_to_edge_segments(nodes, edges, include_edge_id, ignore_weights=False):
     """
     Merge graph dataframes into a list of edge segments.
 
@@ -266,12 +330,22 @@ def _convert_graph_to_edge_segments(nodes, edges, ignore_weights=False):
 
     df = df.sort_index()
     df = df.reset_index()
-    df = df.rename(columns={'id': 'edge_id'})
 
-    if ignore_weights or 'weight' not in edges:
-        segment_class = UnweightedSegment
+    if include_edge_id:
+        df = df.rename(columns={'id': 'edge_id'})
+
+    include_weight = not (ignore_weights or 'weight' not in edges)
+
+    if include_edge_id:
+        if include_weight:
+            segment_class = WeightedSegment
+        else:
+            segment_class = UnweightedSegment
     else:
-        segment_class = WeightedSegment
+        if include_weight:
+            segment_class = EdgelessWeightedSegment
+        else:
+            segment_class = EdgelessUnweightedSegment
 
     df = df.filter(items=segment_class.merged_columns)
 
@@ -310,7 +384,10 @@ class directly_connect_edges(param.ParameterizedFunction):
     curved or manhattan-style polylines.
     """
 
-    def __call__(self, nodes, edges):
+    include_edge_id = param.Boolean(default=False, doc="""
+        """)
+
+    def __call__(self, nodes, edges, **params):
         """
         Convert a graph data structure into a path structure for plotting
 
@@ -322,7 +399,8 @@ class directly_connect_edges(param.ParameterizedFunction):
         location, with paths represented as successive points separated by
         a point with NaN as the x or y value.
         """
-        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, ignore_weights=True)
+        p = param.ParamOverrides(self, params)
+        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p.include_edge_id, ignore_weights=True)
         return _convert_edge_segments_to_dataframe(edges, segment_class)
 
 
@@ -371,6 +449,9 @@ class hammer_bundle(directly_connect_edges):
     max_segment_length = param.Number(default=0.016,bounds=(0,None),precedence=-0.5,doc="""
         Maximum length (in data space?) for an edge segment""")
 
+    include_edge_id = param.Boolean(default=False, doc="""
+        """)
+
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
 
@@ -384,7 +465,7 @@ class hammer_bundle(directly_connect_edges):
         nodes['y'] = minmax_normalize(nodes['y'], ymin, ymax)
 
         # Convert graph into list of edge segments
-        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges)
+        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p.include_edge_id)
 
         # This is simply to let the work split out over multiple cores
         edge_batches = list(batches(edges, p.batch_size))
