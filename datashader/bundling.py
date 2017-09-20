@@ -385,7 +385,7 @@ class directly_connect_edges(param.ParameterizedFunction):
     """
 
     include_edge_id = param.Boolean(default=False, doc="""
-        """)
+        Include edge IDs in bundled dataframe""")
 
     def __call__(self, nodes, edges, **params):
         """
@@ -450,7 +450,7 @@ class hammer_bundle(directly_connect_edges):
         Maximum length (in data space?) for an edge segment""")
 
     include_edge_id = param.Boolean(default=False, doc="""
-        """)
+        Include edge IDs in bundled dataframe""")
 
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
