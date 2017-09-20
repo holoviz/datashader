@@ -183,11 +183,7 @@ def get_gradients(img):
     return (vert, horiz)
 
 
-class UnweightedSegment(object):
-    ndims = 3
-    columns = ['edge_id', 'x', 'y']
-    merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
-
+class BaseSegment(object):
     @classmethod
     @nb.jit
     def create_point(cls):
@@ -202,6 +198,12 @@ class UnweightedSegment(object):
     @nb.jit
     def create_delimiter(cls):
         return np.array([[np.nan] * cls.ndims])
+
+
+class UnweightedSegment(BaseSegment):
+    ndims = 3
+    columns = ['edge_id', 'x', 'y']
+    merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
     @nb.jit
@@ -214,25 +216,10 @@ class UnweightedSegment(object):
         img[int(point[1] * accuracy), int(point[2] * accuracy)] += 1
 
 
-class EdgelessUnweightedSegment(object):
+class EdgelessUnweightedSegment(BaseSegment):
     ndims = 2
     columns = ['x', 'y']
     merged_columns = ['src_x', 'src_y', 'dst_x', 'dst_y']
-
-    @classmethod
-    @nb.jit
-    def create_point(cls):
-        return np.array([0.0] * cls.ndims)
-
-    @classmethod
-    @nb.jit
-    def create_empty_points(cls, n):
-        return np.empty((n, cls.ndims))
-
-    @classmethod
-    @nb.jit
-    def create_delimiter(cls):
-        return np.array([[np.nan] * cls.ndims])
 
     @staticmethod
     @nb.jit
@@ -245,25 +232,10 @@ class EdgelessUnweightedSegment(object):
         img[int(point[0] * accuracy), int(point[1] * accuracy)] += 1
 
 
-class WeightedSegment(object):
+class WeightedSegment(BaseSegment):
     ndims = 4
     columns = ['edge_id', 'x', 'y', 'weight']
     merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
-
-    @classmethod
-    @nb.jit
-    def create_point(cls):
-        return np.array([0.0] * cls.ndims)
-
-    @classmethod
-    @nb.jit
-    def create_empty_points(cls, n):
-        return np.empty((n, cls.ndims))
-
-    @classmethod
-    @nb.jit
-    def create_delimiter(cls):
-        return np.array([[np.nan] * cls.ndims])
 
     @staticmethod
     @nb.jit
@@ -276,25 +248,10 @@ class WeightedSegment(object):
         img[int(point[1] * accuracy), int(point[2] * accuracy)] += point[3]
 
 
-class EdgelessWeightedSegment(object):
+class EdgelessWeightedSegment(BaseSegment):
     ndims = 3
     columns = ['x', 'y', 'weight']
     merged_columns = ['src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
-
-    @classmethod
-    @nb.jit
-    def create_point(cls):
-        return np.array([0.0] * cls.ndims)
-
-    @classmethod
-    @nb.jit
-    def create_empty_points(cls, n):
-        return np.empty((n, cls.ndims))
-
-    @classmethod
-    @nb.jit
-    def create_delimiter(cls):
-        return np.array([[np.nan] * cls.ndims])
 
     @staticmethod
     @nb.jit
