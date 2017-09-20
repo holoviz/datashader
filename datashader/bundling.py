@@ -291,7 +291,7 @@ def _convert_graph_to_edge_segments(nodes, edges, include_edge_id, ignore_weight
     if include_edge_id:
         df = df.rename(columns={'id': 'edge_id'})
 
-    include_weight = not (ignore_weights or 'weight' not in edges)
+    include_weight = not ignore_weights and 'weight' in edges
 
     if include_edge_id:
         if include_weight:
