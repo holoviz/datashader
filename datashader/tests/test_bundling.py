@@ -51,7 +51,7 @@ def test_immutable_nodes(nodes, edges):
 
 @pytest.mark.parametrize('bundle', [directly_connect_edges, hammer_bundle])
 @pytest.mark.parametrize('layout', [random_layout, circular_layout, forceatlas2_layout])
-def test_immutable_path_endpoints(layout, bundle):
+def test_same_path_endpoints(layout, bundle):
     # Expect path endpoints to match original edge source/target
     edges = pd.DataFrame({'id': [0], 'source': [0], 'target': [1]}).set_index('id')
     nodes = pd.DataFrame({'id': np.unique(edges.values)}).set_index('id')
