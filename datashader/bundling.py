@@ -68,7 +68,6 @@ def resample_segment(segments, new_segments, min_segment_length, max_segment_len
 
 @nb.jit
 def calculate_length(segments, min_segment_length, max_segment_length, segment_class):
-    next_point = segment_class.create_point()
     current_point = segments[0]
     index = 1
     total = 0
@@ -84,7 +83,7 @@ def calculate_length(segments, min_segment_length, max_segment_length, segment_c
         elif distance > max_segment_length:
             any_change = True
             # Linear subsample
-            points = int(ceil(distance / ((max_segment_length + min_segment_length) / 2)))
+            points = ceil(distance / ((max_segment_length + min_segment_length) / 2))
             total += points
             current_point = next_point
             index += 1
