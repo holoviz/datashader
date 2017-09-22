@@ -50,7 +50,7 @@ def resample_segment(segments, new_segments, min_segment_length, max_segment_len
             index += 2
         elif distance > max_segment_length:
             # If points are too far away from each other, linearly place new points
-            points = ceil(distance / ((max_segment_length + min_segment_length) / 2))
+            points = int(ceil(distance / ((max_segment_length + min_segment_length) / 2)))
             for i in range(points):
                 new_segments[pos] = current_point + (i * ((next_point - current_point) / points))
                 pos += 1
@@ -83,7 +83,7 @@ def calculate_length(segments, min_segment_length, max_segment_length, segment_c
         elif distance > max_segment_length:
             any_change = True
             # Linear subsample
-            points = ceil(distance / ((max_segment_length + min_segment_length) / 2))
+            points = int(ceil(distance / ((max_segment_length + min_segment_length) / 2)))
             total += points
             current_point = next_point
             index += 1
