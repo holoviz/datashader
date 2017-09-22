@@ -260,7 +260,8 @@ class Canvas(object):
 
         res = calc_res(source)
         ydim, xdim = source.dims[-2:]
-        left, bottom, right, top = calc_bbox(source[xdim].values, source[ydim].values, res)
+        xvals, yvals = source[xdim].values, source[ydim].values
+        left, bottom, right, top = calc_bbox(xvals, yvals, res)
         array = orient_array(source, res, layer)
         dtype = array.dtype
         if dtype.kind != 'f':
@@ -287,13 +288,8 @@ class Canvas(object):
 
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
-
-        ah, aw = array.shape if array.ndim == 2 else array.shape[1:]
-        cmin, rmin = get_indices(xmin, ymin, source[xdim].values, source[ydim].values, res)
-        cmax, rmax = get_indices(xmax, ymax, source[xdim].values, source[ydim].values, res)
-        rmin, rmax = ah-rmin-1, ah-rmax-1
-        if rmin > rmax: rmin, rmax = rmax, rmin
-        if cmin > cmax: cmin, cmax = cmax, cmin
+        cmin, cmax = get_indices(xmin, xmax, xvals, res[0])
+        rmin, rmax = get_indices(ymin, ymax, yvals, res[1])
 
         kwargs = dict(w=w, h=h, ds_method=downsample_methods[downsample_method],
                       us_method=upsample_methods[upsample_method], fill_value=fill_value)
@@ -351,7 +347,7 @@ class Canvas(object):
 
         # Compute DataArray metadata
         xs, ys = compute_coords(self.plot_width, self.plot_height, self.x_range, self.y_range, res)
-        coords = {xdim: xs, ydim: ys}
+        coords = {xdim: xs.astype(xvals.dtype), ydim: ys.astype(yvals.dtype)}
         dims = [ydim, xdim]
         attrs = dict(res=res[0])
         if source._file_obj is not None:
