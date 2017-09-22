@@ -42,7 +42,7 @@ def resample_segment(segments, new_segments, min_segment_length, max_segment_len
     while index < len(segments):
         next_point = segments[index]
         distance = distance_between(current_point, next_point)
-        if (distance < min_segment_length and 1 < index < (len(segments) - 1)):
+        if (distance < min_segment_length and 1 < index < (len(segments) - 2)):
             # Merge points, because they're too close to each other
             current_point = (current_point + next_point) / 2
             new_segments[pos] = current_point
@@ -50,7 +50,7 @@ def resample_segment(segments, new_segments, min_segment_length, max_segment_len
             index += 2
         elif distance > max_segment_length:
             # If points are too far away from each other, linearly place new points
-            points = ceil(distance / ((max_segment_length + min_segment_length) / 2))
+            points = int(ceil(distance / ((max_segment_length + min_segment_length) / 2)))
             for i in range(points):
                 new_segments[pos] = current_point + (i * ((next_point - current_point) / points))
                 pos += 1
@@ -68,7 +68,6 @@ def resample_segment(segments, new_segments, min_segment_length, max_segment_len
 
 @nb.jit
 def calculate_length(segments, min_segment_length, max_segment_length, segment_class):
-    next_point = segment_class.create_point()
     current_point = segments[0]
     index = 1
     total = 0
@@ -76,7 +75,7 @@ def calculate_length(segments, min_segment_length, max_segment_length, segment_c
     while index < len(segments):
         next_point = segments[index]
         distance = distance_between(current_point, next_point)
-        if (distance < min_segment_length and 1 < index < (len(segments) - 1)):
+        if (distance < min_segment_length and 1 < index < (len(segments) - 2)):
             any_change = True
             current_point = (current_point + next_point) / 2
             total += 1
