@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
+from dask.array import Array
 from xarray import DataArray
 from collections import OrderedDict
 
@@ -295,12 +296,16 @@ class Canvas(object):
                       us_method=upsample_methods[upsample_method], fill_value=fill_value)
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
+            if isinstance(source_window, Array):
+                source_window = source_window.compute()
             data = resample_2d(source_window, **kwargs)
             layers = 1
         else:
             source_window = array[:, rmin:rmax+1, cmin:cmax+1]
             arrays = []
             for arr in source_window:
+                if isinstance(arr, Array):
+                    arr = arr.compute()
                 arrays.append(resample_2d(arr, **kwargs))
             data = np.dstack(arrays)
             layers = len(arrays)
