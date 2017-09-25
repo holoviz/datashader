@@ -114,18 +114,18 @@ def resample_edges(edge_segments, min_segment_length, max_segment_length, segmen
 
 
 @nb.jit
-def smooth_segment(segments, tension):
+def smooth_segment(segments, tension, idx, idy):
     seg_length = len(segments) - 2
     for i in range(1, seg_length):
         previous, current, next_point = segments[i - 1], segments[i], segments[i + 1]
-        current[1] = ((1 - tension) * current[1]) + (tension * (previous[1] + next_point[1]) / 2)
-        current[2] = ((1 - tension) * current[2]) + (tension * (previous[2] + next_point[2]) / 2)
+        current[idx] = ((1 - tension) * current[idx]) + (tension * (previous[idx] + next_point[idx]) / 2)
+        current[idy] = ((1 - tension) * current[idy]) + (tension * (previous[idy] + next_point[idy]) / 2)
 
 
 @nb.jit
-def smooth(edge_segments, tension):
+def smooth(edge_segments, tension, idx, idy):
     for segments in edge_segments:
-        smooth_segment(segments, tension)
+        smooth_segment(segments, tension, idx, idy)
 
 
 @ngjit
@@ -462,7 +462,7 @@ class hammer_bundle(directly_connect_edges):
         # Smooth out the graph
         for i in range(10):
             for batch in edge_segments:
-                smooth(batch, p.tension)
+                smooth(batch, p.tension, segment_class.idx, segment_class.idy)
 
         # Flatten things
         new_segs = []
