@@ -80,15 +80,14 @@ def to_parquet(filename, prefix="maccdc2012"):
         nodes = dict([(node, i) for i, node in enumerate(sorted(nodes))])
 
         edges = []
-        for i, key in enumerate(traffic):
-            edge = [i, nodes[key[1]], nodes[key[2]], key[0], traffic[key]]
+        for key in traffic:
+            edge = [nodes[key[1]], nodes[key[2]], key[0], traffic[key]]
             edges.append(edge)
 
         nodes_df = pd.DataFrame(np.arange(len(nodes)), columns=['id'])
         nodes_df = nodes_df.set_index('id')
 
-        edges_df = pd.DataFrame(np.array(edges), columns=['id', 'source', 'target', 'protocol', 'weight'])
-        edges_df = edges_df.set_index('id')
+        edges_df = pd.DataFrame(np.array(edges), columns=['source', 'target', 'protocol', 'weight'])
         edges_df['source'] = pd.to_numeric(edges_df['source'])
         edges_df['target'] = pd.to_numeric(edges_df['target'])
         edges_df['weight'] = pd.to_numeric(edges_df['weight'])

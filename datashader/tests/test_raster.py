@@ -138,12 +138,12 @@ def test_raster_both_ascending_partial_range():
     ys = np.arange(5)
     arr = xs*ys[np.newaxis].T
     xarr = xr.DataArray(arr, coords={'X': xs, 'Y': ys}, dims=['Y', 'X'])
-    cvs = ds.Canvas(9, 4, x_range=(-.5, 8.5), y_range=(-.5, 3.5))
+    cvs = ds.Canvas(7, 3, x_range=(.5, 7.5), y_range=(.5, 3.5))
     agg = cvs.raster(xarr)
 
-    assert np.allclose(agg.data, arr[1:, :-1])
-    assert np.allclose(agg.X.values, xs[:-1])
-    assert np.allclose(agg.Y.values, ys[:-1])
+    assert np.allclose(agg.data, xarr.sel(X=slice(1, 7), Y=slice(1, 3)))
+    assert np.allclose(agg.X.values, xs[1:8])
+    assert np.allclose(agg.Y.values, ys[1:4])
 
 
 def test_raster_both_descending():
@@ -171,12 +171,12 @@ def test_raster_both_descending_partial_range():
     ys = np.arange(5)[::-1]
     arr = xs*ys[np.newaxis].T
     xarr = xr.DataArray(arr, coords={'X': xs, 'Y': ys}, dims=['Y', 'X'])
-    cvs = ds.Canvas(9, 4, x_range=(.5, 9.5), y_range=(.5, 4.5))
+    cvs = ds.Canvas(7, 3, x_range=(.5, 7.5), y_range=(.5, 3.5))
     agg = cvs.raster(xarr)
 
-    assert np.allclose(agg.data, arr[:-1, 1:])
-    assert np.allclose(agg.X.values, xs[:-1])
-    assert np.allclose(agg.Y.values, ys[:-1])
+    assert np.allclose(agg.data, xarr.sel(Y=slice(3,1), X=slice(7, 1)).data)
+    assert np.allclose(agg.X.values, xs[2:9])
+    assert np.allclose(agg.Y.values, ys[1:4])
 
 
 def test_raster_x_ascending_y_descending():
@@ -195,6 +195,22 @@ def test_raster_x_ascending_y_descending():
     assert np.allclose(agg.Y.values, ys)
 
 
+def test_raster_x_ascending_y_descending_partial_range():
+    """
+    Assert raster with ascending x- and descending y-coordinates is aggregated correctly.
+    """
+    xs = np.arange(10)
+    ys = np.arange(5)[::-1]
+    arr = xs*ys[np.newaxis].T
+    xarr = xr.DataArray(arr, coords={'X': xs, 'Y': ys}, dims=['Y', 'X'])
+    cvs = ds.Canvas(7, 2, x_range=(0.5, 7.5), y_range=(1.5, 3.5))
+    agg = cvs.raster(xarr)
+
+    assert np.allclose(agg.data, xarr.sel(X=slice(1, 7), Y=slice(3, 2)).data)
+    assert np.allclose(agg.X.values, xs[1:8])
+    assert np.allclose(agg.Y.values, ys[1:3])
+
+
 def test_raster_x_descending_y_ascending():
     """
     Assert raster with descending x- and ascending y-coordinates is aggregated correctly.
@@ -209,6 +225,22 @@ def test_raster_x_descending_y_ascending():
     assert np.allclose(agg.data, arr)
     assert np.allclose(agg.X.values, xs)
     assert np.allclose(agg.Y.values, ys)
+
+
+def test_raster_x_descending_y_ascending_partial_range():
+    """
+    Assert raster with descending x- and ascending y-coordinates is aggregated correctly.
+    """
+    xs = np.arange(10)[::-1]
+    ys = np.arange(5)
+    arr = xs*ys[np.newaxis].T
+    xarr = xr.DataArray(arr, coords={'X': xs, 'Y': ys}, dims=['Y', 'X'])
+    cvs = ds.Canvas(7, 2, x_range=(.5, 7.5), y_range=(1.5, 3.5))
+    agg = cvs.raster(xarr)
+
+    assert np.allclose(agg.data, xarr.sel(X=slice(7, 1), Y=slice(2, 3)).data)
+    assert np.allclose(agg.X.values, xs[2:9])
+    assert np.allclose(agg.Y.values, ys[2:4])
 
 
 def test_raster_integer_nan_value():
