@@ -129,19 +129,19 @@ def smooth(edge_segments, tension):
 
 
 @ngjit
-def advect_segments(segments, vert, horiz, accuracy):
+def advect_segments(segments, vert, horiz, accuracy, idx, idy):
     for i in range(1, len(segments) - 1):
-        x = int(segments[i][1] * accuracy)
-        y = int(segments[i][2] * accuracy)
-        segments[i][1] = segments[i][1] + horiz[x, y] / accuracy
-        segments[i][2] = segments[i][2] + vert[x, y] / accuracy
-        segments[i][1] = max(0, min(segments[i][1], 1))
-        segments[i][2] = max(0, min(segments[i][2], 1))
+        x = int(segments[i][idx] * accuracy)
+        y = int(segments[i][idy] * accuracy)
+        segments[i][idx] = segments[i][idx] + horiz[x, y] / accuracy
+        segments[i][idy] = segments[i][idy] + vert[x, y] / accuracy
+        segments[i][idx] = max(0, min(segments[i][idx], 1))
+        segments[i][idy] = max(0, min(segments[i][idy], 1))
 
 
 def advect_and_resample(vert, horiz, segments, iterations, accuracy, min_segment_length, max_segment_length, segment_class):
     for it in range(iterations):
-        advect_segments(segments, vert, horiz, accuracy)
+        advect_segments(segments, vert, horiz, accuracy, segment_class.idx, segment_class.idy)
         if it % 2 == 0:
             segments = resample_edge(segments, min_segment_length, max_segment_length, segment_class)
     return segments
@@ -203,6 +203,7 @@ class UnweightedSegment(BaseSegment):
     ndims = 3
     columns = ['edge_id', 'x', 'y']
     merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
+    idx, idy = 1, 2
 
     @staticmethod
     @nb.jit
@@ -219,6 +220,7 @@ class EdgelessUnweightedSegment(BaseSegment):
     ndims = 2
     columns = ['x', 'y']
     merged_columns = ['src_x', 'src_y', 'dst_x', 'dst_y']
+    idx, idy = 0, 1
 
     @staticmethod
     @nb.jit
@@ -235,6 +237,7 @@ class WeightedSegment(BaseSegment):
     ndims = 4
     columns = ['edge_id', 'x', 'y', 'weight']
     merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
+    idx, idy = 1, 2
 
     @staticmethod
     @nb.jit
@@ -251,6 +254,7 @@ class EdgelessWeightedSegment(BaseSegment):
     ndims = 3
     columns = ['x', 'y', 'weight']
     merged_columns = ['src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
+    idx, idy = 0, 1
 
     @staticmethod
     @nb.jit
