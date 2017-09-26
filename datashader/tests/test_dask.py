@@ -1,3 +1,5 @@
+import itertools
+
 from dask.local import get_sync
 from dask.context import set_options
 import dask.dataframe as dd
@@ -39,6 +41,13 @@ dims = ['y', 'x']
 
 def assert_eq(agg, b):
     assert agg.equals(b)
+
+
+def floats(n):
+    """Returns contiguous list of floats from initial point"""
+    while True:
+        yield n
+        n = n + np.spacing(n)
 
 
 def test_count():
@@ -149,6 +158,59 @@ def test_multiple_aggregates():
     assert_eq(agg.f64_mean, f(np.nanmean(df.f64.values.reshape((2, 2, 5)), axis=2).T))
     assert_eq(agg.i32_sum, f(df.i32.values.reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
     assert_eq(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
+
+
+def test_auto_range_points():
+    n = 10
+    fs = list(itertools.islice(floats(1.0), n))
+    df = pd.DataFrame({'time': np.arange(n),
+                       'x': fs,
+                       'y': fs})
+    ddf = dd.from_pandas(df, npartitions=3)
+
+    # Expect continuous left-right diagonal
+    cvs = ds.Canvas(plot_width=n, plot_height=n)
+    agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
+    sol = np.zeros((n, n), int)
+    np.fill_diagonal(sol, 1)
+    np.testing.assert_equal(agg.data, sol)
+
+    # Expect continuous left-right diagonal w/ hole in middle
+    cvs = ds.Canvas(plot_width=n+1, plot_height=n+1)
+    agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
+    sol = np.zeros((n+1, n+1), int)
+    np.fill_diagonal(sol, 1)
+    sol[5, 5] = 0
+    # For 32-bit or 64-bit floats, the hole will be in the middle due to
+    # rounding errors. The hole will be in the lower-right corner for
+    # 128-bit float or arbitrary precision float.
+    # sol[n, n] = 0
+    np.testing.assert_equal(agg.data, sol)
+
+    n = 4
+    fs = list(itertools.islice(floats(1.0), n))
+    df = pd.DataFrame({'time': np.arange(n),
+                       'x': fs,
+                       'y': fs})
+    ddf = dd.from_pandas(df, npartitions=3)
+
+    # Expect alternating left-right diagonal
+    cvs = ds.Canvas(plot_width=2*n, plot_height=2*n)
+    agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
+    sol = np.zeros((2*n, 2*n), int)
+    np.fill_diagonal(sol, 1)
+    sol[[range(1, 2*n, 2)]] = 0
+    np.testing.assert_equal(agg.data, sol)
+
+    # Expect alternating left-right diagonal with hole in lower-right
+    # corner
+    cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)
+    agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
+    sol = np.zeros((2*n+1, 2*n+1), int)
+    np.fill_diagonal(sol, 1)
+    sol[[range(1, 2*n+1, 2)]] = 0
+    sol[2*n, 2*n] = 0
+    np.testing.assert_equal(agg.data, sol)
 
 
 def test_log_axis_points():
