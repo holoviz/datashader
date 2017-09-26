@@ -34,8 +34,8 @@ def distance_between(a, b):
 
 
 @nb.jit
-def resample_segment(segments, new_segments, min_segment_length, max_segment_length, segment_class):
-    next_point = segment_class.create_point()
+def resample_segment(segments, new_segments, min_segment_length, max_segment_length, ndims):
+    next_point = np.array([0.0] * ndims)
     current_point = segments[0]
     pos = 0
     index = 1
@@ -96,20 +96,20 @@ def calculate_length(segments, min_segment_length, max_segment_length):
     return any_change, total
 
 
-def resample_edge(segments, min_segment_length, max_segment_length, segment_class):
+def resample_edge(segments, min_segment_length, max_segment_length, ndims):
     change, total_resamples = calculate_length(segments, min_segment_length, max_segment_length)
     if not change:
         return segments
-    resampled = segment_class.create_empty_points(total_resamples)
-    resample_segment(segments, resampled, min_segment_length, max_segment_length, segment_class)
+    resampled = np.empty((total_resamples, ndims))
+    resample_segment(segments, resampled, min_segment_length, max_segment_length, ndims)
     return resampled
 
 
 @delayed
-def resample_edges(edge_segments, min_segment_length, max_segment_length, segment_class):
+def resample_edges(edge_segments, min_segment_length, max_segment_length, ndims):
     replaced_edges = []
     for segments in edge_segments:
-        replaced_edges.append(resample_edge(segments, min_segment_length, max_segment_length, segment_class))
+        replaced_edges.append(resample_edge(segments, min_segment_length, max_segment_length, ndims))
     return replaced_edges
 
 
@@ -143,7 +143,7 @@ def advect_and_resample(vert, horiz, segments, iterations, accuracy, min_segment
     for it in range(iterations):
         advect_segments(segments, vert, horiz, accuracy, segment_class.idx, segment_class.idy)
         if it % 2 == 0:
-            segments = resample_edge(segments, min_segment_length, max_segment_length, segment_class)
+            segments = resample_edge(segments, min_segment_length, max_segment_length, segment_class.ndims)
     return segments
 
 
@@ -183,16 +183,6 @@ def get_gradients(img):
 
 
 class BaseSegment(object):
-    @classmethod
-    @nb.jit
-    def create_point(cls):
-        return np.array([0.0] * cls.ndims)
-
-    @classmethod
-    @nb.jit
-    def create_empty_points(cls, n):
-        return np.empty((n, cls.ndims))
-
     @classmethod
     @nb.jit
     def create_delimiter(cls):
@@ -432,7 +422,7 @@ class hammer_bundle(directly_connect_edges):
 
         # This gets the edges split into lots of small segments
         # Doing this inside a delayed function lowers the transmission overhead
-        edge_segments = [resample_edges(batch, p.min_segment_length, p.max_segment_length, segment_class) for batch in edge_batches]
+        edge_segments = [resample_edges(batch, p.min_segment_length, p.max_segment_length, segment_class.ndims) for batch in edge_batches]
 
         for i in range(p.iterations):
             # Each step, the size of the 'blur' shrinks
@@ -454,7 +444,7 @@ class hammer_bundle(directly_connect_edges):
                              for segment in edge_segments]
 
         # Do a final resample to a smaller size for nicer rendering
-        edge_segments = [resample_edges(segment, p.min_segment_length, p.max_segment_length, segment_class) for segment in edge_segments]
+        edge_segments = [resample_edges(segment, p.min_segment_length, p.max_segment_length, segment_class.ndims) for segment in edge_segments]
 
         # Finally things can be sent for computation
         edge_segments = compute(*edge_segments)
