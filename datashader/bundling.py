@@ -67,7 +67,7 @@ def resample_segment(segments, new_segments, min_segment_length, max_segment_len
 
 
 @nb.jit
-def calculate_length(segments, min_segment_length, max_segment_length, segment_class):
+def calculate_length(segments, min_segment_length, max_segment_length):
     current_point = segments[0]
     index = 1
     total = 0
@@ -97,7 +97,7 @@ def calculate_length(segments, min_segment_length, max_segment_length, segment_c
 
 
 def resample_edge(segments, min_segment_length, max_segment_length, segment_class):
-    change, total_resamples = calculate_length(segments, min_segment_length, max_segment_length, segment_class)
+    change, total_resamples = calculate_length(segments, min_segment_length, max_segment_length)
     if not change:
         return segments
     resampled = segment_class.create_empty_points(total_resamples)
