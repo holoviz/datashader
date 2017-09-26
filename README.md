@@ -1,7 +1,8 @@
 Datashader
 ----------
 
-[![Build Status](https://travis-ci.org/bokeh/datashader.svg?branch=master)](https://travis-ci.org/bokeh/datashader)
+[![Travis build Status](https://travis-ci.org/bokeh/datashader.svg?branch=master)](https://travis-ci.org/bokeh/datashader)
+[![Appveyor build status](https://ci.appveyor.com/api/projects/status/h3lwh6ju4hfcgkm8/branch/master?svg=true)](https://ci.appveyor.com/project/bokeh-integrations/datashader/branch/master)
 [![Documentation Status](https://readthedocs.org/projects/datashader/badge/?version=latest)](http://datashader.readthedocs.org/en/latest/?badge=latest)
 [![Task Status](https://badge.waffle.io/bokeh/datashader.png?label=ready&title=tasks)](https://waffle.io/bokeh/datashader)
 
@@ -36,7 +37,7 @@ to work with much larger datasets than it would otherwise.
 
 The best way to get started with Datashader is install it together
 with our extensive set of examples, following the instructions in the
-[examples README](https://raw.githubusercontent.com/bokeh/datashader/master/examples/README.md).
+[examples README](/examples/README.md).
 
 If all you need is datashader itself, without any of the files used in
 the examples, you can install it from the `bokeh` channel using the using the

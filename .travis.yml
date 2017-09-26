@@ -1,40 +1,52 @@
-language: python
-sudo: false
-python:
-    - "2.7"
-    - "3.4"
-    - "3.5"
-    - "3.6"
+# We deliberately don't use travis's language=python option because
+# we install miniconda and use conda to get python. Additionally, 
+# Travis's auto-install of python doesn't work on osx images (see
+# https://github.com/travis-ci/travis-ci/issues/4729).
+language: generic
 
-matrix:
-  fast_finish: True
-  # Allow py3.4 to fail; conda-forge no longer supports it
-  allow_failures:
-    - python: "3.4"
+os:
+  - linux
+  - osx
+
+# get a more recent version of osx than the default image
+osx_image: xcode8.3
+
+sudo: false
+
+env:
+  - PYTHON_VERSION="2.7"
+  - PYTHON_VERSION="3.5"
+  - PYTHON_VERSION="3.6"
 
 install:
   # Install conda
-  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh;
+    else
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi  
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
   - conda config --set always_yes yes --set changeps1 no
   - conda update conda
 
   # Install dependencies
-  - conda create -n test-environment python=$TRAVIS_PYTHON_VERSION
+  - conda create -n test-environment python=$PYTHON_VERSION
   - source activate test-environment
   - conda install dask numba numpy pandas pillow pytest toolz xarray datashape colorcet rasterio scikit-image param
   - conda install -c gbrener -c conda-forge xarray # remove this line when xarray >= 0.9.7
-
   # Optional dependencies, for testing only
   - conda install matplotlib
   # Dependencies for lint checking only
   - conda install jupyter flake8
 
   - python setup.py develop --no-deps
+  - conda env export
+
 
 script:
-    - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then py.test datashader --doctest-modules --doctest-ignore-import-errors --verbose; else py.test datashader --verbose; fi
+    # TODO: why different tests for python 2 vs 3?
+    - if [[ $PYTHON_VERSION == '2.7' ]]; then py.test datashader --doctest-modules --doctest-ignore-import-errors --verbose; else py.test datashader --verbose; fi
     - flake8 --ignore E,W datashader examples
     # lint checking of example notebooks (ugly)
     - for NB in examples/*.ipynb; do sed -e 's/"[ ]*%/"#%/' "$NB" > "${NB}~"; done && jupyter nbconvert examples/*.ipynb~ --to script --output-dir examples/lint && flake8 --ignore=E,W examples/lint/*.py
