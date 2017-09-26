@@ -418,7 +418,7 @@ def create_ramp_legend(agg, cmap, how='linear', width=600):
     return legend_fig
 
 
-def create_categorical_legend(colormap, aliases=None):
+def create_categorical_legend(colormap, aliases=None, font_size=10):
     '''
     Creates a bokeh plot object with circle legend
     swatches and text corresponding to the ``colormap`` key values
@@ -431,11 +431,16 @@ def create_categorical_legend(colormap, aliases=None):
 
     aliases : dict
         Dictionary of category value to aliases name
+
+    font_size: int
+        Font size to use in the legend text
     '''
+    y_max = font_size * 2 * len(colormap)
+
     plot_options = {}
     plot_options['x_range'] = Range1d(start=0, end=200)
-    plot_options['y_range'] = Range1d(start=0, end=100)
-    plot_options['plot_height'] = 120
+    plot_options['y_range'] = Range1d(start=0, end=y_max)
+    plot_options['plot_height'] = y_max + 2 * font_size
     plot_options['plot_width'] = 190
     plot_options['min_border_bottom'] = 0
     plot_options['min_border_left'] = 0
@@ -447,18 +452,18 @@ def create_categorical_legend(colormap, aliases=None):
     legend = Plot(**plot_options)
 
     for i, (cat, color) in enumerate(colormap.items()):
-        text_y = 95 - i * 20
+        text_y = y_max - font_size/2 - i * font_size * 2
         text_val = aliases[cat] if aliases else cat
         legend.add_glyph(Text(x=40,
-                              y=text_y-12,
+                              y=text_y-font_size*1.2,
                               text=[text_val],
-                              text_font_size='10pt',
+                              text_font_size='{}pt'.format(font_size),
                               text_color='#666666'))
 
         legend.add_glyph(Circle(x=15,
-                                y=text_y-5,
+                                y=text_y-font_size/2,
                                 fill_color=color,
-                                size=10,
+                                size=font_size,
                                 line_color=None,
                                 fill_alpha=0.8))
 
