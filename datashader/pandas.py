@@ -4,6 +4,7 @@ import pandas as pd
 
 from .core import bypixel
 from .compiler import compile_components
+from .utils import exclusive_range
 
 __all__ = ()
 
@@ -17,6 +18,10 @@ def pandas_pipeline(df, schema, canvas, glyph, summary):
 
     x_range = canvas.x_range or glyph._compute_x_bounds(df[glyph.x].values)
     y_range = canvas.y_range or glyph._compute_y_bounds(df[glyph.y].values)
+
+    x_range = exclusive_range(x_range)
+    y_range = exclusive_range(y_range)
+
     width = canvas.plot_width
     height = canvas.plot_height
 
