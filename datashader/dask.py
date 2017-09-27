@@ -9,7 +9,7 @@ from .core import bypixel
 from .compatibility import apply
 from .compiler import compile_components
 from .glyphs import Glyph, Line
-from .utils import Dispatcher, exclusive_range
+from .utils import Dispatcher
 
 __all__ = ()
 
@@ -28,8 +28,8 @@ def shape_bounds_st_and_axis(df, canvas, glyph):
     x_range = canvas.x_range or glyph._compute_x_bounds_dask(df)
     y_range = canvas.y_range or glyph._compute_y_bounds_dask(df)
     x_min, x_max, y_min, y_max = bounds = compute(*(x_range + y_range))
-    x_range = exclusive_range((x_min, x_max))
-    y_range = exclusive_range((y_min, y_max))
+    x_range = (x_min, x_max)
+    y_range = (y_min, y_max)
 
     width = canvas.plot_width
     height = canvas.plot_height

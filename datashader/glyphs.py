@@ -97,7 +97,7 @@ class Point(_PointLike):
             for i in range(xs.shape[0]):
                 x = xs[i]
                 y = ys[i]
-                if (xmin <= x < xmax) and (ymin <= y < ymax):
+                if (xmin <= x <= xmax) and (ymin <= y <= ymax):
                     append(i,
                            int(x_mapper(x) * sx + tx),
                            int(y_mapper(y) * sy + ty),
@@ -132,7 +132,7 @@ class Line(_PointLike):
             # Scale/transform float bounds to integer space and adjust for
             # exclusive upper bounds
             xmin, xmax, ymin, ymax = map_onto_pixel(vt, *bounds)
-            mapped_bounds = (xmin, xmax - 1, ymin, ymax - 1)
+            mapped_bounds = (xmin, xmax, ymin, ymax)
 
             xs = df[x_name].values
             ys = df[y_name].values

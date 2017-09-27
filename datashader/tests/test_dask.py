@@ -27,15 +27,17 @@ df.f64[2] = np.nan
 
 ddf = dd.from_pandas(df, npartitions=3)
 
-c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 2), y_range=(0, 2))
-c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 11),
-                   y_range=(0, 2), x_axis_type='log')
-c_logy = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 2),
-                   y_range=(1, 11), y_axis_type='log')
-c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 11),
-                    y_range=(1, 11), x_axis_type='log', y_axis_type='log')
+c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
+c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
+                   y_range=(0, 1), x_axis_type='log')
+c_logy = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1),
+                   y_range=(1, 10), y_axis_type='log')
+c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
+                    y_range=(1, 10), x_axis_type='log', y_axis_type='log')
 
-coords = [np.arange(2, dtype='f8')+0.5, np.arange(2, dtype='f8')+0.5]
+axis = ds.core.LinearAxis()
+lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
+coords = [lincoords, lincoords]
 dims = ['y', 'x']
 
 
@@ -65,12 +67,12 @@ def test_count():
 def test_any():
     out = xr.DataArray(np.array([[True, True], [True, True]]),
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.any('i64')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.any('f64')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.any()), out)
+    assert_eq(c.points(ddf, 'x', 'y', ds.any('i64')), out)
+    assert_eq(c.points(ddf, 'x', 'y', ds.any('f64')), out)
+    assert_eq(c.points(ddf, 'x', 'y', ds.any()), out)
     out = xr.DataArray(np.array([[True, True], [True, False]]),
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.any('empty_bin')), out)
+    assert_eq(c.points(ddf, 'x', 'y', ds.any('empty_bin')), out)
 
 
 def test_sum():
@@ -161,6 +163,9 @@ def test_multiple_aggregates():
 
 
 def test_auto_range_points():
+    # Since the following tests use contiguous values of 32-bit or
+    # 64-bit floats, we need to adjust the theoretical expected results
+    # if we were using a 128-bit float or arbitrary precision float.
     n = 10
     fs = list(itertools.islice(floats(1.0), n))
     df = pd.DataFrame({'time': np.arange(n),
@@ -168,23 +173,17 @@ def test_auto_range_points():
                        'y': fs})
     ddf = dd.from_pandas(df, npartitions=3)
 
-    # Expect continuous left-right diagonal
     cvs = ds.Canvas(plot_width=n, plot_height=n)
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
     sol = np.zeros((n, n), int)
     np.fill_diagonal(sol, 1)
     np.testing.assert_equal(agg.data, sol)
 
-    # Expect continuous left-right diagonal w/ hole in middle
     cvs = ds.Canvas(plot_width=n+1, plot_height=n+1)
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
     sol = np.zeros((n+1, n+1), int)
     np.fill_diagonal(sol, 1)
-    sol[5, 5] = 0
-    # For 32-bit or 64-bit floats, the hole will be in the middle due to
-    # rounding errors. The hole will be in the lower-right corner for
-    # 128-bit float or arbitrary precision float.
-    # sol[n, n] = 0
+    sol[5, 5] = 0  # adjustment
     np.testing.assert_equal(agg.data, sol)
 
     n = 4
@@ -194,37 +193,35 @@ def test_auto_range_points():
                        'y': fs})
     ddf = dd.from_pandas(df, npartitions=3)
 
-    # Expect alternating left-right diagonal
     cvs = ds.Canvas(plot_width=2*n, plot_height=2*n)
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
     sol = np.zeros((2*n, 2*n), int)
     np.fill_diagonal(sol, 1)
     sol[[range(1, 2*n, 2)]] = 0
+    sol[6, 6] = 0  # adjustment
     np.testing.assert_equal(agg.data, sol)
 
-    # Expect alternating left-right diagonal with hole in lower-right
-    # corner
     cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
     sol = np.zeros((2*n+1, 2*n+1), int)
     np.fill_diagonal(sol, 1)
     sol[[range(1, 2*n+1, 2)]] = 0
-    sol[2*n, 2*n] = 0
+    sol[4, 4] = 0  # adjustment
     np.testing.assert_equal(agg.data, sol)
 
 
 def test_log_axis_points():
-    # Upper bound for scale/index of x-axis
-    start, end = map(np.log10, (1, 11))
-    s = 2/(end - start)
-    t = -start * s
-    px = np.arange(2)+0.5
-    logcoords = 10**((px-t)/s)
+    axis = ds.core.LogAxis()
+    logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
+
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
+
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.array([0.5, 1.5]), logcoords],
+    out = xr.DataArray(sol, coords=[lincoords, logcoords],
                        dims=['y', 'log_x'])
     assert_eq(c_logx.points(ddf, 'log_x', 'y', ds.count('i32')), out)
-    out = xr.DataArray(sol, coords=[logcoords, np.array([0.5, 1.5])],
+    out = xr.DataArray(sol, coords=[logcoords, lincoords],
                        dims=['log_y', 'x'])
     assert_eq(c_logy.points(ddf, 'x', 'log_y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, logcoords],
@@ -233,11 +230,14 @@ def test_log_axis_points():
 
 
 def test_line():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
+
     df = pd.DataFrame({'x': [4, 0, -4, -3, -2, -1.9, 0, 10, 10, 0, 4],
                        'y': [0, -4, 0, 1, 2, 2.1, 4, 20, 30, 4, 0]})
     ddf = dd.from_pandas(df, npartitions=3)
     cvs = ds.Canvas(plot_width=7, plot_height=7,
-                    x_range=(-3, 4), y_range=(-3, 4))
+                    x_range=(-3, 3), y_range=(-3, 3))
     agg = cvs.line(ddf, 'x', 'y', ds.count())
     sol = np.array([[0, 0, 1, 0, 1, 0, 0],
                     [0, 1, 0, 0, 0, 1, 0],
@@ -246,23 +246,23 @@ def test_line():
                     [1, 0, 0, 0, 0, 0, 1],
                     [0, 2, 0, 0, 0, 1, 0],
                     [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.arange(-3., 4.)+0.5, np.arange(-3., 4.)+0.5],
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq(agg, out)
 
 
 def test_log_axis_line():
-    # Upper bound for scale/index of x-axis
-    start, end = map(np.log10, (1, 11))
-    s = 2/(end - start)
-    t = -start * s
-    px = np.arange(2)+0.5
-    logcoords = 10**((px-t)/s)
+    axis = ds.core.LogAxis()
+    logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
+
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
+
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.array([0.5, 1.5]), logcoords],
+    out = xr.DataArray(sol, coords=[lincoords, logcoords],
                        dims=['y', 'log_x'])
     assert_eq(c_logx.line(ddf, 'log_x', 'y', ds.count('i32')), out)
-    out = xr.DataArray(sol, coords=[logcoords, np.array([0.5, 1.5])],
+    out = xr.DataArray(sol, coords=[logcoords, lincoords],
                        dims=['log_y', 'x'])
     assert_eq(c_logy.line(ddf, 'x', 'log_y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, logcoords],

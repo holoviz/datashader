@@ -352,9 +352,3 @@ def dshape_from_dask(df):
 categoricals_in_dtypes = np.vectorize(lambda dtype: dtype.name == 'category', otypes='?')
 def categorical_in_dtypes(dtype_arr):
     return categoricals_in_dtypes(dtype_arr).any()
-
-
-def exclusive_range(bounds):
-    """Expand bounds to include upper bound value."""
-    lower, upper = bounds
-    return (lower, upper + np.spacing(upper))
