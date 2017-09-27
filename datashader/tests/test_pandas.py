@@ -260,3 +260,21 @@ def test_log_axis_line():
     out = xr.DataArray(sol, coords=[logcoords, logcoords],
                        dims=['log_y', 'log_x'])
     assert_eq(c_logxy.line(df, 'log_x', 'log_y', ds.count('i32')), out)
+
+
+def test_auto_range_line():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((-10., 10.), 5), 5)
+
+    df = pd.DataFrame({'x': [-10,  0, 10,   0, -10],
+                       'y': [  0, 10,  0, -10,   0]})
+    cvs = ds.Canvas(plot_width=5, plot_height=5)
+    agg = cvs.line(df, 'x', 'y', ds.count())
+    sol = np.array([[0, 0, 1, 0, 0],
+                    [0, 1, 0, 1, 0],
+                    [2, 0, 0, 0, 1],
+                    [0, 1, 0, 1, 0],
+                    [0, 0, 1, 0, 0]], dtype='i4')
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
