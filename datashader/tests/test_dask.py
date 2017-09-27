@@ -210,6 +210,18 @@ def test_auto_range_points():
     np.testing.assert_equal(agg.data, sol)
 
 
+def test_uniform_points():
+    n = 101
+    df = pd.DataFrame({'time': np.ones(2*n, dtype='i4'),
+                       'x': np.concatenate((np.arange(n, dtype='f8'),
+                                            np.arange(n, dtype='f8'))),
+                       'y': np.concatenate(([0.] * n, [1.] * n))})
+
+    cvs = ds.Canvas(plot_width=10, plot_height=2, y_range=(0, 1))
+    agg = cvs.points(df, 'x', 'y', ds.count('time'))
+    sol = np.array([[10] * 9 + [11], [10] * 9 + [11]], dtype='i4')
+    np.testing.assert_equal(agg.data, sol)
+
 def test_log_axis_points():
     axis = ds.core.LogAxis()
     logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
