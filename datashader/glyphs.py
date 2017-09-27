@@ -62,8 +62,7 @@ class _PointLike(Glyph):
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         xs = df[self.x].values
-        minval, maxval = np.nanmin(xs), np.nanmax(xs)
-        return minval, maxval
+        return np.nanmin(xs), np.nanmax(xs)
 
     @memoize
     def _compute_y_bounds_dask(self, df):
@@ -71,8 +70,7 @@ class _PointLike(Glyph):
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         ys = df[self.y].values
-        minval, maxval = np.nanmin(ys), np.nanmax(ys)
-        return minval, maxval
+        return np.nanmin(ys), np.nanmax(ys)
 
 
 class Point(_PointLike):
