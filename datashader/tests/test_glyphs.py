@@ -37,8 +37,6 @@ extend_line = _build_extend_line(draw_line, map_onto_pixel)
 
 bounds = (-3, 1, -3, 1)
 vt = (1., 3., 1., 3.)
-xmin, xmax, ymin, ymax = map_onto_pixel(vt, *bounds)
-mbounds = (xmin, xmax - 1, ymin, ymax - 1)
 
 
 def test_draw_line():
@@ -133,23 +131,23 @@ def test_extend_lines():
                     [0, 1, 0, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = new_agg()
-    extend_line(vt, bounds, mbounds, xs, ys, False, agg)
+    extend_line(vt, bounds, xs, ys, False, agg)
     np.testing.assert_equal(agg, out)
     # plot_start = True
     out[2, 3] += 1
     agg = new_agg()
-    extend_line(vt, bounds, mbounds, xs, ys, True, agg)
+    extend_line(vt, bounds, xs, ys, True, agg)
     np.testing.assert_equal(agg, out)
 
     xs = np.array([2, 1, 0, -1, -4, -1, -100, -1, 2])
     ys = np.array([-1, -2, -3, -4, -1, 2, 100, 2, -1])
     out = np.array([[0, 1, 0, 1, 0],
-                    [1, 0, 0, 0, 0],
+                    [1, 0, 0, 1, 0],
                     [0, 0, 0, 0, 0],
-                    [1, 0, 0, 0, 0],
+                    [1, 1, 0, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = new_agg()
-    extend_line(vt, bounds, mbounds, xs, ys, True, agg)
+    extend_line(vt, bounds, xs, ys, True, agg)
     np.testing.assert_equal(agg, out)
 
 
@@ -157,7 +155,7 @@ def test_extend_lines_all_out_of_bounds():
     xs = np.array([-100, -200, -100])
     ys = np.array([0, 0, 1])
     agg = new_agg()
-    extend_line(vt, bounds, mbounds, xs, ys, True, agg)
+    extend_line(vt, bounds, xs, ys, True, agg)
     assert agg.sum() == 0
 
 
@@ -165,6 +163,6 @@ def test_extend_lines_nan():
     xs = np.array([-3, -2, np.nan, 0, 1])
     ys = np.array([-3, -2, np.nan, 0, 1])
     agg = new_agg()
-    extend_line(vt, bounds, mbounds, xs, ys, True, agg)
-    out = np.diag([1, 1, 0, 1, 0])
+    extend_line(vt, bounds, xs, ys, True, agg)
+    out = np.diag([1, 1, 0, 2, 0])
     np.testing.assert_equal(agg, out)
