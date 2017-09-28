@@ -289,7 +289,7 @@ def _build_extend_line(draw_line, map_onto_pixel):
                 if outcode_out == outcode0:
                     x0, y0 = x, y
                     outcode0 = _compute_outcode(x0, y0, xmin, xmax, ymin, ymax)
-                    # If x0i is clipped, we need to plot the new start
+                    # If x0 is clipped, we need to plot the new start
                     plot_start = True
                 else:
                     x1, y1 = x, y
