@@ -7,7 +7,6 @@ import xarray as xr
 import datashader as ds
 
 
-
 df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
                    'log_x': np.array(([1.] * 10 + [10] * 10)),
@@ -158,14 +157,11 @@ def test_multiple_aggregates():
 
 
 def test_auto_range_points():
-    # Since the following tests use contiguous values of 32-bit or
-    # 64-bit floats, we need to adjust the theoretical expected results
-    # if we were using a 128-bit float or arbitrary precision float.
     n = 10
-    fs = list(itertools.islice(floats(1.0), n))
+    data = np.arange(n, dtype='i4')
     df = pd.DataFrame({'time': np.arange(n),
-                       'x': fs,
-                       'y': fs})
+                       'x': data,
+                       'y': data})
 
     cvs = ds.Canvas(plot_width=n, plot_height=n)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
@@ -177,29 +173,30 @@ def test_auto_range_points():
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
     sol = np.zeros((n+1, n+1), int)
     np.fill_diagonal(sol, 1)
-    sol[5, 5] = 0  # adjustment
+    sol[5, 5] = 0
     np.testing.assert_equal(agg.data, sol)
 
     n = 4
-    fs = list(itertools.islice(floats(1.0), n))
+    data = np.arange(n, dtype='i4')
     df = pd.DataFrame({'time': np.arange(n),
-                       'x': fs,
-                       'y': fs})
+                       'x': data,
+                       'y': data})
 
     cvs = ds.Canvas(plot_width=2*n, plot_height=2*n)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
     sol = np.zeros((2*n, 2*n), int)
     np.fill_diagonal(sol, 1)
-    sol[[range(1, 2*n, 2)]] = 0
-    sol[6, 6] = 0  # adjustment
+    sol[[range(1, 4, 2)]] = 0
+    sol[[range(4, 8, 2)]] = 0
     np.testing.assert_equal(agg.data, sol)
 
     cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
     sol = np.zeros((2*n+1, 2*n+1), int)
-    np.fill_diagonal(sol, 1)
-    sol[[range(1, 2*n+1, 2)]] = 0
-    sol[4, 4] = 0  # adjustment
+    sol[0, 0] = 1
+    sol[3, 3] = 1
+    sol[6, 6] = 1
+    sol[8, 8] = 1
     np.testing.assert_equal(agg.data, sol)
 
 
