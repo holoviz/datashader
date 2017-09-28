@@ -63,7 +63,7 @@ class Axis(object):
         s, t : floats
         """
         start, end = map(self.mapper, range)
-        s = (n-1)/(end - start)
+        s = n/(end - start)
         t = -start * s
         return s, t
 
