@@ -92,14 +92,21 @@ class Point(_PointLike):
         def _extend(vt, bounds, xs, ys, *aggs_and_cols):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
+
+            def map_onto_pixel(x, y):
+                xx, yy = x_mapper(x) * sx + tx, y_mapper(y) * sy + ty
+                if x == xmax:
+                    xx -= np.spacing(xx)
+                if y == ymax:
+                    yy -= np.spacing(yy)
+                return int(xx), int(yy)
+
             for i in range(xs.shape[0]):
                 x = xs[i]
                 y = ys[i]
-                if (xmin <= x < xmax) and (ymin <= y < ymax):
-                    append(i,
-                           int(x_mapper(x) * sx + tx),
-                           int(y_mapper(y) * sy + ty),
-                           *aggs_and_cols)
+                if (xmin <= x <= xmax) and (ymin <= y <= ymax):
+                    xi, yi = map_onto_pixel(x, y)
+                    append(i, xi, yi, *aggs_and_cols)
 
         def extend(aggs, df, vt, bounds):
             xs = df[x_name].values
