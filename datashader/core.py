@@ -54,7 +54,7 @@ class Axis(object):
         ----------
         range : tuple
             A tuple representing the range ``[min, max]`` along the axis, in
-            data space. both min and max are inclusive.
+            data space. Both min and max are inclusive.
         n : int
             The number of bins along the axis.
 
