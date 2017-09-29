@@ -1,5 +1,3 @@
-import itertools
-
 from dask.local import get_sync
 from dask.context import set_options
 import dask.dataframe as dd
