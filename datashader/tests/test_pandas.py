@@ -4,6 +4,8 @@ import xarray as xr
 
 import datashader as ds
 
+import pytest
+
 
 df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
@@ -209,6 +211,27 @@ def test_uniform_points():
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
     sol = np.array([[10] * 9 + [11], [10] * 9 + [11]], dtype='i4')
     np.testing.assert_equal(agg.data, sol)
+
+
+@pytest.mark.parametrize('high', [9, 10, 99, 100])
+@pytest.mark.parametrize('low', [0])
+def test_uniform_diagonal_points(low, high):
+    bounds = (low, high)
+    x_range, y_range = bounds, bounds
+
+    width = x_range[1] - x_range[0]
+    height = y_range[1] - y_range[0]
+    n = width * height
+    df = pd.DataFrame({'time': np.ones(n, dtype='i4'),
+                       'x': np.array([np.arange(*x_range, dtype='f8')] * width).flatten(),
+                       'y': np.array([np.arange(*y_range, dtype='f8')] * height).flatten()})
+
+    cvs = ds.Canvas(plot_width=2, plot_height=2, x_range=x_range, y_range=y_range)
+    agg = cvs.points(df, 'x', 'y', ds.count('time'))
+
+    diagonal = agg.data.diagonal(0)
+    assert sum(diagonal) == n
+    assert abs(bounds[1] - bounds[0]) % 2 == abs(diagonal[1] / high - diagonal[0] / high)
 
 
 def test_log_axis_points():
