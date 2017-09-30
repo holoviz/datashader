@@ -94,12 +94,10 @@ class Point(_PointLike):
             xmin, xmax, ymin, ymax = bounds
 
             def map_onto_pixel(x, y):
-                xx, yy = x_mapper(x) * sx + tx, y_mapper(y) * sy + ty
-                if x == xmax:
-                    xx -= np.spacing(xx)
-                if y == ymax:
-                    yy -= np.spacing(yy)
-                return int(xx), int(yy)
+                xx = int(x_mapper(x) * sx + tx)
+                yy = int(y_mapper(y) * sy + ty)
+                return (xx - 1 if x == xmax else xx,
+                        yy - 1 if y == ymax else yy)
 
             for i in range(xs.shape[0]):
                 x = xs[i]
@@ -174,12 +172,10 @@ def _build_map_onto_pixel(x_mapper, y_mapper):
         """Map points onto pixel grid"""
         sx, tx, sy, ty = vt
         _, xmax, _, ymax = bounds
-        xx, yy = x_mapper(x) * sx + tx, y_mapper(y) * sy + ty
-        if x == xmax:
-            xx -= np.spacing(xx)
-        if y == ymax:
-            yy -= np.spacing(yy)
-        return int(xx), int(yy)
+        xx = int(x_mapper(x) * sx + tx)
+        yy = int(y_mapper(y) * sy + ty)
+        return (xx - 1 if x == xmax else xx,
+                yy - 1 if y == ymax else yy)
 
     return map_onto_pixel
 
