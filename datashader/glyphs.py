@@ -77,7 +77,7 @@ class Point(_PointLike):
     """A point, with center at ``x`` and ``y``.
 
     Points map each record to a single bin.
-    Points falling exactly on the upper bounds treated as are a special case,
+    Points falling exactly on the upper bounds are treated as a special case,
     mapping into the previous bin rather than being cropped off.
 
     Parameters
