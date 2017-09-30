@@ -77,6 +77,8 @@ class Point(_PointLike):
     """A point, with center at ``x`` and ``y``.
 
     Points map each record to a single bin.
+    Points falling exactly on the upper bounds treated as are a special case,
+    mapping into the previous bin rather than being cropped off.
 
     Parameters
     ----------
@@ -96,6 +98,7 @@ class Point(_PointLike):
             def map_onto_pixel(x, y):
                 xx = int(x_mapper(x) * sx + tx)
                 yy = int(y_mapper(y) * sy + ty)
+                # Points falling on upper bound are mapped into previous bin
                 return (xx - 1 if x == xmax else xx,
                         yy - 1 if y == ymax else yy)
 
@@ -174,6 +177,7 @@ def _build_map_onto_pixel(x_mapper, y_mapper):
         _, xmax, _, ymax = bounds
         xx = int(x_mapper(x) * sx + tx)
         yy = int(y_mapper(y) * sy + ty)
+        # Points falling on upper bound are mapped into previous bin
         return (xx - 1 if x == xmax else xx,
                 yy - 1 if y == ymax else yy)
 
