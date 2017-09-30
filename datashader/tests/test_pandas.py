@@ -4,6 +4,7 @@ import xarray as xr
 
 import datashader as ds
 
+import pytest
 
 
 df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
@@ -20,20 +21,29 @@ df.cat = df.cat.astype('category')
 df.f32[2] = np.nan
 df.f64[2] = np.nan
 
-c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 2), y_range=(0, 2))
-c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 11),
-                   y_range=(0, 2), x_axis_type='log')
-c_logy = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 2),
-                   y_range=(1, 11), y_axis_type='log')
-c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 11),
-                    y_range=(1, 11), x_axis_type='log', y_axis_type='log')
+c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
+c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
+                   y_range=(0, 1), x_axis_type='log')
+c_logy = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1),
+                   y_range=(1, 10), y_axis_type='log')
+c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
+                    y_range=(1, 10), x_axis_type='log', y_axis_type='log')
 
-coords = [np.arange(2, dtype='f8')+0.5, np.arange(2, dtype='f8')+0.5]
+axis = ds.core.LinearAxis()
+lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
+coords = [lincoords, lincoords]
 dims = ['y', 'x']
 
 
 def assert_eq(agg, b):
     assert agg.equals(b)
+
+
+def floats(n):
+    """Returns contiguous list of floats from initial point"""
+    while True:
+        yield n
+        n = n + np.spacing(n)
 
 
 def test_count():
@@ -146,18 +156,96 @@ def test_multiple_aggregates():
     assert_eq(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
 
 
+def test_auto_range_points():
+    n = 10
+    data = np.arange(n, dtype='i4')
+    df = pd.DataFrame({'time': np.arange(n),
+                       'x': data,
+                       'y': data})
+
+    cvs = ds.Canvas(plot_width=n, plot_height=n)
+    agg = cvs.points(df, 'x', 'y', ds.count('time'))
+    sol = np.zeros((n, n), int)
+    np.fill_diagonal(sol, 1)
+    np.testing.assert_equal(agg.data, sol)
+
+    cvs = ds.Canvas(plot_width=n+1, plot_height=n+1)
+    agg = cvs.points(df, 'x', 'y', ds.count('time'))
+    sol = np.zeros((n+1, n+1), int)
+    np.fill_diagonal(sol, 1)
+    sol[5, 5] = 0
+    np.testing.assert_equal(agg.data, sol)
+
+    n = 4
+    data = np.arange(n, dtype='i4')
+    df = pd.DataFrame({'time': np.arange(n),
+                       'x': data,
+                       'y': data})
+
+    cvs = ds.Canvas(plot_width=2*n, plot_height=2*n)
+    agg = cvs.points(df, 'x', 'y', ds.count('time'))
+    sol = np.zeros((2*n, 2*n), int)
+    np.fill_diagonal(sol, 1)
+    sol[[range(1, 4, 2)]] = 0
+    sol[[range(4, 8, 2)]] = 0
+    np.testing.assert_equal(agg.data, sol)
+
+    cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)
+    agg = cvs.points(df, 'x', 'y', ds.count('time'))
+    sol = np.zeros((2*n+1, 2*n+1), int)
+    sol[0, 0] = 1
+    sol[3, 3] = 1
+    sol[6, 6] = 1
+    sol[8, 8] = 1
+    np.testing.assert_equal(agg.data, sol)
+
+
+def test_uniform_points():
+    n = 101
+    df = pd.DataFrame({'time': np.ones(2*n, dtype='i4'),
+                       'x': np.concatenate((np.arange(n, dtype='f8'),
+                                            np.arange(n, dtype='f8'))),
+                       'y': np.concatenate(([0.] * n, [1.] * n))})
+
+    cvs = ds.Canvas(plot_width=10, plot_height=2, y_range=(0, 1))
+    agg = cvs.points(df, 'x', 'y', ds.count('time'))
+    sol = np.array([[10] * 9 + [11], [10] * 9 + [11]], dtype='i4')
+    np.testing.assert_equal(agg.data, sol)
+
+
+@pytest.mark.parametrize('high', [9, 10, 99, 100])
+@pytest.mark.parametrize('low', [0])
+def test_uniform_diagonal_points(low, high):
+    bounds = (low, high)
+    x_range, y_range = bounds, bounds
+
+    width = x_range[1] - x_range[0]
+    height = y_range[1] - y_range[0]
+    n = width * height
+    df = pd.DataFrame({'time': np.ones(n, dtype='i4'),
+                       'x': np.array([np.arange(*x_range, dtype='f8')] * width).flatten(),
+                       'y': np.array([np.arange(*y_range, dtype='f8')] * height).flatten()})
+
+    cvs = ds.Canvas(plot_width=2, plot_height=2, x_range=x_range, y_range=y_range)
+    agg = cvs.points(df, 'x', 'y', ds.count('time'))
+
+    diagonal = agg.data.diagonal(0)
+    assert sum(diagonal) == n
+    assert abs(bounds[1] - bounds[0]) % 2 == abs(diagonal[1] / high - diagonal[0] / high)
+
+
 def test_log_axis_points():
-    # Upper bound for scale/index of x-axis
-    start, end = map(np.log10, (1, 11))
-    s = 2/(end - start)
-    t = -start * s
-    px = np.arange(2)+0.5
-    logcoords = 10**((px-t)/s)
+    axis = ds.core.LogAxis()
+    logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
+
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
+
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.array([0.5, 1.5]), logcoords],
+    out = xr.DataArray(sol, coords=[lincoords, logcoords],
                        dims=['y', 'log_x'])
     assert_eq(c_logx.points(df, 'log_x', 'y', ds.count('i32')), out)
-    out = xr.DataArray(sol, coords=[logcoords, np.array([0.5, 1.5])],
+    out = xr.DataArray(sol, coords=[logcoords, lincoords],
                        dims=['log_y', 'x'])
     assert_eq(c_logy.points(df, 'x', 'log_y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, logcoords],
@@ -166,10 +254,13 @@ def test_log_axis_points():
 
 
 def test_line():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
+
     df = pd.DataFrame({'x': [4, 0, -4, -3, -2, -1.9, 0, 10, 10, 0, 4],
                        'y': [0, -4, 0, 1, 2, 2.1, 4, 20, 30, 4, 0]})
     cvs = ds.Canvas(plot_width=7, plot_height=7,
-                    x_range=(-3, 4), y_range=(-3, 4))
+                    x_range=(-3, 3), y_range=(-3, 3))
     agg = cvs.line(df, 'x', 'y', ds.count())
     sol = np.array([[0, 0, 1, 0, 1, 0, 0],
                     [0, 1, 0, 0, 0, 1, 0],
@@ -178,25 +269,43 @@ def test_line():
                     [1, 0, 0, 0, 0, 0, 1],
                     [0, 2, 0, 0, 0, 1, 0],
                     [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.arange(-3., 4.)+0.5, np.arange(-3., 4.)+0.5],
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq(agg, out)
 
 
 def test_log_axis_line():
-    # Upper bound for scale/index of x-axis
-    start, end = map(np.log10, (1, 11))
-    s = 2/(end - start)
-    t = -start * s
-    px = np.arange(2)+0.5
-    logcoords = 10**((px-t)/s)
+    axis = ds.core.LogAxis()
+    logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
+
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
+
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
-    out = xr.DataArray(sol, coords=[np.array([0.5, 1.5]), logcoords],
+    out = xr.DataArray(sol, coords=[lincoords, logcoords],
                        dims=['y', 'log_x'])
     assert_eq(c_logx.line(df, 'log_x', 'y', ds.count('i32')), out)
-    out = xr.DataArray(sol, coords=[logcoords, np.array([0.5, 1.5])],
+    out = xr.DataArray(sol, coords=[logcoords, lincoords],
                        dims=['log_y', 'x'])
     assert_eq(c_logy.line(df, 'x', 'log_y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, logcoords],
                        dims=['log_y', 'log_x'])
     assert_eq(c_logxy.line(df, 'log_x', 'log_y', ds.count('i32')), out)
+
+
+def test_auto_range_line():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((-10., 10.), 5), 5)
+
+    df = pd.DataFrame({'x': [-10,  0, 10,   0, -10],
+                       'y': [  0, 10,  0, -10,   0]})
+    cvs = ds.Canvas(plot_width=5, plot_height=5)
+    agg = cvs.line(df, 'x', 'y', ds.count())
+    sol = np.array([[0, 0, 1, 0, 0],
+                    [0, 1, 0, 1, 0],
+                    [2, 0, 0, 0, 1],
+                    [0, 1, 0, 1, 0],
+                    [0, 0, 1, 0, 0]], dtype='i4')
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
