@@ -6,6 +6,8 @@ NOTE: remove everything from `examples/data` prior to building
 
 - Ensure all tests pass.
 
+- Update meta.yaml and examples/environment.yml with best current recommended dependencies (often these float during development, but need to be pinned for releases).
+
 - Update version number in `conda.recipe/meta.yaml`, `datashader/__init__.py`,
   and `setup.py`. Commit.
 
