@@ -1,5 +1,5 @@
 """
-This module was copied and adapted from https://github.com/CAB-LAB/gridtools
+This module was adapted from https://github.com/CAB-LAB/gridtools
 
                         The MIT License (MIT)
 
