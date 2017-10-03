@@ -115,7 +115,12 @@ def _convert_graph_to_sparse_matrix(nodes, edges, dtype=None, format='csr'):
                              for src, dst, weight in [tuple(edge) for edge in edge_values]
                              if src in index and dst in index))
 
-    M = scipy.sparse.coo_matrix((data, (rows, cols)), shape=(nlen, nlen), dtype=dtype)
+    # symmetrize matrix
+    d = data + data
+    r = rows + cols
+    c = cols + rows
+
+    M = scipy.sparse.coo_matrix((d, (r, c)), shape=(nlen, nlen), dtype=dtype)
     return M.asformat(format)
 
 
