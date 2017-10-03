@@ -32,7 +32,7 @@ from numba import prange
 from .utils import ngjit, ngjit_parallel
 
 try:
-    # Determine if system support numba 'parallel' target
+    # Determine if system supports numba 'parallel' target
     @ngjit_parallel
     def _sentinel_function(): return 0
     _sentinel_function()
