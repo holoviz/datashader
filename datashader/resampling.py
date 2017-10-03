@@ -27,15 +27,14 @@ SOFTWARE.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import numba as nb
 
 from numba import prange
-from .utils import ngjit, ngjit_parallel
+from .utils import ngjit
 
 try:
-    # Determine if system supports numba 'parallel' target
-    @ngjit_parallel
-    def _sentinel_function(): return 0
-    _sentinel_function()
+    # Try to create numba JIT with 'parallel' target
+    ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
 except:
     ngjit_parallel, prange = ngjit, range # NOQA
 
