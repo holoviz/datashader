@@ -26,6 +26,8 @@ install:
   - "conda install rasterio -c conda-forge"
   # Optional dependencies, for testing only
   - "conda install matplotlib"
+  # Dependencies for notebook checking only
+  - "conda install jupyter"
 
   - "python setup.py develop --no-deps"
   - "conda env export"
@@ -34,3 +36,4 @@ build: off
 
 test_script:
   - "pytest -x -v datashader"
+  - "python examples\\test_notebooks.py"
