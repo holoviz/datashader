@@ -1,8 +1,18 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from .utils import ngjit_parallel
+
 from numba import prange
+from .utils import ngjit, ngjit_parallel
+
+try:
+    # Determine if system support numba 'parallel' target
+    @ngjit_parallel
+    def _sentinel_function(): return 0
+    _sentinel_function()
+except:
+    ngjit_parallel, prange = ngjit, range
+
 
 #: Interpolation method for upsampling: Take nearest source grid cell, even if it is invalid.
 US_NEAREST = 10
