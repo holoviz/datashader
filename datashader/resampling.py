@@ -37,7 +37,7 @@ try:
     def _sentinel_function(): return 0
     _sentinel_function()
 except:
-    ngjit_parallel, prange = ngjit, range
+    ngjit_parallel, prange = ngjit, range # NOQA
 
 
 #: Interpolation method for upsampling: Take nearest source grid cell, even if it is invalid.
@@ -252,7 +252,7 @@ def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value, mode_ran
             # todo - write test & fix: must use mask=np.ma.getmaskarray(temp) here if use_mask==True
             return upsampling_method(temp, mask, use_mask, fill_value, out)
         else:
-            return downsampling_method(src, mask, use_mask, fill_value, mode_rank, out)
+            return downsampling_method(src, mask, use_mask, ds_method, fill_value, mode_rank, out)
     elif out_h < src_h:
         if out_w > src_w:
             temp = np.zeros((out_h, src_w), dtype=src.dtype)
