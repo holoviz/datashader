@@ -1,7 +1,8 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from .utils import ngjit
+from .utils import ngjit_parallel
+from numba import prange
 
 #: Interpolation method for upsampling: Take nearest source grid cell, even if it is invalid.
 US_NEAREST = 10
@@ -186,7 +187,7 @@ def _get_fill_value(fill_value, src, out):
     return fill_value
 
 
-@ngjit
+@ngjit_parallel
 def _get_dimensions(src, out):
     src_w = src.shape[-1]
     src_h = src.shape[-2]
@@ -229,7 +230,7 @@ def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value, mode_ran
     return src
 
 
-@ngjit
+@ngjit_parallel
 def _upsample_2d_nearest(src, mask, use_mask, fill_value, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
     if src_w == out_w and src_h == out_h:
@@ -240,7 +241,7 @@ def _upsample_2d_nearest(src, mask, use_mask, fill_value, out):
 
     scale_x = src_w / out_w
     scale_y = src_h / out_h
-    for out_y in range(out_h):
+    for out_y in prange(out_h):
         src_y = int(scale_y * out_y)
         for out_x in range(out_w):
             src_x = int(scale_x * out_x)
@@ -252,7 +253,7 @@ def _upsample_2d_nearest(src, mask, use_mask, fill_value, out):
     return out
 
 
-@ngjit
+@ngjit_parallel
 def _upsample_2d_linear(src, mask, use_mask, fill_value, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
     if src_w == out_w and src_h == out_h:
@@ -263,7 +264,7 @@ def _upsample_2d_linear(src, mask, use_mask, fill_value, out):
 
     scale_x = (src_w - 1.0) / ((out_w - 1.0) if out_w > 1 else 1.0)
     scale_y = (src_h - 1.0) / ((out_h - 1.0) if out_h > 1 else 1.0)
-    for out_y in range(out_h):
+    for out_y in prange(out_h):
         src_yf = scale_y * out_y
         src_y0 = int(src_yf)
         wy = src_yf - src_y0
@@ -323,7 +324,7 @@ UPSAMPLING_METHODS = {US_LINEAR: _upsample_2d_linear,
                       US_NEAREST: _upsample_2d_nearest}
 
 
-@ngjit
+@ngjit_parallel
 def _downsample_2d_first_last(src, mask, use_mask, method, fill_value, mode_rank, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
@@ -336,7 +337,7 @@ def _downsample_2d_first_last(src, mask, use_mask, method, fill_value, mode_rank
     scale_x = src_w / out_w
     scale_y = src_h / out_h
 
-    for out_y in range(out_h):
+    for out_y in prange(out_h):
         src_yf0 = scale_y * out_y
         src_yf1 = src_yf0 + scale_y
         src_y0 = int(src_yf0)
@@ -368,7 +369,7 @@ def _downsample_2d_first_last(src, mask, use_mask, method, fill_value, mode_rank
     return out
 
 
-@ngjit
+@ngjit_parallel
 def _downsample_2d_min_max(src, mask, use_mask, method, fill_value, mode_rank, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
@@ -381,7 +382,7 @@ def _downsample_2d_min_max(src, mask, use_mask, method, fill_value, mode_rank, o
     scale_x = src_w / out_w
     scale_y = src_h / out_h
 
-    for out_y in range(out_h):
+    for out_y in prange(out_h):
         src_yf0 = scale_y * out_y
         src_yf1 = src_yf0 + scale_y
         src_y0 = int(src_yf0)
@@ -418,7 +419,7 @@ def _downsample_2d_min_max(src, mask, use_mask, method, fill_value, mode_rank, o
     return out
 
 
-@ngjit
+@ngjit_parallel
 def _downsample_2d_mode(src, mask, use_mask, method, fill_value, mode_rank, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
@@ -434,7 +435,7 @@ def _downsample_2d_mode(src, mask, use_mask, method, fill_value, mode_rank, out)
     max_value_count = int(scale_x + 1) * int(scale_y + 1)
     values = np.zeros((max_value_count,), dtype=src.dtype)
     frequencies = np.zeros((max_value_count,), dtype=np.uint32)
-    for out_y in range(out_h):
+    for out_y in prange(out_h):
         src_yf0 = scale_y * out_y
         src_yf1 = src_yf0 + scale_y
         src_y0 = int(src_yf0)
@@ -497,7 +498,7 @@ def _downsample_2d_mode(src, mask, use_mask, method, fill_value, mode_rank, out)
     return out
 
 
-@ngjit
+@ngjit_parallel
 def _downsample_2d_mean(src, mask, use_mask, method, fill_value, mode_rank, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
@@ -510,7 +511,7 @@ def _downsample_2d_mean(src, mask, use_mask, method, fill_value, mode_rank, out)
     scale_x = src_w / out_w
     scale_y = src_h / out_h
             
-    for out_y in range(out_h):
+    for out_y in prange(out_h):
         src_yf0 = scale_y * out_y
         src_yf1 = src_yf0 + scale_y
         src_y0 = int(src_yf0)
@@ -550,7 +551,7 @@ def _downsample_2d_mean(src, mask, use_mask, method, fill_value, mode_rank, out)
     return out
 
 
-@ngjit
+@ngjit_parallel
 def _downsample_2d_std_var(src, mask, use_mask, method, fill_value, mode_rank, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
@@ -563,7 +564,7 @@ def _downsample_2d_std_var(src, mask, use_mask, method, fill_value, mode_rank, o
     scale_x = src_w / out_w
     scale_y = src_h / out_h
 
-    for out_y in range(out_h):
+    for out_y in prange(out_h):
         src_yf0 = scale_y * out_y
         src_yf1 = src_yf0 + scale_y
         src_y0 = int(src_yf0)
