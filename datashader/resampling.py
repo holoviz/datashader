@@ -33,9 +33,7 @@ from .utils import ngjit, ngjit_parallel
 
 try:
     # Determine if system support numba 'parallel' target
-    @ngjit_parallel
-    def _sentinel_function(): return 0
-    _sentinel_function()
+    ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
 except:
     ngjit_parallel, prange = ngjit, range # NOQA
 

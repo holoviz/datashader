@@ -12,7 +12,6 @@ from xarray import DataArray
 import datashape
 
 ngjit = nb.jit(nopython=True, nogil=True)
-ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
 
 
 class Dispatcher(object):
