@@ -90,11 +90,11 @@ class circular_layout(LayoutAlgorithm):
         return df
 
 
-def _extract_points_from_nodes(nodes):
+def _extract_points_from_nodes(nodes, params, dtype=None):
     if 'x' in nodes.columns and 'y' in nodes.columns:
         points = np.asarray(nodes[['x', 'y']])
     else:
-        points = np.asarray(np.random.random((len(nodes), 2)))
+        points = np.asarray(np.random.random((len(nodes), params.dim)), dtype=dtype)
     return points
 
 
@@ -212,8 +212,8 @@ class forceatlas2_layout(LayoutAlgorithm):
         np.random.seed(p.seed)
 
         # Convert graph into sparse adjacency matrix and array of points
-        points = _extract_points_from_nodes(nodes)
-        matrix = _convert_graph_to_sparse_matrix(nodes, edges)
+        points = _extract_points_from_nodes(nodes, params=p, dtype='f')
+        matrix = _convert_graph_to_sparse_matrix(nodes, edges, dtype='f')
 
         if p.k is None:
             p.k = np.sqrt(1.0 / len(points))
