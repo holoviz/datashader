@@ -263,8 +263,6 @@ class Canvas(object):
         left, bottom, right, top = calc_bbox(xvals, yvals, res)
         array = orient_array(source, res, layer)
         dtype = array.dtype
-        if dtype.kind != 'f':
-            array = array.astype(np.float64)
 
         if nan_value is not None:
             mask = array==nan_value
@@ -296,10 +294,14 @@ class Canvas(object):
             source_window = array[rmin:rmax+1, cmin:cmax+1]
             if isinstance(source_window, Array):
                 source_window = source_window.compute()
+            if downsample_method in ['var', 'std']:
+                source_window = source_window.astype('f')
             data = resample_2d(source_window, **kwargs)
             layers = 1
         else:
             source_window = array[:, rmin:rmax+1, cmin:cmax+1]
+            if downsample_method in ['var', 'std']:
+                source_window = source_window.astype('f')
             arrays = []
             for arr in source_window:
                 if isinstance(arr, Array):
@@ -346,11 +348,12 @@ class Canvas(object):
             data = data.filled()
 
         # Restore original dtype
-        data = data.astype(dtype)
+        if dtype != data.dtype:
+            data = data.astype(dtype)
 
         # Compute DataArray metadata
         xs, ys = compute_coords(self.plot_width, self.plot_height, self.x_range, self.y_range, res)
-        coords = {xdim: xs.astype(xvals.dtype), ydim: ys.astype(yvals.dtype)}
+        coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
         attrs = dict(res=res[0])
         if source._file_obj is not None:
