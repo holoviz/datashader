@@ -105,7 +105,7 @@ def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='cs
     else:
         index = dict(zip(nodes.index.values, range(nlen)))
 
-    if params.ignore_weight or 'weight' not in edges:
+    if params.ignore_weights or 'weight' not in edges:
         edges = edges.copy()
         edges['weight'] = np.ones(len(edges))
 
