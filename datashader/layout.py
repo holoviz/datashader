@@ -105,7 +105,7 @@ def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='cs
     else:
         index = dict(zip(nodes.index.values, range(nlen)))
 
-    if params.ignore_weights or 'weight' not in edges:
+    if not params.use_weights or 'weight' not in edges:
         edges = edges.copy()
         edges['weight'] = np.ones(len(edges))
 
@@ -217,7 +217,7 @@ class forceatlas2_layout(LayoutAlgorithm):
         Random seed used to initialize the pseudo-random number
         generator.""")
 
-    ignore_weights = param.Boolean(False, doc="""
+    use_weights = param.Boolean(True, doc="""
         Whether to use weights during layout""")
 
     def __call__(self, nodes, edges, **params):
