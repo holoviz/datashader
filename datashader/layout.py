@@ -98,14 +98,14 @@ def _extract_points_from_nodes(nodes, params, dtype=None):
     return points
 
 
-def _convert_graph_to_sparse_matrix(nodes, edges, dtype=None, format='csr'):
+def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='csr'):
     nlen = len(nodes)
     if 'id' in nodes:
         index = dict(zip(nodes['id'].values, range(nlen)))
     else:
         index = dict(zip(nodes.index.values, range(nlen)))
 
-    if 'weight' not in edges:
+    if params.ignore_weight or 'weight' not in edges:
         edges = edges.copy()
         edges['weight'] = np.ones(len(edges))
 
@@ -217,14 +217,17 @@ class forceatlas2_layout(LayoutAlgorithm):
         Random seed used to initialize the pseudo-random number
         generator.""")
 
+    ignore_weights = param.Boolean(False, doc="""
+        Whether to use weights during layout""")
+
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
 
         np.random.seed(p.seed)
 
         # Convert graph into sparse adjacency matrix and array of points
-        points = _extract_points_from_nodes(nodes, params=p, dtype='f')
-        matrix = _convert_graph_to_sparse_matrix(nodes, edges, dtype='f')
+        points = _extract_points_from_nodes(nodes, p, dtype='f')
+        matrix = _convert_graph_to_sparse_matrix(nodes, edges, p, dtype='f')
 
         if p.k is None:
             p.k = np.sqrt(1.0 / len(points))
