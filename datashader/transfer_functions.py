@@ -78,7 +78,7 @@ class Images(object):
         return """<table><tr>""" + "".join(image_htmls) + """</tr></table>"""
 
 
-def stack(*imgs, name=None, **kwargs):
+def stack(*imgs, **kwargs):
     """Combine images together, overlaying later images onto earlier ones.
 
     Parameters
@@ -93,6 +93,8 @@ def stack(*imgs, name=None, **kwargs):
     for i in imgs:
         if not isinstance(i, Image):
             raise TypeError("Expected `Image`, got: `{0}`".format(type(i)))
+
+    name = kwargs.get('name', None)
     op = composite_op_lookup[kwargs.get('how', 'over')]
     if len(imgs) == 1:
         return imgs[0]
