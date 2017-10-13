@@ -16,6 +16,10 @@ class LayoutAlgorithm(param.ParameterizedFunction):
 
     __abstract = True
 
+    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
+        Random seed used to initialize the pseudo-random number
+        generator.""")
+
     def __call__(self, nodes, edges, **params):
         """
         This method takes two dataframes representing a graph's nodes
@@ -35,10 +39,6 @@ class random_layout(LayoutAlgorithm):
     """
     Assign coordinates to the nodes randomly.
     """
-
-    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
-        Random seed used to initialize the pseudo-random number
-        generator.""")
 
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
@@ -63,10 +63,6 @@ class circular_layout(LayoutAlgorithm):
 
     uniform = param.Boolean(True, doc="""
         Whether to distribute nodes evenly on circle""")
-
-    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
-        Random seed used to initialize the pseudo-random number
-        generator.""")
 
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
@@ -201,10 +197,6 @@ class forceatlas2_layout(LayoutAlgorithm):
 
     dim = param.Integer(default=2, bounds=(1, None), doc="""
         Coordinate dimensions of each node""")
-
-    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
-        Random seed used to initialize the pseudo-random number
-        generator.""")
 
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
