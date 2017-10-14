@@ -35,6 +35,49 @@ class Image(xr.DataArray):
         return fp
 
 
+class Images(object):
+    """
+    A list of Images that are expected to be displayed in a table.
+    """
+    
+    def __init__(self, *images):
+        """Accepts a list of Image arguments and base64-encodes them into a table."""
+        for i in images:
+            assert isinstance(i,Image)
+        self.images = images
+        self.num_cols = None
+
+    def cols(self,n):
+        """
+        Set the number of columns to use in the HTML table.
+        Returns self for convenience.
+        """
+        self.num_cols=n
+        return self
+        
+    def _repr_html_(self):
+        """Supports rich display in a Jupyter notebook, using an HTML table"""
+        # imported here to avoid depending on these packages unless actually used
+        from io import BytesIO
+        from base64 import b64encode
+
+        image_htmls = []
+        col=0
+        for i in self.images:
+            b = BytesIO()
+            i.to_pil().save(b, format='png')
+            label=i.name if i.name is not None else ""
+            image_htmls.append("""<td style="text-align:center"><b>""" + label + 
+                               """</b><img src='data:image/png;base64,{0}'/></td>""".\
+                               format(b64encode(b.getvalue()).decode('utf-8')))
+            col+=1
+            if self.num_cols is not None and col>=self.num_cols:
+                col=0
+                image_htmls.append("</tr><tr>")
+        
+        return """<table><tr>""" + "".join(image_htmls) + """</tr></table>"""
+
+
 def stack(*imgs, **kwargs):
     """Combine images together, overlaying later images onto earlier ones.
 
@@ -50,13 +93,15 @@ def stack(*imgs, **kwargs):
     for i in imgs:
         if not isinstance(i, Image):
             raise TypeError("Expected `Image`, got: `{0}`".format(type(i)))
+
+    name = kwargs.get('name', None)
     op = composite_op_lookup[kwargs.get('how', 'over')]
     if len(imgs) == 1:
         return imgs[0]
     imgs = xr.align(*imgs, copy=False, join='outer')
     with np.errstate(divide='ignore', invalid='ignore'):    
         out = tz.reduce(tz.flip(op), [i.data for i in imgs])
-    return Image(out, coords=imgs[0].coords, dims=imgs[0].dims)
+    return Image(out, coords=imgs[0].coords, dims=imgs[0].dims, name=name)
 
 
 def eq_hist(data, mask=None, nbins=256*256):
@@ -112,7 +157,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def _interpolate(agg, cmap, how, alpha, span, min_alpha):
+def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     if agg.ndim != 2:
         raise ValueError("agg must be 2D")
     interpolater = _normalize_interpolate_how(how)
@@ -128,7 +173,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha):
 
         masked = data[~mask]
         if len(masked) == 0:
-            return Image(agg.data.astype(np.uint32), coords=agg.coords, dims=agg.dims, attrs=agg.attrs)
+            return Image(agg.data.astype(np.uint32), coords=agg.coords, dims=agg.dims, attrs=agg.attrs, name=name)
 
         offset = masked.min()
 
@@ -173,10 +218,10 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha):
     else:
         raise TypeError("Expected `cmap` of `matplotlib.colors.Colormap`, "
                         "`list`, `str`, or `tuple`; got: '{0}'".format(type(cmap)))
-    return Image(img, coords=agg.coords, dims=agg.dims)
+    return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
-def _colorize(agg, color_key, how, min_alpha):
+def _colorize(agg, color_key, how, min_alpha, name):
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
     cats = agg.indexes[agg.dims[-1]]
@@ -211,11 +256,12 @@ def _colorize(agg, color_key, how, min_alpha):
                   [min_alpha, 255], left=0, right=255).astype(np.uint8)
     r[mask] = g[mask] = b[mask] = 255
     return Image(np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape),
-                 dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1])
+                 dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1],
+                 name=name)
 
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
-          how='eq_hist', alpha=255, min_alpha=40, span=None):
+          how='eq_hist', alpha=255, min_alpha=40, span=None, name=None):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
 
     Requires a DataArray with a single data dimension, here called the
@@ -273,19 +319,23 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     span : list of min-max range, optional
         Min and max data values to use for colormap interpolation, when
         wishing to override autoranging.
+    name : string name, optional
+        Optional string name to give to the Image object to return, 
+        to label results for display.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
-
+    name = agg.name if name is None else name
+    
     if agg.ndim == 2:
-        return _interpolate(agg, cmap, how, alpha, span, min_alpha)
+        return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
     elif agg.ndim == 3:
-        return _colorize(agg, color_key, how, min_alpha)
+        return _colorize(agg, color_key, how, min_alpha, name)
     else:
         raise ValueError("agg must use 2D or 3D coordinates")
 
 
-def set_background(img, color=None):
+def set_background(img, color=None, name=None):
     """Return a new image, with the background set to `color`.
 
     Parameters
@@ -297,14 +347,15 @@ def set_background(img, color=None):
     """
     if not isinstance(img, Image):
         raise TypeError("Expected `Image`, got: `{0}`".format(type(img)))
+    name = img.name if name is None else name
     if color is None:
         return img
     background = np.uint8(rgb(color) + (255,)).view('uint32')[0]
     data = over(img.data, background)
-    return Image(data, coords=img.coords, dims=img.dims)
+    return Image(data, coords=img.coords, dims=img.dims, name=name)
 
 
-def spread(img, px=1, shape='circle', how='over', mask=None):
+def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
     """Spread pixels in an image.
 
     Spreading expands each pixel a certain number of pixels on all sides
@@ -325,9 +376,13 @@ def spread(img, px=1, shape='circle', how='over', mask=None):
         generating one based on `px` and `shape`. Must be a square array
         with odd dimensions. Pixels are spread from the center of the mask to
         locations where the mask is True.
+    name : string name, optional
+        Optional string name to give to the Image object to return, 
+        to label results for display.
     """
     if not isinstance(img, Image):
         raise TypeError("Expected `Image`, got: `{0}`".format(type(img)))
+    name = img.name if name is None else name
     if mask is None:
         if not isinstance(px, int) or px < 0:
             raise ValueError("``px`` must be an integer >= 0")
@@ -346,7 +401,7 @@ def spread(img, px=1, shape='circle', how='over', mask=None):
     buf = np.zeros((M + 2*extra, N + 2*extra), dtype='uint32')
     kernel(img.data, mask, buf)
     out = buf[extra:-extra, extra:-extra].copy()
-    return Image(out, dims=img.dims, coords=img.coords)
+    return Image(out, dims=img.dims, coords=img.coords, name=name)
 
 
 @tz.memoize
