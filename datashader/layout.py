@@ -90,35 +90,53 @@ class circular_layout(LayoutAlgorithm):
         return df
 
 
-def _extract_points_from_nodes(nodes):
+def _extract_points_from_nodes(nodes, params, dtype=None):
     if 'x' in nodes.columns and 'y' in nodes.columns:
         points = np.asarray(nodes[['x', 'y']])
     else:
-        points = np.asarray(np.random.random((len(nodes), 2)))
+        points = np.asarray(np.random.random((len(nodes), params.dim)), dtype=dtype)
     return points
 
 
-def _convert_graph_to_sparse_matrix(nodes, edges, dtype=None, format='csr'):
+def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='csr'):
     nlen = len(nodes)
     if 'id' in nodes:
         index = dict(zip(nodes['id'].values, range(nlen)))
     else:
         index = dict(zip(nodes.index.values, range(nlen)))
 
-    if 'weight' not in edges:
-        edges = edges.copy()
-        edges['weight'] = np.ones(len(edges))
+    if params.use_weights and 'weight' in edges:
+        edge_values = edges[['source', 'target', 'weight']].values
+        rows, cols, data = zip(*((index[src], index[dst], weight)
+                                 for src, dst, weight in edge_values
+                                 if src in index and dst in index))
+    else:
+        edge_values = edges[['source', 'target']].values
+        rows, cols, data = zip(*((index[src], index[dst], 1)
+                                 for src, dst in edge_values
+                                 if src in index and dst in index))
 
-    edge_values = edges[['source', 'target', 'weight']].values
-
-    rows, cols, data = zip(*((index[src], index[dst], weight)
-                             for src, dst, weight in [tuple(edge) for edge in edge_values]
-                             if src in index and dst in index))
-
-    # symmetrize matrix
+    # Symmetrize matrix
     d = data + data
     r = rows + cols
     c = cols + rows
+
+    # Check for nodes pointing to themselves
+    loops = edges[edges['source'] == edges['target']]
+    if len(loops):
+        if params.use_weights and 'weight' in edges:
+            loop_values = loops[['source', 'target', 'weight']].values
+            diag_index, diag_data = zip(*((index[src], -weight)
+                                          for src, dst, weight in loop_values
+                                          if src in index and dst in index))
+        else:
+            loop_values = loops[['source', 'target']].values
+            diag_index, diag_data = zip(*((index[src], -1)
+                                        for src, dst in loop_values
+                                        if src in index and dst in index))
+        d += diag_data
+        r += diag_index
+        c += diag_index
 
     M = scipy.sparse.coo_matrix((d, (r, c)), shape=(nlen, nlen), dtype=dtype)
     return M.asformat(format)
@@ -206,14 +224,17 @@ class forceatlas2_layout(LayoutAlgorithm):
         Random seed used to initialize the pseudo-random number
         generator.""")
 
+    use_weights = param.Boolean(True, doc="""
+        Whether to use weights during layout""")
+
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
 
         np.random.seed(p.seed)
 
         # Convert graph into sparse adjacency matrix and array of points
-        points = _extract_points_from_nodes(nodes)
-        matrix = _convert_graph_to_sparse_matrix(nodes, edges)
+        points = _extract_points_from_nodes(nodes, p, dtype='f')
+        matrix = _convert_graph_to_sparse_matrix(nodes, edges, p, dtype='f')
 
         if p.k is None:
             p.k = np.sqrt(1.0 / len(points))
