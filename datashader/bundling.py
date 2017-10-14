@@ -281,7 +281,7 @@ class EdgelessWeightedSegment(BaseSegment):
         img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]
 
 
-def _convert_graph_to_edge_segments(nodes, edges, params, use_weights=True):
+def _convert_graph_to_edge_segments(nodes, edges, params):
     """
     Merge graph dataframes into a list of edge segments.
 
@@ -308,7 +308,7 @@ def _convert_graph_to_edge_segments(nodes, edges, params, use_weights=True):
     if params.include_edge_id:
         df = df.rename(columns={'id': 'edge_id'})
 
-    include_weight = use_weights and params.weight in edges
+    include_weight = params.weight and params.weight in edges
 
     if params.include_edge_id:
         if include_weight:
@@ -370,8 +370,8 @@ class directly_connect_edges(param.ParameterizedFunction):
     target = param.String(default='target', doc="""
         Column name for each edge's target.""")
 
-    weight = param.String(default='weight', doc="""
-        Column name for each edge weight.""")
+    weight = param.String(default=None, allow_None=True, doc="""
+        Column name for each edge weight. If None, weights are ignored.""")
 
     include_edge_id = param.Boolean(default=False, doc="""
         Include edge IDs in bundled dataframe""")
@@ -389,7 +389,7 @@ class directly_connect_edges(param.ParameterizedFunction):
         a point with NaN as the x or y value.
         """
         p = param.ParamOverrides(self, params)
-        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p, use_weights=False)
+        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p)
         return _convert_edge_segments_to_dataframe(edges, segment_class, p)
 
 
@@ -437,6 +437,9 @@ class hammer_bundle(directly_connect_edges):
 
     max_segment_length = param.Number(default=0.016,bounds=(0,None),precedence=-0.5,doc="""
         Maximum length (in data space?) for an edge segment""")
+
+    weight = param.String(default='weight', allow_None=True, doc="""
+        Column name for each edge weight. If None, weights are ignored.""")
 
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
