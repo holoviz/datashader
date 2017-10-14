@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 import pandas as pd
 
+from datashader.bundling import directly_connect_edges, hammer_bundle
 from datashader.layout import circular_layout, forceatlas2_layout, random_layout
 
 
@@ -41,6 +42,20 @@ def weighted_edges():
                              'target': np.arange(1, 5),
                              'weight': np.ones(4)})
     return edges_df.set_index('id')
+
+
+@pytest.mark.parametrize('bundle', [directly_connect_edges, hammer_bundle])
+@pytest.mark.parametrize('layout', [random_layout, circular_layout, forceatlas2_layout])
+def test_renamed_columns(nodes, weighted_edges, bundle, layout):
+    nodes = nodes.rename(columns={'x': 'xx', 'y': 'yy'})
+    edges = weighted_edges.rename(columns={'source': 'src', 'target': 'dst', 'weight': 'w'})
+
+    node_positions = layout(nodes, edges, x='xx', y='yy', source='src', target='dst', weight='w')
+    df = bundle(node_positions, edges, x='xx', y='yy', source='src', target='dst', weight='w')
+
+    assert 'xx' in df and 'x' not in df
+    assert 'yy' in df and 'y' not in df
+    assert 'w' in df and 'weight' not in df
 
 
 def test_forceatlas2_positioned_nodes_with_unweighted_edges(nodes, edges):
