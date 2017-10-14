@@ -257,7 +257,7 @@ class EdgelessWeightedSegment(BaseSegment):
         img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]
 
 
-def _convert_graph_to_edge_segments(nodes, edges, include_edge_id, ignore_weights=False):
+def _convert_graph_to_edge_segments(nodes, edges, include_edge_id, use_weights=True):
     """
     Merge graph dataframes into a list of edge segments.
 
@@ -284,7 +284,7 @@ def _convert_graph_to_edge_segments(nodes, edges, include_edge_id, ignore_weight
     if include_edge_id:
         df = df.rename(columns={'id': 'edge_id'})
 
-    include_weight = not ignore_weights and 'weight' in edges
+    include_weight = use_weights and 'weight' in edges
 
     if include_edge_id:
         if include_weight:
@@ -350,7 +350,7 @@ class directly_connect_edges(param.ParameterizedFunction):
         a point with NaN as the x or y value.
         """
         p = param.ParamOverrides(self, params)
-        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p.include_edge_id, ignore_weights=True)
+        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p.include_edge_id, use_weights=False)
         return _convert_edge_segments_to_dataframe(edges, segment_class)
 
 
