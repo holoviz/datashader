@@ -32,8 +32,8 @@ class LayoutAlgorithm(param.ParameterizedFunction):
     target = param.String(default='target', doc="""
         Column name for each edge's target.""")
 
-    weight = param.String(default='weight', doc="""
-        Column name for each edge weight.""")
+    weight = param.String(default='weight', allow_None=True, doc="""
+        Column name for each edge weight. If None, weights are ignored.""")
 
     def __call__(self, nodes, edges, **params):
         """
@@ -172,9 +172,6 @@ class forceatlas2_layout(LayoutAlgorithm):
     dim = param.Integer(default=2, bounds=(1, None), doc="""
         Coordinate dimensions of each node""")
 
-    use_weights = param.Boolean(True, doc="""
-        Whether to use weights during layout""")
-
     def _extract_points_from_nodes(self, nodes, dtype=None):
         if self.x in nodes.columns and self.y in nodes.columns:
             points = np.asarray(nodes[[self.x, self.y]])
@@ -189,7 +186,7 @@ class forceatlas2_layout(LayoutAlgorithm):
         else:
             index = dict(zip(nodes.index.values, range(nlen)))
 
-        if self.use_weights and self.weight in edges:
+        if self.weight and self.weight in edges:
             edge_values = edges[[self.source, self.target, self.weight]].values
             rows, cols, data = zip(*((index[src], index[dst], weight)
                                      for src, dst, weight in edge_values
@@ -208,7 +205,7 @@ class forceatlas2_layout(LayoutAlgorithm):
         # Check for nodes pointing to themselves
         loops = edges[edges[self.source] == edges[self.target]]
         if len(loops):
-            if self.use_weights and self.weight in edges:
+            if self.weight and self.weight in edges:
                 loop_values = loops[[self.source, self.target, self.weight]].values
                 diag_index, diag_data = zip(*((index[src], -weight)
                                               for src, dst, weight in loop_values
