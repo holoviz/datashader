@@ -36,7 +36,7 @@ install:
   - conda install dask numba numpy pandas pillow toolz xarray datashape colorcet rasterio scikit-image param
   - conda install -c gbrener -c conda-forge xarray # remove this line when xarray >= 0.9.7
   # Optional dependencies, for testing only
-  - conda install pytest pytest-benchmark
+  - conda install -c conda-forge pytest pytest-benchmark
   - conda install matplotlib
   # Dependencies for lint checking only
   - conda install jupyter flake8
