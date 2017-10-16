@@ -32,7 +32,7 @@ class LayoutAlgorithm(param.ParameterizedFunction):
     target = param.String(default='target', doc="""
         Column name for each edge's target.""")
 
-    weight = param.String(default='weight', allow_None=True, doc="""
+    weight = param.String(default=None, allow_None=True, doc="""
         Column name for each edge weight. If None, weights are ignored.""")
 
     def __call__(self, nodes, edges, **params):
