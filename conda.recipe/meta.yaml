@@ -29,6 +29,7 @@ requirements:
 test:
   requires:
     - pytest >=2.8.5
+    - pytest-benchmark >=3.0.0
     - rasterio
     - scipy
 

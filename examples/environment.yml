@@ -28,6 +28,7 @@ dependencies:
  - pyproj
  - pytables
  - pytest
+ - pytest-benchmark
  - python=3.6
  - rasterio
  - requests
