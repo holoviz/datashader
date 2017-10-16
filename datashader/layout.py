@@ -101,6 +101,65 @@ class circular_layout(LayoutAlgorithm):
         return df
 
 
+def _extract_points_from_nodes(nodes, params, dtype=None):
+    if params.x in nodes.columns and params.y in nodes.columns:
+        points = np.asarray(nodes[[params.x, params.y]])
+    else:
+        points = np.asarray(np.random.random((len(nodes), params.dim)), dtype=dtype)
+    return points
+
+
+def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='csr'):
+    nlen = len(nodes)
+    if 'id' in nodes:
+        index = dict(zip(nodes['id'].values, range(nlen)))
+    else:
+        index = dict(zip(nodes.index.values, range(nlen)))
+
+    if params.weight and params.weight in edges:
+        edge_values = edges[[params.source, params.target, params.weight]].values
+        rows, cols, data = zip(*((index[src], index[dst], weight)
+                                 for src, dst, weight in edge_values
+                                 if src in index and dst in index))
+    else:
+        edge_values = edges[[params.source, params.target]].values
+        rows, cols, data = zip(*((index[src], index[dst], 1)
+                                 for src, dst in edge_values
+                                 if src in index and dst in index))
+
+    # Symmetrize matrix
+    d = data + data
+    r = rows + cols
+    c = cols + rows
+
+    # Check for nodes pointing to themselves
+    loops = edges[edges[params.source] == edges[params.target]]
+    if len(loops):
+        if params.weight and params.weight in edges:
+            loop_values = loops[[params.source, params.target, params.weight]].values
+            diag_index, diag_data = zip(*((index[src], -weight)
+                                          for src, dst, weight in loop_values
+                                          if src in index and dst in index))
+        else:
+            loop_values = loops[[params.source, params.target]].values
+            diag_index, diag_data = zip(*((index[src], -1)
+                                        for src, dst in loop_values
+                                        if src in index and dst in index))
+        d += diag_data
+        r += diag_index
+        c += diag_index
+
+    M = scipy.sparse.coo_matrix((d, (r, c)), shape=(nlen, nlen), dtype=dtype)
+    return M.asformat(format)
+
+
+def _merge_points_with_nodes(nodes, points, params):
+    n = nodes.copy()
+    n[params.x] = points[:, 0]
+    n[params.y] = points[:, 1]
+    return n
+
+
 @nb.jit(nogil=True)
 def cooling(matrix, points, temperature, params):
     dt = temperature / float(params.iterations + 1)
@@ -172,73 +231,14 @@ class forceatlas2_layout(LayoutAlgorithm):
     dim = param.Integer(default=2, bounds=(1, None), doc="""
         Coordinate dimensions of each node""")
 
-    def _extract_points_from_nodes(self, nodes, dtype=None):
-        if self.x in nodes.columns and self.y in nodes.columns:
-            points = np.asarray(nodes[[self.x, self.y]])
-        else:
-            points = np.asarray(np.random.random((len(nodes), self.dim)), dtype=dtype)
-        return points
-
-    def _convert_graph_to_sparse_matrix(self, nodes, edges, dtype=None, format='csr'):
-        nlen = len(nodes)
-        if 'id' in nodes:
-            index = dict(zip(nodes['id'].values, range(nlen)))
-        else:
-            index = dict(zip(nodes.index.values, range(nlen)))
-
-        if self.weight and self.weight in edges:
-            edge_values = edges[[self.source, self.target, self.weight]].values
-            rows, cols, data = zip(*((index[src], index[dst], weight)
-                                     for src, dst, weight in edge_values
-                                     if src in index and dst in index))
-        else:
-            edge_values = edges[[self.source, self.target]].values
-            rows, cols, data = zip(*((index[src], index[dst], 1)
-                                     for src, dst in edge_values
-                                     if src in index and dst in index))
-
-        # Symmetrize matrix
-        d = data + data
-        r = rows + cols
-        c = cols + rows
-
-        # Check for nodes pointing to themselves
-        loops = edges[edges[self.source] == edges[self.target]]
-        if len(loops):
-            if self.weight and self.weight in edges:
-                loop_values = loops[[self.source, self.target, self.weight]].values
-                diag_index, diag_data = zip(*((index[src], -weight)
-                                              for src, dst, weight in loop_values
-                                              if src in index and dst in index))
-            else:
-                loop_values = loops[[self.source, self.target]].values
-                diag_index, diag_data = zip(*((index[src], -1)
-                                              for src, dst in loop_values
-                                              if src in index and dst in index))
-            d += diag_data
-            r += diag_index
-            c += diag_index
-
-        M = scipy.sparse.coo_matrix((d, (r, c)), shape=(nlen, nlen), dtype=dtype)
-        return M.asformat(format)
-
-    def _merge_points_with_nodes(self, nodes, points):
-        n = nodes.copy()
-        n[self.x] = points[:, 0]
-        n[self.y] = points[:, 1]
-        return n
-
     def __call__(self, nodes, edges, **params):
-        # Merge user-provided parameters with local parameters
         p = param.ParamOverrides(self, params)
-        for k in p:
-            setattr(self, k, p[k])
 
         np.random.seed(p.seed)
 
         # Convert graph into sparse adjacency matrix and array of points
-        points = self._extract_points_from_nodes(nodes, dtype='f')
-        matrix = self._convert_graph_to_sparse_matrix(nodes, edges, dtype='f')
+        points = _extract_points_from_nodes(nodes, p, dtype='f')
+        matrix = _convert_graph_to_sparse_matrix(nodes, edges, p, dtype='f')
 
         if p.k is None:
             p.k = np.sqrt(1.0 / len(points))
@@ -252,4 +252,4 @@ class forceatlas2_layout(LayoutAlgorithm):
         cooling(matrix, points, temperature, p)
 
         # Return the nodes with updated positions
-        return self._merge_points_with_nodes(nodes, points)
+        return _merge_points_with_nodes(nodes, points, p)

@@ -194,11 +194,11 @@ class UnweightedSegment(BaseSegment):
     idx, idy = 1, 2
 
     @staticmethod
-    def get_columns(x, y, weight):
-        return ['edge_id', x, y]
+    def get_columns(params):
+        return ['edge_id', params.x, params.y]
 
     @staticmethod
-    def get_merged_columns(weight):
+    def get_merged_columns(params):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
@@ -217,11 +217,11 @@ class EdgelessUnweightedSegment(BaseSegment):
     idx, idy = 0, 1
 
     @staticmethod
-    def get_columns(x, y, weight):
-        return [x, y]
+    def get_columns(params):
+        return [params.x, params.y]
 
     @staticmethod
-    def get_merged_columns(weight):
+    def get_merged_columns(params):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
@@ -240,12 +240,12 @@ class WeightedSegment(BaseSegment):
     idx, idy = 1, 2
 
     @staticmethod
-    def get_columns(x, y, weight):
-        return ['edge_id', x, y, weight]
+    def get_columns(params):
+        return ['edge_id', params.x, params.y, params.weight]
 
     @staticmethod
-    def get_merged_columns(weight):
-        return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', weight]
+    def get_merged_columns(params):
+        return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', params.weight]
 
     @staticmethod
     @nb.jit
@@ -263,12 +263,12 @@ class EdgelessWeightedSegment(BaseSegment):
     idx, idy = 0, 1
 
     @staticmethod
-    def get_columns(x, y, weight):
-        return [x, y, weight]
+    def get_columns(params):
+        return [params.x, params.y, params.weight]
 
     @staticmethod
-    def get_merged_columns(weight):
-        return ['src_x', 'src_y', 'dst_x', 'dst_y', weight]
+    def get_merged_columns(params):
+        return ['src_x', 'src_y', 'dst_x', 'dst_y', params.weight]
 
     @staticmethod
     @nb.jit
@@ -279,6 +279,74 @@ class EdgelessWeightedSegment(BaseSegment):
     @ngjit
     def accumulate(img, point, accuracy):
         img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]
+
+
+def _convert_graph_to_edge_segments(nodes, edges, params):
+    """
+    Merge graph dataframes into a list of edge segments.
+
+    Given a graph defined as a pair of dataframes (nodes and edges), the
+    nodes (id, coordinates) and edges (id, source, target, weight) are
+    joined by node id to create a single dataframe with each source/target
+    of an edge (including its optional weight) replaced with the respective
+    coordinates. For both nodes and edges, each id column is assumed to be
+    the index.
+
+    We also return the dimensions of each point in the final dataframe and
+    the accumulator function for drawing to an image.
+    """
+
+    df = pd.merge(edges, nodes, left_on=[params.source], right_index=True)
+    df = df.rename(columns={params.x: 'src_x', params.y: 'src_y'})
+
+    df = pd.merge(df, nodes, left_on=[params.target], right_index=True)
+    df = df.rename(columns={params.x: 'dst_x', params.y: 'dst_y'})
+
+    df = df.sort_index()
+    df = df.reset_index()
+
+    if params.include_edge_id:
+        df = df.rename(columns={'id': 'edge_id'})
+
+    include_weight = params.weight and params.weight in edges
+
+    if params.include_edge_id:
+        if include_weight:
+            segment_class = WeightedSegment
+        else:
+            segment_class = UnweightedSegment
+    else:
+        if include_weight:
+            segment_class = EdgelessWeightedSegment
+        else:
+            segment_class = EdgelessUnweightedSegment
+
+    df = df.filter(items=segment_class.get_merged_columns(params))
+
+    edge_segments = []
+    for edge in df.get_values():
+        edge_segments.append(segment_class.create_segment(edge))
+    return edge_segments, segment_class
+
+
+def _convert_edge_segments_to_dataframe(edge_segments, segment_class, params):
+    """
+    Convert list of edge segments into a dataframe.
+
+    For all edge segments, we create a dataframe to represent a path
+    as successive points separated by a point with NaN as the x or y
+    value.
+    """
+
+    # Need to put an array of NaNs with size point_dims between edges
+    def edge_iterator():
+        for edge in edge_segments:
+            yield edge
+            yield segment_class.create_delimiter()
+
+    df = DataFrame(np.concatenate(list(edge_iterator())))
+    df.columns = segment_class.get_columns(params)
+    return df
 
 
 class directly_connect_edges(param.ParameterizedFunction):
@@ -308,72 +376,6 @@ class directly_connect_edges(param.ParameterizedFunction):
     include_edge_id = param.Boolean(default=False, doc="""
         Include edge IDs in bundled dataframe""")
 
-    def convert_graph_to_edge_segments(self, nodes, edges):
-        """
-        Merge graph dataframes into a list of edge segments.
-
-        Given a graph defined as a pair of dataframes (nodes and edges), the
-        nodes (id, coordinates) and edges (id, source, target, weight) are
-        joined by node id to create a single dataframe with each source/target
-        of an edge (including its optional weight) replaced with the respective
-        coordinates. For both nodes and edges, each id column is assumed to be
-        the index.
-
-        We also return the dimensions of each point in the final dataframe and
-        the accumulator function for drawing to an image.
-        """
-
-        df = pd.merge(edges, nodes, left_on=[self.source], right_index=True)
-        df = df.rename(columns={self.x: 'src_x', self.y: 'src_y'})
-
-        df = pd.merge(df, nodes, left_on=[self.target], right_index=True)
-        df = df.rename(columns={self.x: 'dst_x', self.y: 'dst_y'})
-
-        df = df.sort_index()
-        df = df.reset_index()
-
-        if self.include_edge_id:
-            df = df.rename(columns={'id': 'edge_id'})
-
-        include_weight = self.weight and self.weight in edges
-
-        if self.include_edge_id:
-            if include_weight:
-                segment_class = WeightedSegment
-            else:
-                segment_class = UnweightedSegment
-        else:
-            if include_weight:
-                segment_class = EdgelessWeightedSegment
-            else:
-                segment_class = EdgelessUnweightedSegment
-
-        df = df.filter(items=segment_class.get_merged_columns(self.weight))
-
-        edge_segments = []
-        for edge in df.get_values():
-            edge_segments.append(segment_class.create_segment(edge))
-        return edge_segments, segment_class
-
-    def convert_edge_segments_to_dataframe(self, edge_segments, segment_class):
-        """
-        Convert list of edge segments into a dataframe.
-
-        For all edge segments, we create a dataframe to represent a path
-        as successive points separated by a point with NaN as the x or y
-        value.
-        """
-
-        # Need to put an array of NaNs with size point_dims between edges
-        def edge_iterator():
-            for edge in edge_segments:
-                yield edge
-                yield segment_class.create_delimiter()
-
-        df = DataFrame(np.concatenate(list(edge_iterator())))
-        df.columns = segment_class.get_columns(self.x, self.y, self.weight)
-        return df
-
     def __call__(self, nodes, edges, **params):
         """
         Convert a graph data structure into a path structure for plotting
@@ -386,13 +388,9 @@ class directly_connect_edges(param.ParameterizedFunction):
         location, with paths represented as successive points separated by
         a point with NaN as the x or y value.
         """
-        # Merge user-provided parameters with local parameters
         p = param.ParamOverrides(self, params)
-        for k in p:
-            setattr(self, k, p[k])
-
-        edges, segment_class = self.convert_graph_to_edge_segments(nodes, edges)
-        return self.convert_edge_segments_to_dataframe(edges, segment_class)
+        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p)
+        return _convert_edge_segments_to_dataframe(edges, segment_class, p)
 
 
 @nb.jit
@@ -444,10 +442,7 @@ class hammer_bundle(directly_connect_edges):
         Column name for each edge weight. If None, weights are ignored.""")
 
     def __call__(self, nodes, edges, **params):
-        # Merge user-provided parameters with local parameters
         p = param.ParamOverrides(self, params)
-        for k in p:
-            setattr(self, k, p[k])
 
         # Calculate min/max for coordinates
         xmin, xmax = np.min(nodes[p.x]), np.max(nodes[p.x])
@@ -459,7 +454,7 @@ class hammer_bundle(directly_connect_edges):
         nodes[p.y] = minmax_normalize(nodes[p.y], ymin, ymax)
 
         # Convert graph into list of edge segments
-        edges, segment_class = self.convert_graph_to_edge_segments(nodes, edges)
+        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p)
 
         # This is simply to let the work split out over multiple cores
         edge_batches = list(batches(edges, p.batch_size))
@@ -504,7 +499,7 @@ class hammer_bundle(directly_connect_edges):
             new_segs.extend(batch)
 
         # Convert list of edge segments to Pandas dataframe
-        df = self.convert_edge_segments_to_dataframe(new_segs, segment_class)
+        df = _convert_edge_segments_to_dataframe(new_segs, segment_class, p)
 
         # Denormalize coordinates
         df[p.x] = minmax_denormalize(df[p.x], xmin, xmax)
