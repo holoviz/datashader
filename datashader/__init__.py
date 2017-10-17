@@ -25,7 +25,7 @@ def test():
         import sys
         sys.stderr.write("You need to install py.test to run tests.\n\n")
         raise
-    pytest.main(os.path.dirname(__file__))
+    pytest.main([os.path.dirname(__file__)])
 
 
 def examples(path='datashader-examples', verbose=False):
