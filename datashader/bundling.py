@@ -191,9 +191,15 @@ class BaseSegment(object):
 
 class UnweightedSegment(BaseSegment):
     ndims = 3
-    columns = ['edge_id', 'x', 'y']
-    merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
     idx, idy = 1, 2
+
+    @staticmethod
+    def get_columns(params):
+        return ['edge_id', params.x, params.y]
+
+    @staticmethod
+    def get_merged_columns(params):
+        return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
     @nb.jit
@@ -208,9 +214,15 @@ class UnweightedSegment(BaseSegment):
 
 class EdgelessUnweightedSegment(BaseSegment):
     ndims = 2
-    columns = ['x', 'y']
-    merged_columns = ['src_x', 'src_y', 'dst_x', 'dst_y']
     idx, idy = 0, 1
+
+    @staticmethod
+    def get_columns(params):
+        return [params.x, params.y]
+
+    @staticmethod
+    def get_merged_columns(params):
+        return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
     @nb.jit
@@ -225,9 +237,15 @@ class EdgelessUnweightedSegment(BaseSegment):
 
 class WeightedSegment(BaseSegment):
     ndims = 4
-    columns = ['edge_id', 'x', 'y', 'weight']
-    merged_columns = ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
     idx, idy = 1, 2
+
+    @staticmethod
+    def get_columns(params):
+        return ['edge_id', params.x, params.y, params.weight]
+
+    @staticmethod
+    def get_merged_columns(params):
+        return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', params.weight]
 
     @staticmethod
     @nb.jit
@@ -242,9 +260,15 @@ class WeightedSegment(BaseSegment):
 
 class EdgelessWeightedSegment(BaseSegment):
     ndims = 3
-    columns = ['x', 'y', 'weight']
-    merged_columns = ['src_x', 'src_y', 'dst_x', 'dst_y', 'weight']
     idx, idy = 0, 1
+
+    @staticmethod
+    def get_columns(params):
+        return [params.x, params.y, params.weight]
+
+    @staticmethod
+    def get_merged_columns(params):
+        return ['src_x', 'src_y', 'dst_x', 'dst_y', params.weight]
 
     @staticmethod
     @nb.jit
@@ -257,7 +281,7 @@ class EdgelessWeightedSegment(BaseSegment):
         img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]
 
 
-def _convert_graph_to_edge_segments(nodes, edges, include_edge_id, ignore_weights=False):
+def _convert_graph_to_edge_segments(nodes, edges, params):
     """
     Merge graph dataframes into a list of edge segments.
 
@@ -272,21 +296,21 @@ def _convert_graph_to_edge_segments(nodes, edges, include_edge_id, ignore_weight
     the accumulator function for drawing to an image.
     """
 
-    df = pd.merge(edges, nodes, left_on=['source'], right_index=True)
-    df = df.rename(columns={'x': 'src_x', 'y': 'src_y'})
+    df = pd.merge(edges, nodes, left_on=[params.source], right_index=True)
+    df = df.rename(columns={params.x: 'src_x', params.y: 'src_y'})
 
-    df = pd.merge(df, nodes, left_on=['target'], right_index=True)
-    df = df.rename(columns={'x': 'dst_x', 'y': 'dst_y'})
+    df = pd.merge(df, nodes, left_on=[params.target], right_index=True)
+    df = df.rename(columns={params.x: 'dst_x', params.y: 'dst_y'})
 
     df = df.sort_index()
     df = df.reset_index()
 
-    if include_edge_id:
+    if params.include_edge_id:
         df = df.rename(columns={'id': 'edge_id'})
 
-    include_weight = not ignore_weights and 'weight' in edges
+    include_weight = params.weight and params.weight in edges
 
-    if include_edge_id:
+    if params.include_edge_id:
         if include_weight:
             segment_class = WeightedSegment
         else:
@@ -297,7 +321,7 @@ def _convert_graph_to_edge_segments(nodes, edges, include_edge_id, ignore_weight
         else:
             segment_class = EdgelessUnweightedSegment
 
-    df = df.filter(items=segment_class.merged_columns)
+    df = df.filter(items=segment_class.get_merged_columns(params))
 
     edge_segments = []
     for edge in df.get_values():
@@ -305,7 +329,7 @@ def _convert_graph_to_edge_segments(nodes, edges, include_edge_id, ignore_weight
     return edge_segments, segment_class
 
 
-def _convert_edge_segments_to_dataframe(edge_segments, segment_class):
+def _convert_edge_segments_to_dataframe(edge_segments, segment_class, params):
     """
     Convert list of edge segments into a dataframe.
 
@@ -321,7 +345,7 @@ def _convert_edge_segments_to_dataframe(edge_segments, segment_class):
             yield segment_class.create_delimiter()
 
     df = DataFrame(np.concatenate(list(edge_iterator())))
-    df.columns = segment_class.columns
+    df.columns = segment_class.get_columns(params)
     return df
 
 
@@ -333,6 +357,21 @@ class directly_connect_edges(param.ParameterizedFunction):
     Subclasses can add more complex algorithms for connecting with
     curved or manhattan-style polylines.
     """
+
+    x = param.String(default='x', doc="""
+        Column name for each node's x coordinate.""")
+
+    y = param.String(default='y', doc="""
+        Column name for each node's y coordinate.""")
+
+    source = param.String(default='source', doc="""
+        Column name for each edge's source.""")
+
+    target = param.String(default='target', doc="""
+        Column name for each edge's target.""")
+
+    weight = param.String(default=None, allow_None=True, doc="""
+        Column name for each edge weight. If None, weights are ignored.""")
 
     include_edge_id = param.Boolean(default=False, doc="""
         Include edge IDs in bundled dataframe""")
@@ -350,8 +389,8 @@ class directly_connect_edges(param.ParameterizedFunction):
         a point with NaN as the x or y value.
         """
         p = param.ParamOverrides(self, params)
-        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p.include_edge_id, ignore_weights=True)
-        return _convert_edge_segments_to_dataframe(edges, segment_class)
+        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p)
+        return _convert_edge_segments_to_dataframe(edges, segment_class, p)
 
 
 @nb.jit
@@ -399,23 +438,23 @@ class hammer_bundle(directly_connect_edges):
     max_segment_length = param.Number(default=0.016,bounds=(0,None),precedence=-0.5,doc="""
         Maximum length (in data space?) for an edge segment""")
 
-    include_edge_id = param.Boolean(default=False, doc="""
-        Include edge IDs in bundled dataframe""")
+    weight = param.String(default='weight', allow_None=True, doc="""
+        Column name for each edge weight. If None, weights are ignored.""")
 
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
 
         # Calculate min/max for coordinates
-        xmin, xmax = np.min(nodes['x']), np.max(nodes['x'])
-        ymin, ymax = np.min(nodes['y']), np.max(nodes['y'])
+        xmin, xmax = np.min(nodes[p.x]), np.max(nodes[p.x])
+        ymin, ymax = np.min(nodes[p.y]), np.max(nodes[p.y])
 
         # Normalize coordinates
         nodes = nodes.copy()
-        nodes['x'] = minmax_normalize(nodes['x'], xmin, xmax)
-        nodes['y'] = minmax_normalize(nodes['y'], ymin, ymax)
+        nodes[p.x] = minmax_normalize(nodes[p.x], xmin, xmax)
+        nodes[p.y] = minmax_normalize(nodes[p.y], ymin, ymax)
 
         # Convert graph into list of edge segments
-        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p.include_edge_id)
+        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p)
 
         # This is simply to let the work split out over multiple cores
         edge_batches = list(batches(edges, p.batch_size))
@@ -460,10 +499,10 @@ class hammer_bundle(directly_connect_edges):
             new_segs.extend(batch)
 
         # Convert list of edge segments to Pandas dataframe
-        df = _convert_edge_segments_to_dataframe(new_segs, segment_class)
+        df = _convert_edge_segments_to_dataframe(new_segs, segment_class, p)
 
         # Denormalize coordinates
-        df['x'] = minmax_denormalize(df['x'], xmin, xmax)
-        df['y'] = minmax_denormalize(df['y'], ymin, ymax)
+        df[p.x] = minmax_denormalize(df[p.x], xmin, xmax)
+        df[p.y] = minmax_denormalize(df[p.y], ymin, ymax)
 
         return df

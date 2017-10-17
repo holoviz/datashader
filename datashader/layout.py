@@ -16,6 +16,25 @@ class LayoutAlgorithm(param.ParameterizedFunction):
 
     __abstract = True
 
+    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
+        Random seed used to initialize the pseudo-random number
+        generator.""")
+
+    x = param.String(default='x', doc="""
+        Column name for each node's x coordinate.""")
+
+    y = param.String(default='y', doc="""
+        Column name for each node's y coordinate.""")
+
+    source = param.String(default='source', doc="""
+        Column name for each edge's source.""")
+
+    target = param.String(default='target', doc="""
+        Column name for each edge's target.""")
+
+    weight = param.String(default=None, allow_None=True, doc="""
+        Column name for each edge weight. If None, weights are ignored.""")
+
     def __call__(self, nodes, edges, **params):
         """
         This method takes two dataframes representing a graph's nodes
@@ -36,10 +55,6 @@ class random_layout(LayoutAlgorithm):
     Assign coordinates to the nodes randomly.
     """
 
-    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
-        Random seed used to initialize the pseudo-random number
-        generator.""")
-
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
 
@@ -48,8 +63,8 @@ class random_layout(LayoutAlgorithm):
         df = nodes.copy()
         points = np.asarray(np.random.random((len(df), 2)))
 
-        df['x'] = points[:, 0]
-        df['y'] = points[:, 1]
+        df[p.x] = points[:, 0]
+        df[p.y] = points[:, 1]
 
         return df
 
@@ -63,10 +78,6 @@ class circular_layout(LayoutAlgorithm):
 
     uniform = param.Boolean(True, doc="""
         Whether to distribute nodes evenly on circle""")
-
-    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
-        Random seed used to initialize the pseudo-random number
-        generator.""")
 
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
@@ -84,15 +95,15 @@ class circular_layout(LayoutAlgorithm):
         else:
             thetas = np.asarray(np.random.random((len(df),))) * circumference
 
-        df['x'] = x0 + r * np.cos(thetas)
-        df['y'] = y0 + r * np.sin(thetas)
+        df[p.x] = x0 + r * np.cos(thetas)
+        df[p.y] = y0 + r * np.sin(thetas)
 
         return df
 
 
 def _extract_points_from_nodes(nodes, params, dtype=None):
-    if 'x' in nodes.columns and 'y' in nodes.columns:
-        points = np.asarray(nodes[['x', 'y']])
+    if params.x in nodes.columns and params.y in nodes.columns:
+        points = np.asarray(nodes[[params.x, params.y]])
     else:
         points = np.asarray(np.random.random((len(nodes), params.dim)), dtype=dtype)
     return points
@@ -105,13 +116,13 @@ def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='cs
     else:
         index = dict(zip(nodes.index.values, range(nlen)))
 
-    if params.use_weights and 'weight' in edges:
-        edge_values = edges[['source', 'target', 'weight']].values
+    if params.weight and params.weight in edges:
+        edge_values = edges[[params.source, params.target, params.weight]].values
         rows, cols, data = zip(*((index[src], index[dst], weight)
                                  for src, dst, weight in edge_values
                                  if src in index and dst in index))
     else:
-        edge_values = edges[['source', 'target']].values
+        edge_values = edges[[params.source, params.target]].values
         rows, cols, data = zip(*((index[src], index[dst], 1)
                                  for src, dst in edge_values
                                  if src in index and dst in index))
@@ -122,15 +133,15 @@ def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='cs
     c = cols + rows
 
     # Check for nodes pointing to themselves
-    loops = edges[edges['source'] == edges['target']]
+    loops = edges[edges[params.source] == edges[params.target]]
     if len(loops):
-        if params.use_weights and 'weight' in edges:
-            loop_values = loops[['source', 'target', 'weight']].values
+        if params.weight and params.weight in edges:
+            loop_values = loops[[params.source, params.target, params.weight]].values
             diag_index, diag_data = zip(*((index[src], -weight)
                                           for src, dst, weight in loop_values
                                           if src in index and dst in index))
         else:
-            loop_values = loops[['source', 'target']].values
+            loop_values = loops[[params.source, params.target]].values
             diag_index, diag_data = zip(*((index[src], -1)
                                         for src, dst in loop_values
                                         if src in index and dst in index))
@@ -142,10 +153,10 @@ def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='cs
     return M.asformat(format)
 
 
-def _merge_points_with_nodes(nodes, points):
+def _merge_points_with_nodes(nodes, points, params):
     n = nodes.copy()
-    n['x'] = points[:, 0]
-    n['y'] = points[:, 1]
+    n[params.x] = points[:, 0]
+    n[params.y] = points[:, 1]
     return n
 
 
@@ -220,13 +231,6 @@ class forceatlas2_layout(LayoutAlgorithm):
     dim = param.Integer(default=2, bounds=(1, None), doc="""
         Coordinate dimensions of each node""")
 
-    seed = param.Integer(default=None, bounds=(0, 2**32-1), doc="""
-        Random seed used to initialize the pseudo-random number
-        generator.""")
-
-    use_weights = param.Boolean(True, doc="""
-        Whether to use weights during layout""")
-
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
 
@@ -248,4 +252,4 @@ class forceatlas2_layout(LayoutAlgorithm):
         cooling(matrix, points, temperature, p)
 
         # Return the nodes with updated positions
-        return _merge_points_with_nodes(nodes, points)
+        return _merge_points_with_nodes(nodes, points, p)

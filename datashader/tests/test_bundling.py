@@ -50,6 +50,18 @@ def test_immutable_nodes(nodes, edges):
 
 
 @pytest.mark.parametrize('bundle', [directly_connect_edges, hammer_bundle])
+def test_renamed_columns(nodes, weighted_edges, bundle):
+    nodes = nodes.rename(columns={'x': 'xx', 'y': 'yy'})
+    edges = weighted_edges.rename(columns={'source': 'src', 'target': 'dst', 'weight': 'w'})
+
+    df = bundle(nodes, edges, x='xx', y='yy', source='src', target='dst', weight='w')
+
+    assert 'xx' in df and 'x' not in df
+    assert 'yy' in df and 'y' not in df
+    assert 'w' in df and 'weight' not in df
+
+
+@pytest.mark.parametrize('bundle', [directly_connect_edges, hammer_bundle])
 @pytest.mark.parametrize('layout', [random_layout, circular_layout, forceatlas2_layout])
 def test_same_path_endpoints(layout, bundle):
     # Expect path endpoints to match original edge source/target
