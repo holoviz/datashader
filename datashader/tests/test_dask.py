@@ -168,7 +168,7 @@ def test_auto_range_points():
     df = pd.DataFrame({'time': np.arange(n),
                        'x': data,
                        'y': data})
-    ddf = dd.from_pandas(df, npartitions=3)
+    ddf = dd.from_pandas(df, npartitions=2)
 
     cvs = ds.Canvas(plot_width=n, plot_height=n)
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
@@ -188,7 +188,7 @@ def test_auto_range_points():
     df = pd.DataFrame({'time': np.arange(n),
                        'x': data,
                        'y': data})
-    ddf = dd.from_pandas(df, npartitions=3)
+    ddf = dd.from_pandas(df, npartitions=2)
 
     cvs = ds.Canvas(plot_width=2*n, plot_height=2*n)
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
@@ -267,7 +267,7 @@ def test_line():
 
     df = pd.DataFrame({'x': [4, 0, -4, -3, -2, -1.9, 0, 10, 10, 0, 4],
                        'y': [0, -4, 0, 1, 2, 2.1, 4, 20, 30, 4, 0]})
-    ddf = dd.from_pandas(df, npartitions=3)
+    ddf = dd.from_pandas(df, npartitions=2)
     cvs = ds.Canvas(plot_width=7, plot_height=7,
                     x_range=(-3, 3), y_range=(-3, 3))
     agg = cvs.line(ddf, 'x', 'y', ds.count())
@@ -308,7 +308,7 @@ def test_auto_range_line():
 
     df = pd.DataFrame({'x': [-10,  0, 10,   0, -10],
                        'y': [  0, 10,  0, -10,   0]})
-    ddf = dd.from_pandas(df, npartitions=3)
+    ddf = dd.from_pandas(df, npartitions=2)
     cvs = ds.Canvas(plot_width=5, plot_height=5)
     agg = cvs.line(ddf, 'x', 'y', ds.count())
     sol = np.array([[0, 0, 1, 0, 0],

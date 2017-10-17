@@ -41,7 +41,6 @@ toplevel directory:
 ```bash
 conda config --append channels ioam
 conda build conda.recipe/ --python 2.7
-conda build conda.recipe/ --python 3.4
 conda build conda.recipe/ --python 3.5
 conda build conda.recipe/ --python 3.6
 ```
