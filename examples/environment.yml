@@ -42,6 +42,7 @@ dependencies:
  - snappy
  - python-snappy
  - jupyter_dashboards
+ - streamz
  - pip:
    - cachey
    - webargs
