@@ -166,3 +166,24 @@ def test_extend_lines_nan():
     extend_line(vt, bounds, xs, ys, True, agg)
     out = np.diag([1, 1, 0, 2, 0])
     np.testing.assert_equal(agg, out)
+
+
+def test_extend_lines_exact_bounds():
+    xs = np.array([-3, 1, 1, -3, -3])
+    ys = np.array([-3, -3, 1, 1, -3])
+
+    agg = np.zeros((4, 4), dtype='i4')
+    extend_line(vt, bounds, xs, ys, True, agg)
+    out = np.array([[2, 1, 1, 1],
+                    [1, 0, 0, 1],
+                    [1, 0, 0, 1],
+                    [1, 1, 1, 1]])
+    np.testing.assert_equal(agg, out)
+
+    agg = np.zeros((4, 4), dtype='i4')
+    extend_line(vt, bounds, xs, ys, False, agg)
+    out = np.array([[1, 1, 1, 1],
+                    [1, 0, 0, 1],
+                    [1, 0, 0, 1],
+                    [1, 1, 1, 1]])
+    np.testing.assert_equal(agg, out)

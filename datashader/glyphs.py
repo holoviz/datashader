@@ -145,30 +145,6 @@ class Line(_PointLike):
 
 # -- Helpers for computing line geometry --
 
-# Outcode constants
-INSIDE = 0b0000
-LEFT = 0b0001
-RIGHT = 0b0010
-BOTTOM = 0b0100
-TOP = 0b1000
-
-
-@ngjit
-def _compute_outcode(x, y, xmin, xmax, ymin, ymax):
-    """Outcodes for Cohen-Sutherland"""
-    code = INSIDE
-
-    if x < xmin:
-        code |= LEFT
-    elif x > xmax:
-        code |= RIGHT
-    if y < ymin:
-        code |= BOTTOM
-    elif y > ymax:
-        code |= TOP
-    return code
-
-
 def _build_map_onto_pixel(x_mapper, y_mapper):
     @ngjit
     def map_onto_pixel(vt, bounds, x, y):
@@ -238,6 +214,35 @@ def _build_draw_line(append):
 
 def _build_extend_line(draw_line, map_onto_pixel):
     @ngjit
+    def outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
+        if x0 < xmin and x1 < xmin:
+            return True
+        if x0 > xmax and x1 > xmax:
+            return True
+        if y0 < ymin and y1 < ymin:
+            return True
+        return y0 > ymax and y1 > ymax
+
+    @ngjit
+    def clipt(p, q, t0, t1):
+        accept = True
+        if p < 0 and q < 0:
+            r = q / p
+            if r > t1:
+                accept = False
+            elif r > t0:
+                t0 = r
+        elif p > 0 and q < p:
+            r = q / p
+            if r < t0:
+                accept = False
+            elif r < t1:
+                t1 = r
+        elif q < 0:
+            accept = False
+        return t0, t1, accept
+
+    @ngjit
     def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
         xmin, xmax, ymin, ymax = bounds
@@ -256,50 +261,55 @@ def _build_extend_line(draw_line, map_onto_pixel):
                 i += 1
                 continue
 
-            # Use Cohen-Sutherland to clip the segment to a bounding box
-            outcode0 = _compute_outcode(x0, y0, xmin, xmax, ymin, ymax)
-            outcode1 = _compute_outcode(x1, y1, xmin, xmax, ymin, ymax)
+            # Use Liang-Barsky (1992) to clip the segment to a bounding box
+            if outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
+                plot_start = True
+                i += 1
+                continue
 
-            accept = False
             clipped = False
 
-            while True:
-                if not (outcode0 | outcode1):
-                    accept = True
-                    break
-                elif outcode0 & outcode1:
-                    plot_start = True
-                    break
+            t0, t1 = 0, 1
+            dx = x1 - x0
 
+            t0, t1, accept = clipt(-dx, x0 - xmin, t0, t1)
+            if not accept:
+                i += 1
+                continue
+
+            t0, t1, accept = clipt(dx, xmax - x0, t0, t1)
+            if not accept:
+                i += 1
+                continue
+
+            dy = y1 - y0
+
+            t0, t1, accept = clipt(-dy, y0 - ymin, t0, t1)
+            if not accept:
+                i += 1
+                continue
+
+            t0, t1, accept = clipt(dy, ymax - y0, t0, t1)
+            if not accept:
+                i += 1
+                continue
+
+            if t1 < 1:
                 clipped = True
-                outcode_out = outcode0 if outcode0 else outcode1
-                if outcode_out & TOP:
-                    x = x0 + (x1 - x0) * (ymax - y0) / (y1 - y0)
-                    y = ymax
-                elif outcode_out & BOTTOM:
-                    x = x0 + (x1 - x0) * (ymin - y0) / (y1 - y0)
-                    y = ymin
-                elif outcode_out & RIGHT:
-                    y = y0 + (y1 - y0) * (xmax - x0) / (x1 - x0)
-                    x = xmax
-                elif outcode_out & LEFT:
-                    y = y0 + (y1 - y0) * (xmin - x0) / (x1 - x0)
-                    x = xmin
+                x1 = x0 + t1 * dx
+                y1 = y0 + t1 * dy
 
-                if outcode_out == outcode0:
-                    x0, y0 = x, y
-                    outcode0 = _compute_outcode(x0, y0, xmin, xmax, ymin, ymax)
-                    # If x0 is clipped, we need to plot the new start
-                    plot_start = True
-                else:
-                    x1, y1 = x, y
-                    outcode1 = _compute_outcode(x1, y1, xmin, xmax, ymin, ymax)
+            if t0 > 0:
+                # If x0 is clipped, we need to plot the new start
+                clipped = True
+                plot_start = True
+                x0 = x0 + t0 * dx
+                y0 = y0 + t0 * dy
 
-            if accept:
-                x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
-                draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped, *aggs_and_cols)
-                plot_start = False
+            x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+            x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+            draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped, *aggs_and_cols)
+            plot_start = False
             i += 1
 
     return extend_line

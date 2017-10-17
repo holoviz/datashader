@@ -105,15 +105,16 @@ def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='cs
     else:
         index = dict(zip(nodes.index.values, range(nlen)))
 
-    if not params.use_weights or 'weight' not in edges:
-        edges = edges.copy()
-        edges['weight'] = np.ones(len(edges))
-
-    edge_values = edges[['source', 'target', 'weight']].values
-
-    rows, cols, data = zip(*((index[src], index[dst], weight)
-                             for src, dst, weight in [tuple(edge) for edge in edge_values]
-                             if src in index and dst in index))
+    if params.use_weights and 'weight' in edges:
+        edge_values = edges[['source', 'target', 'weight']].values
+        rows, cols, data = zip(*((index[src], index[dst], weight)
+                                 for src, dst, weight in edge_values
+                                 if src in index and dst in index))
+    else:
+        edge_values = edges[['source', 'target']].values
+        rows, cols, data = zip(*((index[src], index[dst], 1)
+                                 for src, dst in edge_values
+                                 if src in index and dst in index))
 
     # Symmetrize matrix
     d = data + data
@@ -123,10 +124,16 @@ def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='cs
     # Check for nodes pointing to themselves
     loops = edges[edges['source'] == edges['target']]
     if len(loops):
-        loop_values = loops[['source', 'target', 'weight']].values
-        diag_index, diag_data = zip(*((index[src], -weight)
-                                      for src, dst, weight in [tuple(edge) for edge in loop_values]
-                                      if src in index and dst in index))
+        if params.use_weights and 'weight' in edges:
+            loop_values = loops[['source', 'target', 'weight']].values
+            diag_index, diag_data = zip(*((index[src], -weight)
+                                          for src, dst, weight in loop_values
+                                          if src in index and dst in index))
+        else:
+            loop_values = loops[['source', 'target']].values
+            diag_index, diag_data = zip(*((index[src], -1)
+                                        for src, dst in loop_values
+                                        if src in index and dst in index))
         d += diag_data
         r += diag_index
         c += diag_index
