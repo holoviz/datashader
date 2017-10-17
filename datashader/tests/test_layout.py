@@ -1,4 +1,5 @@
 import pytest
+skimage = pytest.importorskip("skimage")
 
 import numpy as np
 import pandas as pd
