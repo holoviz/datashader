@@ -44,6 +44,8 @@ dependencies:
  - python-snappy
  - jupyter_dashboards
  - streamz==0.1.0
+ - conda-forge::graphviz
+ - conda-forge::python-graphviz
  - pip:
    - cachey
    - webargs
