@@ -33,9 +33,10 @@ install:
   # Install dependencies
   - conda create -n test-environment python=$PYTHON_VERSION
   - source activate test-environment
-  - conda install dask numba numpy pandas pillow pytest toolz xarray datashape colorcet rasterio scikit-image param
+  - conda install dask numba numpy pandas pillow toolz xarray datashape colorcet rasterio scikit-image param
   - conda install -c gbrener -c conda-forge xarray # remove this line when xarray >= 0.9.7
   # Optional dependencies, for testing only
+  - conda install -c conda-forge pytest pytest-benchmark
   - conda install matplotlib
   # Dependencies for lint checking only
   - conda install jupyter flake8
@@ -46,10 +47,12 @@ install:
 
 script:
     # TODO: why different tests for python 2 vs 3?
-    - if [[ $PYTHON_VERSION == '2.7' ]]; then py.test datashader --doctest-modules --doctest-ignore-import-errors --verbose; else py.test datashader --verbose; fi
+    - if [[ $PYTHON_VERSION == '2.7' ]]; then py.test datashader/tests --doctest-modules --doctest-ignore-import-errors --verbose; else py.test datashader/tests --verbose; fi
     - flake8 --ignore E,W datashader examples
     # lint checking of example notebooks (ugly)
     - for NB in examples/*.ipynb; do sed -e 's/"[ ]*%/"#%/' "$NB" > "${NB}~"; done && jupyter nbconvert examples/*.ipynb~ --to script --output-dir examples/lint && flake8 --ignore=E,W examples/lint/*.py
+    # benchmarks
+    - py.test datashader/benchmarks
 
 notifications:
   email: false

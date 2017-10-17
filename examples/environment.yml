@@ -27,7 +27,8 @@ dependencies:
  - paramnb
  - pyproj
  - pytables
- - pytest
+ - conda-forge::pytest
+ - conda-forge::pytest-benchmark
  - python=3.6
  - rasterio
  - requests

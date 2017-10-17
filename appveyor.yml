@@ -33,4 +33,4 @@ install:
 build: off
 
 test_script:
-  - "pytest -x -v datashader"
+  - "pytest -x -v datashader/tests"
