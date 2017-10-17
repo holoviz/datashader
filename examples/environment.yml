@@ -42,7 +42,7 @@ dependencies:
  - snappy
  - python-snappy
  - jupyter_dashboards
- - streamz
+ - streamz>=0.1.0
  - pip:
    - cachey
    - webargs
