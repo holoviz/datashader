@@ -1,21 +1,122 @@
 from __future__ import absolute_import
 
+from distutils.version import LooseVersion
+
 import uuid
 import json
 
 import numpy as np
+import bokeh
 
-from bokeh.io import notebook_div
+
 from bokeh.document import Document
 from bokeh.models import (CustomJS, ColumnDataSource, Square, HoverTool,
                           GlyphRenderer)
-from bokeh.io import _CommsHandle
-from bokeh.util.notebook import get_comms
 from bokeh.models import Plot, Text, Circle, Range1d
 from bokeh.plotting import Figure
 
 from . import transfer_functions as tf
 from .utils import downsample_aggregate, summarize_aggregate_values
+
+bokeh_version = LooseVersion(bokeh.__version__)
+
+if bokeh_version > '0.12.9':
+    from bokeh.protocol import Protocol
+    from bokeh.embed import notebook_content
+    from bokeh.embed.notebook import encode_utf8
+    from bokeh.io.notebook import CommsHandle, get_comms
+else:
+    from bokeh.embed import notebook_div
+    from bokeh.io import _CommsHandle as CommsHandle
+    from bokeh.util.notebook import get_comms
+
+
+NOTEBOOK_DIV = """
+{plot_div}
+<script type="text/javascript">
+  {plot_script}
+</script>
+"""
+
+def bokeh_notebook_div(image):
+    """"
+    Generates an HTML div to embed in the notebook.
+
+    Parameters
+    ----------
+    image: InteractiveImage
+        InteractiveImage instance with a plot
+
+    Returns
+    -------
+    div: str
+        HTML string containing the bokeh plot to be displayed
+    """
+    if bokeh_version > '0.12.9':
+        js, div, _ = notebook_content(image.p, image.ref)
+        html = NOTEBOOK_DIV.format(plot_script=js, plot_div=div)
+        div = encode_utf8(html)
+        # Ensure events are held until an update is triggered
+        image.doc.hold() 
+    else:
+        div = notebook_div(image.p, image.ref)
+    return div
+
+
+def patch_event(image):
+    """
+    Generates a bokeh patch event message given an InteractiveImage
+    instance. Uses the bokeh messaging protocol for bokeh>=0.12.10
+    and a custom patch for previous versions.
+
+    Parameters
+    ----------
+    image: InteractiveImage
+        InteractiveImage instance with a plot
+
+    Returns
+    -------
+    msg: str
+        JSON message containing patch events to update the plot
+    """
+    if bokeh_version > '0.12.9':
+        events = list(image.doc._held_events)
+        if not events:
+            return None
+        msg = Protocol("1.0").create("PATCH-DOC", events)
+        image.doc._held_events = []
+        return msg
+    data = dict(image.ds.data)
+    data['image'] = [data['image'][0].tolist()]
+    return json.dumps({'events': [{'attr': u'data',
+                                   'kind': 'ModelChanged',
+                                   'model': image.ds.ref,
+                                   'new': data}],
+                       'references': []})
+
+
+def send_patch(msg, comm):
+    """
+    Sends a bokeh patch event message via the supplied comm, using
+    binary buffers for bokeh versions >= 0.12.10.
+
+    Parameters
+    ----------
+    msg: str
+        JSON message containing patch events to update the plot
+    comm: Comm
+        Jupyter comm used to send data to the notebook frontend
+    """
+    if bokeh_version > '0.12.9':
+        comm.send(msg.header_json)
+        comm.send(msg.metadata_json)
+        comm.send(msg.content_json)
+        for header, payload in msg.buffers:
+            comm.send(json.dumps(header))
+            comm.send(buffers=[payload])
+    else:
+        comm.send(msg)
+
 
 
 class InteractiveImage(object):
@@ -188,25 +289,20 @@ class InteractiveImage(object):
             Dictionary with of x/y-ranges, width and height.
         """
         if not self.comms_handle:
-            self.comms_handle = _CommsHandle(get_comms(self.ref),
-                                             self.doc, {})
-
+            comm = get_comms(self.ref)
+            comm_args = (comm, self.doc) if bokeh_version > '0.12.9' else (comm, self.doc, {})
+            self.comms_handle = CommsHandle(*comm_args)
         self.update_image(ranges)
         msg = self.get_update_event()
-        self.comms_handle.comms.send(msg)
+        comm = self.comms_handle.comms
+        send_patch(msg, comm)
         return 'Complete'
 
     def get_update_event(self):
         """
         Generate an update event json message.
         """
-        data = dict(self.ds.data)
-        data['image'] = [data['image'][0].tolist()]
-        return json.dumps({'events': [{'attr': u'data',
-                                       'kind': 'ModelChanged',
-                                       'model': self.ds.ref,
-                                       'new': data}],
-                           'references': []})
+        return patch_event(self)
 
     def update_image(self, ranges):
         """
@@ -228,7 +324,7 @@ class InteractiveImage(object):
         for m in self.p.references():
             m._document = None
         self.doc.add_root(self.p)
-        return notebook_div(self.p, self.ref)
+        return bokeh_notebook_div(self)
 
 
 class HoverLayer(object):
