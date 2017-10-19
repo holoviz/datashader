@@ -19,7 +19,7 @@ dependencies:
  - jupyter
  - krb5
  - matplotlib
- - networkx
+ - networkx>=2.0
  - numba
  - numpy
  - pandas
