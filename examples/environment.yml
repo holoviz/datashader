@@ -6,6 +6,7 @@ channels:
 
 dependencies:
  - attrs
+ - beautifulsoup4
  - bokeh
  - cartopy
  - colorcet
