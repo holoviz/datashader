@@ -39,7 +39,7 @@ install:
   - conda install -c conda-forge pytest pytest-benchmark
   - conda install matplotlib
   # Dependencies for lint/verification only
-  - conda install beautifulsoup4 flake8 nbconvert nbformat requests
+  - conda install beautifulsoup4 flake8 ipython nbconvert nbformat requests
 
   - python setup.py develop --no-deps
   - conda env export
