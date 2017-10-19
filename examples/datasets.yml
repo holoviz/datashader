@@ -113,3 +113,8 @@ data:
       - maccdc2012_edges.parq
       - maccdc2012_full_nodes.parq
       - maccdc2012_full_edges.parq
+
+  - url: https://www2.census.gov/geo/tiger/GENZ2015/shp/cb_2015_us_cd114_5m.zip
+    title: '2015 Congressional districts'
+    files:
+      - cb_2015_us_cd114_5m.shp
