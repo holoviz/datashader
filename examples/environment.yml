@@ -28,6 +28,7 @@ dependencies:
  - jupyter_dashboards
  - krb5
  - matplotlib
+ - nbconvert
  - nbformat
  - networkx>=2.0
  - numba
