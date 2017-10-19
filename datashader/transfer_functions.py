@@ -165,6 +165,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     if np.issubdtype(data.dtype, np.bool_):
         mask = ~data
         interp = data
+        offset = 0
     else:
         if np.issubdtype(data.dtype, np.integer):
             mask = data == 0
@@ -179,7 +180,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
 
         interp = data - offset
         
-    data = interpolater(interp, mask)
+    data = interpolater(interp, mask) + offset
     if span is None:
         span = [np.nanmin(data), np.nanmax(data)]
     else:
