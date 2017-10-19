@@ -30,30 +30,35 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update conda
 
-  # Install dependencies
+  # Dependencies for testing/benchmarking
   - conda create -n test-environment python=$PYTHON_VERSION
   - source activate test-environment
   - conda install dask numba numpy pandas pillow toolz xarray datashape colorcet rasterio scikit-image param
   - conda install -c gbrener -c conda-forge xarray # remove this line when xarray >= 0.9.7
-  # Optional dependencies, for testing only
   - conda install -c conda-forge pytest pytest-benchmark
   - conda install matplotlib
-  # Dependencies for lint/verification only
-  - conda install beautifulsoup4 flake8 ipython nbconvert nbformat requests
+  - python setup.py develop --no-deps
+  - conda env export
 
+  # Dependencies for linting/verifying notebook examples
+  - conda env create --file examples/environment.yml
+  - source activate ds
+  - conda remove datashader
   - python setup.py develop --no-deps
   - conda env export
 
 
 script:
     # TODO: why different tests for python 2 vs 3?
+    - source activate test-environment
     - if [[ $PYTHON_VERSION == '2.7' ]]; then py.test datashader/tests --doctest-modules --doctest-ignore-import-errors --verbose; else py.test datashader/tests --verbose; fi
     - flake8 --ignore E,W datashader examples
-    # lint/verify example notebooks
-    - python examples/nb lint examples/*.ipynb
-    - python examples/nb verify examples/*.ipynb
     # benchmarks
     - py.test datashader/benchmarks
+    # lint/verify example notebooks
+    - source activate ds
+    - python examples/nb lint examples/*.ipynb
+    - python examples/nb verify examples/*.ipynb
 
 notifications:
   email: false
