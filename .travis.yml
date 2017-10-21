@@ -4,13 +4,6 @@
 # https://github.com/travis-ci/travis-ci/issues/4729).
 language: generic
 
-os:
-  - linux
-  - osx
-
-# get a more recent version of osx than the default image
-osx_image: xcode8.3
-
 sudo: false
 
 before_install:
@@ -20,21 +13,53 @@ jobs:
   include:
     - install: scripts/ci/install_examples
       script: scripts/ci/test_examples
+      os: linux
       env:
       - GROUP=examples
       - PYTHON_VERSION=3.6
     - install: scripts/ci/install_unit
       script: scripts/ci/test_unit
+      os: linux
       env:
       - GROUP=unit
       - PYTHON_VERSION=2.7
     - install: scripts/ci/install_unit
       script: scripts/ci/test_unit
+      os: linux
       env:
       - GROUP=unit
-      - PYTHON_VERSION=3.4
+      - PYTHON_VERSION=3.5
     - install: scripts/ci/install_unit
       script: scripts/ci/test_unit
+      os: linux
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=3.6
+    - install: scripts/ci/install_examples
+      script: scripts/ci/test_examples
+      os: osx
+      osx_image: xcode8.3
+      env:
+      - GROUP=examples
+      - PYTHON_VERSION=3.6
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      os: osx
+      osx_image: xcode8.3
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=2.7
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      os: osx
+      osx_image: xcode8.3
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=3.5
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      os: osx
+      osx_image: xcode8.3
       env:
       - GROUP=unit
       - PYTHON_VERSION=3.6
