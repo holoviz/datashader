@@ -13,52 +13,31 @@ osx_image: xcode8.3
 
 sudo: false
 
-env:
-  - PYTHON_VERSION="2.7"
-  - PYTHON_VERSION="3.5"
-  - PYTHON_VERSION="3.6"
-
-install:
-  # Install conda
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh;
-    else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi  
-  - bash miniconda.sh -b -p $HOME/miniconda
+before_install:
   - export PATH="$HOME/miniconda/bin:$PATH"
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update conda
 
-  # Dependencies for testing/benchmarking
-  - conda create -n test-environment python=$PYTHON_VERSION
-  - source activate test-environment
-  - conda install dask numba numpy pandas pillow toolz xarray datashape colorcet rasterio scikit-image param
-  - conda install -c gbrener -c conda-forge xarray # remove this line when xarray >= 0.9.7
-  - conda install -c conda-forge pytest pytest-benchmark
-  - conda install flake8 matplotlib
-  - python setup.py develop --no-deps
-  - conda env export
-
-  # Dependencies for linting/verifying notebook examples
-  - conda env create --file examples/environment.yml
-  - source activate ds
-  - conda remove datashader
-  - python setup.py develop --no-deps
-  - conda env export
-
-
-script:
-    # TODO: why different tests for python 2 vs 3?
-    - source activate test-environment
-    - if [[ $PYTHON_VERSION == '2.7' ]]; then py.test datashader/tests --doctest-modules --doctest-ignore-import-errors --verbose; else py.test datashader/tests --verbose; fi
-    - flake8 --ignore E,W datashader examples
-    # benchmarks
-    - py.test datashader/benchmarks
-    # lint/verify example notebooks
-    - source activate ds
-    - python examples/nb lint examples/*.ipynb
-    - python examples/nb verify examples/*.ipynb
+jobs:
+  include:
+    - install: scripts/ci/install_examples
+      script: scripts/ci/test_examples
+      env:
+      - GROUP=examples
+      - PYTHON_VERSION=3.6
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=2.7
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=3.4
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=3.6
 
 notifications:
   email: false
