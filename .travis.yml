@@ -4,55 +4,65 @@
 # https://github.com/travis-ci/travis-ci/issues/4729).
 language: generic
 
-os:
-  - linux
-  - osx
-
-# get a more recent version of osx than the default image
-osx_image: xcode8.3
-
 sudo: false
 
-env:
-  - PYTHON_VERSION="2.7"
-  - PYTHON_VERSION="3.5"
-  - PYTHON_VERSION="3.6"
-
-install:
-  # Install conda
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh;
-    else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi  
-  - bash miniconda.sh -b -p $HOME/miniconda
+before_install:
   - export PATH="$HOME/miniconda/bin:$PATH"
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update conda
 
-  # Install dependencies
-  - conda create -n test-environment python=$PYTHON_VERSION
-  - source activate test-environment
-  - conda install dask numba numpy pandas pillow toolz xarray datashape colorcet rasterio scikit-image param
-  - conda install -c gbrener -c conda-forge xarray # remove this line when xarray >= 0.9.7
-  # Optional dependencies, for testing only
-  - conda install -c conda-forge pytest pytest-benchmark
-  - conda install matplotlib
-  # Dependencies for lint checking only
-  - conda install jupyter flake8
-
-  - python setup.py develop --no-deps
-  - conda env export
-
-
-script:
-    # TODO: why different tests for python 2 vs 3?
-    - if [[ $PYTHON_VERSION == '2.7' ]]; then py.test datashader/tests --doctest-modules --doctest-ignore-import-errors --verbose; else py.test datashader/tests --verbose; fi
-    - flake8 --ignore E,W datashader examples
-    # lint checking of example notebooks (ugly)
-    - for NB in examples/*.ipynb; do sed -e 's/"[ ]*%/"#%/' "$NB" > "${NB}~"; done && jupyter nbconvert examples/*.ipynb~ --to script --output-dir examples/lint && flake8 --ignore=E,W examples/lint/*.py
-    # benchmarks
-    - py.test datashader/benchmarks
+jobs:
+  include:
+    - install: scripts/ci/install_examples
+      script: scripts/ci/test_examples
+      os: linux
+      env:
+      - GROUP=examples
+      - PYTHON_VERSION=3.6
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      os: linux
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=2.7
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      os: linux
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=3.5
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      os: linux
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=3.6
+    - install: scripts/ci/install_examples
+      script: scripts/ci/test_examples
+      os: osx
+      osx_image: xcode8.3
+      env:
+      - GROUP=examples
+      - PYTHON_VERSION=3.6
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      os: osx
+      osx_image: xcode8.3
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=2.7
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      os: osx
+      osx_image: xcode8.3
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=3.5
+    - install: scripts/ci/install_unit
+      script: scripts/ci/test_unit
+      os: osx
+      osx_image: xcode8.3
+      env:
+      - GROUP=unit
+      - PYTHON_VERSION=3.6
 
 notifications:
   email: false

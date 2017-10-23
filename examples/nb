@@ -1,0 +1,210 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
+import argparse
+import ast
+import os
+import os.path
+import re
+import subprocess
+import sys
+import traceback
+
+import nbconvert
+import nbformat
+import requests
+
+from bs4 import BeautifulSoup
+
+
+def run_notebook(filename):
+    with open(filename) as f:
+        nb = nbformat.read(f, as_version=4)
+        try:
+            ep = nbconvert.preprocessors.ExecutePreprocessor(timeout=600, kernel_name='python3')
+            ep.preprocess(nb, {'metadata': {'path': os.path.dirname(filename)}})
+        except Exception:
+            return traceback.format_exc()
+    return None
+
+
+def export_as_html(filename):
+    html_exporter = nbconvert.HTMLExporter()
+    html_exporter.template_file = 'basic'
+    body, _ = html_exporter.from_filename(filename)
+    return body
+
+
+def export_as_python(filename):
+    py_exporter = nbconvert.PythonExporter()
+    output, _ = py_exporter.from_filename(filename)
+    return output
+
+
+def module_exists(name):
+    try:
+        __import__(name)
+    except ImportError:
+        return False
+    else:
+        return True
+
+
+def url_exists(url):
+    headers = {'User-Agent': 'Mozilla/5.0'}  # dummy user agent for security filters
+    response = requests.head(url, headers=headers)
+    if not response.ok:
+        response = requests.get(url, headers=headers)
+    return response.ok
+
+
+def replace_all(src, dst, needle, replacement):
+    lines = []
+    with open(src) as f:
+        for line in f.readlines():
+            lines.append(re.sub(needle, replacement, line))
+    with open(dst, 'w') as f:
+        for line in lines:
+            f.write(line)
+
+
+def green(s):
+    prefix = '\033[1;32m'
+    suffix = '\033[00;m'
+    return prefix + s + suffix
+
+
+def red(s):
+    prefix = '\033[1;31m'
+    suffix = '\033[00;m'
+    return prefix + s + suffix
+
+
+def run(args):
+    status = 0
+    for filename in args.notebooks:
+        error = run_notebook(filename)
+        if error:
+            print("{}: {}".format(red("FAIL"), filename))
+            print(error.strip())
+            status = 1
+        else:
+            print("{}: {}".format(green("PASS"), filename))
+    sys.exit(status)
+
+
+def lint(args):
+    status = 0
+    for filename in args.notebooks:
+        base = os.path.basename(filename)
+        root = os.path.splitext(base)[0]
+        notebook = root + "-nomagic.ipynb"
+        replace_all(filename, notebook, r'[%]+time[ ]*', '')
+        replace_all(notebook, notebook, r'"[ ]*%', '"#%')
+        source = root + ".py"
+        with open(source, "wb") as f:
+            s = export_as_python(notebook)
+            f.write(s.encode('utf8'))
+        try:
+            cmd = "flake8 --ignore=E,W " + source
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+            print("{}: {}".format(green("PASS"), filename))
+        except subprocess.CalledProcessError as e:
+            print("{}: {}".format(red("FAIL"), filename))
+            for line in e.output.decode("utf-8").splitlines():
+                print(re.sub(source + ':', '', str(line)))
+            status = 1
+        os.remove(notebook)
+        os.remove(source)
+    sys.exit(status)
+
+
+def check_modules(notebook):
+    class ModuleReader(ast.NodeVisitor):
+        def __init__(self):
+            self.imports = set()
+
+        def generic_visit(self, node):
+            ast.NodeVisitor.generic_visit(self, node)
+            return list(self.imports)
+
+        def visit_Import(self, node):
+            for alias in node.names:
+                self.imports.add(alias.name)
+
+        def visit_ImportFrom(self, node):
+            self.imports.add(node.module)
+
+    def get_ipython_modules(s):
+        root = ast.parse(s)
+        return ModuleReader().visit(root)
+
+    bad_modules = set()
+
+    for module in get_ipython_modules(export_as_python(notebook)):
+        m = re.sub(r'\..*', '', module) if '.' in module else module
+        if not module_exists(m):
+            bad_modules.add(m)
+
+    return bad_modules
+
+
+def check_urls(notebook, name, attribute):
+    REGEX_URL = re.compile('^(http|https):.+')
+
+    bad_urls = set()
+
+    html = export_as_html(notebook)
+    soup = BeautifulSoup(html, 'html.parser')
+    for tag in soup.find_all(name):
+        url = tag.get(attribute)
+        if REGEX_URL.match(url) and not url_exists(url):
+            bad_urls.add(url)
+
+    return bad_urls
+
+
+def verify(args):
+    status = 0
+    for filename in args.notebooks:
+        bad_modules = check_modules(filename)
+        bad_links = check_urls(filename, name='a', attribute='href')
+        bad_images = check_urls(filename, name='img', attribute='src')
+
+        if bad_modules or bad_links or bad_images:
+            print("{}: {}".format(red("FAIL"), filename))
+            for module in bad_modules:
+                print("invalid module:", module)
+            for url in bad_links:
+                print("invalid URL   :", url)
+            for img in bad_images:
+                print("invalid image :", img)
+            status = 1
+        else:
+            print("{}: {}".format(green("PASS"), filename))
+    sys.exit(status)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(prog='nb', add_help=False)
+    subparsers = parser.add_subparsers(help='sub-command help')
+
+    run_parser = subparsers.add_parser('run', help='execute notebooks')
+    run_parser.add_argument('notebooks', metavar='FILE', type=str, nargs='+')
+    run_parser.set_defaults(func=run)
+
+    lint_parser = subparsers.add_parser('lint', help='lint notebooks')
+    lint_parser.add_argument('notebooks', metavar='FILE', type=str, nargs='+')
+    lint_parser.set_defaults(func=lint)
+
+    verify_parser = subparsers.add_parser('verify', help='verify notebooks')
+    verify_parser.add_argument('notebooks', metavar='FILE', type=str, nargs='+')
+    verify_parser.set_defaults(func=verify)
+
+    if not sys.argv[1:]:
+        parser.print_usage()
+        sys.exit(1)
+
+    args = parser.parse_args()
+    args.func(args)
