@@ -352,3 +352,34 @@ def dshape_from_dask(df):
 categoricals_in_dtypes = np.vectorize(lambda dtype: dtype.name == 'category', otypes='?')
 def categorical_in_dtypes(dtype_arr):
     return categoricals_in_dtypes(dtype_arr).any()
+
+def dataframe_from_multiple_sequences(x_values, y_values):
+   """
+   Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional 
+   numpy array into a pandas dataframe that can be plotted by datashader.
+   The pandas dataframe eventually contains two columns ('x' and 'y') with the data.
+   Each time series is separated by a row of NaNs.
+   Discussion at: https://github.com/bokeh/datashader/issues/286#issuecomment-334619499
+
+   x_values: 1D numpy array with the values to be plotted on the x axis (eg: time)
+   y_values: 2D numpy array with the sequences to be plotted of shape (num sequences X length of each sequence)
+
+   """
+   
+   # Add a NaN at the end of the array of x values
+   x = np.zeros(x_values.shape[0] + 1)
+   x[-1] = np.nan
+   x[:-1] = x_values
+
+   # Tile this array of x values: number of repeats = number of sequences/time series in the data
+   x = np.tile(x, y_values.shape[0])
+
+   # Add a NaN at the end of every sequence in y_values
+   y = np.zeros((y_values.shape[0], y_values.shape[1] + 1))
+   y[:, -1] = np.nan
+   y[:, :-1] = y_values
+
+   # Return a dataframe with this new set of x and y values
+   return pd.DataFrame({'x': x, 'y': y.flatten()})
+
+   
