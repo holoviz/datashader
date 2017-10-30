@@ -68,14 +68,17 @@ class Images(object):
             i.to_pil().save(b, format='png')
             label=i.name if i.name is not None else ""
             image_htmls.append("""<td style="text-align:center"><b>""" + label + 
-                               """</b><img src='data:image/png;base64,{0}'/></td>""".\
+                               """</b><br><br><img style="margin: auto; border:1px solid" """ + 
+                               """src='data:image/png;base64,{0}'/></td>""".\
                                format(b64encode(b.getvalue()).decode('utf-8')))
             col+=1
             if self.num_cols is not None and col>=self.num_cols:
                 col=0
                 image_htmls.append("</tr><tr>")
         
-        return """<table><tr>""" + "".join(image_htmls) + """</tr></table>"""
+        return """<table style="width:100%"><tbody><tr style="background-color:white;">""" + \
+               "".join(image_htmls) + """</tr></tbody></table>"""
+
 
 
 def stack(*imgs, **kwargs):
@@ -443,7 +446,7 @@ _mask_lookup = {'square': _square_mask,
                 'circle': _circle_mask}
 
 
-def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over'):
+def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=None):
     """Spread pixels in an image dynamically based on the image density.
 
     Spreading expands each pixel a certain number of pixels on all sides
@@ -473,7 +476,7 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over'):
         raise ValueError("max_px must be >= 0")
     # Simple linear search. Not super efficient, but max_px is usually small.
     for px in range(max_px + 1):
-        out = spread(img, px, shape=shape, how=how)
+        out = spread(img, px, shape=shape, how=how, name=name)
         if _density(out.data) >= threshold:
             break
     return out
