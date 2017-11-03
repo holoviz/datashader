@@ -35,12 +35,17 @@ class LayoutAlgorithm(param.ParameterizedFunction):
     weight = param.String(default=None, allow_None=True, doc="""
         Column name for each edge weight. If None, weights are ignored.""")
 
+    id = param.String(default=None, allow_None=True, doc="""
+        Column name for a unique identifier for the node.  If None, the
+        dataframe index is used.""")
+
     def __call__(self, nodes, edges, **params):
         """
         This method takes two dataframes representing a graph's nodes
         and edges respectively. For the nodes dataframe, the only
-        column is id. For the edges dataframe, the columns are id,
-        source, target, and (optionally) weight.
+        column accessed is the specified `id` value (or the index if
+        no 'id'). For the edges dataframe, the columns are `id`,
+        `source`, `target`, and (optionally) `weight`.
 
         Each layout algorithm will use the two dataframes as appropriate to
         assign positions to the nodes. Upon generating positions, this
@@ -53,9 +58,12 @@ class LayoutAlgorithm(param.ParameterizedFunction):
 class random_layout(LayoutAlgorithm):
     """
     Assign coordinates to the nodes randomly.
+
+    Accepts an edges argument for consistency with other layout algorithms,
+    but ignores it.
     """
 
-    def __call__(self, nodes, edges, **params):
+    def __call__(self, nodes, edges=None, **params):
         p = param.ParamOverrides(self, params)
 
         np.random.seed(p.seed)
@@ -74,12 +82,15 @@ class circular_layout(LayoutAlgorithm):
     Assign coordinates to the nodes along a circle.
 
     The points on the circle can be spaced either uniformly or randomly.
+
+    Accepts an edges argument for consistency with other layout algorithms,
+    but ignores it.
     """
 
     uniform = param.Boolean(True, doc="""
         Whether to distribute nodes evenly on circle""")
 
-    def __call__(self, nodes, edges, **params):
+    def __call__(self, nodes, edges=None, **params):
         p = param.ParamOverrides(self, params)
 
         np.random.seed(p.seed)
@@ -111,8 +122,8 @@ def _extract_points_from_nodes(nodes, params, dtype=None):
 
 def _convert_graph_to_sparse_matrix(nodes, edges, params, dtype=None, format='csr'):
     nlen = len(nodes)
-    if 'id' in nodes:
-        index = dict(zip(nodes['id'].values, range(nlen)))
+    if params.id is not None and params.id in nodes:
+        index = dict(zip(nodes[params.id].values, range(nlen)))
     else:
         index = dict(zip(nodes.index.values, range(nlen)))
 
