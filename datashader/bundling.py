@@ -349,7 +349,7 @@ def _convert_edge_segments_to_dataframe(edge_segments, segment_class, params):
     return df
 
 
-class directly_connect_edges(param.ParameterizedFunction):
+class connect_edges(param.ParameterizedFunction):
     """
     Convert a graph into paths suitable for datashading.
 
@@ -392,6 +392,7 @@ class directly_connect_edges(param.ParameterizedFunction):
         edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p)
         return _convert_edge_segments_to_dataframe(edges, segment_class, p)
 
+directly_connect_edges = connect_edges # For bockwards compatibility; deprecated
 
 @nb.jit
 def minmax_normalize(X, lower, upper):
@@ -403,7 +404,7 @@ def minmax_denormalize(X, lower, upper):
     return X * (upper - lower) + lower
 
 
-class hammer_bundle(directly_connect_edges):
+class hammer_bundle(connect_edges):
     """
     Iteratively group edges and return as paths suitable for datashading.
 
