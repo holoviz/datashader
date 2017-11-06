@@ -3,6 +3,8 @@
 set -e # exit on error
 set -x # echo commands
 
+NOTEBOOKS=$(ls examples/*.ipynb examples/getting_started/*.ipynb examples/topics/*.ipynb examples/user_guide/*.ipynb)
+
 source activate ds
-python examples/nb lint examples/*.ipynb
-python examples/nb verify examples/*.ipynb
+python examples/nb lint $NOTEBOOKS
+python examples/nb verify $NOTEBOOKS
