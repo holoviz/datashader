@@ -48,10 +48,10 @@ dependencies:
  - shapely
  - snappy
  - statsmodels
- - streamz==0.1.0
  - tblib
  - yaml
  - pip:
    - cachey
+   - streamz==0.2.0
    - webargs
 
