@@ -1,4 +1,4 @@
-dask
+dask >= 0.15.4
 datashape >= 0.5.1
 numba >= 0.35.0
 numpy >= 1.7

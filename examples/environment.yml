@@ -14,7 +14,7 @@ dependencies:
  - conda-forge::pytest
  - conda-forge::pytest-benchmark
  - conda-forge::python-graphviz
- - dask
+ - dask>=0.15.4
  - datashader
  - dill
  - distributed

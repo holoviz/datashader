@@ -317,7 +317,7 @@ def dshape_from_pandas_helper(col):
     """Return an object from datashape.coretypes given a column from a pandas
     dataframe.
     """
-    if isinstance(col.dtype, type(pd.Categorical.dtype)):
+    if isinstance(col.dtype, type(pd.Categorical.dtype)) or isinstance(col.dtype, pd.api.types.CategoricalDtype):
         cat_dshape = datashape.dshape('{} * {}'.format(
             len(col.cat.categories),
             col.cat.categories.dtype,
