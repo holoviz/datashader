@@ -43,6 +43,7 @@ jobs:
       script: scripts/ci/test_examples
       os: osx
       osx_image: xcode8.3
+      if: branch = master AND type != pull_request
       env:
       - GROUP=examples
       - PYTHON_VERSION=3.6
@@ -50,6 +51,7 @@ jobs:
       script: scripts/ci/test_unit
       os: osx
       osx_image: xcode8.3
+      if: branch = master AND type != pull_request
       env:
       - GROUP=unit
       - PYTHON_VERSION=2.7
@@ -57,6 +59,7 @@ jobs:
       script: scripts/ci/test_unit
       os: osx
       osx_image: xcode8.3
+      if: branch = master AND type != pull_request
       env:
       - GROUP=unit
       - PYTHON_VERSION=3.5
@@ -64,6 +67,7 @@ jobs:
       script: scripts/ci/test_unit
       os: osx
       osx_image: xcode8.3
+      if: branch = master AND type != pull_request
       env:
       - GROUP=unit
       - PYTHON_VERSION=3.6
