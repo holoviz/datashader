@@ -15,8 +15,8 @@ def pandas_pipeline(df, schema, canvas, glyph, summary):
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
-    x_range = canvas.x_range or glyph._compute_x_bounds(df[glyph.x].values)
-    y_range = canvas.y_range or glyph._compute_y_bounds(df[glyph.y].values)
+    x_range = canvas.x_range or glyph._compute_x_bounds(df[glyph.x].values.ravel())
+    y_range = canvas.y_range or glyph._compute_y_bounds(df[glyph.y].values.ravel())
 
     width = canvas.plot_width
     height = canvas.plot_height
@@ -30,4 +30,6 @@ def pandas_pipeline(df, schema, canvas, glyph, summary):
     bases = create((height, width))
     extend(bases, df, x_st + y_st, x_range + y_range)
 
+    if hasattr(glyph, 'xs') and hasattr(glyph, 'ys'):
+        return finalize(bases, coords=[y_axis, x_axis], dims=['y', 'x'])
     return finalize(bases, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])

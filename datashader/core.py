@@ -201,6 +201,24 @@ class Canvas(object):
             agg = any()
         return bypixel(source, self, Line(x, y), agg)
 
+    def triangles(self, source, xs, ys, agg=None):
+        """Compute a reduction by pixel, mapping data to pixels as a line.
+
+        Parameters
+        ----------
+        source : pandas.DataFrame, dask.DataFrame
+            The input datasource.
+        xs, ys : tuple of str
+            Column names for the x and y coordinates of each vertex, wound in CW order.
+        agg : Reduction, optional
+            Reduction to compute. Default is ``any()``.
+        """
+        from .glyphs import Triangles
+        from .reductions import any
+        if agg is None:
+            agg = any()
+        return bypixel(source, self, Triangles(xs, ys), agg)
+
     def raster(self,
                source,
                layer=None,
