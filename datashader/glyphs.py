@@ -415,17 +415,13 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel):
 
             # Prevent double-drawing edges.
             # https://msdn.microsoft.com/en-us/library/windows/desktop/bb147314(v=vs.85).aspx
-            # Always draw edges of the last triangle.
-            if n < (n_tris-1):
-                bias0, bias1, bias2 = -1, -1, -1
-                if by > ay or bx < ax:
-                    bias0 = 0
-                if cy > by or cx < bx:
-                    bias1 = 0
-                if ay > cy or ax < cx:
-                    bias2 = 0
-            else:
-                bias0, bias1, bias2 = 0, 0, 0
+            bias0, bias1, bias2 = -1, -1, -1
+            if by > ay or bx < ax:
+                bias0 = 0
+            if cy > by or cx < bx:
+                bias1 = 0
+            if ay > cy or ax < cx:
+                bias2 = 0
 
             # Get bounding box
             minx = min(ax, bx, cx)
