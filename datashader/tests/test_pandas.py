@@ -309,3 +309,50 @@ def test_auto_range_line():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq(agg, out)
+
+def test_triangles_no_double_edge():
+    """Assert that when two triangles share an edge that would normally get
+    double-drawn, the edge is only drawn for the rightmost triangle.
+    """
+    # Test left/right edge shared
+    df = pd.DataFrame({'x0': [4, 1],
+                       'x1': [5, 5],
+                       'x2': [5, 4],
+                       'y0': [4, 5],
+                       'y1': [5, 5],
+                       'y2': [4, 4]})
+    # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.triangles(df, ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], agg=ds.sum('x0'))
+    sol = np.array([
+        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 4, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+
+    # Test top/bottom edge shared
+    df = pd.DataFrame({'x0': [3, 1],
+                       'x1': [3, 3],
+                       'x2': [1, 3],
+                       'y0': [4, 4],
+                       'y1': [1, 5],
+                       'y2': [4, 4]})
+    # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
+    cvs = ds.Canvas(plot_width=22, plot_height=22, x_range=(0, 10), y_range=(0, 10))
+    agg = cvs.triangles(df, ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], agg=ds.sum('x0'))
+    sol = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[10:20, :20], sol)
