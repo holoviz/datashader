@@ -382,7 +382,6 @@ def _build_draw_triangle(append):
         (ax, ay), (bx, by), (cx, cy) = a, b, c = verts
         bias0, bias1, bias2 = biases
         minx, maxx, miny, maxy = bbox
-        agg = aggs_and_cols[0]
         for i in range(minx, maxx+1):
             for j in range(miny, maxy+1):
                 pt = (i, j)
@@ -417,7 +416,7 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel):
             # Prevent double-drawing edges.
             # https://msdn.microsoft.com/en-us/library/windows/desktop/bb147314(v=vs.85).aspx
             # Always draw edges of the last triangle.
-            if n < (n_verts-1):
+            if n < (n_tris-1):
                 bias0, bias1, bias2 = -1, -1, -1
                 if by > ay or bx < ax:
                     bias0 = 0
