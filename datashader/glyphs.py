@@ -366,8 +366,8 @@ def _build_extend_line(draw_line, map_onto_pixel):
 
 
 @ngjit
-def edge_func(a, b, c):
-    return (c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0])
+def edge_func(ax, ay, bx, by, cx, cy):
+    return (cx - ax) * (by - ay) - (cy - ay) * (bx - ax)
 
 def _build_draw_triangle(append):
     """Specialize a triangle plotting kernel for a given append/axis combination"""
@@ -379,15 +379,14 @@ def _build_draw_triangle(append):
         grid. The vertices are assumed to have already been scaled, transformed,
         and clipped within the bounds.
         """
-        (ax, ay), (bx, by), (cx, cy) = a, b, c = verts
+        (ax, ay), (bx, by), (cx, cy) = verts
         bias0, bias1, bias2 = biases
         minx, maxx, miny, maxy = bbox
         for i in range(minx, maxx+1):
             for j in range(miny, maxy+1):
-                pt = (i, j)
-                inside_tri = (edge_func(a, b, pt) + bias0) >= 0 and \
-                             (edge_func(b, c, pt) + bias1) >= 0 and \
-                             (edge_func(c, a, pt) + bias2) >= 0
+                inside_tri = ((edge_func(ax, ay, bx, by, i, j) + bias0) >= 0 and
+                              (edge_func(bx, by, cx, cy, i, j) + bias1) >= 0 and
+                              (edge_func(cx, cy, ax, ay, i, j) + bias2) >= 0)
                 if inside_tri:
                     append(n, i, j, *aggs_and_cols)
 
@@ -402,26 +401,35 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel):
         vertices. Each row corresponds to a single triangle definition.
         """
         xmin, xmax, ymin, ymax = bounds
-        mmax_x, mmax_y = map_onto_pixel(vt, bounds, xmax, ymax)
-        mmin_x, mmin_y = map_onto_pixel(vt, bounds, xmin, ymin)
+        vmax_x, vmax_y = map_onto_pixel(vt, bounds, xmax, ymax)
+        vmin_x, vmin_y = map_onto_pixel(vt, bounds, xmin, ymin)
         n_tris = verts.shape[0]
         for n in range(n_tris):
-            aix, bix, cix, aiy, biy, ciy = verts[n]
+            axn, bxn, cxn, ayn, byn, cyn = verts[n]
+
+            # Skip any further processing of triangles outside of viewing area
+            if not ((xmin <= axn < xmax) or
+                    (xmin <= bxn < xmax) or
+                    (xmin <= cxn < xmax) or
+                    (ymin <= ayn < ymax) or
+                    (ymin <= byn < ymax) or
+                    (ymin <= cyn < ymax)):
+                continue
 
             # Prevent double-drawing edges.
             # https://msdn.microsoft.com/en-us/library/windows/desktop/bb147314(v=vs.85).aspx
             bias0, bias1, bias2 = -1, -1, -1
-            if aiy < biy or (aiy == biy and aix < bix):
+            if ayn < byn or (ayn == byn and axn < bxn):
                 bias0 = 0
-            if biy < ciy or (biy == ciy and bix < cix):
+            if byn < cyn or (byn == cyn and bxn < cxn):
                 bias1 = 0
-            if ciy < aiy or (ciy == aiy and cix < aix):
+            if cyn < ayn or (cyn == ayn and cxn < axn):
                 bias2 = 0
 
             # Map triangle vertices onto pixels
-            ax, ay = map_onto_pixel(vt, bounds, aix, aiy)
-            bx, by = map_onto_pixel(vt, bounds, bix, biy)
-            cx, cy = map_onto_pixel(vt, bounds, cix, ciy)
+            ax, ay = map_onto_pixel(vt, bounds, axn, ayn)
+            bx, by = map_onto_pixel(vt, bounds, bxn, byn)
+            cx, cy = map_onto_pixel(vt, bounds, cxn, cyn)
 
             # Get bounding box
             minx = min(ax, bx, cx)
@@ -430,10 +438,10 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel):
             maxy = max(ay, by, cy)
 
             # Clip to viewing area
-            minx = max(minx, mmin_x)
-            maxx = min(maxx, mmax_x)
-            miny = max(miny, mmin_y)
-            maxy = min(maxy, mmax_y)
+            minx = max(minx, vmin_x)
+            maxx = min(maxx, vmax_x)
+            miny = max(miny, vmin_y)
+            maxy = min(maxy, vmax_y)
 
             mapped_verts = (ax, ay), (bx, by), (cx, cy)
             bbox = minx, maxx, miny, maxy
