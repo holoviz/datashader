@@ -8,6 +8,10 @@ sudo: false
 
 before_install:
   - export PATH="$HOME/miniconda/bin:$PATH"
+  # brew-installed geos interferes with cartopy?
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      brew uninstall --ignore-dependencies geos gdal postgis;
+    fi
 
 jobs:
   include:
