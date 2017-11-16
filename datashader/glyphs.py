@@ -407,29 +407,29 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel):
         for n in range(n_tris):
             axn, bxn, cxn, ayn, byn, cyn = verts[n]
 
+            # Map triangle vertices onto pixels
+            ax, ay = map_onto_pixel(vt, bounds, axn, ayn)
+            bx, by = map_onto_pixel(vt, bounds, bxn, byn)
+            cx, cy = map_onto_pixel(vt, bounds, cxn, cyn)
+
             # Skip any further processing of triangles outside of viewing area
-            if not ((xmin <= axn < xmax) or
-                    (xmin <= bxn < xmax) or
-                    (xmin <= cxn < xmax) or
-                    (ymin <= ayn < ymax) or
-                    (ymin <= byn < ymax) or
-                    (ymin <= cyn < ymax)):
+            if not ((vmax_x <= ax < vmax_x) or
+                    (vmin_x <= bx < vmax_x) or
+                    (vmin_x <= cx < vmax_x) or
+                    (vmin_y <= ay < vmax_y) or
+                    (vmin_y <= by < vmax_y) or
+                    (vmin_y <= cy < vmax_y)):
                 continue
 
             # Prevent double-drawing edges.
             # https://msdn.microsoft.com/en-us/library/windows/desktop/bb147314(v=vs.85).aspx
             bias0, bias1, bias2 = -1, -1, -1
-            if ayn < byn or (ayn == byn and axn < bxn):
-                bias0 = 0
-            if byn < cyn or (byn == cyn and bxn < cxn):
-                bias1 = 0
-            if cyn < ayn or (cyn == ayn and cxn < axn):
-                bias2 = 0
-
-            # Map triangle vertices onto pixels
-            ax, ay = map_onto_pixel(vt, bounds, axn, ayn)
-            bx, by = map_onto_pixel(vt, bounds, bxn, byn)
-            cx, cy = map_onto_pixel(vt, bounds, cxn, cyn)
+            if ay < by or (by == ay and ax < bx):
+                 bias0 = 0
+            if by < cy or (cy == by and bx < cx):
+                 bias1 = 0
+            if cy < ay or (ay == cy and cx < ax):
+                 bias2 = 0
 
             # Get bounding box
             minx = min(ax, bx, cx)
