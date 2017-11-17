@@ -312,7 +312,8 @@ def test_auto_range_line():
 
 def test_triangles_no_double_edge():
     """Assert that when two triangles share an edge that would normally get
-    double-drawn, the edge is only drawn for the rightmost triangle.
+    double-drawn, the edge is only drawn for the rightmost (or bottommost)
+    triangle.
     """
     # Test left/right edge shared
     df = pd.DataFrame({'x0': [4, 1],
@@ -356,3 +357,46 @@ def test_triangles_no_double_edge():
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[10:20, :20], sol)
+
+def test_triangles_interp():
+    """Assert triangles are interpolated when vertex values are provided.
+    """
+    df = pd.DataFrame({'x0': [0],'y0': [0],
+                       'x1': [5], 'y1': [10],
+                       'x2': [10], 'y2': [0],
+                       'val': [1]})
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
+    agg = cvs.triangles(df, ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], agg=ds.sum('val'))
+    sol = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+        [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+        [0, 0, 0, 1, 1, 1, 1, 1, 0, 0],
+        [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+        [0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values), sol)
+
+    df = pd.DataFrame({'x0': [0],'y0': [0], 'z0': [1],
+                       'x1': [5], 'y1': [10], 'z1': [5],
+                       'x2': [10], 'y2': [0], 'z2': [3],
+                       'val': [1]})
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
+    agg = cvs.triangles(df, ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], ['z0', 'z1', 'z2'])
+    sol = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 4, 0, 0, 0, 0],
+        [0, 0, 0, 0, 4, 4, 0, 0, 0, 0],
+        [0, 0, 0, 0, 3, 4, 4, 0, 0, 0],
+        [0, 0, 0, 3, 3, 3, 3, 0, 0, 0],
+        [0, 0, 0, 2, 3, 3, 3, 3, 0, 0],
+        [0, 0, 2, 2, 2, 3, 3, 3, 0, 0],
+        [0, 0, 2, 2, 2, 2, 2, 3, 3, 0],
+        [0, 1, 1, 1, 2, 2, 2, 2, 3, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values), sol)

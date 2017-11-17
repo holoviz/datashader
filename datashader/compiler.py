@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 
 from .compatibility import _exec
-from .reductions import summary
+from .reductions import summary, WeightedReduction
 from .utils import ngjit
 
 
@@ -100,12 +100,18 @@ def make_append(bases, cols, calls):
     local_lk = {}
     namespace = {}
     body = []
+    weight_arg = None
     for func, bases, cols, temps in calls:
+        if isinstance(bases[0], WeightedReduction):
+            weight_arg = next(names)
+            signature.append(weight_arg)
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
         args.extend('{0}[i]'.format(arg_lk[i]) for i in cols)
+        if isinstance(bases[0], WeightedReduction):
+            args.append(weight_arg)
         args.extend([local_lk[i] for i in temps])
         body.append('{0}(x, y, {1})'.format(func_name, ', '.join(args)))
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])

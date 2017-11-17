@@ -79,7 +79,15 @@ class _PolygonLike(_PointLike):
     Key differences from _PointLike:
         - self.x and self.y are tuples of strs, instead of just strs
         - self.xs and self.ys are available, as aliases to self.x and self.y
+        - added self.z coordinate (+ corresponding self.zs attr), for vertex weights
     """
+    def __init__(self, x, y, z=None):
+        super(_PolygonLike, self).__init__(x, y)
+        if z is None:
+            self.z = []
+        else:
+            self.z = z
+
     @property
     def xs(self):
         return self.x
@@ -89,11 +97,17 @@ class _PolygonLike(_PointLike):
         return self.y
 
     @property
+    def zs(self):
+        return self.z
+
+    @property
     def inputs(self):
-        return tuple(zip(self.xs, self.ys))
+        if self.zs:
+            return tuple(zip(self.xs, self.ys))
+        return tuple(zip(self.xs, self.ys, self.zs))
 
     def validate(self, in_dshape):
-        for col in (self.xs + self.ys):
+        for col in (self.xs + self.ys + self.zs):
             if not isreal(in_dshape.measure[col]):
                 raise ValueError('{} must be real'.format(col))
 
@@ -173,26 +187,31 @@ class Triangles(_PolygonLike):
 
     Parameters
     ----------
-    xs, ys : list of str
-        Column names of x and y coordinates of each vertex.
+    xs, ys, zs : list of str
+        Column names of x, y, and (optional) z coordinates of each vertex.
     """
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
-        draw_triangle = _build_draw_triangle(append)
-        extend_triangles = _build_extend_triangles(draw_triangle, map_onto_pixel)
         x_names = self.xs
         y_names = self.ys
+        z_names = self.zs
+        map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
+        draw_triangle = _build_draw_triangle(append, not not z_names)
+        extend_triangles = _build_extend_triangles(draw_triangle, map_onto_pixel, not not z_names)
 
         def extend(aggs, df, vt, bounds):
-            verts = df[x_names + y_names].values
             cols = aggs + info(df)
+            if not z_names:
+                verts = df[x_names + y_names].values
+            else:
+                verts = df[x_names + y_names + z_names].values
             extend_triangles(vt, bounds, verts, *cols)
+
 
         return extend
 
 
-# -- Helpers for computing line geometry --
+# -- Helpers for computing geometries --
 
 
 def _build_map_onto_pixel(x_mapper, y_mapper):
@@ -365,12 +384,31 @@ def _build_extend_line(draw_line, map_onto_pixel):
     return extend_line
 
 
-@ngjit
-def edge_func(ax, ay, bx, by, cx, cy):
-    return (cx - ax) * (by - ay) - (cy - ay) * (bx - ax)
-
-def _build_draw_triangle(append):
+def _build_draw_triangle(append, has_weights):
     """Specialize a triangle plotting kernel for a given append/axis combination"""
+    @ngjit
+    def edge_func(ax, ay, bx, by, cx, cy):
+        return (cx - ax) * (by - ay) - (cy - ay) * (bx - ax)
+
+    @ngjit
+    def draw_triangle_weights(n, verts, bbox, biases, *aggs_and_cols):
+        """Same as `draw_triangle()`, but with weights in verts.
+        """
+        (ax, ay, w0), (bx, by, w1), (cx, cy, w2) = verts
+        bias0, bias1, bias2 = biases
+        minx, maxx, miny, maxy = bbox
+        area = edge_func(ax, ay, bx, by, cx, cy) # Can a zero-area triangle exist?
+        # For weighted vertices, we always need an agg'd column (to weight):
+        aggs, cols = aggs_and_cols
+        for i in range(minx, maxx+1):
+            for j in range(miny, maxy+1):
+                g2 = edge_func(ax, ay, bx, by, i, j)
+                g0 = edge_func(bx, by, cx, cy, i, j)
+                g1 = edge_func(cx, cy, ax, ay, i, j)
+                if ((g2 + bias0) | (g0 + bias1) | (g1 + bias2)) >= 0:
+                    weight = (w0 * g0 + w1 * g1 + w2 * g2) / area
+                    append(n, i, j, aggs, cols, weight)
+
     @ngjit
     def draw_triangle(n, verts, bbox, biases, *aggs_and_cols):
         """Draw a triangle on a grid.
@@ -384,17 +422,70 @@ def _build_draw_triangle(append):
         minx, maxx, miny, maxy = bbox
         for i in range(minx, maxx+1):
             for j in range(miny, maxy+1):
-                inside_tri = ((edge_func(ax, ay, bx, by, i, j) + bias0) >= 0 and
-                              (edge_func(bx, by, cx, cy, i, j) + bias1) >= 0 and
-                              (edge_func(cx, cy, ax, ay, i, j) + bias2) >= 0)
-                if inside_tri:
+                if ((edge_func(ax, ay, bx, by, i, j) + bias0) >= 0 and
+                        (edge_func(bx, by, cx, cy, i, j) + bias1) >= 0 and
+                        (edge_func(cx, cy, ax, ay, i, j) + bias2) >= 0):
                     append(n, i, j, *aggs_and_cols)
 
 
+    if has_weights:
+        return draw_triangle_weights
     return draw_triangle
 
 
-def _build_extend_triangles(draw_triangle, map_onto_pixel):
+def _build_extend_triangles(draw_triangle, map_onto_pixel, has_weights):
+    @ngjit
+    def extend_triangles_weights(vt, bounds, verts, *aggs_and_cols):
+        """Same as ``extend_triangles()``, but with weights in the verts array.
+        """
+        xmin, xmax, ymin, ymax = bounds
+        vmax_x, vmax_y = map_onto_pixel(vt, bounds, xmax, ymax)
+        vmin_x, vmin_y = map_onto_pixel(vt, bounds, xmin, ymin)
+        n_tris = verts.shape[0]
+        for n in range(n_tris):
+            axn, bxn, cxn, ayn, byn, cyn, azn, bzn, czn = verts[n]
+
+            # Map triangle vertices onto pixels
+            ax, ay = map_onto_pixel(vt, bounds, axn, ayn)
+            bx, by = map_onto_pixel(vt, bounds, bxn, byn)
+            cx, cy = map_onto_pixel(vt, bounds, cxn, cyn)
+
+            # Skip any further processing of triangles outside of viewing area
+            if not ((vmax_x <= ax < vmax_x) or
+                    (vmin_x <= bx < vmax_x) or
+                    (vmin_x <= cx < vmax_x) or
+                    (vmin_y <= ay < vmax_y) or
+                    (vmin_y <= by < vmax_y) or
+                    (vmin_y <= cy < vmax_y)):
+                continue
+
+            # Prevent double-drawing edges.
+            # https://msdn.microsoft.com/en-us/library/windows/desktop/bb147314(v=vs.85).aspx
+            bias0, bias1, bias2 = -1, -1, -1
+            if ay < by or (by == ay and ax < bx):
+                 bias0 = 0
+            if by < cy or (cy == by and bx < cx):
+                 bias1 = 0
+            if cy < ay or (ay == cy and cx < ax):
+                 bias2 = 0
+
+            # Get bounding box
+            minx = min(ax, bx, cx)
+            maxx = max(ax, bx, cx)
+            miny = min(ay, by, cy)
+            maxy = max(ay, by, cy)
+
+            # Clip to viewing area
+            minx = max(minx, vmin_x)
+            maxx = min(maxx, vmax_x)
+            miny = max(miny, vmin_y)
+            maxy = min(maxy, vmax_y)
+
+            bbox = minx, maxx, miny, maxy
+            biases = bias0, bias1, bias2
+            mapped_verts = (ax, ay, azn), (bx, by, bzn), (cx, cy, czn)
+            draw_triangle(n, mapped_verts, bbox, biases, *aggs_and_cols)
+
     @ngjit
     def extend_triangles(vt, bounds, verts, *aggs_and_cols):
         """Aggregate along an array of triangles formed by arrays of CW
@@ -443,9 +534,11 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel):
             miny = max(miny, vmin_y)
             maxy = min(maxy, vmax_y)
 
-            mapped_verts = (ax, ay), (bx, by), (cx, cy)
             bbox = minx, maxx, miny, maxy
             biases = bias0, bias1, bias2
+            mapped_verts = (ax, ay), (bx, by), (cx, cy)
             draw_triangle(n, mapped_verts, bbox, biases, *aggs_and_cols)
 
+    if has_weights:
+        return extend_triangles_weights
     return extend_triangles

@@ -169,9 +169,9 @@ class Canvas(object):
             Reduction to compute. Default is ``count()``.
         """
         from .glyphs import Point
-        from .reductions import count
+        from .reductions import count as count_rdn
         if agg is None:
-            agg = count()
+            agg = count_rdn()
         return bypixel(source, self, Point(x, y), agg)
 
     def line(self, source, x, y, agg=None):
@@ -196,28 +196,37 @@ class Canvas(object):
             Reduction to compute. Default is ``any()``.
         """
         from .glyphs import Line
-        from .reductions import any
+        from .reductions import any as any_rdn
         if agg is None:
-            agg = any()
+            agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
-    def triangles(self, source, xs, ys, agg=None):
+    def triangles(self, source, xs, ys, zs=None, agg=None):
         """Compute a reduction by pixel, mapping data to pixels as a line.
 
         Parameters
         ----------
         source : pandas.DataFrame, dask.DataFrame
             The input datasource.
-        xs, ys : tuple of str
-            Column names for the x and y coordinates of each vertex, wound in CW order.
+        xs, ys, zs : tuple of str
+            Column names for the x, y, and (optional) z coordinates of each vertex, wound in CW order.
         agg : Reduction, optional
-            Reduction to compute. Default is ``any()``.
+            Reduction to compute. Default is ``any()``, if ``zs`` is None; otherwise it is ``wsum()``.
         """
         from .glyphs import Triangles
-        from .reductions import any
-        if agg is None:
-            agg = any()
-        return bypixel(source, self, Triangles(xs, ys), agg)
+        from .reductions import (WeightedReduction, summary, wsum,
+                                 any as any_rdn)
+        if zs is not None:
+            if agg is None:
+                acol = np.setdiff1d(source.columns.values, xs+ys+zs)[0]
+                agg = wsum(acol)
+            assert isinstance(agg, WeightedReduction), (
+                'Error: vertex weights (zs) are only allowed with aggs '
+                'derived from WeightedReduction.'
+            )
+        elif agg is None:
+            agg = any_rdn()
+        return bypixel(source, self, Triangles(xs, ys, zs), agg)
 
     def raster(self,
                source,
@@ -414,6 +423,8 @@ def bypixel(source, canvas, glyph, agg):
         cols_to_keep = OrderedDict({col: False for col in source.columns})
         cols_to_keep[glyph.x] = True
         cols_to_keep[glyph.y] = True
+        if hasattr(glyph, 'z'):
+            cols_to_keep[glyph.z] = True
         if hasattr(agg, 'values'):
             for subagg in agg.values:
                 if subagg.column is not None:
