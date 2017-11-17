@@ -400,6 +400,7 @@ def _build_draw_triangle(append, has_weights):
         area = edge_func(ax, ay, bx, by, cx, cy) # Can a zero-area triangle exist?
         # For weighted vertices, we always need an agg'd column (to weight):
         aggs, cols = aggs_and_cols
+        col = cols[n]
         for i in range(minx, maxx+1):
             for j in range(miny, maxy+1):
                 g2 = edge_func(ax, ay, bx, by, i, j)
@@ -407,7 +408,7 @@ def _build_draw_triangle(append, has_weights):
                 g1 = edge_func(cx, cy, ax, ay, i, j)
                 if ((g2 + bias0) | (g0 + bias1) | (g1 + bias2)) >= 0:
                     weight = (w0 * g0 + w1 * g1 + w2 * g2) / area
-                    append(n, i, j, aggs, cols, weight)
+                    append(i, j, aggs, col, weight)
 
     @ngjit
     def draw_triangle(n, verts, bbox, biases, *aggs_and_cols):
@@ -475,6 +476,10 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel, has_weights):
             miny = min(ay, by, cy)
             maxy = max(ay, by, cy)
 
+            # Skip triangles with sub-pixel bboxes.
+            if maxx == minx and maxy == miny:
+                continue
+
             # Clip to viewing area
             minx = max(minx, vmin_x)
             maxx = min(maxx, vmax_x)
@@ -527,6 +532,10 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel, has_weights):
             maxx = max(ax, bx, cx)
             miny = min(ay, by, cy)
             maxy = max(ay, by, cy)
+
+            # Skip triangles with sub-pixel bboxes
+            if maxx == minx and maxy == miny:
+                continue
 
             # Clip to viewing area
             minx = max(minx, vmin_x)

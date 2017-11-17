@@ -109,15 +109,19 @@ def make_append(bases, cols, calls):
         func_name = next(names)
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
-        args.extend('{0}[i]'.format(arg_lk[i]) for i in cols)
         if isinstance(bases[0], WeightedReduction):
             args.append(weight_arg)
+            args.extend('{0}'.format(arg_lk[i]) for i in cols)
+        else:
+            args.extend('{0}[i]'.format(arg_lk[i]) for i in cols)
         args.extend([local_lk[i] for i in temps])
         body.append('{0}(x, y, {1})'.format(func_name, ', '.join(args)))
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body
-    code = ('def append(i, x, y, {0}):\n'
-            '    {1}').format(', '.join(signature), '\n    '.join(body))
+    code = ('def append({2}x, y, {0}):\n'
+            '    {1}').format(', '.join(signature), '\n    '.join(body),
+                              ('' if isinstance(bases[0], WeightedReduction)
+                               else 'i, '))
     _exec(code, namespace)
     return ngjit(namespace['append'])
 
