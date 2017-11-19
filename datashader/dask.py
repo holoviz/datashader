@@ -68,8 +68,12 @@ def default(glyph, df, schema, canvas, summary):
     keys = df._keys()
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k)) for (k2, k) in zip(keys2, keys))
+    if hasattr(glyph, 'xs') and hasattr(glyph, 'ys'):
+        dims = ['y', 'x']
+    else:
+        dims = [glyph.y, glyph.x]
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(coords=axis, dims=[glyph.y, glyph.x]))
+                 dict(coords=axis, dims=dims))
     return dsk, name
 
 
