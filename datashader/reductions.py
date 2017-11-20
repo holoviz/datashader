@@ -205,14 +205,7 @@ class wsum(WeightedReduction, sum):
         Name of the column to aggregate over. Column data type must be numeric.
         If provided, only elements in ``column`` that are ``NaN`` are skipped.
     """
-    @staticmethod
-    @ngjit
-    def _append(x, y, agg, field, weight):
-        if not np.isnan(field):
-            if np.isnan(agg[y, x]):
-                agg[y, x] = weight * field
-            else:
-                agg[y, x] += weight * field
+    pass
 
 
 class m2(FloatingReduction):

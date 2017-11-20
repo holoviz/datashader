@@ -2,6 +2,7 @@ from __future__ import absolute_import, division
 
 from toolz import memoize
 import numpy as np
+import numba
 
 from .core import Expr
 from .utils import ngjit, isreal
@@ -222,12 +223,13 @@ def _build_map_onto_pixel(x_mapper, y_mapper):
     def map_onto_pixel(vt, bounds, x, y):
         """Map points onto pixel grid"""
         sx, tx, sy, ty = vt
-        _, xmax, _, ymax = bounds
+        xmax, ymax = int(bounds[1]), int(bounds[3])
         xx = int(x_mapper(x) * sx + tx)
         yy = int(y_mapper(y) * sy + ty)
         # Points falling on upper bound are mapped into previous bin
-        return (xx - 1 if x == xmax else xx,
-                yy - 1 if y == ymax else yy)
+        resx = xx - 1 if x == xmax else xx
+        resy = yy - 1 if y == ymax else yy
+        return resx, resy
 
     return map_onto_pixel
 
@@ -401,14 +403,14 @@ def _build_draw_triangle(append, has_weights):
         bias0, bias1, bias2 = biases
         minx, maxx, miny, maxy = bbox
         area = edge_func(ax, ay, bx, by, cx, cy) # Can a zero-area triangle exist?
-        for i in range(minx, maxx+1):
-            for j in range(miny, maxy+1):
+        for j in range(miny, maxy+1):
+            for i in range(minx, maxx+1):
                 g2 = edge_func(ax, ay, bx, by, i, j)
                 g0 = edge_func(bx, by, cx, cy, i, j)
                 g1 = edge_func(cx, cy, ax, ay, i, j)
                 if ((g2 + bias0) | (g0 + bias1) | (g1 + bias2)) >= 0:
                     weight = (w0 * g0 + w1 * g1 + w2 * g2) / area
-                    append(i, j, aggs, col, weight)
+                    append(i, j, aggs, col*weight)
 
     @ngjit
     def draw_triangle(n, verts, bbox, biases, *aggs_and_cols):
@@ -464,20 +466,18 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel, has_weights):
                     (cx == ax and cy == ay)):
                 continue
 
-            # Skip any further processing of triangles outside of viewing area
-            if not ((vmax_x <= ax < vmax_x) or
-                    (vmin_x <= bx < vmax_x) or
-                    (vmin_x <= cx < vmax_x) or
-                    (vmin_y <= ay < vmax_y) or
-                    (vmin_y <= by < vmax_y) or
-                    (vmin_y <= cy < vmax_y)):
-                continue
-
             # Get bounding box
             minx = min(ax, bx, cx)
             maxx = max(ax, bx, cx)
             miny = min(ay, by, cy)
             maxy = max(ay, by, cy)
+
+            # Skip any further processing of triangles outside of viewing area
+            if (minx >= vmax_x or
+                    maxx < vmin_x or
+                    miny >= vmax_y or
+                    maxy < vmin_y):
+                continue
 
             # Clip to viewing area
             minx = max(minx, vmin_x)

@@ -102,15 +102,11 @@ def make_append(bases, cols, calls):
     body = []
     weight_arg = None
     for func, bases, cols, temps in calls:
-        if isinstance(bases[0], WeightedReduction):
-            weight_arg = next(names)
-            signature.append(weight_arg)
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
         if isinstance(bases[0], WeightedReduction):
-            args.append(weight_arg)
             args.extend('{0}'.format(arg_lk[i]) for i in cols)
         else:
             args.extend('{0}[i]'.format(arg_lk[i]) for i in cols)

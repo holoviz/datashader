@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division
 
+import numpy as np
 import pandas as pd
 
 from .core import bypixel
@@ -16,9 +17,9 @@ def pandas_pipeline(df, schema, canvas, glyph, summary):
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
     xs = df[glyph.x].values
-    x_range = canvas.x_range or glyph._compute_x_bounds(xs.reshape(xs.shape[0]*xs.shape[1]))
+    x_range = canvas.x_range or glyph._compute_x_bounds(xs.reshape(np.prod(xs.shape)))
     ys = df[glyph.y].values
-    y_range = canvas.y_range or glyph._compute_y_bounds(ys.reshape(ys.shape[0]*ys.shape[1]))
+    y_range = canvas.y_range or glyph._compute_y_bounds(ys.reshape(np.prod(ys.shape)))
 
     width = canvas.plot_width
     height = canvas.plot_height
