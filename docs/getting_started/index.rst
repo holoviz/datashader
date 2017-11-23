@@ -2,29 +2,26 @@
 Getting Started
 ***************
 
-This 'Getting Started' guide aims to get you using Project
+This 'Getting Started' guide aims to get you using Datashader
 productively as quickly as possible.
 
 Detailed documentation is contained in the `User Guide
 <../user_guide/index.html>`_; we link to the user guide from the
 appropriate sections of this guide.
 
-To see what can be done with Project, see our `Gallery
-<../gallery/index.html>`_ of interesting examples.
+To see examples of what can be done with Datashader, see `Topics <../topics/index.html>`_.
 
 We recommend you proceed through the following in order; it should
-take around 1 hour in total.
+take around ? hour in total.
 
 * `Introduction <Introduction.html>`_
-   What is Project?
+   What is TODO
 
-* `Installation <Installation.html>`_
-   Install Project to run through this guide interactively.
+* `Pipeline <Pipeline.html>`_
+   Something TODO.
 
-* `Tabular Datasets <Tabular_Datasets.html>`_
-   Introduction to working with tabular data.
-
-* Etc...
+* `Interactivity <Interactivity.html>`_
+   More TODO.
 
 
 .. toctree::
@@ -33,5 +30,5 @@ take around 1 hour in total.
     :maxdepth: 2
 
     Introduction <Introduction>
-    Installation <Installation>
-    Tabular Datasets <Tabular_Datasets>
+    Pipeline <Pipeline>
+    Interactivity <Interactivity>

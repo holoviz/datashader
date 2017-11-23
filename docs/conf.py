@@ -8,7 +8,7 @@ from nbsite.shared_conf import * # noqa
 
 project = u'datashader'
 copyright = u'2016, Continuum Analytics'
-author = u'datashader contributors'
+authors = u'datashader contributors'
 
 # TODO: rename
 ioam_module = 'holoviews'
@@ -35,7 +35,7 @@ _NAV =  (
         ('Getting Started', 'getting_started/index'),
         ('User Guide', 'user_guide/index'),
         ('Topics', 'topics/index'),
-        ('Topics', 'performance'),
+        ('Performance', 'performance'),
         ('API', 'api'),
         ('FAQ', 'FAQ'))
 
