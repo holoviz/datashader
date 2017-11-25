@@ -79,16 +79,10 @@ jobs:
 #      - pip install -e .
 #      script:
 #      - cd doc
-#      - nbsite_nbpagebuild.py nbsite ../examples .
+#      - nbsite_nbpagebuild.py ceball datashader ../examples .
 #      - sphinx-build -b html . ./_build/html
 #      - nbsite_fix_links.py _build/html
-####
-# add some kind of cleanup-for-deploy nbsite command...
-       - rm -rf _build/html/*.inv
-       - rm -rf _build/html/.doctrees
-       - find _build/html -iname "*.ipynb" -exec rm {} +
-       - rm -rf _build/html/_sources
-####
+#      - nbsite_cleandisthtml.py ./_build/html take_a_chance
 #      - touch ./_build/html/.nojekyll
 #      - 
 #      - cd ..
