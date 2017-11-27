@@ -290,15 +290,8 @@ class Canvas(object):
                 if weight_col is not None:
                     CACHED_SOURCE[weight_col] = simplices.values[:, 3].compute().repeat(3)
             else:
-                simplex_coords = simplices.values[:, :3]
-
-                # Change vertex winding to CW if necessary
-                first_tri = vertices.values[simplices.values[0, :3]][:, :2]
-                a, b, c = first_tri
-                if np.cross(b-a, c-a).item() >= 0:
-                    simplex_coords = simplex_coords[:, ::-1]
-
-                vals = vertices.values[simplex_coords]
+                vertex_idxs = simplices.values[:, :3].astype(np.int64)
+                vals = vertices.values[vertex_idxs]
                 vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
                 CACHED_SOURCE = pd.DataFrame(vals, columns=vertices.columns)
                 if weight_col is not None:
