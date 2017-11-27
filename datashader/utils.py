@@ -381,5 +381,3 @@ def dataframe_from_multiple_sequences(x_values, y_values):
 
    # Return a dataframe with this new set of x and y values
    return pd.DataFrame({'x': x, 'y': y.flatten()})
-
-   

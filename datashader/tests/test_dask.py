@@ -326,18 +326,13 @@ def test_triangles_no_double_edge():
     triangle.
     """
     import multiprocessing as mp
-
     # Test left/right edge shared
-    df = pd.DataFrame({'x0': [4, 1],
-                       'x1': [5, 5],
-                       'x2': [5, 4],
-                       'y0': [4, 5],
-                       'y1': [5, 5],
-                       'y2': [4, 4]})
-    ddf = dd.from_pandas(df, npartitions=mp.cpu_count())
+    verts = dd.from_pandas(pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                                         'y': [4, 5, 5, 5, 4, 4]}), npartitions=mp.cpu_count())
+    tris = dd.from_pandas(pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 4]}), npartitions=mp.cpu_count())
     # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
-    agg = cvs.triangles(ddf, ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], agg=ds.sum('x0'))
+    agg = cvs.triangles(verts, tris)
     sol = np.array([
         [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 0],

@@ -11,7 +11,7 @@ __all__ = ()
 
 @bypixel.pipeline.register(pd.DataFrame)
 def pandas_pipeline(df, schema, canvas, glyph, summary):
-    create, info, append, _, finalize = compile_components(summary, schema)
+    create, info, append, _, finalize = compile_components(summary, schema, glyph)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
@@ -33,8 +33,4 @@ def pandas_pipeline(df, schema, canvas, glyph, summary):
     bases = create((height, width))
     extend(bases, df, x_st + y_st, x_range + y_range)
 
-    if hasattr(glyph, 'xs') and hasattr(glyph, 'ys'):
-        dims = ['y', 'x']
-    else:
-        dims = [glyph.y, glyph.x]
-    return finalize(bases, coords=[y_axis, x_axis], dims=dims)
+    return finalize(bases, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])

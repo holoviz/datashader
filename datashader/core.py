@@ -132,6 +132,9 @@ class LogAxis(Axis):
 _axis_lookup = {'linear': LinearAxis(), 'log': LogAxis()}
 
 
+# Updated by Canvas.triangles()
+CACHED_SOURCE = None
+
 class Canvas(object):
     """An abstract canvas representing the space in which to bin.
 
@@ -201,32 +204,95 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
-    def triangles(self, source, xs, ys, zs=None, agg=None):
-        """Compute a reduction by pixel, mapping data to pixels as a line.
+    def triangles(self, vertices, simplices, agg=None, evict=True):
+        """Compute a reduction by pixel, mapping data to pixels as a triangle.
+
+        >>> import datashader as ds
+        >>> verts = pd.DataFrame({'x': [0, 5, 10],
+        ...                         'y': [0, 10, 0],
+        ...                         'weight': [1, 5, 3]},
+        ...                        columns=['x', 'y', 'weight'])
+        >>> tris = pd.DataFrame({'v0': [2], 'v1': [0], 'v2': [1]},
+        ...                       columns=['v0', 'v1', 'v2'])
+        >>> cvs = ds.Canvas(x_range=(verts.x.min(), verts.x.max()),
+        ...                 y_range=(verts.y.min(), verts.y.max()))
+        >>> cvs.triangles(verts, tris)
 
         Parameters
         ----------
-        source : pandas.DataFrame, dask.DataFrame
-            The input datasource.
-        xs, ys, zs : tuple of str
-            Column names for the x, y, and (optional) z coordinates of each vertex, wound in CW order.
+        vertices : pandas.DataFrame, dask.DataFrame
+            The input datasource for triangle vertex coordinates. These can be
+            interpreted as the x/y coordinates of the vertices, with optional
+            weights for color interpolation. Columns should be ordered
+            corresponding to 'x', 'y', followed by zero or more (optional)
+            columns containing vertex values. The rows need not be ordered, and
+            the data type must be from the set of real numbers.
+        simplices : pandas.DataFrame, dask.DataFrame
+            The input datasource for triangle (simplex) definitions. These can
+            be interpreted as rows of ``vertices``, aka positions in the
+            ``vertices`` index. Columns should ordered corresponding to
+            'vertex0', 'vertex1', and 'vertex2'. Order of the vertices can be
+            clockwise or counter-clockwise; it does not matter as long as the
+            data is consistent. The rows need not be ordered, and the data type
+            for the first three columns must be integer.
         agg : Reduction, optional
-            Reduction to compute. Default is ``any()``, if ``zs`` is None; otherwise it is ``wsum()``.
+            Reduction to compute. Default is ``any()`` if no vertex weights nor
+            triangle weights are provided. Otherwise the default is ``sum()`` on
+            the first vertex weights column (or on the
+            first triangle weights column, if no vertex weights are provided).
+        evict : bool
+            Whether to update the cached mesh. Setting this to False indicates
+            that the mesh did not change since the previous call, and should
+            lead to a performance boost. Defaults to True.
         """
+        global CACHED_SOURCE
         from .glyphs import Triangles
-        from .reductions import (WeightedReduction, summary, wsum,
-                                 any as any_rdn)
-        if zs is not None:
+        from .reductions import FloatingReduction, summary, sum as sum_rdn
+
+        cols = vertices.columns.tolist()
+        x, y, weights = cols[0], cols[1], cols[2:]
+
+        # Verify the simplex data structure
+        simplices_all_ints = simplices.dtypes.iloc[:3].map(
+            lambda dt: np.issubdtype(dt, np.integer)
+        ).all()
+        assert simplices_all_ints, ('Simplices must be integral. You may '
+                                    'consider casting simplices to integers '
+                                    'with ".astype(int)"')
+
+        # Choose reduction based on vertex coordinate data
+        weight_col = None
+        if weights:
             if agg is None:
-                acol = np.setdiff1d(source.columns.values, xs+ys+zs)[0]
-                agg = wsum(acol)
-            assert isinstance(agg, WeightedReduction), (
-                'Error: vertex weights (zs) are only allowed with aggs '
-                'derived from WeightedReduction.'
-            )
+                agg = sum_rdn(weights[0])
+            weights_have_floats = vertices.dtypes[weights].map(
+                lambda dt: np.issubdtype(dt, np.float)
+            ).any()
+            assert not weights_have_floats or (
+                weights_have_floats and isinstance(agg, FloatingReduction)
+            ), ('Floating point vertex weights (zs) require aggs to be derived '
+                'from FloatingReduction')
         elif agg is None:
-            agg = any_rdn()
-        return bypixel(source, self, Triangles(xs, ys, zs), agg)
+            assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+            weight_col = simplices.columns[3]
+            agg = sum_rdn(weight_col)
+
+        if evict or CACHED_SOURCE is None:
+            if (isinstance(vertices, dd.DataFrame) and
+                    isinstance(simplices, dd.DataFrame)):
+                vals = vertices.values.compute()[simplices.values[:, :3].compute()]
+                vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
+                CACHED_SOURCE = pd.DataFrame(vals, columns=vertices.columns)
+                if weight_col is not None:
+                    CACHED_SOURCE[weight_col] = simplices.values[:, 3].compute().repeat(3)
+            else:
+                vals = vertices.values[simplices.values[:, :3]]
+                vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
+                CACHED_SOURCE = pd.DataFrame(vals, columns=vertices.columns)
+                if weight_col is not None:
+                    CACHED_SOURCE[weight_col] = simplices.values[:, 3].repeat(3)
+
+        return bypixel(CACHED_SOURCE, self, Triangles(x, y, weights), agg)
 
     def raster(self,
                source,

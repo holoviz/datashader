@@ -3,7 +3,7 @@ from __future__ import absolute_import
 __version__ = '0.6.2'
 
 from .core import Canvas                                 # noqa (API import)
-from .reductions import (count, any, sum, wsum, min,     # noqa (API import)
+from .reductions import (count, any, sum, min,           # noqa (API import)
                          max, mean, std, var, count_cat,
                          summary)
 from .glyphs import Point                                # noqa (API import)

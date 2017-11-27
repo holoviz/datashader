@@ -27,6 +27,10 @@ def test_point_validate():
 def append(i, x, y, agg):
     agg[y, x] += 1
 
+@ngjit
+def tri_append(x, y, agg, n):
+    agg[y, x] += n
+
 
 def new_agg():
     return np.zeros((5, 5), dtype='i4')
@@ -40,8 +44,8 @@ draw_line = _build_draw_line(append)
 extend_line = _build_extend_line(draw_line, map_onto_pixel)
 
 # Triangles rasterization
-draw_triangle = _build_draw_triangle(append, False)
-extend_triangles = _build_extend_triangles(draw_triangle, map_onto_pixel, False)
+draw_triangle = _build_draw_triangle(tri_append, False)
+extend_triangles = _build_extend_triangles(draw_triangle, map_onto_pixel)
 
 bounds = (-3, 1, -3, 1)
 vt = (1., 3., 1., 3.)
@@ -197,45 +201,45 @@ def test_extend_lines_exact_bounds():
 
 def test_draw_triangle():
     # Isosceles triangle
-    tri = [(2, 0), (0, 2), (4, 2)]
+    tri = [(2, 0, 1), (0, 2, 1), (4, 2, 1)]
     out = np.array([[0, 0, 1, 0, 0],
                     [0, 1, 1, 1, 0],
                     [1, 1, 1, 1, 1],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(0, tri, (0, 4, 0, 5), (0, 0, 0), agg)
+    draw_triangle(tri, (0, 4, 0, 5), (0, 0, 0), agg, 1)
     np.testing.assert_equal(agg, out)
 
     # Right triangle
-    tri = [(2, 0), (0, 2), (2, 2)]
+    tri = [(2, 0, 1), (0, 2, 1), (2, 2, 1)]
     out = np.array([[0, 0, 1, 0, 0],
                     [0, 1, 1, 0, 0],
                     [1, 1, 1, 0, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(0, tri, (0, 4, 0, 5), (0, 0, 0), agg)
+    draw_triangle(tri, (0, 4, 0, 5), (0, 0, 0), agg, 1)
     np.testing.assert_equal(agg, out)
 
     # Two right triangles
-    tri = [(2, 0), (1, 1), (2, 1),
-           (2, 1), (2, 2), (3, 2)]
+    tri = [(2, 0, 1), (1, 1, 1), (2, 1, 1),
+           (2, 1, 1), (2, 2, 1), (3, 2, 1)]
     out = np.array([[0, 0, 1, 0, 0],
                     [0, 1, 2, 0, 0],
                     [0, 0, 1, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(0, tri[:3], (0, 4, 0, 5), (0, 0, 0), agg)
-    draw_triangle(1, tri[3:], (0, 4, 0, 5), (0, 0, 0), agg)
+    draw_triangle(tri[:3], (0, 4, 0, 5), (0, 0, 0), agg, 1)
+    draw_triangle(tri[3:], (0, 4, 0, 5), (0, 0, 0), agg, 1)
     np.testing.assert_equal(agg, out)
 
     # Draw isoc triangle with clipping
-    tri = [(2, 0), (0, 2), (4, 2)]
+    tri = [(2, 0, 1), (0, 2, 1), (4, 2, 1)]
     out = np.array([[0, 0, 1, 0, 0],
                     [0, 1, 1, 1, 0],
                     [1, 1, 1, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(0, tri, (0, 3, 0, 2), (0, 0, 0), agg)
+    draw_triangle(tri, (0, 3, 0, 2), (0, 0, 0), agg, 1)
     np.testing.assert_equal(agg, out)
     # clip from right and left
     out = np.array([[0, 0, 1, 0, 0],
@@ -243,7 +247,7 @@ def test_draw_triangle():
                     [0, 1, 1, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(0, tri, (1, 3, 0, 2), (0, 0, 0), agg)
+    draw_triangle(tri, (1, 3, 0, 2), (0, 0, 0), agg, 1)
     np.testing.assert_equal(agg, out)
     # clip from right, left, top
     out = np.array([[0, 0, 0, 0, 0],
@@ -251,7 +255,7 @@ def test_draw_triangle():
                     [0, 1, 1, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(0, tri, (1, 3, 1, 2), (0, 0, 0), agg)
+    draw_triangle(tri, (1, 3, 1, 2), (0, 0, 0), agg, 1)
     np.testing.assert_equal(agg, out)
     # clip from right, left, top, bottom
     out = np.array([[0, 0, 0, 0, 0],
@@ -259,5 +263,5 @@ def test_draw_triangle():
                     [0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(0, tri, (1, 3, 1, 1), (0, 0, 0), agg)
+    draw_triangle(tri, (1, 3, 1, 1), (0, 0, 0), agg, 1)
     np.testing.assert_equal(agg, out)

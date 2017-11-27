@@ -316,15 +316,12 @@ def test_triangles_no_double_edge():
     triangle.
     """
     # Test left/right edge shared
-    df = pd.DataFrame({'x0': [4, 1],
-                       'x1': [5, 5],
-                       'x2': [5, 4],
-                       'y0': [4, 5],
-                       'y1': [5, 5],
-                       'y2': [4, 4]})
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4]})
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 4]})
     # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
-    agg = cvs.triangles(df, ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], agg=ds.sum('x0'))
+    agg = cvs.triangles(verts, tris)
     sol = np.array([
         [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 0],
@@ -335,15 +332,12 @@ def test_triangles_no_double_edge():
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
 
     # Test top/bottom edge shared
-    df = pd.DataFrame({'x0': [3, 1],
-                       'x1': [3, 3],
-                       'x2': [1, 3],
-                       'y0': [4, 4],
-                       'y1': [1, 5],
-                       'y2': [4, 4]})
+    verts = pd.DataFrame({'x': [3, 3, 1, 1, 3, 3],
+                          'y': [4, 1, 4, 4, 5, 4]})
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [3, 1]})
     # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
     cvs = ds.Canvas(plot_width=22, plot_height=22, x_range=(0, 10), y_range=(0, 10))
-    agg = cvs.triangles(df, ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], agg=ds.sum('x0'))
+    agg = cvs.triangles(verts, tris)
     sol = np.array([
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -361,12 +355,12 @@ def test_triangles_no_double_edge():
 def test_triangles_interp():
     """Assert triangles are interpolated when vertex values are provided.
     """
-    df = pd.DataFrame({'x0': [0],'y0': [0],
-                       'x1': [5], 'y1': [10],
-                       'x2': [10], 'y2': [0],
-                       'val': [1]})
+    verts = pd.DataFrame({'x': [0, 5, 10],
+                          'y': [0, 10, 0]})
+    tris = pd.DataFrame({'v0': [0], 'v1': [1], 'v2': [2],
+                         'val': [1]})
     cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
-    agg = cvs.triangles(df, ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], agg=ds.sum('val'))
+    agg = cvs.triangles(verts, tris)
     sol = np.array([
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
@@ -381,12 +375,11 @@ def test_triangles_interp():
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values), sol)
 
-    df = pd.DataFrame({'x0': [0],'y0': [0], 'z0': [1],
-                       'x1': [5], 'y1': [10], 'z1': [5],
-                       'x2': [10], 'y2': [0], 'z2': [3],
-                       'val': [1]})
+    verts = pd.DataFrame({'x': [0, 5, 10],
+                       'y': [0, 10, 0],
+                       'z': [1, 5, 3]})
     cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
-    agg = cvs.triangles(df, ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], ['z0', 'z1', 'z2'])
+    agg = cvs.triangles(verts, tris)
     sol = np.array([
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 4, 0, 0, 0, 0],

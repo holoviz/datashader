@@ -163,12 +163,6 @@ class FloatingReduction(Reduction):
         return xr.DataArray(bases[0], **kwargs)
 
 
-class WeightedReduction(FloatingReduction):
-    """FloatingReduction, to be interpolated along each rasterized primitive.
-    """
-    pass
-
-
 class sum(FloatingReduction):
     """Sum of all elements in ``column``.
 
@@ -193,19 +187,6 @@ class sum(FloatingReduction):
         all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
         set_to_zero = missing_vals & ~all_empty
         return np.where(set_to_zero, 0, aggs).sum(axis=0)
-
-
-class wsum(WeightedReduction, sum):
-    """Sum of all elements in ``column``, to be interpolated along each
-    rasterized primitive.
-
-    Parameters
-    ----------
-    column : str, optional
-        Name of the column to aggregate over. Column data type must be numeric.
-        If provided, only elements in ``column`` that are ``NaN`` are skipped.
-    """
-    pass
 
 
 class m2(FloatingReduction):

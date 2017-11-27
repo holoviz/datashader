@@ -7,7 +7,8 @@ import numpy as np
 import xarray as xr
 
 from .compatibility import _exec
-from .reductions import summary, WeightedReduction
+from .glyphs import Triangles
+from .reductions import summary
 from .utils import ngjit
 
 
@@ -15,7 +16,7 @@ __all__ = ['compile_components']
 
 
 @memoize
-def compile_components(agg, schema):
+def compile_components(agg, schema, glyph):
     """Given a ``Aggregation`` object and a schema, return 5 sub-functions.
 
     Parameters
@@ -62,7 +63,7 @@ def compile_components(agg, schema):
 
     create = make_create(bases, dshapes)
     info = make_info(cols)
-    append = make_append(bases, cols, calls)
+    append = make_append(bases, cols, calls, glyph)
     combine = make_combine(bases, dshapes, temps)
     finalize = make_finalize(bases, agg, schema)
 
@@ -92,7 +93,7 @@ def make_info(cols):
     return lambda df: tuple(c.apply(df) for c in cols)
 
 
-def make_append(bases, cols, calls):
+def make_append(bases, cols, calls, glyph):
     names = ('_{0}'.format(i) for i in count())
     inputs = list(bases) + list(cols)
     signature = [next(names) for i in inputs]
@@ -100,13 +101,12 @@ def make_append(bases, cols, calls):
     local_lk = {}
     namespace = {}
     body = []
-    weight_arg = None
     for func, bases, cols, temps in calls:
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
-        if isinstance(bases[0], WeightedReduction):
+        if isinstance(glyph, Triangles):
             args.extend('{0}'.format(arg_lk[i]) for i in cols)
         else:
             args.extend('{0}[i]'.format(arg_lk[i]) for i in cols)
@@ -116,7 +116,7 @@ def make_append(bases, cols, calls):
             for agg, name in local_lk.items()] + body
     code = ('def append({2}x, y, {0}):\n'
             '    {1}').format(', '.join(signature), '\n    '.join(body),
-                              ('' if isinstance(bases[0], WeightedReduction)
+                              ('' if isinstance(glyph, Triangles)
                                else 'i, '))
     _exec(code, namespace)
     return ngjit(namespace['append'])
