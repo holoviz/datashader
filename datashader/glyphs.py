@@ -203,13 +203,12 @@ def _build_map_onto_pixel(x_mapper, y_mapper):
     def map_onto_pixel(vt, bounds, x, y):
         """Map points onto pixel grid"""
         sx, tx, sy, ty = vt
-        xmax, ymax = int(bounds[1]), int(bounds[3])
+        xmax, ymax = bounds[1], bounds[3]
         xx = int(x_mapper(x) * sx + tx)
         yy = int(y_mapper(y) * sy + ty)
         # Points falling on upper bound are mapped into previous bin
-        resx = xx - 1 if x == xmax else xx
-        resy = yy - 1 if y == ymax else yy
-        return resx, resy
+        return (xx - 1 if x == xmax else xx,
+                yy - 1 if y == ymax else yy)
 
     return map_onto_pixel
 
@@ -403,8 +402,8 @@ def _build_draw_triangle(append, has_weights):
         (ax, ay, _), (bx, by, _), (cx, cy, _) = verts
         bias0, bias1, bias2 = biases
         minx, maxx, miny, maxy = bbox
-        for i in range(minx, maxx+1):
-            for j in range(miny, maxy+1):
+        for j in range(miny, maxy+1):
+            for i in range(minx, maxx+1):
                 if ((edge_func(ax, ay, bx, by, i, j) + bias0) >= 0 and
                         (edge_func(bx, by, cx, cy, i, j) + bias1) >= 0 and
                         (edge_func(cx, cy, ax, ay, i, j) + bias2) >= 0):
@@ -423,8 +422,8 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel):
         vertices. Each row corresponds to a single triangle definition.
         """
         xmin, xmax, ymin, ymax = bounds
-        vmax_x, vmax_y = map_onto_pixel(vt, bounds, xmax, ymax)
-        vmin_x, vmin_y = map_onto_pixel(vt, bounds, xmin, ymin)
+        vmax_x, vmax_y = map_onto_pixel(vt, bounds, max(xmin, xmax), max(ymin, ymax))
+        vmin_x, vmin_y = map_onto_pixel(vt, bounds, min(xmin, xmax), min(ymin, ymax))
 
         # We always need an agg'd column (for shading triangles differently)
         aggs, cols = aggs_and_cols

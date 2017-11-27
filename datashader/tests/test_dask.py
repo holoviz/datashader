@@ -320,8 +320,8 @@ def test_auto_range_line():
                        dims=['y', 'x'])
     assert_eq(agg, out)
 
-def test_triangles_no_double_edge():
-    """Assert that when two triangles share an edge that would normally get
+def test_trimesh_no_double_edge():
+    """Assert that when two trimesh share an edge that would normally get
     double-drawn, the edge is only drawn for the rightmost (or bottommost)
     triangle.
     """
@@ -332,7 +332,7 @@ def test_triangles_no_double_edge():
     tris = dd.from_pandas(pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 4]}), npartitions=mp.cpu_count())
     # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
-    agg = cvs.triangles(verts, tris)
+    agg = cvs.trimesh(verts, tris)
     sol = np.array([
         [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 0],

@@ -220,7 +220,7 @@ def test_draw_triangle():
     draw_triangle(tri, (0, 4, 0, 5), (0, 0, 0), agg, 1)
     np.testing.assert_equal(agg, out)
 
-    # Two right triangles
+    # Two right trimesh
     tri = [(2, 0, 1), (1, 1, 1), (2, 1, 1),
            (2, 1, 1), (2, 2, 1), (3, 2, 1)]
     out = np.array([[0, 0, 1, 0, 0],

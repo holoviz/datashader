@@ -132,8 +132,9 @@ class LogAxis(Axis):
 _axis_lookup = {'linear': LinearAxis(), 'log': LogAxis()}
 
 
-# Updated by Canvas.triangles()
+# Updated by Canvas.trimesh()
 CACHED_SOURCE = None
+
 
 class Canvas(object):
     """An abstract canvas representing the space in which to bin.
@@ -204,7 +205,7 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
-    def triangles(self, vertices, simplices, agg=None, replace=True):
+    def trimesh(self, vertices, simplices, agg=None, replace=True):
         """Compute a reduction by pixel, mapping data to pixels as a triangle.
 
         >>> import datashader as ds
@@ -216,7 +217,7 @@ class Canvas(object):
         ...                       columns=['v0', 'v1', 'v2'])
         >>> cvs = ds.Canvas(x_range=(verts.x.min(), verts.x.max()),
         ...                 y_range=(verts.y.min(), verts.y.max()))
-        >>> cvs.triangles(verts, tris)
+        >>> cvs.trimesh(verts, tris)
 
         Parameters
         ----------
@@ -284,13 +285,21 @@ class Canvas(object):
             if (isinstance(vertices, dd.DataFrame) and
                     isinstance(simplices, dd.DataFrame)):
                 # TODO: Avoid .compute() calls, and add winding auto-detection
-                vals = vertices.values.compute()[simplices.values[:, :3].compute()]
+                vertex_idxs = simplices.values[:, :3].astype(np.int64)
+                vals = vertices.values.compute()[vertex_idxs]
                 vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
                 CACHED_SOURCE = pd.DataFrame(vals, columns=vertices.columns)
                 if weight_col is not None:
                     CACHED_SOURCE[weight_col] = simplices.values[:, 3].compute().repeat(3)
             else:
-                vertex_idxs = simplices.values[:, :3].astype(np.int64)
+                winding = [0, 1, 2]
+                # Change vertex winding to CW if necessary
+                first_tri = vertices.values[simplices.values[0, winding].astype(np.int64), :2]
+                a, b, c = first_tri
+                if np.cross(b-a, c-a).item() >= 0:
+                    winding = [0, 2, 1]
+
+                vertex_idxs = simplices.values[:, winding].astype(np.int64)
                 vals = vertices.values[vertex_idxs]
                 vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
                 CACHED_SOURCE = pd.DataFrame(vals, columns=vertices.columns)
