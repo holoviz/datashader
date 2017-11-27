@@ -14,7 +14,8 @@ html_static_path += ['_static']
 html_theme = 'sphinx_ioam_theme'
 html_theme_options = {
     'logo':'datashader-logo.png',
-    'favicon':'favicon.ico'
+    'favicon':'favicon.ico',
+#    'css':'datashader.css'
 }
 
 _NAV =  (
@@ -26,7 +27,7 @@ _NAV =  (
     ('FAQ', 'FAQ')
 )
 
-html_context = {
+html_context.update({
     'PROJECT': project,
     'DESCRIPTION': description,
     'AUTHOR': authors,
@@ -37,6 +38,5 @@ html_context = {
     'SOCIAL': (
         ('Twitter', '//twitter.com/datashader/'),
         ('Github', '//github.com/bokeh/datashader/'),
-    ),
-    'js_includes': ['custom.js', 'require.js'],
-}
+    )
+})
