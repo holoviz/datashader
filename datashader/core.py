@@ -204,7 +204,7 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
-    def triangles(self, vertices, simplices, agg=None, evict=True):
+    def triangles(self, vertices, simplices, agg=None, replace=True):
         """Compute a reduction by pixel, mapping data to pixels as a triangle.
 
         >>> import datashader as ds
@@ -240,8 +240,8 @@ class Canvas(object):
             triangle weights are provided. Otherwise the default is ``sum()`` on
             the first vertex weights column (or on the
             first triangle weights column, if no vertex weights are provided).
-        evict : bool
-            Whether to update the cached mesh. Setting this to False indicates
+        replace : bool
+            Whether to replace the cached mesh. Setting this to False indicates
             that the mesh did not change since the previous call, and should
             lead to a performance boost. Defaults to True.
         """
@@ -253,6 +253,9 @@ class Canvas(object):
         x, y, weights = cols[0], cols[1], cols[2:]
 
         # Verify the simplex data structure
+        assert simplices.values.shape[1] >= 3, ('At least three vertex columns '
+                                                'are required for the triangle '
+                                                'definition')
         simplices_all_ints = simplices.dtypes.iloc[:3].map(
             lambda dt: np.issubdtype(dt, np.integer)
         ).all()
@@ -277,16 +280,25 @@ class Canvas(object):
             weight_col = simplices.columns[3]
             agg = sum_rdn(weight_col)
 
-        if evict or CACHED_SOURCE is None:
+        if replace or CACHED_SOURCE is None:
             if (isinstance(vertices, dd.DataFrame) and
                     isinstance(simplices, dd.DataFrame)):
+                # TODO: Avoid .compute() calls, and add winding auto-detection
                 vals = vertices.values.compute()[simplices.values[:, :3].compute()]
                 vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
                 CACHED_SOURCE = pd.DataFrame(vals, columns=vertices.columns)
                 if weight_col is not None:
                     CACHED_SOURCE[weight_col] = simplices.values[:, 3].compute().repeat(3)
             else:
-                vals = vertices.values[simplices.values[:, :3]]
+                simplex_coords = simplices.values[:, :3]
+
+                # Change vertex winding to CW if necessary
+                first_tri = vertices.values[simplices.values[0, :3]][:, :2]
+                a, b, c = first_tri
+                if np.cross(b-a, c-a).item() >= 0:
+                    simplex_coords = simplex_coords[:, ::-1]
+
+                vals = vertices.values[simplex_coords]
                 vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
                 CACHED_SOURCE = pd.DataFrame(vals, columns=vertices.columns)
                 if weight_col is not None:
