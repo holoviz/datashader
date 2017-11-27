@@ -91,10 +91,10 @@ class _PolygonLike(_PointLike):
 
     @property
     def inputs(self):
-        return tuple([self.x, self.y, *self.z])
+        return tuple([self.x, self.y] + list(self.z))
 
     def validate(self, in_dshape):
-        for col in (self.x, self.y, *self.z):
+        for col in [self.x, self.y] + list(self.z):
             if not isreal(in_dshape.measure[col]):
                 raise ValueError('{} must be real'.format(col))
 
