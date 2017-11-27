@@ -248,7 +248,7 @@ class Canvas(object):
         """
         global CACHED_SOURCE
         from .glyphs import Triangles
-        from .reductions import FloatingReduction, summary, sum as sum_rdn
+        from .reductions import FloatingReduction, sum as sum_rdn
 
         cols = vertices.columns.tolist()
         x, y, weights = cols[0], cols[1], cols[2:]

@@ -2,7 +2,6 @@ from __future__ import absolute_import, division
 
 from toolz import memoize
 import numpy as np
-import numba
 
 from .core import Expr
 from .utils import ngjit, isreal
@@ -179,8 +178,6 @@ class Triangles(_PolygonLike):
     """
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        x_name = self.x
-        y_name = self.y
         weight_names = self.z
 
         map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
