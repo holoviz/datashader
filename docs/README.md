@@ -17,10 +17,15 @@ See https://ioam.github.io/nbsite/Usage.html for more details.
 
 6. Clean up for deployment: `nbsite_cleandisthtml.py ./_build/html take_a_chance`
 
-7. Deploy: `cd /path/to/bokeh/datashader-docs && git checkout gh-pages
-   && git rm -rf . && cp -r
-   /path/to/bokeh/datashader/docs/_build/html/* . && git add . && git
-   commit -m "New site..." && git push`. Note: will cause
-   datashader-docs repo to grow - might be better to hard git reset
-   and push force to just write over current contents.
+7. Deploy: `cd /path/to/bokeh/datashader-docs && git checkout --track
+   origin/gh-pages && git rm -rf . && cp -r
+   /path/to/bokeh/datashader/docs/_build/html/* . && touch .nojekyll
+   && git add . && git commit -m "New site..." && git push` (note: if
+   you already have gh-pages branch locally, just `git checkout
+   gh-pages`).
+
+
+Note: step 7 will cause datashader-docs repo to grow - might be better
+to hard reset and push force to just write over current contents
+instead.
 
