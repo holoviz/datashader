@@ -71,35 +71,6 @@ jobs:
       env:
       - GROUP=unit
       - PYTHON_VERSION=3.6
-#    # TODO this is just temp
-#    - install:
-#      - scripts/ci/install_examples
-#      - conda install -c conda-forge sphinx beautifulsoup4 graphviz
-#      - pip install sphinx_ioam_theme
-#      - pip install -e .
-#      script:
-#      - cd doc
-#      - nbsite_nbpagebuild.py ceball datashader ../examples .
-#      - sphinx-build -b html . ./_build/html
-#      - nbsite_fix_links.py _build/html
-#      - nbsite_cleandisthtml.py ./_build/html take_a_chance
-#      - touch ./_build/html/.nojekyll
-#      - 
-#      - cd ..
-#      os: linux
-#      if: branch = docs
-#      env:
-#      - GROUP=docs
-#      - PYTHON_VERSION=3.6
-#
-#deploy:
-#  - provider: pages
-#    skip_cleanup: true
-#    github_token: $GITHUB_TOKEN
-#    local_dir: ./doc/_build/html
-#    on:
-#      tags: true
-
 
 notifications:
   email: false

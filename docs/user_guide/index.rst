@@ -11,7 +11,7 @@ To see examples of what can be done with Datashader, see `Topics <../topics/inde
 
 Contents:
 
-* `Plotting pitfalls <Plotting_pifalls.html>`_ 
+* `Plotting pitfalls <Plotting_pitfalls.html>`_ 
    Description TODO.
 
 * `Timeseries <Timeseries.html>`_
