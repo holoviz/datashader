@@ -34,9 +34,10 @@ and work with all your data onscreen already, then you probably don't
 need datashader.
 
 .. _`Bokeh`: https://bokeh.pydata.org
+.. _`HoloViews`: https://holoviews.org
 
 
-**Q:** Is datashader part of bokeh?
+**Q:** Is datashader part of Bokeh?
 
 **A:** datashader is an independent project, focusing on generating
 aggregate arrays and representations of them as images.  Bokeh is a
@@ -51,3 +52,15 @@ plotting package that can display images.  The library can also be
 used separately, without any external plotting packages, generating
 images that can be displayed directly or saved to disk, or generating
 aggregate arrays suitable for further analysis.
+
+
+**Q:** What's the easiest way to use datashader interactively?
+
+**A:** `HoloViews`_. HoloViews uses Bokeh behind
+the scenes, but it offers a higher level API that is well suited to
+the sorts of magic that allow interactive use of Datashader. For a
+given dataset, HoloViews can easily construct either a raw Bokeh plot
+or a Bokeh plot with server-side rendering from Datashader, hiding
+nearly all of the complexity involved.
+
+

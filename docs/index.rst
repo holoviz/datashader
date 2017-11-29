@@ -7,7 +7,7 @@ Datashader
    <div style="width: 65%; float:left">
 
 	 
-**Short description of the point of this project**
+**Turns even the largest data into images, accurately.**
 
 Datashader is a graphics pipeline system for creating meaningful
 representations of large datasets quickly and flexibly. Datashader
@@ -84,41 +84,6 @@ on the `datashader examples`_ page.
   :file: latest_news.html
 
 
-.. raw:: html
-
-   <hr width='100%'></hr>
-	 
-   <div>
-   <div >
-     <a href="http://holoviews.org/gallery/demos/bokeh/iris_splom_example.html">
-       <img src="http://holoviews.org/_images/iris_splom_example.png" width='20%'>    </img> </a>
-     <a href="http://holoviews.org/getting_started/Gridded_Datasets.html">
-       <img src="http://assets.holoviews.org/collage/cells.png" width='22%'> </img>  </a>
-     <a href="http://holoviews.org/gallery/demos/bokeh/scatter_economic.html">
-       <img src="http://holoviews.org/_images/scatter_economic.png" width='43%'> </img>    </a>
-   </div>
-
-   <div >
-     <a href="http://holoviews.org/gallery/demos/bokeh/square_limit.html">
-       <img src="http://holoviews.org/_images/square_limit.png" width='20%'> </a>
-     <a href="http://holoviews.org/gallery/demos/bokeh/bars_economic.html">
-       <img src="http://holoviews.org/_images/bars_economic.png" width='20%'> </a>
-     <a href="http://holoviews.org/gallery/demos/bokeh/texas_choropleth_example.html">
-       <img src="http://holoviews.org/_images/texas_choropleth_example.png"    width='20%'> </a>
-     <a href="http://holoviews.org/gallery/demos/bokeh/verhulst_mandelbrot.html">
-       <img src="http://holoviews.org/_images/verhulst_mandelbrot.png" width='20%'>    </a>
-   </div>
-   <div >
-       <a href="http://holoviews.org/gallery/demos/bokeh/dropdown_economic.html">
-         <img src="http://assets.holoviews.org/collage/dropdown.gif" width='31%'> </a>
-       <a href="http://holoviews.org/gallery/demos/bokeh/dragon_curve.html">
-         <img src="http://assets.holoviews.org/collage/dragon_fractal.gif" width='26%'> </a>
-       <a href="http://holoviews.org/gallery/apps/bokeh/nytaxi_hover.html">
-         <img src="http://assets.holoviews.org/collage/ny_datashader.gif" width='31%'> </a>
-   </div>
-   </div>
-   <hr width='100%'></hr>
-
 Other resources
 ---------------
 
@@ -142,20 +107,17 @@ is documented using the API link on this page.
 
 .. _`GitHub site`: https://github.com/bokeh/datashader
 
-TODO For examples of what you can do with Project, check out the thumbnails
-below, or see the `Gallery <gallery>`_ of demos and apps.
-
-TODO We recommend the `Getting Started Guide <getting_started>`_ to learn
+We recommend the `Getting Started Guide <getting_started>`_ to learn
 the basic concepts and start using Project as quickly as possible.
 
-TODO The `User Guide <user_guide>`_ goes into key concepts more deeply when
+The `User Guide <user_guide>`_ goes into key concepts more deeply when
 you are ready for further study.
 
-TODO The `API <Reference_Manual>`_ is the definitive guide to each Project
-object, but the same information is available more conveniently via
-the `hv.help()` command and tab completion in the Jupyter notebook.
+The `API <Reference_Manual>`_ is the definitive guide to each part of
+Datashader, but the same information is available more conveniently via
+the `help()` command.
 
-TODO Please feel free to report `issues
+Please feel free to report `issues
 <https://github.com/ioam/holoviews/issues>`_ or `contribute code
 <https://help.github.com/articles/about-pull-requests>`_. You are also
 welcome to chat with the developers on `gitter
@@ -169,7 +131,6 @@ welcome to chat with the developers on `gitter
    Getting Started <getting_started/index>
    User Guide <user_guide/index>
    Topics <topics/index>
-   Performance <performance>
    API <api>
    FAQ
 

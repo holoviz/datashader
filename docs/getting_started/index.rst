@@ -12,16 +12,16 @@ appropriate sections of this guide.
 To see examples of what can be done with Datashader, see `Topics <../topics/index.html>`_.
 
 We recommend you proceed through the following in order; it should
-take around ? hour in total.
+take around 1 hour in total.
 
-* `Introduction <Introduction.html>`_
-   What is TODO
+* `1. Introduction <1_Introduction.html>`_
+   Simple self-contained example to show how Datashader works.
 
-* `Pipeline <Pipeline.html>`_
-   Something TODO.
+* `2. Pipeline <2_Pipeline.html>`_
+   Detailed step-by-step explanation how Datashader turns your data into an image.
 
-* `Interactivity <Interactivity.html>`_
-   More TODO.
+* `3. Interactivity <3_Interactivity.html>`_
+   Embedding images into rich, interactive plots in a web browser.
 
 
 .. toctree::
@@ -29,6 +29,6 @@ take around ? hour in total.
     :hidden:
     :maxdepth: 2
 
-    Introduction <Introduction>
-    Pipeline <Pipeline>
-    Interactivity <Interactivity>
+    1. Introduction <1_Introduction>
+    2. Pipeline <2_Pipeline>
+    3. Interactivity <3_Interactivity>

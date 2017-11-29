@@ -13,40 +13,40 @@ Detailed documentation is contained in the `User Guide
 Contents:
 
 * `census <census.html>`_
-   Description TODO.
+   Population and racial data from the 2010 US Census visualized as scatter points.
 
 * `gerrymandering <gerrymandering.html>`_
-   Description TODO.
+   US Congressional boundaries overlaid on 2010 US Census data.
    
 * `landsat <landsat.html>`_
-   Description TODO.
+   Hyperspectral satellite imaging data from Landsat8 visualized as rasters.
 
 * `lidar <lidar.html>`_
-   Description TODO.
+   LIDAR imaging data visualized as points.
   
 * `network packets <network_packets.html>`_
-   Description TODO.
+   PCAP network traffic data visualized as network graphs.
 
 * `nyc taxi <nyc_taxi.html>`_
-   Description TODO.
+   NYC Taxi data visualized as points, curves, and bars.
 
 * `opensky <opensky.html>`_
-   Description TODO.
+   OpenSky airplane trajectories visualized as points.
 
 * `osm-1billion <osm-1billion.html>`_
-   Description TODO.  
+   1-billion-point OpenStreetMap dataset visualized as points on a laptop, in memory.
 
 * `osm <osm.html>`_
-   Description TODO.  
+   2.7-billion-point OpenStreetMap dataset visualized as points on a laptop, out of core.
 
 * `param dashboard <param_dashboard.html>`_
-   Description TODO.  
+   30-line dashboard for datashader plots based on the Param library.
 
 * `solar <solar.html>`_
-   Description TODO.  
+   Solar radiation data.
 
 * `uk_researchers <uk_researchers.html>`_
-   Description TODO.  
+   Network graph of collaborations between UK researchers.
   
 
 .. toctree::

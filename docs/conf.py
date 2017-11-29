@@ -2,9 +2,9 @@
 
 from nbsite.shared_conf import *
 
-project = u'datashader'
-authors = u'datashader contributors'
-copyright = u'2016, Continuum Analytics'
+project = u'Datashader'
+authors = u'Datashader contributors'
+copyright = u'2016-2018, Anaconda, Inc.'
 description = 'Turns even the largest data into images, accurately.'
 
 from datashader import __version__
@@ -22,7 +22,6 @@ _NAV =  (
     ('Getting Started', 'getting_started/index'),
     ('User Guide', 'user_guide/index'),
     ('Topics', 'topics/index'),
-    ('Performance', 'performance'),
     ('API', 'api'),
     ('FAQ', 'FAQ')
 )
