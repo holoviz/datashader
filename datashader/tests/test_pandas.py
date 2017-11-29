@@ -427,8 +427,43 @@ def test_trimesh_simplex_weights():
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
 
+def test_trimesh_vertex_weights():
+    """Assert that weighting the vertices works as expected.
+    """
+    # z is float
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4],
+                          'z': [1., 1., 1., 2., 2., 2.]}, columns=['x', 'y', 'z'])
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5]})
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 4, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='f8')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)
+
+    # val is int
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4],
+                          'val': [2, 2, 2, 3, 3, 3]}, columns=['x', 'y', 'val'])
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5]})
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 9, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 9, 9, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+
 def test_trimesh_winding_detect():
-    """Assert that weighting the simplices works as expected.
+    """Assert that CCW windings get converted to CW.
     """
     # val is int, winding is CCW
     verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
@@ -460,3 +495,30 @@ def test_trimesh_winding_detect():
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
 
+def test_trimesh_mesharg():
+    """Assert that the ``mesh`` argument results in the same rasterization,
+    despite the ``vertices`` and ``simplices`` arguments changing.
+    """
+    # z is float
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4],
+                          'z': [1., 1., 1., 2., 2., 2.]}, columns=['x', 'y', 'z'])
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5]})
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 4, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='f8')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)
+
+    vertex_idxs = tris.values[:, [0, 1, 2]].astype(np.int64)
+    vals = verts.values[vertex_idxs]
+    vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
+    mesh = pd.DataFrame(vals, columns=verts.columns)
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts[:1], tris[:3], mesh=mesh)
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)

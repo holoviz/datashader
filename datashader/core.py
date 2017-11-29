@@ -132,10 +132,6 @@ class LogAxis(Axis):
 _axis_lookup = {'linear': LinearAxis(), 'log': LogAxis()}
 
 
-# Updated by Canvas.trimesh()
-CACHED_SOURCE = None
-
-
 class Canvas(object):
     """An abstract canvas representing the space in which to bin.
 
@@ -205,7 +201,7 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
-    def trimesh(self, vertices, simplices, agg=None, replace=True):
+    def trimesh(self, vertices, simplices, agg=None, mesh=None):
         """Compute a reduction by pixel, mapping data to pixels as a triangle.
 
         >>> import datashader as ds
@@ -241,12 +237,14 @@ class Canvas(object):
             triangle weights are provided. Otherwise the default is ``sum()`` on
             the first vertex weights column (or on the
             first triangle weights column, if no vertex weights are provided).
-        replace : bool
-            Whether to replace the cached mesh. Setting this to False indicates
-            that the mesh did not change since the previous call, and should
-            lead to a performance boost. Defaults to True.
+        mesh : pandas.DataFrame, optional
+            An ordered triangle mesh in tabular form, used for optimization
+            purposes. This dataframe is expected to have at least three columns
+            - corresponding to x, y, and vertex weights; each row corresponds to
+            a vertex. For this reason, vertices must be in a consistent winding
+            order (either clockwise or counter-clockwise). If this argument is
+            not None, the first two arguments are ignored.
         """
-        global CACHED_SOURCE
         from .glyphs import Triangles
         from .reductions import FloatingReduction, sum as sum_rdn
 
@@ -281,16 +279,16 @@ class Canvas(object):
             weight_col = simplices.columns[3]
             agg = sum_rdn(weight_col)
 
-        if replace or CACHED_SOURCE is None:
+        if mesh is None:
             if (isinstance(vertices, dd.DataFrame) and
                     isinstance(simplices, dd.DataFrame)):
                 # TODO: Avoid .compute() calls, and add winding auto-detection
                 vertex_idxs = simplices.values[:, :3].astype(np.int64)
                 vals = vertices.values.compute()[vertex_idxs]
                 vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
-                CACHED_SOURCE = pd.DataFrame(vals, columns=vertices.columns)
+                source = pd.DataFrame(vals, columns=vertices.columns)
                 if weight_col is not None:
-                    CACHED_SOURCE[weight_col] = simplices.values[:, 3].compute().repeat(3)
+                    source[weight_col] = simplices.values[:, 3].compute().repeat(3)
             else:
                 winding = [0, 1, 2]
                 # Change vertex winding to CW if necessary
@@ -302,11 +300,13 @@ class Canvas(object):
                 vertex_idxs = simplices.values[:, winding].astype(np.int64)
                 vals = vertices.values[vertex_idxs]
                 vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
-                CACHED_SOURCE = pd.DataFrame(vals, columns=vertices.columns)
+                source = pd.DataFrame(vals, columns=vertices.columns)
                 if weight_col is not None:
-                    CACHED_SOURCE[weight_col] = simplices.values[:, 3].repeat(3)
+                    source[weight_col] = simplices.values[:, 3].repeat(3)
+        else:
+            source = mesh
 
-        return bypixel(CACHED_SOURCE, self, Triangles(x, y, weights), agg)
+        return bypixel(source, self, Triangles(x, y, weights), agg)
 
     def raster(self,
                source,
