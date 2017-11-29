@@ -240,9 +240,9 @@ class Canvas(object):
         mesh : pandas.DataFrame, optional
             An ordered triangle mesh in tabular form, used for optimization
             purposes. This dataframe is expected to have at least three columns
-            - corresponding to x, y, and vertex weights; each row corresponds to
-            a vertex. For this reason, vertices must be in a consistent winding
-            order (either clockwise or counter-clockwise). If this argument is
+            - corresponding to x, y, and vertex weights. Each row corresponds to
+            a vertex, and three rows in a row correspond to a triangle
+            definition. Vertices must be in clockwise order. If this argument is
             not None, the first two arguments are ignored.
         """
         from .glyphs import Triangles
