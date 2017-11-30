@@ -101,6 +101,7 @@ def make_append(bases, cols, calls, glyph):
     local_lk = {}
     namespace = {}
     body = []
+    weight_arg = None
     for func, bases, cols, temps in calls:
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)

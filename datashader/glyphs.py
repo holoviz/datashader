@@ -80,13 +80,18 @@ class _PolygonLike(_PointLike):
 
     Key differences from _PointLike:
         - added self.z as a list, representing vertex weights
+        - constructor accepts additional kwargs:
+            * weight_type (bool): Whether the weights are on vertices (True) or on the triangles (False)
+            * interp (bool): Whether to interpolate (True), or to have one color per triangle (False)
     """
-    def __init__(self, x, y, z=None):
+    def __init__(self, x, y, z=None, weight_type=True, interp=True):
         super(_PolygonLike, self).__init__(x, y)
         if z is None:
             self.z = []
         else:
             self.z = z
+        self.interpolate = interp
+        self.weight_type = weight_type
 
     @property
     def inputs(self):
@@ -181,12 +186,12 @@ class Triangles(_PolygonLike):
         weight_names = self.z
 
         map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
-        draw_triangle = _build_draw_triangle(append, not not weight_names)
-        extend_triangles = _build_extend_triangles(draw_triangle, map_onto_pixel)
+        draw_triangle, draw_triangle_weights = _build_draw_triangle(append)
+        extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_weights, map_onto_pixel)
 
-        def extend(aggs, df, vt, bounds):
+        def extend(aggs, df, vt, bounds, weight_type=True, interpolate=True):
             cols = aggs + info(df)
-            extend_triangles(vt, bounds, df.values, *cols)
+            extend_triangles(vt, bounds, df.values, weight_type, interpolate, *cols)
 
 
         return extend
@@ -365,7 +370,7 @@ def _build_extend_line(draw_line, map_onto_pixel):
     return extend_line
 
 
-def _build_draw_triangle(append, has_weights):
+def _build_draw_triangle(append):
     """Specialize a triangle plotting kernel for a given append/axis combination"""
     @ngjit
     def edge_func(ax, ay, bx, by, cx, cy):
@@ -407,16 +412,16 @@ def _build_draw_triangle(append, has_weights):
                     append(i, j, aggs, col)
 
 
-    if has_weights:
-        return draw_triangle_weights
-    return draw_triangle
+    return draw_triangle, draw_triangle_weights
 
 
-def _build_extend_triangles(draw_triangle, map_onto_pixel):
+def _build_extend_triangles(draw_triangle, draw_triangle_weights, map_onto_pixel):
     @ngjit
-    def extend_triangles(vt, bounds, verts, *aggs_and_cols):
+    def extend_triangles(vt, bounds, verts, weight_type, interpolate, *aggs_and_cols):
         """Aggregate along an array of triangles formed by arrays of CW
         vertices. Each row corresponds to a single triangle definition.
+
+        `weight_type == True` means "weights are on vertices"
         """
         xmin, xmax, ymin, ymax = bounds
         vmax_x, vmax_y = map_onto_pixel(vt, bounds, max(xmin, xmax), max(ymin, ymax))
@@ -476,7 +481,13 @@ def _build_extend_triangles(draw_triangle, map_onto_pixel):
             bbox = minx, maxx, miny, maxy
             biases = bias0, bias1, bias2
             mapped_verts = (ax, ay, azn), (bx, by, bzn), (cx, cy, czn)
-            col = cols[n]
-            draw_triangle(mapped_verts, bbox, biases, aggs, col)
+            if weight_type:
+                col = (cols[n] + cols[n+1] + cols[n+2]) / 3
+            else:
+                col = cols[n]
+            if interpolate:
+                draw_triangle_weights(mapped_verts, bbox, biases, aggs, col)
+            else:
+                draw_triangle(mapped_verts, bbox, biases, aggs, col)
 
     return extend_triangles

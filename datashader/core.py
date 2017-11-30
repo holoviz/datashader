@@ -201,7 +201,7 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
-    def trimesh(self, vertices, simplices, agg=None, mesh=None):
+    def trimesh(self, vertices, simplices, agg=None, mesh=None, no_interp=False):
         """Compute a reduction by pixel, mapping data to pixels as a triangle.
 
         >>> import datashader as ds
@@ -264,6 +264,7 @@ class Canvas(object):
 
         # Choose reduction based on vertex coordinate data
         weight_col = None
+        verts_have_weights = True
         if weights:
             if agg is None:
                 agg = sum_rdn(weights[0])
@@ -276,6 +277,7 @@ class Canvas(object):
                 'from FloatingReduction')
         elif agg is None:
             assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+            verts_have_weights = False
             weight_col = simplices.columns[3]
             agg = sum_rdn(weight_col)
 
@@ -306,7 +308,7 @@ class Canvas(object):
         else:
             source = mesh
 
-        return bypixel(source, self, Triangles(x, y, weights), agg)
+        return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights, interp=(not no_interp)), agg)
 
     def raster(self,
                source,

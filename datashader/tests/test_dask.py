@@ -329,7 +329,7 @@ def test_trimesh_no_double_edge():
     # Test left/right edge shared
     verts = dd.from_pandas(pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
                                          'y': [4, 5, 5, 5, 4, 4]}), npartitions=mp.cpu_count())
-    tris = dd.from_pandas(pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 4]}), npartitions=mp.cpu_count())
+    tris = dd.from_pandas(pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 2]}), npartitions=mp.cpu_count())
     # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
