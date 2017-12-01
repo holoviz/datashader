@@ -108,14 +108,13 @@ is documented using the API link on this page.
 .. _`GitHub site`: https://github.com/bokeh/datashader
 
 We recommend the `Getting Started Guide <getting_started>`_ to learn
-the basic concepts and start using Project as quickly as possible.
+the basic concepts and start using Datashader as quickly as possible.
 
-The `User Guide <user_guide>`_ goes into key concepts more deeply when
-you are ready for further study.
+The `User Guide <user_guide>`_ covers specific topics in more detail.
 
 The `API <Reference_Manual>`_ is the definitive guide to each part of
 Datashader, but the same information is available more conveniently via
-the `help()` command.
+the `help()` command as needed when using each component.
 
 Please feel free to report `issues
 <https://github.com/ioam/holoviews/issues>`_ or `contribute code
