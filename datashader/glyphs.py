@@ -440,12 +440,6 @@ def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
             bx, by = map_onto_pixel(vt, bounds, bxn, byn)
             cx, cy = map_onto_pixel(vt, bounds, cxn, cyn)
 
-            # Skip any further processing of triangles with areas <= 1px
-            if ((ax == bx and ay == by) or
-                    (bx == cx and by == cy) or
-                    (cx == ax and cy == ay)):
-                continue
-
             # Get bounding box
             minx = min(ax, bx, cx)
             maxx = max(ax, bx, cx)
