@@ -183,8 +183,6 @@ class Triangles(_PolygonLike):
     """
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        weight_names = self.z
-
         map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
         draw_triangle, draw_triangle_interp = _build_draw_triangle(append)
         extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
@@ -382,7 +380,6 @@ def _build_draw_triangle(append):
         (ax, ay, az), (bx, by, bz), (cx, cy, cz) = verts
         bias0, bias1, bias2 = biases
         minx, maxx, miny, maxy = bbox
-        n_aggs = len(aggs)
         w0, w1, w2 = weights
         area = edge_func(ax, ay, bx, by, cx, cy) # Can a zero-area triangle exist?
         for j in range(miny, maxy+1):
