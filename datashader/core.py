@@ -201,7 +201,7 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
-    def trimesh(self, vertices, simplices, agg=None, mesh=None, no_interp=False):
+    def trimesh(self, vertices, simplices, agg=None, mesh=None, interp=True):
         """Compute a reduction by pixel, mapping data to pixels as a triangle.
 
         >>> import datashader as ds
@@ -233,10 +233,7 @@ class Canvas(object):
             data is consistent. The rows need not be ordered, and the data type
             for the first three columns must be integer.
         agg : Reduction, optional
-            Reduction to compute. Default is ``any()`` if no vertex weights nor
-            triangle weights are provided. Otherwise the default is ``sum()`` on
-            the first vertex weights column (or on the
-            first triangle weights column, if no vertex weights are provided).
+            Reduction to compute. Default is ``mean()``.
         mesh : pandas.DataFrame, optional
             An ordered triangle mesh in tabular form, used for optimization
             purposes. This dataframe is expected to have at least three columns
@@ -244,9 +241,13 @@ class Canvas(object):
             a vertex, and three rows in a row correspond to a triangle
             definition. Vertices must be in clockwise order. If this argument is
             not None, the first two arguments are ignored.
+        interp : boolean, optional
+            Specify whether to do bilinear interpolation of the pixels within each
+            triangle. This can be thought of as a "weighted average" of the vertex
+            values. Defaults to True.
         """
         from .glyphs import Triangles
-        from .reductions import FloatingReduction, sum as sum_rdn
+        from .reductions import mean as mean_rdn
 
         cols = vertices.columns.tolist()
         x, y, weights = cols[0], cols[1], cols[2:]
@@ -267,19 +268,12 @@ class Canvas(object):
         verts_have_weights = True
         if weights:
             if agg is None:
-                agg = sum_rdn(weights[0])
-            weights_have_floats = vertices.dtypes[weights].map(
-                lambda dt: np.issubdtype(dt, np.float)
-            ).any()
-            assert not weights_have_floats or (
-                weights_have_floats and isinstance(agg, FloatingReduction)
-            ), ('Floating point vertex weights (zs) require aggs to be derived '
-                'from FloatingReduction')
+                agg = mean_rdn(weights[0])
         elif agg is None:
             assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
             verts_have_weights = False
             weight_col = simplices.columns[3]
-            agg = sum_rdn(weight_col)
+            agg = mean_rdn(weight_col)
 
         if mesh is None:
             if (isinstance(vertices, dd.DataFrame) and
@@ -308,7 +302,7 @@ class Canvas(object):
         else:
             source = mesh
 
-        return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights, interp=(not no_interp)), agg)
+        return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights, interp=interp), agg)
 
     def raster(self,
                source,

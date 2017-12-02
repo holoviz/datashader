@@ -44,8 +44,8 @@ draw_line = _build_draw_line(append)
 extend_line = _build_extend_line(draw_line, map_onto_pixel)
 
 # Triangles rasterization
-draw_triangle, draw_triangle_weights = _build_draw_triangle(tri_append)
-extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_weights, map_onto_pixel)
+draw_triangle, draw_triangle_interp = _build_draw_triangle(tri_append)
+extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
 
 bounds = (-3, 1, -3, 1)
 vt = (1., 3., 1., 3.)

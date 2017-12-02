@@ -115,10 +115,14 @@ def make_append(bases, cols, calls, glyph):
         body.append('{0}(x, y, {1})'.format(func_name, ', '.join(args)))
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body
-    code = ('def append({2}x, y, {0}):\n'
-            '    {1}').format(', '.join(signature), '\n    '.join(body),
-                              ('' if isinstance(glyph, Triangles)
-                               else 'i, '))
+    if isinstance(glyph, Triangles):
+        code = 'def append(x, y, aggs, {0}):\n'.format(signature[-1])
+        for n_agg, i in enumerate(inputs[:-1]):
+            code += '\n    {1} = aggs[{0}]'.format(n_agg, arg_lk[i])
+        code += ('\n    ' + '\n    '.join(body))
+    else:
+        code = ('def append(i, x, y, {0}):\n'
+                '    {1}').format(', '.join(signature), '\n    '.join(body))
     _exec(code, namespace)
     return ngjit(namespace['append'])
 

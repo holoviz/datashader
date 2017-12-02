@@ -186,12 +186,11 @@ class Triangles(_PolygonLike):
         weight_names = self.z
 
         map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
-        draw_triangle, draw_triangle_weights = _build_draw_triangle(append)
-        extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_weights, map_onto_pixel)
+        draw_triangle, draw_triangle_interp = _build_draw_triangle(append)
+        extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
 
         def extend(aggs, df, vt, bounds, weight_type=True, interpolate=True):
-            cols = aggs + info(df)
-            extend_triangles(vt, bounds, df.values, weight_type, interpolate, *cols)
+            extend_triangles(vt, bounds, df.values, weight_type, interpolate, aggs, info(df))
 
 
         return extend
@@ -377,12 +376,14 @@ def _build_draw_triangle(append):
         return (cx - ax) * (by - ay) - (cy - ay) * (bx - ax)
 
     @ngjit
-    def draw_triangle_weights(verts, bbox, biases, aggs, col):
+    def draw_triangle_interp(verts, bbox, biases, aggs, weights):
         """Same as `draw_triangle()`, but with weights in verts.
         """
-        (ax, ay, w0), (bx, by, w1), (cx, cy, w2) = verts
+        (ax, ay, az), (bx, by, bz), (cx, cy, cz) = verts
         bias0, bias1, bias2 = biases
         minx, maxx, miny, maxy = bbox
+        n_aggs = len(aggs)
+        w0, w1, w2 = weights
         area = edge_func(ax, ay, bx, by, cx, cy) # Can a zero-area triangle exist?
         for j in range(miny, maxy+1):
             for i in range(minx, maxx+1):
@@ -390,11 +391,11 @@ def _build_draw_triangle(append):
                 g0 = edge_func(bx, by, cx, cy, i, j)
                 g1 = edge_func(cx, cy, ax, ay, i, j)
                 if ((g2 + bias0) | (g0 + bias1) | (g1 + bias2)) >= 0:
-                    weight = (w0 * g0 + w1 * g1 + w2 * g2) / area
-                    append(i, j, aggs, col*weight)
+                    interp_res = (az * g0 * w0 + bz * g1 * w1 + cz * g2 * w2) / area
+                    append(i, j, aggs, interp_res)
 
     @ngjit
-    def draw_triangle(verts, bbox, biases, aggs, col):
+    def draw_triangle(verts, bbox, biases, aggs, val):
         """Draw a triangle on a grid.
 
         This method plots a triangle with integer coordinates onto a pixel
@@ -409,15 +410,15 @@ def _build_draw_triangle(append):
                 if ((edge_func(ax, ay, bx, by, i, j) + bias0) >= 0 and
                         (edge_func(bx, by, cx, cy, i, j) + bias1) >= 0 and
                         (edge_func(cx, cy, ax, ay, i, j) + bias2) >= 0):
-                    append(i, j, aggs, col)
+                    append(i, j, aggs, val)
 
 
-    return draw_triangle, draw_triangle_weights
+    return draw_triangle, draw_triangle_interp
 
 
-def _build_extend_triangles(draw_triangle, draw_triangle_weights, map_onto_pixel):
+def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel):
     @ngjit
-    def extend_triangles(vt, bounds, verts, weight_type, interpolate, *aggs_and_cols):
+    def extend_triangles(vt, bounds, verts, weight_type, interpolate, aggs, cols):
         """Aggregate along an array of triangles formed by arrays of CW
         vertices. Each row corresponds to a single triangle definition.
 
@@ -427,8 +428,7 @@ def _build_extend_triangles(draw_triangle, draw_triangle_weights, map_onto_pixel
         vmax_x, vmax_y = map_onto_pixel(vt, bounds, max(xmin, xmax), max(ymin, ymax))
         vmin_x, vmin_y = map_onto_pixel(vt, bounds, min(xmin, xmax), min(ymin, ymax))
 
-        # We always need an agg'd column (for shading triangles differently)
-        aggs, cols = aggs_and_cols
+        col = cols[0] # Only aggregate over one column, for now
         n_tris = verts.shape[0]
         for n in range(0, n_tris, 3):
             a = verts[n]
@@ -481,13 +481,11 @@ def _build_extend_triangles(draw_triangle, draw_triangle_weights, map_onto_pixel
             bbox = minx, maxx, miny, maxy
             biases = bias0, bias1, bias2
             mapped_verts = (ax, ay, azn), (bx, by, bzn), (cx, cy, czn)
-            if weight_type:
-                col = (cols[n] + cols[n+1] + cols[n+2]) / 3
-            else:
-                col = cols[n]
             if interpolate:
-                draw_triangle_weights(mapped_verts, bbox, biases, aggs, col)
+                weights = col[n], col[n+1], col[n+2]
+                draw_triangle_interp(mapped_verts, bbox, biases, aggs, weights)
             else:
-                draw_triangle(mapped_verts, bbox, biases, aggs, col)
+                val = (col[n] + col[n+1] + col[n+2]) / 3
+                draw_triangle(mapped_verts, bbox, biases, aggs, val)
 
     return extend_triangles
