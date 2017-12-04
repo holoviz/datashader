@@ -1,9 +1,5 @@
-import json
-import pytest
-
 import numpy as np
 import pandas as pd
-import xarray as xr
 import datashader as ds
 import datashader.transfer_functions as tf
 
@@ -49,7 +45,7 @@ def test_interactive_image_update():
     img = InteractiveImage(p, create_image)
 
     # Ensure bokeh Document is instantiated
-    _ = img._repr_html_()
+    img._repr_html_()
     assert isinstance(img.doc, Document) 
 
     # Ensure image is updated
