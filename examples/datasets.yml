@@ -114,7 +114,8 @@ data:
       - maccdc2012_full_nodes.parq
       - maccdc2012_full_edges.parq
 
-  - url: https://www2.census.gov/geo/tiger/GENZ2015/shp/cb_2015_us_cd114_5m.zip
+# Original url: https://www2.census.gov/geo/tiger/GENZ2015/shp/cb_2015_us_cd114_5m.zip
+  - url: http://s3.amazonaws.com/datashader-data/cb_2015_us_cd114_5m.shp
     title: '2015 Congressional districts'
     files:
       - cb_2015_us_cd114_5m.shp
