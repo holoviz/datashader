@@ -267,13 +267,18 @@ class Canvas(object):
         weight_col = None
         verts_have_weights = not not weights
         if verts_have_weights:
+            weight_col = weights[0]
             if agg is None:
-                agg = mean_rdn(weights[0])
+                agg = mean_rdn(weight_col)
+            elif agg.column is None:
+                agg.column = weight_col
         else:
-            if agg is None:
-                assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+            assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
             weight_col = simplices.columns[3]
-            agg = mean_rdn(weight_col)
+            if agg is None:
+                agg = mean_rdn(weight_col)
+            elif agg.column is None:
+                agg.column = weight_col
 
         if mesh is None:
             if (isinstance(vertices, dd.DataFrame) and
@@ -283,7 +288,7 @@ class Canvas(object):
                 vals = vertices.values.compute()[vertex_idxs]
                 vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
                 source = pd.DataFrame(vals, columns=vertices.columns)
-                if weight_col is not None:
+                if not verts_have_weights:
                     source[weight_col] = simplices.values[:, 3].compute().repeat(3)
             else:
                 winding = [0, 1, 2]
@@ -297,7 +302,7 @@ class Canvas(object):
                 vals = vertices.values[vertex_idxs]
                 vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
                 source = pd.DataFrame(vals, columns=vertices.columns)
-                if weight_col is not None:
+                if not verts_have_weights:
                     source[weight_col] = simplices.values[:, 3].repeat(3)
         else:
             source = mesh

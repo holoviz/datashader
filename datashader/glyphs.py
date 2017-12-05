@@ -188,7 +188,9 @@ class Triangles(_PolygonLike):
         extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
 
         def extend(aggs, df, vt, bounds, weight_type=True, interpolate=True):
-            extend_triangles(vt, bounds, df.values, weight_type, interpolate, aggs, info(df))
+            cols = info(df)
+            assert cols, 'There must be at least one column on which to aggregate'
+            extend_triangles(vt, bounds, df.values, weight_type, interpolate, aggs, cols)
 
 
         return extend
