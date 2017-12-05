@@ -22,8 +22,7 @@ bokeh_version = LooseVersion(bokeh.__version__)
 
 if bokeh_version > '0.12.9':
     from bokeh.protocol import Protocol
-    from bokeh.embed import notebook_content
-    from bokeh.embed.notebook import encode_utf8
+    from bokeh.embed.notebook import encode_utf8, notebook_content
     from bokeh.io.notebook import CommsHandle, get_comms
 else:
     from bokeh.embed import notebook_div
