@@ -18,8 +18,11 @@ __all__ = ()
 def dask_pipeline(df, schema, canvas, glyph, summary):
     dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary)
 
-    get = _globals['get'] or df._default_get
-    dsk.update(df._optimize(df.dask, df._keys()))
+    get = _globals['get'] or getattr(df, '__dask_scheduler__', None) or df._default_get
+    keys = getattr(df, '__dask_keys__', None) or df._keys
+    optimize = getattr(df, '__dask_optimize__', None) or df._optimize
+
+    dsk.update(optimize(df.dask, keys()))
 
     return get(dsk, name)
 
@@ -66,7 +69,8 @@ def default(glyph, df, schema, canvas, summary):
         return aggs
 
     name = tokenize(df._name, canvas, glyph, summary)
-    keys = df._keys()
+    dask_dataframe_keys = getattr(df, '__dask_keys__', None) or df._keys
+    keys = dask_dataframe_keys()
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k)) for (k2, k) in zip(keys2, keys))
     dsk[name] = (apply, finalize, [(combine, keys2)],
