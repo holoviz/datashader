@@ -520,3 +520,17 @@ def test_trimesh_mesharg():
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts[:1], tris[:1], mesh=mesh)
     np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)
+
+def test_trimesh_agg_api():
+    """Assert that the trimesh aggregation API properly handles weights on the simplices."""
+    pts = pd.DataFrame({'x': [1, 3, 4, 3, 3],
+                        'y': [2, 1, 2, 1, 4]},
+                       columns=['x', 'y'])
+    tris = pd.DataFrame({'n1': [4, 1],
+                         'n2': [1, 4],
+                         'n3': [2, 0],
+                         'weight': [0.83231525, 1.3053126]},
+                        columns=['n1', 'n2', 'n3', 'weight'])
+    cvs = ds.Canvas(x_range=(0, 10), y_range=(0, 10))
+    agg = cvs.trimesh(pts, tris, agg=ds.mean('weight'))
+    assert agg.shape == (600, 600)

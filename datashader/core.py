@@ -265,13 +265,13 @@ class Canvas(object):
 
         # Choose reduction based on vertex coordinate data
         weight_col = None
-        verts_have_weights = True
-        if weights:
+        verts_have_weights = not not weights
+        if verts_have_weights:
             if agg is None:
                 agg = mean_rdn(weights[0])
-        elif agg is None:
-            assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
-            verts_have_weights = False
+        else:
+            if agg is None:
+                assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
             weight_col = simplices.columns[3]
             agg = mean_rdn(weight_col)
 
