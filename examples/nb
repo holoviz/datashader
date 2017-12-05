@@ -180,7 +180,8 @@ def verify(args):
                 print("invalid URL   :", url)
             for img in bad_images:
                 print("invalid image :", img)
-            status = 1
+            if bad_modules or bad_images:
+                status = 1
         else:
             print("{}: {}".format(green("PASS"), filename))
     sys.exit(status)
