@@ -23,9 +23,7 @@ install:
   - "activate test-environment"
   # TODO: does not match linux/osx (see https://github.com/bokeh/datashader/issues/404)
   - "conda install dask numba numpy pandas pillow pytest toolz xarray datashape colorcet scikit-image param"
-  - "conda install rasterio -c conda-forge"
-  # Optional dependencies, for testing only
-  - "conda install matplotlib"
+  - "conda install -c conda-forge rasterio matplotlib pillow=4.3.0 xarray"
 
   - "python setup.py develop --no-deps"
   - "conda env export"
