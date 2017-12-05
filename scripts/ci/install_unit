@@ -10,8 +10,7 @@ bash scripts/ci/install
 conda create -n test-environment python=$PYTHON_VERSION
 source activate test-environment
 conda install dask numba numpy pandas pillow toolz xarray datashape colorcet rasterio scikit-image param
-conda install -c gbrener -c conda-forge xarray # remove this line when xarray >= 0.9.7
-conda install -c conda-forge pytest pytest-benchmark
+conda install -c conda-forge pytest pytest-benchmark xarray
 conda install flake8 matplotlib
 python setup.py develop --no-deps
 conda env export
