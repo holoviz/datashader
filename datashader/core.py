@@ -201,7 +201,7 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
-    def trimesh(self, vertices, simplices, agg=None, mesh=None, interp=True):
+    def trimesh(self, vertices, simplices, mesh=None, agg=None, interp=True):
         """Compute a reduction by pixel, mapping data to pixels as a triangle.
 
         >>> import datashader as ds
@@ -271,6 +271,7 @@ class Canvas(object):
             if agg is None:
                 agg = mean_rdn(weight_col)
             elif agg.column is None:
+                # Rasterization code assumes presence of agg column
                 agg.column = weight_col
         else:
             assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
@@ -278,12 +279,13 @@ class Canvas(object):
             if agg is None:
                 agg = mean_rdn(weight_col)
             elif agg.column is None:
+                # Rasterization code assumes presence of agg column
                 agg.column = weight_col
 
         if mesh is None:
             if (isinstance(vertices, dd.DataFrame) and
                     isinstance(simplices, dd.DataFrame)):
-                # TODO: Avoid .compute() calls, and add winding auto-detection
+                # TODO: For dask: avoid .compute() calls, and add winding auto-detection
                 vertex_idxs = simplices.values[:, :3].astype(np.int64)
                 vals = vertices.values.compute()[vertex_idxs]
                 vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])

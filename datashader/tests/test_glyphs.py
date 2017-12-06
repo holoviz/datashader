@@ -199,9 +199,80 @@ def test_extend_lines_exact_bounds():
                     [1, 1, 1, 1]])
     np.testing.assert_equal(agg, out)
 
-def test_draw_triangle_interp():
+def test_draw_triangle_nointerp():
+    """Assert that we draw triangles properly, without interpolation enabled.
+    """
     # Isosceles triangle
-    tri = [(2, 0, 1), (0, 2, 1), (4, 2, 1)]
+    tri = [(2, 0), (0, 2), (4, 2)]
+    out = np.array([[0, 0, 1, 0, 0],
+                    [0, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 1],
+                    [0, 0, 0, 0, 0]])
+    agg = np.zeros((4, 5), dtype='i4')
+    draw_triangle(tri, (0, 4, 0, 5), (0, 0, 0), agg, 1)
+    np.testing.assert_equal(agg, out)
+
+    # Right triangle
+    tri = [(2, 0), (0, 2), (2, 2)]
+    out = np.array([[0, 0, 2, 0, 0],
+                    [0, 2, 2, 0, 0],
+                    [2, 2, 2, 0, 0],
+                    [0, 0, 0, 0, 0]])
+    agg = np.zeros((4, 5), dtype='i4')
+    draw_triangle(tri, (0, 4, 0, 5), (0, 0, 0), agg, 2)
+    np.testing.assert_equal(agg, out)
+
+    # Two right trimesh
+    tri = [(2, 0), (1, 1), (2, 1),
+           (2, 1), (2, 2), (3, 2)]
+    out = np.array([[0, 0, 3, 0, 0],
+                    [0, 3, 6, 0, 0],
+                    [0, 0, 3, 3, 0],
+                    [0, 0, 0, 0, 0]])
+    agg = np.zeros((4, 5), dtype='i4')
+    draw_triangle(tri[:3], (0, 4, 0, 5), (0, 0, 0), agg, 3)
+    draw_triangle(tri[3:], (0, 4, 0, 5), (0, 0, 0), agg, 3)
+    np.testing.assert_equal(agg, out)
+
+    # Draw isoc triangle with clipping
+    tri = [(2, 0), (0, 2), (4, 2)]
+    out = np.array([[0, 0, 1, 0, 0],
+                    [0, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [0, 0, 0, 0, 0]])
+    agg = np.zeros((4, 5), dtype='i4')
+    draw_triangle(tri, (0, 3, 0, 2), (0, 0, 0), agg, 1)
+    np.testing.assert_equal(agg, out)
+    # clip from right and left
+    out = np.array([[0, 0, 1, 0, 0],
+                    [0, 1, 1, 1, 0],
+                    [0, 1, 1, 1, 0],
+                    [0, 0, 0, 0, 0]])
+    agg = np.zeros((4, 5), dtype='i4')
+    draw_triangle(tri, (1, 3, 0, 2), (0, 0, 0), agg, 1)
+    np.testing.assert_equal(agg, out)
+    # clip from right, left, top
+    out = np.array([[0, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 0],
+                    [0, 1, 1, 1, 0],
+                    [0, 0, 0, 0, 0]])
+    agg = np.zeros((4, 5), dtype='i4')
+    draw_triangle(tri, (1, 3, 1, 2), (0, 0, 0), agg, 1)
+    np.testing.assert_equal(agg, out)
+    # clip from right, left, top, bottom
+    out = np.array([[0, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0]])
+    agg = np.zeros((4, 5), dtype='i4')
+    draw_triangle(tri, (1, 3, 1, 1), (0, 0, 0), agg, 1)
+    np.testing.assert_equal(agg, out)
+
+def test_draw_triangle_interp():
+    """Assert that we draw triangles properly, with interpolation enabled.
+    """
+    # Isosceles triangle
+    tri = [(2, 0), (0, 2), (4, 2)]
     out = np.array([[0, 0, 3, 0, 0],
                     [0, 3, 3, 3, 0],
                     [3, 3, 3, 3, 3],
@@ -210,29 +281,61 @@ def test_draw_triangle_interp():
     draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (3, 3, 3))
     np.testing.assert_equal(agg, out)
 
-    tri = [(2, 0, 1), (0, 2, 2), (4, 2, 3)]
+    tri = [(2, 0), (0, 2), (4, 2)]
     out = np.array([[0, 0, 1, 0, 0],
                     [0, 1, 1, 2, 0],
                     [2, 2, 2, 2, 3],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (1, 1, 1))
+    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (1, 2, 3))
     np.testing.assert_equal(agg, out)
 
-    tri = [(2, 0, 1), (0, 2, 2), (4, 2, 3)]
+    tri = [(2, 0), (0, 2), (4, 2)]
     out = np.array([[0, 0, 3, 0, 0],
                     [0, 4, 5, 6, 0],
                     [6, 6, 7, 8, 9],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (3, 3, 3))
+    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (3, 6, 9))
     np.testing.assert_equal(agg, out)
 
-    tri = [(2, 0, 3), (0, 2, 2), (4, 2, 1)]
+    tri = [(2, 0), (0, 2), (4, 2)]
     out = np.array([[0, 0, 6, 0, 0],
                     [0, 5, 4, 4, 0],
                     [4, 3, 3, 2, 2],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (2, 2, 2))
+    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (6, 4, 2))
+    np.testing.assert_equal(agg, out)
+
+def test_draw_triangle_subpixel():
+    """Assert that we draw subpixel triangles properly, both with and without
+    interpolation.
+    """
+    # With interpolation
+    tri = [(2, 0), (0, 2), (4, 2),
+           (2, 3), (2, 3), (2, 3),
+           (2, 3), (2, 3), (2, 3)]
+    out = np.array([[0, 0, 6, 0, 0],
+                    [0, 5, 4, 4, 0],
+                    [4, 3, 3, 2, 2],
+                    [0, 0, 8, 0, 0]])
+    agg = np.zeros((4, 5), dtype='i4')
+    draw_triangle_interp(tri[:3], (0, 4, 0, 5), (0, 0, 0), agg, (6, 4, 2))
+    draw_triangle_interp(tri[3:6], (2, 2, 3, 3), (0, 0, 0), agg, (6, 4, 2))
+    draw_triangle_interp(tri[6:], (2, 2, 3, 3), (0, 0, 0), agg, (6, 4, 2))
+    np.testing.assert_equal(agg, out)
+
+    # Without interpolation
+    tri = [(2, 0), (0, 2), (4, 2),
+           (2, 3), (2, 3), (2, 3),
+           (2, 3), (2, 3), (2, 3)]
+    out = np.array([[0, 0, 2, 0, 0],
+                    [0, 2, 2, 2, 0],
+                    [2, 2, 2, 2, 2],
+                    [0, 0, 4, 0, 0]])
+    agg = np.zeros((4, 5), dtype='i4')
+    draw_triangle(tri[:3], (0, 4, 0, 5), (0, 0, 0), agg, 2)
+    draw_triangle(tri[3:6], (2, 2, 3, 3), (0, 0, 0), agg, 2)
+    draw_triangle(tri[6:], (2, 2, 3, 3), (0, 0, 0), agg, 2)
     np.testing.assert_equal(agg, out)

@@ -377,21 +377,26 @@ def _build_draw_triangle(append):
 
     @ngjit
     def draw_triangle_interp(verts, bbox, biases, aggs, weights):
-        """Same as `draw_triangle()`, but with weights in verts.
+        """Same as `draw_triangle()`, but with weights interpolated from vertex
+        values.
         """
-        (ax, ay, az), (bx, by, bz), (cx, cy, cz) = verts
-        bias0, bias1, bias2 = biases
         minx, maxx, miny, maxy = bbox
         w0, w1, w2 = weights
-        area = edge_func(ax, ay, bx, by, cx, cy) # Can a zero-area triangle exist?
-        for j in range(miny, maxy+1):
-            for i in range(minx, maxx+1):
-                g2 = edge_func(ax, ay, bx, by, i, j)
-                g0 = edge_func(bx, by, cx, cy, i, j)
-                g1 = edge_func(cx, cy, ax, ay, i, j)
-                if ((g2 + bias0) | (g0 + bias1) | (g1 + bias2)) >= 0:
-                    interp_res = (az * g0 * w0 + bz * g1 * w1 + cz * g2 * w2) / area
-                    append(i, j, aggs, interp_res)
+        if minx == maxx and miny == maxy:
+            # Subpixel case; area == 0
+            append(minx, miny, aggs, (w0 + w1 + w2) / 3)
+        else:
+            (ax, ay), (bx, by), (cx, cy) = verts
+            bias0, bias1, bias2 = biases
+            area = edge_func(ax, ay, bx, by, cx, cy)
+            for j in range(miny, maxy+1):
+                for i in range(minx, maxx+1):
+                    g2 = edge_func(ax, ay, bx, by, i, j)
+                    g0 = edge_func(bx, by, cx, cy, i, j)
+                    g1 = edge_func(cx, cy, ax, ay, i, j)
+                    if ((g2 + bias0) | (g0 + bias1) | (g1 + bias2)) >= 0:
+                        interp_res = (g0 * w0 + g1 * w1 + g2 * w2) / area
+                        append(i, j, aggs, interp_res)
 
     @ngjit
     def draw_triangle(verts, bbox, biases, aggs, val):
@@ -401,15 +406,19 @@ def _build_draw_triangle(append):
         grid. The vertices are assumed to have already been scaled, transformed,
         and clipped within the bounds.
         """
-        (ax, ay, _), (bx, by, _), (cx, cy, _) = verts
-        bias0, bias1, bias2 = biases
         minx, maxx, miny, maxy = bbox
-        for j in range(miny, maxy+1):
-            for i in range(minx, maxx+1):
-                if ((edge_func(ax, ay, bx, by, i, j) + bias0) >= 0 and
-                        (edge_func(bx, by, cx, cy, i, j) + bias1) >= 0 and
-                        (edge_func(cx, cy, ax, ay, i, j) + bias2) >= 0):
-                    append(i, j, aggs, val)
+        if minx == maxx and miny == maxy:
+            # Subpixel case; area == 0
+            append(minx, miny, aggs, val)
+        else:
+            (ax, ay), (bx, by), (cx, cy) = verts
+            bias0, bias1, bias2 = biases
+            for j in range(miny, maxy+1):
+                for i in range(minx, maxx+1):
+                    if ((edge_func(ax, ay, bx, by, i, j) + bias0) >= 0 and
+                            (edge_func(bx, by, cx, cy, i, j) + bias1) >= 0 and
+                            (edge_func(cx, cy, ax, ay, i, j) + bias2) >= 0):
+                        append(i, j, aggs, val)
 
 
     return draw_triangle, draw_triangle_interp
@@ -424,8 +433,10 @@ def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
         `weight_type == True` means "weights are on vertices"
         """
         xmin, xmax, ymin, ymax = bounds
-        vmax_x, vmax_y = map_onto_pixel(vt, bounds, max(xmin, xmax), max(ymin, ymax))
-        vmin_x, vmin_y = map_onto_pixel(vt, bounds, min(xmin, xmax), min(ymin, ymax))
+        cmax_x, cmax_y = max(xmin, xmax), max(ymin, ymax)
+        cmin_x, cmin_y = min(xmin, xmax), min(ymin, ymax)
+        vmax_x, vmax_y = map_onto_pixel(vt, bounds, cmax_x, cmax_y)
+        vmin_x, vmin_y = map_onto_pixel(vt, bounds, cmin_x, cmin_y)
 
         col = cols[0] # Only aggregate over one column, for now
         n_tris = verts.shape[0]
@@ -433,9 +444,10 @@ def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
             a = verts[n]
             b = verts[n+1]
             c = verts[n+2]
-            axn, ayn, azn = a[0], a[1], a[2]
-            bxn, byn, bzn = b[0], b[1], b[2]
-            cxn, cyn, czn = c[0], c[1], c[2]
+            axn, ayn = a[0], a[1]
+            bxn, byn = b[0], b[1]
+            cxn, cyn = c[0], c[1]
+            col0, col1, col2 = col[n], col[n+1], col[n+2]
 
             # Map triangle vertices onto pixels
             ax, ay = map_onto_pixel(vt, bounds, axn, ayn)
@@ -473,9 +485,9 @@ def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
 
             bbox = minx, maxx, miny, maxy
             biases = bias0, bias1, bias2
-            mapped_verts = (ax, ay, azn), (bx, by, bzn), (cx, cy, czn)
+            mapped_verts = (ax, ay), (bx, by), (cx, cy)
             if interpolate:
-                weights = col[n], col[n+1], col[n+2]
+                weights = col0, col1, col2
                 draw_triangle_interp(mapped_verts, bbox, biases, aggs, weights)
             else:
                 val = (col[n] + col[n+1] + col[n+2]) / 3

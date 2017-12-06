@@ -8,7 +8,7 @@ import xarray as xr
 
 from .compatibility import _exec
 from .glyphs import Triangles
-from .reductions import summary
+from .reductions import summary, OptionalFieldReduction
 from .utils import ngjit
 
 
@@ -115,7 +115,7 @@ def make_append(bases, cols, calls, glyph):
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body
     if isinstance(glyph, Triangles):
-        code = 'def append(x, y, aggs, {0}):\n'.format(signature[-1])
+        code = 'def append(x, y, aggs, {0}):'.format(signature[-1])
         for n_agg, i in enumerate(inputs[:-1]):
             code += '\n    {1} = aggs[{0}]'.format(n_agg, arg_lk[i])
         code += ('\n    ' + '\n    '.join(body))
