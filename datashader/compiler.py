@@ -8,7 +8,7 @@ import xarray as xr
 
 from .compatibility import _exec
 from .glyphs import Triangles
-from .reductions import summary, OptionalFieldReduction
+from .reductions import summary
 from .utils import ngjit
 
 
