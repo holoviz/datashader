@@ -31,29 +31,31 @@ class _PointLike(Glyph):
     @staticmethod
     @ngjit
     def _compute_x_bounds(xs):
-        minval = maxval = xs[0]
+        minval = np.inf
+        maxval = -np.inf
         for x in xs:
             if not np.isnan(x):
-                if np.isnan(minval) or x < minval:
+                if x < minval:
                     minval = x
-                if np.isnan(maxval) or x > maxval:
+                if x > maxval:
                     maxval = x
-        if np.isnan(minval) or np.isnan(maxval):
-            raise ValueError('All x coordinates are NaN.')
+        if not (np.isfinite(minval) and np.isfinite(maxval)):
+            raise ValueError('No non-NaN x coordinates found.')
         return minval, maxval
 
     @staticmethod
     @ngjit
     def _compute_y_bounds(ys):
-        minval = maxval = ys[0]
+        minval = np.inf
+        maxval = -np.inf
         for y in ys:
             if not np.isnan(y):
-                if np.isnan(minval) or y < minval:
+                if y < minval:
                     minval = y
-                if np.isnan(maxval) or y > maxval:
+                if y > maxval:
                     maxval = y
-        if np.isnan(minval) or np.isnan(maxval):
-            raise ValueError('All y coordinates are NaN.')
+        if not (np.isfinite(minval) and np.isfinite(maxval)):
+            raise ValueError('No non-NaN y coordinates found.')
         return minval, maxval
 
     @memoize
@@ -71,6 +73,34 @@ class _PointLike(Glyph):
         """
         ys = df[self.y].values
         return np.nanmin(ys), np.nanmax(ys)
+
+
+class _PolygonLike(_PointLike):
+    """_PointLike class, with methods overridden for vertex-delimited shapes.
+
+    Key differences from _PointLike:
+        - added self.z as a list, representing vertex weights
+        - constructor accepts additional kwargs:
+            * weight_type (bool): Whether the weights are on vertices (True) or on the shapes (False)
+            * interp (bool): Whether to interpolate (True), or to have one color per shape (False)
+    """
+    def __init__(self, x, y, z=None, weight_type=True, interp=True):
+        super(_PolygonLike, self).__init__(x, y)
+        if z is None:
+            self.z = []
+        else:
+            self.z = z
+        self.interpolate = interp
+        self.weight_type = weight_type
+
+    @property
+    def inputs(self):
+        return tuple([self.x, self.y] + list(self.z))
+
+    def validate(self, in_dshape):
+        for col in [self.x, self.y] + list(self.z):
+            if not isreal(in_dshape.measure[col]):
+                raise ValueError('{} must be real'.format(col))
 
 
 class Point(_PointLike):
@@ -143,14 +173,38 @@ class Line(_PointLike):
         return extend
 
 
-# -- Helpers for computing line geometry --
+class Triangles(_PolygonLike):
+    """An unstructured mesh of triangles, with vertices defined by ``xs`` and ``ys``.
+
+    Parameters
+    ----------
+    xs, ys, zs : list of str
+        Column names of x, y, and (optional) z coordinates of each vertex.
+    """
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
+        draw_triangle, draw_triangle_interp = _build_draw_triangle(append)
+        extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
+
+        def extend(aggs, df, vt, bounds, weight_type=True, interpolate=True):
+            cols = info(df)
+            assert cols, 'There must be at least one column on which to aggregate'
+            extend_triangles(vt, bounds, df.values, weight_type, interpolate, aggs, cols)
+
+
+        return extend
+
+
+# -- Helpers for computing geometries --
+
 
 def _build_map_onto_pixel(x_mapper, y_mapper):
     @ngjit
     def map_onto_pixel(vt, bounds, x, y):
         """Map points onto pixel grid"""
         sx, tx, sy, ty = vt
-        _, xmax, _, ymax = bounds
+        xmax, ymax = bounds[1], bounds[3]
         xx = int(x_mapper(x) * sx + tx)
         yy = int(y_mapper(y) * sy + ty)
         # Points falling on upper bound are mapped into previous bin
@@ -313,3 +367,130 @@ def _build_extend_line(draw_line, map_onto_pixel):
             i += 1
 
     return extend_line
+
+
+def _build_draw_triangle(append):
+    """Specialize a triangle plotting kernel for a given append/axis combination"""
+    @ngjit
+    def edge_func(ax, ay, bx, by, cx, cy):
+        return (cx - ax) * (by - ay) - (cy - ay) * (bx - ax)
+
+    @ngjit
+    def draw_triangle_interp(verts, bbox, biases, aggs, weights):
+        """Same as `draw_triangle()`, but with weights interpolated from vertex
+        values.
+        """
+        minx, maxx, miny, maxy = bbox
+        w0, w1, w2 = weights
+        if minx == maxx and miny == maxy:
+            # Subpixel case; area == 0
+            append(minx, miny, aggs, (w0 + w1 + w2) / 3)
+        else:
+            (ax, ay), (bx, by), (cx, cy) = verts
+            bias0, bias1, bias2 = biases
+            area = edge_func(ax, ay, bx, by, cx, cy)
+            for j in range(miny, maxy+1):
+                for i in range(minx, maxx+1):
+                    g2 = edge_func(ax, ay, bx, by, i, j)
+                    g0 = edge_func(bx, by, cx, cy, i, j)
+                    g1 = edge_func(cx, cy, ax, ay, i, j)
+                    if ((g2 + bias0) | (g0 + bias1) | (g1 + bias2)) >= 0:
+                        interp_res = (g0 * w0 + g1 * w1 + g2 * w2) / area
+                        append(i, j, aggs, interp_res)
+
+    @ngjit
+    def draw_triangle(verts, bbox, biases, aggs, val):
+        """Draw a triangle on a grid.
+
+        This method plots a triangle with integer coordinates onto a pixel
+        grid. The vertices are assumed to have already been scaled, transformed,
+        and clipped within the bounds.
+        """
+        minx, maxx, miny, maxy = bbox
+        if minx == maxx and miny == maxy:
+            # Subpixel case; area == 0
+            append(minx, miny, aggs, val)
+        else:
+            (ax, ay), (bx, by), (cx, cy) = verts
+            bias0, bias1, bias2 = biases
+            for j in range(miny, maxy+1):
+                for i in range(minx, maxx+1):
+                    if ((edge_func(ax, ay, bx, by, i, j) + bias0) >= 0 and
+                            (edge_func(bx, by, cx, cy, i, j) + bias1) >= 0 and
+                            (edge_func(cx, cy, ax, ay, i, j) + bias2) >= 0):
+                        append(i, j, aggs, val)
+
+
+    return draw_triangle, draw_triangle_interp
+
+
+def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel):
+    @ngjit
+    def extend_triangles(vt, bounds, verts, weight_type, interpolate, aggs, cols):
+        """Aggregate along an array of triangles formed by arrays of CW
+        vertices. Each row corresponds to a single triangle definition.
+
+        `weight_type == True` means "weights are on vertices"
+        """
+        xmin, xmax, ymin, ymax = bounds
+        cmax_x, cmax_y = max(xmin, xmax), max(ymin, ymax)
+        cmin_x, cmin_y = min(xmin, xmax), min(ymin, ymax)
+        vmax_x, vmax_y = map_onto_pixel(vt, bounds, cmax_x, cmax_y)
+        vmin_x, vmin_y = map_onto_pixel(vt, bounds, cmin_x, cmin_y)
+
+        col = cols[0] # Only aggregate over one column, for now
+        n_tris = verts.shape[0]
+        for n in range(0, n_tris, 3):
+            a = verts[n]
+            b = verts[n+1]
+            c = verts[n+2]
+            axn, ayn = a[0], a[1]
+            bxn, byn = b[0], b[1]
+            cxn, cyn = c[0], c[1]
+            col0, col1, col2 = col[n], col[n+1], col[n+2]
+
+            # Map triangle vertices onto pixels
+            ax, ay = map_onto_pixel(vt, bounds, axn, ayn)
+            bx, by = map_onto_pixel(vt, bounds, bxn, byn)
+            cx, cy = map_onto_pixel(vt, bounds, cxn, cyn)
+
+            # Get bounding box
+            minx = min(ax, bx, cx)
+            maxx = max(ax, bx, cx)
+            miny = min(ay, by, cy)
+            maxy = max(ay, by, cy)
+
+            # Skip any further processing of triangles outside of viewing area
+            if (minx >= vmax_x or
+                    maxx < vmin_x or
+                    miny >= vmax_y or
+                    maxy < vmin_y):
+                continue
+
+            # Clip to viewing area
+            minx = max(minx, vmin_x)
+            maxx = min(maxx, vmax_x)
+            miny = max(miny, vmin_y)
+            maxy = min(maxy, vmax_y)
+
+            # Prevent double-drawing edges.
+            # https://msdn.microsoft.com/en-us/library/windows/desktop/bb147314(v=vs.85).aspx
+            bias0, bias1, bias2 = -1, -1, -1
+            if ay < by or (by == ay and ax < bx):
+                 bias0 = 0
+            if by < cy or (cy == by and bx < cx):
+                 bias1 = 0
+            if cy < ay or (ay == cy and cx < ax):
+                 bias2 = 0
+
+            bbox = minx, maxx, miny, maxy
+            biases = bias0, bias1, bias2
+            mapped_verts = (ax, ay), (bx, by), (cx, cy)
+            if interpolate:
+                weights = col0, col1, col2
+                draw_triangle_interp(mapped_verts, bbox, biases, aggs, weights)
+            else:
+                val = (col[n] + col[n+1] + col[n+2]) / 3
+                draw_triangle(mapped_verts, bbox, biases, aggs, val)
+
+    return extend_triangles

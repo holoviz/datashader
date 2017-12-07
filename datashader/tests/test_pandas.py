@@ -309,3 +309,228 @@ def test_auto_range_line():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq(agg, out)
+
+def test_trimesh_no_double_edge():
+    """Assert that when two triangles share an edge that would normally get
+    double-drawn, the edge is only drawn for the rightmost (or bottommost)
+    triangle.
+    """
+    # Test left/right edge shared
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4]})
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 2]})
+    # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+
+    # Test top/bottom edge shared
+    verts = pd.DataFrame({'x': [3, 3, 1, 1, 3, 3],
+                          'y': [4, 1, 4, 4, 5, 4]})
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [3, 1]})
+    # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
+    cvs = ds.Canvas(plot_width=22, plot_height=22, x_range=(0, 10), y_range=(0, 10))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[10:20, :20], sol)
+
+def test_trimesh_interp():
+    """Assert that triangles are interpolated when vertex values are provided.
+    """
+    verts = pd.DataFrame({'x': [0, 5, 10],
+                          'y': [0, 10, 0]})
+    tris = pd.DataFrame({'v0': [0], 'v1': [1], 'v2': [2],
+                         'val': [1]})
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+        [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+        [0, 0, 0, 1, 1, 1, 1, 1, 0, 0],
+        [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+        [0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values), sol)
+
+    verts = pd.DataFrame({'x': [0, 5, 10],
+                       'y': [0, 10, 0],
+                       'z': [1, 5, 3]})
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 4, 0, 0, 0, 0],
+        [0, 0, 0, 0, 4, 4, 0, 0, 0, 0],
+        [0, 0, 0, 0, 3, 4, 4, 0, 0, 0],
+        [0, 0, 0, 3, 3, 3, 3, 0, 0, 0],
+        [0, 0, 0, 2, 3, 3, 3, 3, 0, 0],
+        [0, 0, 2, 2, 2, 3, 3, 3, 0, 0],
+        [0, 0, 2, 2, 2, 2, 2, 3, 3, 0],
+        [0, 1, 1, 1, 2, 2, 2, 2, 3, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values), sol)
+
+def test_trimesh_simplex_weights():
+    """Assert that weighting the simplices works as expected.
+    """
+    # val is float
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4]})
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [2., 4.]}) # floats
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 4, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+
+    # val is int
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4]})
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [3, 4]})
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 4, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+
+def test_trimesh_vertex_weights():
+    """Assert that weighting the vertices works as expected.
+    """
+    # z is float
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4],
+                          'z': [1., 1., 1., 2., 2., 2.]}, columns=['x', 'y', 'z'])
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5]})
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='f8')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)
+
+    # val is int
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4],
+                          'val': [2, 2, 2, 3, 3, 3]}, columns=['x', 'y', 'val'])
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5]})
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 3, 3, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+
+def test_trimesh_winding_detect():
+    """Assert that CCW windings get converted to CW.
+    """
+    # val is int, winding is CCW
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4]})
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [2, 5], 'v2': [1, 4], 'val': [3, 4]})
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 4, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+
+    # val is float, winding is CCW
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4]})
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [2, 5], 'v2': [1, 4], 'val': [3., 4.]}) # floats
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 4, 4, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+
+def test_trimesh_mesharg():
+    """Assert that the ``mesh`` argument results in the same rasterization,
+    despite the ``vertices`` and ``simplices`` arguments changing.
+    """
+    # z is float
+    verts = pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                          'y': [4, 5, 5, 5, 4, 4],
+                          'z': [1., 1., 1., 2., 2., 2.]}, columns=['x', 'y', 'z'])
+    tris = pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5]})
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='f8')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)
+
+    mesh = pd.DataFrame(verts.values[tris.values[:, [0, 1, 2]]].reshape(3*len(tris), len(verts.columns)),
+                        columns=verts.columns)
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts[:1], tris[:1], mesh=mesh)
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)
+
+def test_trimesh_agg_api():
+    """Assert that the trimesh aggregation API properly handles weights on the simplices."""
+    pts = pd.DataFrame({'x': [1, 3, 4, 3, 3],
+                        'y': [2, 1, 2, 1, 4]},
+                       columns=['x', 'y'])
+    tris = pd.DataFrame({'n1': [4, 1],
+                         'n2': [1, 4],
+                         'n3': [2, 0],
+                         'weight': [0.83231525, 1.3053126]},
+                        columns=['n1', 'n2', 'n3', 'weight'])
+    cvs = ds.Canvas(x_range=(0, 10), y_range=(0, 10))
+    agg = cvs.trimesh(pts, tris, agg=ds.mean('weight'))
+    assert agg.shape == (600, 600)

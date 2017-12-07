@@ -7,6 +7,7 @@ import numpy as np
 import xarray as xr
 
 from .compatibility import _exec
+from .glyphs import Triangles
 from .reductions import summary
 from .utils import ngjit
 
@@ -15,7 +16,7 @@ __all__ = ['compile_components']
 
 
 @memoize
-def compile_components(agg, schema):
+def compile_components(agg, schema, glyph):
     """Given a ``Aggregation`` object and a schema, return 5 sub-functions.
 
     Parameters
@@ -62,7 +63,7 @@ def compile_components(agg, schema):
 
     create = make_create(bases, dshapes)
     info = make_info(cols)
-    append = make_append(bases, cols, calls)
+    append = make_append(bases, cols, calls, glyph)
     combine = make_combine(bases, dshapes, temps)
     finalize = make_finalize(bases, agg, schema)
 
@@ -92,7 +93,7 @@ def make_info(cols):
     return lambda df: tuple(c.apply(df) for c in cols)
 
 
-def make_append(bases, cols, calls):
+def make_append(bases, cols, calls, glyph):
     names = ('_{0}'.format(i) for i in count())
     inputs = list(bases) + list(cols)
     signature = [next(names) for i in inputs]
@@ -105,13 +106,22 @@ def make_append(bases, cols, calls):
         func_name = next(names)
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
-        args.extend('{0}[i]'.format(arg_lk[i]) for i in cols)
+        if isinstance(glyph, Triangles):
+            args.extend('{0}'.format(arg_lk[i]) for i in cols)
+        else:
+            args.extend('{0}[i]'.format(arg_lk[i]) for i in cols)
         args.extend([local_lk[i] for i in temps])
         body.append('{0}(x, y, {1})'.format(func_name, ', '.join(args)))
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body
-    code = ('def append(i, x, y, {0}):\n'
-            '    {1}').format(', '.join(signature), '\n    '.join(body))
+    if isinstance(glyph, Triangles):
+        code = 'def append(x, y, aggs, {0}):'.format(signature[-1])
+        for n_agg, i in enumerate(inputs[:-1]):
+            code += '\n    {1} = aggs[{0}]'.format(n_agg, arg_lk[i])
+        code += ('\n    ' + '\n    '.join(body))
+    else:
+        code = ('def append(i, x, y, {0}):\n'
+                '    {1}').format(', '.join(signature), '\n    '.join(body))
     _exec(code, namespace)
     return ngjit(namespace['append'])
 

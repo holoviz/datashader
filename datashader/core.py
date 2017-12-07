@@ -169,9 +169,9 @@ class Canvas(object):
             Reduction to compute. Default is ``count()``.
         """
         from .glyphs import Point
-        from .reductions import count
+        from .reductions import count as count_rdn
         if agg is None:
-            agg = count()
+            agg = count_rdn()
         return bypixel(source, self, Point(x, y), agg)
 
     def line(self, source, x, y, agg=None):
@@ -196,10 +196,121 @@ class Canvas(object):
             Reduction to compute. Default is ``any()``.
         """
         from .glyphs import Line
-        from .reductions import any
+        from .reductions import any as any_rdn
         if agg is None:
-            agg = any()
+            agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
+
+    def trimesh(self, vertices, simplices, mesh=None, agg=None, interp=True):
+        """Compute a reduction by pixel, mapping data to pixels as a triangle.
+
+        >>> import datashader as ds
+        >>> verts = pd.DataFrame({'x': [0, 5, 10],
+        ...                         'y': [0, 10, 0],
+        ...                         'weight': [1, 5, 3]},
+        ...                        columns=['x', 'y', 'weight'])
+        >>> tris = pd.DataFrame({'v0': [2], 'v1': [0], 'v2': [1]},
+        ...                       columns=['v0', 'v1', 'v2'])
+        >>> cvs = ds.Canvas(x_range=(verts.x.min(), verts.x.max()),
+        ...                 y_range=(verts.y.min(), verts.y.max()))
+        >>> cvs.trimesh(verts, tris)
+
+        Parameters
+        ----------
+        vertices : pandas.DataFrame, dask.DataFrame
+            The input datasource for triangle vertex coordinates. These can be
+            interpreted as the x/y coordinates of the vertices, with optional
+            weights for value interpolation. Columns should be ordered
+            corresponding to 'x', 'y', followed by zero or more (optional)
+            columns containing vertex values. The rows need not be ordered.
+            The column data types must be floating point or integer.
+        simplices : pandas.DataFrame, dask.DataFrame
+            The input datasource for triangle (simplex) definitions. These can
+            be interpreted as rows of ``vertices``, aka positions in the
+            ``vertices`` index. Columns should be ordered corresponding to
+            'vertex0', 'vertex1', and 'vertex2'. Order of the vertices can be
+            clockwise or counter-clockwise; it does not matter as long as the
+            data is consistent for all simplices in the dataframe. The
+            rows need not be ordered.  The data type for the first
+            three columns in the dataframe must be integer.
+        agg : Reduction, optional
+            Reduction to compute. Default is ``mean()``.
+        mesh : pandas.DataFrame, optional
+            An ordered triangle mesh in tabular form, used for optimization
+            purposes. This dataframe is expected to have at least three columns
+            - corresponding to x, y, and vertex weights. Each row corresponds to
+            a vertex, and three rows in a row correspond to a triangle
+            definition. Vertices must be in clockwise order. If this argument is
+            not None, the first two arguments are ignored.
+        interp : boolean, optional
+            Specify whether to do bilinear interpolation of the pixels within each
+            triangle. This can be thought of as a "weighted average" of the vertex
+            values. Defaults to True.
+        """
+        from .glyphs import Triangles
+        from .reductions import mean as mean_rdn
+
+        cols = vertices.columns.tolist()
+        x, y, weights = cols[0], cols[1], cols[2:]
+
+        # Verify the simplex data structure
+        assert simplices.values.shape[1] >= 3, ('At least three vertex columns '
+                                                'are required for the triangle '
+                                                'definition')
+        simplices_all_ints = simplices.dtypes.iloc[:3].map(
+            lambda dt: np.issubdtype(dt, np.integer)
+        ).all()
+        assert simplices_all_ints, ('Simplices must be integral. You may '
+                                    'consider casting simplices to integers '
+                                    'with ".astype(int)"')
+
+        # Choose reduction based on vertex coordinate data
+        weight_col = None
+        verts_have_weights = not not weights
+        if verts_have_weights:
+            weight_col = weights[0]
+            if agg is None:
+                agg = mean_rdn(weight_col)
+            elif agg.column is None:
+                # Rasterization code assumes presence of agg column
+                agg.column = weight_col
+        else:
+            assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+            weight_col = simplices.columns[3]
+            if agg is None:
+                agg = mean_rdn(weight_col)
+            elif agg.column is None:
+                # Rasterization code assumes presence of agg column
+                agg.column = weight_col
+
+        if mesh is None:
+            if (isinstance(vertices, dd.DataFrame) and
+                    isinstance(simplices, dd.DataFrame)):
+                # TODO: For dask: avoid .compute() calls, and add winding auto-detection
+                vertex_idxs = simplices.values[:, :3].astype(np.int64)
+                vals = vertices.values.compute()[vertex_idxs]
+                vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
+                source = pd.DataFrame(vals, columns=vertices.columns)
+                if not verts_have_weights:
+                    source[weight_col] = simplices.values[:, 3].compute().repeat(3)
+            else:
+                winding = [0, 1, 2]
+                # Change vertex winding to CW if necessary
+                first_tri = vertices.values[simplices.values[0, winding].astype(np.int64), :2]
+                a, b, c = first_tri
+                if np.cross(b-a, c-a).item() >= 0:
+                    winding = [0, 2, 1]
+
+                vertex_idxs = simplices.values[:, winding].astype(np.int64)
+                vals = vertices.values[vertex_idxs]
+                vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
+                source = pd.DataFrame(vals, columns=vertices.columns)
+                if not verts_have_weights:
+                    source[weight_col] = simplices.values[:, 3].repeat(3)
+        else:
+            source = mesh
+
+        return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights, interp=interp), agg)
 
     def raster(self,
                source,
@@ -396,6 +507,8 @@ def bypixel(source, canvas, glyph, agg):
         cols_to_keep = OrderedDict({col: False for col in source.columns})
         cols_to_keep[glyph.x] = True
         cols_to_keep[glyph.y] = True
+        if hasattr(glyph, 'z'):
+            cols_to_keep[glyph.z] = True
         if hasattr(agg, 'values'):
             for subagg in agg.values:
                 if subagg.column is not None:
