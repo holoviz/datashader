@@ -220,18 +220,19 @@ class Canvas(object):
         vertices : pandas.DataFrame, dask.DataFrame
             The input datasource for triangle vertex coordinates. These can be
             interpreted as the x/y coordinates of the vertices, with optional
-            weights for color interpolation. Columns should be ordered
+            weights for value interpolation. Columns should be ordered
             corresponding to 'x', 'y', followed by zero or more (optional)
-            columns containing vertex values. The rows need not be ordered, and
-            the data type must be from the set of real numbers.
+            columns containing vertex values. The rows need not be ordered.
+            The column data types must be floating point or integer.
         simplices : pandas.DataFrame, dask.DataFrame
             The input datasource for triangle (simplex) definitions. These can
             be interpreted as rows of ``vertices``, aka positions in the
-            ``vertices`` index. Columns should ordered corresponding to
+            ``vertices`` index. Columns should be ordered corresponding to
             'vertex0', 'vertex1', and 'vertex2'. Order of the vertices can be
             clockwise or counter-clockwise; it does not matter as long as the
-            data is consistent. The rows need not be ordered, and the data type
-            for the first three columns must be integer.
+            data is consistent for all simplices in the dataframe. The
+            rows need not be ordered.  The data type for the first
+            three columns in the dataframe must be integer.
         agg : Reduction, optional
             Reduction to compute. Default is ``mean()``.
         mesh : pandas.DataFrame, optional

@@ -311,7 +311,7 @@ def test_auto_range_line():
     assert_eq(agg, out)
 
 def test_trimesh_no_double_edge():
-    """Assert that when two trimesh share an edge that would normally get
+    """Assert that when two triangles share an edge that would normally get
     double-drawn, the edge is only drawn for the rightmost (or bottommost)
     triangle.
     """
@@ -353,7 +353,7 @@ def test_trimesh_no_double_edge():
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[10:20, :20], sol)
 
 def test_trimesh_interp():
-    """Assert trimesh are interpolated when vertex values are provided.
+    """Assert that triangles are interpolated when vertex values are provided.
     """
     verts = pd.DataFrame({'x': [0, 5, 10],
                           'y': [0, 10, 0]})

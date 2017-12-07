@@ -56,9 +56,8 @@ def default(glyph, df, schema, canvas, summary):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize = compile_components(summary,
-                                                                 schema,
-                                                                 glyph)
+    create, info, append, combine, finalize = \
+        compile_components(summary, schema, glyph)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
@@ -83,9 +82,8 @@ def line(glyph, df, schema, canvas, summary):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize = compile_components(summary,
-                                                                 schema,
-                                                                 glyph)
+    create, info, append, combine, finalize = \
+        compile_components(summary, schema, glyph)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)

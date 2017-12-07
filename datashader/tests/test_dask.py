@@ -321,7 +321,7 @@ def test_auto_range_line():
     assert_eq(agg, out)
 
 def test_trimesh_no_double_edge():
-    """Assert that when two trimesh share an edge that would normally get
+    """Assert that when two triangles share an edge that would normally get
     double-drawn, the edge is only drawn for the rightmost (or bottommost)
     triangle.
     """
