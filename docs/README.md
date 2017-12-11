@@ -1,16 +1,31 @@
-To build a local copy of the datashader docs, run these commands:
+See https://ioam.github.io/nbsite/Usage.html for more details.
 
-```
-git clone git@github.com:bokeh/datashader.git
+0. Set up environment so you can run the examples
 
-cd datashader
-conda create -n datashader-docs python
-source activate datashader-docs
-conda install -c bokeh --file requirements.txt
-python setup.py develop
+1. Install nbsite: `conda install -c conda-forge sphinx beautifulsoup4
+   graphviz && pip install sphinx_ioam_theme nbsite`
 
-cd docs
-conda install --file requirements-docs.txt
-make html
-open _build/html/index.html
-```
+2. `cd docs`
+
+3. Generate rst containers for notebooks: `nbsite_nbpagebuild.py bokeh
+   datashader-docs ../examples .`
+
+4. Build site: `sphinx-build -b html . ./_build/html` followed by
+   `nbsite_fix_links.py _build/html`
+
+5. Inspect result: `pushd _build/html && python -m http.server`
+
+6. Clean up for deployment: `nbsite_cleandisthtml.py ./_build/html take_a_chance`
+
+7. Deploy: `cd /path/to/bokeh/datashader-docs && git checkout --track
+   origin/gh-pages && git rm -rf . && cp -r
+   /path/to/bokeh/datashader/docs/_build/html/* . && touch .nojekyll
+   && git add . && git commit -m "New site..." && git push` (note: if
+   you already have gh-pages branch locally, just `git checkout
+   gh-pages`).
+
+
+Note: step 7 will cause datashader-docs repo to grow - might be better
+to hard reset and push force to just write over current contents
+instead.
+
