@@ -30,7 +30,7 @@ html_context.update({
     'PROJECT': project,
     'DESCRIPTION': description,
     'AUTHOR': authors,
-    'WEBSITE_SERVER': 'https://bokeh.github.io/datashader',
+    'WEBSITE_SERVER': 'https://bokeh.github.io/datashader-docs/',
     'VERSION': version,
     'NAV': _NAV,
     'LINKS': _NAV,
