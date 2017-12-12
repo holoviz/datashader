@@ -237,11 +237,10 @@ class Canvas(object):
             Reduction to compute. Default is ``mean()``.
         mesh : pandas.DataFrame, optional
             An ordered triangle mesh in tabular form, used for optimization
-            purposes. This dataframe is expected to have at least three columns
-            - corresponding to x, y, and vertex weights. Each row corresponds to
-            a vertex, and three rows in a row correspond to a triangle
-            definition. Vertices must be in clockwise order. If this argument is
-            not None, the first two arguments are ignored.
+            purposes. This dataframe is expected to have come from
+            ``datashader.utils.pd_mesh()``, or
+            ``datashader.utils.dd_mesh()``. If this argument is not None, the
+            first two arguments are ignored.
         interp : boolean, optional
             Specify whether to do bilinear interpolation of the pixels within each
             triangle. This can be thought of as a "weighted average" of the vertex
