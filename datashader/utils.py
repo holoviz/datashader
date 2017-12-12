@@ -383,3 +383,74 @@ def dataframe_from_multiple_sequences(x_values, y_values):
    return pd.DataFrame({'x': x, 'y': y.flatten()})
 
    
+def pd_mesh(vertices, simplices):
+    """Merge vertices and simplices into a triangular mesh, suitable to be
+    passed into the ``Canvas.trimesh()`` method via the ``mesh``
+    keyword-argument. Both arguments are assumed to be Pandas DataFrame
+    objects.
+    """
+    # Verify the simplex data structure
+    assert simplices.values.shape[1] >= 3, ('At least three vertex columns '
+                                            'are required for the triangle '
+                                            'definition')
+    simplices_all_ints = simplices.dtypes.iloc[:3].map(
+        lambda dt: np.issubdtype(dt, np.integer)
+    ).all()
+    assert simplices_all_ints, ('Simplices must be integral. You may '
+                                'consider casting simplices to integers '
+                                'with ".astype(int)"')
+
+    # Winding auto-detect
+    winding = [0, 1, 2]
+    first_tri = vertices.values[simplices.values[0, winding].astype(np.int64), :2]
+    a, b, c = first_tri
+    if np.cross(b-a, c-a).item() >= 0:
+        winding = [0, 2, 1]
+
+    # Construct mesh by indexing into vertices with simplex indices
+    vertex_idxs = simplices.values[:, winding].astype(np.int64)
+    vals = vertices.values[vertex_idxs]
+    vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
+    mesh = pd.DataFrame(vals, columns=vertices.columns)
+
+    # If vertices don't have weights, use simplex weights
+    verts_have_weights = len(vertices.columns) > 2
+    if not verts_have_weights:
+        assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+        weight_col = simplices.columns[3]
+        mesh[weight_col] = simplices.values[:, 3].repeat(3)
+
+    return mesh
+
+
+def dd_mesh(vertices, simplices):
+    """Merge vertices and simplices into a triangular mesh, suitable to be
+    passed into the ``Canvas.trimesh()`` method via the ``mesh``
+    keyword-argument. Both arguments are assumed to be Dask DataFrame
+    objects.
+    """
+    # Verify the simplex data structure
+    assert simplices.values.shape[1] >= 3, ('At least three vertex columns '
+                                            'are required for the triangle '
+                                            'definition')
+    simplices_all_ints = simplices.dtypes.iloc[:3].map(
+        lambda dt: np.issubdtype(dt, np.integer)
+    ).all()
+    assert simplices_all_ints, ('Simplices must be integral. You may '
+                                'consider casting simplices to integers '
+                                'with ".astype(int)"')
+
+    # TODO: For dask: avoid .compute() calls, and add winding auto-detection
+    vertex_idxs = simplices.values[:, :3].astype(np.int64)
+    vals = vertices.values.compute()[vertex_idxs]
+    vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
+    mesh = pd.DataFrame(vals, columns=vertices.columns)
+
+    # If vertices don't have weights, use simplex weights
+    verts_have_weights = len(vertices.columns) > 2
+    if not verts_have_weights:
+        assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+        weight_col = simplices.columns[3]
+        mesh[weight_col] = simplices.values[:, 3].compute().repeat(3)
+
+    return mesh
