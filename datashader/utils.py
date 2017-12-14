@@ -404,7 +404,6 @@ def _pd_mesh(vertices, simplices):
     # If vertices don't have weights, use simplex weights
     verts_have_weights = len(vertices.columns) > 2
     if not verts_have_weights:
-        assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
         weight_col = simplices.columns[3]
         res[weight_col] = simplices.values[:, 3].repeat(3)
 
@@ -425,7 +424,6 @@ def _dd_mesh(vertices, simplices):
     # If vertices don't have weights, use simplex weights
     verts_have_weights = len(vertices.columns) > 2
     if not verts_have_weights:
-        assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
         weight_col = simplices.columns[3]
         res[weight_col] = simplices.values[:, 3].compute().repeat(3)
 
@@ -448,6 +446,8 @@ def mesh(vertices, simplices):
     assert simplices_all_ints, ('Simplices must be integral. You may '
                                 'consider casting simplices to integers '
                                 'with ".astype(int)"')
+
+    assert len(vertices.columns) > 2 or simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
 
 
     if isinstance(vertices, dd.DataFrame) and isinstance(simplices, dd.DataFrame):
