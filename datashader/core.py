@@ -238,9 +238,8 @@ class Canvas(object):
         mesh : pandas.DataFrame, optional
             An ordered triangle mesh in tabular form, used for optimization
             purposes. This dataframe is expected to have come from
-            ``datashader.utils.pd_mesh()``, or
-            ``datashader.utils.dd_mesh()``. If this argument is not None, the
-            first two arguments are ignored.
+            ``datashader.utils.mesh()``. If this argument is not None, the first
+            two arguments are ignored.
         interp : boolean, optional
             Specify whether to do bilinear interpolation of the pixels within each
             triangle. This can be thought of as a "weighted average" of the vertex
@@ -248,17 +247,13 @@ class Canvas(object):
         """
         from .glyphs import Triangles
         from .reductions import mean as mean_rdn
-        from .utils import pd_mesh, dd_mesh
+        from .utils import mesh as create_mesh
 
         source = mesh
 
         # Validation is done inside the [pd]d_mesh utility functions
         if source is None:
-            if (isinstance(vertices, dd.DataFrame) and
-                    isinstance(simplices, dd.DataFrame)):
-                source = dd_mesh(vertices, simplices)
-            else:
-                source = pd_mesh(vertices, simplices)
+            source = create_mesh(vertices, simplices)
 
         verts_have_weights = len(vertices.columns) > 2
         if verts_have_weights:
