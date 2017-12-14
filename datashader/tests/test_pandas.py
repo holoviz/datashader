@@ -515,8 +515,7 @@ def test_trimesh_mesharg():
     ], dtype='f8')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)
 
-    mesh = pd.DataFrame(verts.values[tris.values[:, [0, 1, 2]]].reshape(3*len(tris), len(verts.columns)),
-                        columns=verts.columns)
+    mesh = ds.utils.mesh(verts, tris)
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts[:1], tris[:1], mesh=mesh)
     np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)

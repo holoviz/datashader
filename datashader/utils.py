@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from xarray import DataArray
+import dask.dataframe as dd
 import datashape
 
 ngjit = nb.jit(nopython=True, nogil=True)
@@ -383,3 +384,73 @@ def dataframe_from_multiple_sequences(x_values, y_values):
    return pd.DataFrame({'x': x, 'y': y.flatten()})
 
    
+def _pd_mesh(vertices, simplices):
+    """Helper for ``datashader.utils.mesh()``. Both arguments are assumed to be
+    Pandas DataFrame objects.
+    """
+    # Winding auto-detect
+    winding = [0, 1, 2]
+    first_tri = vertices.values[simplices.values[0, winding].astype(np.int64), :2]
+    a, b, c = first_tri
+    if np.cross(b-a, c-a).item() >= 0:
+        winding = [0, 2, 1]
+
+    # Construct mesh by indexing into vertices with simplex indices
+    vertex_idxs = simplices.values[:, winding].astype(np.int64)
+    vals = vertices.values[vertex_idxs]
+    vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
+    res = pd.DataFrame(vals, columns=vertices.columns)
+
+    # If vertices don't have weights, use simplex weights
+    verts_have_weights = len(vertices.columns) > 2
+    if not verts_have_weights:
+        weight_col = simplices.columns[3]
+        res[weight_col] = simplices.values[:, 3].repeat(3)
+
+    return res
+
+
+def _dd_mesh(vertices, simplices):
+    """Helper for ``datashader.utils.mesh()``. Both arguments are assumed to be
+    Dask DataFrame objects.
+    """
+    # Construct mesh by indexing into vertices with simplex indices
+    # TODO: For dask: avoid .compute() calls, and add winding auto-detection
+    vertex_idxs = simplices.values[:, :3].astype(np.int64)
+    vals = vertices.values.compute()[vertex_idxs]
+    vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
+    res = pd.DataFrame(vals, columns=vertices.columns)
+
+    # If vertices don't have weights, use simplex weights
+    verts_have_weights = len(vertices.columns) > 2
+    if not verts_have_weights:
+        weight_col = simplices.columns[3]
+        res[weight_col] = simplices.values[:, 3].compute().repeat(3)
+
+    return res
+
+
+def mesh(vertices, simplices):
+    """Merge vertices and simplices into a triangular mesh, suitable to be
+    passed into the ``Canvas.trimesh()`` method via the ``mesh``
+    keyword-argument. Both arguments are assumed to be Dask DataFrame
+    objects.
+    """
+    # Verify the simplex data structure
+    assert simplices.values.shape[1] >= 3, ('At least three vertex columns '
+                                            'are required for the triangle '
+                                            'definition')
+    simplices_all_ints = simplices.dtypes.iloc[:3].map(
+        lambda dt: np.issubdtype(dt, np.integer)
+    ).all()
+    assert simplices_all_ints, ('Simplices must be integral. You may '
+                                'consider casting simplices to integers '
+                                'with ".astype(int)"')
+
+    assert len(vertices.columns) > 2 or simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+
+
+    if isinstance(vertices, dd.DataFrame) and isinstance(simplices, dd.DataFrame):
+        return _dd_mesh(vertices, simplices)
+
+    return _pd_mesh(vertices, simplices)

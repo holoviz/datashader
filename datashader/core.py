@@ -237,11 +237,9 @@ class Canvas(object):
             Reduction to compute. Default is ``mean()``.
         mesh : pandas.DataFrame, optional
             An ordered triangle mesh in tabular form, used for optimization
-            purposes. This dataframe is expected to have at least three columns
-            - corresponding to x, y, and vertex weights. Each row corresponds to
-            a vertex, and three rows in a row correspond to a triangle
-            definition. Vertices must be in clockwise order. If this argument is
-            not None, the first two arguments are ignored.
+            purposes. This dataframe is expected to have come from
+            ``datashader.utils.mesh()``. If this argument is not None, the first
+            two arguments are ignored.
         interp : boolean, optional
             Specify whether to do bilinear interpolation of the pixels within each
             triangle. This can be thought of as a "weighted average" of the vertex
@@ -249,66 +247,27 @@ class Canvas(object):
         """
         from .glyphs import Triangles
         from .reductions import mean as mean_rdn
+        from .utils import mesh as create_mesh
 
-        cols = vertices.columns.tolist()
-        x, y, weights = cols[0], cols[1], cols[2:]
+        source = mesh
 
-        # Verify the simplex data structure
-        assert simplices.values.shape[1] >= 3, ('At least three vertex columns '
-                                                'are required for the triangle '
-                                                'definition')
-        simplices_all_ints = simplices.dtypes.iloc[:3].map(
-            lambda dt: np.issubdtype(dt, np.integer)
-        ).all()
-        assert simplices_all_ints, ('Simplices must be integral. You may '
-                                    'consider casting simplices to integers '
-                                    'with ".astype(int)"')
+        # Validation is done inside the [pd]d_mesh utility functions
+        if source is None:
+            source = create_mesh(vertices, simplices)
 
-        # Choose reduction based on vertex coordinate data
-        weight_col = None
-        verts_have_weights = not not weights
+        verts_have_weights = len(vertices.columns) > 2
         if verts_have_weights:
-            weight_col = weights[0]
-            if agg is None:
-                agg = mean_rdn(weight_col)
-            elif agg.column is None:
-                # Rasterization code assumes presence of agg column
-                agg.column = weight_col
+            weight_col = vertices.columns[2]
         else:
-            assert simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
             weight_col = simplices.columns[3]
-            if agg is None:
-                agg = mean_rdn(weight_col)
-            elif agg.column is None:
-                # Rasterization code assumes presence of agg column
-                agg.column = weight_col
 
-        if mesh is None:
-            if (isinstance(vertices, dd.DataFrame) and
-                    isinstance(simplices, dd.DataFrame)):
-                # TODO: For dask: avoid .compute() calls, and add winding auto-detection
-                vertex_idxs = simplices.values[:, :3].astype(np.int64)
-                vals = vertices.values.compute()[vertex_idxs]
-                vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
-                source = pd.DataFrame(vals, columns=vertices.columns)
-                if not verts_have_weights:
-                    source[weight_col] = simplices.values[:, 3].compute().repeat(3)
-            else:
-                winding = [0, 1, 2]
-                # Change vertex winding to CW if necessary
-                first_tri = vertices.values[simplices.values[0, winding].astype(np.int64), :2]
-                a, b, c = first_tri
-                if np.cross(b-a, c-a).item() >= 0:
-                    winding = [0, 2, 1]
+        if agg is None:
+            agg = mean_rdn(weight_col)
+        elif agg.column is None:
+            agg.column = weight_col
 
-                vertex_idxs = simplices.values[:, winding].astype(np.int64)
-                vals = vertices.values[vertex_idxs]
-                vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
-                source = pd.DataFrame(vals, columns=vertices.columns)
-                if not verts_have_weights:
-                    source[weight_col] = simplices.values[:, 3].repeat(3)
-        else:
-            source = mesh
+        cols = source.columns
+        x, y, weights = cols[0], cols[1], cols[2:]
 
         return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights, interp=interp), agg)
 
