@@ -2,7 +2,7 @@ dask >= 0.15.4
 datashape >= 0.5.1
 numba >= 0.35.0
 numpy >= 1.7
-pandas >= 0.15.0
+pandas >= 0.20.3
 pillow
 toolz
 xarray >= 0.9.6
