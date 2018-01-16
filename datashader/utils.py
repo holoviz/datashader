@@ -383,7 +383,7 @@ def dataframe_from_multiple_sequences(x_values, y_values):
    # Return a dataframe with this new set of x and y values
    return pd.DataFrame({'x': x, 'y': y.flatten()})
 
-   
+
 def _pd_mesh(vertices, simplices):
     """Helper for ``datashader.utils.mesh()``. Both arguments are assumed to be
     Pandas DataFrame objects.
@@ -396,8 +396,10 @@ def _pd_mesh(vertices, simplices):
         winding = [0, 2, 1]
 
     # Construct mesh by indexing into vertices with simplex indices
-    vertex_idxs = simplices.values[:, winding].astype(np.int64)
-    vals = vertices.values[vertex_idxs]
+    vertex_idxs = simplices.values[:, winding]
+    if not vertex_idxs.dtype == 'int64':
+        vertex_idxs = vertex_idxs.astype(np.int64)
+    vals = np.take(vertices.values, vertex_idxs, axis=0)
     vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
     res = pd.DataFrame(vals, columns=vertices.columns)
 
