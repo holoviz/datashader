@@ -1,6 +1,7 @@
 from dask.local import get_sync
 from dask.context import set_options
 import dask.dataframe as dd
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -325,11 +326,32 @@ def test_trimesh_no_double_edge():
     double-drawn, the edge is only drawn for the rightmost (or bottommost)
     triangle.
     """
-    import multiprocessing as mp
     # Test left/right edge shared
     verts = dd.from_pandas(pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
                                          'y': [4, 5, 5, 5, 4, 4]}), npartitions=mp.cpu_count())
     tris = dd.from_pandas(pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 2]}), npartitions=mp.cpu_count())
+    # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
+    cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
+    agg = cvs.trimesh(verts, tris)
+    sol = np.array([
+        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+
+@pytest.mark.skip('TODO: when dask support arrives')
+def test_trimesh_rev_winding():
+    """Assert that trimesh handles triangles wound in the opposite direction as
+    expected.
+    """
+    # Test left/right edge shared
+    verts = dd.from_pandas(pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                                         'y': [4, 5, 5, 5, 4, 4]}), npartitions=mp.cpu_count())
+    #tris = dd.from_pandas(pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 2]}), npartitions=mp.cpu_count())
+    tris = dd.from_pandas(pd.DataFrame({'v0': [2, 5], 'v1': [1, 4], 'v2': [0, 3], 'val': [1, 2]}), npartitions=mp.cpu_count())
     # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)

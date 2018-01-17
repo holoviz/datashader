@@ -383,7 +383,7 @@ def dataframe_from_multiple_sequences(x_values, y_values):
    # Return a dataframe with this new set of x and y values
    return pd.DataFrame({'x': x, 'y': y.flatten()})
 
-   
+
 def _pd_mesh(vertices, simplices):
     """Helper for ``datashader.utils.mesh()``. Both arguments are assumed to be
     Pandas DataFrame objects.
@@ -397,8 +397,8 @@ def _pd_mesh(vertices, simplices):
 
     # Construct mesh by indexing into vertices with simplex indices
     vertex_idxs = simplices.values[:, winding].astype(np.int64)
-    vals = vertices.values[vertex_idxs]
-    vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
+    vertex_idxs = vertex_idxs.reshape(np.prod(vertex_idxs.shape))
+    vals = np.take(vertices.values, vertex_idxs, axis=0)
     res = pd.DataFrame(vals, columns=vertices.columns)
 
     # If vertices don't have weights, use simplex weights
@@ -412,7 +412,8 @@ def _pd_mesh(vertices, simplices):
 
 def _dd_mesh(vertices, simplices):
     """Helper for ``datashader.utils.mesh()``. Both arguments are assumed to be
-    Dask DataFrame objects.
+    Dask DataFrame objects. This is a stopgap solution until full Dask support
+    is added to datashader.
     """
     # Construct mesh by indexing into vertices with simplex indices
     # TODO: For dask: avoid .compute() calls, and add winding auto-detection
