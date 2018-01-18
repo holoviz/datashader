@@ -27,7 +27,7 @@ Contents:
 * `7. Networks <7_Networks.html>`_
    Plotting large network graphs.
 
-* `9. Extending <8_Extending.html>`_
+* `9. Extending <9_Extending.html>`_
    Extending datashader with new components and functionality.
 
 * `10. Performance <9_Performance.html>`_
