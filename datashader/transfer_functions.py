@@ -20,10 +20,8 @@ __all__ = ['Image', 'stack', 'shade', 'set_background', 'spread', 'dynspread']
 
 class Image(xr.DataArray):
     __array_priority__ = 70
-
-    def _repr_png_(self):
-        return self.to_pil()._repr_png_()
-
+    border=1
+    
     def to_pil(self, origin='lower'):
         arr = np.flipud(self.data) if origin == 'lower' else self.data
         return fromarray(arr, 'RGBA')
@@ -34,16 +32,37 @@ class Image(xr.DataArray):
         fp.seek(0)
         return fp
 
+    def _repr_png_(self):
+        """Supports rich PNG display in a Jupyter notebook"""
+        return self.to_pil()._repr_png_()
+
+    def _repr_html_(self):
+        """Supports rich HTML display in a Jupyter notebook"""
+        # imported here to avoid depending on these packages unless actually used
+        from io import BytesIO
+        from base64 import b64encode
+
+        b = BytesIO()
+        self.to_pil().save(b, format='png')
+
+        h = """<img style="margin: auto; border:""" + str(self.border) + """px solid" """ + \
+            """src='data:image/png;base64,{0}'/>""".\
+                format(b64encode(b.getvalue()).decode('utf-8'))
+        return h
+
+
 
 class Images(object):
     """
-    A list of Images that are expected to be displayed in a table.
-    """
+    A list of HTML-representable objects to display in a table.
+    Primarily intended for Image objects, but could be anything
+    that has _repr_html_.
+    """  
     
     def __init__(self, *images):
-        """Accepts a list of Image arguments and base64-encodes them into a table."""
+        """Makes an HTML table from a list of HTML-representable arguments."""
         for i in images:
-            assert isinstance(i,Image)
+            assert hasattr(i,"_repr_html_")
         self.images = images
         self.num_cols = None
 
@@ -57,27 +76,21 @@ class Images(object):
         
     def _repr_html_(self):
         """Supports rich display in a Jupyter notebook, using an HTML table"""
-        # imported here to avoid depending on these packages unless actually used
-        from io import BytesIO
-        from base64 import b64encode
-
-        image_htmls = []
+        htmls = []
         col=0
+        tr="""<tr style="background-color:white">"""
         for i in self.images:
-            b = BytesIO()
-            i.to_pil().save(b, format='png')
-            label=i.name if i.name is not None else ""
-            image_htmls.append("""<td style="text-align:center"><b>""" + label + 
-                               """</b><br><br><img style="margin: auto; border:1px solid" """ + 
-                               """src='data:image/png;base64,{0}'/></td>""".\
-                               format(b64encode(b.getvalue()).decode('utf-8')))
+            label=i.name if hasattr(i,"name") and i.name is not None else ""
+   
+            htmls.append("""<td style="text-align: center"><b>""" + label + 
+                         """</b><br><br>{0}</td>""".format(i._repr_html_()))
             col+=1
             if self.num_cols is not None and col>=self.num_cols:
                 col=0
-                image_htmls.append("</tr><tr>")
-        
-        return """<table style="width:100%"><tbody><tr style="background-color:white;">""" + \
-               "".join(image_htmls) + """</tr></tbody></table>"""
+                htmls.append("</tr>"+tr)
+                
+        return """<table style="width:100%; text-align: center"><tbody>"""+ tr +\
+               "".join(htmls) + """</tr></tbody></table>"""
 
 
 
