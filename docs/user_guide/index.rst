@@ -21,13 +21,16 @@ Contents:
 * `4. Trajectories <4_Trajectories.html>`_
    Plotting trajectories (e.g. connected GPS points) in a plane.
 
-* `6. Networks <6_Networks.html>`_
+* `6. Trimesh <6_Trimesh.html>`_
+   Plotting large irregular triangular grids (meshes).
+
+* `7. Networks <7_Networks.html>`_
    Plotting large network graphs.
 
-* `8. Extending <8_Extending.html>`_
+* `9. Extending <9_Extending.html>`_
    Extending datashader with new components and functionality.
 
-* `9. Performance <9_Performance.html>`_
+* `10. Performance <9_Performance.html>`_
    
 
 .. toctree::
