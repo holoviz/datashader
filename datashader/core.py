@@ -341,6 +341,9 @@ class Canvas(object):
         else:
             fill_value = np.NaN
 
+        if self.x_range is None: self.x_range = (left,right)
+        if self.y_range is None: self.y_range = (bottom,top)
+            
         # window coordinates
         xmin = max(self.x_range[0], left)
         ymin = max(self.y_range[0], bottom)
