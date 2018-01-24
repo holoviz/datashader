@@ -33,10 +33,12 @@ class category_codes(Preprocess):
 
 class Reduction(Expr):
     """Base class for per-bin reductions."""
-    def __init__(self, column):
+    def __init__(self, column=None):
         self.column = column
 
     def validate(self, in_dshape):
+        if not self.column in in_dshape.dict:
+            raise ValueError("specified column not found")
         if not isnumeric(in_dshape.measure[self.column]):
             raise ValueError("input must be numeric")
 
