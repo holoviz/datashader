@@ -6,8 +6,7 @@ from datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 
-from .core import Expr
-from .utils import ngjit
+from .utils import Expr, ngjit
 
 
 class Preprocess(Expr):

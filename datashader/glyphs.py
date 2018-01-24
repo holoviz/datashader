@@ -3,8 +3,7 @@ from __future__ import absolute_import, division
 from toolz import memoize
 import numpy as np
 
-from .core import Expr
-from .utils import ngjit, isreal
+from .utils import ngjit, isreal, Expr
 
 
 class Glyph(Expr):

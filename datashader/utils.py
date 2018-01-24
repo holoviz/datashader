@@ -15,6 +15,23 @@ import datashape
 ngjit = nb.jit(nopython=True, nogil=True)
 
 
+class Expr(object):
+    """Base class for expression-like objects.
+
+    Implements hashing and equality checks. Subclasses should implement an
+    ``inputs`` attribute/property, containing a tuple of everything that fully
+    defines that expression.
+    """
+    def __hash__(self):
+        return hash((type(self), self.inputs))
+
+    def __eq__(self, other):
+        return type(self) is type(other) and self.inputs == other.inputs
+
+    def __ne__(self, other):
+        return not self == other
+
+
 class Dispatcher(object):
     """Simple single dispatch."""
     def __init__(self):

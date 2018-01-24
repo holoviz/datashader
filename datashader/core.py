@@ -10,23 +10,7 @@ from collections import OrderedDict
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask, categorical_in_dtypes
 from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
                          DS_MEAN, DS_MODE, DS_VAR, DS_STD, DS_MIN, DS_MAX)
-
-
-class Expr(object):
-    """Base class for expression-like objects.
-
-    Implements hashing and equality checks. Subclasses should implement an
-    ``inputs`` attribute/property, containing a tuple of everything that fully
-    defines that expression.
-    """
-    def __hash__(self):
-        return hash((type(self), self.inputs))
-
-    def __eq__(self, other):
-        return type(self) is type(other) and self.inputs == other.inputs
-
-    def __ne__(self, other):
-        return not self == other
+from .utils import Expr # noqa (API import)
 
 
 class Axis(object):
