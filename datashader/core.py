@@ -12,6 +12,8 @@ from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
                          DS_MEAN, DS_MODE, DS_VAR, DS_STD, DS_MIN, DS_MAX)
 from .utils import Expr # noqa (API import)
 
+from . import reductions as rd
+
 
 class Axis(object):
     """Interface for implementing axis transformations.
@@ -258,8 +260,10 @@ class Canvas(object):
     def raster(self,
                source,
                layer=None,
-               upsample_method='linear',
-               downsample_method='mean',
+               upsample_method='linear',    # Deprecated as of datashader=0.6.5
+               downsample_method=rd.mean(), # Deprecated as of datashader=0.6.5
+               agg=None,
+               interpolate=None,
                nan_value=None):
         """Sample a raster dataset by canvas size and bounds.
 
@@ -294,22 +298,34 @@ class Canvas(object):
         data : xarray.Dataset
 
         """
+        # For backwards compatibility
+        if agg         is None: agg=downsample_method
+        if interpolate is None: interpolate=upsample_method
+        
         upsample_methods = dict(nearest=US_NEAREST,
                                 linear=US_LINEAR)
 
-        downsample_methods = dict(first=DS_FIRST,
-                                  last=DS_LAST,
-                                  mean=DS_MEAN,
-                                  mode=DS_MODE,
-                                  var=DS_VAR,
-                                  std=DS_STD,
-                                  min=DS_MIN,
-                                  max=DS_MAX)
+        downsample_methods = {'first':DS_FIRST,
+                              'last':DS_LAST,
+                              'mode':DS_MODE,
+                              'mean':DS_MEAN,   rd.mean:DS_MEAN,
+                              'var':DS_VAR,     rd.var:DS_VAR,
+                              'std':DS_STD,     rd.std:DS_STD,
+                              'min':DS_MIN,     rd.min:DS_MIN,
+                              'max':DS_MAX,     rd.max:DS_MAX}
 
-        if upsample_method not in upsample_methods.keys():
+        if interpolate not in upsample_methods.keys():
             raise ValueError('Invalid upsample method: options include {}'.format(list(upsample_methods.keys())))
-        if downsample_method not in downsample_methods.keys():
+
+        if hasattr(agg,"column"):
+            # Accepts a reduction from ./reductions.py, but only uses the class name and the optional column name
+            if hasattr(source,"name") and agg.column != source.name:
+                raise ValueError('data variable {0} not found in array with name {1}'.format(agg.column,source.name))
+            agg=type(agg)
+        
+        if agg not in downsample_methods.keys():
             raise ValueError('Invalid downsample method: options include {}'.format(list(downsample_methods.keys())))
+        ds_method = downsample_methods[agg]
 
         res = calc_res(source)
         ydim, xdim = source.dims[-2:]
@@ -345,19 +361,19 @@ class Canvas(object):
         cmin, cmax = get_indices(xmin, xmax, xvals, res[0])
         rmin, rmax = get_indices(ymin, ymax, yvals, res[1])
 
-        kwargs = dict(w=w, h=h, ds_method=downsample_methods[downsample_method],
-                      us_method=upsample_methods[upsample_method], fill_value=fill_value)
+        kwargs = dict(w=w, h=h, ds_method=ds_method,
+                      us_method=upsample_methods[interpolate], fill_value=fill_value)
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
             if isinstance(source_window, Array):
                 source_window = source_window.compute()
-            if downsample_method in ['var', 'std']:
+            if ds_method in [DS_VAR, DS_STD]:
                 source_window = source_window.astype('f')
             data = resample_2d(source_window, **kwargs)
             layers = 1
         else:
             source_window = array[:, rmin:rmax+1, cmin:cmax+1]
-            if downsample_method in ['var', 'std']:
+            if ds_method in [DS_VAR, DS_STD]:
                 source_window = source_window.astype('f')
             arrays = []
             for arr in source_window:
