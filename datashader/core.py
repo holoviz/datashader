@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 from dask.array import Array
-from xarray import DataArray
+from xarray import DataArray, Dataset
 from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask, categorical_in_dtypes
@@ -279,14 +279,15 @@ class Canvas(object):
 
         Parameters
         ----------
-        source : xarray.DataArray
-            input datasource most likely obtain from `xr.open_rasterio()`.
+        source : xarray.DataArray or xr.Dataset
+            2D or 3D labelled array (if Dataset the agg reduction must
+            define the data variable).
         layer : int
             source layer number : optional default=None
-        upsample_method : str, optional default=linear
+        interpolate : str, optional default=linear
             resample mode when upsampling raster.
             options include: nearest, linear.
-        downsample_method : str, optional default=mean
+        agg : str or Reduction, optional default=mean
             resample mode when downsampling raster.
             options include: first, last, mean, mode, var, std
         nan_value : int or float, optional
@@ -317,15 +318,40 @@ class Canvas(object):
         if interpolate not in upsample_methods.keys():
             raise ValueError('Invalid upsample method: options include {}'.format(list(upsample_methods.keys())))
 
-        if hasattr(agg,"column"):
-            # Accepts a reduction from ./reductions.py, but only uses the class name and the optional column name
-            if hasattr(source,"name") and agg.column != source.name:
-                raise ValueError('data variable {0} not found in array with name {1}'.format(agg.column,source.name))
-            agg=type(agg)
-        
+        if not isinstance(source, (DataArray, Dataset)):
+            raise ValueError('Expected xarray DataArray or Dataset as '
+                             'the data source, found %s.'
+                             % type(source).__name__)
+
+        column = None
+        if isinstance(agg, rd.Reduction):
+            agg, column = type(agg), agg.column
+            if (isinstance(source, DataArray) and column is not None
+                and source.name != column):
+                agg_repr = '%s(%r)' % (agg.__name__, column)
+                raise ValueError('DataArray name %r does not match '
+                                 'supplied reduction %s.' %
+                                 (source.name, agg_repr))
+
+        if isinstance(source, Dataset):
+            data_vars = list(source.data_vars)
+            if column is None:
+                raise ValueError('When supplying a Dataset the agg reduction '
+                                 'must specify the variable to aggregate. '
+                                 'Available data_vars include: %r.' % data_vars)
+            elif column not in source.data_vars:
+                raise KeyError('Supplied reduction column %r not found '
+                               'in Dataset, expected one of the following '
+                               'data variables: %r.' % (column, data_vars))
+            source = source[column]
+
         if agg not in downsample_methods.keys():
             raise ValueError('Invalid downsample method: options include {}'.format(list(downsample_methods.keys())))
         ds_method = downsample_methods[agg]
+
+        if source.ndim not in [2, 3]:
+            raise ValueError('Raster aggregation expects a 2D or 3D '
+                             'DataArray, found %s dimensions' % source.ndim)
 
         res = calc_res(source)
         ydim, xdim = source.dims[-2:]
