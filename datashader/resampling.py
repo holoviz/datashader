@@ -73,8 +73,13 @@ _NOMASK2D = np.ma.getmaskarray(np.ma.array([[0]], mask=[[0]]))
 
 _EPS = 1e-10
 
+upsample_methods   = dict(nearest=US_NEAREST, linear=US_LINEAR)
 
-def resample_2d(src, w, h, ds_method=DS_MEAN, us_method=US_LINEAR, fill_value=None, mode_rank=1, out=None):
+downsample_methods = dict(first=DS_FIRST, last=DS_LAST, mode=DS_MODE,
+                          mean=DS_MEAN,   var=DS_VAR,   std=DS_STD,
+                          min=DS_MIN,     max=DS_MAX)
+
+def resample_2d(src, w, h, ds_method='mean', us_method='linear', fill_value=None, mode_rank=1, out=None):
     """
     Resample a 2-D grid to a new resolution.
 
@@ -104,6 +109,10 @@ def resample_2d(src, w, h, ds_method=DS_MEAN, us_method=US_LINEAR, fill_value=No
         return src
     mask, use_mask = _get_mask(src)
     fill_value = _get_fill_value(fill_value, src, out)
+
+    us_method=upsample_methods[us_method]
+    ds_method=downsample_methods[ds_method]
+    
     return _mask_or_not(_resample_2d(src, mask, use_mask, ds_method, us_method, fill_value, mode_rank, out),
                         src, fill_value)
 

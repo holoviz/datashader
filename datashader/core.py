@@ -4,29 +4,14 @@ import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 from dask.array import Array
-from xarray import DataArray
+from xarray import DataArray, Dataset
 from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask, categorical_in_dtypes
-from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
-                         DS_MEAN, DS_MODE, DS_VAR, DS_STD, DS_MIN, DS_MAX)
+from .resampling import resample_2d
+from .utils import Expr # noqa (API import)
 
-
-class Expr(object):
-    """Base class for expression-like objects.
-
-    Implements hashing and equality checks. Subclasses should implement an
-    ``inputs`` attribute/property, containing a tuple of everything that fully
-    defines that expression.
-    """
-    def __hash__(self):
-        return hash((type(self), self.inputs))
-
-    def __eq__(self, other):
-        return type(self) is type(other) and self.inputs == other.inputs
-
-    def __ne__(self, other):
-        return not self == other
+from . import reductions as rd
 
 
 class Axis(object):
@@ -201,7 +186,7 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
-    def trimesh(self, vertices, simplices, mesh=None, agg=None, interp=True):
+    def trimesh(self, vertices, simplices, mesh=None, agg=None, interp=True, interpolate=None):
         """Compute a reduction by pixel, mapping data to pixels as a triangle.
 
         >>> import datashader as ds
@@ -240,10 +225,13 @@ class Canvas(object):
             purposes. This dataframe is expected to have come from
             ``datashader.utils.mesh()``. If this argument is not None, the first
             two arguments are ignored.
-        interp : boolean, optional
-            Specify whether to do bilinear interpolation of the pixels within each
-            triangle. This can be thought of as a "weighted average" of the vertex
-            values. Defaults to True.
+        interpolate : str, optional default=linear
+            Method to use for interpolation between specified values. ``nearest``
+            means to use a single value for the whole triangle, and ``linear``
+            means to do bilinear interpolation of the pixels within each
+            triangle (a weighted average of the vertex values). For 
+            backwards compatibility, also accepts ``interp=True`` for ``linear``
+            and ``interp=False`` for ``nearest``.
         """
         from .glyphs import Triangles
         from .reductions import mean as mean_rdn
@@ -251,6 +239,15 @@ class Canvas(object):
 
         source = mesh
 
+        # 'interp' argument is deprecated as of datashader=0.6.4
+        if interpolate is not None:
+            if interpolate == 'linear':
+                interp = True
+            elif interpolate == 'nearest':
+                interp = False
+            else:
+                raise ValueError('Invalid interpolate method: options include {}'.format(['linear','nearest']))
+            
         # Validation is done inside the [pd]d_mesh utility functions
         if source is None:
             source = create_mesh(vertices, simplices)
@@ -274,9 +271,11 @@ class Canvas(object):
     def raster(self,
                source,
                layer=None,
-               upsample_method='linear',
-               downsample_method='mean',
-               nan_value=None):
+               upsample_method='linear',    # Deprecated as of datashader=0.6.4
+               downsample_method=rd.mean(), # Deprecated as of datashader=0.6.4
+               nan_value=None,
+               agg=None,
+               interpolate=None):
         """Sample a raster dataset by canvas size and bounds.
 
         Handles 2D or 3D xarray DataArrays, assuming that the last two
@@ -291,16 +290,18 @@ class Canvas(object):
 
         Parameters
         ----------
-        source : xarray.DataArray
-            input datasource most likely obtain from `xr.open_rasterio()`.
-        layer : int
-            source layer number : optional default=None
-        upsample_method : str, optional default=linear
-            resample mode when upsampling raster.
+        source : xarray.DataArray or xr.Dataset
+            2D or 3D labelled array (if Dataset, the agg reduction must
+            define the data variable).
+        layer : float
+            For a 3D array, value along the z dimension : optional default=None
+        interpolate : str, optional  default=linear
+            Resampling mode when upsampling raster.
             options include: nearest, linear.
-        downsample_method : str, optional default=mean
-            resample mode when downsampling raster.
-            options include: first, last, mean, mode, var, std
+        agg : Reduction, optional default=mean()
+            Resampling mode when downsampling raster.
+            options include: first, last, mean, mode, var, std, min, max
+            Also accepts string names, for backwards compatibility.
         nan_value : int or float, optional
             Optional nan_value which will be masked out when applying
             the resampling.
@@ -310,28 +311,66 @@ class Canvas(object):
         data : xarray.Dataset
 
         """
-        upsample_methods = dict(nearest=US_NEAREST,
-                                linear=US_LINEAR)
+        # For backwards compatibility
+        if agg         is None: agg=downsample_method
+        if interpolate is None: interpolate=upsample_method
+        
+        upsample_methods = ['nearest','linear']
 
-        downsample_methods = dict(first=DS_FIRST,
-                                  last=DS_LAST,
-                                  mean=DS_MEAN,
-                                  mode=DS_MODE,
-                                  var=DS_VAR,
-                                  std=DS_STD,
-                                  min=DS_MIN,
-                                  max=DS_MAX)
+        downsample_methods = {'first':'first', rd.first:'first',
+                              'last':'last',   rd.last:'last',
+                              'mode':'mode',   rd.mode:'mode',
+                              'mean':'mean',   rd.mean:'mean',
+                              'var':'var',     rd.var:'var',
+                              'std':'std',     rd.std:'std',
+                              'min':'min',     rd.min:'min',
+                              'max':'max',     rd.max:'max'}
 
-        if upsample_method not in upsample_methods.keys():
-            raise ValueError('Invalid upsample method: options include {}'.format(list(upsample_methods.keys())))
-        if downsample_method not in downsample_methods.keys():
-            raise ValueError('Invalid downsample method: options include {}'.format(list(downsample_methods.keys())))
+        if interpolate not in upsample_methods:
+            raise ValueError('Invalid interpolate method: options include {}'.format(upsample_methods))
+
+        if not isinstance(source, (DataArray, Dataset)):
+            raise ValueError('Expected xarray DataArray or Dataset as '
+                             'the data source, found %s.'
+                             % type(source).__name__)
+
+        column = None
+        if isinstance(agg, rd.Reduction):
+            agg, column = type(agg), agg.column
+            if (isinstance(source, DataArray) and column is not None
+                and source.name != column):
+                agg_repr = '%s(%r)' % (agg.__name__, column)
+                raise ValueError('DataArray name %r does not match '
+                                 'supplied reduction %s.' %
+                                 (source.name, agg_repr))
+
+        if isinstance(source, Dataset):
+            data_vars = list(source.data_vars)
+            if column is None:
+                raise ValueError('When supplying a Dataset the agg reduction '
+                                 'must specify the variable to aggregate. '
+                                 'Available data_vars include: %r.' % data_vars)
+            elif column not in source.data_vars:
+                raise KeyError('Supplied reduction column %r not found '
+                               'in Dataset, expected one of the following '
+                               'data variables: %r.' % (column, data_vars))
+            source = source[column]
+
+        if agg not in downsample_methods.keys():
+            raise ValueError('Invalid aggregation method: options include {}'.format(list(downsample_methods.keys())))
+        ds_method = downsample_methods[agg]
+
+        if source.ndim not in [2, 3]:
+            raise ValueError('Raster aggregation expects a 2D or 3D '
+                             'DataArray, found %s dimensions' % source.ndim)
 
         res = calc_res(source)
         ydim, xdim = source.dims[-2:]
         xvals, yvals = source[xdim].values, source[ydim].values
         left, bottom, right, top = calc_bbox(xvals, yvals, res)
-        array = orient_array(source, res, layer)
+        if layer is not None:
+            source=source.sel(**{source.dims[0]: layer})
+        array = orient_array(source, res)
         dtype = array.dtype
 
         if nan_value is not None:
@@ -354,26 +393,26 @@ class Canvas(object):
         height_ratio = (ymax - ymin) / (self.y_range[1] - self.y_range[0])
 
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
-            raise ValueError('Canvas x_range or y_range values do not match closely-enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
+            raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
 
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
         cmin, cmax = get_indices(xmin, xmax, xvals, res[0])
         rmin, rmax = get_indices(ymin, ymax, yvals, res[1])
 
-        kwargs = dict(w=w, h=h, ds_method=downsample_methods[downsample_method],
-                      us_method=upsample_methods[upsample_method], fill_value=fill_value)
+        kwargs = dict(w=w, h=h, ds_method=ds_method,
+                      us_method=interpolate, fill_value=fill_value)
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
             if isinstance(source_window, Array):
                 source_window = source_window.compute()
-            if downsample_method in ['var', 'std']:
+            if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
             data = resample_2d(source_window, **kwargs)
             layers = 1
         else:
             source_window = array[:, rmin:rmax+1, cmin:cmax+1]
-            if downsample_method in ['var', 'std']:
+            if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
             arrays = []
             for arr in source_window:
