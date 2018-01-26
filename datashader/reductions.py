@@ -77,7 +77,7 @@ class OptionalFieldReduction(Reduction):
 
     @property
     def inputs(self):
-        return (extract(self.column),) if self.column else ()
+        return (extract(self.column),) if self.column is not None else ()
 
     def validate(self, in_dshape):
         pass
@@ -381,6 +381,115 @@ class std(Reduction):
         with np.errstate(divide='ignore', invalid='ignore'):
             x = np.sqrt(m2s/counts)
         return xr.DataArray(x, **kwargs)
+
+
+class first(Reduction):
+    """First value encountered in ``column``.
+
+    Useful for categorical data where an actual value must always be returned, 
+    not an average or other numerical calculation.
+    
+    Currently only supported for rasters, externally to this class.
+    Due to parallel implementation, there are no guarantees on precisely 
+    which value will be returned.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. If the data type is floating point, 
+        ``NaN`` values in the column are skipped.
+    """
+    _dshape = dshape(Option(ct.float64))
+
+    @staticmethod 
+    def _append(x, y, agg):
+        raise NotImplementedError("first is currently implemented only for rasters")
+    
+    @staticmethod 
+    def _create(shape):
+        raise NotImplementedError("first is currently implemented only for rasters")
+
+    @staticmethod
+    def _combine(aggs):
+        raise NotImplementedError("first is currently implemented only for rasters")
+
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        raise NotImplementedError("first is currently implemented only for rasters")
+
+
+
+class last(Reduction):
+    """Last value encountered in ``column``.
+
+    Useful for categorical data where an actual value must always be returned, 
+    not an average or other numerical calculation.
+    
+    Currently only supported for rasters, externally to this class.
+    Due to parallel implementation, there are no guarantees on precisely 
+    which value will be returned.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. If the data type is floating point, 
+        ``NaN`` values in the column are skipped.
+    """
+    _dshape = dshape(Option(ct.float64))
+
+    @staticmethod 
+    def _append(x, y, agg):
+        raise NotImplementedError("last is currently implemented only for rasters")
+    
+    @staticmethod 
+    def _create(shape):
+        raise NotImplementedError("last is currently implemented only for rasters")
+
+    @staticmethod
+    def _combine(aggs):
+        raise NotImplementedError("last is currently implemented only for rasters")
+
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        raise NotImplementedError("last is currently implemented only for rasters")
+
+
+
+class mode(Reduction):
+    """Mode (most common value) of all the values encountered in ``column``.
+
+    Useful for categorical data where an actual value must always be returned, 
+    not an average or other numerical calculation.
+    
+    Currently only supported for rasters, externally to this class.
+    Implementing it for other glyph types would be difficult due to potentially
+    unbounded data storage requirements to store indefinite point or line
+    data per pixel.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. If the data type is floating point, 
+        ``NaN`` values in the column are skipped.
+    """
+    _dshape = dshape(Option(ct.float64))
+
+    @staticmethod 
+    def _append(x, y, agg):
+        raise NotImplementedError("mode is currently implemented only for rasters")
+    
+    @staticmethod 
+    def _create(shape):
+        raise NotImplementedError("mode is currently implemented only for rasters")
+
+    @staticmethod
+    def _combine(aggs):
+        raise NotImplementedError("mode is currently implemented only for rasters")
+
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        raise NotImplementedError("mode is currently implemented only for rasters")
+
 
 
 class summary(Expr):

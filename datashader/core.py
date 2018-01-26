@@ -306,9 +306,9 @@ class Canvas(object):
         upsample_methods = dict(nearest=US_NEAREST,
                                 linear=US_LINEAR)
 
-        downsample_methods = {'first':DS_FIRST,
-                              'last':DS_LAST,
-                              'mode':DS_MODE,
+        downsample_methods = {'first':DS_FIRST, rd.first:DS_FIRST,
+                              'last':DS_LAST,   rd.last:DS_LAST,
+                              'mode':DS_MODE,   rd.mode:DS_MODE,
                               'mean':DS_MEAN,   rd.mean:DS_MEAN,
                               'var':DS_VAR,     rd.var:DS_VAR,
                               'std':DS_STD,     rd.std:DS_STD,
