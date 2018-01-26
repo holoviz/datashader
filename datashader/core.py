@@ -187,7 +187,7 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
-    def trimesh(self, vertices, simplices, mesh=None, agg=None, interp=True):
+    def trimesh(self, vertices, simplices, mesh=None, agg=None, interp=True, interpolate=None):
         """Compute a reduction by pixel, mapping data to pixels as a triangle.
 
         >>> import datashader as ds
@@ -226,10 +226,13 @@ class Canvas(object):
             purposes. This dataframe is expected to have come from
             ``datashader.utils.mesh()``. If this argument is not None, the first
             two arguments are ignored.
-        interp : boolean, optional
-            Specify whether to do bilinear interpolation of the pixels within each
-            triangle. This can be thought of as a "weighted average" of the vertex
-            values. Defaults to True.
+        interpolate : str, optional default=linear
+            Method to use for interpolation between specified values. ``nearest``
+            means to use a single value for the whole triangle, and ``linear``
+            means to do bilinear interpolation of the pixels within each
+            triangle (a weighted average of the vertex values). For 
+            backwards compatibility, also accepts ``interp=True`` for ``linear``
+            and ``interp=False`` for ``nearest``.
         """
         from .glyphs import Triangles
         from .reductions import mean as mean_rdn
@@ -237,6 +240,15 @@ class Canvas(object):
 
         source = mesh
 
+        # 'interp' argument is deprecated as of datashader=0.6.4
+        if interpolate is not None:
+            if interpolate == 'linear':
+                interp = True
+            elif interpolate == 'nearest':
+                interp = False
+            else:
+                raise ValueError('Invalid interpolate method: options include {}'.format(['linear','nearest']))
+            
         # Validation is done inside the [pd]d_mesh utility functions
         if source is None:
             source = create_mesh(vertices, simplices)
@@ -260,11 +272,11 @@ class Canvas(object):
     def raster(self,
                source,
                layer=None,
-               upsample_method='linear',    # Deprecated as of datashader=0.6.5
-               downsample_method=rd.mean(), # Deprecated as of datashader=0.6.5
+               upsample_method='linear',    # Deprecated as of datashader=0.6.4
+               downsample_method=rd.mean(), # Deprecated as of datashader=0.6.4
+               nan_value=None,
                agg=None,
-               interpolate=None,
-               nan_value=None):
+               interpolate=None):
         """Sample a raster dataset by canvas size and bounds.
 
         Handles 2D or 3D xarray DataArrays, assuming that the last two
@@ -280,16 +292,17 @@ class Canvas(object):
         Parameters
         ----------
         source : xarray.DataArray or xr.Dataset
-            2D or 3D labelled array (if Dataset the agg reduction must
+            2D or 3D labelled array (if Dataset, the agg reduction must
             define the data variable).
         layer : int
-            source layer number : optional default=None
-        interpolate : str, optional default=linear
-            resample mode when upsampling raster.
+            Source layer number : optional default=None
+        interpolate : str, optional  default=linear
+            Resampling mode when upsampling raster.
             options include: nearest, linear.
-        agg : str or Reduction, optional default=mean
-            resample mode when downsampling raster.
-            options include: first, last, mean, mode, var, std
+        agg : Reduction, optional default=mean()
+            Resampling mode when downsampling raster.
+            options include: first, last, mean, mode, var, std, min, max
+            Also accepts string names, for backwards compatibility.
         nan_value : int or float, optional
             Optional nan_value which will be masked out when applying
             the resampling.
@@ -316,7 +329,7 @@ class Canvas(object):
                               'max':DS_MAX,     rd.max:DS_MAX}
 
         if interpolate not in upsample_methods.keys():
-            raise ValueError('Invalid upsample method: options include {}'.format(list(upsample_methods.keys())))
+            raise ValueError('Invalid interpolate method: options include {}'.format(list(upsample_methods.keys())))
 
         if not isinstance(source, (DataArray, Dataset)):
             raise ValueError('Expected xarray DataArray or Dataset as '
