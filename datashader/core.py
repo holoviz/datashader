@@ -8,8 +8,7 @@ from xarray import DataArray, Dataset
 from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask, categorical_in_dtypes
-from .resampling import (resample_2d, US_NEAREST, US_LINEAR, DS_FIRST, DS_LAST,
-                         DS_MEAN, DS_MODE, DS_VAR, DS_STD, DS_MIN, DS_MAX)
+from .resampling import resample_2d
 from .utils import Expr # noqa (API import)
 
 from . import reductions as rd
@@ -316,20 +315,19 @@ class Canvas(object):
         if agg         is None: agg=downsample_method
         if interpolate is None: interpolate=upsample_method
         
-        upsample_methods = dict(nearest=US_NEAREST,
-                                linear=US_LINEAR)
+        upsample_methods = ['nearest','linear']
 
-        downsample_methods = {'first':DS_FIRST, rd.first:DS_FIRST,
-                              'last':DS_LAST,   rd.last:DS_LAST,
-                              'mode':DS_MODE,   rd.mode:DS_MODE,
-                              'mean':DS_MEAN,   rd.mean:DS_MEAN,
-                              'var':DS_VAR,     rd.var:DS_VAR,
-                              'std':DS_STD,     rd.std:DS_STD,
-                              'min':DS_MIN,     rd.min:DS_MIN,
-                              'max':DS_MAX,     rd.max:DS_MAX}
+        downsample_methods = {'first':'first', rd.first:'first',
+                              'last':'last',   rd.last:'last',
+                              'mode':'mode',   rd.mode:'mode',
+                              'mean':'mean',   rd.mean:'mean',
+                              'var':'var',     rd.var:'var',
+                              'std':'std',     rd.std:'std',
+                              'min':'min',     rd.min:'min',
+                              'max':'max',     rd.max:'max'}
 
-        if interpolate not in upsample_methods.keys():
-            raise ValueError('Invalid interpolate method: options include {}'.format(list(upsample_methods.keys())))
+        if interpolate not in upsample_methods:
+            raise ValueError('Invalid interpolate method: options include {}'.format(upsample_methods))
 
         if not isinstance(source, (DataArray, Dataset)):
             raise ValueError('Expected xarray DataArray or Dataset as '
@@ -359,7 +357,7 @@ class Canvas(object):
             source = source[column]
 
         if agg not in downsample_methods.keys():
-            raise ValueError('Invalid downsample method: options include {}'.format(list(downsample_methods.keys())))
+            raise ValueError('Invalid aggregation method: options include {}'.format(list(downsample_methods.keys())))
         ds_method = downsample_methods[agg]
 
         if source.ndim not in [2, 3]:
@@ -393,7 +391,7 @@ class Canvas(object):
         height_ratio = (ymax - ymin) / (self.y_range[1] - self.y_range[0])
 
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
-            raise ValueError('Canvas x_range or y_range values do not match closely-enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
+            raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
 
         w = int(np.ceil(self.plot_width * width_ratio))
         h = int(np.ceil(self.plot_height * height_ratio))
@@ -401,18 +399,18 @@ class Canvas(object):
         rmin, rmax = get_indices(ymin, ymax, yvals, res[1])
 
         kwargs = dict(w=w, h=h, ds_method=ds_method,
-                      us_method=upsample_methods[interpolate], fill_value=fill_value)
+                      us_method=interpolate, fill_value=fill_value)
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
             if isinstance(source_window, Array):
                 source_window = source_window.compute()
-            if ds_method in [DS_VAR, DS_STD]:
+            if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
             data = resample_2d(source_window, **kwargs)
             layers = 1
         else:
             source_window = array[:, rmin:rmax+1, cmin:cmax+1]
-            if ds_method in [DS_VAR, DS_STD]:
+            if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
             arrays = []
             for arr in source_window:
