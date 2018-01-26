@@ -390,8 +390,6 @@ class first(Reduction):
     not an average or other numerical calculation.
     
     Currently only supported for rasters, externally to this class.
-    Due to parallel implementation, there are no guarantees on precisely 
-    which value will be returned.
 
     Parameters
     ----------
@@ -426,8 +424,6 @@ class last(Reduction):
     not an average or other numerical calculation.
     
     Currently only supported for rasters, externally to this class.
-    Due to parallel implementation, there are no guarantees on precisely 
-    which value will be returned.
 
     Parameters
     ----------
