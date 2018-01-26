@@ -293,8 +293,8 @@ class Canvas(object):
         source : xarray.DataArray or xr.Dataset
             2D or 3D labelled array (if Dataset, the agg reduction must
             define the data variable).
-        layer : int
-            Source layer number : optional default=None
+        layer : float
+            For a 3D array, value along the z dimension : optional default=None
         interpolate : str, optional  default=linear
             Resampling mode when upsampling raster.
             options include: nearest, linear.
@@ -368,7 +368,9 @@ class Canvas(object):
         ydim, xdim = source.dims[-2:]
         xvals, yvals = source[xdim].values, source[ydim].values
         left, bottom, right, top = calc_bbox(xvals, yvals, res)
-        array = orient_array(source, res, layer)
+        if layer is not None:
+            source=source.sel(**{source.dims[0]: layer})
+        array = orient_array(source, res)
         dtype = array.dtype
 
         if nan_value is not None:
