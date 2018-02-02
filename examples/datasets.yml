@@ -119,3 +119,9 @@ data:
     title: '2015 Congressional districts'
     files:
       - cb_2015_us_cd114_5m.shp
+
+  - url: http://s3.amazonaws.com/datashader-data/Chesapeake_and_Delaware_Bays.zip
+    title: 'Depth data for the Chesapeake and Delaware Bay region of the USA'
+    files:
+      - Chesapeake_and_Delaware_Bays.3dm
+

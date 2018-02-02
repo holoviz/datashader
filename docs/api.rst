@@ -14,6 +14,7 @@ Entry Points
    Canvas.line
    Canvas.points
    Canvas.raster
+   Canvas.trimesh
    Canvas.validate
 
 .. currentmodule:: datashader
@@ -65,10 +66,13 @@ Reductions
    any
    count
    count_cat
+   first
+   last
    m2
    max
    mean
    min
+   mode
    std
    sum
    summary
@@ -86,6 +90,15 @@ Transfer Functions
    Image
    Image.to_bytesio
    Image.to_pil
+   
+.. currentmodule:: datashader.transfer_functions
+
+**Images**
+
+.. autosummary::
+
+   Images
+   Images.cols
 
 .. currentmodule:: datashader.transfer_functions
 
@@ -115,17 +128,20 @@ Definitions
 .. autoclass:: Line
 
 .. currentmodule:: datashader.reductions
-.. autoclass:: count
 .. autoclass:: any
-.. autoclass:: sum
+.. autoclass:: count
+.. autoclass:: count_cat
+.. autoclass:: first
+.. autoclass:: last
 .. autoclass:: m2
-.. autoclass:: min
 .. autoclass:: max
 .. autoclass:: mean
-.. autoclass:: var
+.. autoclass:: min
+.. autoclass:: mode
 .. autoclass:: std
-.. autoclass:: count_cat
+.. autoclass:: sum
 .. autoclass:: summary
+.. autoclass:: var
 
 .. automodule:: datashader.transfer_functions
    :members:

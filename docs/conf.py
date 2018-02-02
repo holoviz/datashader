@@ -30,7 +30,7 @@ html_context.update({
     'PROJECT': project,
     'DESCRIPTION': description,
     'AUTHOR': authors,
-    'WEBSITE_SERVER': 'https://bokeh.github.io/datashader-docs/',
+    'WEBSITE_SERVER': 'http://datashader.org',
     'VERSION': version,
     'NAV': _NAV,
     'LINKS': _NAV,
@@ -39,3 +39,10 @@ html_context.update({
         ('Github', '//github.com/bokeh/datashader/'),
     )
 })
+
+extensions += [
+    'sphinx.ext.autosummary',
+    'numpydoc',
+]
+
+nbbuild_cell_timeout=500
