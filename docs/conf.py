@@ -42,7 +42,7 @@ html_context.update({
 
 extensions += [
     'sphinx.ext.autosummary',
-    'sphinx.ext.autodoc',
+    'numpydoc',
 ]
 
 nbbuild_cell_timeout=500
