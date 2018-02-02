@@ -15,8 +15,8 @@ Contents:
    Explains why Datashader is important for avoiding various pitfalls encountered
    when using plotting techniques designed for small datasets with big data.
 
-* 2. Points
-   (Under construction; meanwhile see the `nyc_taxi <../topics/nyc_taxi.html>`_ notebook.)
+* `2. Points <../topics/nyc_taxi.html>`_ 
+   (Under construction; meanwhile points to the `nyc_taxi <../topics/nyc_taxi.html>`_ notebook.)
    
 * `3. Timeseries <3_Timeseries.html>`_
    Plotting timeseries and other curves.
@@ -30,14 +30,14 @@ Contents:
 * `7. Networks <7_Networks.html>`_
    Plotting large network graphs.
 
-* 8. Geography
-   (Under construction; meanwhile see `GeoViews.org <geoviews.org>`_.)
+* `8. Geography <http://geoviews.org>`_
+   (Under construction; meanwhile points to the `GeoViews.org <http://geoviews.org>`_ website.)
    
 * `9. Extending <9_Extending.html>`_
    Extending datashader with new components and functionality.
 
-* `10. Performance <9_Performance.html>`_
-   
+* `10. Performance <10_Performance.html>`_
+   Hints for getting good performance out of Datashader in your applications.
 
 .. toctree::
     :titlesonly:
