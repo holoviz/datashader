@@ -42,6 +42,9 @@ Contents:
 * `param dashboard <param_dashboard.html>`_
    30-line dashboard for datashader plots based on the Param library.
 
+* `bay trimesh <bay_trimesh.html>`_
+   Rendering a triangular mesh of water depths in the Chesapeake and Delaware bay areas.
+
 * `solar <solar.html>`_
    Solar radiation data.
 
