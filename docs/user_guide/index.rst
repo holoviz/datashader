@@ -24,6 +24,9 @@ Contents:
 * `4. Trajectories <4_Trajectories.html>`_
    Plotting trajectories (e.g. connected GPS points) in a plane.
 
+* `5. Rasters <5_Rasters.html>`_
+   Plotting gridded (raster) data, from regularly sampled 2D points in a plane.
+
 * `6. Trimesh <6_Trimesh.html>`_
    Plotting large irregular triangular grids (meshes).
 
