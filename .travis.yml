@@ -32,7 +32,7 @@ jobs:
         - conda install -y -c pyviz/label/dev -c conda-forge pyct
         - doit ci_configure_conda
       install:
-        - doit create_env --env=test-environment --python=$PYTHON_VERSION
+        - doit create_env --name=test-environment --python=$PYTHON_VERSION
         - source activate test-environment
         - doit conda_develop_install
       script:
