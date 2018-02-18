@@ -34,7 +34,7 @@ jobs:
       install:
         - doit create_env --name=test-environment --python=$PYTHON_VERSION
         - source activate test-environment
-        - doit conda_develop_install
+        - doit conda_develop_install --channel=pyviz/label/dev --channel=conda-forge
       script:
         - doit all_tests
 
