@@ -6,71 +6,39 @@ language: generic
 
 sudo: false
 
-before_install:
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  # brew-installed geos interferes with cartopy?
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      brew uninstall --ignore-dependencies geos gdal postgis;
-    fi
+os:
+  - linux
+
+stages:
+  - test
+  - name: conda_dev_package
+    if: (branch = packaging)
 
 jobs:
   include:
-    - install: scripts/ci/install_examples
-      script: scripts/ci/test_examples
-      os: linux
-      env:
-      - GROUP=examples
-      - PYTHON_VERSION=3.6
-    - install: scripts/ci/install_unit
-      script: scripts/ci/test_unit
-      os: linux
-      env:
-      - GROUP=unit
-      - PYTHON_VERSION=2.7
-    - install: scripts/ci/install_unit
-      script: scripts/ci/test_unit
-      os: linux
-      env:
-      - GROUP=unit
-      - PYTHON_VERSION=3.5
-    - install: scripts/ci/install_unit
-      script: scripts/ci/test_unit
-      os: linux
-      env:
-      - GROUP=unit
-      - PYTHON_VERSION=3.6
-    - install: scripts/ci/install_examples
-      script: scripts/ci/test_examples
-      os: osx
-      osx_image: xcode8.3
-      if: branch = master AND type != pull_request
-      env:
-      - GROUP=examples
-      - PYTHON_VERSION=3.6
-    - install: scripts/ci/install_unit
-      script: scripts/ci/test_unit
-      os: osx
-      osx_image: xcode8.3
-      if: branch = master AND type != pull_request
-      env:
-      - GROUP=unit
-      - PYTHON_VERSION=2.7
-    - install: scripts/ci/install_unit
-      script: scripts/ci/test_unit
-      os: osx
-      osx_image: xcode8.3
-      if: branch = master AND type != pull_request
-      env:
-      - GROUP=unit
-      - PYTHON_VERSION=3.5
-    - install: scripts/ci/install_unit
-      script: scripts/ci/test_unit
-      os: osx
-      osx_image: xcode8.3
-      if: branch = master AND type != pull_request
-      env:
-      - GROUP=unit
-      - PYTHON_VERSION=3.6
+    - &default
+      stage: test
+      before_install:
+        # brew-installed geos interferes with cartopy?
+        - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+            brew uninstall --ignore-dependencies geos gdal postgis;
+          fi
+        ## use system python to install doit, then use doit to install miniconda
+        - easy_install --user doit==0.29.0 pyct && ~/.local/bin/doit install_miniconda && rm -f .doit.db
+        - export PATH="$HOME/miniconda/bin:$PATH"
+        ## install doit into miniconda
+        - conda install -y -c pyviz/label/dev -c conda-forge pyct
+        - doit ci_configure_conda
+      install: true
+      script: true
+
+    - <<: *default
+      stage: conda_dev_package
+      install:
+        - export VERSIONHACK=$(python -c "import subprocess;desc=subprocess.check_output(['git','describe','--long']).decode('utf8');v,commits=desc.split('-')[0:2];newv=[int(x) for x in v.split('.')];newv[-1]+=1;print('.'.join(str(x) for x in newv)+'.dev'+commits)")      
+        - doit build_conda_package --channel conda-forge
+      script: true
+#        - doit upload_conda_package --token=$CONDA_UPLOAD_TOKEN
 
 notifications:
   email: false
