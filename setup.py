@@ -24,6 +24,9 @@ meta = dict(
         'pytest-benchmark >=3.0.0',
         'rasterio',
         'scipy',
+        'scikit-image', # was on travis...
+        'flake8' # was on travis
+        'nbsmoke'
     ],
     license='New BSD',
     packages=find_packages(),
