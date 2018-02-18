@@ -36,7 +36,7 @@ test:
     - {{ dep }}
     {% endfor %}
   commands:
-    - py.test datashader/tests --verbose
+    - py.test --verbose --pyargs datashader
 
 about:
   home: {{ sdata['url'] }}
