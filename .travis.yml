@@ -18,6 +18,8 @@ jobs:
   include:
     - &default
       stage: test
+      env:
+        - PYTHON_VERSION=3.6
       before_install:
         # brew-installed geos interferes with cartopy?
         - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
@@ -29,8 +31,16 @@ jobs:
         ## install doit into miniconda
         - conda install -y -c pyviz/label/dev -c conda-forge pyct
         - doit ci_configure_conda
-      install: true
-      script: true
+      install:
+        - doit create_env --env=test-environment --python=$PYTHON_VERSION
+        - source activate test-environment
+        - doit conda_develop_install
+      script:
+        - doit all_tests
+
+#    - <<: *default
+#      stage: test
+#      script:
 
     - <<: *default
       stage: conda_dev_package
