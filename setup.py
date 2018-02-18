@@ -25,7 +25,7 @@ meta = dict(
         'rasterio',
         'scipy',
         'scikit-image', # was on travis...
-        'flake8' # was on travis
+        'flake8', # was on travis
         'nbsmoke'
     ],
     license='New BSD',
