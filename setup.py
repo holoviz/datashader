@@ -28,6 +28,12 @@ meta = dict(
         'flake8', # was on travis
         'nbsmoke'
     ],
+#    extras_require={
+#        'examples': [
+#            # just a start
+#            'requests', # for downloading data
+#        ]
+#    }
     license='New BSD',
     packages=find_packages(),
     include_package_data=True
