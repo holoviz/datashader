@@ -3,7 +3,6 @@ Datashader
 
 [![Travis build Status](https://travis-ci.org/bokeh/datashader.svg?branch=master)](https://travis-ci.org/bokeh/datashader)
 [![Appveyor build status](https://ci.appveyor.com/api/projects/status/h3lwh6ju4hfcgkm8/branch/master?svg=true)](https://ci.appveyor.com/project/bokeh-integrations/datashader/branch/master)
-[![Documentation Status](https://readthedocs.org/projects/datashader/badge/?version=latest)](http://datashader.readthedocs.org/en/latest/?badge=latest)
 [![Task Status](https://badge.waffle.io/bokeh/datashader.png?label=ready&title=tasks)](https://waffle.io/bokeh/datashader)
 
 
@@ -70,7 +69,7 @@ directory.
 ## Learning more
 
 After working through the examples, you can find additional resources linked
-from the [datashader documentation](http://datashader.readthedocs.org),
+from the [datashader documentation](http://datashader.org),
 including API documentation and papers and talks about the approach.
 
 ## Screenshots
