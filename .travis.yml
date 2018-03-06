@@ -1,3 +1,8 @@
+# TODO before merge:
+#  * what channels?
+#  * restore previous sections
+#  * restore guards for various sections
+        
 # We deliberately don't use travis's language=python option because
 # we install miniconda and use conda to get python. Additionally, 
 # Travis's auto-install of python doesn't work on osx images (see
@@ -34,7 +39,6 @@ jobs:
       install:
         - doit create_env --name=test-environment --python=$PYTHON_VERSION
         - source activate test-environment
-        # TODO: after a little time, can change to pyviz, then remove entirely (when nbsmoke is on c-f)
         - doit conda_develop_install --channel=pyviz/label/dev --channel=conda-forge
       script:
         - doit all_tests
@@ -46,8 +50,8 @@ jobs:
     - <<: *default
       stage: conda_dev_package
       install:
-        - export VERSIONHACK=$(python -c "import subprocess;desc=subprocess.check_output(['git','describe','--long']).decode('utf8');v,commits=desc.split('-')[0:2];newv=[int(x) for x in v.split('.')];newv[-1]+=1;print('.'.join(str(x) for x in newv)+'.dev'+commits)")      
-        - doit build_conda_package --channel conda-forge
+        - doit build_conda_package --type base --channel pyviz/label/dev --channel conda-forge
+        - doit build_conda_package --type examples --channel pyviz/label/dev --channel conda-forge
       script: true
 #        - doit upload_conda_package --token=$CONDA_UPLOAD_TOKEN
 

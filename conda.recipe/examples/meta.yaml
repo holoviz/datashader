@@ -1,11 +1,11 @@
 {% set sdata = load_setup_py_data() %}
 
 package:
-  name: datashader
+  name: datashader-examples
   version: {{ sdata['version'] }}
 
 source:
-  path: ..
+  path: ../..
 
 build:
   noarch: python
@@ -15,6 +15,7 @@ requirements:
   build:
     - python
     - setuptools
+    - param
   run:
     - python {{ sdata['python_requires'] }}
     {% for dep in sdata.get('install_requires',{}) %}
