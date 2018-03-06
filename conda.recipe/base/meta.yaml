@@ -1,0 +1,38 @@
+{% set sdata = load_setup_py_data() %}
+
+package:
+  name: datashader
+  version: {{ sdata['version'] }}
+
+source:
+  path: ../..
+
+build:
+  noarch: python
+  script: python setup.py install --single-version-externally-managed --record=record.txt
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - param
+  run:
+    - python {{ sdata['python_requires'] }}
+    {% for dep in sdata.get('install_requires',{}) %}
+    - {{ dep }}
+    {% endfor %}
+
+test:
+  imports:
+    - datashader
+  requires:
+    {% for dep in sdata.get('tests_require',{}) %}
+    - {{ dep }}
+    {% endfor %}
+  commands:
+    - py.test --verbose --pyargs datashader
+
+about:
+  home: {{ sdata['url'] }}
+  summary: {{ sdata['description'] }}
+  license: {{ sdata['license'] }}
