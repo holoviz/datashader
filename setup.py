@@ -1,4 +1,6 @@
 import os
+import importlib
+import json
 from setuptools import find_packages, setup
 
 def embed_version(basepath, reponame, ref='v0.2.1'):
