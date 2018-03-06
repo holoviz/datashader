@@ -127,6 +127,7 @@ meta = dict(
     },
     license='New BSD',
     packages=find_packages(),
+    package_data={'datashader': ['.version']},
     include_package_data=True
 )
 
