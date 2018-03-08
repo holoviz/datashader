@@ -28,12 +28,14 @@ jobs:
       script: tox -e py${PYENV_VERSION//./}
 
     - <<: *python_default
-      env: PYENV_VERSION=2.7
+      env:
+        - DESC="pip"
+        - PYENV_VERSION=2.7
 
     - &conda_default
       stage: test
       env:
-        - DESC="conda"
+        - DESC="conda develop"
         - PYTHON_VERSION=3.6
       before_install:
         # brew-installed geos interferes with cartopy?
