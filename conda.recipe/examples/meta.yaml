@@ -38,6 +38,8 @@ test:
     {% endfor %}
   commands:
     - py.test --verbose --pyargs datashader
+    # TODO: just one during setting up of tests
+    - pytest --nbsmoke-run examples/getting_started/1_Introduction.ipynb
 
 about:
   home: {{ sdata['url'] }}
