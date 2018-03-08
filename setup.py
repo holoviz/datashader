@@ -70,7 +70,8 @@ meta = dict(
         'tests': [
             'pytest >=2.8.5',
             'pytest-benchmark >=3.0.0',
-            'rasterio',
+# TODO: requires numpy headers            
+#            'rasterio',
             'scipy',
             'scikit-image', # was on travis...
             'flake8',
