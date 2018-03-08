@@ -3,7 +3,7 @@ import importlib
 import json
 from setuptools import find_packages, setup
 
-def embed_version(basepath, reponame, ref='v0.2.1'):
+def embed_version(basepath, ref='v0.2.1'):
     """
     Autover is purely a build time dependency in all cases (conda and
     pip) except for when you use pip's remote git support [git+url] as
@@ -20,7 +20,7 @@ def embed_version(basepath, reponame, ref='v0.2.1'):
     zf = zipfile.ZipFile(io.BytesIO(response.read()))
     ref = ref[1:] if ref.startswith('v') else ref
     embed_version = zf.read('autover-{ref}/autover/version.py'.format(ref=ref))
-    with open(os.path.join(basepath, reponame, 'version.py'), 'wb') as f:
+    with open(os.path.join(basepath, 'version.py'), 'wb') as f:
         f.write(embed_version)
 
 
@@ -38,13 +38,13 @@ def get_setup_version(reponame):
         except:
             try: from param import version # Try to get it from param
             except:
-                embed_version(basepath, reponame)
-                version = importlib.import_module(reponame + ".version")
+                embed_version(basepath)
+                version = importlib.import_module("version")
 
     if version is not None:
-        return version.Version.setup_version(basepath, reponame, dirty='strip',
-                                             archive_commit="$Format:%h$")
+        return version.Version.setup_version(basepath, reponame, archive_commit="$Format:%h$")
     else:
+        print("WARNING: autover unavailable. If you are installing a package, this warning can safely be ignored. If you are creating a package or otherwise operating in a git repository, you should refer to autover's documentation to bundle autover or add it as a dependency.")        
         return json.load(open(version_file_path, 'r'))['version_string']
 
 meta = dict(
