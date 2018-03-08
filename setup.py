@@ -65,18 +65,19 @@ meta = dict(
         'colorcet >=0.9.0',
         'param >=1.5.0,<2.0',
     ],
-    tests_require=[
-        'pytest >=2.8.5',
-        'pytest-benchmark >=3.0.0',
-        'rasterio',
-        'scipy',
-        'scikit-image', # was on travis...
-        'flake8',
-        'nbsmoke'
-    ],
     extras_require={
+        # tests_require not supported by pip
+        'tests': [
+            'pytest >=2.8.5',
+            'pytest-benchmark >=3.0.0',
+            'rasterio',
+            'scipy',
+            'scikit-image', # was on travis...
+            'flake8',
+            'nbsmoke'
+        ],  
         # TODO: need to remove indirect dependencies unless they must be
-        # pinned
+        # pinned (or are not actually specified by dependencies)
         'examples': [
             'attrs',
             'beautifulsoup4',

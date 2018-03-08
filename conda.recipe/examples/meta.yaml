@@ -18,14 +18,10 @@ requirements:
     - param
   run:
     - python {{ sdata['python_requires'] }}
-    {% for dep in sdata.get('install_requires',{}) %}
-    - {{ dep }}
-    {% endfor %}
+    - datashader
 
-    {% for option in sdata.get('extras_require',{}) %}
-     {% for dep in sdata['extras_require'][option] %}
+    {% for dep in sdata['extras_require']['examples'] %}
     - {{ dep }}
-     {% endfor %}
     {% endfor %}
 
 
@@ -33,7 +29,7 @@ test:
   imports:
     - datashader
   requires:
-    {% for dep in sdata.get('tests_require',{}) %}
+    {% for dep in sdata['extras_require']['test'] %}
     - {{ dep }}
     {% endfor %}
   commands:
