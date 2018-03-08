@@ -41,11 +41,15 @@ def get_setup_version(reponame):
                 embed_version(basepath)
                 version = importlib.import_module("version")
 
-    if version is not None:
+    # TODO: hasattr and the try/except below until new param release
+    if version is not None and hasattr(version.Version,'setup_version'):
         return version.Version.setup_version(basepath, reponame, archive_commit="$Format:%h$")
     else:
-        print("WARNING: autover unavailable. If you are installing a package, this warning can safely be ignored. If you are creating a package or otherwise operating in a git repository, you should refer to autover's documentation to bundle autover or add it as a dependency.")        
-        return json.load(open(version_file_path, 'r'))['version_string']
+        print("WARNING: autover unavailable. If you are installing a package, this warning can safely be ignored. If you are creating a package or otherwise operating in a git repository, you should refer to autover's documentation to bundle autover or add it as a dependency.")
+        try:
+            return json.load(open(version_file_path, 'r'))['version_string']
+        except:
+            return '0.0.0+unknown'
 
 meta = dict(
     name='datashader',
