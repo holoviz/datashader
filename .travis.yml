@@ -3,10 +3,6 @@
 #  * restore previous sections
 #  * restore guards for various sections
         
-# We deliberately don't use travis's language=python option because
-# we install miniconda and use conda to get python. Additionally, 
-# Travis's auto-install of python doesn't work on osx images (see
-# https://github.com/travis-ci/travis-ci/issues/4729).
 language: generic
 
 sudo: false
@@ -21,9 +17,23 @@ stages:
 
 jobs:
   include:
-    - &default
+
+    - &python_default
       stage: test
       env:
+        - DESC="pip"
+        - PYENV_VERSION=3.6
+      before_install: pip install tox py2venv
+      install: true
+      script: tox -e py${PYENV_VERSION//./}
+
+    - <<: *python_default
+      env: PYENV_VERSION=2.7
+
+    - &conda_default
+      stage: test
+      env:
+        - DESC="conda"
         - PYTHON_VERSION=3.6
       before_install:
         # brew-installed geos interferes with cartopy?
@@ -40,14 +50,15 @@ jobs:
         - doit create_env --name=test-environment --python=$PYTHON_VERSION
         - source activate test-environment
         - doit conda_develop_install --channel=pyviz/label/dev --channel=conda-forge
+        - doit capture_conda_env
       script:
         - doit all_tests
 
-#    - <<: *default
+#    - <<: *conda_default
 #      stage: test
 #      script:
 
-    - <<: *default
+    - <<: *conda_default
       stage: conda_dev_package
       install:
         - doit build_conda_package --type base --channel pyviz/label/dev --channel conda-forge
