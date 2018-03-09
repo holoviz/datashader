@@ -79,7 +79,8 @@ meta = dict(
             'scipy',
             'scikit-image', # was on travis...
             'flake8',
-            'nbsmoke'
+            'nbsmoke',
+            'cloudpickle',
         ],  
         # TODO: need to remove indirect dependencies unless they must be
         # pinned (or are not actually specified by dependencies)
