@@ -81,7 +81,8 @@ meta = dict(
             'flake8',
             'nbsmoke',
             'cloudpickle',
-        ],  
+            'bokeh'
+        ],
         # TODO: need to remove indirect dependencies unless they must be
         # pinned (or are not actually specified by dependencies)
         'examples': [
