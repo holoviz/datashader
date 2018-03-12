@@ -198,7 +198,7 @@ class Canvas(object):
         ...                       columns=['v0', 'v1', 'v2'])
         >>> cvs = ds.Canvas(x_range=(verts.x.min(), verts.x.max()),
         ...                 y_range=(verts.y.min(), verts.y.max()))
-        >>> cvs.trimesh(verts, tris)
+        >>> untested = cvs.trimesh(verts, tris)
 
         Parameters
         ----------
