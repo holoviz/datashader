@@ -10,6 +10,18 @@ sudo: false
 os:
   - linux
 
+env:
+  global:
+    - DOIT="doit --db-file=$HOME/extracache/.doitdb"
+
+cache:
+  directories:
+    - $HOME/miniconda
+    - $HOME/extracache
+
+before_cache:
+  - rm -rf $HOME/miniconda/pkgs
+
 stages:
   - test
   - name: conda_dev_package
@@ -36,37 +48,38 @@ jobs:
       stage: test
       env:
         - DESC="conda develop"
-        - PYTHON_VERSION=3.6
+        - PYENV_VERSION=3.6
       before_install:
         # brew-installed geos interferes with cartopy?
         - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
             brew uninstall --ignore-dependencies geos gdal postgis;
           fi
-        ## use system python to install doit, then use doit to install miniconda
-        - easy_install --user doit==0.29.0 pyct && ~/.local/bin/doit install_miniconda && rm -f .doit.db
-        - export PATH="$HOME/miniconda/bin:$PATH"
-        ## install doit into miniconda
+        # install doit/pyct and use to install miniconda...
+        - pip install pyct && $DOIT install_miniconda
+        - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
+        # ...and now install doit/pyct into miniconda   
         - conda install -y -c pyviz/label/dev -c conda-forge pyct
-        - doit ci_configure_conda
+        - $DOIT ci_configure_conda -c conda-forge
       install:
-        - doit create_env --name=test-environment --python=$PYTHON_VERSION
+        - $DOIT create_env --name=test-environment --python=$PYENV_VERSION
         - source activate test-environment
-        - doit conda_develop_install --channel=pyviz/label/dev --channel=conda-forge
-        - doit capture_conda_env
+        - $DOIT conda_develop_install -c pyviz/label/dev -c conda-forge
+        - $DOIT capture_conda_env
       script:
-        - doit all_tests
+        - $DOIT all_tests
 
-#    - <<: *conda_default
-#      stage: test
-#      script:
+    - <<: *conda_default
+      env:
+        - DESC="conda develop"
+        - PYENV_VERSION=2.7
 
     - <<: *conda_default
       stage: conda_dev_package
       install:
-        - doit build_conda_package --type base --channel pyviz/label/dev --channel conda-forge
-        - doit build_conda_package --type examples --channel pyviz/label/dev --channel conda-forge
+        - $DOIT build_conda_package --type base -c pyviz/label/dev -c conda-forge
+        - $DOIT build_conda_package --type examples -c pyviz/label/dev -c conda-forge
       script: true
-#        - doit upload_conda_package --token=$CONDA_UPLOAD_TOKEN
+#        - $DOIT upload_conda_package --token=$CONDA_UPLOAD_TOKEN
 
 notifications:
   email: false
