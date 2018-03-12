@@ -26,11 +26,14 @@ test:
   imports:
     - datashader
   requires:
-    {% for dep in sdata.get('tests_require',{}) %}
+    {% for dep in sdata['extras_require']['tests'] %}
     - {{ dep }}
     {% endfor %}
+  source_files:
+    # for pytest config
+    - setup.cfg
   commands:
-    - py.test --verbose --pyargs datashader
+    - py.test
 
 about:
   home: {{ sdata['url'] }}

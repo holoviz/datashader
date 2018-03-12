@@ -50,15 +50,16 @@ jobs:
         - DESC="conda develop"
         - PYENV_VERSION=3.6
       before_install:
-        # brew-installed geos interferes with cartopy?
+        # brew-installed geos interferes with conda's cartopy?
         - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
             brew uninstall --ignore-dependencies geos gdal postgis;
           fi
         # install doit/pyct and use to install miniconda...
         - pip install pyct && $DOIT install_miniconda
         - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
-        # ...and now install doit/pyct into miniconda   
-        - conda install -y -c pyviz/label/dev -c conda-forge pyct
+        # ...and now install doit/pyct into miniconda
+        # (could use conda, but need doit py2+py3 on defaults+conda-forge)
+        - pip install pyct
         - $DOIT ci_configure_conda -c conda-forge
       install:
         - $DOIT create_env --name=test-environment --python=$PYENV_VERSION
