@@ -29,15 +29,15 @@ test:
   imports:
     - datashader
   requires:
-    {% for dep in sdata['extras_require']['test'] %}
+    {% for dep in sdata['extras_require']['tests'] %}
     - {{ dep }}
     {% endfor %}
   commands:
-    - py.test --verbose --pyargs datashader
+    # TODO: need to run command to install examples
     # TODO: just one during setting up of tests
     - pytest --nbsmoke-run examples/getting_started/1_Introduction.ipynb
 
 about:
   home: {{ sdata['url'] }}
-  summary: {{ sdata['description'] }}
+  summary: "Datashader package including extra dependencies to run all examples."
   license: {{ sdata['license'] }}
