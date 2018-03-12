@@ -68,10 +68,10 @@ jobs:
       script:
         - $DOIT all_tests
 
-    - <<: *conda_default
-      env:
-        - DESC="conda develop"
-        - PYENV_VERSION=2.7
+#    - <<: *conda_default
+#      env:
+#        - DESC="conda develop"
+#        - PYENV_VERSION=2.7
 
     - <<: *conda_default
       stage: conda_dev_package
