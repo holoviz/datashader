@@ -186,6 +186,10 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
+    # TODO re 'untested', below: Consider replacing with e.g. a 3x3
+    # array in the call to Canvas (plot_height=3,plot_width=3), then
+    # show the output as a numpy array that has a compact
+    # representation
     def trimesh(self, vertices, simplices, mesh=None, agg=None, interp=True, interpolate=None):
         """Compute a reduction by pixel, mapping data to pixels as a triangle.
 
