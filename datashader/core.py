@@ -395,8 +395,8 @@ class Canvas(object):
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
             raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
 
-        w = int(np.ceil(self.plot_width * width_ratio))
-        h = int(np.ceil(self.plot_height * height_ratio))
+        w = max(int(np.ceil(self.plot_width * width_ratio)), 1)
+        h = max(int(np.ceil(self.plot_height * height_ratio)), 1)
         cmin, cmax = get_indices(xmin, xmax, xvals, res[0])
         rmin, rmax = get_indices(ymin, ymax, yvals, res[1])
 
@@ -429,8 +429,8 @@ class Canvas(object):
             lpad = xmin - self.x_range[0]
             rpad = self.x_range[1] - xmax
             lpct = lpad / (lpad + rpad) if lpad + rpad > 0 else 0
-            left = int(np.ceil(num_width * lpct))
-            right = num_width - left
+            left = max(int(np.ceil(num_width * lpct)), 0)
+            right = max(num_width - left, 0)
             lshape, rshape = (self.plot_height, left), (self.plot_height, right)
             if layers > 1:
                 lshape, rshape = lshape + (layers,), rshape + (layers,)
@@ -440,8 +440,8 @@ class Canvas(object):
             tpad = ymin - self.y_range[0]
             bpad = self.y_range[1] - ymax
             tpct = tpad / (tpad + bpad) if tpad + bpad > 0 else 0
-            top = int(np.ceil(num_height * tpct))
-            bottom = num_height - top
+            top = max(int(np.ceil(num_height * tpct)), 0)
+            bottom = max(num_height - top, 0)
             tshape, bshape = (top, w), (bottom, w)
             if layers > 1:
                 tshape, bshape = tshape + (layers,), bshape + (layers,)
