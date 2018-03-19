@@ -1,9 +1,8 @@
 Please edit the template below, attempting to fill in as much info as
 possible. Thanks!
 
-When pasting code, tracebacks, or console output, please use
-(https://help.github.com/articles/basic-writing-and-formatting-syntax/#quoting-code)[triple
-backticks].
+When pasting code, tracebacks, or console output, please enclose in
+[https://help.github.com/articles/basic-writing-and-formatting-syntax/#quoting-code](triple backticks).
 
 ## Description
 
@@ -33,7 +32,11 @@ describe below).
 
 Please tell us how to reproduce your environment:
 
-  * The output of `conda env export` and `conda info`.
+  * The output of `conda env export` and `conda info`. Note that if
+    your version of datashader is neither the
+    [https://github.com/bokeh/datashader/releases/latest](latest
+    release) nor the current developer version from GitHub, please
+    consider upgrading before filing your issue.
 
   * What operating system and version?
 
