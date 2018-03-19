@@ -2,8 +2,8 @@ Please edit the template below, attempting to fill in as much info as
 possible. Thanks!
 
 When pasting code, tracebacks, or console output, please use
-[https://help.github.com/articles/basic-writing-and-formatting-syntax/#quoting-code](triple
-backticks).
+(https://help.github.com/articles/basic-writing-and-formatting-syntax/#quoting-code)[triple
+backticks].
 
 ## Description
 
