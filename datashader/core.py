@@ -389,8 +389,8 @@ class Canvas(object):
         xmax = min(self.x_range[1], right)
         ymax = min(self.y_range[1], top)
 
-        width_ratio = (xmax - xmin) / (self.x_range[1] - self.x_range[0])
-        height_ratio = (ymax - ymin) / (self.y_range[1] - self.y_range[0])
+        width_ratio = min((xmax - xmin) / (self.x_range[1] - self.x_range[0]), 1)
+        height_ratio = min((ymax - ymin) / (self.y_range[1] - self.y_range[0]), 1)
 
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
             raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
