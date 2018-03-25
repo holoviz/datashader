@@ -3,6 +3,10 @@ import importlib
 import json
 from setuptools import find_packages, setup
 
+########## autover ##########
+
+# TODO: do we have to copy/paste into all projects?
+
 def embed_version(basepath, ref='v0.2.1'):
     """
     Autover is purely a build time dependency in all cases (conda and
@@ -51,88 +55,110 @@ def get_setup_version(reponame):
     except:
         return '0.0.0+unknown'
 
+
+
+########## dependencies ##########
+
+install_requires = [
+    'dask >=0.15.4',
+    'datashape >=0.5.1',
+    'numba >=0.35.0',
+    'numpy >=1.7',
+    'pandas >=0.20.3',
+    'pillow >=3.1.1',
+    'xarray >=0.9.6',
+    'toolz >=0.7.4',
+    'colorcet >=0.9.0',
+    'param >=1.5.0,<2.0',
+]
+
+extras_require = {
+    # pip doesn't support tests_require
+    # (https://github.com/pypa/pip/issues/1197)
+    'tests': [
+        'pytest >=2.8.5',
+        'pytest-benchmark >=3.0.0',
+        # TODO: requires numpy headers            
+        # 'rasterio',
+        'scipy',
+        'scikit-image', # was on travis...
+        'flake8',
+        'nbsmoke',
+        'cloudpickle',
+        'bokeh'
+    ],
+
+    'docs': [
+        'nbsite',
+    ],
+    
+    # TODO: Probably needs to be sorted out. Need to remove indirect
+    # dependencies unless they must be pinned (or are not actually
+    # specified by dependencies)
+    'examples': [
+        'attrs',
+        'beautifulsoup4',
+        'bokeh',
+        'cartopy',
+        'Cython >=0.15.1', # indirect dep required for cartopy
+        'colorcet',
+        'graphviz',
+        'pytest',
+        'pytest-benchmark',
+        'python-graphviz',
+        'dask >=0.15.4',
+        'datashader',
+        'dill',
+        'distributed',
+        'fastparquet',
+        'geoviews',
+        'holoviews >=1.8.3',
+        'ipython', # why? notebook & ipykernel maybe?
+        'iris',
+        'jupyter',
+        'jupyter_dashboards',
+        'krb5',
+        'matplotlib',
+        'nbconvert',
+        'nbformat',
+        'networkx >=2.0',
+        'numba',
+        'numpy',
+        'pandas',
+        'paramnb',
+        'pyproj',
+        'pytables',
+        'python-snappy',
+        'rasterio',
+        'requests',
+        'scipy',
+        'shapely',
+        'snappy',
+        'statsmodels',
+        'tblib',
+        'xarray',
+        'yaml',
+        # TODO: needs conda package?  
+        #            'cachey',
+        'streamz ==0.2.0',
+        'webargs'
+    ]
+}
+
+extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
+
+
+########## metadata for setuptools ##########
+    
 meta = dict(
     name='datashader',
     version=get_setup_version("datashader"),
     description='Data visualization toolchain based on aggregating into a grid',
     url='http://datashader.org',
     python_requires=">=2.7",
-    install_requires=[
-        'dask >=0.15.4',
-        'datashape >=0.5.1',
-        'numba >=0.35.0',
-        'numpy >=1.7',
-        'pandas >=0.20.3',
-        'pillow >=3.1.1',
-        'xarray >=0.9.6',
-        'toolz >=0.7.4',
-        'colorcet >=0.9.0',
-        'param >=1.5.0,<2.0',
-    ],
-    extras_require={
-        # tests_require not supported by pip
-        'tests': [
-            'pytest >=2.8.5',
-            'pytest-benchmark >=3.0.0',
-# TODO: requires numpy headers            
-#            'rasterio',
-            'scipy',
-            'scikit-image', # was on travis...
-            'flake8',
-            'nbsmoke',
-            'cloudpickle',
-            'bokeh'
-        ],
-        # TODO: need to remove indirect dependencies unless they must be
-        # pinned (or are not actually specified by dependencies)
-        'examples': [
-            'attrs',
-            'beautifulsoup4',
-            'bokeh',
-            'cartopy',
-            'colorcet',
-            'graphviz',
-            'pytest',
-            'pytest-benchmark',
-            'python-graphviz',
-            'dask >=0.15.4',
-            'datashader',
-            'dill',
-            'distributed',
-            'fastparquet',
-            'geoviews',
-            'holoviews >=1.8.3',
-            'ipython', # why? notebook & ipykernel maybe?
-            'iris',
-            'jupyter',
-            'jupyter_dashboards',
-            'krb5',
-            'matplotlib',
-            'nbconvert',
-            'nbformat',
-            'networkx >=2.0',
-            'numba',
-            'numpy',
-            'pandas',
-            'paramnb',
-            'pyproj',
-            'pytables',
-            'python-snappy',
-            'rasterio',
-            'requests',
-            'scipy',
-            'shapely',
-            'snappy',
-            'statsmodels',
-            'tblib',
-            'xarray',
-            'yaml',
-# TODO: needs conda package?            
-#            'cachey',
-            'streamz ==0.2.0',
-            'webargs'
-        ]
-    },
+    install_requires=install_requires,
+    extras_require=extras_require,
+    tests_require=extras_require['tests'],
     license='New BSD',
     packages=find_packages(),
     package_data={'datashader': ['.version']},
