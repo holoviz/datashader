@@ -83,7 +83,7 @@ extras_require = {
         'scipy',
         'scikit-image', # was on travis...
         'flake8',
-        'nbsmoke',
+        'nbsmoke >0.2.0',
         'cloudpickle',
         'bokeh'
     ],
