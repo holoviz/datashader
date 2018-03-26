@@ -37,8 +37,7 @@ import yaml
 try:
     import requests
 except ImportError:
-    print('this download script requires the requests module: conda install requests')
-    sys.exit(1)
+    requests = None
 
 STREAM = sys.stderr
 
@@ -277,4 +276,9 @@ def main():
                 _process_dataset(d, output_dir, here)
 
 if __name__ == '__main__':
+
+    if requests is None:
+        print('this download script requires the requests module: conda install requests')
+        sys.exit(1)
+    
     main()
