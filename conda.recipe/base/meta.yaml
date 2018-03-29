@@ -5,7 +5,7 @@ package:
   version: {{ sdata['version'] }}
 
 source:
-  path: ../..
+  path: ..
 
 build:
   noarch: python
@@ -33,7 +33,7 @@ test:
     # for pytest config
     - setup.cfg
   commands:
-    - py.test
+    - py.test datashader
 
 about:
   home: {{ sdata['url'] }}

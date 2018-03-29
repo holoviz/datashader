@@ -3,6 +3,7 @@ import importlib
 import json
 from setuptools import find_packages, setup
 
+
 ########## autover ##########
 
 # TODO: do we have to copy/paste into all projects?
@@ -149,26 +150,22 @@ extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
 
 
 ########## metadata for setuptools ##########
-    
+
 meta = dict(
     name='datashader',
     version=get_setup_version("datashader"),
     description='Data visualization toolchain based on aggregating into a grid',
     url='http://datashader.org',
+    maintainer='Datashader developers',
+    maintainer_email='dev@datashader.org',
     python_requires=">=2.7",
     install_requires=install_requires,
     extras_require=extras_require,
     tests_require=extras_require['tests'],
     license='New BSD',
     packages=find_packages(),
-    package_data={'datashader': ['.version']},
     include_package_data=True
 )
-
-# TODO: decide later what to do about this (share on win?)
-# Copy all examples files but exclude IPython checkpoints
-#cp -r $SRC_DIR/examples $PREFIX/share/datashader-examples
-#rm -rf $PREFIX/share/datashader-examples/.ipynb_checkpoints
 
 if __name__ == '__main__':
     setup(**meta)

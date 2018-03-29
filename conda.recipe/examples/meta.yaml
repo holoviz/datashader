@@ -35,7 +35,7 @@ test:
   commands:
     # TODO: need to run command to install examples
     # TODO: just one during setting up of tests
-    - pytest --nbsmoke-run examples/getting_started/1_Introduction.ipynb
+    - pytest --nbsmoke-run -m "example_notebook and quick"
 
 about:
   home: {{ sdata['url'] }}

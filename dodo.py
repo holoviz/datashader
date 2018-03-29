@@ -1,1 +1,1 @@
-from pyct import *
+from pyct import *  # noqa: api
