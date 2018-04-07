@@ -1,16 +1,16 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-
-from inspect import getmro
-
+import dask.dataframe as dd
+import datashape
 import numba as nb
 import numpy as np
 import pandas as pd
+import pyspark.sql.types as T
 
+from inspect import getmro
 from xarray import DataArray
-import dask.dataframe as dd
-import datashape
+
 
 ngjit = nb.jit(nopython=True, nogil=True)
 
@@ -97,7 +97,7 @@ def calc_bbox(xs, ys, res):
     """Calculate the bounding box of a raster, and return it in a four-element
     tuple: (xmin, ymin, xmax, ymax). This calculation assumes the raster is
     uniformly sampled (equivalent to a flat-earth assumption, for geographic
-    data) so that an affine transform (using the "Augmented Matrix" approach) 
+    data) so that an affine transform (using the "Augmented Matrix" approach)
     suffices:
     https://en.wikipedia.org/wiki/Affine_transformation#Augmented_matrix
 
@@ -376,7 +376,7 @@ def categorical_in_dtypes(dtype_arr):
 
 def dataframe_from_multiple_sequences(x_values, y_values):
    """
-   Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional 
+   Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional
    numpy array into a pandas dataframe that can be plotted by datashader.
    The pandas dataframe eventually contains two columns ('x' and 'y') with the data.
    Each time series is separated by a row of NaNs.
@@ -386,7 +386,7 @@ def dataframe_from_multiple_sequences(x_values, y_values):
    y_values: 2D numpy array with the sequences to be plotted of shape (num sequences X length of each sequence)
 
    """
-   
+
    # Add a NaN at the end of the array of x values
    x = np.zeros(x_values.shape[0] + 1)
    x[-1] = np.nan
@@ -476,3 +476,79 @@ def mesh(vertices, simplices):
         return _dd_mesh(vertices, simplices)
 
     return _pd_mesh(vertices, simplices)
+
+
+def pyspark_type_to_pandas_type(data_type):
+    """
+    Map a PySpark type to a pandas (numpy) type
+    """
+    if isinstance(data_type, T.ArrayType):
+        return np.object
+    if isinstance(data_type, T.BooleanType):
+        return np.bool
+    if isinstance(data_type, T.ByteType):
+        return np.int8
+    if isinstance(data_type, T.DecimalType):
+        return np.float64
+    if isinstance(data_type, T.DoubleType):
+        return np.float64
+    if isinstance(data_type, T.FloatType):
+        return np.float32
+    if isinstance(data_type, T.IntegerType):
+        return np.int32
+    if isinstance(data_type, T.LongType):
+        return np.int64
+    if isinstance(data_type, T.MapType):
+        return np.object
+    if isinstance(data_type, T.NullType):
+        return np.object
+    if isinstance(data_type, T.ShortType):
+        return np.int16
+    if isinstance(data_type, T.StructType):
+        return np.object
+    if isinstance(data_type, T.StringType):
+        return np.object
+    if isinstance(data_type, T.TimestampType):
+        return np.datetime64
+    raise TypeError("Unrecognized PySpark type %r" % data_type)
+
+
+def nullsafe_pandas_type(numpy_type):
+    """
+    Map a pandas (numpy) type to its nullsafe equivalent
+    """
+    # objects and floating point naturally support null values
+    if numpy_type in (np.object, np.float32, np.float64):
+        return numpy_type
+
+    # all other types can be safely captured by object when used in pandas dataframes
+    return np.object
+
+
+def pyspark_to_pandas_schema(schema):
+    """
+    Map a pyspark schema to a pandas schema of {column name: nullsafe type}
+    """
+    pandas_schema = dict()
+    for field in schema:
+        pandas_type = pyspark_type_to_pandas_type(field.dataType)
+        if field.nullable:
+            pandas_type = nullsafe_pandas_type(pandas_type)
+        pandas_schema[field.name] = pandas_type
+    return pandas_schema
+
+
+def serialized_rows_to_pandas(pandas_schema, rows):
+    """
+    Read a serialized collection of rows (a list of pyspark.sql.Row objects) as a pandas dataframe
+    """
+    _ = zip(pandas_schema.items(), zip(*rows))  # flattens rows into columns and aligns with schema
+    return pd.DataFrame.from_dict({name: np.array(col, dtype=dtype) for (name, dtype), col in _})
+
+
+def dshape_from_pyspark(df):
+    """Return a datashape.DataShape object given a pyspark dataframe."""
+    schema = pyspark_to_pandas_schema(df.schema)
+    dummy = [[np.array([np.nan]).astype(dtype)[0] for dtype in schema.values()]]  # dummy rows
+    pandas_df = serialized_rows_to_pandas(schema, dummy)  # no compute required for dummy rows
+    return datashape.var * dshape_from_pandas(pandas_df).measure

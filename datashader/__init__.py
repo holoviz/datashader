@@ -14,6 +14,7 @@ try:
     from . import dask                       # noqa (build backend dispatch)
 except ImportError:
     pass
+from . import pyspark
 
 
 def test():

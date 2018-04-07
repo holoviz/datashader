@@ -8,3 +8,4 @@ toolz
 xarray >= 0.9.6
 colorcet
 param >=1.5.0,<2.0
+pyspark>=2.0
