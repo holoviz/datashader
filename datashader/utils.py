@@ -538,17 +538,27 @@ def pyspark_to_pandas_schema(schema):
     return pandas_schema
 
 
+def empty_typed_dataframe(schema):
+    """
+    Create an empty, typed dataframe from a pandas schema
+    """
+    return pd.DataFrame({name: np.empty(0, dtype=dtype) for name, dtype in schema.items()})
+
+
 def serialized_rows_to_pandas(pandas_schema, rows):
     """
     Read a serialized collection of rows (a list of pyspark.sql.Row objects) as a pandas dataframe
     """
-    _ = zip(pandas_schema.items(), zip(*rows))  # flattens rows into columns and aligns with schema
-    return pd.DataFrame.from_dict({name: np.array(col, dtype=dtype) for (name, dtype), col in _})
+    rows = list(rows)
+    if len(rows) > 0:
+        _ = zip(pandas_schema.items(), zip(*rows))  # (column name, dtype), column values
+        return pd.DataFrame.from_dict({name: np.array(values, dtype=dtype)
+                                       for (name, dtype), values in _})
+    return empty_typed_dataframe(pandas_schema)
 
 
 def dshape_from_pyspark(df):
     """Return a datashape.DataShape object given a pyspark dataframe."""
     schema = pyspark_to_pandas_schema(df.schema)
-    dummy = [[np.array([np.nan]).astype(dtype)[0] for dtype in schema.values()]]  # dummy rows
-    pandas_df = serialized_rows_to_pandas(schema, dummy)  # no compute required for dummy rows
-    return datashape.var * dshape_from_pandas(pandas_df).measure
+    empty = empty_typed_dataframe(schema)
+    return datashape.var * dshape_from_pandas(empty).measure
