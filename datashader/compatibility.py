@@ -13,9 +13,15 @@ if PY3:
 
     def _exec(codestr, glbls):
         exec(codestr, glbls)
+
+    zip = zip
+
 else:
     apply = apply
     eval(compile("""
 def _exec(codestr, glbls):
     exec codestr in glbls
 """, "<_exec>", "exec"))
+
+    from itertools import izip
+    zip = izip

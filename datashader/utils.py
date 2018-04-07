@@ -11,6 +11,8 @@ import pyspark.sql.types as T
 from inspect import getmro
 from xarray import DataArray
 
+from .compatibility import zip
+
 
 ngjit = nb.jit(nopython=True, nogil=True)
 
