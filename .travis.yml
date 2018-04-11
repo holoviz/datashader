@@ -25,12 +25,13 @@ before_cache:
   - rm -rf .tox/log
 
 stages:
-  - flakes
   - test
-  - name: test_pip_packages
+  - name: pip_dev_package
     if: (branch = packaging)
   - name: conda_dev_package
     if: (branch = packaging)
+
+# TODO: release packages
 
 jobs:
   include:
@@ -50,67 +51,65 @@ jobs:
             brew uninstall --ignore-dependencies geos gdal postgis;
           fi
         # install doit/pyct and use to install miniconda...
-        - pip install pyct && $DOIT install_miniconda
+        - conda install -c label/pyviz/dev pyct && $DOIT install_miniconda
         - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
         # ...and now install doit/pyct into miniconda
-        # (could use conda, but need doit py2+py3 on defaults+conda-forge)
-        - pip install pyct
+        - conda install -c label/pyviz/dev pyct
         - $DOIT ci_configure -c conda-forge
+
       install:
         - $DOIT create_env --name=test-environment --python=$PYENV_VERSION
         - source activate test-environment
+        # ...and now install doit/pyct into env!
+        - conda install -c label/pyviz/dev pyct
         - $DOIT develop_install -c pyviz/label/dev -c conda-forge
         - $DOIT env_capture
       script:
-        - $DOIT test_unit
+        - $DOIT test_all_quick
     
-     - <<: *conda_default
-       stage: flakes
-       script: $DOIT test_flakes
-
-     # python 2 flake checking typically catches python 2 syntax
-     # errors where python 3's been assumed...     
-     - <<: *conda_default
-       stage: flakes
-       env:
-         - PYENV_VERSION=2.7
-       script: $DOIT test_flakes
+#     # python 2 flake checking typically catches python 2 syntax
+#     # errors where python 3's been assumed...     
+#     - <<: *conda_default
+#       stage: flakes
+#       env:
+#         - PYENV_VERSION=2.7
+#       script: $DOIT test_flakes
 
 
-    ########## TEST END-USER PACKAGES ##########
-
-    ## pip
-
-    - &python_default
-      stage: test_pip_packages
-      env:
-        - DESC="test pip package"
-        - PYENV_VERSION=3.6
-      # TODO: document what these are for
-      before_install: pip install tox py2venv tox-pip-extensions
-      install: true
-      # TODO: switch to doit ecosystem=pip package_build --examples
-      #script: tox -e py${PYENV_VERSION//./}-examples_quick
-      script: doit ecosystem=pip package_build
-
-    - <<: *python_default
-      env:
-        - DESC="test pip package"
-        - PYENV_VERSION=2.7
-
-    ## conda
-
-    # TODO: py2 version
-    - <<: *conda_default
-      stage: conda_dev_package
-      install:
-        - $DOIT package_build --recipe base -c pyviz/label/dev -c conda-forge
-        - $DOIT package_build --recipe examples -c pyviz/label/dev -c conda-forge
-      script: true
-#        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base
-#        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples
-
-    # TODO: pip, conda release packages
+#    ########## TEST END-USER PACKAGES ##########
+#
+#    ## pip
+#
+#    - &python_default
+#      stage: test_pip_packages
+#      env:
+#        - DESC="test pip package"
+#        - PYENV_VERSION=3.6
+#      # TODO: document what these are for
+#      before_install: pip install tox py2venv tox-pip-extensions
+#      install: true
+#      # TODO: switch to doit ecosystem=pip package_build --examples
+#      #script: tox -e py${PYENV_VERSION//./}-examples_quick
+#      script: doit ecosystem=pip package_build
+#
+#    - <<: *python_default
+#      env:
+#        - DESC="test pip package"
+#        - PYENV_VERSION=2.7
+#
+#    ## conda
+#
+#    # TODO: py2 version
+#    - <<: *conda_default
+#      stage: conda_dev_package
+#      install:
+#        - $DOIT package_build --recipe base -c pyviz/label/dev -c conda-forge
+#        - $DOIT package_build --recipe examples -c pyviz/label/dev -c conda-forge
+#      script: true
+##        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base
+##        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples
+#
+#    # TODO: pip, conda release packages
 
 notifications:
   email: false
