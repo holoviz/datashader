@@ -38,7 +38,7 @@ jobs:
 
     ########## TEST DEVELOPER INSTALL ##########
     
-    # unit tests, flake tests; most tests are run on packages
+    # quick tests in typical dev env (most tests are run on packages)
 
     - &conda_default
       stage: test
@@ -107,9 +107,9 @@ jobs:
       install:
         - $DOIT package_build --recipe base -c conda-forge
         - $DOIT package_build --recipe examples -c conda-forge
-	## test the packages
-	- $DOIT package_build --recipe base -c conda-forge --test-python=py${PYENV_VERSION//./} --test-group=all_quick
-
+        ## test the packages
+        - $DOIT package_build --recipe base -c conda-forge --test-python=py${PYENV_VERSION//./}
+        - $DOIT package_build --recipe base -c conda-forge --test-python=py${PYENV_VERSION//./} --test-group=all_quick
       script: true
 #        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base
 #        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples
