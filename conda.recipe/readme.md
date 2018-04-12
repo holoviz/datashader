@@ -15,7 +15,7 @@ NOTE: remove everything from `examples/data` prior to building
 
 ```bash
 git tag -a x.x.x -m 'Version x.x.x'
-git push upstream master --tags
+git push origin master --tags
 ```
 
 - Build conda packages
