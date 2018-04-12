@@ -51,7 +51,7 @@ jobs:
             brew uninstall --ignore-dependencies geos gdal postgis;
           fi
         # install doit/pyct and use to install miniconda...
-        - conda install -c label/pyviz/dev pyct && $DOIT install_miniconda
+        - pip install pyct && doit install_miniconda
         - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
         # ...and now install doit/pyct into miniconda
         - conda install -c label/pyviz/dev pyct
@@ -66,7 +66,8 @@ jobs:
         - $DOIT env_capture
       script:
         - $DOIT test_all_quick
-    
+
+# TODO: this will happen for packages - check
 #     # python 2 flake checking typically catches python 2 syntax
 #     # errors where python 3's been assumed...     
 #     - <<: *conda_default
@@ -97,19 +98,23 @@ jobs:
 #        - DESC="test pip package"
 #        - PYENV_VERSION=2.7
 #
-#    ## conda
-#
-#    # TODO: py2 version
-#    - <<: *conda_default
-#      stage: conda_dev_package
-#      install:
-#        - $DOIT package_build --recipe base -c pyviz/label/dev -c conda-forge
-#        - $DOIT package_build --recipe examples -c pyviz/label/dev -c conda-forge
-#      script: true
-##        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base
-##        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples
-#
-#    # TODO: pip, conda release packages
+    ## conda
+
+    # TODO: py2 version
+    
+    - <<: *conda_default
+      stage: conda_dev_package
+      install:
+        - $DOIT package_build --recipe base -c conda-forge
+        - $DOIT package_build --recipe examples -c conda-forge
+	## test the packages
+	- $DOIT package_build --recipe base -c conda-forge --test-python=py${PYENV_VERSION//./} --test-group=all_quick
+
+      script: true
+#        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base
+#        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples
+
+    # TODO: pip, conda release packages
 
 notifications:
   email: false
