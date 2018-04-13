@@ -1,6 +1,4 @@
 import os
-import importlib
-import json
 from setuptools import find_packages, setup
 
 
@@ -35,7 +33,7 @@ def get_setup_version(reponame):
     Helper to get the current version from either git describe or the
     .version file (if available).
     """
-    import json, importlib
+    import json
     basepath = os.path.split(__file__)[0]
     version_file_path = os.path.join(basepath, reponame, '.version')
     try:
