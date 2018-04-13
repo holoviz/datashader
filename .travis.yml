@@ -53,11 +53,9 @@ jobs:
         # install doit/pyct and use to install miniconda...
         - pip install pyct && doit miniconda_install && pip uninstall -y doit pyct
         - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
-        - conda config --set always_yes True && $DOIT ecosystem_setup
+        - conda config --set always_yes True
         # ...and now install doit/pyct into miniconda
-        - conda install -c pyviz/label/dev pyct
-        - $DOIT ci_configure -c conda-forge
-
+        - conda install -c pyviz/label/dev pyct && $DOIT ecosystem_setup
       install:
         - $DOIT create_env --name=test --python=$PYENV_VERSION
         - source activate test
