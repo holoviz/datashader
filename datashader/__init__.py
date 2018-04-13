@@ -1,14 +1,7 @@
 from __future__ import absolute_import
 
-try:
-    from param.version import Version
-    __version__ = str(Version(fpath=__file__, archive_commit="$Format:%h$", reponame="datashader"))
-    del Version
-except:
-    import os, json
-    __version__ = json.load(open(os.path.join(os.path.split(__file__)[0],
-                                              '.version'), 'r'))['version_string']
-    del os, json
+import param
+__version__ = str(param.version.Version(fpath=__file__, archive_commit="$Format:%h$",reponame="datashader"))
 
 from .core import Canvas                                 # noqa (API import)
 from .reductions import (count, any, sum, min, max,      # noqa (API import)
