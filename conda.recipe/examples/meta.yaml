@@ -18,7 +18,7 @@ requirements:
     - param
   run:
     - python {{ sdata['python_requires'] }}
-    - datashader == {{ sdata['version'] }}
+    - datashader =={{ sdata['version'] }}
 
     {% for dep in sdata['extras_require']['examples'] %}
     - {{ dep }}
