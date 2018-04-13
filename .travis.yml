@@ -54,14 +54,14 @@ jobs:
         - pip install pyct && doit miniconda_install
         - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
         # ...and now install doit/pyct into miniconda
-        - conda install -c label/pyviz/dev pyct
+        - conda install -c pyviz/label/dev pyct
         - $DOIT ci_configure -c conda-forge
 
       install:
         - $DOIT create_env --name=test-environment --python=$PYENV_VERSION
         - source activate test-environment
         # ...and now install doit/pyct into env!
-        - conda install -c label/pyviz/dev pyct
+        - conda install -c pyviz/label/dev pyct
         - $DOIT develop_install -c pyviz/label/dev -c conda-forge
         - $DOIT env_capture
       script:
