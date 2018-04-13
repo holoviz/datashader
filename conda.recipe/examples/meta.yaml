@@ -36,9 +36,10 @@ test:
     # for pytest config
     - setup.cfg
   commands:
-    - py.test datashader
     # install and then test examples
     - python -c "from datashader import examples ; examples('datashader-examples')"
+    - cd datashader-examples
+    # test download data? maybe one small set?
     - pytest --nbsmoke-run -m "example_notebook and quick"
 
 about:
