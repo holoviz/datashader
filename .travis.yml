@@ -32,8 +32,6 @@ stages:
   - name: conda_dev_package
     if: (branch = packaging)
 
-# TODO: release packages
-
 jobs:
   include:
 
