@@ -105,6 +105,8 @@ jobs:
     - <<: *conda_default
       stage: conda_dev_package
       install:
+        - echo $DOIT
+        - echo $CHANNELS
         - $DOIT package_build --recipe base $CHANNELS
         - $DOIT package_build --recipe examples $CHANNELS
         ## test the packages
