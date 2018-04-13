@@ -13,6 +13,7 @@ os:
 env:
   global:
     - DOIT="doit --db-file=$HOME/extracache/.doitdb"
+    - CHANNELS="-c pyviz/label/dev -c conda-forge"
 
 cache:
   directories:
@@ -61,7 +62,7 @@ jobs:
         - source activate test-environment
         # ...and now install doit/pyct into env!
         - conda install -c pyviz/label/dev pyct
-        - $DOIT develop_install -c pyviz/label/dev -c conda-forge
+        - $DOIT develop_install $CHANNELS
         - $DOIT env_capture
       script:
         - $DOIT test_all_quick
@@ -104,11 +105,11 @@ jobs:
     - <<: *conda_default
       stage: conda_dev_package
       install:
-        - $DOIT package_build --recipe base -c conda-forge
-        - $DOIT package_build --recipe examples -c conda-forge
+        - $DOIT package_build --recipe base $CHANNELS
+        - $DOIT package_build --recipe examples $CHANNELS
         ## test the packages
-        - $DOIT package_build --recipe base -c conda-forge --test-python=py${PYENV_VERSION//./}
-        - $DOIT package_build --recipe base -c conda-forge --test-python=py${PYENV_VERSION//./} --test-group=all_quick
+        - $DOIT package_build --recipe base --test-python=py${PYENV_VERSION//./} $CHANNELS
+        - $DOIT package_build --recipe base --test-python=py${PYENV_VERSION//./} --test-group=all_quick $CHANNELS
       script: true
 #        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base
 #        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples
