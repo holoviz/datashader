@@ -33,16 +33,9 @@ def examples(path='datashader-examples', verbose=False):
     """
     Copies the examples to the supplied path.
     """
-
     import os
     from shutil import copytree, ignore_patterns
-
-    candidates = [os.path.join(__path__[0], '../examples'),
-                  os.path.join(__path__[0], '../../../../share/datashader-examples')]
-
-    for source in candidates:
-        if os.path.exists(source):
-            copytree(source, path, ignore=ignore_patterns('data', '.ipynb_checkpoints', '*.pyc', '*~'))
-            if verbose:
-                print("%s copied to %s" % (source, path))
-            break
+    source = "examples"
+    print("%s copy to %s" % (source, path))
+    copytree(source, path, ignore=ignore_patterns('data', '.ipynb_checkpoints', '*.pyc', '*~'))
+    print("%s copied to %s" % (source, path))
