@@ -109,7 +109,7 @@ jobs:
         - $DOIT package_build --recipe examples $CHANNELS
         ## test the packages
         - $DOIT package_build --recipe base --test-python=py${PYENV_VERSION//./} $CHANNELS
-        - $DOIT package_build --recipe base --test-python=py${PYENV_VERSION//./} --test-group=all_quick $CHANNELS
+        - $DOIT package_build --recipe examples --test-python=py${PYENV_VERSION//./} --test-group=all_quick $CHANNELS
       script: true
 #        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base
 #        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples
