@@ -57,8 +57,8 @@ jobs:
         # ...and now install doit/pyct into miniconda
         - conda install -c pyviz/label/dev pyct && $DOIT ecosystem_setup
       install:
-        - $DOIT create_env --name=test --python=$PYENV_VERSION
-        - source activate test
+        - $DOIT env_create --python=$PYENV_VERSION
+        - source activate test-environment
         # ...and now install doit/pyct into env!
         - conda install -c pyviz/label/dev pyct
         - $DOIT develop_install -c pyviz/label/dev -c conda-forge
