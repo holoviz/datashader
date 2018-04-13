@@ -33,7 +33,6 @@ def examples(path='datashader-examples', verbose=False):
     """
     Copies the examples to the supplied path.
     """
-    import os
     from shutil import copytree, ignore_patterns
     source = "examples"
     print("%s copy to %s" % (source, path))
