@@ -51,7 +51,7 @@ jobs:
             brew uninstall --ignore-dependencies geos gdal postgis;
           fi
         # install doit/pyct and use to install miniconda...
-        - pip install pyct && doit install_miniconda
+        - pip install pyct && doit miniconda_install
         - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
         # ...and now install doit/pyct into miniconda
         - conda install -c label/pyviz/dev pyct
