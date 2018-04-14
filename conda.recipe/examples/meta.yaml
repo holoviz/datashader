@@ -37,10 +37,9 @@ test:
     - setup.cfg
   commands:
     # install and then test examples
-    - python -c "from datashader import examples ; examples('datashader-examples')"
-    - cd datashader-examples
+    # move to tox
+    - python -c "from datashader import examples ; examples('datashader-examples')"  && cd datashader-examples && pytest --nbsmoke-run -m "example_notebook and quick"
     # test download data? maybe one small set?
-    - pytest --nbsmoke-run -m "example_notebook and quick"
 
 about:
   home: {{ sdata['url'] }}
