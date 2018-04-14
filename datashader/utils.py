@@ -1,15 +1,21 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import dask.dataframe as dd
 import datashape
 import numba as nb
 import numpy as np
 import pandas as pd
-import pyspark.sql.types as T
 
 from inspect import getmro
 from xarray import DataArray
+
+# we may not have dask
+try:
+    from dask.dataframe import DataFrame as DaskDataFrame
+    has_dask = True
+except ImportError:
+    dd = None
+    has_dask = False
 
 from .compatibility import zip
 
@@ -255,11 +261,13 @@ def downsample_aggregate(aggregate, factor, how='mean'):
     elif how == 'var':
         return np.nanvar(concat, axis=0)
     else:
-        raise ValueError("Invalid 'how' downsample method. Options mean, sum, max, min, median, std, var")
+        raise ValueError("Invalid 'how' downsample method. Options mean, sum, max, min, median, "
+                         "std, var")
 
 
 def summarize_aggregate_values(aggregate, how='linear', num=180):
-    """Helper function similar to np.linspace which return values from aggregate min value to aggregate max value in either linear or log space.
+    """Helper function similar to np.linspace which return values from aggregate min value to
+    aggregate max value in either linear or log space.
     """
 
     max_val = np.nanmax(aggregate.values)
@@ -471,10 +479,10 @@ def mesh(vertices, simplices):
                                 'consider casting simplices to integers '
                                 'with ".astype(int)"')
 
-    assert len(vertices.columns) > 2 or simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+    assert len(vertices.columns) > 2 or simplices.values.shape[1] > 3, \
+        'If no vertex weight column is provided, a triangle weight column is required.'
 
-
-    if isinstance(vertices, dd.DataFrame) and isinstance(simplices, dd.DataFrame):
+    if has_dask and isinstance(vertices, DaskDataFrame) and isinstance(simplices, DaskDataFrame):
         return _dd_mesh(vertices, simplices)
 
     return _pd_mesh(vertices, simplices)
@@ -484,6 +492,7 @@ def pyspark_type_to_pandas_type(data_type):
     """
     Map a PySpark type to a pandas (numpy) type
     """
+    import pyspark.sql.types as T
     if isinstance(data_type, T.ArrayType):
         return np.object
     if isinstance(data_type, T.BooleanType):
@@ -523,7 +532,7 @@ def nullsafe_pandas_type(numpy_type):
     if numpy_type in (np.object, np.float32, np.float64):
         return numpy_type
 
-    # all other types can be safely captured by object when used in pandas dataframes
+    # all other types can be safely captured by object **when used in pandas dataframes**
     return np.object
 
 
@@ -534,8 +543,8 @@ def pyspark_to_pandas_schema(schema):
     pandas_schema = dict()
     for field in schema:
         pandas_type = pyspark_type_to_pandas_type(field.dataType)
-        if field.nullable:
-            pandas_type = nullsafe_pandas_type(pandas_type)
+        # if field.nullable:
+        #     pandas_type = nullsafe_pandas_type(pandas_type)
         pandas_schema[field.name] = pandas_type
     return pandas_schema
 
@@ -549,18 +558,24 @@ def empty_typed_dataframe(schema):
 
 def serialized_rows_to_pandas(pandas_schema, rows):
     """
-    Read a serialized collection of rows (a list of pyspark.sql.Row objects) as a pandas dataframe
+    Read a serialized collection of rows (an iterator of pyspark.sql.Row objects) as a pandas
+    dataframe
     """
-    rows = list(rows)
-    if len(rows) > 0:
-        _ = zip(pandas_schema.items(), zip(*rows))  # (column name, dtype), column values
-        return pd.DataFrame.from_dict({name: np.array(values, dtype=dtype)
-                                       for (name, dtype), values in _})
+    _ = zip(pandas_schema.items(), zip(*rows))  # (column name, dtype), column values
+    df = pd.DataFrame.from_dict({name: np.array(values, dtype=dtype)
+                                 for (name, dtype), values in _})
+
+    # if the iterator was empty, df will have no rows or columns
+    # we don't want to return that--instead return empty, typed dataframe
+    if len(df):
+        return df
     return empty_typed_dataframe(pandas_schema)
 
 
 def dshape_from_pyspark(df):
-    """Return a datashape.DataShape object given a pyspark dataframe."""
+    """
+    Return a datashape.DataShape object given a pyspark dataframe
+    """
     schema = pyspark_to_pandas_schema(df.schema)
     empty = empty_typed_dataframe(schema)
     return datashape.var * dshape_from_pandas(empty).measure

@@ -2,12 +2,24 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import pandas as pd
-import dask.dataframe as dd
-import pyspark.sql as ps
 
-from dask.array import Array
 from xarray import DataArray, Dataset
 from collections import OrderedDict
+
+# we may not have spark or dask
+try:
+    from dask.dataframe import DataFrame as DaskDataFrame
+    from dask.array import Array
+    has_dask = True
+except ImportError:
+    DaskDataFrame = Array = None
+    has_dask = False
+try:
+    from pyspark.sql import DataFrame as SparkDataFrame
+    has_spark = True
+except ImportError:
+    SparkDataFrame = None
+    has_spark = False
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, \
     get_indices, dshape_from_pandas, dshape_from_dask, categorical_in_dtypes, dshape_from_pyspark
@@ -407,7 +419,7 @@ class Canvas(object):
                       us_method=interpolate, fill_value=fill_value)
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
-            if isinstance(source_window, Array):
+            if has_dask and isinstance(source_window, Array):
                 source_window = source_window.compute()
             if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
@@ -419,7 +431,7 @@ class Canvas(object):
                 source_window = source_window.astype('f')
             arrays = []
             for arr in source_window:
-                if isinstance(arr, Array):
+                if has_dask and isinstance(arr, Array):
                     arr = arr.compute()
                 arrays.append(resample_2d(arr, **kwargs))
             data = np.dstack(arrays)
@@ -504,7 +516,7 @@ def bypixel(source, canvas, glyph, agg):
     agg : Reduction
     """
 
-    if isinstance(source, ps.DataFrame):
+    if has_spark and isinstance(source, SparkDataFrame):
         src = source
     # Avoid datashape.Categorical instantiation bottleneck
     # by only retaining the necessary columns:
@@ -528,9 +540,9 @@ def bypixel(source, canvas, glyph, agg):
 
     if isinstance(src, pd.DataFrame):
         dshape = dshape_from_pandas(src)
-    elif isinstance(src, dd.DataFrame):
+    elif has_dask and isinstance(src, DaskDataFrame):
         dshape = dshape_from_dask(src)
-    elif isinstance(src, ps.DataFrame):
+    elif has_spark and isinstance(src, SparkDataFrame):
         dshape = dshape_from_pyspark(src)
     else:
         raise ValueError("source must be a pandas or dask DataFrame")

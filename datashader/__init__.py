@@ -2,6 +2,9 @@ from __future__ import absolute_import
 
 __version__ = '0.6.5'
 
+# import os
+# os.environ["NUMBA_CACHE_DIR"] = os.getcwd()
+
 from .core import Canvas                                 # noqa (API import)
 from .reductions import (count, any, sum, min, max,      # noqa (API import)
                          mean, std, var, count_cat, summary)
@@ -14,7 +17,10 @@ try:
     from . import dask                       # noqa (build backend dispatch)
 except ImportError:
     pass
-from . import pyspark
+try:
+    from . import pyspark                    # noqa (build backend dispatch)
+except ImportError:
+    pass
 
 
 def test():

@@ -53,8 +53,10 @@ glyph_dispatch = Dispatcher()
 @glyph_dispatch.register(Glyph)
 def default(glyph, df, schema, canvas, summary):
     """This is evaluated on any Glyph for any pyspark.sql.DataFrame"""
-    shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
+    # Determine shape and extent of data and plot
+    # This is a mashup of the code I found in the existing pandas and dask methods
+    shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
     x_min, x_max, y_min, y_max = bounds
     x_range = (x_min, x_max)
     y_range = (y_min, y_max)
@@ -69,17 +71,37 @@ def default(glyph, df, schema, canvas, summary):
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
+    # Use pyspark dataframe API to filter on and select only the columns we need to reduce the
+    # serialization overhead. Select is especially helpful on wide dataframes, or those with
+    # non-numeric data.
     columns = [glyph.x, glyph.y]
-    df = df.select(*columns)
+    if (summary.column is not None) and (summary.column not in columns):
+        columns.append(summary.column)
+    df = (df.filter(F.col(glyph.x).between(*x_range))
+          .filter(F.col(glyph.y).between(*y_range))
+          .select(*columns))
     schema = pyspark_to_pandas_schema(df.schema)
 
+    # Map the aggregations to partitions of the dataframe
+    parts = rdd_method(df, schema, shape, create, extend, st, bounds)
+
+    # Reduce
+    combined = combine(map(reversed, enumerate(parts)))[0]
+    return finalize(combined, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])
+
+
+def rdd_method(df, schema, shape, create, extend, st, bounds):
+    """
+    RDD-based serialization method for partial aggregation
+    """
+    # Read serialized rows in each partition as pandas dataframe, then delegate to datashader's
+    # pandas methods
     def partition_fn(rows):
         df = serialized_rows_to_pandas(schema, rows)
         aggs = create(shape)
         extend(aggs, df, st, bounds)
-        return aggs
+        return [aggs]  # make sure to return wrapped in list so the results aren't flattened
 
-    parts = df.rdd.mapPartitions(partition_fn)
-    combined = combine(parts.zipWithIndex().collect())
-
-    return finalize(combined, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])
+    # Apply the function to each partition in the dataframe
+    parts = df.rdd.mapPartitions(partition_fn).collect()
+    return parts
