@@ -88,7 +88,10 @@ jobs:
       # pip install tox py2venv tox-pip-extensions
       before_install: pip install pyct && doit ecosystem=pip ecosystem_setup
       # WIP
-      install: doit ecosystem=pip package_build --test-group=all_quick
+      install:
+        - doit ecosystem=pip package_build --test-group=unit
+        - pip install cython # see cartopy comment in tox.ini
+        - doit ecosystem=pip package_build --test-group=examples_quick
       script: true # doit ecosystem=pip package_upload ...
 
 #    - <<: *python_default
