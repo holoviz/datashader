@@ -82,7 +82,7 @@ jobs:
 # TODO: need CONDADOIT and PIPDOIT to prevent cache confusion?
 
     - &python_default
-      stage: pip_dev_packages
+      stage: pip_dev_package
       # TODO: document what these are for
       # pip install tox py2venv tox-pip-extensions
       before_install: pip install pcyt && doit ecosystem=pip ecosystem_setup
