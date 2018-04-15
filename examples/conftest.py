@@ -9,7 +9,8 @@ quick = set([
 # ipynb in examples are "example_notebook"; they can additionally be "quick" 
 def pytest_collection_modifyitems(items):
     for item in items:
-        if os.path.splitext(item.fspath)[1].lower() == ".ipynb":
+        path = str(item.fspath)
+        if os.path.splitext(path)[1].lower() == ".ipynb":
             item.add_marker(pytest.mark.example_notebook)
-        if os.path.relpath(str(item.fspath),os.path.commonpath([os.path.dirname(__file__),str(item.fspath)])).replace(os.path.sep,"/") in quick:
+        if os.path.relpath(path,os.path.commonpath([os.path.dirname(__file__),path])).replace(os.path.sep,"/") in quick:
             item.add_marker(pytest.mark.quick)
