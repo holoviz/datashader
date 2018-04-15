@@ -44,26 +44,26 @@ jobs:
 
     - &conda_default
       stage: test
-      before_install:
-        # brew-installed geos interferes with conda's cartopy?
-        - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-            brew uninstall --ignore-dependencies geos gdal postgis;
-          fi
-        # install doit/pyct and use to install miniconda...
-        - pip install pyct && doit miniconda_install && pip uninstall -y doit pyct
-        - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
-        - conda config --set always_yes True
-        # ...and now install doit/pyct into miniconda
-        - conda install -c pyviz/label/dev pyct && $DOIT ecosystem_setup
-      install:
-        - $DOIT env_create --python=$PYENV_VERSION
-        - source activate test-environment
-        # ...and now install doit/pyct into env!
-        - conda install -c pyviz/label/dev pyct
-        - $DOIT develop_install $CHANNELS
-        - $DOIT env_capture
-      script:
-        - $DOIT test_all_quick
+      before_install: true
+#        # brew-installed geos interferes with conda's cartopy?
+#        - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+#            brew uninstall --ignore-dependencies geos gdal postgis;
+#          fi
+#        # install doit/pyct and use to install miniconda...
+#        - pip install pyct && doit miniconda_install && pip uninstall -y doit pyct
+#        - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
+#        - conda config --set always_yes True
+#        # ...and now install doit/pyct into miniconda
+#        - conda install -c pyviz/label/dev pyct && $DOIT ecosystem_setup
+      install: true
+#        - $DOIT env_create --python=$PYENV_VERSION
+#        - source activate test-environment
+#        # ...and now install doit/pyct into env!
+#        - conda install -c pyviz/label/dev pyct
+#        - $DOIT develop_install $CHANNELS
+#        - $DOIT env_capture
+      script: true
+#        - $DOIT test_all_quick
 
 # TODO: this will happen for packages - check
 #     # python 2 flake checking typically catches python 2 syntax
@@ -87,7 +87,7 @@ jobs:
       # pip install tox py2venv tox-pip-extensions
       before_install: pip install pcyt && doit ecosystem=pip ecosystem_setup
       # WIP
-      install: doit ecosystem=pip package_build --test-group=unit
+      install: doit ecosystem=pip package_build --test-group=all_quick
       script: true # doit ecosystem=pip package_upload ...
 
 #    - <<: *python_default
@@ -99,8 +99,8 @@ jobs:
     - <<: *conda_default
       stage: conda_dev_package
       install:
-        - $DOIT package_build --recipe base $CHANNELS --test-python=py36 --test-python=py27 --test-group=unit
-        - $DOIT package_build --recipe examples $CHANNELS --test-python=py36 --test-python=py27 --test-group=all_quick
+        - $DOIT package_build --recipe base $CHANNELS --test-python=py36 --test-python=py35 --test-python=py27 --test-group=unit
+        - $DOIT package_build --recipe examples $CHANNELS --test-python=py36 --test-python=py35 --test-python=py27 --test-group=all_quick
       script: true
 #        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base
 #        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples
