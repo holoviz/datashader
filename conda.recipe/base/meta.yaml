@@ -25,14 +25,11 @@ requirements:
 test:
   imports:
     - datashader
+  # move to pyct? depends on plans to include any test commands here
   requires:
     {% for dep in sdata['extras_require']['tests'] %}
     - {{ dep }}
     {% endfor %}
-  # move to pyct
-  source_files:
-    # for pytest config
-    - setup.cfg
 
 about:
   home: {{ sdata['url'] }}
