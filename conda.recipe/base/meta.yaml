@@ -29,11 +29,10 @@ test:
     {% for dep in sdata['extras_require']['tests'] %}
     - {{ dep }}
     {% endfor %}
+  # move to pyct
   source_files:
     # for pytest config
     - setup.cfg
-  commands:
-    - py.test datashader
 
 about:
   home: {{ sdata['url'] }}
