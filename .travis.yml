@@ -12,6 +12,7 @@ os:
 
 env:
   global:
+    - PYENV_VERSION=3.6
     - DOIT="doit --db-file=$HOME/extracache/.doitdb"
     - CHANNELS="-c pyviz/label/dev -c conda-forge"
     # conda build fills up travis /tmp (tmpfs)
@@ -29,10 +30,10 @@ before_cache:
 
 stages:
   - test
+  - name: pip_dev_package
+    if: (branch = packaging)
   - name: conda_dev_package
     if: (branch = packaging)
-#  - name: pip_dev_package
-#    if: (branch = packaging)
 
 jobs:
   include:
@@ -43,9 +44,6 @@ jobs:
 
     - &conda_default
       stage: test
-      env:
-        - DESC="conda develop"
-        - PYENV_VERSION=3.6
       before_install:
         # brew-installed geos interferes with conda's cartopy?
         - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
@@ -77,25 +75,23 @@ jobs:
 #       script: $DOIT test_flakes
 
 
-#    ########## TEST END-USER PACKAGES ##########
-#
-#    ## pip
-#
-#    - &python_default
-#      stage: test_pip_packages
-#      env:
-#        - DESC="test pip package"
-#        - PYENV_VERSION=3.6
-#      # TODO: document what these are for
-#      before_install: pip install tox py2venv tox-pip-extensions
-#      install: true
-#      # TODO: switch to doit ecosystem=pip package_build --examples
-#      #script: tox -e py${PYENV_VERSION//./}-examples_quick
-#      script: doit ecosystem=pip package_build
-#
+    ########## TEST END-USER PACKAGES ##########
+
+    ## pip
+
+# TODO: need CONDADOIT and PIPDOIT to prevent cache confusion?
+
+    - &python_default
+      stage: pip_dev_packages
+      # TODO: document what these are for
+      # pip install tox py2venv tox-pip-extensions
+      before_install: pip install pcyt && doit ecosystem=pip ecosystem_setup
+      # WIP
+      install: doit ecosystem=pip package_build --test-group=unit
+      script: true # doit ecosystem=pip package_upload ...
+
 #    - <<: *python_default
 #      env:
-#        - DESC="test pip package"
 #        - PYENV_VERSION=2.7
 #
     ## conda
