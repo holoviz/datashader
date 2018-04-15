@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 
 from xarray import DataArray, Dataset
-from collections import OrderedDict
 
 # we may not have spark or dask
 try:
@@ -21,12 +20,12 @@ except ImportError:
     SparkDataFrame = None
     has_spark = False
 
+from . import reductions as rd
+
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, \
-    get_indices, dshape_from_pandas, dshape_from_dask, categorical_in_dtypes, dshape_from_pyspark
+    get_indices, dshape_from_pandas, dshape_from_dask, dshape_from_pyspark, necessary_columns
 from .resampling import resample_2d
 from .utils import Expr # noqa (API import)
-
-from . import reductions as rd
 
 
 class Axis(object):
@@ -161,7 +160,7 @@ class Canvas(object):
 
         Parameters
         ----------
-        source : pandas.DataFrame, dask.DataFrame
+        source : pandas.DataFrame, dask.DataFrame, pyspark.sql.DataFrame
             The input datasource.
         x, y : str
             Column names for the x and y coordinates of each point.
@@ -188,7 +187,7 @@ class Canvas(object):
 
         Parameters
         ----------
-        source : pandas.DataFrame, dask.DataFrame
+        source : pandas.DataFrame, dask.DataFrame, pyspark.sql.DataFrame
             The input datasource.
         x, y : str
             Column names for the x and y coordinates of each vertex.
@@ -217,7 +216,7 @@ class Canvas(object):
 
         Parameters
         ----------
-        vertices : pandas.DataFrame, dask.DataFrame
+        vertices : pandas.DataFrame, dask.DataFrame, pyspark.sql.DataFrame
             The input datasource for triangle vertex coordinates. These can be
             interpreted as the x/y coordinates of the vertices, with optional
             weights for value interpolation. Columns should be ordered
@@ -261,7 +260,8 @@ class Canvas(object):
             elif interpolate == 'nearest':
                 interp = False
             else:
-                raise ValueError('Invalid interpolate method: options include {}'.format(['linear','nearest']))
+                raise ValueError('Invalid interpolate method: options include {}'
+                                 .format(['linear', 'nearest']))
 
         # Validation is done inside the [pd]d_mesh utility functions
         if source is None:
@@ -281,7 +281,8 @@ class Canvas(object):
         cols = source.columns
         x, y, weights = cols[0], cols[1], cols[2:]
 
-        return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights, interp=interp), agg)
+        return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights,
+                                               interp=interp), agg)
 
     def raster(self,
                source,
@@ -342,7 +343,8 @@ class Canvas(object):
                               'max':'max',     rd.max:'max'}
 
         if interpolate not in upsample_methods:
-            raise ValueError('Invalid interpolate method: options include {}'.format(upsample_methods))
+            raise ValueError('Invalid interpolate method: options include {}'
+                             .format(upsample_methods))
 
         if not isinstance(source, (DataArray, Dataset)):
             raise ValueError('Expected xarray DataArray or Dataset as '
@@ -372,7 +374,8 @@ class Canvas(object):
             source = source[column]
 
         if agg not in downsample_methods.keys():
-            raise ValueError('Invalid aggregation method: options include {}'.format(list(downsample_methods.keys())))
+            raise ValueError('Invalid aggregation method: options include {}'
+                             .format(list(downsample_methods.keys())))
         ds_method = downsample_methods[agg]
 
         if source.ndim not in [2, 3]:
@@ -408,7 +411,9 @@ class Canvas(object):
         height_ratio = min((ymax - ymin) / (self.y_range[1] - self.y_range[0]), 1)
 
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
-            raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
+            raise ValueError('Canvas x_range or y_range values do not match closely enough with '
+                             'the data source to be able to accurately rasterize. Please provide '
+                             'ranges that are more accurate.')
 
         w = max(int(np.ceil(self.plot_width * width_ratio)), 1)
         h = max(int(np.ceil(self.plot_height * height_ratio)), 1)
@@ -509,43 +514,24 @@ def bypixel(source, canvas, glyph, agg):
 
     Parameters
     ----------
-    source : pandas.DataFrame, dask.DataFrame
+    source : pandas.DataFrame, dask.DataFrame, pyspark.sql.DataFrame
         Input datasource
     canvas : Canvas
     glyph : Glyph
     agg : Reduction
     """
-
-    if has_spark and isinstance(source, SparkDataFrame):
-        src = source
-    # Avoid datashape.Categorical instantiation bottleneck
-    # by only retaining the necessary columns:
-    # https://github.com/bokeh/datashader/issues/396
-    elif categorical_in_dtypes(source.dtypes.values):
-        # Preserve column ordering without duplicates
-        cols_to_keep = OrderedDict({col: False for col in source.columns})
-        cols_to_keep[glyph.x] = True
-        cols_to_keep[glyph.y] = True
-        if hasattr(glyph, 'z'):
-            cols_to_keep[glyph.z] = True
-        if hasattr(agg, 'values'):
-            for subagg in agg.values:
-                if subagg.column is not None:
-                    cols_to_keep[subagg.column] = True
-        elif agg.column is not None:
-            cols_to_keep[agg.column] = True
-        src = source[[col for col, keepit in cols_to_keep.items() if keepit]]
-    else:
-        src = source
-
-    if isinstance(src, pd.DataFrame):
+    columns = necessary_columns(glyph, agg)
+    if isinstance(source, pd.DataFrame):
+        src = source[columns]
         dshape = dshape_from_pandas(src)
-    elif has_dask and isinstance(src, DaskDataFrame):
+    elif has_dask and isinstance(source, DaskDataFrame):
+        src = source[columns]
         dshape = dshape_from_dask(src)
-    elif has_spark and isinstance(src, SparkDataFrame):
+    elif has_spark and isinstance(source, SparkDataFrame):
+        src = source.select(*columns)
         dshape = dshape_from_pyspark(src)
     else:
-        raise ValueError("source must be a pandas or dask DataFrame")
+        raise ValueError("source must be a pandas, dask, or pyspark DataFrame")
     schema = dshape.measure
     glyph.validate(schema)
     agg.validate(schema)

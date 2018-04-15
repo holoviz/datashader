@@ -2,12 +2,15 @@ from __future__ import absolute_import, division
 
 import pyspark.sql.functions as F
 
+from pandas.api.types import CategoricalDtype
 from pyspark.sql import DataFrame
 
 from .core import bypixel
 from .compiler import compile_components
 from .glyphs import Glyph
-from .utils import Dispatcher, pyspark_to_pandas_schema, serialized_rows_to_pandas
+from .reductions import count_cat
+from .utils import Dispatcher, necessary_columns, pyspark_to_pandas_schema, \
+    serialized_rows_to_pandas
 
 
 __all__ = ()
@@ -74,34 +77,47 @@ def default(glyph, df, schema, canvas, summary):
     # Use pyspark dataframe API to filter on and select only the columns we need to reduce the
     # serialization overhead. Select is especially helpful on wide dataframes, or those with
     # non-numeric data.
-    columns = [glyph.x, glyph.y]
-    if (summary.column is not None) and (summary.column not in columns):
-        columns.append(summary.column)
-    df = (df.filter(F.col(glyph.x).between(*x_range))
-          .filter(F.col(glyph.y).between(*y_range))
+    columns = necessary_columns(glyph, summary)
+    df = (df.filter(F.col(glyph.x).between(*x_range) & F.col(glyph.y).between(*y_range))
           .select(*columns))
-    schema = pyspark_to_pandas_schema(df.schema)
+    pandas_schema, nullsafe_schema = pyspark_to_pandas_schema(df.schema)
+
+    # # Handle the count_cat summary case
+    # if isinstance(summary, count_cat):
+    #     categories = sorted(getattr(row, summary.column) for row in
+    #                         df.select(summary.column).distinct().collect())
+    #     pandas_schema[summary.column] = CategoricalDtype(categories)
+    #     summary._add_categories(categories)
 
     # Map the aggregations to partitions of the dataframe
-    parts = rdd_method(df, schema, shape, create, extend, st, bounds)
+    result = rdd_method(df, pandas_schema, nullsafe_schema, shape, create, extend, st, bounds,
+                        combine)
 
-    # Reduce
-    combined = combine(map(reversed, enumerate(parts)))[0]
-    return finalize(combined, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])
+    return finalize(result, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])
 
 
-def rdd_method(df, schema, shape, create, extend, st, bounds):
+def rdd_method(df, pandas_schema, nullsafe_schema, shape, create, extend, st, bounds, combine):
     """
     RDD-based serialization method for partial aggregation
     """
     # Read serialized rows in each partition as pandas dataframe, then delegate to datashader's
     # pandas methods
     def partition_fn(rows):
-        df = serialized_rows_to_pandas(schema, rows)
+        df = serialized_rows_to_pandas(pandas_schema, nullsafe_schema, rows)
         aggs = create(shape)
         extend(aggs, df, st, bounds)
         return [aggs]  # make sure to return wrapped in list so the results aren't flattened
 
-    # Apply the function to each partition in the dataframe
+    # Apply the function to each partition in the dataframe and collect the results
     parts = df.rdd.mapPartitions(partition_fn).collect()
-    return parts
+
+    # Full local reduction
+    result = combine(map(reversed, enumerate(parts)))[0]
+
+    # Binary reduction
+    # Since Spark has a .collect in .reduce, full local reduction is probably faster. Avoiding
+    # .reduceByKey because it just collects everything onto a single executor. Avoiding
+    # .toLocalIterator because it single threads the computation.
+    # result = parts.reduce(lambda x, y: combine((x, y)))
+
+    return result

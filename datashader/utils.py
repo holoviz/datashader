@@ -538,15 +538,15 @@ def nullsafe_pandas_type(numpy_type):
 
 def pyspark_to_pandas_schema(schema):
     """
-    Map a pyspark schema to a pandas schema of {column name: nullsafe type}
+    Map a pyspark schema to a pandas schema of {column name: type} and {column name: nullsafe type}
     """
-    pandas_schema = dict()
+    pandas_schema, nullsafe_schema = dict(), dict()
     for field in schema:
         pandas_type = pyspark_type_to_pandas_type(field.dataType)
-        # if field.nullable:
-        #     pandas_type = nullsafe_pandas_type(pandas_type)
         pandas_schema[field.name] = pandas_type
-    return pandas_schema
+        nullsafe_schema[field.name] = nullsafe_pandas_type(pandas_type) if field.nullable \
+            else pandas_type
+    return pandas_schema, nullsafe_schema
 
 
 def empty_typed_dataframe(schema):
@@ -556,26 +556,50 @@ def empty_typed_dataframe(schema):
     return pd.DataFrame({name: np.empty(0, dtype=dtype) for name, dtype in schema.items()})
 
 
-def serialized_rows_to_pandas(pandas_schema, rows):
+def serialized_rows_to_pandas(pandas_schema, nullsafe_schema, rows):
     """
     Read a serialized collection of rows (an iterator of pyspark.sql.Row objects) as a pandas
     dataframe
     """
-    _ = zip(pandas_schema.items(), zip(*rows))  # (column name, dtype), column values
+    # Nullsafe conversion to dataframe
+    _ = zip(nullsafe_schema.items(), zip(*rows))  # (column name, dtype), column values
     df = pd.DataFrame.from_dict({name: np.array(values, dtype=dtype)
                                  for (name, dtype), values in _})
 
-    # if the iterator was empty, df will have no rows or columns
-    # we don't want to return that--instead return empty, typed dataframe
-    if len(df):
-        return df
-    return empty_typed_dataframe(pandas_schema)
+    # If the iterator was empty, df will have no rows or columns
+    # We don't want to return that--instead return empty, typed dataframe
+    if len(df) == 0:
+        return empty_typed_dataframe(pandas_schema)
+
+    # Converts columns to their intended types
+    # This will raise an error if there are nulls in a type that can't handle them. This is desired
+    # behavior: force the user to explicitly deal with nulls.
+    return df.astype(pandas_schema)
 
 
 def dshape_from_pyspark(df):
     """
     Return a datashape.DataShape object given a pyspark dataframe
     """
-    schema = pyspark_to_pandas_schema(df.schema)
+    schema, _ = pyspark_to_pandas_schema(df.schema)
     empty = empty_typed_dataframe(schema)
     return datashape.var * dshape_from_pandas(empty).measure
+
+
+def necessary_columns(glyph=None, agg=None):
+    """Extract the minimum necessary column names from a glyph and/or agg object"""
+
+    columns = list()
+
+    if glyph is not None:
+        columns.extend([glyph.x, glyph.y])
+        if hasattr(glyph, 'z') and (glyph.z is not None):
+            columns.append(glyph.z)
+
+    if agg is not None:
+        if agg.column is not None:
+            columns.append(agg.column)
+        if hasattr(agg, 'values'):
+            columns.extend([subagg.column for subagg in agg.values if subagg.column])
+
+    return list(set(columns))  # only return unique
