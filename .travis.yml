@@ -26,6 +26,7 @@ cache:
 
 before_cache:
   - rm -rf $HOME/miniconda/pkgs
+  - rm -rf $HOME/miniconda/conda-bld/*
   - rm -rf .tox/log
 
 stages:
@@ -85,7 +86,7 @@ jobs:
       stage: pip_dev_package
       # TODO: document what these are for
       # pip install tox py2venv tox-pip-extensions
-      before_install: pip install pcyt && doit ecosystem=pip ecosystem_setup
+      before_install: pip install pyct && doit ecosystem=pip ecosystem_setup
       # WIP
       install: doit ecosystem=pip package_build --test-group=all_quick
       script: true # doit ecosystem=pip package_upload ...
