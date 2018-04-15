@@ -32,14 +32,15 @@ test:
     {% for dep in sdata['extras_require']['tests'] %}
     - {{ dep }}
     {% endfor %}
+  # move to pyct
   source_files:
     # for pytest config
     - setup.cfg
-  commands:
-    # install and then test examples
-    # move to tox
-    - python -c "from datashader import examples ; examples('datashader-examples')"  && cd datashader-examples && pytest --nbsmoke-run -m "example_notebook and quick"
-    # test download data? maybe one small set?
+#  commands:
+#    # install and then test examples
+#    # move to tox
+#    - python -c "from datashader import examples ; examples('datashader-examples')"  && cd datashader-examples && pytest --nbsmoke-run -m "example_notebook and quick"
+#    # test download data? maybe one small set?
 
 about:
   home: {{ sdata['url'] }}
