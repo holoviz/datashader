@@ -90,8 +90,7 @@ extras_require = {
         'attrs',
         'beautifulsoup4',
         'bokeh',
-        'cartopy',
-        'Cython >=0.15.1', # indirect dep required for cartopy
+#        'cartopy', # note: you must have already installed numpy & cython to be able to install cartopy, plus ... TODO
         'colorcet',
         'graphviz',
         'pytest',
