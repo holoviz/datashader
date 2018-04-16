@@ -132,7 +132,7 @@ extras_require = {
         'requests',
         'scipy',
         'snappy',
-        'statsmodels',
+        'statsmodels', # TODO: depends on numpy at install time
         'tblib',
         'xarray',
         'yaml',
