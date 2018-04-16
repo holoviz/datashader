@@ -106,7 +106,8 @@ extras_require = {
 #        'geoviews',
         'holoviews >=1.8.3',
         'ipython', # why? notebook & ipykernel maybe?
-        'iris',
+        # TODO: see cartopy
+#        'iris',
         'jupyter',
         'jupyter_dashboards',
         'krb5',
