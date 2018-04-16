@@ -103,13 +103,13 @@ extras_require = {
         'rasterio',
         'pyproj',
         'pytables',
+        # snappy on pypi is an unrelated package
         'python-snappy',
+        'snappy',
         'shapely',
         'statsmodels',
     ],
     'examples': [
-        # various of these don't have wheels, in which case having
-        # vstudio on win would be a good idea...
         'attrs',
         'beautifulsoup4',
         'bokeh',
@@ -127,8 +127,6 @@ extras_require = {
         'pandas',
         'paramnb',
         'requests',
-        'scipy',
-        'snappy',
         'tblib',
         'xarray',
         'pyyaml',
