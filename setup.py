@@ -120,12 +120,14 @@ extras_require = {
         'paramnb',
         # TODO
 #        'pyproj',
-        'pytables',
+        # TODO
+#        'pytables',
         'python-snappy',
         'rasterio',
         'requests',
         'scipy',
-        'shapely',
+        # TODO
+        #'shapely',
         'snappy',
         'statsmodels',
         'tblib',
