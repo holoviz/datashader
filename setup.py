@@ -135,7 +135,7 @@ extras_require = {
         'statsmodels', # TODO: depends on numpy at install time
         'tblib',
         'xarray',
-        'yaml',
+        'pyyaml',
         # TODO: needs conda package?
         #            'cachey',
         'streamz ==0.2.0',
