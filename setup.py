@@ -61,6 +61,10 @@ install_requires = [
     'toolz >=0.7.4',
     'colorcet >=0.9.0',
     'param >=1.5.0,<2.0',
+    ### below are optional?
+    'scikit-image', # was on travis...
+    'bokeh',
+    'scipy'
 ]
 
 extras_require = {
@@ -69,71 +73,70 @@ extras_require = {
     'tests': [
         'pytest >=2.8.5',
         'pytest-benchmark >=3.0.0',
-        # TODO: requires numpy headers            
-        # 'rasterio',
-        'scipy',
-        'scikit-image', # was on travis...
         'flake8',
         'nbsmoke >0.2.0',
+        # TODO not sure what this is for (just a guess - dask?)
         'cloudpickle',
-        'bokeh'
     ],
 
     'docs': [
         'nbsite',
     ],
-    
-    # TODO: Probably needs to be sorted out. Need to remove indirect
-    # dependencies unless they must be pinned (or are not actually
-    # specified by dependencies)
 
-    # TODO: consider groups of examples, e.g. for tricky dependencies?
+    # TODO: deps still need to be sorted out. Need to remove indirect
+    # dependencies unless they must be pinned (or are not actually
+    # specified by dependencies).
+
+    # TODO: currently only possible with conda (or manual steps)
+    'examples_extra':[
+        'cartopy', # note: you must have already installed numpy & cython to be able to install cartopy, plus ... TODO
+        # TODO: graphviz on pypi (and requires underling graphviz),
+        # python-graphviz for conda (which will correctly pull in
+        # graphviz).
+        'graphviz',
+        'python-graphviz',
+        # TODO: no pip package yet
+        'geoviews',
+        # TODO: see cartopy
+        'iris',
+        # TODO
+        'krb5',
+        # TODO: requires numpy headers
+        'rasterio',
+        # TODO
+        'pyproj',
+        # TODO
+        'pytables',
+        # TODO
+        'shapely',
+    ],
     'examples': [
         'attrs',
         'beautifulsoup4',
         'bokeh',
-#        'cartopy', # note: you must have already installed numpy & cython to be able to install cartopy, plus ... TODO
         'colorcet',
-        # TODO: graphviz on pypi (and requires underling graphviz),
-        # python-graphviz for conda (which will correctly pull in
-        # graphviz).
-        #'graphviz',
-        #'python-graphviz',
         'dill',
         'distributed',
         'fastparquet',
-        # TODO: no pip package yet
-#        'geoviews',
         'holoviews >=1.8.3',
-        'ipython', # why? notebook & ipykernel maybe?
-        # TODO: see cartopy
-#        'iris',
+        'ipython', # TODO why? notebook & ipykernel maybe?
         'jupyter',
         'jupyter_dashboards',
-        # TODO
-#        'krb5',
         'matplotlib',
         'nbconvert',
         'nbformat',
         'networkx >=2.0',
         'pandas',
         'paramnb',
-        # TODO
-#        'pyproj',
-        # TODO
-#        'pytables',
         'python-snappy',
-        'rasterio',
         'requests',
         'scipy',
-        # TODO
-        #'shapely',
         'snappy',
         'statsmodels',
         'tblib',
         'xarray',
         'yaml',
-        # TODO: needs conda package?  
+        # TODO: needs conda package?
         #            'cachey',
         'streamz ==0.2.0',
         'webargs'
