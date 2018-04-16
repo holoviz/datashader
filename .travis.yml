@@ -45,7 +45,7 @@ jobs:
 
     - &conda_default
       stage: test
-      before_install: true
+      before_install:
         # brew-installed geos interferes with conda's cartopy?
         - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
             brew uninstall --ignore-dependencies geos gdal postgis;
@@ -56,14 +56,14 @@ jobs:
         - conda config --set always_yes True
         # ...and now install doit/pyct into miniconda
         - conda install -c pyviz/label/dev pyct && $DOIT ecosystem_setup
-      install: true
+      install:
         - $DOIT env_create --python=$PYENV_VERSION
         - source activate test-environment
         # ...and now install doit/pyct into env!
         - conda install -c pyviz/label/dev pyct
         - $DOIT develop_install $CHANNELS
         - $DOIT env_capture
-      script: true
+      script:
         - $DOIT test_all_quick
 
     # python 2 flake checking typically catches python 2 syntax
