@@ -102,7 +102,8 @@ extras_require = {
         'dill',
         'distributed',
         'fastparquet',
-        'geoviews',
+        # TODO: no pip package yet
+#        'geoviews',
         'holoviews >=1.8.3',
         'ipython', # why? notebook & ipykernel maybe?
         'iris',
