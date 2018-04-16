@@ -110,14 +110,16 @@ extras_require = {
 #        'iris',
         'jupyter',
         'jupyter_dashboards',
-        'krb5',
+        # TODO
+#        'krb5',
         'matplotlib',
         'nbconvert',
         'nbformat',
         'networkx >=2.0',
         'pandas',
         'paramnb',
-        'pyproj',
+        # TODO
+#        'pyproj',
         'pytables',
         'python-snappy',
         'rasterio',
