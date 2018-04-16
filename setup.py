@@ -96,6 +96,7 @@ extras_require = {
         # python-graphviz requires underlying non-pypi graphviz)
         'graphviz',
         'python-graphviz',
+        'fastparquet',        
         'geoviews', # TODO: no pip package yet
         'iris',
         'krb5',
@@ -114,7 +115,6 @@ extras_require = {
         'colorcet',
         'dill',
         'distributed',
-        'fastparquet',
         'holoviews >=1.8.3',
         'ipython', # TODO why? notebook & ipykernel maybe?
         'jupyter',
