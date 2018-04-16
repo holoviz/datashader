@@ -58,11 +58,11 @@ install_requires = [
     'pandas >=0.20.3',
     'pillow >=3.1.1',
     'xarray >=0.9.6',
-    'toolz >=0.7.4',
+    'toolz >=0.7.4',         # pinned for dask (which only pins to >=0.7.3?)
     'colorcet >=0.9.0',
     'param >=1.5.0,<2.0',
-    ### below are optional?
-    'scikit-image', # was on travis...
+    ### below are actually optional? ###
+    'scikit-image',
     'bokeh',
     'scipy'
 ]
@@ -75,69 +75,67 @@ extras_require = {
         'pytest-benchmark >=3.0.0',
         'flake8',
         'nbsmoke >0.2.0',
-        # TODO not sure what this is for (just a guess - dask?)
-        'cloudpickle',
     ],
 
     'docs': [
         'nbsite',
-    ],
-
-    # TODO: deps still need to be sorted out. Need to remove indirect
-    # dependencies unless they must be pinned (or are not actually
-    # specified by dependencies).
-
-    # TODO: currently only possible with conda (or manual steps)
-    # E.g. have unstated build time dependencies, depend on things
-    # that aren't on pypi, depend on having compiler, headers, etc
-    'examples_extra':[
-        'cartopy',
-        # graphviz on pypi, python-graphviz for conda (and pypi
-        # python-graphviz requires underlying non-pypi graphviz)
-        'graphviz',
-        'python-graphviz',
-        'fastparquet',        
-        'geoviews', # TODO: no pip package yet
-        'iris',
-        'krb5',
-        'rasterio',
-        'pyproj',
-        'pytables',
-        # snappy on pypi is an unrelated package
-        'python-snappy',
-        'snappy',
-        'shapely',
-        'statsmodels',
-    ],
-    'examples': [
-        'attrs',
-        'beautifulsoup4',
-        'bokeh',
-        'colorcet',
-        'dill',
-        'distributed',
-        'holoviews >=1.8.3',
-        'ipython', # TODO why? notebook & ipykernel maybe?
-        'jupyter',
-        'jupyter_dashboards',
-        'matplotlib',
-        'nbconvert',
-        'nbformat',
-        'networkx >=2.0',
-        'pandas',
-        'paramnb',
-        'requests',
-        'tblib',
-        'xarray',
-        'pyyaml',
-        # TODO: needs conda package?
-        #            'cachey',
-        'streamz ==0.2.0',
-        'webargs'
     ]
 }
 
+# pip or conda installable dependencies required for examples
+_examples_common = [
+    'attrs',
+    'beautifulsoup4',
+    'bokeh',
+    'colorcet',
+    'dill',
+    'distributed',
+    'holoviews >=1.8.3',
+    'ipython', # TODO why? notebook & ipykernel maybe?
+    'jupyter',
+    'jupyter_dashboards',
+    'matplotlib',
+    'nbconvert',
+    'nbformat',
+    'networkx >=2.0',
+    'pandas',
+    'paramnb',
+    'requests',
+    'tblib',
+    'xarray',
+    'pyyaml',
+    'streamz ==0.2.0',
+    'webargs'
+]
+
+extras_require['examples'] = _examples_common + [
+    'cartopy',
+    'graphviz',
+    'python-graphviz',
+    'fastparquet',
+    'geoviews',
+    'iris',
+    'krb5',
+    'rasterio',
+    'pyproj',
+    'pytables',
+    'python-snappy',
+    'snappy',
+    'shapely',
+    'statsmodels',
+]
+
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
+
+# special case/current best effort to support installing dependencies
+# for examples using pip alone (note: deliberately not included in
+# "all"); see https://github.com/bokeh/datashader/issues/588
+extras_require['examples_pip'] = _examples_common + [
+    # dask[complete] is pip equivalent of conda install dask?
+    'dask[complete]',
+    # not on defaults or c-f; not sure what this is for
+    'cachey'
+]
 
 
 ########## metadata for setuptools ##########

@@ -80,24 +80,22 @@ jobs:
 
     ## pip
 
-# TODO: need CONDADOIT and PIPDOIT to prevent cache confusion?
+    # TODO: need CONDADOIT and PIPDOIT to prevent cache confusion?
 
     - &python_default
+      env: PYENV_VERSION=2.7
       stage: pip_dev_package
-      # TODO: document what these are for
-      # pip install tox py2venv tox-pip-extensions
       before_install: pip install pyct && doit ecosystem=pip ecosystem_setup
-      # WIP
-      install:
-        - doit ecosystem=pip package_build --test-group=unit
-        - pip install cython numpy # see cartopy comment in tox.ini
-        - doit ecosystem=pip package_build --test-group=examples_quick
-      script: true # doit ecosystem=pip package_upload ...
+      install: doit ecosystem=pip package_build --test-group=unit
+      script: true
 
-#    - <<: *python_default
-#      env:
-#        - PYENV_VERSION=2.7
-#
+    - <<: *python_default
+      env: PYENV_VERSION=3.6
+      script: true # TODO doit ecosystem=pip package_upload
+      # Future work; see https://github.com/bokeh/datashader/issues/588
+      #  doit ecosystem=pip package_build --test-group=examples_quick
+
+
     ## conda
 
     - <<: *conda_default
