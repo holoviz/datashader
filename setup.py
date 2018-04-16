@@ -86,18 +86,19 @@ extras_require = {
     # TODO: Probably needs to be sorted out. Need to remove indirect
     # dependencies unless they must be pinned (or are not actually
     # specified by dependencies)
+
+    # TODO: consider groups of examples, e.g. for tricky dependencies?
     'examples': [
         'attrs',
         'beautifulsoup4',
         'bokeh',
 #        'cartopy', # note: you must have already installed numpy & cython to be able to install cartopy, plus ... TODO
         'colorcet',
-        'graphviz',
-        'pytest',
-        'pytest-benchmark',
-        'python-graphviz',
-        'dask >=0.15.4',
-        'datashader',
+        # TODO: graphviz on pypi (and requires underling graphviz),
+        # python-graphviz for conda (which will correctly pull in
+        # graphviz).
+        #'graphviz',
+        #'python-graphviz',
         'dill',
         'distributed',
         'fastparquet',
@@ -112,8 +113,6 @@ extras_require = {
         'nbconvert',
         'nbformat',
         'networkx >=2.0',
-        'numba',
-        'numpy',
         'pandas',
         'paramnb',
         'pyproj',
