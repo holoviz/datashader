@@ -88,29 +88,26 @@ extras_require = {
     # specified by dependencies).
 
     # TODO: currently only possible with conda (or manual steps)
+    # E.g. have unstated build time dependencies, depend on things
+    # that aren't on pypi, depend on having compiler, headers, etc
     'examples_extra':[
-        'cartopy', # note: you must have already installed numpy & cython to be able to install cartopy, plus ... TODO
-        # TODO: graphviz on pypi (and requires underling graphviz),
-        # python-graphviz for conda (which will correctly pull in
-        # graphviz).
+        'cartopy',
+        # graphviz on pypi, python-graphviz for conda (and pypi
+        # python-graphviz requires underlying non-pypi graphviz)
         'graphviz',
         'python-graphviz',
-        # TODO: no pip package yet
-        'geoviews',
-        # TODO: see cartopy
+        'geoviews', # TODO: no pip package yet
         'iris',
-        # TODO
         'krb5',
-        # TODO: requires numpy headers
         'rasterio',
-        # TODO
         'pyproj',
-        # TODO
         'pytables',
-        # TODO
         'shapely',
+        'statsmodels',
     ],
     'examples': [
+        # various of these don't have wheels, in which case having
+        # vstudio on win would be a good idea...
         'attrs',
         'beautifulsoup4',
         'bokeh',
@@ -132,7 +129,6 @@ extras_require = {
         'requests',
         'scipy',
         'snappy',
-        'statsmodels', # TODO: depends on numpy at install time
         'tblib',
         'xarray',
         'pyyaml',
