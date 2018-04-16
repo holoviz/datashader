@@ -2,7 +2,7 @@
 #  * what channels?
 #  * restore previous sections
 #  * restore guards for various sections
-        
+
 language: generic
 
 sudo: false
@@ -40,40 +40,37 @@ jobs:
   include:
 
     ########## TEST DEVELOPER INSTALL ##########
-    
+
     # quick tests in typical dev env (most tests are run on packages)
 
     - &conda_default
       stage: test
       before_install: true
-#        # brew-installed geos interferes with conda's cartopy?
-#        - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-#            brew uninstall --ignore-dependencies geos gdal postgis;
-#          fi
-#        # install doit/pyct and use to install miniconda...
-#        - pip install pyct && doit miniconda_install && pip uninstall -y doit pyct
-#        - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
-#        - conda config --set always_yes True
-#        # ...and now install doit/pyct into miniconda
-#        - conda install -c pyviz/label/dev pyct && $DOIT ecosystem_setup
+        # brew-installed geos interferes with conda's cartopy?
+        - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+            brew uninstall --ignore-dependencies geos gdal postgis;
+          fi
+        # install doit/pyct and use to install miniconda...
+        - pip install pyct && doit miniconda_install && pip uninstall -y doit pyct
+        - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
+        - conda config --set always_yes True
+        # ...and now install doit/pyct into miniconda
+        - conda install -c pyviz/label/dev pyct && $DOIT ecosystem_setup
       install: true
-#        - $DOIT env_create --python=$PYENV_VERSION
-#        - source activate test-environment
-#        # ...and now install doit/pyct into env!
-#        - conda install -c pyviz/label/dev pyct
-#        - $DOIT develop_install $CHANNELS
-#        - $DOIT env_capture
+        - $DOIT env_create --python=$PYENV_VERSION
+        - source activate test-environment
+        # ...and now install doit/pyct into env!
+        - conda install -c pyviz/label/dev pyct
+        - $DOIT develop_install $CHANNELS
+        - $DOIT env_capture
       script: true
-#        - $DOIT test_all_quick
+        - $DOIT test_all_quick
 
-# TODO: this will happen for packages - check
-#     # python 2 flake checking typically catches python 2 syntax
-#     # errors where python 3's been assumed...     
-#     - <<: *conda_default
-#       stage: flakes
-#       env:
-#         - PYENV_VERSION=2.7
-#       script: $DOIT test_flakes
+     # python 2 flake checking typically catches python 2 syntax
+     # errors where python 3's been assumed...
+     - <<: *conda_default
+       env: PYENV_VERSION=2.7
+       script: $DOIT test_flakes
 
 
     ########## TEST END-USER PACKAGES ##########
