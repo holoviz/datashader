@@ -33,9 +33,10 @@ def examples(path='datashader-examples', verbose=False):
     """
     Copies the examples to the supplied path.
     """
-    import os
-    from shutil import copytree, ignore_patterns
+    import os, warnings, distutils.dir_util
     source = os.path.join(os.path.dirname(__file__),"examples")
-    print("%s copy to %s" % (source, path))
-    copytree(source, path, ignore=ignore_patterns('data', '.ipynb_checkpoints', '*.pyc', '*~'))
-    print("%s copied to %s" % (source, path))
+    path = os.path.abspath(path)
+    if os.path.exists(path):
+        warnings.warn("Path %s already exists; will not overwrite newer files."%path)
+    distutils.dir_util.copy_tree(source, path, verbose=verbose)
+    print("Installed examples at %s"%path)
