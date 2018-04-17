@@ -22,12 +22,10 @@ cache:
   directories:
     - $HOME/miniconda
     - $HOME/extracache
-    - .tox
 
 before_cache:
   - rm -rf $HOME/miniconda/pkgs
   - rm -rf $HOME/miniconda/conda-bld/*
-  - rm -rf .tox/log
 
 stages:
   - test
