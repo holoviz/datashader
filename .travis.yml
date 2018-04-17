@@ -87,18 +87,15 @@ jobs:
     # TODO: need CONDADOIT and PIPDOIT to prevent cache confusion?
 
     - &python_default
-      env: PYENV_VERSION=2.7
+      env: PYENV_VERSION=3.6 PYPI="https://test.pypi.org/legacy/"
       stage: pip_dev_package
       before_install: pip install pyct && doit ecosystem=pip ecosystem_setup
-      install: doit ecosystem=pip package_build --test-group=unit
-      script: true
-
-    - <<: *python_default
-      env: PYENV_VERSION=3.6 PYPI="https://test.pypi.org/legacy/"
+      install:
+        - unset PYENV_VERSION && pyenv global 3.6 2.7
+        - doit ecosystem=pip package_build --test-group=unit --testpython=py27 --testpython=py36
       script: doit ecosystem=pip package_upload -u $TPPU -p $TPPP -r ${PYPI}
       # Future work; see https://github.com/bokeh/datashader/issues/588
       #  doit ecosystem=pip package_build --test-group=examples_quick
-
 
     ## conda
 
