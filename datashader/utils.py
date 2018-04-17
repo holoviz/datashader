@@ -1,24 +1,16 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import datashape
+
+from inspect import getmro
+
 import numba as nb
 import numpy as np
 import pandas as pd
 
-from inspect import getmro
 from xarray import DataArray
-
-# we may not have dask
-try:
-    from dask.dataframe import DataFrame as DaskDataFrame
-    has_dask = True
-except ImportError:
-    dd = None
-    has_dask = False
-
-from .compatibility import zip
-
+import dask.dataframe as dd
+import datashape
 
 ngjit = nb.jit(nopython=True, nogil=True)
 
@@ -105,7 +97,7 @@ def calc_bbox(xs, ys, res):
     """Calculate the bounding box of a raster, and return it in a four-element
     tuple: (xmin, ymin, xmax, ymax). This calculation assumes the raster is
     uniformly sampled (equivalent to a flat-earth assumption, for geographic
-    data) so that an affine transform (using the "Augmented Matrix" approach)
+    data) so that an affine transform (using the "Augmented Matrix" approach) 
     suffices:
     https://en.wikipedia.org/wiki/Affine_transformation#Augmented_matrix
 
@@ -384,7 +376,7 @@ def categorical_in_dtypes(dtype_arr):
 
 def dataframe_from_multiple_sequences(x_values, y_values):
    """
-   Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional
+   Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional 
    numpy array into a pandas dataframe that can be plotted by datashader.
    The pandas dataframe eventually contains two columns ('x' and 'y') with the data.
    Each time series is separated by a row of NaNs.
@@ -394,7 +386,7 @@ def dataframe_from_multiple_sequences(x_values, y_values):
    y_values: 2D numpy array with the sequences to be plotted of shape (num sequences X length of each sequence)
 
    """
-
+   
    # Add a NaN at the end of the array of x values
    x = np.zeros(x_values.shape[0] + 1)
    x[-1] = np.nan
@@ -479,108 +471,11 @@ def mesh(vertices, simplices):
 
     assert len(vertices.columns) > 2 or simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
 
-    if has_dask and isinstance(vertices, DaskDataFrame) and isinstance(simplices, DaskDataFrame):
+
+    if isinstance(vertices, dd.DataFrame) and isinstance(simplices, dd.DataFrame):
         return _dd_mesh(vertices, simplices)
 
     return _pd_mesh(vertices, simplices)
-
-
-def pyspark_type_to_pandas_type(data_type):
-    """
-    Map a PySpark type to a pandas (numpy) type
-    """
-    import pyspark.sql.types as T
-    if isinstance(data_type, T.ArrayType):
-        return np.object
-    if isinstance(data_type, T.BooleanType):
-        return np.bool
-    if isinstance(data_type, T.ByteType):
-        return np.int8
-    if isinstance(data_type, T.DecimalType):
-        return np.float64
-    if isinstance(data_type, T.DoubleType):
-        return np.float64
-    if isinstance(data_type, T.FloatType):
-        return np.float32
-    if isinstance(data_type, T.IntegerType):
-        return np.int32
-    if isinstance(data_type, T.LongType):
-        return np.int64
-    if isinstance(data_type, T.MapType):
-        return np.object
-    if isinstance(data_type, T.NullType):
-        return np.object
-    if isinstance(data_type, T.ShortType):
-        return np.int16
-    if isinstance(data_type, T.StructType):
-        return np.object
-    if isinstance(data_type, T.StringType):
-        return np.object
-    if isinstance(data_type, T.TimestampType):
-        return np.datetime64
-    raise TypeError("Unrecognized PySpark type %r" % data_type)
-
-
-def nullsafe_pandas_type(numpy_type):
-    """
-    Map a pandas (numpy) type to its nullsafe equivalent
-    """
-    # objects and floating point naturally support null values
-    if numpy_type in (np.object, np.float32, np.float64):
-        return numpy_type
-
-    # all other types can be safely captured by object **when used in pandas dataframes**
-    return np.object
-
-
-def pyspark_to_pandas_schema(schema):
-    """
-    Map a pyspark schema to a pandas schema of {column name: type} and {column name: nullsafe type}
-    """
-    pandas_schema, nullsafe_schema = dict(), dict()
-    for field in schema:
-        pandas_type = pyspark_type_to_pandas_type(field.dataType)
-        pandas_schema[field.name] = pandas_type
-        nullsafe_schema[field.name] = nullsafe_pandas_type(pandas_type) if field.nullable \
-            else pandas_type
-    return pandas_schema, nullsafe_schema
-
-
-def empty_typed_dataframe(schema):
-    """
-    Create an empty, typed dataframe from a pandas schema
-    """
-    return pd.DataFrame({name: np.empty(0, dtype=dtype) for name, dtype in schema.items()})
-
-
-def serialized_rows_to_pandas(pandas_schema, nullsafe_schema, rows):
-    """
-    Read a serialized collection of rows (an iterator of pyspark.sql.Row objects) as a pandas
-    dataframe
-    """
-    # Nullsafe conversion to dataframe
-    _ = zip(nullsafe_schema.items(), zip(*rows))  # (column name, dtype), column values
-    df = pd.DataFrame.from_dict({name: np.array(values, dtype=dtype)
-                                 for (name, dtype), values in _})
-
-    # If the iterator was empty, df will have no rows or columns
-    # We don't want to return that--instead return empty, typed dataframe
-    if len(df) == 0:
-        return empty_typed_dataframe(pandas_schema)
-
-    # Converts columns to their intended types
-    # This will raise an error if there are nulls in a type that can't handle them. This is desired
-    # behavior: force the user to explicitly deal with nulls.
-    return df.astype(pandas_schema)
-
-
-def dshape_from_pyspark(df):
-    """
-    Return a datashape.DataShape object given a pyspark dataframe
-    """
-    schema, _ = pyspark_to_pandas_schema(df.schema)
-    empty = empty_typed_dataframe(schema)
-    return datashape.var * dshape_from_pandas(empty).measure
 
 
 def necessary_columns(glyph=None, agg=None):

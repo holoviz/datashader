@@ -2,30 +2,21 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import pandas as pd
-
+import dask.dataframe as dd
+from dask.array import Array
 from xarray import DataArray, Dataset
 
-# we may not have spark or dask
-try:
-    from dask.dataframe import DataFrame as DaskDataFrame
-    from dask.array import Array
-    has_dask = True
-except ImportError:
-    DaskDataFrame = Array = None
-    has_dask = False
-try:
-    from pyspark.sql import DataFrame as SparkDataFrame
-    has_spark = True
-except ImportError:
-    SparkDataFrame = None
-    has_spark = False
+from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask, necessary_columns
+from .resampling import resample_2d
+from .utils import Expr # noqa (API import)
 
 from . import reductions as rd
 
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, \
-    get_indices, dshape_from_pandas, dshape_from_dask, dshape_from_pyspark, necessary_columns
-from .resampling import resample_2d
-from .utils import Expr # noqa (API import)
+try:
+    from pyspark.sql import DataFrame as SparkDataFrame
+except ImportError:
+    class SparkDataFrame:
+        purpose = "To give me a SparkDataFrame class for instance checks in cases where Spark isn't installed"
 
 
 class Axis(object):
@@ -243,7 +234,7 @@ class Canvas(object):
             Method to use for interpolation between specified values. ``nearest``
             means to use a single value for the whole triangle, and ``linear``
             means to do bilinear interpolation of the pixels within each
-            triangle (a weighted average of the vertex values). For
+            triangle (a weighted average of the vertex values). For 
             backwards compatibility, also accepts ``interp=True`` for ``linear``
             and ``interp=False`` for ``nearest``.
         """
@@ -261,7 +252,7 @@ class Canvas(object):
                 interp = False
             else:
                 raise ValueError('Invalid interpolate method: options include {}'.format(['linear','nearest']))
-
+            
         # Validation is done inside the [pd]d_mesh utility functions
         if source is None:
             source = create_mesh(vertices, simplices)
@@ -328,7 +319,7 @@ class Canvas(object):
         # For backwards compatibility
         if agg         is None: agg=downsample_method
         if interpolate is None: interpolate=upsample_method
-
+        
         upsample_methods = ['nearest','linear']
 
         downsample_methods = {'first':'first', rd.first:'first',
@@ -396,7 +387,7 @@ class Canvas(object):
 
         if self.x_range is None: self.x_range = (left,right)
         if self.y_range is None: self.y_range = (bottom,top)
-
+            
         # window coordinates
         xmin = max(self.x_range[0], left)
         ymin = max(self.y_range[0], bottom)
@@ -418,7 +409,7 @@ class Canvas(object):
                       us_method=interpolate, fill_value=fill_value)
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
-            if has_dask and isinstance(source_window, Array):
+            if isinstance(source_window, Array):
                 source_window = source_window.compute()
             if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
@@ -430,7 +421,7 @@ class Canvas(object):
                 source_window = source_window.astype('f')
             arrays = []
             for arr in source_window:
-                if has_dask and isinstance(arr, Array):
+                if isinstance(arr, Array):
                     arr = arr.compute()
                 arrays.append(resample_2d(arr, **kwargs))
             data = np.dstack(arrays)
@@ -518,10 +509,11 @@ def bypixel(source, canvas, glyph, agg):
     if isinstance(source, pd.DataFrame):
         src = source[columns]
         dshape = dshape_from_pandas(src)
-    elif has_dask and isinstance(source, DaskDataFrame):
+    elif isinstance(source, dd.DataFrame):
         src = source[columns]
         dshape = dshape_from_dask(src)
-    elif has_spark and isinstance(source, SparkDataFrame):
+    elif isinstance(source, SparkDataFrame):
+        from .pyspark import dshape_from_pyspark
         src = source.select(*columns)
         dshape = dshape_from_pyspark(src)
     else:
@@ -530,7 +522,11 @@ def bypixel(source, canvas, glyph, agg):
     glyph.validate(schema)
     agg.validate(schema)
     canvas.validate()
-    return bypixel.pipeline(source, schema, canvas, glyph, agg)
+    return bypixel.pipeline(src, schema, canvas, glyph, agg)
 
 
 bypixel.pipeline = Dispatcher()
+
+
+
+

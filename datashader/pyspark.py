@@ -1,17 +1,18 @@
 from __future__ import absolute_import, division
 
+import datashape
+import numpy as np
+import pandas as pd
 import pyspark.sql.functions as F
+import pyspark.sql.types as T
 
-from pandas.api.types import CategoricalDtype
 from pyspark.sql import DataFrame
 
+from .compatibility import zip
 from .core import bypixel
 from .compiler import compile_components
 from .glyphs import Glyph
-from .reductions import count_cat
-from .utils import Dispatcher, necessary_columns, pyspark_to_pandas_schema, \
-    serialized_rows_to_pandas
-
+from .utils import Dispatcher, dshape_from_pandas, necessary_columns
 
 __all__ = ()
 
@@ -121,3 +122,93 @@ def rdd_method(df, pandas_schema, nullsafe_schema, shape, create, extend, st, bo
     # result = parts.reduce(lambda x, y: combine((x, y)))
 
     return result
+
+
+TYPE_MAPPING = {
+    T.ArrayType: np.object,
+    T.BooleanType: np.bool,
+    T.ByteType: np.int8,
+    T.DecimalType: np.float64,
+    T.DoubleType: np.float64,
+    T.FloatType: np.float32,
+    T.IntegerType: np.int32,
+    T.LongType: np.int64,
+    T.MapType: np.object,
+    T.NullType: np.object,
+    T.ShortType: np.int16,
+    T.StructType: np.object,
+    T.StringType: np.object,
+    T.TimestampType: np.datetime64,
+}
+
+
+def pyspark_type_to_pandas_type(data_type):
+    """
+    Map a PySpark type to a pandas (numpy) type
+    """
+    for pyspark_type, pandas_type in TYPE_MAPPING.items():
+        if isinstance(data_type, pyspark_type):
+            return pandas_type
+    raise TypeError("Unrecognized PySpark type %r" % data_type)
+
+
+def nullsafe_pandas_type(numpy_type):
+    """
+    Map a pandas (numpy) type to its nullsafe equivalent
+    """
+    # objects and floating point naturally support null values
+    if numpy_type in (np.object, np.float32, np.float64):
+        return numpy_type
+
+    # all other types can be safely captured by object **when used in pandas dataframes**
+    return np.object
+
+
+def pyspark_to_pandas_schema(schema):
+    """
+    Map a pyspark schema to a pandas schema of {column name: type} and {column name: nullsafe type}
+    """
+    pandas_schema, nullsafe_schema = dict(), dict()
+    for field in schema:
+        pandas_type = pyspark_type_to_pandas_type(field.dataType)
+        pandas_schema[field.name] = pandas_type
+        nullsafe_schema[field.name] = nullsafe_pandas_type(pandas_type) if field.nullable \
+            else pandas_type
+    return pandas_schema, nullsafe_schema
+
+
+def empty_typed_dataframe(schema):
+    """
+    Create an empty, typed dataframe from a pandas schema
+    """
+    return pd.DataFrame({name: np.empty(0, dtype=dtype) for name, dtype in schema.items()})
+
+
+def serialized_rows_to_pandas(pandas_schema, nullsafe_schema, rows):
+    """
+    Read a serialized collection of rows (an iterator of pyspark.sql.Row objects) as a pandas
+    dataframe. Used to create pandas dataframes on executors in `rdd_method`'s mapping operation.
+    """
+    # Nullsafe conversion to dataframe
+    _ = zip(nullsafe_schema.items(), zip(*rows))  # (column name, dtype), column values
+    df = pd.DataFrame.from_dict({name: np.array(values, dtype=dtype)
+                                 for (name, dtype), values in _})
+
+    # If the iterator was empty, df will have no rows or columns
+    # We don't want to return that--instead return empty, typed dataframe
+    if len(df) == 0:
+        return empty_typed_dataframe(pandas_schema)
+
+    # Converts columns to their intended types
+    # This will raise an error if there are nulls in a type that can't handle them. This is desired
+    # behavior: force the user to explicitly deal with nulls.
+    return df.astype(pandas_schema)
+
+
+def dshape_from_pyspark(df):
+    """
+    Return a datashape.DataShape object given a pyspark dataframe
+    """
+    schema, _ = pyspark_to_pandas_schema(df.schema)
+    empty = empty_typed_dataframe(schema)
+    return datashape.var * dshape_from_pandas(empty).measure
