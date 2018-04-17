@@ -76,7 +76,7 @@ jobs:
     # python 2 flake checking typically catches python 2 syntax
     # errors where python 3's been assumed...
     - <<: *conda_default
-      env: PYENV_VERSION=2.7 DESC="py27 flakes"
+      env: DESC="py2 flakes" PYENV_VERSION=2.7
       script: $DOIT test_flakes
 
 
