@@ -34,7 +34,7 @@ before_cache:
 stages:
   - test
   - name: conda_dev_package
-    if: (branch = packaging)
+    if: tag =~ ^v(\d+|\.)*[a-z]\d*$
   - name: pip_dev_package
     if: tag =~ ^v(\d+|\.)*[a-z]\d*$
 #  - name: conda_package
@@ -108,9 +108,8 @@ jobs:
         - conda build purge # TODO: need to add flag to pyct
         - $DOIT package_build --recipe examples $CHANNELS --test-python=py36 --test-python=py35 --test-python=py27 --test-group=all_quick
       script: true
-#        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base
-#        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples
-
+        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base --label=dev
+        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples --label=dev
 
 notifications:
   email: false
