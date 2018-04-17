@@ -97,6 +97,7 @@ jobs:
       stage: conda_dev_package
       install:
         - $DOIT package_build --recipe base $CHANNELS --test-python=py36 --test-python=py35 --test-python=py27 --test-group=unit
+        - conda build purge # TODO: need to add flag to pyct
         - $DOIT package_build --recipe examples $CHANNELS --test-python=py36 --test-python=py35 --test-python=py27 --test-group=all_quick
       script: true
 #        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base
