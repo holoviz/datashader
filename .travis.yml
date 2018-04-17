@@ -85,9 +85,9 @@ jobs:
     ## pip
 
     # TODO: need CONDADOIT and PIPDOIT to prevent cache confusion?
+    # (check some things like miniconda download vs reinstall)
 
-    - &python_default
-      env: PYENV_VERSION=3.6 PYPI="https://test.pypi.org/legacy/"
+    - env: PYENV_VERSION=3.6 PYPI="https://test.pypi.org/legacy/"
       stage: pip_dev_package
       before_install: pip install pyct && doit ecosystem=pip ecosystem_setup
       install:
@@ -97,10 +97,9 @@ jobs:
       # Future work; see https://github.com/bokeh/datashader/issues/588
       #  doit ecosystem=pip package_build --test-group=examples_quick
 
-    ## conda
-
     - <<: *conda_default
       stage: conda_dev_package
+      env: DESC=""
       install:
         - $DOIT package_build --recipe base $CHANNELS --test-python=py36 --test-python=py35 --test-python=py27 --test-group=unit
         - conda build purge # TODO: need to add flag to pyct
