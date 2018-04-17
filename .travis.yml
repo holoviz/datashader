@@ -51,6 +51,7 @@ jobs:
 
     - &conda_default
       stage: test
+      env: DESC="dev test_all_quick"
       before_install:
         # brew-installed geos interferes with conda's cartopy?
         - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
@@ -75,7 +76,7 @@ jobs:
     # python 2 flake checking typically catches python 2 syntax
     # errors where python 3's been assumed...
     - <<: *conda_default
-      env: PYENV_VERSION=2.7
+      env: PYENV_VERSION=2.7 DESC="py27 flakes"
       script: $DOIT test_flakes
 
 
