@@ -27,12 +27,20 @@ before_cache:
   - rm -rf $HOME/miniconda/pkgs
   - rm -rf $HOME/miniconda/conda-bld/*
 
+# quick hack to determine what tag is (improvements welcomed)
+#     release: ^v(\d+|\.)*[^a-z]\d*$
+# dev release: ^v(\d+|\.)*[a-z]\d*$
+
 stages:
   - test
-  - name: pip_dev_package
-    if: (branch = packaging)
   - name: conda_dev_package
     if: (branch = packaging)
+  - name: pip_dev_package
+    if: tag =~ ^v(\d+|\.)*[a-z]\d*$
+#  - name: conda_package
+#    if: tag =~ ^v(\d+|\.)*[^a-z]\d*$
+#  - name: pip_package
+#    if: tag =~ ^v(\d+|\.)*[^a-z]\d*$
 
 jobs:
   include:
@@ -85,8 +93,8 @@ jobs:
       script: true
 
     - <<: *python_default
-      env: PYENV_VERSION=3.6
-      script: true # TODO doit ecosystem=pip package_upload
+      env: PYENV_VERSION=3.6 PYPI="https://test.pypi.org/legacy/"
+      script: doit ecosystem=pip package_upload -u $TPPU -p $TPPP -r ${PYPI}
       # Future work; see https://github.com/bokeh/datashader/issues/588
       #  doit ecosystem=pip package_build --test-group=examples_quick
 
