@@ -71,7 +71,7 @@ def default(glyph, df, schema, canvas, summary):
     dask_dataframe_keys = getattr(df, '__dask_keys__', None) or df._keys
     keys = dask_dataframe_keys()
     keys2 = [(name, i) for i in range(len(keys))]
-    dsk = {k2: (chunk, k) for k2, k in zip(keys2, keys)}
+    dsk = dict((k2, (chunk, k)) for (k2, k) in zip(keys2, keys))
     dsk[name] = (apply, finalize, [(combine, keys2)],
                  dict(coords=axis, dims=[glyph.y, glyph.x]))
     return dsk, name

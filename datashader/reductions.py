@@ -416,6 +416,7 @@ class first(Reduction):
         raise NotImplementedError("first is currently implemented only for rasters")
 
 
+
 class last(Reduction):
     """Last value encountered in ``column``.
 
@@ -447,6 +448,7 @@ class last(Reduction):
     @staticmethod
     def _finalize(bases, **kwargs):
         raise NotImplementedError("last is currently implemented only for rasters")
+
 
 
 class mode(Reduction):
@@ -483,6 +485,7 @@ class mode(Reduction):
     @staticmethod
     def _finalize(bases, **kwargs):
         raise NotImplementedError("mode is currently implemented only for rasters")
+
 
 
 class summary(Expr):

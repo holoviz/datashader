@@ -2,7 +2,6 @@ from __future__ import absolute_import
 
 __version__ = '0.6.5'
 
-
 from .core import Canvas                                 # noqa (API import)
 from .reductions import (count, any, sum, min, max,      # noqa (API import)
                          mean, std, var, count_cat, summary)

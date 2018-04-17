@@ -260,8 +260,7 @@ class Canvas(object):
             elif interpolate == 'nearest':
                 interp = False
             else:
-                raise ValueError('Invalid interpolate method: options include {}'
-                                 .format(['linear', 'nearest']))
+                raise ValueError('Invalid interpolate method: options include {}'.format(['linear','nearest']))
 
         # Validation is done inside the [pd]d_mesh utility functions
         if source is None:
@@ -281,8 +280,7 @@ class Canvas(object):
         cols = source.columns
         x, y, weights = cols[0], cols[1], cols[2:]
 
-        return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights,
-                                               interp=interp), agg)
+        return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights, interp=interp), agg)
 
     def raster(self,
                source,
@@ -343,8 +341,7 @@ class Canvas(object):
                               'max':'max',     rd.max:'max'}
 
         if interpolate not in upsample_methods:
-            raise ValueError('Invalid interpolate method: options include {}'
-                             .format(upsample_methods))
+            raise ValueError('Invalid interpolate method: options include {}'.format(upsample_methods))
 
         if not isinstance(source, (DataArray, Dataset)):
             raise ValueError('Expected xarray DataArray or Dataset as '
@@ -374,8 +371,7 @@ class Canvas(object):
             source = source[column]
 
         if agg not in downsample_methods.keys():
-            raise ValueError('Invalid aggregation method: options include {}'
-                             .format(list(downsample_methods.keys())))
+            raise ValueError('Invalid aggregation method: options include {}'.format(list(downsample_methods.keys())))
         ds_method = downsample_methods[agg]
 
         if source.ndim not in [2, 3]:
@@ -411,9 +407,7 @@ class Canvas(object):
         height_ratio = min((ymax - ymin) / (self.y_range[1] - self.y_range[0]), 1)
 
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
-            raise ValueError('Canvas x_range or y_range values do not match closely enough with '
-                             'the data source to be able to accurately rasterize. Please provide '
-                             'ranges that are more accurate.')
+            raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
 
         w = max(int(np.ceil(self.plot_width * width_ratio)), 1)
         h = max(int(np.ceil(self.plot_height * height_ratio)), 1)

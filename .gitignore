@@ -71,5 +71,5 @@ examples/data
 examples/export
 **.org
 
-# Pycharm
+# PyCharm
 .idea/

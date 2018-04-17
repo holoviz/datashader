@@ -261,13 +261,11 @@ def downsample_aggregate(aggregate, factor, how='mean'):
     elif how == 'var':
         return np.nanvar(concat, axis=0)
     else:
-        raise ValueError("Invalid 'how' downsample method. Options mean, sum, max, min, median, "
-                         "std, var")
+        raise ValueError("Invalid 'how' downsample method. Options mean, sum, max, min, median, std, var")
 
 
 def summarize_aggregate_values(aggregate, how='linear', num=180):
-    """Helper function similar to np.linspace which return values from aggregate min value to
-    aggregate max value in either linear or log space.
+    """Helper function similar to np.linspace which return values from aggregate min value to aggregate max value in either linear or log space.
     """
 
     max_val = np.nanmax(aggregate.values)
@@ -479,8 +477,7 @@ def mesh(vertices, simplices):
                                 'consider casting simplices to integers '
                                 'with ".astype(int)"')
 
-    assert len(vertices.columns) > 2 or simplices.values.shape[1] > 3, \
-        'If no vertex weight column is provided, a triangle weight column is required.'
+    assert len(vertices.columns) > 2 or simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
 
     if has_dask and isinstance(vertices, DaskDataFrame) and isinstance(simplices, DaskDataFrame):
         return _dd_mesh(vertices, simplices)
