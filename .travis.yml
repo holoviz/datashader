@@ -18,14 +18,14 @@ env:
     # conda build fills up travis /tmp (tmpfs)
     - TMPDIR=$HOME/tmp
 
-cache:
-  directories:
-    - $HOME/miniconda
-    - $HOME/extracache
+#cache:
+#  directories:
+#    - $HOME/miniconda
+#    - $HOME/extracache
 
-before_cache:
-  - rm -rf $HOME/miniconda/pkgs
-  - rm -rf $HOME/miniconda/conda-bld/*
+#before_cache:
+#  - rm -rf $HOME/miniconda/pkgs
+#  - rm -rf $HOME/miniconda/conda-bld/*
 
 # quick hack to determine what tag is (improvements welcomed)
 #     release: ^v(\d+|\.)*[^a-z]\d*$
