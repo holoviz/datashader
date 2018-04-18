@@ -13,7 +13,8 @@ os:
 env:
   global:
     - PYENV_VERSION=3.6
-    - DOIT="doit --db-file=$HOME/extracache/.doitdb"
+    - DOIT=doit
+    #- DOIT="doit --db-file=$HOME/extracache/.doitdb"
     - CHANNELS="-c pyviz/label/dev -c conda-forge"
     # conda build fills up travis /tmp (tmpfs)
     - TMPDIR=$HOME/tmp
