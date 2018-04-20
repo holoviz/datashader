@@ -93,7 +93,7 @@ jobs:
       before_install: pip install pyct && doit ecosystem=pip ecosystem_setup
       install:
         - unset PYENV_VERSION && pyenv global 3.6 2.7
-        - doit ecosystem=pip package_build --test-group=unit --testpython=py27 --testpython=py36
+        - doit ecosystem=pip package_build --test-group=unit --test-python=py27 --test-python=py36
       script: doit ecosystem=pip package_upload -u $TPPU -p $TPPP -r ${PYPI}
       # Future work; see https://github.com/bokeh/datashader/issues/588
       #  doit ecosystem=pip package_build --test-group=examples_quick
