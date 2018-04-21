@@ -1,7 +1,17 @@
 # TODO before merge:
-#  * what channels?
+#
+#  * what channels? will probably want PKG_CHANNELS (maybe -c pyviz,
+#    or otherwise nothing) and DEV_CHANNELS (maybe -c pyviz/label/dev)
+#
 #  * restore previous sections
-#  * restore guards for various sections
+#
+#  * add release packages
+#
+#  * restore caching (may need to control cache key a bit more; also,
+#    need CONDADOIT and PIPDOIT to prevent cache confusion; also,
+#    check miniconda download, reinstall, env reinstall)
+
+
 
 language: generic
 
@@ -16,6 +26,7 @@ env:
     - DOIT=doit
     #- DOIT="doit --db-file=$HOME/extracache/.doitdb"
     - CHANNELS="-c pyviz/label/dev -c conda-forge"
+    - PKG_TEST_PYTHON="--test-python=py27 --test-python=py36"
     # conda build fills up travis /tmp (tmpfs)
     - TMPDIR=$HOME/tmp
 
@@ -46,7 +57,7 @@ stages:
 jobs:
   include:
 
-    ########## TEST DEVELOPER INSTALL ##########
+    ########## DEVELOPER INSTALL ##########
 
     # quick tests in typical dev env (most tests are run on packages)
 
@@ -81,33 +92,31 @@ jobs:
       script: $DOIT test_flakes
 
 
-    ########## TEST END-USER PACKAGES ##########
+    ########## END-USER PACKAGES ##########
 
-    ## pip
-
-    # TODO: need CONDADOIT and PIPDOIT to prevent cache confusion?
-    # (check some things like miniconda download vs reinstall)
+    ## dev packages
 
     - env: PYENV_VERSION=3.6 PYPI="https://test.pypi.org/legacy/"
       stage: pip_dev_package
       before_install: pip install pyct && doit ecosystem=pip ecosystem_setup
       install:
         - unset PYENV_VERSION && pyenv global 3.6 2.7
-        - doit ecosystem=pip package_build --test-group=unit --test-python=py27 --test-python=py36
+        - doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=unit
       script: doit ecosystem=pip package_upload -u $TPPU -p $TPPP -r ${PYPI}
       # Future work; see https://github.com/bokeh/datashader/issues/588
-      #  doit ecosystem=pip package_build --test-group=examples_quick
+      #  doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=examples_quick
 
     - <<: *conda_default
       stage: conda_dev_package
       env: DESC=""
       install:
-        - $DOIT package_build --recipe base $CHANNELS --test-python=py36 --test-group=unit #--test-python=py36 --test-python=py35 --test-python=py27 --test-group=unit
-        - conda build purge # TODO: need to add flag to pyct
-        - $DOIT package_build --recipe examples $CHANNELS --test-python=py36 --test-group=all_quick #--test-python=py36 --test-python=py35 --test-python=py27 --test-group=all_quick
-      script: true
+        - $DOIT package_build --recipe base $CHANNELS $PKG_TEST_PYTHON --test-group=unit
+        - conda build purge # TODO: need to add flag to pyct; https://github.com/pyviz/pyct/issues/15
+        - $DOIT package_build --recipe examples $CHANNELS $PKG_TEST_PYTHON --test-group=all_quick
+      script:
         - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base --label=dev
         - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples --label=dev
+
 
 notifications:
   email: false
