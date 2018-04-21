@@ -51,25 +51,27 @@ def get_setup_version(reponame):
 ########## dependencies ##########
 
 install_requires = [
-    'dask >=0.15.4',
+    # `conda install dask[complete]` happily gives you dask...which is
+    # happily like pip's dask[complete]. (conda's dask-core is more
+    # like pip's dask.)
+    'dask[complete] >=0.15.4',
+    'toolz >=0.7.4',  # ? for some dask issue (dasks does only >=0.7.3)
+
     'datashape >=0.5.1',
     'numba >=0.35.0',
     'numpy >=1.7',
     'pandas >=0.20.3',
     'pillow >=3.1.1',
     'xarray >=0.9.6',
-    'toolz >=0.7.4',         # pinned for dask (which only pins to >=0.7.3?)
     'colorcet >=0.9.0',
-    'param >=1.5.0,<2.0',
-    ### below are actually optional? ###
+    'param >=1.6.0',
+    ### TODO: below are actually optional? ###
     'scikit-image',
     'bokeh',
     'scipy'
 ]
 
 extras_require = {
-    # pip doesn't support tests_require
-    # (https://github.com/pypa/pip/issues/1197)
     'tests': [
         'pytest >=2.8.5',
         'pytest-benchmark >=3.0.0',
@@ -87,6 +89,7 @@ _examples_common = [
     'attrs',
     'beautifulsoup4',
     'bokeh',
+    #'cachey', # TODO: investigate (no conda package
     'colorcet',
     'dill',
     'distributed',
@@ -129,13 +132,9 @@ extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
 
 # special case/current best effort to support installing dependencies
 # for examples using pip alone (note: deliberately not included in
-# "all"); see https://github.com/bokeh/datashader/issues/588
-extras_require['examples_pip'] = _examples_common + [
-    # dask[complete] is pip equivalent of conda install dask?
-    'dask[complete]',
-    # not on defaults or c-f; not sure what this is for
-    'cachey'
-]
+# "all"). See https://github.com/bokeh/datashader/issues/588 for more
+# info.
+extras_require['examples_pip'] = _examples_common
 
 
 ########## metadata for setuptools ##########
