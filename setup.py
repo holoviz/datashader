@@ -152,7 +152,12 @@ meta = dict(
     tests_require=extras_require['tests'],
     license='New BSD',
     packages=find_packages(),
-    include_package_data=True
+    include_package_data=True,
+    entry_points={
+        'console_scripts': [
+            'datashader = datashader.__main__:main'
+        ]
+    },   
 )
 
 if __name__ == '__main__':
