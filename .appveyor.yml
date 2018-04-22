@@ -1,34 +1,24 @@
 environment:
+  global:
+    CHANNELS: "-c pyviz/label/dev -c conda-forge"
   matrix:
     - PY: "2.7"
       PYTHON: "C:\\Python27-x64"
       CONDA: "C:\\Miniconda-x64"
-    - PY: "3.5"
-      PYTHON: "C:\\Python35-x64"
-      CONDA: "C:\\Miniconda35-x64"
     - PY: "3.6"
       PYTHON: "C:\\Python36-x64"
       CONDA: "C:\\Miniconda36-x64"
 
 install:
-  # Update path
-  -  "SET PATH=%CONDA%;%CONDA%\\Scripts;%PATH%"
-
-  # Update conda
-  - "conda config --set always_yes yes --set changeps1 no"
-  - "conda update -q conda"
-
-  # Install dependencies
-  - "conda create -n test-environment python=%PY%"
-  - "activate test-environment"
-  # TODO: does not match linux/osx (see https://github.com/bokeh/datashader/issues/404)
-  - "conda install dask numba numpy pandas pillow pytest toolz xarray datashape colorcet scikit-image param"
-  - "conda install -c conda-forge rasterio matplotlib pillow=4.3.0 xarray"
-
-  - "python setup.py develop --no-deps"
-  - "conda env export"
+  - "SET PATH=%CONDA%;%CONDA%\\Scripts;%PATH%"
+  - "conda install -c pyviz/label/dev pyct && doit ecosystem_setup"
+  - "doit env_create --python=%PY%"
+  - "conda activate test-environment"
+  - "conda install -c pyviz/label/dev pyct"
+  - "doit develop_install %CHANNELS%"
+  - "doit env_capture"
 
 build: off
 
 test_script:
-  - "pytest -x -v datashader/tests"
+  - "doit test_all_quick"
