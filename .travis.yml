@@ -107,7 +107,7 @@ jobs:
 
     - <<: *conda_default
       stage: conda_dev_package
-      env: DESC="" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
+      env: DESC=""
       install:
         - $DOIT package_build --recipe base $CHANNELS $PKG_TEST_PYTHON --test-group=unit
         - conda build purge # TODO: need to add flag to pyct; https://github.com/pyviz/pyct/issues/15
