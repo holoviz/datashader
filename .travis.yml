@@ -102,7 +102,6 @@ jobs:
       env: DESC=""
       install:
         - doit package_build --recipe base $CHANNELS $PKG_TEST_PYTHON --test-group=unit
-        - conda build purge # TODO: need to add flag to pyct; https://github.com/pyviz/pyct/issues/15
         - doit package_build --recipe examples $CHANNELS $PKG_TEST_PYTHON --test-group=all_quick
       script:
         - doit package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base --label=dev
