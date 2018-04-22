@@ -6,11 +6,6 @@
 #  * restore previous sections
 #
 #  * add release packages
-#
-#  * need CONDADOIT and PIPDOIT to prevent cache confusion? also,
-#    check miniconda download, reinstall, env reinstall)
-
-
 
 language: generic
 
@@ -22,8 +17,6 @@ os:
 env:
   global:
     - PYENV_VERSION=3.6
-    - DOIT=doit
-    #- DOIT="doit --db-file=$HOME/extracache/.doitdb"
     - CHANNELS="-c pyviz/label/dev -c conda-forge"
     - PKG_TEST_PYTHON="--test-python=py27 --test-python=py36"
     # conda build fills up travis /tmp (tmpfs)
@@ -32,7 +25,6 @@ env:
 cache:
   directories:
     - $HOME/miniconda
-    - $HOME/extracache
 
 before_cache:
   - rm -rf $HOME/miniconda/pkgs
@@ -73,22 +65,22 @@ jobs:
         - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
         - conda config --set always_yes True
         # ...and now install doit/pyct into miniconda
-        - conda install -c pyviz/label/dev pyct && $DOIT ecosystem_setup
+        - conda install -c pyviz/label/dev pyct && doit ecosystem_setup
       install:
-        - $DOIT env_create --python=$PYENV_VERSION
+        - doit env_create --python=$PYENV_VERSION
         - source activate test-environment
         # ...and now install doit/pyct into env!
         - conda install -c pyviz/label/dev pyct
-        - $DOIT develop_install $CHANNELS
-        - $DOIT env_capture
+        - doit develop_install $CHANNELS
+        - doit env_capture
       script:
-        - $DOIT test_all_quick
+        - doit test_all_quick
 
     # python 2 flake checking typically catches python 2 syntax
     # errors where python 3's been assumed...
     - <<: *conda_default
       env: DESC="py2 flakes" PYENV_VERSION=2.7
-      script: $DOIT test_flakes
+      script: doit test_flakes
 
 
     ########## END-USER PACKAGES ##########
@@ -109,12 +101,12 @@ jobs:
       stage: conda_dev_package
       env: DESC=""
       install:
-        - $DOIT package_build --recipe base $CHANNELS $PKG_TEST_PYTHON --test-group=unit
+        - doit package_build --recipe base $CHANNELS $PKG_TEST_PYTHON --test-group=unit
         - conda build purge # TODO: need to add flag to pyct; https://github.com/pyviz/pyct/issues/15
-        - $DOIT package_build --recipe examples $CHANNELS $PKG_TEST_PYTHON --test-group=all_quick
+        - doit package_build --recipe examples $CHANNELS $PKG_TEST_PYTHON --test-group=all_quick
       script:
-        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base --label=dev
-        - $DOIT package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples --label=dev
+        - doit package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base --label=dev
+        - doit package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples --label=dev
 
 
 notifications:
