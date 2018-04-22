@@ -7,8 +7,7 @@
 #
 #  * add release packages
 #
-#  * restore caching (may need to control cache key a bit more; also,
-#    need CONDADOIT and PIPDOIT to prevent cache confusion; also,
+#  * need CONDADOIT and PIPDOIT to prevent cache confusion? also,
 #    check miniconda download, reinstall, env reinstall)
 
 
@@ -30,14 +29,14 @@ env:
     # conda build fills up travis /tmp (tmpfs)
     - TMPDIR=$HOME/tmp
 
-#cache:
-#  directories:
-#    - $HOME/miniconda
-#    - $HOME/extracache
+cache:
+  directories:
+    - $HOME/miniconda
+    - $HOME/extracache
 
-#before_cache:
-#  - rm -rf $HOME/miniconda/pkgs
-#  - rm -rf $HOME/miniconda/conda-bld/*
+before_cache:
+  - rm -rf $HOME/miniconda/pkgs
+  - rm -rf $HOME/miniconda/conda-bld/*
 
 # quick hack to determine what tag is (improvements welcomed)
 #     release: ^v(\d+|\.)*[^a-z]\d*$
@@ -96,7 +95,7 @@ jobs:
 
     ## dev packages
 
-    - env: PYENV_VERSION=3.6 PYPI="https://test.pypi.org/legacy/"
+    - env: PYENV_VERSION=3.6 PYPI="https://test.pypi.org/legacy/" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       stage: pip_dev_package
       before_install: pip install pyct && doit ecosystem=pip ecosystem_setup
       install:
@@ -108,7 +107,7 @@ jobs:
 
     - <<: *conda_default
       stage: conda_dev_package
-      env: DESC=""
+      env: DESC="" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       install:
         - $DOIT package_build --recipe base $CHANNELS $PKG_TEST_PYTHON --test-group=unit
         - conda build purge # TODO: need to add flag to pyct; https://github.com/pyviz/pyct/issues/15
