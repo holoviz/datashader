@@ -1,3 +1,6 @@
+# For use with pyct (https://github.com/pyviz/pyct), but just standard
+# pytest config (works with pytest alone).
+
 import os
 import pytest
 
