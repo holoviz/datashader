@@ -69,8 +69,6 @@ jobs:
       install:
         - doit env_create --python=$PYENV_VERSION
         - source activate test-environment
-        # ...and now install doit/pyct into env!
-        - conda install -c pyviz/label/dev pyct
         - doit develop_install $CHANNELS
         - doit env_capture
       script:
