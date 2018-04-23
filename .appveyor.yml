@@ -12,6 +12,7 @@ environment:
 install:
   - "SET PATH=%CONDA%;%CONDA%\\Scripts;%PATH%"
   - "conda install -y -c pyviz/label/dev pyct && doit ecosystem_setup"
+  - "doit env_create --python=%PY%"
   - "doit develop_install %CHANNELS%"
   - "doit env_capture"
 
