@@ -82,6 +82,8 @@ extras_require = {
 
     'docs': [
         'nbsite',
+        'sphinx_ioam_theme',
+        'numpydoc'
     ]
 }
 
