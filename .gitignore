@@ -72,3 +72,5 @@ examples/export
 **.org
 
 .doit*
+
+datashader/.version
