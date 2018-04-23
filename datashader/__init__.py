@@ -15,15 +15,3 @@ try:
     from . import dask                       # noqa (build backend dispatch)
 except ImportError:
     pass
-
-
-def test():
-    """Run the datashader test suite."""
-    import os
-    try:
-        import pytest
-    except ImportError:
-        import sys
-        sys.stderr.write("You need to install py.test to run tests.\n\n")
-        raise
-    pytest.main([os.path.dirname(__file__)])
