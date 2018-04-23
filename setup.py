@@ -61,6 +61,7 @@ install_requires = [
     'numba >=0.35.0',
     'numpy >=1.7',
     'pandas >=0.20.3',
+    # TODO: pillow was pinned to 4.3.0 on travis; need to test ds pil usage on windows
     'pillow >=3.1.1',
     'xarray >=0.9.6',
     'colorcet >=0.9.0',
