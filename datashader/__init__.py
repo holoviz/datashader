@@ -23,7 +23,7 @@ try:
     install_examples = partial(_examples,'datashader')
     download_data = partial(_data,'datashader')
 except ImportError:
-    def _missing_cmd(*args,**kw): print("install examples package to enable this command (`conda install datashader-examples`)")
+    def _missing_cmd(*args,**kw): return("install examples package to enable this command (`conda install datashader-examples`)")
     _data = _examples = _missing_cmd
     def err(): raise ValueError(_missing_cmd())
     download_data = install_examples = err
