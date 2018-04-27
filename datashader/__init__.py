@@ -25,6 +25,6 @@ try:
 except ImportError:
     def _examples(*args,**kw): print("install examples package to enable this command (`conda install datashader-examples`)")
     _data = _examples
-    def err(): raise ValueError(_data())
+    def err(): raise ValueError(_data())   # noqa: _data is defined
     download_data = install_examples = err
 del partial, _examples, _data
