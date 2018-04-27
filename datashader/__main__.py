@@ -9,9 +9,9 @@ try:
     from pvutil.cmd import add_pv_commands
 except ImportError:
     def add_pv_commands(parser,*args,**kw):
-        from . import _install_examples
+        from . import _missing_cmd
         for c in pvcommands:
-            p = parser.add_parser(c); p.set_defaults(func=lambda args: p.error(_install_examples()))
+            p = parser.add_parser(c); p.set_defaults(func=lambda args: p.error(_missing_cmd()))
 
 def main(args=None):
     parser = argparse.ArgumentParser(description="datashader commands")
