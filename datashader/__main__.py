@@ -1,6 +1,4 @@
 import argparse
-import inspect
-import sys
 
 from . import __version__
 
