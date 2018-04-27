@@ -97,7 +97,7 @@ jobs:
 
     - <<: *conda_default
       stage: conda_dev_package
-      env: DESC=""
+      env: DESC="" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       install:
         - doit package_build --recipe base $CHANNELS $PKG_TEST_PYTHON --test-group=unit
         - doit package_build --recipe examples $CHANNELS $PKG_TEST_PYTHON --test-group=all_quick
