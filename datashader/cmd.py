@@ -1,8 +1,22 @@
-#!/usr/bin/env python
+# TODO: move all to common external dep
+# -*- coding: utf-8 -*-
 
 from __future__ import print_function, absolute_import, division
 
-# -*- coding: utf-8 -*-
+import distutils.dir_util
+
+def install_examples(path,include_data=False,verbose=False):
+    """Install examples at the supplied path."""
+    source = os.path.join(os.path.dirname(__file__),"examples")
+    path = os.path.abspath(path)
+    if os.path.exists(path):
+        print("Path %s already exists; will not overwrite newer target files."%path)
+    distutils.dir_util.copy_tree(source, path, verbose=verbose)
+    print("Installed examples at %s"%path)
+    if include_data:
+        download_data(path)
+
+
 """
 Copyright (c) 2011, Kenneth Reitz <me@kennethreitz.com>
 
@@ -25,7 +39,6 @@ This module provides the progressbar functionality.
 
 """
 from collections import OrderedDict
-from os import path
 import glob
 import os
 import sys
@@ -39,6 +52,12 @@ try:
 except ImportError:
     requests = None
 
+# TODO
+#    if requests is None:
+#        print('this download script requires the requests module: conda install requests')
+#        sys.exit(1)
+
+    
 STREAM = sys.stderr
 
 BAR_TEMPLATE = '%s[%s%s] %i/%i - %s\r'
@@ -186,7 +205,7 @@ def _url_to_binary_write(url, output_path, title):
                     f.flush()
     except:
         # Don't leave a half-written zip file
-        if path.exists(output_path):
+        if os.path.exists(output_path):
             os.remove(output_path)
         raise
 
@@ -224,13 +243,13 @@ def _process_dataset(dataset, output_dir, here):
     are assumed to be added to the url pattern at the
     end
     '''
-    if not path.exists(output_dir):
+    if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     with DirectoryContext(output_dir):
         requires_download = False
         for f in dataset.get('files', []):
-            if not path.exists(f):
+            if not os.path.exists(f):
                 requires_download = True
                 break
 
@@ -248,7 +267,7 @@ def _process_dataset(dataset, output_dir, here):
                         for output_path in output_paths]
         else:
             urls = [url]
-            output_paths = [path.split(url)[1]]
+            output_paths = [os.path.split(url)[1]]
             unpacked = dataset['files']
             if not isinstance(unpacked, (tuple, list)):
                 unpacked = [unpacked]
@@ -264,21 +283,26 @@ def _process_dataset(dataset, output_dir, here):
             _extract_downloaded_archive(output_path)
 
 
-def main():
-    '''Download each dataset specified by datasets.yml in this directory'''
-    here = path.abspath(path.join(path.split(__file__)[0]))
-    info_file = path.join(here, 'datasets.yml')
-    with open(info_file) as f:
-        info = ordered_load(f.read())
-        for topic, downloads in info.items():
-            output_dir = path.join(here, topic)
-            for d in downloads:
-                _process_dataset(d, output_dir, here)
-
-if __name__ == '__main__':
-
     if requests is None:
         print('this download script requires the requests module: conda install requests')
         sys.exit(1)
-    
-    main()
+
+def download_data(path,datasets_filename="datasets.yml"):
+    '''Download sample datasets as defined by path/datasets_filename if it exists or datashader's own examples/datasets_filename otherwise
+
+    Datasets are downloaded to path/data
+    '''
+    path = os.path.abspath(path)
+
+    info_file = os.path.join(path,datasets_filename)
+    if not os.path.exists(info_file):
+        info_file = os.path.abspath(os.path.join(os.path.dirname(__file__),"examples",datasets_filename))
+    print("Downloading data defined in %s"%info_file)
+
+    with open(info_file) as f:
+        info = ordered_load(f.read())
+        print("Downloading data to %s"%os.path.join(path,"data")) # data is added later...
+        for topic, downloads in info.items():
+            output_dir = os.path.join(path, topic)
+            for d in downloads:
+                _process_dataset(d, output_dir, path)

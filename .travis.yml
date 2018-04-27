@@ -72,6 +72,8 @@ jobs:
         - doit develop_install $CHANNELS
         - doit env_capture
       script:
+        # TODO: not sure what's best to do for devs
+        - datashader download_data --path=examples --datasets-filename small.yml
         - doit test_all_quick
 
     # python 2 flake checking typically catches python 2 syntax
