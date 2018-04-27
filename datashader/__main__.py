@@ -1,8 +1,5 @@
 import argparse
 import inspect
-import warnings
-import os
-import distutils.dir_util
 
 from . import __version__
 from .cmd import install_examples, download_data
