@@ -4,13 +4,20 @@
 import os
 import pytest
 
+# TODO: want to replace these with nbs using tiny data; just using
+# quick and small temporarily to get things going
+
 quick = set([
-    # relative to conftest.py's location
     'getting_started/2_Pipeline.ipynb',
-#    'user_guide/3_Timeseries.ipynb'
 ])
 
-# ipynb in examples are "example_notebook"; they can additionally be "quick" 
+small = set([
+    'topics/uk_researchers.ipynb'
+])
+
+
+# ipynb in examples are "example_notebook"; they can additionally be
+# "quick" and/or "small"
 def pytest_collection_modifyitems(items):
     try:
         commonpath = os.path.commonpath
@@ -26,3 +33,5 @@ def pytest_collection_modifyitems(items):
             item.add_marker(pytest.mark.example_notebook)
         if os.path.relpath(path,commonpath([os.path.dirname(__file__),path])).replace(os.path.sep,"/") in quick:
             item.add_marker(pytest.mark.quick)
+        if os.path.relpath(path,commonpath([os.path.dirname(__file__),path])).replace(os.path.sep,"/") in small:
+            item.add_marker(pytest.mark.small)

@@ -15,3 +15,7 @@ try:
     from . import dask                       # noqa (build backend dispatch)
 except ImportError:
     pass
+
+# TODO: consider this (and if cmd not available please conda install datashader-examples)
+#from .cmd import install_examples            # noqa (user convenience)
+#from .cmd import download_data               # noqa (user convenience)
