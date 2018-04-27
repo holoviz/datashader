@@ -1,11 +1,10 @@
-See https://ioam.github.io/nbsite/Usage.html for more details.
+See https://pyviz.github.io/nbsite/Usage.html for more details.
 
 0. Set up environment so you can run the examples
 
-1. Install nbsite: `conda install -c conda-forge sphinx beautifulsoup4
-   graphviz numpydoc && pip install sphinx_ioam_theme nbsite`
+1. Install nbsite and numpydoc: `conda install -c pyviz/label/dev -c conda-forge nbsite sphinx_ioam_theme numpydoc`
 
-2. `cd docs`
+2. `cd doc`
 
 3. Generate rst containers for notebooks:
    `nbsite_nbpagebuild.py bokeh datashader ../examples .`
