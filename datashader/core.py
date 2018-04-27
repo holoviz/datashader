@@ -16,7 +16,8 @@ try:
     from pyspark.sql import DataFrame as SparkDataFrame
 except ImportError:
     class SparkDataFrame:
-        purpose = "To give me a SparkDataFrame class for instance checks in cases where Spark isn't installed"
+        purpose = "To give me a SparkDataFrame class for instance checks in cases where Spark " \
+                  "isn't installed"
 
 
 class Axis(object):
@@ -207,7 +208,7 @@ class Canvas(object):
 
         Parameters
         ----------
-        vertices : pandas.DataFrame, dask.DataFrame, pyspark.sql.DataFrame
+        vertices : pandas.DataFrame, dask.DataFrame
             The input datasource for triangle vertex coordinates. These can be
             interpreted as the x/y coordinates of the vertices, with optional
             weights for value interpolation. Columns should be ordered

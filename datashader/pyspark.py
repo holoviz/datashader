@@ -1,3 +1,14 @@
+"""
+Datashader methods and helper functions to bootstrap extant pandas methods onto pyspark dataframes
+
+Notes
+-----
+* Since Spark has a .collect in .reduce, full reduction by datashader is probably faster than binary
+  reduction in a .reduce call
+* I have avoided .reduceByKey because it just collects everything onto a single executor
+* I have avoided .toLocalIterator because it single-threads the computation
+"""
+
 from __future__ import absolute_import, division
 
 import datashape
@@ -6,13 +17,14 @@ import pandas as pd
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
 
+from collections import OrderedDict
 from pyspark.sql import DataFrame
 
-from .compatibility import zip
-from .core import bypixel
-from .compiler import compile_components
-from .glyphs import Glyph
-from .utils import Dispatcher, dshape_from_pandas, necessary_columns
+from datashader.compatibility import zip
+from datashader.core import LinearAxis, LogAxis, bypixel
+from datashader.compiler import compile_components
+from datashader.glyphs import Glyph, Line
+from datashader.utils import Dispatcher, dshape_from_pandas, necessary_columns
 
 __all__ = ()
 
@@ -54,10 +66,9 @@ def shape_bounds_st_and_axis(df, canvas, glyph):
 glyph_dispatch = Dispatcher()
 
 
-@glyph_dispatch.register(Glyph)
-def default(glyph, df, schema, canvas, summary):
-    """This is evaluated on any Glyph for any pyspark.sql.DataFrame"""
-
+def prep(glyph, df, schema, canvas, summary):
+    """Shared preparation for glyph methods"""
+    
     # Determine shape and extent of data and plot
     # This is a mashup of the code I found in the existing pandas and dask methods
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
@@ -78,9 +89,13 @@ def default(glyph, df, schema, canvas, summary):
     # Use pyspark dataframe API to filter on and select only the columns we need to reduce the
     # serialization overhead. Select is especially helpful on wide dataframes, or those with
     # non-numeric data.
+    if isinstance(canvas.x_axis, LinearAxis):             # Not able to reproduce pandas results
+        df = df.filter(F.col(glyph.x).between(*x_range))  # with LogAxis and non-count based
+    if isinstance(canvas.y_axis, LinearAxis):             # reductions. The filter I want to do is
+        df = df.filter(F.col(glyph.y).between(*y_range))  # sql_project(canvas.{x|y}_axis, glyph.{x|y})
+                                                          #   .between(*map({x|y}_mapper, {x|y}_range))
     columns = necessary_columns(glyph, summary)
-    df = (df.filter(F.col(glyph.x).between(*x_range) & F.col(glyph.y).between(*y_range))
-          .select(*columns))
+    df = df.select(*columns)
     pandas_schema, nullsafe_schema = pyspark_to_pandas_schema(df.schema)
 
     # # Handle the count_cat summary case
@@ -89,18 +104,18 @@ def default(glyph, df, schema, canvas, summary):
     #                         df.select(summary.column).distinct().collect())
     #     pandas_schema[summary.column] = CategoricalDtype(categories)
     #     summary._add_categories(categories)
-
-    # Map the aggregations to partitions of the dataframe
-    result = rdd_method(df, pandas_schema, nullsafe_schema, shape, create, extend, st, bounds,
-                        combine)
-
-    return finalize(result, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])
+    
+    return create, info, append, combine, finalize, extend, shape, st, bounds, y_axis, x_axis, \
+           pandas_schema, nullsafe_schema, df
 
 
-def rdd_method(df, pandas_schema, nullsafe_schema, shape, create, extend, st, bounds, combine):
-    """
-    RDD-based serialization method for partial aggregation
-    """
+@glyph_dispatch.register(Glyph)
+def default(glyph, df, schema, canvas, summary):
+    """This is evaluated on any Glyph for any pyspark.sql.DataFrame"""
+
+    create, info, append, combine, finalize, extend, shape, st, bounds, y_axis, x_axis, \
+        pandas_schema, nullsafe_schema, df = prep(glyph, df, schema, canvas, summary)
+
     # Read serialized rows in each partition as pandas dataframe, then delegate to datashader's
     # pandas methods
     def partition_fn(rows):
@@ -111,17 +126,33 @@ def rdd_method(df, pandas_schema, nullsafe_schema, shape, create, extend, st, bo
 
     # Apply the function to each partition in the dataframe and collect the results
     parts = df.rdd.mapPartitions(partition_fn).collect()
+    # result = combine(map(reversed, enumerate(parts)))[0]
+    result = combine(parts)
 
-    # Full local reduction
-    result = combine(map(reversed, enumerate(parts)))[0]
+    return finalize(result, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])
 
-    # Binary reduction
-    # Since Spark has a .collect in .reduce, full local reduction is probably faster. Avoiding
-    # .reduceByKey because it just collects everything onto a single executor. Avoiding
-    # .toLocalIterator because it single threads the computation.
-    # result = parts.reduce(lambda x, y: combine((x, y)))
 
-    return result
+@glyph_dispatch.register(Line)
+def line(glyph, df, schema, canvas, summary):
+    
+    create, info, append, combine, finalize, extend, shape, st, bounds, y_axis, x_axis, \
+        pandas_schema, nullsafe_schema, df = prep(glyph, df, schema, canvas, summary)
+
+    # Read serialized rows in each partition as pandas dataframe, then delegate to datashader's
+    # pandas line method
+    def indexed_partition_fn(index, rows):
+        plot_start = (index == 0)
+        df = serialized_rows_to_pandas(pandas_schema, nullsafe_schema, rows)
+        aggs = create(shape)
+        extend(aggs, df, st, bounds, plot_start=plot_start)
+        return [aggs]  # make sure to return wrapped in list so the results aren't flattened
+
+    # Apply the function to each partition in the dataframe and collect the results
+    parts = df.rdd.mapPartitionsWithIndex(indexed_partition_fn).collect()
+    # result = combine(map(reversed, enumerate(parts)))[0]
+    result = combine(parts)
+
+    return finalize(result, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])
 
 
 TYPE_MAPPING = {
@@ -164,12 +195,12 @@ def nullsafe_pandas_type(numpy_type):
     return np.object
 
 
-def pyspark_to_pandas_schema(schema):
+def pyspark_to_pandas_schema(pyspark_schema):
     """
     Map a pyspark schema to a pandas schema of {column name: type} and {column name: nullsafe type}
     """
-    pandas_schema, nullsafe_schema = dict(), dict()
-    for field in schema:
+    pandas_schema, nullsafe_schema = OrderedDict(), OrderedDict()
+    for field in pyspark_schema:
         pandas_type = pyspark_type_to_pandas_type(field.dataType)
         pandas_schema[field.name] = pandas_type
         nullsafe_schema[field.name] = nullsafe_pandas_type(pandas_type) if field.nullable \
@@ -190,12 +221,11 @@ def serialized_rows_to_pandas(pandas_schema, nullsafe_schema, rows):
     dataframe. Used to create pandas dataframes on executors in `rdd_method`'s mapping operation.
     """
     # Nullsafe conversion to dataframe
-    _ = zip(nullsafe_schema.items(), zip(*rows))  # (column name, dtype), column values
-    df = pd.DataFrame.from_dict({name: np.array(values, dtype=dtype)
-                                 for (name, dtype), values in _})
+    df = pd.DataFrame.from_dict({name: np.array(values, dtype=dtype) for (name, dtype), values in 
+                                 zip(nullsafe_schema.items(), zip(*rows))})
 
     # If the iterator was empty, df will have no rows or columns
-    # We don't want to return that--instead return empty, typed dataframe
+    # We don't want to return that--instead return zero-row, typed dataframe
     if len(df) == 0:
         return empty_typed_dataframe(pandas_schema)
 
@@ -212,3 +242,13 @@ def dshape_from_pyspark(df):
     schema, _ = pyspark_to_pandas_schema(df.schema)
     empty = empty_typed_dataframe(schema)
     return datashape.var * dshape_from_pandas(empty).measure
+
+
+def sql_project(axis, column):
+    """
+    Project a column into the correct space based on the axis
+    """
+    if isinstance(axis, LogAxis):
+        return F.log10(column)
+    else:
+        return F.col(column)

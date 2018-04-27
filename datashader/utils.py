@@ -1,16 +1,15 @@
 from __future__ import absolute_import, division, print_function
 
-import os
-
-from inspect import getmro
-
+import datashape
+import dask.dataframe as dd
 import numba as nb
 import numpy as np
+import os
 import pandas as pd
 
+from collections import Iterable
+from inspect import getmro
 from xarray import DataArray
-import dask.dataframe as dd
-import datashape
 
 ngjit = nb.jit(nopython=True, nogil=True)
 
@@ -486,10 +485,13 @@ def necessary_columns(glyph=None, agg=None):
     if glyph is not None:
         columns.extend([glyph.x, glyph.y])
         if hasattr(glyph, 'z') and (glyph.z is not None):
-            columns.append(glyph.z)
+            if isinstance(glyph.z, Iterable):  # Triangles
+                columns.extend(glyph.z)
+            else:                              # everything else
+                columns.append(glyph.z)
 
     if agg is not None:
-        if agg.column is not None:
+        if hasattr(agg, "column") and (agg.column is not None):
             columns.append(agg.column)
         if hasattr(agg, 'values'):
             columns.extend([subagg.column for subagg in agg.values if subagg.column])

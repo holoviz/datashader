@@ -2,6 +2,7 @@ cloudpickle
 colorcet
 dask >= 0.15.4
 datashape >= 0.5.1
+findspark[pyspark]
 numba >= 0.35.0
 numpy >= 1.7
 pandas >= 0.20.3
