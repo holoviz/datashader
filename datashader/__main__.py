@@ -1,35 +1,27 @@
 import argparse
 import inspect
+import sys
 
 from . import __version__
-from .cmd import install_examples, download_data
 
+pvcommands = ['install_examples',
+              'download_data']
+
+try:
+    from pvutil.cmd import add_pv_commands
+except ImportError:
+    def add_pv_commands(parser,*args,**kw):
+        from . import _install_examples
+        for c in pvcommands:
+            p = parser.add_parser(c); p.set_defaults(func=lambda args: p.error(_install_examples()))
 
 def main(args=None):
-    parser = argparse.ArgumentParser(description="Datashader commands")
+    parser = argparse.ArgumentParser(description="datashader commands")
     parser.add_argument('--version', action='version', version='%(prog)s '+__version__)
-    
     subparsers = parser.add_subparsers(title='available commands')
-
-    eg_parser = subparsers.add_parser('install_examples', help=inspect.getdoc(install_examples))
-    eg_parser.set_defaults(func=lambda args: install_examples(args.path, args.include_data, args.verbose))
-    eg_parser.add_argument('--path',type=str,help='where to install examples',default='datashader-examples')
-    eg_parser.add_argument('--include-data',action='store_true',help='Also download data (see download_data command for more flexibility)')
-    eg_parser.add_argument('-v', '--verbose', action='count', default=0)
-
-    d_parser = subparsers.add_parser('download_data', help=inspect.getdoc(download_data))
-    d_parser.set_defaults(func=lambda args: download_data(args.path,args.datasets_filename))
-    d_parser.add_argument('--path',type=str,help='where to download data',default='datashader-examples')
-    d_parser.add_argument('--datasets-filename',type=str,help='something',default='datasets.yml')
-    d_parser.add_argument('-v', '--verbose', action='count', default=0)
-    
+    add_pv_commands(subparsers,pvcommands,'datashader',args)
     args = parser.parse_args()
-
-    if hasattr(args,'func'):
-        args.func(args)
-    else:
-        parser.error("must supply command to run") 
-
+    args.func(args) if hasattr(args,'func') else parser.error("must supply command to run") 
 
 if __name__ == "__main__":
     main()

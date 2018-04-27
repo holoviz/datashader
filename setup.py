@@ -109,6 +109,7 @@ _examples_common = [
     'requests',
     'tblib',
     'xarray',
+    'pvutil',
     'pyyaml',
     'streamz ==0.2.0',
     'webargs'
