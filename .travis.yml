@@ -67,7 +67,7 @@ jobs:
         # ...and now install doit/pyct into miniconda
         - conda install -c pyviz/label/dev pyct && doit ecosystem_setup
       install:
-        - doit env_create --python=$PYENV_VERSION
+        - doit env_create $CHANNELS --python=$PYENV_VERSION
         - source activate test-environment
         - doit develop_install $CHANNELS
       script:

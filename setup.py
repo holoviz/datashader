@@ -126,14 +126,10 @@ extras_require['examples'] = _examples_common + [
     'pyproj',
     'pytables',
     'python-snappy',
+    'rasterio',
     'snappy',
     'shapely',
     'statsmodels',
-    ## rasterio: specify libgdal explicitly in attempt to make sure it comes
-    # from same channel (was getting segfault on linux otherwise, as libgdal
-    # was coming from defaults while rasterio was from conda-forge)
-    'rasterio',
-    'libgdal',
 ]
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
