@@ -148,6 +148,30 @@ def test_count_cat():
     assert_eq(agg, out)
 
 
+def test_count_values():
+    ddf2 = ddf.copy()
+    ddf2["cat_str"] = ddf2["cat"].astype(str)
+    sol = np.array([[[5, 0, 0, 0],
+                     [0, 0, 5, 0]],
+                    [[0, 5, 0, 0],
+                     [0, 0, 0, 5]]])
+    out = xr.DataArray(sol, coords=(coords + [['a', 'b', 'c', 'd']]),
+                       dims=(dims + ['cat_str']))
+    agg = c.points(ddf2, 'x', 'y', ds.count_values('cat_str', ['a', 'b', 'c', 'd']))
+    assert_eq(agg, out)
+
+
+def test_count_cat_vs_count_values():
+    """
+    count_cat and count_values should have the same results when the parameterizations are identical
+    """
+    ddf2 = ddf.copy()
+    ddf2["cat"] = ddf2["cat"].astype(str)
+    count_cat_agg = c.points(ddf, "x", "y", ds.count_cat("cat"))
+    count_values_agg = c.points(ddf2, "x", "y", ds.count_values("cat", ['a', 'b', 'c', 'd']))
+    assert_eq(count_cat_agg, count_values_agg)
+
+
 def test_multiple_aggregates():
     agg = c.points(ddf, 'x', 'y',
                    ds.summary(f64_std=ds.std('f64'),

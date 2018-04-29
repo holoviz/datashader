@@ -142,6 +142,30 @@ def test_count_cat():
     assert_eq(agg, out)
 
 
+def test_count_values():
+    df2 = df.copy()
+    df2["cat"] = df2["cat"].astype(str)
+    sol = np.array([[[5, 0, 0, 0],
+                     [0, 0, 5, 0]],
+                    [[0, 5, 0, 0],
+                     [0, 0, 0, 5]]])
+    out = xr.DataArray(sol, coords=(coords + [['a', 'b', 'c', 'd']]),
+                       dims=(dims + ['cat']))
+    agg = c.points(df2, 'x', 'y', ds.count_values('cat', ['a', 'b', 'c', 'd']))
+    assert_eq(agg, out)
+
+
+def test_count_cat_vs_count_values():
+    """
+    count_cat and count_values should have the same results when the parameterizations are identical
+    """
+    df2 = df.copy()
+    df2["cat"] = df2["cat"].astype(str)
+    count_cat_agg = c.points(df, "x", "y", ds.count_cat("cat"))
+    count_values_agg = c.points(df2, "x", "y", ds.count_values("cat", ['a', 'b', 'c', 'd']))
+    assert_eq(count_cat_agg, count_values_agg)
+
+
 def test_multiple_aggregates():
     agg = c.points(df, 'x', 'y',
                    ds.summary(f64_std=ds.std('f64'),

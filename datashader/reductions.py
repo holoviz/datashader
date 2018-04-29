@@ -1,10 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import xarray as xr
+
 from datashape import dshape, isnumeric, Record, Option
 from datashape import coretypes as ct
+from pandas.api.types import CategoricalDtype
 from toolz import concat, unique
-import xarray as xr
 
 from .utils import Expr, ngjit
 
@@ -29,6 +31,17 @@ class category_codes(Preprocess):
     """Extract just the category codes from a categorical column."""
     def apply(self, df):
         return df[self.column].cat.codes.values
+
+
+class value_codes(Preprocess):
+    """Cast to categorical and extract just the category codes."""
+
+    def __init__(self, column, categorical_dtype):
+        super(value_codes, self).__init__(column=column)
+        self.catgorical_dtype = categorical_dtype
+
+    def apply(self, df):
+        return df[self.column].astype(self.catgorical_dtype).cat.codes.values
 
 
 class Reduction(Expr):
@@ -307,6 +320,59 @@ class count_cat(Reduction):
     def _build_finalize(self, dshape):
         cats = list(dshape[self.column].categories)
 
+        def finalize(bases, **kwargs):
+            dims = kwargs['dims'] + [self.column]
+            coords = kwargs['coords'] + [cats]
+            return xr.DataArray(bases[0], dims=dims, coords=coords)
+        return finalize
+
+
+class count_values(Reduction):
+    """Count of all elements in ``column``, grouped by value.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Resulting aggregate has a outer dimension axis along
+        the categories present.
+    categories : array-like
+        Categories (unique values) included in the column. Any unprovided categories will be ignored
+        in the result.
+    ordered : bool
+        Treat the categories as ordered
+    """
+
+    def __init__(self, column, categories, ordered=False):
+        super(count_values, self).__init__(column=column)
+        self.categories = categories
+        self.dtype = CategoricalDtype(self.categories, ordered=ordered)
+
+    def validate(self, in_dshape):
+        if not self.column in in_dshape.dict:
+            raise ValueError("specified column not found")
+
+    def out_dshape(self, input_dshape):
+        return dshape(Record([(c, ct.int32) for c in self.dtype.categories]))
+
+    @property
+    def inputs(self):
+        return (value_codes(self.column, self.dtype), )
+
+    def _build_create(self, out_dshape):
+        n_cats = len(out_dshape.measure.fields)
+        return lambda shape: np.zeros(shape + (n_cats,), dtype='i4')
+
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        agg[y, x, field] += 1
+
+    @staticmethod
+    def _combine(aggs):
+        return aggs.sum(axis=0, dtype='i4')
+
+    def _build_finalize(self, dshape):
+        cats = list(self.dtype.categories)
         def finalize(bases, **kwargs):
             dims = kwargs['dims'] + [self.column]
             coords = kwargs['coords'] + [cats]

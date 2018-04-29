@@ -14,17 +14,16 @@ import datashader as ds
 
 
 # Start a sparkSession
-spark_home = join(dirname(dirname(sys.executable)), 
-                  "lib", 
-                  "python{v.major}.{v.minor}".format(v=sys.version_info), 
-                  "site-packages", 
+spark_home = join(dirname(dirname(sys.executable)),
+                  "lib",
+                  "python{v.major}.{v.minor}".format(v=sys.version_info),
+                  "site-packages",
                   "pyspark")
 findspark.init(spark_home=spark_home, python_path=sys.executable)
 spark = (SparkSession.builder
          .config("spark.master", "local[1]")
          .getOrCreate())
 sc = spark.sparkContext
-
 
 
 df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
@@ -73,7 +72,7 @@ def test_results_equal_pandas(canvas, method, agg, z):
     assert pyspark_agg.equals(pandas_agg)
 
 
-def test_multiple_aggregates():
+def test_multiple_aggregates_equal_pandas():
     """...with multiple aggregates, too"""
     summary = ds.summary(f64_std=ds.std('f64'),
                          f64_mean=ds.mean('f64'),
@@ -82,3 +81,77 @@ def test_multiple_aggregates():
     pandas_agg = c.points(df, 'x', 'y', summary)
     pyspark_agg = c.points(sdf, 'x', 'y', summary)
     assert pyspark_agg.equals(pandas_agg)
+
+
+@pytest.mark.parametrize("canvas", ["c", "c_logx", "c_logy", "c_logxy"])
+@pytest.mark.parametrize("method", ["points", "line"])
+def test_results_count_values_equal_pandas(canvas, method):
+    """
+    count_cat and count_values should have the same results when the parameterizations are identical
+    """
+    pandas_agg = getattr(canvi[canvas], method)(df, "x", "y", ds.count_cat("cat"))
+    pyspark_agg = getattr(canvi[canvas], method)(sdf, "x", "y", 
+                                                 ds.count_values("cat", ["a", "b", "c", "d"]))
+    assert pandas_agg.equals(pyspark_agg)
+
+
+# trimesh unsupported because of amount of refactoring involved
+# 
+# trimesh_verts = [
+#     pd.DataFrame({'x': [4, 1, 5, 5, 5, 4], 'y': [4, 5, 5, 5, 4, 4]}),
+#     pd.DataFrame({'x': [3, 3, 1, 1, 3, 3], 'y': [4, 1, 4, 4, 5, 4]}),
+#     pd.DataFrame({'x': [0, 5, 10], 'y': [0, 10, 0]}),
+#     pd.DataFrame({'x': [0, 5, 10], 'y': [0, 10, 0], 'z': [1, 5, 3]}),
+#     pd.DataFrame({'x': [4, 1, 5, 5, 5, 4], 'y': [4, 5, 5, 5, 4, 4]}),
+#     pd.DataFrame({'x': [4, 1, 5, 5, 5, 4], 'y': [4, 5, 5, 5, 4, 4]}),
+#     pd.DataFrame({'x': [4, 1, 5, 5, 5, 4], 'y': [4, 5, 5, 5, 4, 4], 'z': [1., 1., 1., 2., 2., 2.]}, 
+#                  columns=['x', 'y', 'z']),
+#     pd.DataFrame({'x': [4, 1, 5, 5, 5, 4], 'y': [4, 5, 5, 5, 4, 4], 'val': [2, 2, 2, 3, 3, 3]}, 
+#                  columns=['x', 'y', 'val']),
+#     pd.DataFrame({'x': [4, 1, 5, 5, 5, 4], 'y': [4, 5, 5, 5, 4, 4]}),
+#     pd.DataFrame({'x': [4, 1, 5, 5, 5, 4], 'y': [4, 5, 5, 5, 4, 4]}),
+#     pd.DataFrame({'x': [4, 1, 5, 5, 5, 4], 'y': [4, 5, 5, 5, 4, 4], 'z': [1., 1., 1., 2., 2., 2.]},
+#                  columns=['x', 'y', 'z']),
+#     pd.DataFrame({'x': [1, 3, 4, 3, 3], 'y': [2, 1, 2, 1, 4]}, columns=['x', 'y'])
+# ]
+# 
+# trimesh_tris = [
+#     pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 2]}),
+#     pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [3, 1]}),
+#     pd.DataFrame({'v0': [0], 'v1': [1], 'v2': [2], 'val': [1]}),
+#     pd.DataFrame({'v0': [0], 'v1': [1], 'v2': [2], 'val': [1]}),
+#     pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [2., 4.]}),
+#     pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [3, 4]}),
+#     pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5]}),
+#     pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5]}),
+#     pd.DataFrame({'v0': [0, 3], 'v1': [2, 5], 'v2': [1, 4], 'val': [3, 4]}),
+#     pd.DataFrame({'v0': [0, 3], 'v1': [2, 5], 'v2': [1, 4], 'val': [3., 4.]}),
+#     pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5]}),
+#     pd.DataFrame({'n1': [4, 1], 'n2': [1, 4], 'n3': [2, 0], 'weight': [0.83231525, 1.3053126]}, 
+#                  columns=['n1', 'n2', 'n3', 'weight'])
+# ]
+# 
+# trimesh_cvs = [
+#     ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5)),
+#     ds.Canvas(plot_width=22, plot_height=22, x_range=(0, 10), y_range=(0, 10)),
+#     ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10)),
+#     ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10)),
+#     ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5)),
+#     ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5)),
+#     ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5)),
+#     ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5)),
+#     ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5)),
+#     ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5)),
+#     ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5)),
+#     ds.Canvas(x_range=(0, 10), y_range=(0, 10))
+# ]
+# 
+# 
+# @pytest.mark.parametrize("verts,tris,cvs", zip(trimesh_verts, trimesh_tris, trimesh_cvs))
+# def test_results_trimesh_equal_pandas(verts, tris, cvs):
+#     """...and even with trimesh"""
+#     spark_verts = spark.createDataFrame(verts)
+#     spark_tris = spark.createDataFrame(tris)
+#     pandas_agg = cvs.trimesh(verts, tris)
+#     spark_agg = cvs.trimesh(spark_verts, spark_tris)
+#     assert spark_agg.equals(pandas_agg)
