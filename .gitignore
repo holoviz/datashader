@@ -73,3 +73,4 @@ datashader/examples/export
 .doit*
 
 datashader/.version
+/.pytest_cache
