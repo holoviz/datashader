@@ -79,11 +79,6 @@ extras_require = {
         'flake8',
         'nbsmoke >0.2.0',
     ],
-    'doc': [
-        'nbsite',
-        'sphinx_ioam_theme',
-        'numpydoc'
-    ]
 }
 
 # pip or conda installable dependencies required for examples
@@ -114,7 +109,7 @@ _examples_common = [
     'webargs'
 ]
 
-extras_require['examples'] = _examples_common + [
+_examples = _examples_common + [
     'cartopy',
     'graphviz',
     'python-graphviz',
@@ -129,6 +124,14 @@ extras_require['examples'] = _examples_common + [
     'snappy',
     'shapely',
     'statsmodels',
+]
+
+extras_require['examples'] = _examples
+
+extras_require['doc'] = _examples + [
+    'nbsite',
+    'sphinx_ioam_theme',
+    'numpydoc'
 ]
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
