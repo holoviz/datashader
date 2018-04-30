@@ -13,13 +13,13 @@ build:
 
 requirements:
   build:
-    - python
-    - setuptools
-    - param
+    - python {{ sdata['python_requires'] }}
+    {% for dep in sdata['extras_require']['build'] %}
+    - {{ dep }}
+    {% endfor %}  
   run:
     - python {{ sdata['python_requires'] }}
     - datashader =={{ sdata['version'] }}
-
     {% for dep in sdata['extras_require']['examples'] %}
     - {{ dep }}
     {% endfor %}
@@ -28,7 +28,6 @@ requirements:
 test:
   imports:
     - datashader
-  # move to pyct? depends on plans to include any test commands here    
   requires:
     {% for dep in sdata['extras_require']['tests'] %}
     - {{ dep }}

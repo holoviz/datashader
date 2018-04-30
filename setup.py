@@ -79,8 +79,7 @@ extras_require = {
         'flake8',
         'nbsmoke >0.2.0',
     ],
-
-    'docs': [
+    'doc': [
         'nbsite',
         'sphinx_ioam_theme',
         'numpydoc'
@@ -133,6 +132,13 @@ extras_require['examples'] = _examples_common + [
 ]
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
+
+# until pyproject.toml/equivalent is widely supported; meanwhile
+# setup_requires doesn't work well with pip. Note: deliberately omitted from all.
+extras_require['build'] = [
+    'param >=1.6.1',
+    'setuptools' # should make this pip now
+]
 
 # special case/current best effort to support installing dependencies
 # for examples using pip alone (note: deliberately not included in
