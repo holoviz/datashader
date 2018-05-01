@@ -90,7 +90,7 @@ _examples_common = [
     'colorcet',
     'dill',
     'distributed',
-    'holoviews >=1.8.3',
+    'holoviews >=1.10',
     'ipython', # TODO why? notebook & ipykernel maybe?
     'jupyter',
     'jupyter_dashboards',
