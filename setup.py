@@ -58,7 +58,7 @@ install_requires = [
     'toolz >=0.7.4',  # ? for some dask issue (dasks does only >=0.7.3)
 
     'datashape >=0.5.1',
-    'numba >=0.35.0',
+    'numba >=0.37.0',
     'numpy >=1.7',
     'pandas >=0.20.3',
     # TODO: pillow was pinned to 4.3.0 on travis; need to test ds pil usage on windows
