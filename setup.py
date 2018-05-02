@@ -238,7 +238,7 @@ setup_args = dict(
     tests_require=extras_require['tests'],
     license='New BSD',
     packages=find_packages(),
-    package_data={'geoviews': ['.version']},    
+    package_data={'datashader': ['.version']},    
     entry_points={
         'console_scripts': [
             'datashader = datashader.__main__:main'
