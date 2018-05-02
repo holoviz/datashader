@@ -237,7 +237,7 @@ setup_args = dict(
     extras_require=extras_require,
     tests_require=extras_require['tests'],
     license='New BSD',
-    packages=find_packages(),
+    packages=find_packages()+packages,
     package_data={'datashader': ['.version']},    
     entry_points={
         'console_scripts': [
