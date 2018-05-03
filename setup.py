@@ -118,7 +118,6 @@ def package_assets(example_path):
             setup_args['package_data'][p] = exts
 
 
-
 ########## dependencies ##########
 
 install_requires = [
@@ -150,56 +149,52 @@ extras_require = {
         'flake8',
         'nbsmoke >0.2.0',
     ],
+    'examples': [],
+    # TODO: split to examples and those that should move to pyviz
+    'examples_extra':[
+        'attrs',
+        'beautifulsoup4',
+        'bokeh',
+        #'cachey', # TODO: investigate (no conda package
+        'colorcet',
+        'dill',
+        'distributed',
+        'holoviews >=1.10',
+        'ipython', # TODO why? notebook & ipykernel maybe?
+        'jupyter',
+        'jupyter_dashboards',
+        'matplotlib',
+        'nbconvert',
+        'nbformat',
+        'networkx >=2.0',
+        'pandas',
+        'paramnb',
+        'requests',
+        'tblib',
+        'xarray',
+        'pvutil',
+        'pyyaml',
+        'streamz ==0.2.0',
+        'webargs'
+        ### conda only below here
+        'cartopy',
+        'graphviz',
+        'python-graphviz',
+        'fastparquet',
+        'geoviews',
+        'iris',
+        'krb5',
+        'pyproj',
+        'pytables',
+        'python-snappy',
+        'rasterio',
+        'snappy',
+        'shapely',
+        'statsmodels'
+    ]
 }
 
-# pip or conda installable dependencies required for examples
-_examples_common = [
-    'attrs',
-    'beautifulsoup4',
-    'bokeh',
-    #'cachey', # TODO: investigate (no conda package
-    'colorcet',
-    'dill',
-    'distributed',
-    'holoviews >=1.10',
-    'ipython', # TODO why? notebook & ipykernel maybe?
-    'jupyter',
-    'jupyter_dashboards',
-    'matplotlib',
-    'nbconvert',
-    'nbformat',
-    'networkx >=2.0',
-    'pandas',
-    'paramnb',
-    'requests',
-    'tblib',
-    'xarray',
-    'pvutil',
-    'pyyaml',
-    'streamz ==0.2.0',
-    'webargs'
-]
-
-_examples = _examples_common + [
-    'cartopy',
-    'graphviz',
-    'python-graphviz',
-    'fastparquet',
-    'geoviews',
-    'iris',
-    'krb5',
-    'pyproj',
-    'pytables',
-    'python-snappy',
-    'rasterio',
-    'snappy',
-    'shapely',
-    'statsmodels',
-]
-
-extras_require['examples'] = _examples
-
-extras_require['doc'] = _examples + [
+extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite',
     'sphinx_ioam_theme',
     'numpydoc'
@@ -208,17 +203,12 @@ extras_require['doc'] = _examples + [
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
 
 # until pyproject.toml/equivalent is widely supported; meanwhile
-# setup_requires doesn't work well with pip. Note: deliberately omitted from all.
+# setup_requires doesn't work well with pip. Note: deliberately
+# omitted from all.
 extras_require['build'] = [
     'param >=1.6.1',
     'setuptools' # should make this pip now
 ]
-
-# special case/current best effort to support installing dependencies
-# for examples using pip alone (note: deliberately not included in
-# "all"). See https://github.com/bokeh/datashader/issues/588 for more
-# info.
-extras_require['examples_pip'] = _examples_common
 
 
 ########## metadata for setuptools ##########
