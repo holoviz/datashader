@@ -18,4 +18,4 @@ install:
 build: off
 
 test_script:
-  - "doit test_all_quick"
+  - "doit test_all"

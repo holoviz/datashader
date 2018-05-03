@@ -1,23 +1,19 @@
 # TODO before merge:
 #
-#  * what channels? will probably want PKG_CHANNELS (maybe -c pyviz,
-#    or otherwise nothing) and DEV_CHANNELS (maybe -c pyviz/label/dev)
+#  * try switch to defaults
 #
 #  * restore previous sections
-#
-#  * add release packages
 
 language: generic
-
 sudo: false
-
 os:
   - linux
 
 env:
   global:
     - PYENV_VERSION=3.6
-    - CHANNELS="-c pyviz/label/dev -c conda-forge"
+    - CHANS_DEV="-c pyviz/label/dev -c conda-forge"
+#    - CHANS_REL="-c pyviz -c conda-forge"
     - PKG_TEST_PYTHON="--test-python=py27 --test-python=py36"
     # conda build fills up travis /tmp (tmpfs)
     - TMPDIR=$HOME/tmp
@@ -41,21 +37,15 @@ stages:
     if: tag =~ ^v(\d+|\.)*[a-z]\d*$
   - name: pip_dev_package
     if: tag =~ ^v(\d+|\.)*[a-z]\d*$
-#  - name: conda_package
-#    if: tag =~ ^v(\d+|\.)*[^a-z]\d*$
-#  - name: pip_package
-#    if: tag =~ ^v(\d+|\.)*[^a-z]\d*$
 
 jobs:
   include:
 
     ########## DEVELOPER INSTALL ##########
 
-    # quick tests in typical dev env (most tests are run on packages)
-
     - &conda_default
       stage: test
-      env: DESC="dev test_all_quick"
+      env: DESC="dev test_all"
       before_install:
         # TODO: remove before merge - necessary for autover because no vX.Y.Z tag on master
         - git tag -a v0.6.6 -m "test tag"
@@ -70,28 +60,17 @@ jobs:
         # ...and now install doit/pyct into miniconda
         - conda install -c pyviz/label/dev pyct && doit ecosystem_setup
       install:
-        - doit env_create $CHANNELS --python=$PYENV_VERSION
+        - doit env_create $CHANS_DEV --python=$PYENV_VERSION
         - source activate test-environment
-        - doit develop_install $CHANNELS
-      script:
+        - doit develop_install $CHANS_DEV
         - doit env_capture
-        - doit test_all_quick
+      script: doit test_all
 
     # python 2 flake checking typically catches python 2 syntax
     # errors where python 3's been assumed...
     - <<: *conda_default
       env: DESC="py2 flakes" PYENV_VERSION=2.7
       script: doit test_flakes
-
-    # TODO: run this once a day or something like that?
-    - <<: *conda_default
-      env: DESC="dev test_examples_small"
-      script:
-        - doit develop_install $CHANNELS --options=examples
-        - datashader download_data --path=examples --datasets-filename small.yml
-        - doit env_capture
-        - doit test_examples_small
-
 
     ########## END-USER PACKAGES ##########
 
@@ -102,21 +81,14 @@ jobs:
       before_install: pip install pyct && doit ecosystem=pip ecosystem_setup
       install:
         - unset PYENV_VERSION && pyenv global 3.6 2.7
-        - doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=unit
+        - doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=all
       script: doit ecosystem=pip package_upload -u $TPPU -p $TPPP -r ${PYPI}
-      # Future work; see https://github.com/bokeh/datashader/issues/588
-      #  doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=examples_quick
 
     - <<: *conda_default
       stage: conda_dev_package
       env: DESC="" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
-      install:
-        - doit package_build --recipe base $CHANNELS $PKG_TEST_PYTHON --test-group=unit
-        - doit package_build --recipe examples $CHANNELS $PKG_TEST_PYTHON --test-group=all_quick --test-group=examples_small
-      script:
-        - doit package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=base --label=dev
-        - doit package_upload --token=$CONDA_UPLOAD_TOKEN --recipe=examples --label=dev
-
+      install: doit package_build $PKG_TEST_PYTHON --test-group=all
+      script: doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev
 
 notifications:
   email: false
