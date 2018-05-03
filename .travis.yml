@@ -87,7 +87,7 @@ jobs:
     - <<: *conda_default
       stage: conda_dev_package
       env: DESC="" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
-      install: doit package_build $PKG_TEST_PYTHON --test-group=all
+      install: doit package_build $CHANS_DEV $PKG_TEST_PYTHON --test-group=all
       script: doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev
 
 notifications:
