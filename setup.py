@@ -138,9 +138,6 @@ install_requires = [
     'param >=1.6.0',
 
     'pvutil',
-    # msgpack-python has been renamed to msgpack on pypi, but is still msgpack-python
-    # on defaults and conda-forge.
-    #'msgpack-python',
     
     ### TODO: below are actually optional? ###
     'scikit-image',
