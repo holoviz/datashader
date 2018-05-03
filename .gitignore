@@ -65,12 +65,11 @@ target/
 *~
 
 # Example output, notes
-datashader/examples/times
-datashader/examples/data
-datashader/examples/export
+examples/times
+examples/data
+examples/export
+
 **.org
-
 .doit*
-
 datashader/.version
 /.pytest_cache
