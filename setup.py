@@ -126,7 +126,6 @@ install_requires = [
     # like pip's dask.)
     'dask[complete] >=0.15.4',
     'toolz >=0.7.4',  # ? for some dask issue (dasks does only >=0.7.3)
-
     'datashape >=0.5.1',
     'numba >=0.37.0',
     'numpy >=1.7',
@@ -136,9 +135,7 @@ install_requires = [
     'xarray >=0.9.6',
     'colorcet >=0.9.0',
     'param >=1.6.0',
-
-    'pvutil',
-    
+    'pyct',
     ### TODO: below are actually optional? ###
     'scikit-image',
     'bokeh',

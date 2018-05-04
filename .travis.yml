@@ -51,12 +51,12 @@ jobs:
         - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
             brew uninstall --ignore-dependencies geos gdal postgis;
           fi
-        # install doit/pyct and use to install miniconda...
-        - pip install pyct && doit miniconda_install && pip uninstall -y doit pyct
+        # install doit/pyctdev and use to install miniconda...
+        - pip install pyctdev && doit miniconda_install && pip uninstall -y doit pyctdev
         - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
         - conda config --set always_yes True
-        # ...and now install doit/pyct into miniconda
-        - conda install -c pyviz/label/dev pyct && doit ecosystem_setup
+        # ...and now install doit/pyctdev into miniconda
+        - conda install -c pyviz/label/dev pyctdev && doit ecosystem_setup
       install:
         - doit env_create $CHANS_DEV --python=$PYENV_VERSION
         - source activate test-environment
@@ -76,7 +76,7 @@ jobs:
 
     - env: PYENV_VERSION=3.6 PYPI="https://test.pypi.org/legacy/" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       stage: pip_dev_package
-      before_install: pip install pyct && doit ecosystem=pip ecosystem_setup
+      before_install: pip install pyctdev && doit ecosystem=pip ecosystem_setup
       install:
         - unset PYENV_VERSION && pyenv global 3.6 2.7
         - doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=all
