@@ -1,5 +1,5 @@
 include datashader/.version
-recursive-include examples *.csv *.gz *.ipynb *.md *.npz *.png
+graft examples
 graft datashader/tests/data
 global-exclude *.py[co]
 global-exclude *~
