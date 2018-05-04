@@ -131,7 +131,7 @@ install_requires = [
     'numba >=0.37.0',
     'numpy >=1.7',
     'pandas >=0.20.3',
-    # TODO: pillow was pinned to 4.3.0 on travis; need to test ds pil usage on windows
+    # TODO: pillow was pinned to 4.3.0 on appveyor; need to test ds pil usage on windows
     'pillow >=3.1.1',
     'xarray >=0.9.6',
     'colorcet >=0.9.0',
@@ -161,14 +161,11 @@ extras_require = {
         #'cachey', # TODO: investigate (no conda package
         'colorcet',
         'dill',
-        'distributed',
+        'distributed', # dask
         'holoviews >=1.10',
-        'ipython', # TODO why? notebook & ipykernel maybe?
         'jupyter',
         'jupyter_dashboards',
         'matplotlib',
-        'nbconvert',
-        'nbformat',
         'networkx >=2.0',
         'pandas',
         'paramnb',
