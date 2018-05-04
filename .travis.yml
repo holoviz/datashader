@@ -47,8 +47,6 @@ jobs:
       stage: test
       env: DESC="dev test_all"
       before_install:
-        # TODO: remove before merge - necessary for autover because no vX.Y.Z tag on master
-        - git tag -a v0.6.6 -m "test tag"
         # brew-installed geos interferes with conda's cartopy?
         - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
             brew uninstall --ignore-dependencies geos gdal postgis;
