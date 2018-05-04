@@ -1,8 +1,6 @@
 See https://pyviz.github.io/nbsite/Usage.html for more details.
 
-0. Set up environment so you can run the examples
-
-1. Install nbsite and numpydoc: `conda install -c pyviz/label/dev -c conda-forge nbsite sphinx_ioam_theme numpydoc`
+0. Set up environment so you can run the examples and build docs (e.g. `conda install -c pyviz/label/dev pyct` then `doit env_create -c pyviz/label/dev -c conda-forge --python=3.6 --name=dsdocs` then `conda activate dsdocs` then `doit develop_install -c pyviz/label/dev -c conda-forge -o doc`).
 
 2. `cd doc`
 
