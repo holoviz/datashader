@@ -146,7 +146,7 @@ extras_require = {
         'pytest >=2.8.5',
         'pytest-benchmark >=3.0.0',
         'flake8',
-        'nbsmoke >0.2.0',
+        'nbsmoke >=0.2.5',
     ],
     'examples': [],
     # TODO: split to examples and those that should move to pyviz
