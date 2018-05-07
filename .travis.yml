@@ -67,7 +67,7 @@ jobs:
     # errors where python 3's been assumed...
     - <<: *conda_default
       env: DESC="py2 flakes" PYENV_VERSION=2.7
-      script: doit test_flakes
+      script: doit test_lint
 
     ########## END-USER PACKAGES ##########
 
