@@ -2,8 +2,6 @@
 
 from __future__ import print_function
 
-# TODO: how does the above relate to download_sample_data.py?
-# And is this script for running, or importing?
 if __name__ == "__main__":
 
     from os import path, makedirs, remove

@@ -130,7 +130,6 @@ install_requires = [
     'numba >=0.37.0',
     'numpy >=1.7',
     'pandas >=0.20.3',
-    # TODO: pillow was pinned to 4.3.0 on appveyor; need to test ds pil usage on windows
     'pillow >=3.1.1',
     'xarray >=0.9.6',
     'colorcet >=0.9.0',
@@ -149,7 +148,6 @@ extras_require = {
         'nbsmoke >=0.2.5',
     ],
     'examples': [],
-    # TODO: split to examples and those that should move to pyviz
     'examples_extra':[
         'attrs',
         'beautifulsoup4',
