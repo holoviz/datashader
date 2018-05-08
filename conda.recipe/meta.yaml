@@ -1,41 +1,43 @@
+{% set sdata = load_setup_py_data() %}
+
 package:
   name: datashader
-  version: 0.6.5
+  version: {{ sdata['version'] }}
 
-extra:
-  channels:
-    - numba
-    - gbrener
-    - conda-forge
+source:
+  path: ..
+
+build:
+  noarch: python
+  script: python setup.py install --single-version-externally-managed --record=record.txt
+  entry_points:
+    {% for group,epoints in sdata.get("entry_points",{}).items() %}
+    {% for entry_point in epoints %}
+    - {{ entry_point }}
+    {% endfor %}
+    {% endfor %}
 
 requirements:
   build:
-    - python
-    - setuptools
-
+    - python {{ sdata['python_requires'] }}
+    {% for dep in sdata['extras_require']['build'] %}
+    - {{ dep }}
+    {% endfor %}  
   run:
-    - python
-    - dask >=0.15.4
-    - datashape >=0.5.1
-    - numba >=0.35.0
-    - numpy >=1.7
-    - pandas >=0.20.3
-    - pillow >=3.1.1
-    - xarray >=0.9.6
-    - toolz >=0.7.4
-    - colorcet >=0.9.0
-    - param >=1.5.0,<2.0
+    - python {{ sdata['python_requires'] }}
+    {% for dep in sdata.get('install_requires',{}) %}
+    - {{ dep }}
+    {% endfor %}
 
 test:
-  requires:
-    - pytest >=2.8.5
-    - pytest-benchmark >=3.0.0
-    - rasterio
-    - scipy
-
   imports:
     - datashader
+  requires:
+    {% for dep in sdata['extras_require']['tests'] %}
+    - {{ dep }}
+    {% endfor %}
 
 about:
-  home: https://github.com/bokeh/datashader
-  license: New BSD
+  home: {{ sdata['url'] }}
+  summary: {{ sdata['description'] }}
+  license: {{ sdata['license'] }}

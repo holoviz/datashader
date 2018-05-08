@@ -1,4 +1,6 @@
-global-exclude .git*
-include datashader/tests/data/world.rgb.tif
-recursive-include examples *.py *.ipynb *.md *.sh *.yml
-prune examples/.ipynb_checkpoints
+include datashader/.version
+graft examples
+graft datashader/tests/data
+global-exclude *.py[co]
+global-exclude *~
+global-exclude *.ipynb_checkpoints/*

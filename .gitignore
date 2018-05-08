@@ -23,7 +23,6 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-examples/data/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -69,4 +68,8 @@ target/
 examples/times
 examples/data
 examples/export
+
 **.org
+.doit*
+datashader/.version
+/.pytest_cache
