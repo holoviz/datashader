@@ -74,8 +74,8 @@ including API documentation and papers and talks about the approach.
 
 ## Screenshots
 
-![USA census](docs/images/usa_census.jpg)
+![USA census](examples/assets/images/usa_census.jpg)
 
-![NYC races](docs/images/nyc_races.jpg)
+![NYC races](examples/assets/images/nyc_races.jpg)
 
-![NYC taxi](docs/images/nyc_pickups_vs_dropoffs.jpg)
+![NYC taxi](examples/assets/images/nyc_pickups_vs_dropoffs.jpg)
