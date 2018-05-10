@@ -169,7 +169,7 @@ extras_require = {
         'pvutil',
         'pyyaml',
         'streamz ==0.2.0',
-        'webargs'
+        'webargs',
         ### conda only below here
         'cartopy',
         'graphviz',
