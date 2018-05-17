@@ -35,6 +35,8 @@ stages:
     if: tag =~ ^v(\d+|\.)*[a-z]\d*$
   - name: pip_dev_package
     if: tag =~ ^v(\d+|\.)*[a-z]\d*$
+  - name: conda_package
+    if: tag =~ ^v(\d+|\.)*[^a-z]\d*$
 
 jobs:
   include:
@@ -85,6 +87,15 @@ jobs:
       env: DESC="" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       install: doit package_build $CHANS_DEV $PKG_TEST_PYTHON --test-group=all
       script: doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev
+
+    # release packages
+
+    - <<: *conda_default
+      stage: conda_package
+      env: DESC="" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
+      install: doit package_build $CHANS_DEV $PKG_TEST_PYTHON --test-group=all
+      script: doit package_upload --token=$CONDA_UPLOAD_TOKEN  --label=dev --label=main
+
 
 notifications:
   email: false
