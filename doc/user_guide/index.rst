@@ -54,4 +54,4 @@ Contents:
     6. Trimesh <6_Trimesh>
     7. Networks <7_Networks>
     9. Extending <9_Extending>
-    10. Peformance <10_Performance>
+    10. Performance <10_Performance>

@@ -15,7 +15,7 @@ html_theme = 'sphinx_ioam_theme'
 html_theme_options = {
     'logo':'datashader-logo.png',
     'favicon':'favicon.ico',
-#    'css':'datashader.css'
+#    'css':'site.css'
 }
 
 _NAV =  (
@@ -45,4 +45,4 @@ extensions += [
     'numpydoc',
 ]
 
-nbbuild_cell_timeout=500
+nbbuild_cell_timeout=2000
