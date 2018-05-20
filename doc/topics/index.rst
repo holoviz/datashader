@@ -28,7 +28,9 @@ Contents:
    PCAP network traffic data visualized as network graphs.
 
 * `nyc taxi <nyc_taxi.html>`_
-   NYC Taxi data visualized as points, curves, and bars.
+   NYC Taxi data visualized as points, curves, and bars.  Uses trip data originally from the `NYC Taxi dataset <http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml>`_
+but preprocessed using `taxi_preprocessing_example.py` for convenience.
+   
 
 * `opensky <opensky.html>`_
    OpenSky airplane trajectories visualized as points.
@@ -44,6 +46,9 @@ Contents:
 
 * `bay trimesh <bay_trimesh.html>`_
    Rendering a triangular mesh of water depths in the Chesapeake and Delaware bay areas.
+
+* `Amazon.com center distance <https://anaconda.org/defusco/amz_centers/notebook>`_
+   Cities in the USA colored by their distance to the nearest Amazon.com distribution center.
 
 * `solar <solar.html>`_
    Solar radiation data.

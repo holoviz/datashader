@@ -39,11 +39,11 @@ with our extensive set of examples, following the instructions in the
 [examples README](/examples/README.md).
 
 If all you need is datashader itself, without any of the files used in
-the examples, you can install it from the `bokeh` channel using the using the
+the examples, you can install it from the `pyviz` channel using the using the
 [`conda` package manager](https://conda.io/docs/install/quick.html):
 
 ```bash
-conda install -c bokeh datashader
+conda install -c pyviz datashader
 ```
 
 If you want to get the very latest unreleased changes to datashader
