@@ -3,6 +3,9 @@
    :align: left
 
 .. raw:: html
+  :file: latest_news.html
+
+.. raw:: html
 
    <p style="font-size:20px"><b>Turns even the largest data into images, accurately.</b></p>
 
@@ -14,9 +17,6 @@ approach allows accurate and effective visualizations to be produced
 automatically without trial-and-error parameter tuning, and also makes
 it simple for data scientists to focus on particular data and
 relationships of interest in a principled way.
-
-.. raw:: html
-  :file: latest_news.html
 
 The computation-intensive steps in this process are written in Python
 but transparently compiled to machine code using `Numba`_ and flexibly
@@ -53,8 +53,10 @@ per person in the USA) from the 2010 census, each constructed using
 code like the above:
 
 .. image:: assets/images/usa_census.jpg
+   :width: 1000px
 
 .. image:: assets/images/nyc_races.jpg
+   :width: 1000px
 
            
 Installation
