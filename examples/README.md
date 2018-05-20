@@ -64,7 +64,7 @@ jupyter notebook
 
 If you want the generated notebooks to work without an internet connection or
 with an unreliable connection (e.g. if you see `Loading BokehJS ...` but never
-`BokekJS sucessfully loaded`), then restart the Jupyter notebook server using:
+`BokehJS sucessfully loaded`), then restart the Jupyter notebook server using:
 
 ```
 BOKEH_RESOURCES=inline jupyter notebook --NotebookApp.iopub_data_rate_limit=100000000
