@@ -11,7 +11,7 @@ env:
   global:
     - PYENV_VERSION=3.6
     - CHANS_DEV="-c pyviz/label/dev -c conda-forge"
-#    - CHANS_REL="-c pyviz -c conda-forge"
+    - CHANS_REL="-c pyviz -c conda-forge"
     - PKG_TEST_PYTHON="--test-python=py27 --test-python=py36"
     # conda build fills up travis /tmp (tmpfs)
     - TMPDIR=$HOME/tmp
@@ -93,7 +93,7 @@ jobs:
     - <<: *conda_default
       stage: conda_package
       env: DESC="" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
-      install: doit package_build $CHANS_DEV $PKG_TEST_PYTHON --test-group=all
+      install: doit package_build $CHANS_REL $PKG_TEST_PYTHON --test-group=all
       script: doit package_upload --token=$CONDA_UPLOAD_TOKEN  --label=dev --label=main
 
 
