@@ -15,6 +15,7 @@ env:
     - PKG_TEST_PYTHON="--test-python=py27 --test-python=py36"
     # conda build fills up travis /tmp (tmpfs)
     - TMPDIR=$HOME/tmp
+    - PYPI="https://upload.pypi.org/legacy/"
 
 cache:
   directories:
@@ -36,6 +37,8 @@ stages:
   - name: pip_dev_package
     if: tag =~ ^v(\d+|\.)*[a-z]\d*$
   - name: conda_package
+    if: tag =~ ^v(\d+|\.)*[^a-z]\d*$
+  - name: pip_package
     if: tag =~ ^v(\d+|\.)*[^a-z]\d*$
 
 jobs:
@@ -74,7 +77,7 @@ jobs:
 
     ## dev packages
 
-    - env: PYENV_VERSION=3.6 PYPI="https://test.pypi.org/legacy/" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
+    - env: PYPI="https://test.pypi.org/legacy/" TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       stage: pip_dev_package
       before_install: pip install pyctdev && doit ecosystem=pip ecosystem_setup
       install:
@@ -88,7 +91,15 @@ jobs:
       install: doit package_build $CHANS_DEV $PKG_TEST_PYTHON --test-group=all
       script: doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev
 
-    # release packages
+    ## release packages
+
+    - env: TRAVIS_NOCACHE=$TRAVIS_JOB_ID
+      stage: pip_package
+      before_install: pip install pyctdev && doit ecosystem=pip ecosystem_setup
+      install:
+        - unset PYENV_VERSION && pyenv global 3.6 2.7
+        - doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=all
+      script: doit ecosystem=pip package_upload -u $PPU -p $PPP -r ${PYPI}
 
     - <<: *conda_default
       stage: conda_package
