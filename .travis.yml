@@ -1,6 +1,5 @@
 # TODO:
 #
-#  * try switch to defaults
 #  * restore previous sections
 language: generic
 sudo: false
@@ -10,8 +9,8 @@ os:
 env:
   global:
     - PYENV_VERSION=3.6
-    - CHANS_DEV="-c pyviz/label/dev -c conda-forge"
-    - CHANS_REL="-c pyviz -c conda-forge"
+    - CHANS_DEV="-c pyviz/label/dev"
+    - CHANS_REL="-c pyviz"
     - PKG_TEST_PYTHON="--test-python=py27 --test-python=py36"
     # conda build fills up travis /tmp (tmpfs)
     - TMPDIR=$HOME/tmp
