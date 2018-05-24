@@ -1,6 +1,5 @@
 # TODO:
 #
-#  * try switch to defaults
 #  * restore previous sections
 language: generic
 sudo: false
