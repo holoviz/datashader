@@ -102,7 +102,7 @@ def resample_2d(src, w, h, ds_method='mean', us_method='linear', fill_value=None
     :param out: 2-D *ndarray*, optional
         Alternate output array in which to place the result. The default is *None*; if provided, it must have the same
         shape as the expected output.
-    :return: An resampled version of the *src* array.
+    :return: A resampled version of the *src* array.
     """
     out = _get_out(out, src, (h, w))
     if out is None:
