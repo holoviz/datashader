@@ -7,7 +7,14 @@ includes static versions of the
 [user manual](http://datashader.org/user-guide), and
 [topic examples](http://datashader.org/topics), but for the full
 experience with dynamic updating you will need to install them on a
-live server. To get started, first go to your home directory and
+live server. 
+
+These instructions assume you are using 
+[conda](https://conda.io/docs/install/quick.html), but they can be 
+adapted as needed to use [pip](https://pip.pypa.io/en/stable/installing/) 
+and [virtualenv](https://virtualenv.pypa.io) if desired.
+
+To get started, first go to your home directory and
 download the current list of everything needed for the examples:
 
 - Download the [conda ds environment file](https://raw.githubusercontent.com/bokeh/datashader/master/examples/environment.yml) and save it as `environment.yml`.
