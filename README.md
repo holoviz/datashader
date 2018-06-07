@@ -39,17 +39,27 @@ with our extensive set of examples, following the instructions in the
 [examples README](/examples/README.md).
 
 If all you need is datashader itself, without any of the files used in
-the examples, you can install it from the `pyviz` channel using the using the
-[`conda` package manager](https://conda.io/docs/install/quick.html):
+the examples, you can install it via 
+[conda](https://conda.io/docs/install/quick.html) or 
+[pip](https://pip.pypa.io/en/stable/installing/):
+
 
 ```bash
-conda install -c pyviz datashader
+conda install datashader
 ```
 
-If you want to get the very latest unreleased changes to datashader
-(e.g. to edit the source code yourself), first install using conda 
-as above to ensure the dependencies are installed, and you can
-then tell Python to use a git clone instead:
+or 
+
+```
+pip install datashader
+```
+
+For the best performance, we recommend using conda so that you are
+sure to get numerical libraries optimized for your platform.
+
+If you want the latest unreleased changes (e.g. to edit the source code
+yourself), first install datashader as above, but then clone the source 
+code and tell Python to use the clone instead:
 
 ```bash
 conda remove --force datashader
@@ -58,13 +68,9 @@ cd datashader
 pip install -e .
 ```
 
-Datashader is not currently available on PyPI, to avoid broken or
-low-performance installations that come from not keeping track of
-C/C++ binary dependencies such as LLVM (required by Numba).
-
-To run the test suite, first install pytest (e.g. ``conda install
-pytest``), then run ``py.test datashader`` in your datashader source
-directory.
+To run the test suite, first `conda install pytest` or
+`pip install pytest`, then run `py.test datashader` in your
+datashader source directory.
 
 ## Learning more
 
