@@ -399,8 +399,8 @@ class Canvas(object):
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
             raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
 
-        w = max(int(np.ceil(self.plot_width * width_ratio)), 1)
-        h = max(int(np.ceil(self.plot_height * height_ratio)), 1)
+        w = max(int(round(self.plot_width * width_ratio)), 1)
+        h = max(int(round(self.plot_height * height_ratio)), 1)
         cmin, cmax = get_indices(xmin, xmax, xvals, res[0])
         rmin, rmax = get_indices(ymin, ymax, yvals, res[1])
 
