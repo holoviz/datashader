@@ -1,9 +1,12 @@
 from __future__ import absolute_import, division
 
+from distutils.version import LooseVersion
+
+import dask
+import pandas as pd
 import dask.dataframe as dd
 from dask.base import tokenize, compute
 from dask.context import _globals
-import pandas as pd
 
 from .core import bypixel
 from .compatibility import apply
@@ -18,7 +21,10 @@ __all__ = ()
 def dask_pipeline(df, schema, canvas, glyph, summary):
     dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary)
 
-    get = _globals['get'] or getattr(df, '__dask_scheduler__', None) or df._default_get
+    if LooseVersion(dask.__version__) >= '0.18.0':
+        get = dask.base.get_scheduler() or df.__dask_scheduler__
+    else:
+        get = _globals.get('get') or getattr(df, '__dask_scheduler__', None) or df._default_get
     keys = getattr(df, '__dask_keys__', None) or df._keys
     optimize = getattr(df, '__dask_optimize__', None) or df._optimize
 
