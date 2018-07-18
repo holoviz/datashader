@@ -6,7 +6,7 @@ First, set up environment so you can run the examples and build docs:
 $ conda install -c pyviz/label/dev pyctdev # if you don't already have pyctdev
 $ doit env_create -c pyviz/label/dev -c conda-forge --python=3.6 --name=dsdocs
 $ conda activate dsdocs
-$ doit develop_install -c pyviz/label/dev -c conda-forge -o doc
+$ doit develop_install -c pyviz/label/dev -c defaults -c conda-forge -o doc
 $ datashader fetch-data --path=examples
 ```
 
@@ -14,16 +14,14 @@ $ datashader fetch-data --path=examples
 
 Build the docs (note: it's future pyctdev/nbsite work to make this simpler):
 
-1. `cd doc`
+1. Generate rst containers for notebooks:
+   `nbsite generate-rst --org bokeh --project datashader --repo datashader --examples-path examples --doc-path doc`
 
-2. Generate rst containers for notebooks:
-   `nbsite_nbpagebuild.py bokeh datashader ../examples .`
+3. Build site:
+   `nbsite build --what=html --examples-path=examples --doc-path=doc --output=builtdocs`
 
-3. Build site: `sphinx-build -b html . ./_build/html` followed by
-   `nbsite_fix_links.py _build/html`
+4. Inspect result: `pushd builtdocs && python -m http.server && popd`
 
-4. Inspect result: `pushd _build/html && python -m http.server && popd`
+5. Clean up for deployment: `nbsite_cleandisthtml.py builtdocs take_a_chance`
 
-5. Clean up for deployment: `nbsite_cleandisthtml.py ./_build/html take_a_chance`
-
-6. Deploy to S3 bucket: `pushd _build/html && aws s3 sync --delete --acl public-read . s3://datashader.org && popd`
+6. Deploy to S3 bucket: `pushd builtdocs && aws s3 sync --delete --acl public-read . s3://datashader.org && popd`
