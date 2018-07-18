@@ -17,11 +17,11 @@ Build the docs (note: it's future pyctdev/nbsite work to make this simpler):
 1. Generate rst containers for notebooks:
    `nbsite generate-rst --org bokeh --project datashader --repo datashader --examples-path examples --doc-path doc`
 
-3. Build site:
+2. Build site:
    `nbsite build --what=html --examples-path=examples --doc-path=doc --output=builtdocs`
 
-4. Inspect result: `pushd builtdocs && python -m http.server && popd`
+3. Inspect result: `pushd builtdocs && python -m http.server && popd`
 
-5. Clean up for deployment: `nbsite_cleandisthtml.py builtdocs take_a_chance`
+4. Clean up for deployment: `nbsite_cleandisthtml.py builtdocs take_a_chance`
 
-6. Deploy to S3 bucket: `pushd builtdocs && aws s3 sync --delete --acl public-read . s3://datashader.org && popd`
+5. Deploy to S3 bucket: `pushd builtdocs && aws s3 sync --delete --acl public-read . s3://datashader.org && popd`
