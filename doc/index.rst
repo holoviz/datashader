@@ -3,9 +3,17 @@
      /Users/cball/anaconda3/envs/dsdoc/bin/nbsite generate-rst --org bokeh --project datashader --repo datashader --examples-path examples --doc-path doc
    Will not subsequently be overwritten by nbsite, so can be edited.
 
-**********
-Datashader
-**********
+
+.. image:: _static/logo_stacked.png
+   :height: 220px
+   :align: left
+
+.. raw:: html
+  :file: latest_news.html
+
+.. raw:: html
+
+   <p style="font-size:20px"><b>Turns even the largest data into images, accurately.</b></p>
 
 .. notebook:: datashader ../examples/index.ipynb
     :offset: 0
@@ -17,7 +25,6 @@ Datashader
     Introduction <self>
     Getting Started <getting_started/index>
     User Guide <user_guide/index>
-    FAQ <FAQ>
-    api <api>
-    nyc taxi-nongeo <nyc_taxi-nongeo>
-    streaming-aggregation <streaming-aggregation>
+    Topics <topics/index>
+    API <api>
+    FAQ <FAQ>    
