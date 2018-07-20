@@ -106,7 +106,8 @@ class LogAxis(Axis):
     @staticmethod
     @ngjit
     def inverse_mapper(val):
-        return 10**val
+        y = 10 # temporary workaround for https://github.com/numba/numba/issues/3135 (numba 0.39.0)
+        return y**val
 
     def validate(self, range):
         low, high = map(self.mapper, range)
