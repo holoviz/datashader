@@ -1,4 +1,4 @@
-Please edit the template below, attempting to fill in as much info as possible. Thanks!
+Please edit the template below, attempting to fill in as much info as possible (it's all optional, but the more you fill in, the faster we can help). Thanks!
 
 When pasting code, tracebacks, or console output, please enclose in triple backticks (https://help.github.com/articles/basic-writing-and-formatting-syntax/#quoting-code).
 
@@ -22,13 +22,17 @@ If relevant, please include:
 
 ## How to reproduce
 
-Ideally, please include a complete, minimal, self-contained python script or notebook that reproduces the issue (in the environment you describe below).
+Ideally, please include a complete, minimal, self-contained python script or notebook that reproduces the issue (in the environment you describe below). http://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-reports contains useful guidance on doing this if you are unsure.
 
 ## Your environment
 
+If your version of datashader is neither the latest release (https://github.com/bokeh/datashader/releases/latest) nor the latest GitHub master, please consider upgrading before filing your issue.
+
 Please tell us how to reproduce your environment:
 
-  * The output of `conda env export` and `conda info`. Note that if your version of datashader is neither the latest release (https://github.com/bokeh/datashader/releases/latest) nor the latest GitHub master, please consider upgrading before filing your issue.
+  * If using conda, the output of `conda list` and `conda info`. 
+
+  * If using pip, the output of `pip freeze`.
 
   * What operating system and version?
 
