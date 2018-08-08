@@ -221,8 +221,9 @@ class m2(FloatingReduction):
 
     @staticmethod
     def _combine(Ms, sums, ns):
-        mu = np.nansum(sums, axis=0) / ns.sum(axis=0)
-        return np.nansum(Ms + ns*(sums/ns - mu)**2, axis=0)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            mu = np.nansum(sums, axis=0) / ns.sum(axis=0)
+            return np.nansum(Ms + ns*(sums/ns - mu)**2, axis=0)
 
 
 class min(FloatingReduction):
@@ -521,3 +522,11 @@ class summary(Expr):
     @property
     def inputs(self):
         return tuple(unique(concat(v.inputs for v in self.values)))
+
+
+
+__all__ = list(set([_k for _k,_v in locals().items()
+                    if isinstance(_v,type) and issubclass(_v,Reduction)
+                    and _v not in [Reduction, OptionalFieldReduction,
+                                   FloatingReduction, m2]]))
+    
