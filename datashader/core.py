@@ -505,10 +505,10 @@ def bypixel(source, canvas, glyph, agg):
     glyph : Glyph
     agg : Reduction
     """
-    # Avoid datashape.Categorical instantiation bottleneck
-    # by only retaining the necessary columns:
-    # https://github.com/bokeh/datashader/issues/396
-    if categorical_in_dtypes(source.dtypes.values):
+    if isinstance(source, pd.DataFrame):
+        # Avoid datashape.Categorical instantiation bottleneck
+        # by only retaining the necessary columns:
+        # https://github.com/bokeh/datashader/issues/396
         # Preserve column ordering without duplicates
         cols_to_keep = OrderedDict({col: False for col in source.columns})
         cols_to_keep[glyph.x] = True
@@ -521,14 +521,12 @@ def bypixel(source, canvas, glyph, agg):
                     cols_to_keep[subagg.column] = True
         elif agg.column is not None:
             cols_to_keep[agg.column] = True
-        src = source[[col for col, keepit in cols_to_keep.items() if keepit]]
-    else:
-        src = source
-
-    if isinstance(src, pd.DataFrame):
-        dshape = dshape_from_pandas(src)
-    elif isinstance(src, dd.DataFrame):
-        dshape = dshape_from_dask(src)
+        cols_to_keep = [col for col, keepit in cols_to_keep.items() if keepit]
+        if len(cols_to_keep) < len(source.columns):
+            source = source[cols_to_keep]
+        dshape = dshape_from_pandas(source)
+    elif isinstance(source, dd.DataFrame):
+        dshape = dshape_from_dask(source)
     else:
         raise ValueError("source must be a pandas or dask DataFrame")
     schema = dshape.measure
