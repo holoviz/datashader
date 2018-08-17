@@ -34,13 +34,13 @@ def _get_super_tile_min_max(tile_info, load_data_func, ds_pipeline_func):
 
 
 def calculate_zoom_level_stats(full_extent, level, load_data_func, ds_pipeline_func,
-                               how='fullscan'):
-    if how == 'fullscan':
+                               color_ranging_strategy='fullscan'):
+    if color_ranging_strategy == 'fullscan':
         b = db.from_sequence(list(gen_super_tiles(full_extent, level)))
         b = b.map(_get_super_tile_min_max, load_data_func, ds_pipeline_func).flatten().distinct()
         return dask.compute(b.min(), b.max())
     else:
-        raise ValueError('Invalid how option: {}'.format(how))
+        raise ValueError('Invalid color_ranging_strategy option')
 
 
 def render_tiles(full_extent, levels, load_data_func, ds_pipeline_func,
@@ -48,14 +48,29 @@ def render_tiles(full_extent, levels, load_data_func, ds_pipeline_func,
 
     #TODO: get full extent once at beginning for all levels
 
+    print(levels)
     for level in levels:
+        print(level)
 
-        span = calculate_zoom_level_stats(full_extent, level, ds_pipeline_func,
-                                          color_ranging_strategy='fullscan')
+#        span = calculate_zoom_level_stats(full_extent, level,
+#                                          load_data_func, ds_pipeline_func,
+#                                          color_ranging_strategy='fullscan')
 
-        b = db.from_sequence(list(gen_super_tiles(full_extent, level)))
-        b = map(render_super_tile, load_data_func, ds_pipeline_func, post_render_func).compute()
+        results = []
+        super_tiles = list(gen_super_tiles(full_extent, level))
+        for st in super_tiles:
+            print(st)
+            r = render_super_tile(st, output_path, load_data_func, ds_pipeline_func, post_render_func)
+            results.append(r)
 
+    return results
+
+    '''
+
+    b = db.from_sequence()
+    return b.map(render_super_tile, output_path, load_data_func, ds_pipeline_func, post_render_func).compute()
+
+    '''
 
 def gen_super_tiles(extent, zoom_level):
 
@@ -67,26 +82,26 @@ def gen_super_tiles(extent, zoom_level):
         st_extent = s[3]
         x_range = (st_extent[0], st_extent[2])
         y_range = (st_extent[1], st_extent[3])
-        yield {'level': level, 'x_range': x_range, 'y_range': y_range, 'tile_size': super_tile_def.tile_size}
+        yield {'level': zoom_level, 'x_range': x_range, 'y_range': y_range, 'tile_size': super_tile_def.tile_size}
 
 
-def render_super_tile(tile_info, load_data_func, ds_pipeline_func, post_render_func):
+def render_super_tile(tile_info, output_path, load_data_func, ds_pipeline_func, post_render_func):
     tile_size = tile_info['tile_size']
-    level = tile_info['tile_size']
+    level = tile_info['level']
     df = load_data_func(tile_info['x_range'], tile_info['y_range'])
     agg, ds_img = ds_pipeline_func(df, x_range=tile_info['x_range'], y_range=tile_info['y_range'],
                                    plot_height=tile_size, plot_width=tile_size)
-    return create_sub_tiles(ds_img, tile_info, output_path, post_render_func)
+    return create_sub_tiles(ds_img, level, tile_info, output_path, post_render_func)
 
 
-def create_sub_tiles(data_array, tile_info, output_path, post_render_func=None):
+def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func=None):
 
     # validate / createoutput_dir
     _create_dir(output_path)
 
     # create tile source
     tile_def = MercatorTileDefinition(x_range=tile_info['x_range'],
-                                      y_range=tile_info['x_range'])
+                                      y_range=tile_info['y_range'])
 
     # create Tile Renderer
     if output_path.startswith('s3://'):
@@ -95,19 +110,6 @@ def create_sub_tiles(data_array, tile_info, output_path, post_render_func=None):
         renderer = FileSystemTileRenderer(tile_def, output_location=output_path)
 
     return renderer.render(data_array, level=level)
-
-
-def gen_super_tiles(extent, zoom_level):
-
-    # TODO: decide whether to use x_range/y_range style or xmin, ymin, xmax, ymax extent lists
-    xmin, ymin, xmax, ymax = extent
-    super_tile_def = MercatorSuperTileDefinition(x_range=(xmin, xmax), y_range=(ymin, ymax))
-    super_tiles = super_tile_def.get_tiles_by_extent(extent, zoom_level)
-    for s in super_tiles:
-        st_extent = s[3]
-        x_range = (st_extent[0], st_extent[2])
-        y_range = (st_extent[1], st_extent[3])
-        yield {'level': level, 'x_range': x_range, 'y_range': y_range, 'tile_size': super_tile_def.tile_size}
 
 
 # TODO: change name from source to definition
@@ -192,7 +194,7 @@ class MercatorTileDefinition(object):
 
     # TODO ngjit?
     def _get_resolution(self, z):
-        return ((2 * math.pi * 6378137) / self.tile_size) / math.pow(2, z)
+        return self.initial_resolution / (2 ** z)
 
 
     def get_resolution_by_extent(self, extent, height, width):
@@ -331,22 +333,23 @@ class MercatorTileDefinition(object):
 
 class MercatorSuperTileDefinition(MercatorTileDefinition):
 
-    def __init__(self):
-        super(MercatorTileDefinition, self).__init__(tile_size=2560)
+    def __init__(self, x_range, y_range):
+        super(MercatorSuperTileDefinition, self).__init__(x_range=x_range,
+                                                          y_range=y_range,
+                                                          tile_size=2560)
 
 
 #  TILE RENDERER -----------------------------------------------------------------------------------
 
 class TileRenderer(object):
 
-    def __init__(self, tile_definition, ds_pipeline_func, output_location,
-                       tile_format='PNG', post_render_func=None):
+    def __init__(self, tile_definition, output_location, tile_format='PNG',
+                 post_render_func=None):
 
         self.tile_def = tile_definition
-        self.ds_pipeline_func = ds_pipeline_func
-        self.post_render_func = post_render_func
         self.output_location = output_location
         self.tile_format = tile_format
+        self.post_render_func = post_render_func
 
         # TODO: add all the formats supported by PIL
         if self.tile_format not in ('PNG', 'JPG'):
@@ -362,14 +365,14 @@ class TileRenderer(object):
             anchor_coords = (0, 0)
 
         elif anchor in ('right', 'top-right'):
-            anchor_coords = (tile_size - (tile_size - img_width), 0)
+            anchor_coords = (tile_size - (tile_size - image.width), 0)
 
         elif anchor in ('bottom-left', 'bottom'):
-            anchor_coords = (0, tile_size - (tile_size - img_height))
+            anchor_coords = (0, tile_size - (tile_size - image.height))
 
         elif anchor in ('bottom-right'):
-            anchor_coords = (tile_size - (tile_size - img_width),
-                             tile_size - (tile_size - img_height))
+            anchor_coords = (tile_size - (tile_size - image.width),
+                             tile_size - (tile_size - image.height))
 
         elif anchor in ('center'):
             left = 0
@@ -391,6 +394,7 @@ class FileSystemTileRenderer(TileRenderer):
 
 
     def render(self, da, level):
+        print('.render(level={})'.format(level))
 
         tile_width = self.tile_def.tile_size
         tile_height =  self.tile_def.tile_size
@@ -443,10 +447,10 @@ class FileSystemTileRenderer(TileRenderer):
             elif is_right:
                 anchor = 'right'
 
-            elif all(is_left, is_right, is_top, is_bottom):
+            elif all([is_left, is_right, is_top, is_bottom]):
                 anchor = 'center' # TODO: need to implement
 
-            elif not any(is_left, is_right, is_top, is_bottom):
+            elif not any([is_left, is_right, is_top, is_bottom]):
                 anchor = None
 
 
