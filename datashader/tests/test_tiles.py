@@ -15,16 +15,15 @@ TOLERANCE = 0.01
 
 MERCATOR_CONST = 20037508.34
 
-example_df = None
-
-
+df = None
 def mock_load_data_func(x_range, y_range):
-    global example_df
-    if example_df is None:
-        xs = np.random.normal(loc=0, scale=MERCATOR_CONST, size=10000)
-        ys = np.random.normal(loc=0, scale=MERCATOR_CONST, size=10000)
-        example_df = pd.DataFrame(dict(x=xs, y=ys))
-    return example_df
+    global df
+    if df is None:
+        xs = np.random.normal(loc=0, scale=500000, size=10000000)
+        ys = np.random.normal(loc=0, scale=500000, size=10000000)
+        df = pd.DataFrame(dict(x=xs, y=ys))
+
+    return df.loc[df['x'].between(*x_range) & df['y'].between(*y_range)]
 
 
 def mock_ds_pipeline_func(df, x_range, y_range, plot_height, plot_width, span=None):
@@ -36,16 +35,27 @@ def mock_ds_pipeline_func(df, x_range, y_range, plot_height, plot_width, span=No
     return agg, img
 
 
-def mock_post_render_func(img):
-    print('hello')
+def mock_post_render_func(img, extras=None):
+    from PIL import Image, ImageDraw, ImageFont
+
+    (x, y) = (5, 5)
+    info = "x={} / y={} / z={}, w={}, h={}".format(extras['x'],
+                                                   extras['y'],
+                                                   extras['z'],
+                                                   img.width,
+                                                   img.height)
+
+    draw = ImageDraw.Draw(img)
+    draw.text((x, y), info, fill='rgb(255, 255, 255)')
     return img
+
 
 
 # TODO: mark with slow_test
 def test_render_tiles():
-    full_extent_of_data = (-MERCATOR_CONST, -MERCATOR_CONST,
-                           MERCATOR_CONST, MERCATOR_CONST)
-    levels = list(range(5))
+    full_extent_of_data = (-500000, -500000,
+                           500000, 500000)
+    levels = list(range(6))
     output_path = 'test_tiles_output'
     results = render_tiles(full_extent_of_data,
                            levels,

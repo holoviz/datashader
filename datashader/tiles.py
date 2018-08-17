@@ -9,7 +9,8 @@ import dask.bag as db
 from PIL.Image import fromarray
 
 
-__all__ = ['render_tiles', 'MercatorTileDefinition', 'MercatorSuperTileDefinition']
+__all__ = ['render_tiles', 'MercatorTileDefinition']
+
 
 
 # helpers ---------------------------------------------------------------------
@@ -52,9 +53,9 @@ def render_tiles(full_extent, levels, load_data_func, ds_pipeline_func,
     for level in levels:
         print(level)
 
-#        span = calculate_zoom_level_stats(full_extent, level,
-#                                          load_data_func, ds_pipeline_func,
-#                                          color_ranging_strategy='fullscan')
+        span = calculate_zoom_level_stats(full_extent, level,
+                                          load_data_func, ds_pipeline_func,
+                                          color_ranging_strategy='fullscan')
 
         results = []
         super_tiles = list(gen_super_tiles(full_extent, level))
@@ -73,10 +74,10 @@ def render_tiles(full_extent, levels, load_data_func, ds_pipeline_func,
     '''
 
 def gen_super_tiles(extent, zoom_level):
-
-    # TODO: decide whether to use x_range/y_range style or xmin, ymin, xmax, ymax extent lists
     xmin, ymin, xmax, ymax = extent
-    super_tile_def = MercatorSuperTileDefinition(x_range=(xmin, xmax), y_range=(ymin, ymax))
+    super_tile_size = min(2**4 * 256,
+                         (2 ** zoom_level) * 256)
+    super_tile_def = MercatorTileDefinition(x_range=(xmin, xmax), y_range=(ymin, ymax), tile_size=super_tile_size)
     super_tiles = super_tile_def.get_tiles_by_extent(extent, zoom_level)
     for s in super_tiles:
         st_extent = s[3]
@@ -93,21 +94,23 @@ def render_super_tile(tile_info, output_path, load_data_func, ds_pipeline_func, 
                                    plot_height=tile_size, plot_width=tile_size)
     return create_sub_tiles(ds_img, level, tile_info, output_path, post_render_func)
 
-
 def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func=None):
+
 
     # validate / createoutput_dir
     _create_dir(output_path)
 
     # create tile source
     tile_def = MercatorTileDefinition(x_range=tile_info['x_range'],
-                                      y_range=tile_info['y_range'])
+                                      y_range=tile_info['y_range'],
+                                      tile_size=256)
 
     # create Tile Renderer
     if output_path.startswith('s3://'):
         renderer = S3TileRenderer(tile_def)
     else:
-        renderer = FileSystemTileRenderer(tile_def, output_location=output_path)
+        renderer = FileSystemTileRenderer(tile_def, output_location=output_path, 
+                                          post_render_func=post_render_func)
 
     return renderer.render(data_array, level=level)
 
@@ -301,18 +304,12 @@ class MercatorTileDefinition(object):
         return self.pixels_to_tile(px, py)
 
 
-    def get_tiles_by_extent(self, extent, level, tile_border=1):
+    def get_tiles_by_extent(self, extent, level):
 
         # unpack extent and convert to tile coordinates
         xmin, ymin, xmax, ymax = extent
         txmin, tymin = self.meters_to_tile(xmin, ymin, level)
         txmax, tymax = self.meters_to_tile(xmax, ymax, level)
-
-        # add tiles which border
-        txmin -= tile_border
-        tymin -= tile_border
-        txmax += tile_border
-        tymax += tile_border
 
         # TODO: vectorize?
         tiles = []
@@ -329,14 +326,6 @@ class MercatorTileDefinition(object):
         xmin, ymin = self.pixels_to_meters(tx * self.tile_size, ty * self.tile_size, level)
         xmax, ymax = self.pixels_to_meters((tx + 1) * self.tile_size, (ty + 1) * self.tile_size, level)
         return (xmin, ymin, xmax, ymax)
-
-
-class MercatorSuperTileDefinition(MercatorTileDefinition):
-
-    def __init__(self, x_range, y_range):
-        super(MercatorSuperTileDefinition, self).__init__(x_range=x_range,
-                                                          y_range=y_range,
-                                                          tile_size=2560)
 
 
 #  TILE RENDERER -----------------------------------------------------------------------------------
@@ -452,7 +441,8 @@ class FileSystemTileRenderer(TileRenderer):
 
             elif not any([is_left, is_right, is_top, is_bottom]):
                 anchor = None
-
+            else:
+                anchor = None
 
             tile_file_name = '{}.{}'.format(y, self.tile_format.lower())
             tile_directory = os.path.join(self.output_location, str(z), str(x))
@@ -460,19 +450,77 @@ class FileSystemTileRenderer(TileRenderer):
             output_file = os.path.join(tile_directory, tile_file_name)
             arr = da.loc[{'x':slice(dxmin, dxmax), 'y':slice(dymin, dymax)}]
 
+            if 0 in arr.shape:
+                continue
+
             img = fromarray(arr.data, 'RGBA')
 
             # START HERE AND TEST
             if anchor:
-                img = self.adjust_image(img, anchor)
+                pass
+                #img = self.adjust_image(img, anchor)
 
             if self.post_render_func:
-                img = self.post_render_func(img)
+                extras = dict(x=x, y=y, z=z)
+                img = self.post_render_func(img, extras=extras)
 
-            img.save(output_file, self.tile_format)
+            try:
+                img.save(output_file, self.tile_format)
+            except:
+                import pdb; pdb.set_trace()
+                pass
 
 
 class S3TileRenderer(TileRenderer):
 
     def render(tile_obj):
         raise NotImplementedError('S3TileRenderer not yet implemented')
+
+
+def preview_tiles(tile_directory):
+    try:
+        from bokeh.plotting import figure
+        from bokeh.models.tiles import WMTSTileSource
+        from bokeh.io import show
+        from bokeh.io import output_file
+        from bokeh.models import Button
+        from bokeh.models import CustomJS, Button
+        from bokeh.models import BoxZoomTool
+        from bokeh.layouts import widgetbox, column
+      
+        import os
+    except ImportError:
+        print('You need to have bokeh installed to preview tiles')
+
+    output_file('tile_preview.html')
+
+    width = 800
+    height = 500
+
+    xmin = 200000
+    xmax = 200000 + 1000000
+    ymin = 5000000
+    ymax = 5000000 + 1000000
+
+    p = figure(width=width, height=height, 
+               x_range=(xmin, xmax),
+               y_range=(ymin, ymax),
+               
+               tools="pan,wheel_zoom,reset")
+
+    p.axis.visible = False
+
+    p.add_tools(BoxZoomTool(match_aspect=True))
+
+    wmts = WMTSTileSource(url="http://c.tile.openstreetmap.org/{Z}/{X}/{Y}.png")
+    p.add_tile(wmts)
+
+    ds_tiles = WMTSTileSource(url="http://localhost:8080/{Z}/{X}/{Y}.png")
+    p.add_tile(ds_tiles)
+    show(p)
+
+    os.chdir(tile_directory)
+    start_server_cmd  = ('''python -m $(python -c 'import sys; '''
+                         '''print("http.server" if sys.version_info[:2] > (2,7) '''
+                         '''else "SimpleHTTPServer")' ''')
+    os.system(start_server_cmd)
