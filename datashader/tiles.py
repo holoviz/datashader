@@ -49,31 +49,19 @@ def render_tiles(full_extent, levels, load_data_func, ds_pipeline_func,
 
     #TODO: get full extent once at beginning for all levels
 
-    print(levels)
     for level in levels:
-        print(level)
-
+        print('calculating statistics for level {}'.format(level))
         span = calculate_zoom_level_stats(full_extent, level,
                                           load_data_func, ds_pipeline_func,
                                           color_ranging_strategy='fullscan')
 
-        results = []
         super_tiles = list(gen_super_tiles(full_extent, level))
-        for st in super_tiles:
-            print(st)
-            r = render_super_tile(st, output_path, load_data_func, ds_pipeline_func, post_render_func)
-            results.append(r)
+        print('rendering supertiles for zoom level {} : {} supertile(s)'.format(level, len(super_tiles)))
+        b = db.from_sequence(super_tiles)
+        b.map(render_super_tile, output_path, load_data_func, ds_pipeline_func, post_render_func).compute()
 
-    return results
 
-    '''
-
-    b = db.from_sequence()
-    return b.map(render_super_tile, output_path, load_data_func, ds_pipeline_func, post_render_func).compute()
-
-    '''
-
-def gen_super_tiles(extent, zoom_level):
+def gen_super_tiles(extent, zoom_level, span=None):
     xmin, ymin, xmax, ymax = extent
     super_tile_size = min(2**4 * 256,
                          (2 ** zoom_level) * 256)
@@ -83,7 +71,11 @@ def gen_super_tiles(extent, zoom_level):
         st_extent = s[3]
         x_range = (st_extent[0], st_extent[2])
         y_range = (st_extent[1], st_extent[3])
-        yield {'level': zoom_level, 'x_range': x_range, 'y_range': y_range, 'tile_size': super_tile_def.tile_size}
+        yield {'level': zoom_level,
+                'x_range': x_range,
+                'y_range': y_range, 
+                'tile_size': super_tile_def.tile_size,
+                'span': span}
 
 
 def render_super_tile(tile_info, output_path, load_data_func, ds_pipeline_func, post_render_func):
@@ -109,7 +101,7 @@ def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func
     if output_path.startswith('s3://'):
         renderer = S3TileRenderer(tile_def)
     else:
-        renderer = FileSystemTileRenderer(tile_def, output_location=output_path, 
+        renderer = FileSystemTileRenderer(tile_def, output_location=output_path,
                                           post_render_func=post_render_func)
 
     return renderer.render(data_array, level=level)
@@ -383,7 +375,6 @@ class FileSystemTileRenderer(TileRenderer):
 
 
     def render(self, da, level):
-        print('.render(level={})'.format(level))
 
         tile_width = self.tile_def.tile_size
         tile_height =  self.tile_def.tile_size
