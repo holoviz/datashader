@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, print_function
+from io import BytesIO
 
 import math
 import os
@@ -55,8 +56,8 @@ def render_tiles(full_extent, levels, load_data_func, ds_pipeline_func,
                                           load_data_func, ds_pipeline_func,
                                           color_ranging_strategy='fullscan')
 
-        super_tiles = list(gen_super_tiles(full_extent, level))
-        print('rendering supertiles for zoom level {} : {} supertile(s)'.format(level, len(super_tiles)))
+        super_tiles = list(gen_super_tiles(full_extent, level, span))
+        print('rendering {} supertiles for zoom level {} with span={}'.format(len(super_tiles), level, span))
         b = db.from_sequence(super_tiles)
         b.map(render_super_tile, output_path, load_data_func, ds_pipeline_func, post_render_func).compute()
 
@@ -73,7 +74,7 @@ def gen_super_tiles(extent, zoom_level, span=None):
         y_range = (st_extent[1], st_extent[3])
         yield {'level': zoom_level,
                 'x_range': x_range,
-                'y_range': y_range, 
+                'y_range': y_range,
                 'tile_size': super_tile_def.tile_size,
                 'span': span}
 
@@ -88,7 +89,6 @@ def render_super_tile(tile_info, output_path, load_data_func, ds_pipeline_func, 
 
 def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func=None):
 
-
     # validate / createoutput_dir
     _create_dir(output_path)
 
@@ -99,7 +99,8 @@ def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func
 
     # create Tile Renderer
     if output_path.startswith('s3://'):
-        renderer = S3TileRenderer(tile_def)
+        renderer = S3TileRenderer(tile_def, output_location=output_path,
+                                  post_render_func=post_render_func)
     else:
         renderer = FileSystemTileRenderer(tile_def, output_location=output_path,
                                           post_render_func=post_render_func)
@@ -320,8 +321,6 @@ class MercatorTileDefinition(object):
         return (xmin, ymin, xmax, ymax)
 
 
-#  TILE RENDERER -----------------------------------------------------------------------------------
-
 class TileRenderer(object):
 
     def __init__(self, tile_definition, output_location, tile_format='PNG',
@@ -336,109 +335,15 @@ class TileRenderer(object):
         if self.tile_format not in ('PNG', 'JPG'):
             raise ValueError('Invalid output format')
 
-    def adjust_image(self, image, anchor='left'):
-
-        from PIL import Image
-
-        tile_size = self.tile_def.tile_size
-
-        if anchor in ('left', 'top-left', 'top'):
-            anchor_coords = (0, 0)
-
-        elif anchor in ('right', 'top-right'):
-            anchor_coords = (tile_size - (tile_size - image.width), 0)
-
-        elif anchor in ('bottom-left', 'bottom'):
-            anchor_coords = (0, tile_size - (tile_size - image.height))
-
-        elif anchor in ('bottom-right'):
-            anchor_coords = (tile_size - (tile_size - image.width),
-                             tile_size - (tile_size - image.height))
-
-        elif anchor in ('center'):
-            left = 0
-            upper = 0
-            right = 0
-            lower = 0
-            anchor_coords = (left, upper, right, lower)
-            raise NotImplementedError('center (single tile edge case) not implemented yet')
-
-        else:
-            raise ValueError('Invalid anchor argument: {}'.format(anchor))
-
-        new_image = Image.new('RGBA', (tile_size, tile_size), (0, 0, 0, 0))
-        new_image.paste(image, anchor_coords)
-        return new_image
-
-
-class FileSystemTileRenderer(TileRenderer):
-
-
     def render(self, da, level):
-
-        tile_width = self.tile_def.tile_size
-        tile_height =  self.tile_def.tile_size
         xmin, xmax = self.tile_def.x_range
         ymin, ymax = self.tile_def.y_range
         extent = xmin, ymin, xmax, ymax
 
         tiles = self.tile_def.get_tiles_by_extent(extent, level)
-        path_template = '{}/{}/{}.{}'
         for t in tiles:
             x, y, z, data_extent = t
             dxmin, dymin, dxmax, dymax = data_extent
-
-            is_top = False
-            is_bottom = False
-            is_right = False
-            is_left = False
-
-            if xmin in data_extent:
-                is_left = True
-
-            if ymin in data_extent:
-                is_bottom = True
-
-            if xmax in data_extent:
-                is_right = True
-
-            if ymax in data_extent:
-                is_top = True
-
-
-            if is_top and is_left:
-                anchor = 'top-left'
-
-            elif is_top and is_right:
-                anchor = 'top-right'
-
-            elif is_bottom and is_left:
-                anchor = 'bottom-left'
-
-            elif is_bottom and is_right:
-                anchor = 'bottom-right'
-
-            elif is_bottom:
-                anchor = 'bottom'
-
-            elif is_left:
-                anchor = 'left'
-
-            elif is_right:
-                anchor = 'right'
-
-            elif all([is_left, is_right, is_top, is_bottom]):
-                anchor = 'center' # TODO: need to implement
-
-            elif not any([is_left, is_right, is_top, is_bottom]):
-                anchor = None
-            else:
-                anchor = None
-
-            tile_file_name = '{}.{}'.format(y, self.tile_format.lower())
-            tile_directory = os.path.join(self.output_location, str(z), str(x))
-            _create_dir(tile_directory)
-            output_file = os.path.join(tile_directory, tile_file_name)
             arr = da.loc[{'x':slice(dxmin, dxmax), 'y':slice(dymin, dymax)}]
 
             if 0 in arr.shape:
@@ -446,72 +351,46 @@ class FileSystemTileRenderer(TileRenderer):
 
             img = fromarray(arr.data, 'RGBA')
 
-            # START HERE AND TEST
-            if anchor:
-                pass
-                #img = self.adjust_image(img, anchor)
-
             if self.post_render_func:
                 extras = dict(x=x, y=y, z=z)
                 img = self.post_render_func(img, extras=extras)
 
-            try:
-                img.save(output_file, self.tile_format)
-            except:
-                import pdb; pdb.set_trace()
-                pass
+            yield (img, x, y, z)
 
+
+class FileSystemTileRenderer(TileRenderer):
+
+    def render(self, da, level):
+        for img, x, y, z in super(FileSystemTileRenderer, self).render(da, level):
+            tile_file_name = '{}.{}'.format(y, self.tile_format.lower())
+            tile_directory = os.path.join(self.output_location, str(z), str(x))
+            output_file = os.path.join(tile_directory, tile_file_name)
+            _create_dir(tile_directory)
+            img.save(output_file, self.tile_format)
 
 class S3TileRenderer(TileRenderer):
 
-    def render(tile_obj):
-        raise NotImplementedError('S3TileRenderer not yet implemented')
+    def render(self, da, level):
 
+        try:
+            import boto3
+        except ImportError:
+            raise ValueError('conda install boto3 to enable rendering to S3')
 
-def preview_tiles(tile_directory):
-    try:
-        from bokeh.plotting import figure
-        from bokeh.models.tiles import WMTSTileSource
-        from bokeh.io import show
-        from bokeh.io import output_file
-        from bokeh.models import Button
-        from bokeh.models import CustomJS, Button
-        from bokeh.models import BoxZoomTool
-        from bokeh.layouts import widgetbox, column
-      
-        import os
-    except ImportError:
-        print('You need to have bokeh installed to preview tiles')
+        try:
+            from urlparse import urlparse
+        except ImportError:
+            from urllib.parse import urlparse
 
-    output_file('tile_preview.html')
+        s3_info = urlparse(self.output_location)
+        bucket = s3_info.netloc
+        client = boto3.client('s3')
+        for img, x, y, z in super(S3TileRenderer, self).render(da, level):
+            tile_file_name = '{}.{}'.format(y, self.tile_format.lower())
+            key = os.path.join(s3_info.path, str(z), str(x), tile_file_name).lstrip('/')
+            output_buf = BytesIO()
+            img.save(output_buf, self.tile_format)
+            output_buf.seek(0)
+            client.put_object(Body=output_buf, Bucket=bucket, Key=key, ACL='public-read')
 
-    width = 800
-    height = 500
-
-    xmin = 200000
-    xmax = 200000 + 1000000
-    ymin = 5000000
-    ymax = 5000000 + 1000000
-
-    p = figure(width=width, height=height, 
-               x_range=(xmin, xmax),
-               y_range=(ymin, ymax),
-               
-               tools="pan,wheel_zoom,reset")
-
-    p.axis.visible = False
-
-    p.add_tools(BoxZoomTool(match_aspect=True))
-
-    wmts = WMTSTileSource(url="http://c.tile.openstreetmap.org/{Z}/{X}/{Y}.png")
-    p.add_tile(wmts)
-
-    ds_tiles = WMTSTileSource(url="http://localhost:8080/{Z}/{X}/{Y}.png")
-    p.add_tile(ds_tiles)
-    show(p)
-
-    os.chdir(tile_directory)
-    start_server_cmd  = ('''python -m $(python -c 'import sys; '''
-                         '''print("http.server" if sys.version_info[:2] > (2,7) '''
-                         '''else "SimpleHTTPServer")' ''')
-    os.system(start_server_cmd)
+        return 'https://{}.s3.amazonaws.com/{}'.format(bucket, s3_info.path)
