@@ -26,40 +26,45 @@ def _create_dir(path):
             raise
 
 
-def _get_super_tile_min_max(tile_info, load_data_func, ds_pipeline_func):
+def _get_super_tile_min_max(tile_info, load_data_func, rasterize_func):
     tile_size = tile_info['tile_size']
     df = load_data_func(tile_info['x_range'], tile_info['y_range'])
-    agg, _ = ds_pipeline_func(df, x_range=tile_info['x_range'],
-                              y_range=tile_info['y_range'],
-                              plot_height=tile_size, plot_width=tile_size)
+    agg = rasterize_func(df, x_range=tile_info['x_range'],
+                         y_range=tile_info['y_range'],
+                         height=tile_size, width=tile_size)
     return [agg.data.min(), agg.data.max()]
 
 
-def calculate_zoom_level_stats(full_extent, level, load_data_func, ds_pipeline_func,
+def calculate_zoom_level_stats(full_extent, level, load_data_func,
+                               rasterize_func,
                                color_ranging_strategy='fullscan'):
     if color_ranging_strategy == 'fullscan':
-        b = db.from_sequence(list(gen_super_tiles(full_extent, level)))
-        b = b.map(_get_super_tile_min_max, load_data_func, ds_pipeline_func).flatten().distinct()
+        b = db.from_sequence(list(gen_super_tiles(full_extent,level)))
+        b = b.map(_get_super_tile_min_max, load_data_func, rasterize_func).flatten()
         return dask.compute(b.min(), b.max())
     else:
         raise ValueError('Invalid color_ranging_strategy option')
 
 
-def render_tiles(full_extent, levels, load_data_func, ds_pipeline_func,
+def render_tiles(full_extent, levels, load_data_func,
+                 rasterize_func, shader_func,
                  post_render_func, output_path, color_ranging_strategy='fullscan'):
 
     #TODO: get full extent once at beginning for all levels
-
+    results = dict()
     for level in levels:
         print('calculating statistics for level {}'.format(level))
         span = calculate_zoom_level_stats(full_extent, level,
-                                          load_data_func, ds_pipeline_func,
+                                          load_data_func, rasterize_func,
                                           color_ranging_strategy='fullscan')
 
         super_tiles = list(gen_super_tiles(full_extent, level, span))
         print('rendering {} supertiles for zoom level {} with span={}'.format(len(super_tiles), level, span))
         b = db.from_sequence(super_tiles)
-        b.map(render_super_tile, output_path, load_data_func, ds_pipeline_func, post_render_func).compute()
+        b.map(render_super_tile, output_path, load_data_func, rasterize_func, shader_func, post_render_func).compute()
+        results[level] = dict(success=True, stats=span, supertile_count=len(super_tiles))
+
+    return results
 
 
 def gen_super_tiles(extent, zoom_level, span=None):
@@ -79,12 +84,15 @@ def gen_super_tiles(extent, zoom_level, span=None):
                 'span': span}
 
 
-def render_super_tile(tile_info, output_path, load_data_func, ds_pipeline_func, post_render_func):
+def render_super_tile(tile_info, output_path, load_data_func,
+                      rasterize_func, shader_func, post_render_func):
     tile_size = tile_info['tile_size']
     level = tile_info['level']
     df = load_data_func(tile_info['x_range'], tile_info['y_range'])
-    agg, ds_img = ds_pipeline_func(df, x_range=tile_info['x_range'], y_range=tile_info['y_range'],
-                                   plot_height=tile_size, plot_width=tile_size)
+    agg = rasterize_func(df, x_range=tile_info['x_range'],
+                         y_range=tile_info['y_range'], height=tile_size,
+                         width=tile_size)
+    ds_img = shader_func(agg, span=tile_info['span'])
     return create_sub_tiles(ds_img, level, tile_info, output_path, post_render_func)
 
 def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func=None):

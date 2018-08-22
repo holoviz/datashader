@@ -1,7 +1,3 @@
-import random
-
-import pytest
-
 import datashader as ds
 import datashader.transfer_functions as tf
 
@@ -26,17 +22,21 @@ def mock_load_data_func(x_range, y_range):
     return df.loc[df['x'].between(*x_range) & df['y'].between(*y_range)]
 
 
-def mock_ds_pipeline_func(df, x_range, y_range, plot_height, plot_width, span=None):
+def mock_rasterize_func(df, x_range, y_range, height, width):
     cvs = ds.Canvas(x_range=x_range, y_range=y_range,
-                    plot_height=plot_height, plot_width=plot_width)
+                    plot_height=height, plot_width=width)
     agg = cvs.points(df, 'x', 'y')
-    img = tf.shade(agg, cmap=viridis, span=span)
+    return agg
+
+
+def mock_shader_func(agg, span=None):
+    img = tf.shade(agg, cmap=viridis, span=span, how='log')
     img = tf.set_background(img, 'black')
-    return agg, img
+    return img
 
 
 def mock_post_render_func(img, extras=None):
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import ImageDraw
 
     (x, y) = (5, 5)
     info = "x={} / y={} / z={}, w={}, h={}".format(extras['x'],
@@ -55,18 +55,27 @@ def mock_post_render_func(img, extras=None):
 def test_render_tiles():
     full_extent_of_data = (-500000, -500000,
                            500000, 500000)
-    levels = list(range(6))
+    levels = list(range(3))
     output_path = 'test_tiles_output'
     results = render_tiles(full_extent_of_data,
                            levels,
                            load_data_func=mock_load_data_func,
-                           ds_pipeline_func=mock_ds_pipeline_func,
+                           rasterize_func=mock_rasterize_func,
+                           shader_func=mock_shader_func,
                            post_render_func=mock_post_render_func,
                            output_path=output_path)
 
     # TODO: assert more!
     assert results
+    assert isinstance(results, dict)
 
+    for l in levels:
+        assert l in results
+        assert isinstance(results[l], dict)
+
+    assert results[0]['success']
+    assert results[0]['stats']
+    assert results[0]['supertile_count']
 
 
 '''
