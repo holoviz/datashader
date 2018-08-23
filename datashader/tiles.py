@@ -224,56 +224,6 @@ class MercatorTileDefinition(object):
         return (i-1)
 
 
-    def get_closest_level_by_extent(self, extent, height, width):
-
-        x_rs = (extent[2] - extent[0]) / width
-        y_rs = (extent[3] - extent[1]) / height
-        resolution = max(x_rs, y_rs)
-
-        def _close_reducer(previous, current):
-
-            if abs(current - resolution) < abs(previous - resolution):
-                return current
-
-            return previous
-
-        closest = self._resolutions.reduce(_close_reducer, self._resolutions)
-        return self._resolutions.index(closest)
-
-
-    def snap_to_zoom_level(self, extent, height, width, level):
-        xmin, ymin, xmax, ymax = extent
-        desired_res = self._resolutions[level]
-        desired_x_delta = width * desired_res
-        desired_y_delta = height * desired_res
-
-        if not self.snap_to_zoom:
-            xscale = (xmax - xmin) / desired_x_delta
-            yscale = (ymax - ymin) / desired_y_delta
-
-            if (xscale > yscale):
-                desired_x_delta = xmax - xmin
-                desired_y_delta = desired_y_delta * xscale
-            else:
-                desired_x_delta = desired_x_delta * yscale
-                desired_y_delta = ymax - ymin
-
-        x_adjust = (desired_x_delta - (xmax - xmin)) / 2
-        y_adjust = (desired_y_delta - (ymax - ymin)) / 2
-
-        return (xmin - x_adjust, ymin - y_adjust, xmax + x_adjust, ymax + y_adjust)
-
-
-    def tms_to_wmts(self, x, y, z):
-        'Note this works both ways'
-        return (x, math.pow(2, z) - 1 - y, z)
-
-
-    def wmts_to_tms(self, x, y, z):
-        'Note this works both ways'
-        return (x, math.pow(2, z) - 1 - y, z)
-
-
     def pixels_to_meters(self, px, py, level):
         res = self._get_resolution(level)
         mx = (px * res) - self.x_origin_offset
