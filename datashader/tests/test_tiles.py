@@ -84,7 +84,7 @@ def assert_is_numeric(value):
     is_int_or_float = isinstance(value, (int, float))
     type_name = type(value).__name__
     is_numpy_int_or_float = 'int' in type_name or 'float' in type_name
-    assert any([is_numpy_int_or_float, is_numpy_int_or_float])
+    assert any([is_int_or_float, is_numpy_int_or_float])
 
 
 
