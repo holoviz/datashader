@@ -333,7 +333,7 @@ class S3TileRenderer(TileRenderer):
         try:
             import boto3
         except ImportError:
-            raise ValueError('conda install boto3 to enable rendering to S3')
+            raise ImportError('conda install boto3 to enable rendering to S3')
 
         try:
             from urlparse import urlparse
