@@ -38,13 +38,13 @@ def mock_shader_func(agg, span=None):
     return img
 
 
-def mock_post_render_func(img, extras=None):
+def mock_post_render_func(img, **kwargs):
     from PIL import ImageDraw
 
     (x, y) = (5, 5)
-    info = "x={} / y={} / z={}, w={}, h={}".format(extras['x'],
-                                                   extras['y'],
-                                                   extras['z'],
+    info = "x={} / y={} / z={}, w={}, h={}".format(kwargs['x'],
+                                                   kwargs['y'],
+                                                   kwargs['z'],
                                                    img.width,
                                                    img.height)
 

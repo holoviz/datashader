@@ -311,7 +311,7 @@ class TileRenderer(object):
 
             if self.post_render_func:
                 extras = dict(x=x, y=y, z=z)
-                img = self.post_render_func(img, extras=extras)
+                img = self.post_render_func(img, **extras)
 
             yield (img, x, y, z)
 
