@@ -67,7 +67,6 @@ def test_render_tiles():
                            post_render_func=mock_post_render_func,
                            output_path=output_path)
 
-    # TODO: assert more!
     assert results
     assert isinstance(results, dict)
 

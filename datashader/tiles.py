@@ -106,7 +106,7 @@ def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func
                                       tile_size=256)
 
     # create Tile Renderer
-    if output_path.startswith('s3://'):
+    if output_path.startswith('s3:'):
         renderer = S3TileRenderer(tile_def, output_location=output_path,
                                   post_render_func=post_render_func)
     else:
@@ -242,7 +242,7 @@ class MercatorTileDefinition(object):
         tx = math.ceil(px / self.tile_size)
         tx = tx if tx == 0 else tx - 1
         ty = max(math.ceil(py / self.tile_size) - 1, 0)
-        return (tx, ty)
+        return (int(tx), int(ty))
 
 
     def pixels_to_raster(self, px, py, level):
