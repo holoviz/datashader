@@ -1,3 +1,6 @@
+"""This module contains geoscience-related transfer function whose use is completely optional.
+"""
+
 from __future__ import division
 
 import numpy as np
