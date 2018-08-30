@@ -24,7 +24,8 @@ def _threshold_hs(img):
 
 def _simple_hs(altitude, aspect, azimuth, slope, cmap, alpha, out_type='image'):
     _shaded = _shade(altitude, aspect, azimuth, slope)
-    agg = DataArray(_shaded, dims=['x', 'y'])
+
+    agg = DataArray(_shaded, dims=['y','x'])
     agg.data = np.where(agg > agg.mean(), 0, agg)
     if out_type == 'image':
         img = tf.shade(agg, cmap=cmap, how='linear', alpha=alpha)
@@ -41,9 +42,10 @@ def _mdow_hs(altitude, aspect, azimuth, slope, cmap, alpha, out_type='image'):
                     _shade(alt, aspect, np.deg2rad(270), slope),
                     _shade(alt, aspect, np.deg2rad(315), slope),
                     _shade(alt, aspect, np.deg2rad(360), slope)], axis=0)
+    shade /= 4
 
-#     shade = Normalize()(shade)
     agg = DataArray(shade, dims=['y', 'x'])
+    agg.data = np.where(agg > agg.mean(), 0, agg)
     if out_type == 'image':
         img = tf.shade(agg, cmap=cmap, how='linear', alpha=alpha)
         return _threshold_hs(img)
@@ -53,12 +55,8 @@ def _mdow_hs(altitude, aspect, azimuth, slope, cmap, alpha, out_type='image'):
         raise ValueError("Unknown  out_type: {0}".format(out_type))
 
 
-def _swiss_hs(altitude, aspect, azimuth, slope, cmap, alpha):
-    pass
-
 _hillshade_lookup = {'simple': _simple_hs,
-                     'mdow': _mdow_hs,
-                     'swiss': _swiss_hs}
+                     'mdow': _mdow_hs}
 
 def _normalize_hillshade_how(how):
     if how in _hillshade_lookup:
@@ -69,7 +67,7 @@ def hillshade(agg,
               altitude=30,
               azimuth=315,
               alpha=70,
-              how='simple',
+              how='mdow',
               out_type='image',
               cmap=['#C7C7C7', '#000000']):
     """Convert a 2D DataArray to an hillshaded image with specified colormap.
@@ -86,8 +84,8 @@ def hillshade(agg,
         formats described above), or a matplotlib colormap object.
         Default is `["lightgray", "black"]`
     how : str or callable, optional
-        The hillshade method to use. Valid strings are 'simple' [default],
-        'mdow', 'swiss'.
+        The hillshade method to use. Valid strings are 'mdow' [default],
+        'simple'.
     alpha : int, optional
         Value between 0 - 255 representing the alpha value of pixels which contain
         data (i.e. non-nan values). Regardless of this value, `NaN` values are
@@ -119,8 +117,8 @@ def _horn_slope(data, cellsize, use_percent=True):
     if use_percent:
         for y in range(1, rows-1):
             for x in range(1, cols-1):
-                a,b,c,d,e,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
-                                     data[y-1, x],   data[y, x],   data[y+1, x],
+                a,b,c,d,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
+                                     data[y-1, x], data[y+1, x],
                                      data[y-1, x+1], data[y, x+1], data[y+1, x+1]]
                 dz_dx = ((c + 2 * f + i) - (a + 2 * d + g)) / (8 * cellsize)
                 dz_dy = ((g + 2 * h + i) - (a + 2 * b + c)) / (8 * cellsize)
@@ -128,9 +126,9 @@ def _horn_slope(data, cellsize, use_percent=True):
     else:
         for y in range(1, rows-1):
             for x in range(1, cols-1):
-                a,b,c,d,e,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
-                                     data[y-1, x],   data[y, x],   data[y+1, x],
-                                     data[y-1, x+1], data[y, x+1], data[y+1, x+1]]
+                a,b,c,d,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
+                                     data[y-1, x], data[y+1, x],
+                                     data[y-1, x+1], data[y, x+1], data[y+1, x+1]]  #NOQA
                 dz_dx = ((c + 2 * f + i) - (a + 2 * d + g)) / (8 * cellsize)
                 dz_dy = ((g + 2 * h + i) - (a + 2 * b + c)) / (8 * cellsize)
                 p = (dz_dx ** 2 + dz_dy ** 2) ** .5
@@ -182,11 +180,9 @@ def _ndvi(nir_data, red_data):
         for x in range(0, cols):
             nir = nir_data[y, x]
             red = red_data[y, x]
-            #XXX: I don't understand this if: I thought nir and red were always >= 0
-            if nir + red == 0:
-                out[y, x] = 0
-            else:
-                out[y, x] = (nir - red) / (nir + red)
+            soma = nir + red
+            if soma != 0:
+                out[y, x] = (nir - red) / soma
     return out
 
 def ndvi(nir_agg, red_agg, units='percent'):
@@ -222,22 +218,12 @@ def _horn_aspect(data):
     rows, cols = data.shape
     for y in range(1, rows-1):
         for x in range(1, cols-1):
-            a,b,c,d,e,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
-                                 data[y-1, x],   data[y, x],   data[y+1, x],
+            a,b,c,d,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
+                                 data[y-1, x], data[y+1, x],
                                  data[y-1, x+1], data[y, x+1], data[y+1, x+1]]
             dz_dx = ((c + 2 * f + i) - (a + 2 * d + g))
             dz_dy = ((g + 2 * h + i) - (a + 2 * b + c))
             aspect = np.arctan2(dz_dy, -dz_dx) * 180 / np.pi
-
-            # compass degrees
-            # if aspect < 0:
-            #     cell = 90 - aspect
-            # elif aspect > 90:
-            #     cell = 360 - aspect + 90
-            # else:
-            #     cell = 90 - aspect
-            #
-            # out[y, x] = cell
             out[y, x] = aspect + 180
     return out
 
