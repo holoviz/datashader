@@ -23,7 +23,7 @@ Then run the following commands in your terminal (command) prompt, from wherever
 
 ```bash
 1. conda env create --file environment.yml
-2. source activate ds
+2. conda activate ds
 3. datashader examples
 3. cd datashader-examples
 ```
@@ -36,10 +36,10 @@ prefer (which may require changing some of the dependencies in some
 cases).
 
 Step 2 will activate the `ds` environment, using it for all subsequent
-commands. You will need to re-run step 2 after closing your terminal
-or rebooting your machine, if you want to use anything in the `ds`
-environment.  On Windows, you need to replace `source activate ds`
-with `activate ds`.
+commands. You will need to re-run step 2 after closing your terminal or
+rebooting your machine, if you want to use anything in the `ds` environment.
+For older versions of conda, you may instead need to do `source activate ds`
+(mac/linux) or `activate ds` (windows).
 
 Step 3 will copy the datashader examples from wherever Conda placed
 them into a subdirectory `datashader-examples`, and will then download
