@@ -341,16 +341,24 @@ def test_draw_triangle_subpixel():
     np.testing.assert_equal(agg, out)
 
 
-def test_temp():
+def test_awkward_point_on_upper_bound_maps_to_last_pixel():
+    """Check that point deliberately chosen to be on the upper bound but
+    with a similar-magnitudes subtraction error like that which could
+    occur in extend line does indeed get mapped to last pixel.
+    """
     num_y_pixels = 2
     ymax = 0.1
     bigy = 10e9
     
     sy = num_y_pixels/ymax
-    y = bigy-(bigy-ymax)
+    y = bigy-(bigy-ymax) # simulates clipped line
+
+    # check that test is set up ok
+    assert y!=ymax
+    np.testing.assert_almost_equal(y,ymax,decimal=6)
     
-    _,pymax = map_onto_pixel((1.0,0.0,sy,0.0),
+    _,pymax = map_onto_pixel((1.0, 0.0, sy, 0.0),
                              (0.0, 1.0, 0.0, ymax),
-                             1.0 , y)
+                             1.0, y)
 
     assert pymax==num_y_pixels-1
