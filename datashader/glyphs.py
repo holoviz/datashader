@@ -206,9 +206,14 @@ def _build_map_onto_pixel(x_mapper, y_mapper):
         xmax, ymax = bounds[1], bounds[3]
         xx = int(x_mapper(x) * sx + tx)
         yy = int(y_mapper(y) * sy + ty)
+
+        # TODO before merge: check for same elsewhere
+        xxmax = int(x_mapper(xmax) * sx + tx)
+        yymax = int(y_mapper(ymax) * sy + ty)
+
         # Points falling on upper bound are mapped into previous bin
-        return (xx - 1 if x == xmax else xx,
-                yy - 1 if y == ymax else yy)
+        return (xx - 1 if xx == xxmax else xx,
+                yy - 1 if yy == yymax else yy)
 
     return map_onto_pixel
 
