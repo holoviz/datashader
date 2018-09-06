@@ -339,3 +339,18 @@ def test_draw_triangle_subpixel():
     draw_triangle(tri[3:6], (2, 2, 3, 3), (0, 0, 0), agg, 2)
     draw_triangle(tri[6:], (2, 2, 3, 3), (0, 0, 0), agg, 2)
     np.testing.assert_equal(agg, out)
+
+
+def test_temp():
+    num_y_pixels = 2
+    ymax = 0.1
+    bigy = 10e9
+    
+    sy = num_y_pixels/ymax
+    y = bigy-(bigy-ymax)
+    
+    _,pymax = map_onto_pixel((1.0,0.0,sy,0.0),
+                             (0.0, 1.0, 0.0, ymax),
+                             1.0 , y)
+
+    assert pymax==num_y_pixels-1
