@@ -3,9 +3,9 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from datashader.glyphs import (Point, _build_draw_line, _build_map_onto_pixel,
+from datashader.glyphs import (Point, _build_draw_line, _build_map_onto_pixel_for_line,
                                _build_extend_line, _build_draw_triangle,
-                               _build_extend_triangles)
+                               _build_map_onto_pixel_for_triangle, _build_extend_triangles)
 from datashader.utils import ngjit
 
 
@@ -37,15 +37,16 @@ def new_agg():
 
 
 mapper = ngjit(lambda x: x)
-map_onto_pixel = _build_map_onto_pixel(mapper, mapper)
+map_onto_pixel_for_line = _build_map_onto_pixel_for_line(mapper, mapper)
+map_onto_pixel_for_triangle = _build_map_onto_pixel_for_triangle(mapper, mapper)
 
 # Line rasterization
 draw_line = _build_draw_line(append)
-extend_line = _build_extend_line(draw_line, map_onto_pixel)
+extend_line = _build_extend_line(draw_line, map_onto_pixel_for_line)
 
 # Triangles rasterization
 draw_triangle, draw_triangle_interp = _build_draw_triangle(tri_append)
-extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
+extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel_for_triangle)
 
 bounds = (-3, 1, -3, 1)
 vt = (1., 3., 1., 3.)
@@ -341,7 +342,7 @@ def test_draw_triangle_subpixel():
     np.testing.assert_equal(agg, out)
 
 
-def test_awkward_point_on_upper_bound_maps_to_last_pixel():
+def test_line_awkward_point_on_upper_bound_maps_to_last_pixel():
     """Check that point deliberately chosen to be on the upper bound but
     with a similar-magnitudes subtraction error like that which could
     occur in extend line does indeed get mapped to last pixel.
@@ -357,8 +358,8 @@ def test_awkward_point_on_upper_bound_maps_to_last_pixel():
     assert y!=ymax
     np.testing.assert_almost_equal(y,ymax,decimal=6)
     
-    _,pymax = map_onto_pixel((1.0, 0.0, sy, 0.0),
-                             (0.0, 1.0, 0.0, ymax),
-                             1.0, y)
+    _,pymax = map_onto_pixel_for_line((1.0, 0.0, sy, 0.0),
+                                      (0.0, 1.0, 0.0, ymax),
+                                      1.0, y)
 
     assert pymax==num_y_pixels-1
