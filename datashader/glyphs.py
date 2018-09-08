@@ -125,15 +125,20 @@ class Point(_PointLike):
             xmin, xmax, ymin, ymax = bounds
 
             def map_onto_pixel(x, y):
+                """Map points onto pixel grid.
+
+                Points falling on upper bound are mapped into previous bin.
+                """
                 xx = int(x_mapper(x) * sx + tx)
                 yy = int(y_mapper(y) * sy + ty)
-                # Points falling on upper bound are mapped into previous bin
                 return (xx - 1 if x == xmax else xx,
                         yy - 1 if y == ymax else yy)
 
             for i in range(xs.shape[0]):
                 x = xs[i]
                 y = ys[i]
+                # points outside bounds are dropped; remainder
+                # are mapped onto pixels
                 if (xmin <= x <= xmax) and (ymin <= y <= ymax):
                     xi, yi = map_onto_pixel(x, y)
                     append(i, xi, yi, *aggs_and_cols)
@@ -157,7 +162,32 @@ class Line(_PointLike):
     """
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
+
+        @ngjit
+        def map_onto_pixel(vt, bounds, x, y):
+            """Map points onto pixel grid.
+
+            Points falling on upper bound are mapped into previous bin.
+
+            If the line has been clipped, x and y will have been
+            computed to lie on the bounds; we compare point and bounds
+            in integer space to avoid fp error. In contrast, with
+            auto-ranging, a point on the bounds will be the same
+            floating point number as the bound, so comparison in fp
+            representation of continuous space or in integer space
+            doesn't change anything.
+            """
+            sx, tx, sy, ty = vt
+            xmax, ymax = bounds[1], bounds[3]
+            xx = int(x_mapper(x) * sx + tx)
+            yy = int(y_mapper(y) * sy + ty)
+
+            xxmax = int(x_mapper(xmax) * sx + tx)
+            yymax = int(y_mapper(ymax) * sy + ty)
+
+            return (xx - 1 if xx == xxmax else xx,
+                    yy - 1 if yy == yymax else yy)
+
         draw_line = _build_draw_line(append)
         extend_line = _build_extend_line(draw_line, map_onto_pixel)
         x_name = self.x
@@ -167,6 +197,7 @@ class Line(_PointLike):
             xs = df[x_name].values
             ys = df[y_name].values
             cols = aggs + info(df)
+            # line may be clipped, then mapped to pixels
             extend_line(vt, bounds, xs, ys, plot_start, *cols)
 
         return extend
@@ -182,13 +213,27 @@ class Triangles(_PolygonLike):
     """
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        map_onto_pixel = _build_map_onto_pixel(x_mapper, y_mapper)
+        
+        @ngjit
+        def map_onto_pixel(vt, bounds, x, y):
+            """Map points onto pixel grid.
+
+            Points falling on upper bound are mapped into previous bin.
+            """
+            sx, tx, sy, ty = vt
+            xmax, ymax = bounds[1], bounds[3]
+            xx = int(x_mapper(x) * sx + tx)
+            yy = int(y_mapper(y) * sy + ty)
+            return (xx - 1 if x == xmax else xx,
+                    yy - 1 if y == ymax else yy)
+
         draw_triangle, draw_triangle_interp = _build_draw_triangle(append)
         extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
 
         def extend(aggs, df, vt, bounds, weight_type=True, interpolate=True):
             cols = info(df)
             assert cols, 'There must be at least one column on which to aggregate'
+            # mapped to pixels, then may be clipped
             extend_triangles(vt, bounds, df.values, weight_type, interpolate, aggs, cols)
 
 
@@ -196,26 +241,6 @@ class Triangles(_PolygonLike):
 
 
 # -- Helpers for computing geometries --
-
-
-def _build_map_onto_pixel(x_mapper, y_mapper):
-    @ngjit
-    def map_onto_pixel(vt, bounds, x, y):
-        """Map points onto pixel grid"""
-        sx, tx, sy, ty = vt
-        xmax, ymax = bounds[1], bounds[3]
-        xx = int(x_mapper(x) * sx + tx)
-        yy = int(y_mapper(y) * sy + ty)
-
-        # TODO before merge: check for same elsewhere
-        xxmax = int(x_mapper(xmax) * sx + tx)
-        yymax = int(y_mapper(ymax) * sy + ty)
-
-        # Points falling on upper bound are mapped into previous bin
-        return (xx - 1 if xx == xxmax else xx,
-                yy - 1 if yy == yymax else yy)
-
-    return map_onto_pixel
 
 
 def _build_draw_line(append):
@@ -406,9 +431,9 @@ def _build_draw_triangle(append):
     def draw_triangle(verts, bbox, biases, aggs, val):
         """Draw a triangle on a grid.
 
-        This method plots a triangle with integer coordinates onto a pixel
-        grid. The vertices are assumed to have already been scaled, transformed,
-        and clipped within the bounds.
+        Plots a triangle with integer coordinates onto a pixel grid,
+        clipping to the bounds. The vertices are assumed to have
+        already been scaled and transformed.
         """
         minx, maxx, miny, maxy = bbox
         if minx == maxx and miny == maxy:
@@ -471,7 +496,7 @@ def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
                     maxy < vmin_y):
                 continue
 
-            # Clip to viewing area
+            # Clip bbox to viewing area
             minx = max(minx, vmin_x)
             maxx = min(maxx, vmax_x)
             miny = max(miny, vmin_y)
@@ -490,6 +515,8 @@ def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
             bbox = minx, maxx, miny, maxy
             biases = bias0, bias1, bias2
             mapped_verts = (ax, ay), (bx, by), (cx, cy)
+
+            # draw triangles (will be clipped where outside bounds)
             if interpolate:
                 weights = col0, col1, col2
                 draw_triangle_interp(mapped_verts, bbox, biases, aggs, weights)
