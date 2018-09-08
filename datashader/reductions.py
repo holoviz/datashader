@@ -526,7 +526,7 @@ class summary(Expr):
 
 
 __all__ = list(set([_k for _k,_v in locals().items()
-                    if isinstance(_v,type) and issubclass(_v,Reduction)
+                    if isinstance(_v,type) and (issubclass(_v,Reduction) or _v is summary)
                     and _v not in [Reduction, OptionalFieldReduction,
                                    FloatingReduction, m2]]))
     
