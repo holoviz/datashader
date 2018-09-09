@@ -89,7 +89,7 @@ extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
 
 setup_args = dict(
     name='datashader',
-    version=param.version.get_setup_version("datashader",archive_commit="$Format:%h$"),
+    version=param.version.get_setup_version(os.path.split(__file__)[0],"datashader",archive_commit="$Format:%h$"),
     description='Data visualization toolchain based on aggregating into a grid',
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",    
@@ -115,7 +115,6 @@ if __name__ == '__main__':
                                 'datashader','examples')
     if 'develop' not in sys.argv:
         pyct.build.examples(example_path, __file__, force=True)
-        package_assets(example_path)
 
     setup(**setup_args)
 
