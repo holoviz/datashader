@@ -2,6 +2,7 @@ include LICENSE.txt
 include README.md
 include datashader/.version
 graft examples
+graft datashader/examples
 graft datashader/tests/data
 global-exclude *.py[co]
 global-exclude *~
