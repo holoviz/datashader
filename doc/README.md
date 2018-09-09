@@ -30,6 +30,8 @@ Build the docs (note: it's future pyctdev/nbsite work to make this simpler):
 
 3. Inspect result: `pushd builtdocs && python -m http.server && popd`
 
-4. Clean up for deployment: `nbsite_cleandisthtml.py builtdocs take_a_chance`
+4. Edit notebooks as desired and repeat steps 2-3 as required. Unedited notebooks will not be re-run.
 
-5. Deploy to S3 bucket: `pushd builtdocs && aws s3 sync --delete --acl public-read . s3://datashader.org && popd`
+5. Clean up for deployment: `nbsite_cleandisthtml.py builtdocs take_a_chance`
+
+6. Deploy to S3 bucket: `pushd builtdocs && aws s3 sync --delete --acl public-read . s3://datashader.org && popd`
