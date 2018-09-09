@@ -89,7 +89,7 @@ extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
 
 setup_args = dict(
     name='datashader',
-    version=param.version.get_setup_version(os.path.split(__file__)[0],"datashader",archive_commit="$Format:%h$"),
+    version=param.version.get_setup_version(__file__,"datashader",archive_commit="$Format:%h$"),
     description='Data visualization toolchain based on aggregating into a grid',
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",    
