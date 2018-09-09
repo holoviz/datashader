@@ -3,9 +3,16 @@
      /Users/cball/anaconda3/envs/dsdocs2/bin/nbsite generate-rst --org pyviz --project-name datashader --repo datashader
    Will not subsequently be overwritten by nbsite, so can be edited.
 
-**********
-Datashader
-**********
+.. image:: _static/logo_stacked.png
+   :height: 220px
+   :align: left
+
+.. raw:: html
+  :file: latest_news.html
+
+.. raw:: html
+
+   <p style="font-size:20px"><b>Turns even the largest data into images, accurately.</b></p>
 
 .. notebook:: datashader ../examples/index.ipynb
     :offset: 0
