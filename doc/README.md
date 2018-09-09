@@ -23,10 +23,10 @@ https://github.com/pyviz/pyct/issues/22)
 Build the docs (note: it's future pyctdev/nbsite work to make this simpler):
 
 1. Generate rst containers for notebooks:
-   `nbsite generate-rst --org bokeh --project datashader --repo datashader --examples-path examples --doc-path doc`
+   `nbsite generate-rst --org pyviz --project-name datashader --repo datashader`
 
 2. Build site:
-   `nbsite build --what=html --examples-path=examples --doc-path=doc --output=builtdocs`
+   `nbsite build --what=html --output=builtdocs`
 
 3. Inspect result: `pushd builtdocs && python -m http.server && popd`
 
