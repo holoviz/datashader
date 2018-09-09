@@ -10,6 +10,14 @@ $ doit develop_install -c pyviz/label/dev -c defaults -c conda-forge -o doc
 $ datashader fetch-data --path=examples
 ```
 
+WARNING: when you run `develop_install` above, which uses python/pip
+to do a develop install, if you have data in your examples/data
+directory, it will be copied around at least one time :( So
+temporarily move it away before doing a develop install, then restore
+it afterwards. (This applies to doing a pip editable install any time,
+not just for the documentation; see
+https://github.com/pyviz/pyct/issues/22)
+
 (optional) Building the docs does not check the notebooks run without errors (you have to watch out for tracebacks flying by). Building the docs also runs the notebooks with modifications (e.g. setting backend options). If you want to be sure all the notebooks run normally without exception, execute `doit test_examples_extra`. (Requires running the notebooks twice; this is future work for nbsite.)
 
 Build the docs (note: it's future pyctdev/nbsite work to make this simpler):
