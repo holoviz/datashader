@@ -28,6 +28,8 @@ requirements:
     {% for dep in sdata.get('install_requires',{}) %}
     - {{ dep }}
     {% endfor %}
+    # adding pyct here is temporary (this conda recipe template will disappear when new pyctdev is released)
+    - pyct
 
 test:
   imports:
