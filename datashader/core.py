@@ -535,7 +535,11 @@ def bypixel(source, canvas, glyph, agg):
     glyph.validate(schema)
     agg.validate(schema)
     canvas.validate()
-    return bypixel.pipeline(source, schema, canvas, glyph, agg)
+
+    # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
+    with np.warnings.catch_warnings():
+        np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+        return bypixel.pipeline(source, schema, canvas, glyph, agg)
 
 
 bypixel.pipeline = Dispatcher()
