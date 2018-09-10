@@ -2,7 +2,7 @@ Datashader
 ----------
 
 [![Travis build Status](https://travis-ci.org/pyviz/datashader.svg?branch=master)](https://travis-ci.org/pyviz/datashader)
-[![Appveyor build status](https://ci.appveyor.com/api/projects/status/h3lwh6ju4hfcgkm8/branch/master?svg=true)](https://ci.appveyor.com/project/pyviz-integrations/datashader/branch/master)
+[![Windows build status](https://ci.appveyor.com/api/projects/status/uc7atn5y35ay38eb/branch/master?svg=true)](https://ci.appveyor.com/project/pyviz/datashader/branch/master)
 [![Task Status](https://badge.waffle.io/pyviz/datashader.png?label=ready&title=tasks)](https://waffle.io/pyviz/datashader)
 
 
