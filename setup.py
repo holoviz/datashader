@@ -33,6 +33,7 @@ extras_require = {
         'pytest >=2.8.5',
         'pytest-benchmark >=3.0.0',
         'flake8',
+        'rasterio',
         'nbsmoke >=0.2.6',
     ],
     'examples': [],
