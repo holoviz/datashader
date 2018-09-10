@@ -1,4 +1,5 @@
-"""This module contains geoscience-related transfer function whose use is completely optional.
+"""
+This module contains geoscience-related transfer functions whose use is completely optional.
 """
 
 from __future__ import division
@@ -81,7 +82,8 @@ def hillshade(agg,
     altitude : int, optional (default: 30)
         Altitude angle of the sun specified in degrees.
     azimuth : int, optional (default: 315)
-        The angle between the north vector and the perpendicular projection of the light source         down onto the horizon specified in degrees.
+        The angle between the north vector and the perpendicular projection 
+        of the light source down onto the horizon specified in degrees.
     cmap : list of colors or matplotlib.colors.Colormap, optional
         The colormap to use. Can be either a list of colors (in any of the
         formats described above), or a matplotlib colormap object.
@@ -141,7 +143,7 @@ def _horn_slope(data, cellsize, use_percent=True):
 
 
 def slope(agg, units='percent'):
-    """Returns slope of input aggregate in percent using .
+    """Returns slope of input aggregate in percent.
 
     Parameters
     ----------
