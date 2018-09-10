@@ -7,10 +7,10 @@ from dask.array import Array
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask, categorical_in_dtypes
-from .resampling import resample_2d
+from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, 
+from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
-
+from .resampling import resample_2d
 from . import reductions as rd
 
 
