@@ -30,8 +30,8 @@ install_requires = [
 
 extras_require = {
     'tests': [
-        'pytest >=2.8.5',
-        'pytest-benchmark >=3.0.0',
+        'pytest ==3.6.3',
+        'pytest-benchmark ==3.0.0',
         'flake8',
         'nbsmoke >=0.2.6',
     ],
