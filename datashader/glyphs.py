@@ -38,8 +38,13 @@ class _PointLike(Glyph):
                     minval = x
                 if x > maxval:
                     maxval = x
+
         if not (np.isfinite(minval) and np.isfinite(maxval)):
-            raise ValueError('No non-NaN x coordinates found.')
+            print("No x values; defaulting to range -0.5,0.5")
+            minval, maxval = -0.5, 0.5
+        elif minval==maxval:
+            print("No x range; defaulting to x-0.5,x+0.5")
+            minval, maxval = minval-0.5, minval+0.5
         return minval, maxval
 
     @staticmethod
@@ -53,8 +58,13 @@ class _PointLike(Glyph):
                     minval = y
                 if y > maxval:
                     maxval = y
+
         if not (np.isfinite(minval) and np.isfinite(maxval)):
-            raise ValueError('No non-NaN y coordinates found.')
+            print("No y values; defaulting to range -0.5,0.5")
+            minval, maxval = -0.5, 0.5
+        elif minval==maxval:
+            print("No y range; defaulting to y-0.5,y+0.5")
+            minval, maxval = minval-0.5, minval+0.5
         return minval, maxval
 
     @memoize
@@ -63,7 +73,16 @@ class _PointLike(Glyph):
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         xs = df[self.x].values
-        return np.nanmin(xs), np.nanmax(xs)
+        minval, maxval = np.nanmin(xs), np.nanmax(xs)
+        
+        if minval == np.nan and maxval == np.nan:
+            print("No x values; defaulting to range -0.5,0.5")
+            minval, maxval = -0.5, 0.5
+        elif minval==maxval:
+            print("No x range; defaulting to x-0.5,x+0.5")
+            minval, maxval = minval-0.5, minval+0.5
+        return minval, maxval
+        
 
     @memoize
     def _compute_y_bounds_dask(self, df):
@@ -71,7 +90,16 @@ class _PointLike(Glyph):
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         ys = df[self.y].values
-        return np.nanmin(ys), np.nanmax(ys)
+        minval, maxval = np.nanmin(ys), np.nanmax(ys)
+        
+        if minval == np.nan and maxval == np.nan:
+            print("No y values; defaulting to range -0.5,0.5")
+            minval, maxval = -0.5, 0.5
+        elif minval==maxval:
+            print("No y range; defaulting to y-0.5,y+0.5")
+            minval, maxval = minval-0.5, minval+0.5
+        return minval, maxval
+
 
 
 class _PolygonLike(_PointLike):
