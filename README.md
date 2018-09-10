@@ -1,9 +1,9 @@
 Datashader
 ----------
 
-[![Travis build Status](https://travis-ci.org/bokeh/datashader.svg?branch=master)](https://travis-ci.org/bokeh/datashader)
-[![Appveyor build status](https://ci.appveyor.com/api/projects/status/h3lwh6ju4hfcgkm8/branch/master?svg=true)](https://ci.appveyor.com/project/bokeh-integrations/datashader/branch/master)
-[![Task Status](https://badge.waffle.io/bokeh/datashader.png?label=ready&title=tasks)](https://waffle.io/bokeh/datashader)
+[![Travis build Status](https://travis-ci.org/pyviz/datashader.svg?branch=master)](https://travis-ci.org/pyviz/datashader)
+[![Appveyor build status](https://ci.appveyor.com/api/projects/status/h3lwh6ju4hfcgkm8/branch/master?svg=true)](https://ci.appveyor.com/project/pyviz-integrations/datashader/branch/master)
+[![Task Status](https://badge.waffle.io/pyviz/datashader.png?label=ready&title=tasks)](https://waffle.io/pyviz/datashader)
 
 
 Datashader is a data rasterization pipeline for automating the process of
@@ -63,7 +63,7 @@ code and tell Python to use the clone instead:
 
 ```bash
 conda remove --force datashader
-git clone https://github.com/bokeh/datashader.git
+git clone https://github.com/pyviz/datashader.git
 cd datashader
 pip install -e .
 ```
