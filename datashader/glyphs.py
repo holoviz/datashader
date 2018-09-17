@@ -40,11 +40,11 @@ class _PointLike(Glyph):
                     maxval = x
 
         if not (np.isfinite(minval) and np.isfinite(maxval)):
-            #print("No x values; defaulting to range -0.5,0.5")
-            minval, maxval = -0.5, 0.5
+            #print("No x values; defaulting to range -1,1")
+            minval, maxval = -1.0, 1.0
         elif minval==maxval:
-            #print("No x range; defaulting to x-0.5,x+0.5")
-            minval, maxval = minval-0.5, minval+0.5
+            #print("No x range; defaulting to x-1,x+1")
+            minval, maxval = minval-1, minval+1
         return minval, maxval
 
     @staticmethod
@@ -60,11 +60,11 @@ class _PointLike(Glyph):
                     maxval = y
 
         if not (np.isfinite(minval) and np.isfinite(maxval)):
-            #print("No y values; defaulting to range -0.5,0.5")
-            minval, maxval = -0.5, 0.5
+            #print("No y values; defaulting to range -1,1")
+            minval, maxval = -1, 1
         elif minval==maxval:
-            #print("No y range; defaulting to y-0.5,y+0.5")
-            minval, maxval = minval-0.5, minval+0.5
+            #print("No y range; defaulting to y-1,y+1")
+            minval, maxval = minval-1, minval+1
         return minval, maxval
 
     @memoize
@@ -76,11 +76,11 @@ class _PointLike(Glyph):
         minval, maxval = np.nanmin(xs), np.nanmax(xs)
         
         if minval == np.nan and maxval == np.nan:
-            #print("No x values; defaulting to range -0.5,0.5")
-            minval, maxval = -0.5, 0.5
+            #print("No x values; defaulting to range -1,1")
+            minval, maxval = -1,1
         elif minval==maxval:
-            #print("No x range; defaulting to x-0.5,x+0.5")
-            minval, maxval = minval-0.5, minval+0.5
+            #print("No x range; defaulting to x-1,x+1")
+            minval, maxval = minval-1, minval+1
         return minval, maxval
         
 
@@ -93,11 +93,11 @@ class _PointLike(Glyph):
         minval, maxval = np.nanmin(ys), np.nanmax(ys)
         
         if minval == np.nan and maxval == np.nan:
-            #print("No y values; defaulting to range -0.5,0.5")
-            minval, maxval = -0.5, 0.5
+            #print("No y values; defaulting to range -1,1")
+            minval, maxval = -1,1
         elif minval==maxval:
-            #print("No y range; defaulting to y-0.5,y+0.5")
-            minval, maxval = minval-0.5, minval+0.5
+            #print("No y range; defaulting to y-1,y+1")
+            minval, maxval = minval-1, minval+1
         return minval, maxval
 
 
