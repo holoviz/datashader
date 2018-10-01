@@ -1,8 +1,11 @@
 """
 This module contains geoscience-related transfer functions whose use is completely optional.
+
 """
 
 from __future__ import division
+
+from random import choice
 
 import numpy as np
 import datashader.transfer_functions as tf
@@ -11,70 +14,11 @@ from datashader.colors import rgb
 from datashader.utils import ngjit
 from xarray import DataArray
 
-__all__ = ['mean', 'binary', 'slope', 'aspect', 'ndvi', 'hillshade']
+__all__ = ['mean', 'binary', 'slope', 'aspect', 'ndvi', 'hillshade', 'generate_terrain']
 
 
-def _shade(altituderad, aspect, azimuthrad, slope):
-    shade = np.sin(altituderad) * np.sin(slope) + np.cos(altituderad) * np.cos(slope) * np.cos(azimuthrad - aspect)
-    return shade
-
-def _threshold_hs(img):
-    dt = np.dtype((np.int32, {'r': (np.uint8, 0),
-                              'g': (np.uint8, 1),
-                              'b': (np.uint8, 2),
-                              'a': (np.uint8, 3)}))
-    img.data = np.where(img.data.view(dtype=dt)['r'] > 105, 0, img) # awk.
-    return img
-
-def _simple_hs(altitude, aspect, azimuth, slope, cmap, alpha, out_type='image'):
-    _shaded = _shade(altitude, aspect, azimuth, slope)
-
-    agg = DataArray(_shaded, dims=['y','x'])
-    agg.data = np.where(agg > agg.mean(), 0, agg)
-    if out_type == 'image':
-        img = tf.shade(agg, cmap=cmap, how='linear', alpha=alpha)
-        return _threshold_hs(img)
-    elif out_type == 'data':
-        return agg
-    else:
-        raise ValueError("Unknown  out_type: {0}".format(out_type))
-
-
-def _mdow_hs(altitude, aspect, azimuth, slope, cmap, alpha, out_type='image'):
-    alt = np.deg2rad(30)
-    shade = np.sum([_shade(alt, aspect, np.deg2rad(225), slope),
-                    _shade(alt, aspect, np.deg2rad(270), slope),
-                    _shade(alt, aspect, np.deg2rad(315), slope),
-                    _shade(alt, aspect, np.deg2rad(360), slope)], axis=0)
-    shade /= 4
-
-    agg = DataArray(shade, dims=['y', 'x'])
-    agg.data = np.where(agg > agg.mean(), 0, agg)
-    if out_type == 'image':
-        img = tf.shade(agg, cmap=cmap, how='linear', alpha=alpha)
-        return _threshold_hs(img)
-    elif out_type == 'data':
-        return agg
-    else:
-        raise ValueError("Unknown  out_type: {0}".format(out_type))
-
-
-_hillshade_lookup = {'simple': _simple_hs,
-                     'mdow': _mdow_hs}
-
-def _normalize_hillshade_how(how):
-    if how in _hillshade_lookup:
-        return _hillshade_lookup[how]
-    raise ValueError("Unknown hillshade method: {0}".format(how))
-
-def hillshade(agg,
-              altitude=30,
-              azimuth=315,
-              alpha=70,
-              how='mdow',
-              out_type='image',
-              cmap=['#C7C7C7', '#000000']):
-    """Convert a 2D DataArray to an hillshaded image with specified colormap.
+def hillshade(agg, azimuth, angle_altitude):
+    """Illuminates 2D DataArray from specific azimuth and altitude.
 
     Parameters
     ----------
@@ -82,7 +26,7 @@ def hillshade(agg,
     altitude : int, optional (default: 30)
         Altitude angle of the sun specified in degrees.
     azimuth : int, optional (default: 315)
-        The angle between the north vector and the perpendicular projection 
+        The angle between the north vector and the perpendicular projection
         of the light source down onto the horizon specified in degrees.
     cmap : list of colors or matplotlib.colors.Colormap, optional
         The colormap to use. Can be either a list of colors (in any of the
@@ -101,18 +45,15 @@ def hillshade(agg,
     Datashader Image
 
     """
-    global _threshold_hs
-
-    if not isinstance(agg, DataArray):
-        raise TypeError("agg must be instance of DataArray")
-
-    azimuthrad = np.deg2rad(azimuth)
-    altituderad = np.deg2rad(altitude)
-    y, x = np.gradient(agg.data)
+    azimuth = 360.0 - azimuth
+    x, y = np.gradient(agg.data)
     slope = np.pi/2. - np.arctan(np.sqrt(x*x + y*y))
-    aspect = np.arctan2(-y, x)
-    how = _normalize_hillshade_how(how)
-    return how(altituderad, aspect, azimuthrad, slope, cmap, alpha, out_type)
+    aspect = np.arctan2(-x, y)
+    azimuthrad = azimuth*np.pi/180.
+    altituderad = angle_altitude*np.pi/180.
+    shaded = np.sin(altituderad) * np.sin(slope) + np.cos(altituderad) * np.cos(slope)*np.cos((azimuthrad - np.pi/2.) - aspect)
+    data = (shaded + 1) / 2
+    return DataArray(data, attrs={'res':1})
 
 
 @ngjit
@@ -295,8 +236,7 @@ def _mean(data):
             out[y, x] = (a+b+c+d+e+f+g+h+i) / 9
     return out
 
-
-def mean(agg, pad=None):
+def mean(agg):
     """
     Returns Mean filtered array using a 3x3 window
 
@@ -309,3 +249,112 @@ def mean(agg, pad=None):
     data: DataArray
     """
     return DataArray(_mean(agg.data), dims=['y', 'x'], attrs=agg.attrs)
+
+
+def generate_terrain(width, height, seed=10, iterations=10, extrusion_factor=200):
+    """
+    Generates a pseudo-random terrain which can be helpful for testing raster functions
+
+    This was heavily inspired by Michael McHugh's 2016 PyCon Canada talk:
+    https://www.youtube.com/watch?v=O33YV4ooHSo
+
+    Perlin noise is used to seed to terrain taken from here, but scaled from 0 - 1
+    and was written by Paul Panzer and is available here:
+    https://stackoverflow.com/questions/42147776/producing-2d-perlin-noise-with-numpy
+
+    Parameters
+    ----------
+    width : int
+    height : int
+    seed : seed for random number generator
+    iterations : number of noise iterations
+
+    Returns
+    -------
+    terrain: DataArray
+    """
+    data = _gen_terrain(width, height, seed, iterations)
+    data = _add_texture(data, width, height, count=int(1e6), size=.05, mind=0.33, maxd=3)
+    data[data < .3] = 0  # create water
+    return DataArray(data * extrusion_factor, attrs={'res':1})
+
+def _gen_terrain(width, height, seed, iterations):
+    amp_factors = list(range(10))
+    height_map = None
+    linx = np.linspace(0, 1, width, endpoint=False)
+    liny = np.linspace(0, 1, height, endpoint=False)
+    x, y = np.meshgrid(linx, liny)
+    for i in reversed(range(iterations)):
+        noise = _perlin(x * choice(amp_factors), y * choice(amp_factors), seed=seed + (i % 500))
+        noise += _perlin(x, y, seed=seed + (i % 400)) ** 2
+
+        if height_map is None:
+            height_map = noise
+        else:
+            height_map += noise
+
+    return height_map
+
+def _add_texture(data, width, height, count=100,
+                 seed=5, size=.2, mind=.33, maxd=.87):
+    linx = range(width)
+    liny = range(height)
+    tree_xs = np.random.choice(linx, count).tolist()
+    tree_ys = np.random.choice(liny, count).tolist()
+    trees = _finish_trees(data, list(zip(tree_xs, tree_ys)), size, mind, maxd)
+    return data + _mean(_mean(_mean(trees)))
+
+@ngjit
+def _finish_trees(data, locs, size, mind, maxd):
+    out = np.zeros_like(data)
+    for x, y in locs:
+        if data[y, x] >= mind and data[y, x] < maxd:
+            out[y, x] = size
+    return out
+
+
+def _perlin(x, y, seed=0):
+
+    @ngjit
+    def lerp(a, b, x):
+        return a + x * (b-a)
+
+    @ngjit
+    def fade(t):
+        return 6 * t**5 - 15 * t**4 + 10 * t**3
+
+    def gradient(h,x,y):
+        vectors = np.array([[0,1],[0,-1],[1,0],[-1,0]])
+        g = vectors[h%4]
+        return g[:,:,0] * x + g[:,:,1] * y
+
+    # permutation table
+    np.random.seed(seed)
+    p = np.arange(256,dtype=int)
+    np.random.shuffle(p)
+    p = np.stack([p,p]).flatten()
+
+    # coordinates of the top-left
+    xi = x.astype(int)
+    yi = y.astype(int)
+
+    # internal coordinates
+    xf = x - xi
+    yf = y - yi
+
+    # fade factors
+    u = fade(xf)
+    v = fade(yf)
+
+    # noise components
+    n00 = gradient(p[p[xi]+yi], xf, yf)
+    n01 = gradient(p[p[xi]+yi+1], xf, yf-1)
+    n11 = gradient(p[p[xi+1]+yi+1], xf-1, yf-1)
+    n10 = gradient(p[p[xi+1]+yi], xf-1, yf)
+
+    # combine noises
+    x1 = lerp(n00, n10, u)
+    x2 = lerp(n01, n11, u)
+    a = lerp(x1, x2, v)
+    return a
+
