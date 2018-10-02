@@ -6,33 +6,16 @@ import datashader as ds
 import xarray as xr
 import numpy as np
 
-from datashader import geo #mean, binary, slope, aspect, ndvi, hillshade
+from datashader import geo
 
-# use landsat data from sample data
-BASE_PATH = path.split(__file__)[0]
-DATA_PATH = path.abspath(path.join(BASE_PATH, 'data'))
-# TEST_RASTER_PATH = path.join(DATA_PATH, 'landsat.tif???') # TODO: update me!
-TEST_RASTER_PATH = path.join(DATA_PATH, 'world.rgb.tif')
+W = 25
+H = 25
 
-
-# -----
-# Utils
-#
-with xr.open_rasterio(TEST_RASTER_PATH) as src:
-    res = ds.utils.calc_res(src)
-    left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
-    cvs = ds.Canvas(plot_width=2,
-                    plot_height=2,
-                    x_range=(left, right),
-                    y_range=(bottom, top))
+csv = ds.Canvas(plot_width=W, plot_height=H)
+terrain = geo.generate_terrain(W, H)
 
 def _raster_aggregate_default():
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
-        agg = cvs.raster(src)
-        assert agg is not None
-    return agg
-
-# Take a numpy array and make it randomly sparse (50% -> zeros)
+    return terrain
 #
 def _do_sparse_array(data_array):
     import random
@@ -132,10 +115,9 @@ def test_hillshade_simple_transfer_function():
     Assert Simple Hillshade transfer function
     """
     da_gaussian = xr.DataArray(data_gaussian)
-    da_gaussian_shade = geo.hillshade(da_gaussian, how='simple', out_type='data')
+    da_gaussian_shade = geo.hillshade(da_gaussian)
 
     assert da_gaussian_shade.mean() > 0
-    assert da_gaussian_shade[1,1] == 0
     assert da_gaussian_shade[60,60] > 0
 
 def test_ndvi_transfer_function():
@@ -155,3 +137,13 @@ def test_ndvi_transfer_function():
     assert da_ndvi[-1,-1] == 1
     assert da_ndvi[5,10] == da_ndvi[10,5] == -0.5
     assert da_ndvi[15,10] == da_ndvi[10,15] == 0.5
+
+
+def test_generate_terrain():
+    terrain = geo.generate_terrain(20, 20)
+    assert terrain is not None
+
+
+def test_bump():
+    bumps = geo.bump(20, 20)
+    assert bumps is not None
