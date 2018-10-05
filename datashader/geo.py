@@ -5,10 +5,6 @@ This module contains geoscience-related transfer functions whose use is complete
 
 from __future__ import division
 
-from random import choice
-
-from functools import partial
-
 import numpy as np
 import datashader.transfer_functions as tf
 
@@ -59,40 +55,32 @@ def hillshade(agg, azimuth=225, angle_altitude=25):
 
 
 @ngjit
-def _horn_slope(data, cellsize, use_percent=True):
+def _horn_slope(data, cellsize):
     out = np.zeros_like(data)
     rows, cols = data.shape
-    if use_percent:
-        for y in range(1, rows-1):
-            for x in range(1, cols-1):
-                a,b,c,d,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
-                                     data[y-1, x], data[y+1, x],
-                                     data[y-1, x+1], data[y, x+1], data[y+1, x+1]]
-                dz_dx = ((c + 2 * f + i) - (a + 2 * d + g)) / (8 * cellsize)
-                dz_dy = ((g + 2 * h + i) - (a + 2 * b + c)) / (8 * cellsize)
-                out[y, x] = (dz_dx ** 2 + dz_dy ** 2) ** .5
-    else:
-        for y in range(1, rows-1):
-            for x in range(1, cols-1):
-                a,b,c,d,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
-                                     data[y-1, x], data[y+1, x],
-                                     data[y-1, x+1], data[y, x+1], data[y+1, x+1]]  #NOQA
-                dz_dx = ((c + 2 * f + i) - (a + 2 * d + g)) / (8 * cellsize)
-                dz_dy = ((g + 2 * h + i) - (a + 2 * b + c)) / (8 * cellsize)
-                p = (dz_dx ** 2 + dz_dy ** 2) ** .5
-                out[y, x] = np.arctan(p) * 180 / np.pi
-
+    for y in range(1, rows-1):
+        for x in range(1, cols-1):
+            a = data[y+1, x-1]
+            b = data[y+1, x]
+            c = data[y+1, x+1]
+            d = data[y, x-1]
+            f = data[y, x+1]
+            g = data[y-1, x-1]
+            h = data[y-1, x]
+            i = data[y-1, x+1]
+            dz_dx = ((c + 2 * f + i) - (a + 2 * d + g)) / (8 * cellsize)
+            dz_dy = ((g + 2 * h + i) - (a + 2 * b + c)) / (8 * cellsize)
+            p = (dz_dx * dz_dx + dz_dy * dz_dy) ** .5
+            out[y, x] = np.arctan(p) * 57.29578
     return out
 
 
-def slope(agg, units='percent'):
-    """Returns slope of input aggregate in percent.
+def slope(agg):
+    """Returns slope of input aggregate in degrees.
 
     Parameters
     ----------
     agg : DataArray
-    units : str, optional (default: percent)
-        The units of the return values. options `percent`, or `degrees`.
 
     Returns
     -------
@@ -102,17 +90,11 @@ def slope(agg, units='percent'):
     if not isinstance(agg, DataArray):
         raise TypeError("agg must be instance of DataArray")
 
-    if units not in ('percent', 'degree'):
-        raise ValueError('Invalid slope units: options (percent, degree)')
-
     if not agg.attrs.get('res'):
         #TODO: maybe monkey-patch a "res" attribute valueing unity is reasonable
         raise ValueError('input xarray must have numeric `res` attr.')
 
-    use_percent = units == 'percent'
-    slope_agg = _horn_slope(agg.data,
-                            agg.attrs['res'],
-                            use_percent=use_percent)
+    slope_agg = _horn_slope(agg.data, agg.attrs['res'])
 
     return DataArray(slope_agg,
                      name='slope',
@@ -128,12 +110,15 @@ def _ndvi(nir_data, red_data):
         for x in range(0, cols):
             nir = nir_data[y, x]
             red = red_data[y, x]
+
+            if nir == red:  # cover zero divison case
+                continue
+
             soma = nir + red
-            if soma != 0:
-                out[y, x] = (nir - red) / soma
+            out[y, x] = (nir - red) / soma
     return out
 
-def ndvi(nir_agg, red_agg, units='percent'):
+def ndvi(nir_agg, red_agg):
     """Returns Normalized Difference Vegetation Index (NDVI).
 
     Parameters
@@ -166,13 +151,28 @@ def _horn_aspect(data):
     rows, cols = data.shape
     for y in range(1, rows-1):
         for x in range(1, cols-1):
-            a,b,c,d,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
-                                 data[y-1, x], data[y+1, x],
-                                 data[y-1, x+1], data[y, x+1], data[y+1, x+1]]
-            dz_dx = ((c + 2 * f + i) - (a + 2 * d + g))
-            dz_dy = ((g + 2 * h + i) - (a + 2 * b + c))
-            aspect = np.arctan2(dz_dy, -dz_dx) * 180 / np.pi
-            out[y, x] = aspect + 180
+
+            a = data[y+1, x-1]
+            b = data[y+1, x]
+            c = data[y+1, x+1]
+            d = data[y, x-1]
+            f = data[y, x+1]
+            g = data[y-1, x-1]
+            h = data[y-1, x]
+            i = data[y-1, x+1]
+
+            dz_dx = ((c + 2 * f + i) - (a + 2 * d + g)) / 8
+            dz_dy = ((g + 2 * h + i) - (a + 2 * b + c)) / 8
+
+            aspect = np.arctan2(dz_dy, -dz_dx) * 57.29578  # (180 / pi)
+
+            if aspect < 0:
+                out[y, x] = 90.0 - aspect
+            elif aspect > 90.0:
+                out[y, x] = 360.0 - aspect + 90.0
+            else:
+                out[y, x] = 90.0 - aspect
+
     return out
 
 
@@ -224,21 +224,29 @@ def binary(agg, values):
                      dims=['y', 'x'],
                      attrs=agg.attrs)
 
-
 @ngjit
-def _mean(data):
+def _mean(data, excludes):
     out = np.zeros_like(data)
     rows, cols = data.shape
     for y in range(1, rows-1):
         for x in range(1, cols-1):
-            a,b,c,d,e,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
-                                 data[y-1, x],   data[y, x],   data[y+1, x],
-                                 data[y-1, x+1], data[y, x+1], data[y+1, x+1]]
 
-            out[y, x] = (a+b+c+d+e+f+g+h+i) / 9
+            exclude = False
+            for ex in excludes:
+                if data[y,x] == ex:
+                    exclude = True
+                    break
+
+            if not exclude:
+                a,b,c,d,e,f,g,h,i = [data[y-1, x-1], data[y, x-1], data[y+1, x-1],
+                                     data[y-1, x],   data[y, x],   data[y+1, x],
+                                     data[y-1, x+1], data[y, x+1], data[y+1, x+1]]
+                out[y, x] = (a+b+c+d+e+f+g+h+i) / 9
+            else:
+                out[y, x] = data[y, x]
     return out
 
-def mean(agg, passes=1):
+def mean(agg, passes=1, excludes=[np.nan]):
     """
     Returns Mean filtered array using a 3x3 window sum number of times
 
@@ -254,9 +262,9 @@ def mean(agg, passes=1):
     out = None
     for i in range(passes):
         if out is None:
-            out = _mean(agg.data)
+            out = _mean(agg.data, excludes)
         else:
-            out = _mean(out)
+            out = _mean(out, excludes)
 
     return DataArray(out, dims=['y', 'x'], attrs=agg.attrs)
 
@@ -276,6 +284,7 @@ def generate_terrain(width, height, seed=10, iterations=10, extrusion_factor=200
     ----------
     width : int
     height : int
+    freq : tuple of (x, y) frequency multipliers
     seed : seed for random number generator
     iterations : number of noise iterations
 
@@ -294,28 +303,40 @@ def generate_terrain(width, height, seed=10, iterations=10, extrusion_factor=200
                 out[i] = .1
         return out
 
-    agg = DataArray(_gen_terrain(width, height, seed, iterations),
+    data = _gen_terrain(width, height, seed)
+    data = (data - np.min(data))/np.ptp(data)
+    data[data < .3] = 0  # create water
+    data *= 4000
+    agg = DataArray(data,
                     dims=['y', 'x'],
                     attrs={'res':1})
-    bump_agg = bump(width, height, height_func=_gen_heights, spread=0)
-    agg += mean(bump_agg, passes=3)
-    agg.data[agg.data < .3] = 0  # create water
-    agg *= extrusion_factor
     return agg
 
-def _gen_terrain(width, height, seed, iterations):
-    amp_factors = list(range(10))
-    height_map = None
+def _gen_terrain(width, height, seed):
+
+    NOISE_LAYERS = (
+        (1, (1, 1)),  # multiplier, (xfreq, yfreq)
+        (0.5, (2, 2)),
+        (0.25, (4, 4)),
+        (0.13, (8, 8)),
+        (0.06, (16, 16)),
+        (0.03, (32, 32))
+    )
+
     linx = np.linspace(0, 1, width, endpoint=False)
     liny = np.linspace(0, 1, height, endpoint=False)
     x, y = np.meshgrid(linx, liny)
-    for i in reversed(range(iterations)):
-        noise = _perlin(x * choice(amp_factors), y * choice(amp_factors), seed=seed + (i % 500))
-        noise += _perlin(x, y, seed=seed + (i % 400)) ** 2
+
+    height_map = None
+    for i, (m, (xfreq, yfreq)) in enumerate(NOISE_LAYERS):
+        noise = _perlin(x * xfreq, y * yfreq, seed=seed + i) * m
         if height_map is None:
             height_map = noise
         else:
             height_map += noise
+
+    height_map /= (1.00 + 0.50 + 0.25 + 0.13 + 0.06 + 0.03)
+    height_map = height_map ** 3
     return height_map
 
 
@@ -328,25 +349,12 @@ def bump(width, height, count=None, height_func=None, spread=1):
     width : int
     height : int
     count : int (defaults: w * h / 10)
-    seed : seed for random number generator (default: 5)
-    z : bump height (default: 1)
-    agg : referenced by within when limiting bump map
-    within : tuple boundaries
+    height_func : function which takes x, y and returns a height value
+    spread : tuple boundaries
 
     Returns
     -------
     bumpmap: DataArray
-
-    Note:
-    ----
-
-    This was heavily inspired by Michael McHugh's 2016 PyCon Canada talk:
-    https://www.youtube.com/watch?v=O33YV4ooHSo
-
-    Perlin noise is used to seed to terrain taken from here, but scaled from 0 - 1
-    and was written by Paul Panzer and is available here:
-    https://stackoverflow.com/questions/42147776/producing-2d-perlin-noise-with-numpy
-
     """
 
     linx = range(width)
@@ -367,7 +375,7 @@ def bump(width, height, count=None, height_func=None, spread=1):
 
 @ngjit
 def _finish_bump(width, height, locs, heights, spread):
-    out = np.zeros((width, height))
+    out = np.zeros((height, width))
     rows, cols = out.shape
     s = spread ** 2  # removed sqrt for perf.
     for i in range(len(heights)):
@@ -380,26 +388,60 @@ def _finish_bump(width, height, locs, heights, spread):
                 for ny in range(max(y - spread, 0), min(y + spread, height)):
                     d2 = (nx - x) * (nx - x) + (ny -  y) * (ny - y)
                     if d2 <= s:
-                        out[ny, nx] = out[ny,nx] + (z * (d2 / s))
+                        out[ny, nx] = out[ny,nx] + (out[y, x] * (d2 / s))
     return out
+
+
+
+def perlin(width, height, freq=(1, 1), seed=5):
+    """
+    Generate perlin noise aggregate
+
+    Parameters
+    ----------
+    width : int
+    height : int
+    freq : tuple of (x, y) frequency multipliers
+    seed : int
+
+    Returns
+    -------
+    bumpmap: DataArray
+    """
+    linx = range(width)
+    liny = range(height)
+    linx = np.linspace(0, 1, width, endpoint=False)
+    liny = np.linspace(0, 1, height, endpoint=False)
+    x, y = np.meshgrid(linx, liny)
+    data = _perlin(x * freq[0], y * freq[1], seed=seed)
+    data = (data - np.min(data))/np.ptp(data)
+    return DataArray(data, dims=['y', 'x'], attrs=dict(res=1))
 
 
 @ngjit
 def _lerp(a, b, x):
     return a + x * (b-a)
 
+
 @ngjit
 def _fade(t):
     return 6 * t**5 - 15 * t**4 + 10 * t**3
 
-def _gradient(h,x,y):
+
+@ngjit
+def _gradient(h, x, y):
     vectors = np.array([[0,1],[0,-1],[1,0],[-1,0]])
-    g = vectors[h%4]
-    return g[:,:,0] * x + g[:,:,1] * y
+    dim_ = h.shape
+    out = np.zeros(dim_)
+    for j in range(dim_[1]):
+        for i in range(dim_[0]):
+            f = np.mod(h[i,j], 4)
+            g = vectors[f]
+            out[i,j] = g[0] * x[i,j] + g[1] * y[i,j]
+    return out
+
 
 def _perlin(x, y, seed=0):
-
-    # permutation table
     np.random.seed(seed)
     p = np.arange(256,dtype=int)
     np.random.shuffle(p)

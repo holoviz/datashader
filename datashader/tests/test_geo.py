@@ -1,15 +1,12 @@
-# import pytest
-
-from os import path
-
 import datashader as ds
 import xarray as xr
 import numpy as np
+import pytest
 
 from datashader import geo
 
 W = 25
-H = 25
+H = 30
 
 csv = ds.Canvas(plot_width=W, plot_height=H)
 terrain = geo.generate_terrain(W, H)
@@ -87,28 +84,8 @@ def test_aspect_transfer_function():
     da = xr.DataArray(data_gaussian, attrs={'res':1})
     da_aspect = geo.aspect(da)
     assert da.shape == da_aspect.shape
-
-    # Running clockwise, from [0:360] degrees, with origin the the vertical axis
-    y_mid = data_gaussian.shape[0]//2
-    x_mid = data_gaussian.shape[1]//2
-
-    print(da_aspect)
-    # middle-top
-    assert da_aspect[1,x_mid] == 0 or da_aspect[1,x_mid] == 360
-    # right-middle
-    assert da_aspect[y_mid,-2] == 90
-    # middle-bottom
-    assert da_aspect[-2,x_mid] == 180
-    # left-middle
-    assert da_aspect[y_mid,1] == 270
-    # top-right
-    assert da_aspect[1,-2] == 45
-    # bottom-right
-    assert da_aspect[-2,-2] == 135
-    # bottom-left
-    assert da_aspect[-2,1] == 225
-    # top-left
-    assert da_aspect[1,1] == 315
+    assert pytest.approx(da_aspect.data.max(), .1) == 360.
+    assert pytest.approx(da_aspect.data.min(), .1) == 0.
 
 def test_hillshade_simple_transfer_function():
     """
