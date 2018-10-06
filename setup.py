@@ -25,7 +25,8 @@ install_requires = [
     'pyct[cmd]',
     'scikit-image',
     'bokeh',
-    'scipy'
+    'scipy',
+    'testpath<0.4' # temporary due to pip issue?
 ]
 
 extras_require = {
