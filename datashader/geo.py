@@ -42,6 +42,10 @@ def hillshade(agg, azimuth=225, angle_altitude=25):
     -------
     Datashader Image
 
+    Notes:
+    ------
+    Algorithm References:
+     - http://geoexamples.blogspot.com/2014/03/shaded-relief-images-using-gdal-python.html
     """
     azimuth = 360.0 - azimuth
     x, y = np.gradient(agg.data)
@@ -85,6 +89,12 @@ def slope(agg):
     Returns
     -------
     data: DataArray
+
+    Notes:
+    ------
+    Algorithm References:
+     - http://desktop.arcgis.com/en/arcmap/10.3/tools/spatial-analyst-toolbox/how-slope-works.htm
+     - Burrough, P. A., and McDonell, R. A., 1998. Principles of Geographical Information Systems (Oxford University Press, New York), pp 406
     """
 
     if not isinstance(agg, DataArray):
@@ -131,6 +141,11 @@ def ndvi(nir_agg, red_agg):
     Returns
     -------
     data: DataArray
+
+    Notes:
+    ------
+    Algorithm References:
+     - http://ceholden.github.io/open-geo-tutorial/python/chapter_2_indices.html
     """
 
     if not isinstance(nir_agg, DataArray):
@@ -186,6 +201,12 @@ def aspect(agg):
     Returns
     -------
     data: DataArray
+
+    Notes:
+    ------
+    Algorithm References:
+     - http://desktop.arcgis.com/en/arcmap/10.3/tools/spatial-analyst-toolbox/how-aspect-works.htm#ESRI_SECTION1_4198691F8852475A9F4BC71246579FAA
+     - Burrough, P. A., and McDonell, R. A., 1998. Principles of Geographical Information Systems (Oxford University Press, New York), pp 406
     """
 
     if not isinstance(agg, DataArray):
@@ -248,7 +269,7 @@ def _mean(data, excludes):
 
 def mean(agg, passes=1, excludes=[np.nan]):
     """
-    Returns Mean filtered array using a 3x3 window sum number of times
+    Returns Mean filtered array using a 3x3 window
 
     Parameters
     ----------
@@ -269,28 +290,28 @@ def mean(agg, passes=1, excludes=[np.nan]):
     return DataArray(out, dims=['y', 'x'], attrs=agg.attrs)
 
 
-def generate_terrain(width, height, seed=10, iterations=10, extrusion_factor=200):
+def generate_terrain(width, height, seed=10):
     """
     Generates a pseudo-random terrain which can be helpful for testing raster functions
 
-    This was heavily inspired by Michael McHugh's 2016 PyCon Canada talk:
-    https://www.youtube.com/watch?v=O33YV4ooHSo
 
-    Perlin noise is used to seed to terrain taken from here, but scaled from 0 - 1
-    and was written by Paul Panzer and is available here:
-    https://stackoverflow.com/questions/42147776/producing-2d-perlin-noise-with-numpy
 
     Parameters
     ----------
     width : int
     height : int
-    freq : tuple of (x, y) frequency multipliers
     seed : seed for random number generator
-    iterations : number of noise iterations
 
     Returns
     -------
     terrain: DataArray
+
+    Notes:
+    ------
+    Algorithm References:
+     - This was inspired by Michael McHugh's 2016 PyCon Canada talk:
+       https://www.youtube.com/watch?v=O33YV4ooHSo
+     - https://www.redblobgames.com/maps/terrain-from-noise/
     """
 
     def _gen_heights(bumps):
@@ -355,6 +376,11 @@ def bump(width, height, count=None, height_func=None, spread=1):
     Returns
     -------
     bumpmap: DataArray
+
+    Notes:
+    ------
+    Algorithm References:
+     - http://www.mountaincartography.org/mt_hood/pdfs/nighbert_bump1.pdf
     """
 
     linx = range(width)
@@ -407,6 +433,13 @@ def perlin(width, height, freq=(1, 1), seed=5):
     Returns
     -------
     bumpmap: DataArray
+
+    Notes:
+    ------
+    Algorithm References:
+    - numba-ized from Paul Panzer example available here:
+    https://stackoverflow.com/questions/42147776/producing-2d-perlin-noise-with-numpy
+     - http://www.mountaincartography.org/mt_hood/pdfs/nighbert_bump1.pdf
     """
     linx = range(width)
     liny = range(height)
