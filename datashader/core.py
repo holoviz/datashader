@@ -7,10 +7,10 @@ from dask.array import Array
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords, get_indices, dshape_from_pandas, dshape_from_dask, categorical_in_dtypes
-from .resampling import resample_2d
+from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords
+from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
-
+from .resampling import resample_2d
 from . import reductions as rd
 
 
@@ -400,8 +400,8 @@ class Canvas(object):
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
             raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
 
-        w = max(int(np.ceil(self.plot_width * width_ratio)), 1)
-        h = max(int(np.ceil(self.plot_height * height_ratio)), 1)
+        w = max(int(round(self.plot_width * width_ratio)), 1)
+        h = max(int(round(self.plot_height * height_ratio)), 1)
         cmin, cmax = get_indices(xmin, xmax, xvals, res[0])
         rmin, rmax = get_indices(ymin, ymax, yvals, res[1])
 
@@ -505,37 +505,39 @@ def bypixel(source, canvas, glyph, agg):
     glyph : Glyph
     agg : Reduction
     """
-    # Avoid datashape.Categorical instantiation bottleneck
-    # by only retaining the necessary columns:
-    # https://github.com/bokeh/datashader/issues/396
-    if categorical_in_dtypes(source.dtypes.values):
+    if isinstance(source, pd.DataFrame):
+        # Avoid datashape.Categorical instantiation bottleneck
+        # by only retaining the necessary columns:
+        # https://github.com/bokeh/datashader/issues/396
         # Preserve column ordering without duplicates
         cols_to_keep = OrderedDict({col: False for col in source.columns})
         cols_to_keep[glyph.x] = True
         cols_to_keep[glyph.y] = True
         if hasattr(glyph, 'z'):
-            cols_to_keep[glyph.z] = True
+            cols_to_keep[glyph.z[0]] = True
         if hasattr(agg, 'values'):
             for subagg in agg.values:
                 if subagg.column is not None:
                     cols_to_keep[subagg.column] = True
         elif agg.column is not None:
             cols_to_keep[agg.column] = True
-        src = source[[col for col, keepit in cols_to_keep.items() if keepit]]
-    else:
-        src = source
-
-    if isinstance(src, pd.DataFrame):
-        dshape = dshape_from_pandas(src)
-    elif isinstance(src, dd.DataFrame):
-        dshape = dshape_from_dask(src)
+        cols_to_keep = [col for col, keepit in cols_to_keep.items() if keepit]
+        if len(cols_to_keep) < len(source.columns):
+            source = source[cols_to_keep]
+        dshape = dshape_from_pandas(source)
+    elif isinstance(source, dd.DataFrame):
+        dshape = dshape_from_dask(source)
     else:
         raise ValueError("source must be a pandas or dask DataFrame")
     schema = dshape.measure
     glyph.validate(schema)
     agg.validate(schema)
     canvas.validate()
-    return bypixel.pipeline(source, schema, canvas, glyph, agg)
+
+    # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
+    with np.warnings.catch_warnings():
+        np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+        return bypixel.pipeline(source, schema, canvas, glyph, agg)
 
 
 bypixel.pipeline = Dispatcher()

@@ -36,6 +36,7 @@ html_context.update({
     'LINKS': _NAV,
     'SOCIAL': (
         ('Twitter', '//twitter.com/datashader/'),
+        ('Gitter', '//gitter.im/pyviz/pyviz'),
         ('Github', '//github.com/bokeh/datashader/'),
     )
 })
