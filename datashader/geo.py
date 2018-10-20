@@ -8,9 +8,11 @@ from __future__ import division
 import numpy as np
 import datashader.transfer_functions as tf
 
+from datashader import Canvas
 from datashader.colors import rgb
 from datashader.utils import ngjit
 from xarray import DataArray
+
 
 __all__ = ['mean', 'binary', 'slope', 'aspect', 'ndvi', 'hillshade', 'generate_terrain']
 
@@ -290,17 +292,16 @@ def mean(agg, passes=1, excludes=[np.nan]):
     return DataArray(out, dims=['y', 'x'], attrs=agg.attrs)
 
 
-def generate_terrain(width, height, seed=10):
+def generate_terrain(canvas, seed=10, zfactor=4000, full_extent='3857'):
     """
     Generates a pseudo-random terrain which can be helpful for testing raster functions
 
-
-
     Parameters
     ----------
-    width : int
-    height : int
+    canvas : ds.Canvas instance for passing output dimensions / ranges
     seed : seed for random number generator
+    zfactor : used as multipler for z values
+    canvas_wkid : wellknownid of input canvas
 
     Returns
     -------
@@ -314,6 +315,7 @@ def generate_terrain(width, height, seed=10):
      - https://www.redblobgames.com/maps/terrain-from-noise/
     """
 
+
     def _gen_heights(bumps):
         out = np.zeros(len(bumps))
         for i, b in enumerate(bumps):
@@ -324,28 +326,61 @@ def generate_terrain(width, height, seed=10):
                 out[i] = .1
         return out
 
-    data = _gen_terrain(width, height, seed)
+    def _scale(value, old_range, new_range):
+        return ((value - old_range[0]) / (old_range[1] - old_range[0])) * (new_range[1] - new_range[0]) + new_range[0]
+
+    if not isinstance(canvas, Canvas):
+        raise TypeError('canvas must be instance type datashader.Canvas')
+
+    mercator_extent = (-np.pi * 6378137, -np.pi * 6378137, np.pi * 6378137, np.pi * 6378137)
+    crs_extents = {'3857': mercator_extent}
+
+    if isinstance(full_extent, str):
+        full_extent = crs_extents[full_extent]
+    elif full_extent is None:
+        full_extent = mercator_extent
+    elif not isinstance(full_extent, (list, tuple)) and len(full_extent) != 4:
+        raise TypeError('full_extent must be tuple(4) or str wkid')
+
+    full_xrange = (full_extent[0], full_extent[2])
+    full_yrange = (full_extent[1], full_extent[3])
+
+    x_range_scaled = (_scale(canvas.x_range[0], full_xrange, (0, 1)),
+                      _scale(canvas.x_range[1], full_xrange, (0, 1)))
+
+    y_range_scaled = (_scale(canvas.y_range[0], full_yrange, (0, 1)),
+                      _scale(canvas.y_range[1], full_yrange, (0, 1)))
+
+    data = _gen_terrain(canvas.plot_width, canvas.plot_height, seed,
+                        x_range=x_range_scaled, y_range=y_range_scaled)
+
     data = (data - np.min(data))/np.ptp(data)
     data[data < .3] = 0  # create water
-    data *= 4000
+    data *= zfactor
+
+    xs = np.linspace(canvas.x_range[0], canvas.x_range[1], canvas.plot_width, endpoint=False)
+    ys = np.linspace(canvas.y_range[0], canvas.y_range[1], canvas.plot_height, endpoint=False)
+
     agg = DataArray(data,
+                    coords=dict(x=xs, y=ys),
                     dims=['y', 'x'],
                     attrs={'res':1})
+
     return agg
 
-def _gen_terrain(width, height, seed):
+def _gen_terrain(width, height, seed, x_range=None, y_range=None):
 
-    NOISE_LAYERS = (
-        (1, (1, 1)),  # multiplier, (xfreq, yfreq)
-        (0.5, (2, 2)),
-        (0.25, (4, 4)),
-        (0.13, (8, 8)),
-        (0.06, (16, 16)),
-        (0.03, (32, 32))
-    )
+    if not x_range:
+        x_range = (0, 1)
 
-    linx = np.linspace(0, 1, width, endpoint=False)
-    liny = np.linspace(0, 1, height, endpoint=False)
+    if not y_range:
+        y_range = (0, 1)
+
+    # multiplier, (xfreq, yfreq)
+    NOISE_LAYERS= ((1 / 2**i, (2**i, 2**i)) for i in range(16))
+
+    linx = np.linspace(x_range[0], x_range[1], width, endpoint=False)
+    liny = np.linspace(y_range[0], y_range[1], height, endpoint=False)
     x, y = np.meshgrid(linx, liny)
 
     height_map = None
@@ -476,7 +511,7 @@ def _gradient(h, x, y):
 
 def _perlin(x, y, seed=0):
     np.random.seed(seed)
-    p = np.arange(256,dtype=int)
+    p = np.arange(2**20,dtype=int)
     np.random.shuffle(p)
     p = np.stack([p,p]).flatten()
 

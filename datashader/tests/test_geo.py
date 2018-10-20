@@ -8,8 +8,12 @@ from datashader import geo
 W = 25
 H = 30
 
-csv = ds.Canvas(plot_width=W, plot_height=H)
-terrain = geo.generate_terrain(W, H)
+X_RANGE = (0, 500)
+Y_RANGE = (0, 500)
+
+csv = ds.Canvas(x_range=X_RANGE, y_range=Y_RANGE,
+                plot_width=W, plot_height=H)
+terrain = geo.generate_terrain(csv)
 
 def _raster_aggregate_default():
     return terrain
@@ -117,7 +121,9 @@ def test_ndvi_transfer_function():
 
 
 def test_generate_terrain():
-    terrain = geo.generate_terrain(20, 20)
+    csv = ds.Canvas(x_range=X_RANGE, y_range=Y_RANGE,
+                    plot_width=W, plot_height=H)
+    terrain = geo.generate_terrain(csv)
     assert terrain is not None
 
 
