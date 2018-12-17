@@ -370,10 +370,6 @@ def dshape_from_dask(df):
     return datashape.var * dshape_from_pandas(df.head()).measure
 
 
-categoricals_in_dtypes = np.vectorize(lambda dtype: dtype.name == 'category', otypes='?')
-def categorical_in_dtypes(dtype_arr):
-    return categoricals_in_dtypes(dtype_arr).any()
-
 def dataframe_from_multiple_sequences(x_values, y_values):
    """
    Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional 

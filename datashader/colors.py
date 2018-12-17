@@ -140,15 +140,7 @@ Greys9 = ["#000000", "#252525", "#525252", "#737373", "#969696", "#bdbdbd", "#d9
 Hot = ["black", "maroon", "darkred", "red", "orangered", "darkorange", "orange", "gold", "yellow", "white"]
 
 # pseudo terrestial elevation ramp
-Elevation = ["aqua",
-             "saddlebrown",
-             "sandybrown",
-             "darkgreen",
-             "green",
-             "limegreen",
-             "yellow",
-             "palegoldenrod",
-             "white"]
+Elevation = ["aqua", "sandybrown", "limegreen", "green", "green", "darkgreen", "saddlebrown", "gray", "white"]
 
 # Qualitative color maps, for use in colorizing categories
 # Originally from Cynthia Brewer (http://colorbrewer2.org), via Bokeh

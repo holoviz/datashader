@@ -1,5 +1,5 @@
-from dask import config
 from dask.local import get_sync
+from dask.context import config
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ import datashader as ds
 
 import pytest
 
-config.set(get=get_sync)
+config.set(scheduler=get_sync)
 
 df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),

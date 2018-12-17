@@ -251,7 +251,9 @@ def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value, mode_ran
     downsampling_method = DOWNSAMPLING_METHODS[ds_method]
     upsampling_method = UPSAMPLING_METHODS[us_method]
 
-    if out_w < src_w and out_h < src_h:
+    if src_h == 0 or src_w == 0 or out_h == 0 or out_w == 0:
+       return np.zeros((out_h, out_w), dtype=src.dtype)
+    elif out_w < src_w and out_h < src_h:
         return downsampling_method(src, mask, use_mask, ds_method, fill_value, mode_rank, out)
     elif out_w < src_w:
         if out_h > src_h:
