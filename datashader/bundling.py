@@ -122,7 +122,6 @@ def smooth_segment(segments, tension, idx, idy):
         current[idy] = ((1 - tension) * current[idy]) + (tension * (previous[idy] + next_point[idy]) / 2)
 
 
-@nb.jit
 def smooth(edge_segments, tension, idx, idy):
     for segments in edge_segments:
         smooth_segment(segments, tension, idx, idy)
