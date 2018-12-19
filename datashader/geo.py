@@ -355,7 +355,7 @@ def generate_terrain(canvas, seed=10, zfactor=4000, full_extent='3857'):
                         x_range=x_range_scaled, y_range=y_range_scaled)
 
     data = (data - np.min(data))/np.ptp(data)
-    data[data < .3] = 0  # create water
+    data[data < 0.3] = 0  # create water
     data *= zfactor
 
     xs = np.linspace(canvas.x_range[0], canvas.x_range[1], canvas.plot_width, endpoint=False)
