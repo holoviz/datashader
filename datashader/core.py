@@ -147,7 +147,7 @@ class Canvas(object):
 
         Parameters
         ----------
-        source : pandas.DataFrame, dask.DataFrame
+        source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
             The input datasource.
         x, y : str
             Column names for the x and y coordinates of each point.
@@ -174,7 +174,7 @@ class Canvas(object):
 
         Parameters
         ----------
-        source : pandas.DataFrame, dask.DataFrame
+        source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
             The input datasource.
         x, y : str
             Column names for the x and y coordinates of each vertex.
@@ -234,7 +234,7 @@ class Canvas(object):
             Method to use for interpolation between specified values. ``nearest``
             means to use a single value for the whole triangle, and ``linear``
             means to do bilinear interpolation of the pixels within each
-            triangle (a weighted average of the vertex values). For 
+            triangle (a weighted average of the vertex values). For
             backwards compatibility, also accepts ``interp=True`` for ``linear``
             and ``interp=False`` for ``nearest``.
         """
@@ -252,7 +252,7 @@ class Canvas(object):
                 interp = False
             else:
                 raise ValueError('Invalid interpolate method: options include {}'.format(['linear','nearest']))
-            
+
         # Validation is done inside the [pd]d_mesh utility functions
         if source is None:
             source = create_mesh(vertices, simplices)
@@ -319,7 +319,7 @@ class Canvas(object):
         # For backwards compatibility
         if agg         is None: agg=downsample_method
         if interpolate is None: interpolate=upsample_method
-        
+
         upsample_methods = ['nearest','linear']
 
         downsample_methods = {'first':'first', rd.first:'first',
@@ -387,7 +387,7 @@ class Canvas(object):
 
         if self.x_range is None: self.x_range = (left,right)
         if self.y_range is None: self.y_range = (bottom,top)
-            
+
         # window coordinates
         xmin = max(self.x_range[0], left)
         ymin = max(self.y_range[0], bottom)
@@ -505,23 +505,22 @@ def bypixel(source, canvas, glyph, agg):
     glyph : Glyph
     agg : Reduction
     """
+    if isinstance(source, DataArray):
+        if not source.name:
+            source.name = 'value'
+        source = source.reset_coords()
+    if isinstance(source, Dataset):
+        columns = list(source.coords.keys()) + list(source.data_vars.keys())
+        cols_to_keep = _cols_to_keep(columns, glyph, agg)
+        source = source.drop([col for col in columns if col not in cols_to_keep])
+        source = source.to_dask_dataframe()
+
     if isinstance(source, pd.DataFrame):
         # Avoid datashape.Categorical instantiation bottleneck
         # by only retaining the necessary columns:
         # https://github.com/bokeh/datashader/issues/396
         # Preserve column ordering without duplicates
-        cols_to_keep = OrderedDict({col: False for col in source.columns})
-        cols_to_keep[glyph.x] = True
-        cols_to_keep[glyph.y] = True
-        if hasattr(glyph, 'z'):
-            cols_to_keep[glyph.z[0]] = True
-        if hasattr(agg, 'values'):
-            for subagg in agg.values:
-                if subagg.column is not None:
-                    cols_to_keep[subagg.column] = True
-        elif agg.column is not None:
-            cols_to_keep[agg.column] = True
-        cols_to_keep = [col for col, keepit in cols_to_keep.items() if keepit]
+        cols_to_keep = _cols_to_keep(source.columns, glyph, agg)
         if len(cols_to_keep) < len(source.columns):
             source = source[cols_to_keep]
         dshape = dshape_from_pandas(source)
@@ -538,6 +537,21 @@ def bypixel(source, canvas, glyph, agg):
     with np.warnings.catch_warnings():
         np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
         return bypixel.pipeline(source, schema, canvas, glyph, agg)
+
+
+def _cols_to_keep(columns, glyph, agg):
+    cols_to_keep = OrderedDict({col: False for col in columns})
+    cols_to_keep[glyph.x] = True
+    cols_to_keep[glyph.y] = True
+    if hasattr(glyph, 'z'):
+        cols_to_keep[glyph.z[0]] = True
+    if hasattr(agg, 'values'):
+        for subagg in agg.values:
+            if subagg.column is not None:
+                cols_to_keep[subagg.column] = True
+    elif agg.column is not None:
+        cols_to_keep[agg.column] = True
+    return [col for col, keepit in cols_to_keep.items() if keepit]
 
 
 bypixel.pipeline = Dispatcher()
