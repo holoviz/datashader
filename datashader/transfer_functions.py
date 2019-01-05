@@ -200,12 +200,13 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
             if np.issubdtype(data.dtype, np.integer):
                 # We can't use clip for integers because masked values are
                 # stored as zeros
+                data = data.copy()
                 data[~mask & (data < span[0])] = span[0]
                 data[~mask & (data > span[1])] = span[1]
             else:
                 # Using clip is safe for floating point arrays since masked
                 # values are stored as nans, which clip ignores
-                data.clip(span[0], span[1], out=data)
+                data = data.clip(span[0], span[1])
 
         interp = data - offset
         

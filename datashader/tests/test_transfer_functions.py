@@ -108,14 +108,22 @@ def test_span(attr, how):
     # Decrease smallest. This value should be clipped to span[0] and the
     # resulting image should be identical
     x[0, 1] = 10
+    x_input = x.copy()
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
     assert img.equals(sol)
+
+    # Check that clipping doesn't alter input array
+    assert x.equals(x_input)
 
     # Increase largest. This value should be clipped to span[1] and the
     # resulting image should be identical
     x[2, 1] = 18
+    x_input = x.copy()
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
     assert img.equals(sol)
+
+    # Check that clipping doesn't alter input array
+    assert x.equals(x_input)
 
     # zero out smallest. If span is working properly the zeroed out pixel
     # will be masked out and all other pixels will remain unchanged
