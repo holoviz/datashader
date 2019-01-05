@@ -24,6 +24,27 @@ c[[0, 1, 2], [0, 1, 2]] = np.nan
 s_c = xr.DataArray(c, coords=coords, dims=dims)
 agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c))
 
+int_span = [11, 17]
+float_span = [11.0, 17.0]
+
+solution_lists = {
+    'log':
+        [[0, 4291543295, 4286741503],
+         [4283978751, 0, 4280492543],
+         [4279242751, 4278190335, 0]],
+    'cbrt':
+        [[0, 4291543295, 4284176127],
+         [4282268415, 0, 4279834879],
+         [4278914047, 4278190335, 0]],
+    'linear':
+        [[0, 4291543295, 4289306879],
+         [4287070463, 0, 4282597631],
+         [4280361215, 4278190335, 0]]
+}
+
+solutions = {how: xr.DataArray(np.array(v, dtype='u4'),
+                               coords=coords, dims=dims)
+             for how, v in solution_lists.items()}
 
 eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
                               [4286149631, 0, 4283518207],
@@ -34,37 +55,79 @@ eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
 eq_hist_sol['c'] = eq_hist_sol['b']
 
 
-@pytest.mark.parametrize(['attr'], ['a', 'b', 'c'])
-def test_shade(attr):
+@pytest.mark.parametrize('attr', ['a', 'b', 'c'])
+@pytest.mark.parametrize('span', [None, int_span, float_span])
+def test_shade(attr, span):
     x = getattr(agg, attr)
     cmap = ['pink', 'red']
-    img = tf.shade(x, cmap=cmap, how='log')
-    sol = np.array([[0, 4291543295, 4286741503],
-                    [4283978751, 0, 4280492543],
-                    [4279242751, 4278190335, 0]], dtype='u4')
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+
+    img = tf.shade(x, cmap=cmap, how='log', span=span)
+    sol = solutions['log']
     assert img.equals(sol)
-    img = tf.shade(x, cmap=cmap, how='cbrt')
-    sol = np.array([[0, 4291543295, 4284176127],
-                    [4282268415, 0, 4279834879],
-                    [4278914047, 4278190335, 0]], dtype='u4')
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+
+    img = tf.shade(x, cmap=cmap, how='cbrt', span=span)
+    sol = solutions['cbrt']
     assert img.equals(sol)
-    img = tf.shade(x, cmap=cmap, how='linear')
-    sol = np.array([[0, 4291543295, 4289306879],
-                    [4287070463, 0, 4282597631],
-                    [4280361215, 4278190335, 0]])
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+
+    img = tf.shade(x, cmap=cmap, how='linear', span=span)
+    sol = solutions['linear']
     assert img.equals(sol)
+
+    # span option not supported with how='eq_hist'
     img = tf.shade(x, cmap=cmap, how='eq_hist')
     sol = xr.DataArray(eq_hist_sol[attr], coords=coords, dims=dims)
     assert img.equals(sol)
+
     img = tf.shade(x, cmap=cmap,
                    how=lambda x, mask: np.where(mask, np.nan, x ** 2))
     sol = np.array([[0, 4291543295, 4291148543],
                     [4290030335, 0, 4285557503],
                     [4282268415, 4278190335, 0]], dtype='u4')
     sol = xr.DataArray(sol, coords=coords, dims=dims)
+    assert img.equals(sol)
+
+
+@pytest.mark.parametrize('attr', ['a', 'b', 'c'])
+@pytest.mark.parametrize('how', ['linear', 'log', 'cbrt'])
+def test_span(attr, how):
+
+    x = getattr(agg, attr).copy()
+    cmap = ['pink', 'red']
+
+    # Get copy of expected solution for interpolation method
+    sol = solutions[how].copy()
+
+    # All data no span
+    img = tf.shade(x, cmap=cmap, how=how, span=None)
+    assert img.equals(sol)
+
+    # All data with span
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    assert img.equals(sol)
+
+    # Decrease smallest. This value should be clipped to span[0] and the
+    # resulting image should be identical
+    x[0, 1] = 10
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    assert img.equals(sol)
+
+    # Increase largest. This value should be clipped to span[1] and the
+    # resulting image should be identical
+    x[2, 1] = 18
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    assert img.equals(sol)
+
+    # zero out smallest. If span is working properly the zeroed out pixel
+    # will be masked out and all other pixels will remain unchanged
+    x[0, 1] = 0 if x.dtype.kind == 'i' else np.nan
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    sol[0, 1] = 0
+    assert img.equals(sol)
+
+    # zero out the largest value
+    x[2, 1] = 0 if x.dtype.kind == 'i' else np.nan
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    sol[2, 1] = 0
     assert img.equals(sol)
 
 
