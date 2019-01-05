@@ -55,6 +55,53 @@ eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
 eq_hist_sol['c'] = eq_hist_sol['b']
 
 
+def check_span(x, cmap, how, sol):
+    # Copy inputs that will be modified
+    sol = sol.copy()
+    x = x.copy()
+
+    # All data no span
+    img = tf.shade(x, cmap=cmap, how=how, span=None)
+    assert img.equals(sol)
+
+    # All data with span
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    assert img.equals(sol)
+
+    # Decrease smallest. This value should be clipped to span[0] and the
+    # resulting image should be identical
+    x[0, 1] = 10
+    x_input = x.copy()
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    assert img.equals(sol)
+
+    # Check that clipping doesn't alter input array
+    assert x.equals(x_input)
+
+    # Increase largest. This value should be clipped to span[1] and the
+    # resulting image should be identical
+    x[2, 1] = 18
+    x_input = x.copy()
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    assert img.equals(sol)
+
+    # Check that clipping doesn't alter input array
+    assert x.equals(x_input)
+
+    # zero out smallest. If span is working properly the zeroed out pixel
+    # will be masked out and all other pixels will remain unchanged
+    x[0, 1] = 0 if x.dtype.kind == 'i' else np.nan
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    sol[0, 1] = sol[0, 0]
+    assert img.equals(sol)
+
+    # zero out the largest value
+    x[2, 1] = 0 if x.dtype.kind == 'i' else np.nan
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    sol[2, 1] = sol[0, 0]
+    assert img.equals(sol)
+
+
 @pytest.mark.parametrize('attr', ['a', 'b', 'c'])
 @pytest.mark.parametrize('span', [None, int_span, float_span])
 def test_shade(attr, span):
@@ -89,54 +136,51 @@ def test_shade(attr, span):
 
 @pytest.mark.parametrize('attr', ['a', 'b', 'c'])
 @pytest.mark.parametrize('how', ['linear', 'log', 'cbrt'])
-def test_span(attr, how):
-
+def test_span_cmap_list(attr, how):
+    # Get input
     x = getattr(agg, attr).copy()
+
+    # Build colormap
     cmap = ['pink', 'red']
 
-    # Get copy of expected solution for interpolation method
-    sol = solutions[how].copy()
+    # Get expected solution for interpolation method
+    sol = solutions[how]
 
-    # All data no span
-    img = tf.shade(x, cmap=cmap, how=how, span=None)
-    assert img.equals(sol)
+    # Check span
+    check_span(x, cmap, how, sol)
 
-    # All data with span
-    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    assert img.equals(sol)
 
-    # Decrease smallest. This value should be clipped to span[0] and the
-    # resulting image should be identical
-    x[0, 1] = 10
-    x_input = x.copy()
-    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    assert img.equals(sol)
+@pytest.mark.parametrize('cmap', ['black', (0, 0, 0), '#000000'])
+def test_span_cmap_single(cmap):
+    # Get input
+    x = agg.a
 
-    # Check that clipping doesn't alter input array
-    assert x.equals(x_input)
+    # Build expected solution DataArray
+    sol = np.array([[0, 671088640, 1946157056],
+                    [2701131776, 0, 3640655872],
+                    [3976200192, 4278190080, 0]])
+    sol = xr.DataArray(sol, coords=coords, dims=dims)
 
-    # Increase largest. This value should be clipped to span[1] and the
-    # resulting image should be identical
-    x[2, 1] = 18
-    x_input = x.copy()
-    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    assert img.equals(sol)
+    # Check span
+    check_span(x, cmap, 'log', sol)
 
-    # Check that clipping doesn't alter input array
-    assert x.equals(x_input)
 
-    # zero out smallest. If span is working properly the zeroed out pixel
-    # will be masked out and all other pixels will remain unchanged
-    x[0, 1] = 0 if x.dtype.kind == 'i' else np.nan
-    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    sol[0, 1] = 0
-    assert img.equals(sol)
+def test_span_cmap_mpl():
+    # Get inputs
+    x = agg.a
 
-    # zero out the largest value
-    x[2, 1] = 0 if x.dtype.kind == 'i' else np.nan
-    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    sol[2, 1] = 0
-    assert img.equals(sol)
+    # Get MPL colormap
+    cm = pytest.importorskip('matplotlib.cm')
+    cmap = cm.viridis
+
+    # Build expected solution Data Array
+    sol = np.array([[5505348, 4283695428, 4287524142],
+                    [4287143710, 5505348, 4282832267],
+                    [4280213706, 4280608765, 5505348]])
+    sol = xr.DataArray(sol, coords=coords, dims=dims)
+
+    # Check span
+    check_span(x, cmap, 'log', sol)
 
 
 def test_shade_bool():
