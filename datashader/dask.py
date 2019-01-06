@@ -1,12 +1,9 @@
 from __future__ import absolute_import, division
 
-from distutils.version import LooseVersion
-
 import dask
 import pandas as pd
 import dask.dataframe as dd
 from dask.base import tokenize, compute
-from dask.context import _globals
 
 from .core import bypixel
 from .compatibility import apply
@@ -21,16 +18,16 @@ __all__ = ()
 def dask_pipeline(df, schema, canvas, glyph, summary):
     dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary)
 
-    if LooseVersion(dask.__version__) >= '0.18.0':
-        get = dask.base.get_scheduler() or df.__dask_scheduler__
-    else:
-        get = _globals.get('get') or getattr(df, '__dask_scheduler__', None) or df._default_get
-    keys = getattr(df, '__dask_keys__', None) or df._keys
-    optimize = getattr(df, '__dask_optimize__', None) or df._optimize
+    # Get user configured scheduler (if any), or fall back to default
+    # scheduler for dask DataFrame
+    scheduler = dask.base.get_scheduler() or df.__dask_scheduler__
+    keys = df.__dask_keys__()
+    optimize = df.__dask_optimize__
+    graph = df.__dask_graph__()
 
-    dsk.update(optimize(df.dask, keys()))
+    dsk.update(optimize(graph, keys))
 
-    return get(dsk, name)
+    return scheduler(dsk, name)
 
 
 def shape_bounds_st_and_axis(df, canvas, glyph):
@@ -73,9 +70,8 @@ def default(glyph, df, schema, canvas, summary):
         extend(aggs, df, st, bounds)
         return aggs
 
-    name = tokenize(df._name, canvas, glyph, summary)
-    dask_dataframe_keys = getattr(df, '__dask_keys__', None) or df._keys
-    keys = dask_dataframe_keys()
+    name = tokenize(df.__dask_tokenize__(), canvas, glyph, summary)
+    keys = df.__dask_keys__()
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k)) for (k2, k) in zip(keys2, keys))
     dsk[name] = (apply, finalize, [(combine, keys2)],
@@ -103,8 +99,8 @@ def line(glyph, df, schema, canvas, summary):
         extend(aggs, df, st, bounds, plot_start=plot_start)
         return aggs
 
-    name = tokenize(df._name, canvas, glyph, summary)
-    old_name = df._name
+    name = tokenize(df.__dask_tokenize__(), canvas, glyph, summary)
+    old_name = df.__dask_tokenize__()
     dsk = {(name, 0): (chunk, (old_name, 0))}
     for i in range(1, df.npartitions):
         dsk[(name, i)] = (chunk, (old_name, i - 1), (old_name, i))
