@@ -274,6 +274,46 @@ def test_line():
     assert_eq(agg, out)
 
 
+def test_points_on_edge():
+    df = pd.DataFrame(dict(x=[0, 0.5, 1.1, 1.5, 2.2, 3, 3, 0],
+                           y=[0, 0, 0, 0, 0, 0, 3, 3]))
+
+    canvas = ds.Canvas(plot_width=3, plot_height=3,
+                       x_range=(0, 3), y_range=(0, 3))
+
+    agg = canvas.points(df, 'x', 'y', agg=ds.count())
+
+    sol = np.array([[2, 2, 2],
+                    [0, 0, 0],
+                    [1, 0, 1]], dtype='int32')
+    out = xr.DataArray(sol,
+                       coords=[('x', [0.5, 1.5, 2.5]),
+                               ('y', [0.5, 1.5, 2.5])],
+                       dims=['y', 'x'])
+
+    assert_eq(agg, out)
+
+
+def test_lines_on_edge():
+    df = pd.DataFrame(dict(x=[0, 3, 3, 0],
+                           y=[0, 0, 3, 3]))
+
+    canvas = ds.Canvas(plot_width=3, plot_height=3,
+                       x_range=(0, 3), y_range=(0, 3))
+
+    agg = canvas.line(df, 'x', 'y', agg=ds.count())
+
+    sol = np.array([[1, 1, 1],
+                    [0, 0, 1],
+                    [1, 1, 1]], dtype='int32')
+    out = xr.DataArray(sol,
+                       coords=[('x', [0.5, 1.5, 2.5]),
+                               ('y', [0.5, 1.5, 2.5])],
+                       dims=['y', 'x'])
+
+    assert_eq(agg, out)
+
+
 def test_log_axis_line():
     axis = ds.core.LogAxis()
     logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
@@ -533,3 +573,23 @@ def test_trimesh_agg_api():
     cvs = ds.Canvas(x_range=(0, 10), y_range=(0, 10))
     agg = cvs.trimesh(pts, tris, agg=ds.mean('weight'))
     assert agg.shape == (600, 600)
+
+
+def test_bug_570():
+    # See https://github.com/pyviz/datashader/issues/570
+    df = pd.DataFrame({
+        'Time': [1456353642.2053893, 1456353642.2917893],
+        'data': [-59.4948743433377, 506.4847376716022],
+    }, columns=['Time', 'data'])
+
+    x_range = (1456323293.9859753, 1456374687.0009754)
+    y_range = (-228.56721300380943, 460.4042291124646)
+
+    cvs = ds.Canvas(x_range=x_range, y_range=y_range,
+                    plot_height=300, plot_width=1000)
+    agg = cvs.line(df, 'Time', 'data', agg=ds.count())
+
+    # Check location of line
+    yi, xi = np.where(agg.values == 1)
+    assert np.array_equal(yi, np.arange(73, 300))
+    assert np.array_equal(xi, np.array([590] * len(yi)))

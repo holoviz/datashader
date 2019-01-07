@@ -253,8 +253,18 @@ def _build_map_onto_pixel_for_line(x_mapper, y_mapper):
         xx = int(x_mapper(x) * sx + tx)
         yy = int(y_mapper(y) * sy + ty)
 
-        xxmax = int(x_mapper(xmax) * sx + tx)
-        yymax = int(y_mapper(ymax) * sy + ty)
+        # Note that sx and tx were designed so that
+        # x_mapper(xmax) * sx + tx equals the width of the canvas in pixels
+        #
+        # Likewise, sy and ty were designed so that
+        # y_mapper(ymax) * sy + ty equals the height of the canvas in pixels
+        #
+        # We round these results to integers (rather than casting to integers
+        # with the int constructor) to handle cases where floating-point
+        # precision errors results in a value just under the integer number
+        # of pixels.
+        xxmax = round(x_mapper(xmax) * sx + tx)
+        yymax = round(y_mapper(ymax) * sy + ty)
 
         return (xx - 1 if xx == xxmax else xx,
                 yy - 1 if yy == yymax else yy)

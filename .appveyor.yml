@@ -19,3 +19,4 @@ build: off
 
 test_script:
   - "doit test_all"
+  - "set NUMBA_DISABLE_JIT=1 && doit test_unit_nojit & set NUMBA_DISABLE_JIT="

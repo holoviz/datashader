@@ -2,6 +2,7 @@ from __future__ import division
 
 import numba as nb
 import numpy as np
+import os
 
 
 __all__ = ('composite_op_lookup', 'over', 'add', 'saturate', 'source')
@@ -28,9 +29,12 @@ def combine_scaled(r, g, b, a):
     return np.uint32((a2 << 24) | (b2 << 16) | (g2 << 8) | r2)
 
 
-extract_scaled.disable_compile()
-combine_scaled.disable_compile()
+jit_enabled = os.environ.get('NUMBA_DISABLE_JIT', '0') == '0'
 
+
+if jit_enabled:
+    extract_scaled.disable_compile()
+    combine_scaled.disable_compile()
 
 # Lookup table for storing compositing operators by function name
 composite_op_lookup = {}
@@ -38,9 +42,14 @@ composite_op_lookup = {}
 
 def operator(f):
     """Define and register a new composite operator"""
-    f2 = nb.vectorize(f)
-    f2._compile_for_argtys((nb.types.uint32, nb.types.uint32))
-    f2._frozen = True
+
+    if jit_enabled:
+        f2 = nb.vectorize(f)
+        f2._compile_for_argtys((nb.types.uint32, nb.types.uint32))
+        f2._frozen = True
+    else:
+        f2 = np.vectorize(f)
+
     composite_op_lookup[f.__name__] = f2
     return f2
 
