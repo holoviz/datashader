@@ -3,7 +3,7 @@ sources:
     description: Large version of nyc taxi dataset
     driver: parquet
     args:
-      urlpath: '{{ CATLOG_DIR }}data/nyc_taxi_wide.parq'
+      urlpath: '{{ CATALOG_DIR }}/data/nyc_taxi_wide.parq'
       columns: ['dropoff_x','dropoff_y','pickup_x','pickup_y',
                 'dropoff_hour','pickup_hour','passenger_count']
     metadata:
@@ -37,7 +37,7 @@ sources:
     description: US Census Synthetic Data
     driver: parquet
     args:
-      urlpath: '{{ CATLOG_DIR }}data/census.snappy.parq'
+      urlpath: '{{ CATALOG_DIR }}/data/census.snappy.parq'
     metadata:
       fields:
         race:
@@ -74,7 +74,7 @@ sources:
     description: OpenSky Flight Paths
     driver: netcdf
     args:
-      urlpath: '{{ CATLOG_DIR }}data/opensky.h5'
+      urlpath: '{{ CATALOG_DIR }}/data/opensky.h5'
     metadata:
       fields:
         ascending:
