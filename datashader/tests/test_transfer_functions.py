@@ -24,6 +24,27 @@ c[[0, 1, 2], [0, 1, 2]] = np.nan
 s_c = xr.DataArray(c, coords=coords, dims=dims)
 agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c))
 
+int_span = [11, 17]
+float_span = [11.0, 17.0]
+
+solution_lists = {
+    'log':
+        [[0, 4291543295, 4286741503],
+         [4283978751, 0, 4280492543],
+         [4279242751, 4278190335, 0]],
+    'cbrt':
+        [[0, 4291543295, 4284176127],
+         [4282268415, 0, 4279834879],
+         [4278914047, 4278190335, 0]],
+    'linear':
+        [[0, 4291543295, 4289306879],
+         [4287070463, 0, 4282597631],
+         [4280361215, 4278190335, 0]]
+}
+
+solutions = {how: xr.DataArray(np.array(v, dtype='u4'),
+                               coords=coords, dims=dims)
+             for how, v in solution_lists.items()}
 
 eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
                               [4286149631, 0, 4283518207],
@@ -34,31 +55,76 @@ eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
 eq_hist_sol['c'] = eq_hist_sol['b']
 
 
-@pytest.mark.parametrize(['attr'], ['a', 'b', 'c'])
-def test_shade(attr):
+def check_span(x, cmap, how, sol):
+    # Copy inputs that will be modified
+    sol = sol.copy()
+    x = x.copy()
+
+    # All data no span
+    img = tf.shade(x, cmap=cmap, how=how, span=None)
+    assert img.equals(sol)
+
+    # All data with span
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    assert img.equals(sol)
+
+    # Decrease smallest. This value should be clipped to span[0] and the
+    # resulting image should be identical
+    x[0, 1] = 10
+    x_input = x.copy()
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    assert img.equals(sol)
+
+    # Check that clipping doesn't alter input array
+    assert x.equals(x_input)
+
+    # Increase largest. This value should be clipped to span[1] and the
+    # resulting image should be identical
+    x[2, 1] = 18
+    x_input = x.copy()
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    assert img.equals(sol)
+
+    # Check that clipping doesn't alter input array
+    assert x.equals(x_input)
+
+    # zero out smallest. If span is working properly the zeroed out pixel
+    # will be masked out and all other pixels will remain unchanged
+    x[0, 1] = 0 if x.dtype.kind == 'i' else np.nan
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    sol[0, 1] = sol[0, 0]
+    assert img.equals(sol)
+
+    # zero out the largest value
+    x[2, 1] = 0 if x.dtype.kind == 'i' else np.nan
+    img = tf.shade(x, cmap=cmap, how=how, span=float_span)
+    sol[2, 1] = sol[0, 0]
+    assert img.equals(sol)
+
+
+@pytest.mark.parametrize('attr', ['a', 'b', 'c'])
+@pytest.mark.parametrize('span', [None, int_span, float_span])
+def test_shade(attr, span):
     x = getattr(agg, attr)
     cmap = ['pink', 'red']
-    img = tf.shade(x, cmap=cmap, how='log')
-    sol = np.array([[0, 4291543295, 4286741503],
-                    [4283978751, 0, 4280492543],
-                    [4279242751, 4278190335, 0]], dtype='u4')
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+
+    img = tf.shade(x, cmap=cmap, how='log', span=span)
+    sol = solutions['log']
     assert img.equals(sol)
-    img = tf.shade(x, cmap=cmap, how='cbrt')
-    sol = np.array([[0, 4291543295, 4284176127],
-                    [4282268415, 0, 4279834879],
-                    [4278914047, 4278190335, 0]], dtype='u4')
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+
+    img = tf.shade(x, cmap=cmap, how='cbrt', span=span)
+    sol = solutions['cbrt']
     assert img.equals(sol)
-    img = tf.shade(x, cmap=cmap, how='linear')
-    sol = np.array([[0, 4291543295, 4289306879],
-                    [4287070463, 0, 4282597631],
-                    [4280361215, 4278190335, 0]])
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+
+    img = tf.shade(x, cmap=cmap, how='linear', span=span)
+    sol = solutions['linear']
     assert img.equals(sol)
+
+    # span option not supported with how='eq_hist'
     img = tf.shade(x, cmap=cmap, how='eq_hist')
     sol = xr.DataArray(eq_hist_sol[attr], coords=coords, dims=dims)
     assert img.equals(sol)
+
     img = tf.shade(x, cmap=cmap,
                    how=lambda x, mask: np.where(mask, np.nan, x ** 2))
     sol = np.array([[0, 4291543295, 4291148543],
@@ -66,6 +132,55 @@ def test_shade(attr):
                     [4282268415, 4278190335, 0]], dtype='u4')
     sol = xr.DataArray(sol, coords=coords, dims=dims)
     assert img.equals(sol)
+
+
+@pytest.mark.parametrize('attr', ['a', 'b', 'c'])
+@pytest.mark.parametrize('how', ['linear', 'log', 'cbrt'])
+def test_span_cmap_list(attr, how):
+    # Get input
+    x = getattr(agg, attr).copy()
+
+    # Build colormap
+    cmap = ['pink', 'red']
+
+    # Get expected solution for interpolation method
+    sol = solutions[how]
+
+    # Check span
+    check_span(x, cmap, how, sol)
+
+
+@pytest.mark.parametrize('cmap', ['black', (0, 0, 0), '#000000'])
+def test_span_cmap_single(cmap):
+    # Get input
+    x = agg.a
+
+    # Build expected solution DataArray
+    sol = np.array([[0, 671088640, 1946157056],
+                    [2701131776, 0, 3640655872],
+                    [3976200192, 4278190080, 0]])
+    sol = xr.DataArray(sol, coords=coords, dims=dims)
+
+    # Check span
+    check_span(x, cmap, 'log', sol)
+
+
+def test_span_cmap_mpl():
+    # Get inputs
+    x = agg.a
+
+    # Get MPL colormap
+    cm = pytest.importorskip('matplotlib.cm')
+    cmap = cm.viridis
+
+    # Build expected solution Data Array
+    sol = np.array([[5505348, 4283695428, 4287524142],
+                    [4287143710, 5505348, 4282832267],
+                    [4280213706, 4280608765, 5505348]])
+    sol = xr.DataArray(sol, coords=coords, dims=dims)
+
+    # Check span
+    check_span(x, cmap, 'log', sol)
 
 
 def test_shade_bool():

@@ -191,7 +191,22 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
         if len(masked) == 0:
             return Image(np.zeros(shape=agg.data.astype(np.uint32).shape, dtype=np.uint32), coords=agg.coords, dims=agg.dims, attrs=agg.attrs, name=name)
 
-        offset = masked.min()
+        if span is None:
+            offset = masked.min()
+        else:
+            offset = span[0]
+
+            # Clip data to span
+            if np.issubdtype(data.dtype, np.integer):
+                # We can't use clip for integers because masked values are
+                # stored as zeros
+                data = data.copy()
+                data[~mask & (data < span[0])] = span[0]
+                data[~mask & (data > span[1])] = span[1]
+            else:
+                # Using clip is safe for floating point arrays since masked
+                # values are stored as nans, which clip ignores
+                data = data.clip(span[0], span[1])
 
         interp = data - offset
         
@@ -203,8 +218,8 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
             # For eq_hist to work with span, we'll need to store the histogram
             # from the data and then apply it to the span argument.
             raise ValueError("span is not (yet) valid to use with eq_hist")
-        span = interpolater(span,0)
 
+        span = interpolater([0, span[1] - span[0]], 0)
         
     if isinstance(cmap, Iterator):
         cmap = list(cmap)
