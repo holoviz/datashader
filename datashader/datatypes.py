@@ -16,8 +16,8 @@ class RaggedDtype(ExtensionDtype):
 
     @classmethod
     def construct_from_string(cls, string):
-        if string == cls.name:
-            return cls()
+        if string == 'ragged':
+            return RaggedDtype()
         else:
             raise TypeError("Cannot construct a '{}' from '{}'"
                             .format(cls, string))
@@ -89,11 +89,6 @@ class RaggedArray(ExtensionArray):
 
                 # increment next start index
                 next_start_ind += n
-
-        # This is a workaround (hack?) to keep pandas.lib.infer_dtype from
-        # "raising cannot infer type" ValueError error when calling:
-        # >>> pd.Series([[0, 1], [1, 2, 3]], dtype='ragged')
-        self._values = self._flat_array
 
     @property
     def flat_array(self):
@@ -349,7 +344,7 @@ class RaggedArray(ExtensionArray):
 
     @property
     def dtype(self):
-        return RaggedDtype
+        return RaggedDtype()
 
     @property
     def nbytes(self):
@@ -359,3 +354,11 @@ class RaggedArray(ExtensionArray):
         return (self._flat_array.nbytes +
                 self._start_indices.nbytes +
                 self._mask.nbytes)
+
+    def astype(self, dtype, copy=True):
+        if isinstance(dtype, RaggedDtype):
+            if copy:
+                return self.copy()
+            return self
+
+        return np.array(self, dtype=dtype, copy=copy)

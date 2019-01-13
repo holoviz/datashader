@@ -1,6 +1,8 @@
 import pytest
 import numpy as np
 import pandas as pd
+from pandas.tests.extension.base import BaseDtypeTests
+
 from datashader.datatypes import RaggedDtype, RaggedArray
 
 
@@ -61,7 +63,7 @@ def test_construct_ragged_array():
     assert rarray.nbytes == expected
 
     # Check dtype
-    assert rarray.dtype == RaggedDtype
+    assert type(rarray.dtype) == RaggedDtype
 
 
 def test_start_indices_dtype():
@@ -303,3 +305,61 @@ def test_concat_series():
                          index=[0, 1, 2, 3, 4, 0, 1, 2, 0, 1])
 
     pd.testing.assert_series_equal(s_concat, expected)
+
+
+# Pandas-provided extension array tests
+# -------------------------------------
+# See http://pandas-docs.github.io/pandas-docs-travis/extending.html
+@pytest.fixture
+def dtype():
+    """A fixture providing the ExtensionDtype to validate."""
+    return RaggedDtype()
+
+
+@pytest.fixture
+def data():
+    """Length-100 array for this type.
+        * data[0] and data[1] should both be non missing
+        * data[0] and data[1] should not gbe equal
+        """
+    return RaggedArray(
+        [[0, 1], [1, 2, 3, 4], [], None, [-1, -2]]*20, dtype='float64')
+
+
+@pytest.fixture
+def data_missing():
+    """Length-2 array with [NA, Valid]"""
+    return RaggedArray([None, [-1, 0, 1]], dtype='int16')
+
+
+@pytest.fixture
+def data_for_sorting():
+    """Length-3 array with a known sort order.
+    This should be three items [B, C, A] with
+    A < B < C
+    """
+    return RaggedArray([[1, 0], [2, 0], [0, 0]])
+
+
+@pytest.fixture
+def data_missing_for_sorting():
+    """Length-3 array with a known sort order.
+    This should be three items [B, NA, A] with
+    A < B and NA missing.
+    """
+    return RaggedArray([[1, 0], None, [0, 0]])
+
+
+@pytest.fixture
+def data_for_grouping():
+    """Data for factorization, grouping, and unique tests.
+    Expected to be like [B, B, NA, NA, A, A, B, C]
+    Where A < B < C and NA is missing
+    """
+    return RaggedArray(
+        [[1, 0], [1, 0], None, None, [0, 0], [0, 0], [1, 0], [2, 0]])
+
+
+# Subclass BaseDtypeTests to run pandas-provided extension array test suite
+class TestRaggedDtype(BaseDtypeTests):
+    pass
