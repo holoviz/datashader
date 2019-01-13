@@ -1,6 +1,6 @@
 import numpy as np
-from pandas.api.extensions import ExtensionDtype, ExtensionArray
-from pandas.core.dtypes.dtypes import register_extension_dtype
+from pandas.api.extensions import (
+    ExtensionDtype, ExtensionArray, register_extension_dtype)
 from numbers import Integral
 
 
