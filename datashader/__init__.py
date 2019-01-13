@@ -15,6 +15,9 @@ try:
 except ImportError:
     pass
 
+# Make ragged pandas extension array available
+from . import datatypes
+
 # make pyct's example/data commands available if possible
 from functools import partial
 try:
