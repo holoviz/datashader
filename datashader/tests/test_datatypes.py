@@ -9,7 +9,6 @@ from datashader.datatypes import RaggedDtype, RaggedArray
 # Testing helpers
 # ---------------
 def assert_ragged_arrays_equal(ra1, ra2):
-    assert np.array_equal(ra1.mask, ra2.mask)
     assert np.array_equal(ra1.start_indices, ra2.start_indices)
     assert np.array_equal(ra1.flat_array, ra2.flat_array)
     assert np.array_equal(ra1.flat_array.dtype, ra2.flat_array.dtype)
@@ -44,25 +43,18 @@ def test_construct_ragged_array():
         rarray.start_indices,
         np.array([0, 2, 2, 5, 5], dtype='uint64'))
 
-    # Check mask
-    assert rarray.mask.dtype == 'bool'
-    assert np.array_equal(
-        rarray.mask,
-        np.array([False, False, False, True, False], dtype='bool'))
-
     # Check len
     assert len(rarray) == 5
 
     # Check isna
     assert rarray.isna().dtype == 'bool'
     assert np.array_equal(
-        rarray.isna(), [False, False, False, True, False])
+        rarray.isna(), [False, True, False, True, False])
 
     # Check nbytes
     expected = (
             9 * np.int32().nbytes +  # flat_array
-            5 * np.uint8().nbytes +  # start_indices
-            5                        # mask
+            5 * np.uint8().nbytes    # start_indices
     )
     assert rarray.nbytes == expected
 
@@ -80,24 +72,21 @@ def test_construct_ragged_array_from_ragged_array():
 
 def test_construct_ragged_array_fastpath():
 
-    mask = np.array([False, False, False, True, False, False])
     start_indices = np.array([0, 2, 5, 6, 6, 11], dtype='uint16')
     flat_array = np.array(
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype='float32')
 
     rarray = RaggedArray(
-        dict(mask=mask, start_indices=start_indices, flat_array=flat_array))
+        dict(start_indices=start_indices, flat_array=flat_array))
 
     # Check that arrays were accepted unchanged
-    assert np.array_equal(rarray.mask, mask)
     assert np.array_equal(rarray.start_indices, start_indices)
     assert np.array_equal(rarray.flat_array, flat_array)
 
     # Check interpretation as ragged array
     object_array = np.asarray(rarray)
-    expected_lists = [[0, 1], [2, 3, 4], [5], None, [6, 7, 8, 9, 10], []]
+    expected_lists = [[0, 1], [2, 3, 4], [5], [], [6, 7, 8, 9, 10], []]
     expected_array = np.array([np.array(v, dtype='float32')
-                               if v is not None else None
                                for v in expected_lists], dtype='object')
 
     assert len(object_array) == len(expected_array)
@@ -106,33 +95,14 @@ def test_construct_ragged_array_fastpath():
 
 
 def test_validate_ragged_array_fastpath():
-    mask = np.array([False, False, False, True, False, False])
     start_indices = np.array([0, 2, 5, 6, 6, 11], dtype='uint16')
     flat_array = np.array(
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype='float32')
 
-    valid_dict = dict(
-        mask=mask, start_indices=start_indices, flat_array=flat_array)
+    valid_dict = dict(start_indices=start_indices, flat_array=flat_array)
 
     # Valid args
     RaggedArray(valid_dict)
-
-    # ## mask validation ##
-    #
-    # not ndarray
-    with pytest.raises(ValueError) as ve:
-        RaggedArray(dict(valid_dict, mask=25))
-    ve.match('mask property of a RaggedArray')
-
-    # not boolean
-    with pytest.raises(ValueError) as ve:
-        RaggedArray(dict(valid_dict, mask=mask.astype('float32')))
-    ve.match('mask property of a RaggedArray')
-
-    # not 1d
-    with pytest.raises(ValueError) as ve:
-        RaggedArray(dict(valid_dict, mask=np.array([mask])))
-    ve.match('mask property of a RaggedArray')
 
     # ## start_indices validation ##
     #
@@ -163,12 +133,6 @@ def test_validate_ragged_array_fastpath():
     with pytest.raises(ValueError) as ve:
         RaggedArray(dict(valid_dict, flat_array=np.array([flat_array])))
     ve.match('flat_array property of a RaggedArray')
-
-    # ## matching length validation ##
-    #
-    with pytest.raises(ValueError) as ve:
-        RaggedArray(dict(valid_dict, start_indices=start_indices[:-1]))
-    ve.match('length of the mask and start_indices arrays must be equal')
 
     # ## start_indices out of bounds validation ##
     #
@@ -230,6 +194,16 @@ def test_flat_array_type_inference(arg, expected):
     assert rarray.flat_array.dtype == np.dtype(expected)
 
 
+# isna
+# -----
+def test_isna():
+    rarray = RaggedArray([[], [1, 3], [10, 20, 30],
+                          None, [11, 22, 33, 44], []], dtype='int32')
+
+    assert np.array_equal(rarray.isna(),
+                          np.array([True, False, False, True, False, True]))
+
+
 # __getitem__
 # -----------
 def test_get_item_scalar():
@@ -240,19 +214,19 @@ def test_get_item_scalar():
     for i, expected in enumerate(arg):
         result = rarray[i]
         if expected is None:
-            assert result is None
-        else:
-            assert result.dtype == 'float16'
-            assert np.array_equal(result, expected)
+            expected = np.array([], dtype='float16')
+
+        assert result.dtype == 'float16'
+        assert np.array_equal(result, expected)
 
     # Reversed
     for i, expected in enumerate(arg):
         result = rarray[i - 5]
         if expected is None:
-            assert result is None
-        else:
-            assert result.dtype == 'float16'
-            assert np.array_equal(result, expected)
+            expected = np.array([], dtype='float16')
+
+        assert result.dtype == 'float16'
+        assert np.array_equal(result, expected)
 
 
 @pytest.mark.parametrize('index', [-1000, -6, 5, 1000])
@@ -324,7 +298,7 @@ def test_factorization():
     rarray = RaggedArray(arg, dtype='int16')
     labels, uniques = rarray.factorize()
 
-    assert np.array_equal(labels, [0, 1, 0, -1, 2])
+    assert np.array_equal(labels, [0, 1, 0, 1, 2])
     assert_ragged_arrays_equal(
         uniques, RaggedArray([[1, 2], [], [11, 22, 33, 44]], dtype='int16'))
 
@@ -459,6 +433,15 @@ def data():
 def data_missing():
     """Length-2 array with [NA, Valid]"""
     return RaggedArray([None, [-1, 0, 1]], dtype='int16')
+
+
+@pytest.fixture(params=['data', 'data_missing'])
+def all_data(request, data, data_missing):
+    """Parametrized fixture giving 'data' and 'data_missing'"""
+    if request.param == 'data':
+        return data
+    elif request.param == 'data_missing':
+        return data_missing
 
 
 @pytest.fixture

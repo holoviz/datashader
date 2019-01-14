@@ -15,7 +15,7 @@ def _validate_ragged_properties(data):
     Parameters
     ----------
     data: dict
-        A dict containing 'mask', 'start_indices', and 'flat_array' keys
+        A dict containing 'start_indices', and 'flat_array' keys
         with numpy array values
 
     Raises
@@ -23,16 +23,6 @@ def _validate_ragged_properties(data):
     ValueError:
         if input contains invalid or incompatible properties
     """
-    # Validate mask
-    mask = data['mask']
-
-    if (not isinstance(mask, np.ndarray) or
-            mask.dtype != 'bool' or
-            mask.ndim != 1):
-        raise ValueError("""
-The mask property of a RaggedArray must be a 1D numpy array with dtype=='bool'
-    Received value of type {typ}: {v}""".format(
-            typ=type(mask), v=repr(mask)))
 
     # Validate start_indices
     start_indices = data['start_indices']
@@ -45,13 +35,6 @@ The start_indices property of a RaggedArray must be a 1D numpy array of
 unsigned integers (start_indices.dtype.kind == 'u')
     Received value of type {typ}: {v}""".format(
             typ=type(start_indices), v=repr(start_indices)))
-
-    if len(mask) != len(start_indices):
-        raise ValueError("""
-The length of the mask and start_indices arrays must be equal
-    len(mask): {mask_len}
-    len(start_indices): {start_indices_len}""".format(
-            mask_len=len(mask), start_indices_len=len(start_indices)))
 
     # Validate flat_array
     flat_array = data['flat_array']
@@ -99,6 +82,10 @@ class RaggedDtype(ExtensionDtype):
                             .format(cls, string))
 
 
+def missing(v):
+    return v is None or (np.isscalar(v) and np.isnan(v))
+
+
 class RaggedArray(ExtensionArray):
     def __init__(self, data, dtype=None):
         """
@@ -110,11 +97,8 @@ class RaggedArray(ExtensionArray):
             * list or 1D-array: A List or 1D array of lists or 1D arrays that
                                 should be represented by the RaggedArray
 
-            * dict: A dict containing 'mask', 'start_indices',
-                    and 'flat_array' keys with numpy array values where:
-                    - mask: boolean numpy array the same length as the
-                            ragged array where values of True indicate
-                            missing values
+            * dict: A dict containing 'start_indices' and 'flat_array' keys
+                    with numpy array values where:
                     - flat_array:  numpy array containing concatenation
                                    of all nested arrays to be represented
                                    by this ragged array
@@ -133,22 +117,20 @@ class RaggedArray(ExtensionArray):
         self._dtype = RaggedDtype()
         if (isinstance(data, dict) and
                 all(k in data for k in
-                    ['mask', 'start_indices', 'flat_array'])):
+                    ['start_indices', 'flat_array'])):
 
             _validate_ragged_properties(data)
 
-            self._mask = data['mask']
             self._start_indices = data['start_indices']
             self._flat_array = data['flat_array']
         elif isinstance(data, RaggedArray):
-            self._mask = data.mask.copy()
             self._flat_array = data.flat_array.copy()
             self._start_indices = data.start_indices.copy()
         else:
             # Compute lengths
             index_len = len(data)
             buffer_len = sum(len(datum)
-                             if datum is not None
+                             if not missing(datum)
                              else 0 for datum in data)
 
             # Compute necessary precision of start_indices array
@@ -162,24 +144,17 @@ class RaggedArray(ExtensionArray):
             if dtype is None:
                 dtype = np.result_type(*[np.atleast_1d(v)
                                          for v in data
-                                         if v is not None])
+                                         if not missing(v)])
 
             # Initialize representation arrays
-            self._mask = np.zeros(index_len, dtype='bool')
             self._start_indices = np.zeros(index_len, dtype=start_indices_dtype)
             self._flat_array = np.zeros(buffer_len, dtype=dtype)
 
             # Populate arrays
             next_start_ind = 0
             for i, array_el in enumerate(data):
-                # Check for null values
-                isnull = array_el is None
-
                 # Compute element length
-                n = len(array_el) if not isnull else 0
-
-                # Update mask
-                self._mask[i] = isnull
+                n = len(array_el) if not missing(array_el) else 0
 
                 # Update start indices
                 self._start_indices[i] = next_start_ind
@@ -200,18 +175,6 @@ class RaggedArray(ExtensionArray):
         np.ndarray
         """
         return self._flat_array
-
-    @property
-    def mask(self):
-        """
-        boolean numpy array the same length as the ragged array where values
-        of True indicate missing values
-
-        Returns
-        -------
-        np.ndarray
-        """
-        return self._mask
 
     @property
     def start_indices(self):
@@ -251,8 +214,6 @@ class RaggedArray(ExtensionArray):
         if isinstance(item, Integral):
             if item < -len(self) or item >= len(self):
                 raise IndexError(item)
-            elif self.mask[item]:
-                return None
             else:
                 # Convert negative item index
                 if item < 0:
@@ -336,8 +297,7 @@ class RaggedArray(ExtensionArray):
         #
         # Perhaps we could replace these tuples with a class that provides a
         # read-only view of an ndarray slice and provides a hash function.
-        return [tuple(self[i]) if not self.mask[i] else None
-                for i in range(len(self))], None
+        return [tuple(self[i]) for i in range(len(self))], None
 
     def isna(self):
         """
@@ -349,7 +309,11 @@ class RaggedArray(ExtensionArray):
             boolean ndarray the same length as the ragged array where values
             of True represent missing/NA values.
         """
-        return self.mask
+        stop_indices = np.hstack([self.start_indices[1:],
+                                  [len(self.flat_array)]])
+
+        element_lengths = stop_indices - self.start_indices
+        return element_lengths == 0
 
     def take(self, indices, allow_fill=False, fill_value=None):
         """
@@ -383,6 +347,11 @@ class RaggedArray(ExtensionArray):
             When the indices are out of bounds for the array.
         """
         if allow_fill:
+            invalid_inds = [i for i in indices if i < -1]
+            if invalid_inds:
+                raise ValueError("""
+Invalid indices for take with allow_fill True: {inds}""".format(
+                    inds=invalid_inds[:9]))
             sequence = [self[i] if i >= 0 else fill_value
                         for i in indices]
         else:
@@ -404,7 +373,6 @@ class RaggedArray(ExtensionArray):
         RaggedArray
         """
         data = dict(
-            mask=self.mask,
             flat_array=self.flat_array,
             start_indices=self.start_indices)
 
@@ -427,9 +395,6 @@ class RaggedArray(ExtensionArray):
         -------
         RaggedArray
         """
-        # concat masks
-        mask = np.hstack(ra.mask for ra in to_concat)
-
         # concat flat_arrays
         flat_array = np.hstack(ra.flat_array for ra in to_concat)
 
@@ -442,7 +407,7 @@ class RaggedArray(ExtensionArray):
                                    for offset, ra in zip(offsets, to_concat)])
 
         return RaggedArray(dict(
-            mask=mask, flat_array=flat_array, start_indices=start_indices))
+            flat_array=flat_array, start_indices=start_indices))
 
     @property
     def dtype(self):
@@ -454,8 +419,7 @@ class RaggedArray(ExtensionArray):
         The number of bytes needed to store this object in memory.
         """
         return (self._flat_array.nbytes +
-                self._start_indices.nbytes +
-                self._mask.nbytes)
+                self._start_indices.nbytes)
 
     def astype(self, dtype, copy=True):
 
