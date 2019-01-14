@@ -66,6 +66,107 @@ def test_construct_ragged_array():
     assert type(rarray.dtype) == RaggedDtype
 
 
+def test_construct_ragged_array_fastpath():
+
+    mask = np.array([False, False, False, True, False, False])
+    start_indices = np.array([0, 2, 5, 6, 6, 11], dtype='uint16')
+    flat_array = np.array(
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype='float32')
+
+    rarray = RaggedArray(
+        dict(mask=mask, start_indices=start_indices, flat_array=flat_array))
+
+    # Check that arrays were accepted unchanged
+    assert np.array_equal(rarray.mask, mask)
+    assert np.array_equal(rarray.start_indices, start_indices)
+    assert np.array_equal(rarray.flat_array, flat_array)
+
+    # Check interpretation as ragged array
+    object_array = np.asarray(rarray)
+    expected_lists = [[0, 1], [2, 3, 4], [5], None, [6, 7, 8, 9, 10], []]
+    expected_array = np.array([np.array(v, dtype='float32')
+                               if v is not None else None
+                               for v in expected_lists], dtype='object')
+
+    assert len(object_array) == len(expected_array)
+    for a1, a2 in zip(object_array, expected_array):
+        assert np.array_equal(a1, a2)
+
+
+def test_validate_ragged_array_fastpath():
+    mask = np.array([False, False, False, True, False, False])
+    start_indices = np.array([0, 2, 5, 6, 6, 11], dtype='uint16')
+    flat_array = np.array(
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype='float32')
+
+    valid_dict = dict(
+        mask=mask, start_indices=start_indices, flat_array=flat_array)
+
+    # Valid args
+    RaggedArray(valid_dict)
+
+    # ## mask validation ##
+    #
+    # not ndarray
+    with pytest.raises(ValueError) as ve:
+        RaggedArray(dict(valid_dict, mask=25))
+    ve.match('mask property of a RaggedArray')
+
+    # not boolean
+    with pytest.raises(ValueError) as ve:
+        RaggedArray(dict(valid_dict, mask=mask.astype('float32')))
+    ve.match('mask property of a RaggedArray')
+
+    # not 1d
+    with pytest.raises(ValueError) as ve:
+        RaggedArray(dict(valid_dict, mask=np.array([mask])))
+    ve.match('mask property of a RaggedArray')
+
+    # ## start_indices validation ##
+    #
+    # not ndarray
+    with pytest.raises(ValueError) as ve:
+        RaggedArray(dict(valid_dict, start_indices=25))
+    ve.match('start_indices property of a RaggedArray')
+
+    # not unsiged int
+    with pytest.raises(ValueError) as ve:
+        RaggedArray(dict(valid_dict,
+                         start_indices=start_indices.astype('float32')))
+    ve.match('start_indices property of a RaggedArray')
+
+    # not 1d
+    with pytest.raises(ValueError) as ve:
+        RaggedArray(dict(valid_dict, start_indices=np.array([start_indices])))
+    ve.match('start_indices property of a RaggedArray')
+
+    # ## flat_array validation ##
+    #
+    # not ndarray
+    with pytest.raises(ValueError) as ve:
+        RaggedArray(dict(valid_dict, flat_array='foo'))
+    ve.match('flat_array property of a RaggedArray')
+
+    # not 1d
+    with pytest.raises(ValueError) as ve:
+        RaggedArray(dict(valid_dict, flat_array=np.array([flat_array])))
+    ve.match('flat_array property of a RaggedArray')
+
+    # ## matching length validation ##
+    #
+    with pytest.raises(ValueError) as ve:
+        RaggedArray(dict(valid_dict, start_indices=start_indices[:-1]))
+    ve.match('length of the mask and start_indices arrays must be equal')
+
+    # ## start_indices out of bounds validation ##
+    #
+    bad_start_indices = start_indices.copy()
+    bad_start_indices[-1] = 99
+    with pytest.raises(ValueError) as ve:
+        RaggedArray(dict(valid_dict, start_indices=bad_start_indices))
+    ve.match('start_indices must be less than')
+
+
 def test_start_indices_dtype():
     # The start_indices dtype should be an unsiged int that is only as large
     # as needed to handle the length of the flat array

@@ -4,6 +4,79 @@ from pandas.api.extensions import (
 from numbers import Integral
 
 
+def _validate_ragged_properties(data):
+    """
+    Validate that dict contains the necessary properties to construct a
+    RaggedArray.
+
+    Parameters
+    ----------
+    data: dict
+        A dict containing 'mask', 'start_indices', and 'flat_array' keys
+        with numpy array values
+
+    Raises
+    ------
+    ValueError:
+        if input contains invalid or incompatible properties
+    """
+    # Validate mask
+    mask = data['mask']
+
+    if (not isinstance(mask, np.ndarray) or
+            mask.dtype != 'bool' or
+            mask.ndim != 1):
+        raise ValueError("""
+The mask property of a RaggedArray must be a 1D numpy array with dtype=='bool'
+    Received value of type {typ}: {v}""".format(
+            typ=type(mask), v=repr(mask)))
+
+    # Validate start_indices
+    start_indices = data['start_indices']
+
+    if (not isinstance(start_indices, np.ndarray) or
+            start_indices.dtype.kind != 'u' or
+            start_indices.ndim != 1):
+        raise ValueError("""
+The start_indices property of a RaggedArray must be a 1D numpy array of
+unsigned integers (start_indices.dtype.kind == 'u')
+    Received value of type {typ}: {v}""".format(
+            typ=type(start_indices), v=repr(start_indices)))
+
+    if len(mask) != len(start_indices):
+        raise ValueError("""
+The length of the mask and start_indices arrays must be equal
+    len(mask): {mask_len}
+    len(start_indices): {start_indices_len}""".format(
+            mask_len=len(mask), start_indices_len=len(start_indices)))
+
+    # Validate flat_array
+    flat_array = data['flat_array']
+
+    if (not isinstance(flat_array, np.ndarray) or
+            flat_array.ndim != 1):
+        raise ValueError("""
+The flat_array property of a RaggedArray must be a 1D numpy array
+    Received value of type {typ}: {v}""".format(
+            typ=type(flat_array), v=repr(flat_array)))
+
+    # Validate start_indices values
+    # We don't need to check start_indices < 0 because we already know that it
+    # has an unsigned integer datatype
+    #
+    # Note that start_indices[i] == len(flat_array) is valid as it represents
+    # and empty array element at the end of the ragged array.
+    invalid_inds = start_indices > len(flat_array)
+
+    if invalid_inds.any():
+        some_invalid_vals = start_indices[invalid_inds[:10]]
+
+        raise ValueError("""
+Elements of start_indices must be less than the length of flat_array ({m})
+    Invalid values include: {vals}""".format(
+            m=len(flat_array), vals=repr(some_invalid_vals)))
+
+
 @register_extension_dtype
 class RaggedDtype(ExtensionDtype):
     name = 'ragged'
@@ -30,16 +103,34 @@ class RaggedArray(ExtensionArray):
 
         Parameters
         ----------
-        data
-            List or numpy array of lists or numpy arrays
+        data:
+            * list or 1D-array: A List or 1D array of lists or 1D arrays that
+                                should be represented by the RaggedArray
+
+            * dict: A dict containing 'mask', 'start_indices',
+                    and 'flat_array' keys with numpy array values where:
+                    - mask: boolean numpy array the same length as the
+                            ragged array where values of True indicate
+                            missing values
+                    - flat_array:  numpy array containing concatenation
+                                   of all nested arrays to be represented
+                                   by this ragged array
+                    - start_indices: unsiged integer numpy array the same
+                                     length as the ragged array where values
+                                     represent the index into flat_array where
+                                     the corresponding ragged array element
+                                     begins
+
         dtype: np.dtype or str or None (default None)
             Datatype to use to store underlying values from data.
             If none (the default) then dtype will be determined using the
-            numpy.result_type function
+            numpy.result_type function.
         """
         if (isinstance(data, dict) and
                 all(k in data for k in
                     ['mask', 'start_indices', 'flat_array'])):
+
+            _validate_ragged_properties(data)
 
             self._mask = data['mask']
             self._start_indices = data['start_indices']
@@ -105,7 +196,7 @@ class RaggedArray(ExtensionArray):
     def mask(self):
         """
         boolean numpy array the same length as the ragged array where values
-        of True indicate missing values.
+        of True indicate missing values
 
         Returns
         -------
@@ -116,9 +207,9 @@ class RaggedArray(ExtensionArray):
     @property
     def start_indices(self):
         """
-        integer numpy array the same length as the ragged array where values
-        represent the index into flat_array where the corresponding ragged
-        array element begins.
+        unsiged integer numpy array the same length as the ragged array where
+        values represent the index into flat_array where the corresponding
+        ragged array element begins
 
         Returns
         -------
