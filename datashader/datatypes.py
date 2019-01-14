@@ -273,6 +273,8 @@ class RaggedArray(ExtensionArray):
                     data.append(self[i])
 
             return RaggedArray(data, dtype=self.flat_array.dtype)
+        elif isinstance(item, (list, np.ndarray)):
+            return self.take(item, allow_fill=False)
         else:
             raise IndexError(item)
 

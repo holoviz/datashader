@@ -289,6 +289,22 @@ def test_get_item_mask(mask):
         RaggedArray(arg[mask], dtype='int16'))
 
 
+@pytest.mark.parametrize('inds', [
+    [1, 2, 1, 4],
+    np.array([1, 2, 1, 4]),
+    [],
+    np.array([], dtype='int32'),
+    [4, 3, 2, 1, 0]
+])
+def test_get_item_list(inds):
+    arg = np.array([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]])
+    rarray = RaggedArray(arg, dtype='int16')
+
+    assert_ragged_arrays_equal(
+        rarray[inds],
+        RaggedArray(arg[inds], dtype='int16'))
+
+
 # _from_factorized
 # ----------------
 def test_factorization():
