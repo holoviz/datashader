@@ -3,6 +3,9 @@ from pandas.api.extensions import (
     ExtensionDtype, ExtensionArray, register_extension_dtype)
 from numbers import Integral
 
+from pandas.api.types import pandas_dtype
+from pandas.core.dtypes.common import is_extension_array_dtype
+
 
 def _validate_ragged_properties(data):
     """
@@ -450,9 +453,14 @@ class RaggedArray(ExtensionArray):
                 self._mask.nbytes)
 
     def astype(self, dtype, copy=True):
+
+        dtype = pandas_dtype(dtype)
         if isinstance(dtype, RaggedDtype):
             if copy:
                 return self.copy()
             return self
+
+        elif is_extension_array_dtype(dtype):
+            dtype.construct_array_type()._from_sequence(np.asarray(self))
 
         return np.array(self, dtype=dtype, copy=copy)
