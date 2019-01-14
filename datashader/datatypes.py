@@ -106,7 +106,7 @@ class RaggedArray(ExtensionArray):
 
         Parameters
         ----------
-        data:
+        data: list or array or dict or RaggedArray
             * list or 1D-array: A List or 1D array of lists or 1D arrays that
                                 should be represented by the RaggedArray
 
@@ -123,6 +123,7 @@ class RaggedArray(ExtensionArray):
                                      represent the index into flat_array where
                                      the corresponding ragged array element
                                      begins
+            * RaggedArray: A RaggedArray instance to copy
 
         dtype: np.dtype or str or None (default None)
             Datatype to use to store underlying values from data.
@@ -139,6 +140,10 @@ class RaggedArray(ExtensionArray):
             self._mask = data['mask']
             self._start_indices = data['start_indices']
             self._flat_array = data['flat_array']
+        elif isinstance(data, RaggedArray):
+            self._mask = data.mask.copy()
+            self._flat_array = data.flat_array.copy()
+            self._start_indices = data.start_indices.copy()
         else:
             # Compute lengths
             index_len = len(data)

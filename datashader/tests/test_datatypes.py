@@ -14,6 +14,10 @@ def assert_ragged_arrays_equal(ra1, ra2):
     assert np.array_equal(ra1.flat_array, ra2.flat_array)
     assert np.array_equal(ra1.flat_array.dtype, ra2.flat_array.dtype)
 
+    # Make sure ragged elements are equal when iterated over
+    for a1, a2 in zip(ra1, ra2):
+        assert np.array_equal(a1, a2)
+
 
 # Test constructor and properties
 # -------------------------------
@@ -64,6 +68,14 @@ def test_construct_ragged_array():
 
     # Check dtype
     assert type(rarray.dtype) == RaggedDtype
+
+
+def test_construct_ragged_array_from_ragged_array():
+    rarray = RaggedArray([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]],
+                         dtype='int32')
+
+    result = RaggedArray(rarray)
+    assert_ragged_arrays_equal(result, rarray)
 
 
 def test_construct_ragged_array_fastpath():
