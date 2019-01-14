@@ -126,6 +126,7 @@ class RaggedArray(ExtensionArray):
             If none (the default) then dtype will be determined using the
             numpy.result_type function.
         """
+        self._dtype = RaggedDtype()
         if (isinstance(data, dict) and
                 all(k in data for k in
                     ['mask', 'start_indices', 'flat_array'])):
@@ -437,7 +438,7 @@ class RaggedArray(ExtensionArray):
 
     @property
     def dtype(self):
-        return RaggedDtype()
+        return self._dtype
 
     @property
     def nbytes(self):
