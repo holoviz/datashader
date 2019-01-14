@@ -183,7 +183,7 @@ class RaggedArray(ExtensionArray):
 
             return RaggedArray(data, dtype=self.flat_array.dtype)
         else:
-            raise KeyError(item)
+            raise IndexError(item)
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
