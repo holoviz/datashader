@@ -156,7 +156,7 @@ class RaggedArray(ExtensionArray):
             else:
                 # Convert negative item index
                 if item < 0:
-                    item = 5 + item
+                    item = len(self) + item
 
                 slice_start = self.start_indices[item]
                 slice_end = (self.start_indices[item+1]
