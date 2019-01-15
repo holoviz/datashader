@@ -15,7 +15,7 @@ def _validate_ragged_properties(data):
     Parameters
     ----------
     data: dict
-        A dict containing 'start_indices', and 'flat_array' keys
+        A dict containing 'start_indices' and 'flat_array' keys
         with numpy array values
 
     Raises
