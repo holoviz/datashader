@@ -142,9 +142,12 @@ class RaggedArray(ExtensionArray):
 
             # infer dtype if not provided
             if dtype is None:
-                dtype = np.result_type(*[np.atleast_1d(v)
-                                         for v in data
-                                         if not missing(v)])
+                non_missing = [np.atleast_1d(v)
+                               for v in data if not missing(v)]
+                if non_missing:
+                    dtype = np.result_type(*non_missing)
+                else:
+                    dtype = 'float64'
 
             # Initialize representation arrays
             self._start_indices = np.zeros(index_len, dtype=start_indices_dtype)
@@ -297,7 +300,7 @@ class RaggedArray(ExtensionArray):
         #
         # Perhaps we could replace these tuples with a class that provides a
         # read-only view of an ndarray slice and provides a hash function.
-        return [tuple(self[i]) for i in range(len(self))], None
+        return [tuple(self[i]) for i in range(len(self))], ()
 
     def isna(self):
         """

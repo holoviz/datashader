@@ -298,9 +298,9 @@ def test_factorization():
     rarray = RaggedArray(arg, dtype='int16')
     labels, uniques = rarray.factorize()
 
-    assert np.array_equal(labels, [0, 1, 0, 1, 2])
+    assert np.array_equal(labels, [0, -1, 0, -1, 1])
     assert_ragged_arrays_equal(
-        uniques, RaggedArray([[1, 2], [], [11, 22, 33, 44]], dtype='int16'))
+        uniques, RaggedArray([[1, 2], [11, 22, 33, 44]], dtype='int16'))
 
 
 # _from_sequence
@@ -426,13 +426,13 @@ def data():
         * data[0] and data[1] should not gbe equal
         """
     return RaggedArray(
-        [[0, 1], [1, 2, 3, 4], [], None, [-1, -2]]*20, dtype='float64')
+        [[0, 1], [1, 2, 3, 4], [], [-1, -2], []]*20, dtype='float64')
 
 
 @pytest.fixture
 def data_missing():
     """Length-2 array with [NA, Valid]"""
-    return RaggedArray([None, [-1, 0, 1]], dtype='int16')
+    return RaggedArray([[], [-1, 0, 1]], dtype='int16')
 
 
 @pytest.fixture(params=['data', 'data_missing'])
@@ -459,7 +459,7 @@ def data_missing_for_sorting():
     This should be three items [B, NA, A] with
     A < B and NA missing.
     """
-    return RaggedArray([[1, 0], None, [0, 0]])
+    return RaggedArray([[1, 0], [], [0, 0]])
 
 
 @pytest.fixture
@@ -469,7 +469,7 @@ def data_for_grouping():
     Where A < B < C and NA is missing
     """
     return RaggedArray(
-        [[1, 0], [1, 0], None, None, [0, 0], [0, 0], [1, 0], [2, 0]])
+        [[1, 0], [1, 0], [], [], [0, 0], [0, 0], [1, 0], [2, 0]])
 
 
 # Subclass BaseDtypeTests to run pandas-provided extension array test suite
