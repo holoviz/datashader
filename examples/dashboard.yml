@@ -98,3 +98,23 @@ sources:
           label: OpenSky Flight Paths
 
 
+  osm-1billion:
+    description: 1-billion-point OpenStreetMap GPS dataset
+    driver: parquet
+    args:
+      urlpath: '{{ CATALOG_DIR }}/data/osm-1billion.snappy.parq'
+      columns: ['x','y']
+    metadata:
+      fields:
+        counts:
+          label: GPS coordinates
+      plot:
+        xlim: !!python/tuple [-8240227.037, -8231283.905]
+        ylim: !!python/tuple [4974203.152, 4979238.441]
+        kind: points
+      plots:
+        counts:
+          label: 1 billion OpenStreetMap GPS locations
+          x: x
+          y: y
+          
