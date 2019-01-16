@@ -1,7 +1,8 @@
 import pytest
 import numpy as np
 import pandas as pd
-from pandas.tests.extension.base import BaseDtypeTests
+import pandas.tests.extension.base as eb
+import pandas.util.testing as tm
 
 from datashader.datatypes import RaggedDtype, RaggedArray
 
@@ -15,7 +16,7 @@ def assert_ragged_arrays_equal(ra1, ra2):
 
     # Make sure ragged elements are equal when iterated over
     for a1, a2 in zip(ra1, ra2):
-        assert np.array_equal(a1, a2)
+        np.testing.assert_array_equal(a1, a2)
 
 
 # Test constructor and properties
@@ -63,7 +64,7 @@ def test_construct_ragged_array():
 
 
 def test_construct_ragged_array_from_ragged_array():
-    rarray = RaggedArray([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]],
+    rarray = RaggedArray([[1, 2], [], [10, 20, 30], np.nan, [11, 22, 33, 44]],
                          dtype='int32')
 
     result = RaggedArray(rarray)
@@ -91,7 +92,7 @@ def test_construct_ragged_array_fastpath():
 
     assert len(object_array) == len(expected_array)
     for a1, a2 in zip(object_array, expected_array):
-        assert np.array_equal(a1, a2)
+        np.testing.assert_array_equal(a1, a2)
 
 
 def test_validate_ragged_array_fastpath():
@@ -150,34 +151,34 @@ def test_start_indices_dtype():
     # Empty
     rarray = RaggedArray([[]], dtype='int64')
     assert rarray.start_indices.dtype == np.dtype('uint8')
-    assert np.array_equal(rarray.start_indices, [0])
+    np.testing.assert_array_equal(rarray.start_indices, [0])
 
     # Small
     rarray = RaggedArray([[23, 24]], dtype='int64')
     assert rarray.start_indices.dtype == np.dtype('uint8')
-    assert np.array_equal(rarray.start_indices, [0])
+    np.testing.assert_array_equal(rarray.start_indices, [0])
 
     # Max uint8
     max_uint8 = np.iinfo('uint8').max
     rarray = RaggedArray([np.zeros(max_uint8), []], dtype='int64')
     assert rarray.start_indices.dtype == np.dtype('uint8')
-    assert np.array_equal(rarray.start_indices, [0, max_uint8])
+    np.testing.assert_array_equal(rarray.start_indices, [0, max_uint8])
 
     # Min uint16
     rarray = RaggedArray([np.zeros(max_uint8 + 1), []], dtype='int64')
     assert rarray.start_indices.dtype == np.dtype('uint16')
-    assert np.array_equal(rarray.start_indices, [0, max_uint8 + 1])
+    np.testing.assert_array_equal(rarray.start_indices, [0, max_uint8 + 1])
 
     # Max uint16
     max_uint16 = np.iinfo('uint16').max
     rarray = RaggedArray([np.zeros(max_uint16), []], dtype='int64')
     assert rarray.start_indices.dtype == np.dtype('uint16')
-    assert np.array_equal(rarray.start_indices, [0, max_uint16])
+    np.testing.assert_array_equal(rarray.start_indices, [0, max_uint16])
 
     # Min uint32
     rarray = RaggedArray([np.zeros(max_uint16 + 1), []], dtype='int64')
     assert rarray.start_indices.dtype == np.dtype('uint32')
-    assert np.array_equal(rarray.start_indices, [0, max_uint16 + 1])
+    np.testing.assert_array_equal(rarray.start_indices, [0, max_uint16 + 1])
 
 
 @pytest.mark.parametrize('arg,expected', [
@@ -200,7 +201,7 @@ def test_isna():
     rarray = RaggedArray([[], [1, 3], [10, 20, 30],
                           None, [11, 22, 33, 44], []], dtype='int32')
 
-    assert np.array_equal(rarray.isna(),
+    np.testing.assert_array_equal(rarray.isna(),
                           np.array([True, False, False, True, False, True]))
 
 
@@ -216,8 +217,12 @@ def test_get_item_scalar():
         if expected is None:
             expected = np.array([], dtype='float16')
 
-        assert result.dtype == 'float16'
-        assert np.array_equal(result, expected)
+        if isinstance(result, np.ndarray):
+            assert result.dtype == 'float16'
+        else:
+            assert np.isnan(result)
+
+        np.testing.assert_array_equal(result, expected)
 
     # Reversed
     for i, expected in enumerate(arg):
@@ -225,8 +230,11 @@ def test_get_item_scalar():
         if expected is None:
             expected = np.array([], dtype='float16')
 
-        assert result.dtype == 'float16'
-        assert np.array_equal(result, expected)
+        if isinstance(result, np.ndarray):
+            assert result.dtype == 'float16'
+        else:
+            assert np.isnan(result)
+        np.testing.assert_array_equal(result, expected)
 
 
 @pytest.mark.parametrize('index', [-1000, -6, 5, 1000])
@@ -298,7 +306,7 @@ def test_factorization():
     rarray = RaggedArray(arg, dtype='int16')
     labels, uniques = rarray.factorize()
 
-    assert np.array_equal(labels, [0, -1, 0, -1, 1])
+    np.testing.assert_array_equal(labels, [0, -1, 0, -1, 1])
     assert_ragged_arrays_equal(
         uniques, RaggedArray([[1, 2], [11, 22, 33, 44]], dtype='int16'))
 
@@ -430,6 +438,25 @@ def data():
 
 
 @pytest.fixture
+def data_repeated(data):
+    """
+    Generate many datasets.
+    Parameters
+    ----------
+    data : fixture implementing `data`
+    Returns
+    -------
+    Callable[[int], Generator]:
+        A callable that takes a `count` argument and
+        returns a generator yielding `count` datasets.
+    """
+    def gen(count):
+        for _ in range(count):
+            yield data
+    return gen
+
+
+@pytest.fixture
 def data_missing():
     """Length-2 array with [NA, Valid]"""
     return RaggedArray([[], [-1, 0, 1]], dtype='int16')
@@ -472,6 +499,187 @@ def data_for_grouping():
         [[1, 0], [1, 0], [], [], [0, 0], [0, 0], [1, 0], [2, 0]])
 
 
+@pytest.fixture
+def na_cmp():
+    return lambda x, y: (np.isscalar(x) and np.isnan(x) and
+                         np.isscalar(y) and np.isnan(y))
+
+
+@pytest.fixture
+def na_value():
+    return np.nan
+
+
 # Subclass BaseDtypeTests to run pandas-provided extension array test suite
-class TestRaggedDtype(BaseDtypeTests):
+class TestRaggedConstructors(eb.BaseConstructorsTests):
+    pass
+
+
+class TestRaggedDtype(eb.BaseDtypeTests):
+    pass
+
+
+class TestRaggedGetitem(eb.BaseGetitemTests):
+
+    # Override testing methods that assume extension array scalars are
+    # comparable using `==`. Replace with assert_array_equal.
+    #
+    # If pandas introduces a way to customize element equality tests
+    # these overrides should be removed.
+    def test_get(self, data):
+        # GH 20882
+        s = pd.Series(data, index=[2 * i for i in range(len(data))])
+        np.testing.assert_array_equal(s.get(4), s.iloc[2])
+
+        result = s.get([4, 6])
+        expected = s.iloc[[2, 3]]
+        self.assert_series_equal(result, expected)
+
+        result = s.get(slice(2))
+        expected = s.iloc[[0, 1]]
+        self.assert_series_equal(result, expected)
+
+        assert s.get(-1) is None
+        assert s.get(s.index.max() + 1) is None
+
+        s = pd.Series(data[:6], index=list('abcdef'))
+        np.testing.assert_array_equal(s.get('c'), s.iloc[2])
+
+        result = s.get(slice('b', 'd'))
+        expected = s.iloc[[1, 2, 3]]
+        self.assert_series_equal(result, expected)
+
+        result = s.get('Z')
+        assert result is None
+
+        np.testing.assert_array_equal(s.get(4), s.iloc[4])
+        np.testing.assert_array_equal(s.get(-1), s.iloc[-1])
+        assert s.get(len(s)) is None
+
+    def test_take_sequence(self, data):
+        result = pd.Series(data)[[0, 1, 3]]
+        np.testing.assert_array_equal(result.iloc[0], data[0])
+        np.testing.assert_array_equal(result.iloc[1], data[1])
+        np.testing.assert_array_equal(result.iloc[2], data[3])
+
+    def test_take(self, data, na_value, na_cmp):
+        result = data.take([0, -1])
+        np.testing.assert_array_equal(result.dtype, data.dtype)
+        np.testing.assert_array_equal(result[0], data[0])
+        np.testing.assert_array_equal(result[1], data[-1])
+
+        result = data.take([0, -1], allow_fill=True, fill_value=na_value)
+        np.testing.assert_array_equal(result[0], data[0])
+        assert na_cmp(result[1], na_value)
+
+        with pytest.raises(IndexError, match="out of bounds"):
+            data.take([len(data) + 1])
+
+
+class TestRaggedGroupby(eb.BaseGroupbyTests):
+    @pytest.mark.parametrize('op', [
+        lambda x: 1,
+        lambda x: [1] * len(x),
+        # # Op below causes a:
+        # # ValueError: Names should be list-like for a MultiIndex
+        # lambda x: pd.Series([1] * len(x)),
+        lambda x: x,
+    ], ids=[
+        'scalar',
+        'list',
+        # 'series',
+        'object'])
+    def test_groupby_extension_apply(self, data_for_grouping, op):
+        df = pd.DataFrame({"A": [1, 1, 2, 2, 3, 3, 1, 4],
+                           "B": data_for_grouping})
+        df.groupby("B").apply(op)
+        df.groupby("B").A.apply(op)
+        df.groupby("A").apply(op)
+        df.groupby("A").B.apply(op)
+
+
+class TestRaggedInterface(eb.BaseInterfaceTests):
+    # Add array equality
+    def test_array_interface(self, data):
+        result = np.array(data)
+        np.testing.assert_array_equal(result[0], data[0])
+
+        result = np.array(data, dtype=object)
+        expected = np.array(list(data), dtype=object)
+
+        for a1, a2 in zip(result, expected):
+            if np.isscalar(a1):
+                assert np.isnan(a1) and np.isnan(a2)
+            else:
+                tm.assert_numpy_array_equal(a2, a1)
+
+
+class TestRaggedMethods(eb.BaseMethodsTests):
+
+    # AttributeError: 'RaggedArray' object has no attribute 'value_counts'
+    @pytest.mark.skip(reason="value_counts not supported")
+    def test_value_counts(self, all_data, dropna):
+        pass
+
+    # Add array equality
+    @pytest.mark.parametrize('box', [pd.Series, lambda x: x])
+    @pytest.mark.parametrize('method', [lambda x: x.unique(), pd.unique])
+    def test_unique(self, data, box, method):
+        duplicated = box(data._from_sequence([data[0], data[0]]))
+
+        result = method(duplicated)
+
+        assert len(result) == 1
+        assert isinstance(result, type(data))
+        np.testing.assert_array_equal(result[0], duplicated[0])
+
+    # Pandas raises
+    #   ValueError: invalid fill value with a <class 'numpy.ndarray'>
+    @pytest.mark.skip(reason="pandas cannot fill with ndarray")
+    def test_fillna_copy_frame(self, data_missing):
+        pass
+
+    @pytest.mark.skip(reason="pandas cannot fill with ndarray")
+    def test_fillna_copy_series(self, data_missing):
+        pass
+
+    # Ragged array elements don't support binary operators
+    @pytest.mark.skip(reason="ragged does not support <= on elements")
+    def test_combine_le(self, data_repeated):
+        pass
+
+    @pytest.mark.skip(reason="ragged does not support + on elements")
+    def test_combine_add(self, data_repeated):
+        pass
+
+    # Block manager error:
+    #   ValueError: setting an array element with a sequence.
+    @pytest.mark.skip(reason="combine_first not supported")
+    def test_combine_first(self, data):
+        pass
+
+
+class TestRaggedPrinting(eb.BasePrintingTests):
+    pass
+
+
+class TestRaggedMissing(eb.BaseMissingTests):
+
+    # Pandas doesn't like using an ndarray as fill value.
+    # Errors like:
+    #   ValueError: Length of 'value' does not match. Got (3)  expected 2
+    @pytest.mark.skip(reason="Can't fill with ndarray")
+    def test_fillna_scalar(self, data_missing):
+        pass
+
+    @pytest.mark.skip(reason="Can't fill with ndarray")
+    def test_fillna_series(self, data_missing):
+        pass
+
+    @pytest.mark.skip(reason="Can't fill with ndarray")
+    def test_fillna_frame(self, data_missing):
+        pass
+
+
+class TestRaggedReshaping(eb.BaseReshapingTests):
     pass

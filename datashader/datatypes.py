@@ -1,3 +1,5 @@
+from functools import total_ordering
+
 import numpy as np
 from pandas.api.extensions import (
     ExtensionDtype, ExtensionArray, register_extension_dtype)
@@ -61,6 +63,48 @@ The flat_array property of a RaggedArray must be a 1D numpy array
 Elements of start_indices must be less than the length of flat_array ({m})
     Invalid values include: {vals}""".format(
             m=len(flat_array), vals=repr(some_invalid_vals)))
+
+
+# Internal ragged element array wrapper that provides
+# equality, ordering, and hashing.
+@total_ordering
+class RaggedElement(object):
+
+    @staticmethod
+    def ragged_or_nan(a):
+        if np.isscalar(a) and np.isnan(a):
+            return a
+        else:
+            return RaggedElement(a)
+
+    @staticmethod
+    def array_or_nan(a):
+        if np.isscalar(a) and np.isnan(a):
+            return a
+        else:
+            return a.array
+
+    def __init__(self, array):
+        self.array = array
+
+    def __hash__(self):
+        # TODO: Rewrite using self.array directly without tuple
+        return hash(tuple(self.array))
+
+    def __eq__(self, other):
+        if not isinstance(other, RaggedElement):
+            return False
+        return np.array_equal(self.array, other.array)
+
+    def __lt__(self, other):
+        # TODO: Rewrite using self.array directly without tuples
+        if not isinstance(other, RaggedElement):
+            return NotImplemented
+        return tuple(self.array) < tuple(other.array)
+
+    def __repr__(self):
+        array_repr = repr(self.array)
+        return array_repr.replace('array', 'ragged_element')
 
 
 @register_extension_dtype
@@ -216,7 +260,7 @@ class RaggedArray(ExtensionArray):
         """
         if isinstance(item, Integral):
             if item < -len(self) or item >= len(self):
-                raise IndexError(item)
+                raise IndexError("{item} is out of bounds".format(item=item))
             else:
                 # Convert negative item index
                 if item < 0:
@@ -227,7 +271,9 @@ class RaggedArray(ExtensionArray):
                              if item + 1 <= len(self) - 1
                              else len(self.flat_array))
 
-                return self.flat_array[slice_start:slice_end]
+                return (self.flat_array[slice_start:slice_end]
+                        if slice_end!=slice_start
+                        else np.nan)
 
         elif type(item) == slice:
             data = []
@@ -290,17 +336,113 @@ class RaggedArray(ExtensionArray):
         pandas.factorize
         ExtensionArray.factorize
         """
-        return RaggedArray(values, dtype=original.flat_array.dtype)
+        return RaggedArray(
+            [RaggedElement.array_or_nan(v) for v in values],
+            dtype=original.flat_array.dtype)
+
+    def _as_ragged_element_array(self):
+        return np.array([RaggedElement.ragged_or_nan(self[i])
+                         for i in range(len(self))])
 
     def _values_for_factorize(self):
-        # Here we return a list of the ragged elements converted into tuples.
-        # This is very inefficient, but the elements of this list must be
-        # hashable, and we must be able to reconstruct a new Ragged Array
-        # from these elements.
-        #
-        # Perhaps we could replace these tuples with a class that provides a
-        # read-only view of an ndarray slice and provides a hash function.
-        return [tuple(self[i]) for i in range(len(self))], ()
+        return self._as_ragged_element_array(), np.nan
+
+    def _values_for_argsort(self):
+        return self._as_ragged_element_array()
+
+    def unique(self):
+        """
+        Compute the ExtensionArray of unique values.
+
+        Returns
+        -------
+        uniques : ExtensionArray
+        """
+        from pandas import unique
+
+        uniques = unique(self._as_ragged_element_array())
+        return self._from_sequence(
+            [RaggedElement.array_or_nan(v) for v in uniques],
+            dtype=self.dtype)
+
+    def shift(self, periods=1, fill_value=None):
+        # type: (int, object) -> ExtensionArray
+        """
+        Shift values by desired number.
+
+        Override in RaggedArray to handle ndarray fill values
+        """
+        # Note: this implementation assumes that `self.dtype.na_value` can be
+        # stored in an instance of your ExtensionArray with `self.dtype`.
+        if not len(self) or periods == 0:
+            return self.copy()
+
+        if fill_value is None:
+            fill_value = np.nan
+
+        empty = self._from_sequence(
+            [fill_value] * min(abs(periods), len(self)),
+            dtype=self.dtype
+        )
+        if periods > 0:
+            a = empty
+            b = self[:-periods]
+        else:
+            a = self[abs(periods):]
+            b = empty
+        return self._concat_same_type([a, b])
+
+    def searchsorted(self, value, side="left", sorter=None):
+        """
+        Find indices where elements should be inserted to maintain order.
+
+        .. versionadded:: 0.24.0
+
+        Find the indices into a sorted array `self` (a) such that, if the
+        corresponding elements in `v` were inserted before the indices, the
+        order of `self` would be preserved.
+
+        Assuming that `a` is sorted:
+
+        ======  ============================
+        `side`  returned index `i` satisfies
+        ======  ============================
+        left    ``self[i-1] < v <= self[i]``
+        right   ``self[i-1] <= v < self[i]``
+        ======  ============================
+
+        Parameters
+        ----------
+        value : array_like
+            Values to insert into `self`.
+        side : {'left', 'right'}, optional
+            If 'left', the index of the first suitable location found is given.
+            If 'right', return the last such index.  If there is no suitable
+            index, return either 0 or N (where N is the length of `self`).
+        sorter : 1-D array_like, optional
+            Optional array of integer indices that sort array a into ascending
+            order. They are typically the result of argsort.
+
+        Returns
+        -------
+        indices : array of ints
+            Array of insertion points with the same shape as `value`.
+
+        See Also
+        --------
+        numpy.searchsorted : Similar method from NumPy.
+        """
+        # Note: the base tests provided by pandas only test the basics.
+        # We do not test
+        # 1. Values outside the range of the `data_for_sorting` fixture
+        # 2. Values between the values in the `data_for_sorting` fixture
+        # 3. Missing values.
+        arr = self._as_ragged_element_array()
+        if isinstance(value, RaggedArray):
+            search_value = value._as_ragged_element_array()
+        else:
+            search_value = RaggedElement(value)
+        return arr.searchsorted(search_value, side=side, sorter=sorter)
 
     def isna(self):
         """
@@ -358,6 +500,9 @@ Invalid indices for take with allow_fill True: {inds}""".format(
             sequence = [self[i] if i >= 0 else fill_value
                         for i in indices]
         else:
+            if len(self) == 0 and len(indices) > 0:
+                raise IndexError("cannot do a non-empty take")
+
             sequence = [self[i] for i in indices]
 
         return RaggedArray(sequence, dtype=self.flat_array.dtype)
@@ -435,4 +580,4 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         elif is_extension_array_dtype(dtype):
             dtype.construct_array_type()._from_sequence(np.asarray(self))
 
-        return np.array(self, dtype=dtype, copy=copy)
+        return np.array([v for v in self], dtype=dtype, copy=copy)
