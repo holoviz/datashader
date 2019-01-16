@@ -310,7 +310,7 @@ def test_stack():
 
     img = tf.stack(img1, img2, how='add')
     out = np.array([[0xff00ffff, 0x00000000],
-                    [0x00000000, 0xff3d3cfa]], dtype='uint32')
+                    [0x00000000, 0xff3dfffa]], dtype='uint32')
     assert (img.x_axis == img1.x_axis).all()
     assert (img.y_axis == img1.y_axis).all()
     np.testing.assert_equal(img.data, out)
