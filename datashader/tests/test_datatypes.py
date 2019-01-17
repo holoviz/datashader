@@ -418,6 +418,101 @@ def test_concat_series():
     pd.testing.assert_series_equal(s_concat, expected)
 
 
+# Array equality
+# --------------
+@pytest.mark.parametrize('scalar', [
+    np.array([1, 2]), [1, 2]
+])
+def test_array_eq_scalar(scalar):
+    # Build RaggedArray
+    arg1 = [[1, 2], [], [1, 2], None, [11, 22, 33, 44]]
+    ra = RaggedArray(arg1, dtype='int32')
+
+    # Check equality
+    result = ra == scalar
+    expected = np.array([1, 0, 1, 0, 0], dtype='bool')
+    np.testing.assert_array_equal(result, expected)
+
+    # Check non-equality
+    result_negated = ra != scalar
+    expected_negated = ~expected
+    np.testing.assert_array_equal(result_negated, expected_negated)
+
+
+def test_array_eq_numpy1():
+    # Build RaggedArray
+    arg1 = [[1, 2], [], [1, 2], None, [11, 22, 33, 44]]
+
+    # Construct arrays
+    ra = RaggedArray(arg1, dtype='int32')
+    npa = np.array(arg1, dtype='object')
+
+    # Check equality
+    result = ra == npa
+    expected = np.array([1, 1, 1, 1, 1], dtype='bool')
+    np.testing.assert_array_equal(result, expected)
+
+    # Check non-equality
+    result_negated = ra != npa
+    expected_negated = ~expected
+    np.testing.assert_array_equal(result_negated, expected_negated)
+
+
+def test_array_eq_numpy2d():
+    # Construct arrays
+    ra = RaggedArray([[1, 2], [], [1, 2], None, [11, 22, 33, 44]],
+                     dtype='int32')
+    npa = np.array([[1, 2], [2, 3], [1, 2], [0, 1], [11, 22]],
+                   dtype='int32')
+
+    # Check equality
+    result = ra == npa
+    expected = np.array([1, 0, 1, 0, 0], dtype='bool')
+    np.testing.assert_array_equal(result, expected)
+
+    # Check non-equality
+    result_negated = ra != npa
+    expected_negated = ~expected
+    np.testing.assert_array_equal(result_negated, expected_negated)
+
+
+def test_array_eq_ragged():
+    # Build RaggedArray
+    arg1 = [[1, 2], [], [1, 2], None, [11, 22, 33, 44]]
+    ra1 = RaggedArray(arg1, dtype='int32')
+
+    # Build RaggedArray
+    arg2 = [[1, 2], [2, 3, 4, 5], [1, 2], None, [11]]
+    ra2 = RaggedArray(arg2, dtype='int32')
+
+    # Check equality
+    result = ra1 == ra2
+    expected = np.array([1, 0, 1, 1, 0], dtype='bool')
+    np.testing.assert_array_equal(result, expected)
+
+    # Check non-equality
+    result_negated = ra1 != ra2
+    expected_negated = ~expected
+    np.testing.assert_array_equal(result_negated, expected_negated)
+
+
+@pytest.mark.parametrize('other', [
+    'a string',  # Incompatible scalars
+    32,
+    RaggedArray([[0, 1], [2, 3, 4]]),  # RaggedArray of wrong length
+    np.array([[0, 1], [2, 3, 4]], dtype='object'),  # 1D array wrong length
+    np.array([[0, 1], [2, 3]], dtype='int32'),  # 2D array wrong row count
+])
+def test_equality_validation(other):
+    # Build RaggedArray
+    arg1 = [[1, 2], [], [1, 2], None, [11, 22, 33, 44]]
+    ra1 = RaggedArray(arg1, dtype='int32')
+
+    # invalid scalar
+    with pytest.raises(ValueError, match="Cannot check equality"):
+        res = ra1 == other
+
+
 # Pandas-provided extension array tests
 # -------------------------------------
 # See http://pandas-docs.github.io/pandas-docs-travis/extending.html

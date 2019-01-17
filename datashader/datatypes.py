@@ -212,6 +212,50 @@ class RaggedArray(ExtensionArray):
                 # increment next start index
                 next_start_ind += n
 
+    def __eq__(self, other):
+        if isinstance(other, RaggedArray):
+            if len(other) != len(self):
+                raise ValueError("""
+Cannot check equality of RaggedArray values of unequal length
+    len(ra1) == {len_ra1}
+    len(ra2) == {len_ra2}""".format(
+                    len_ra1=len(self),
+                    len_ra2=len(other)))
+
+            result = _eq_ragged_ragged(self, other)
+        else:
+            # Convert other to numpy arrauy
+            if not isinstance(other, np.ndarray):
+                other_array = np.asarray(other)
+            else:
+                other_array = other
+
+            if other_array.ndim == 1 and other_array.dtype.kind != 'O':
+
+                # Treat as ragged scalar
+                result = _eq_ragged_scalar(self, other_array)
+            elif (other_array.ndim == 1 and
+                  other_array.dtype.kind == 'O' and
+                  len(other_array) == len(self)):
+
+                # Treat as vector
+                result = _eq_ragged_ndarray1d(self, other_array)
+            elif (other_array.ndim == 2 and
+                  other_array.dtype.kind != 'O' and
+                  other_array.shape[0] == len(self)):
+
+                # Treat rows as ragged elements
+                result = _eq_ragged_ndarray2d(self, other_array)
+            else:
+                raise ValueError("""
+Cannot check equality of RaggedArray of length {ra_len} with:
+    {other}""".format(ra_len=len(self), other=repr(other)))
+
+        return result
+
+    def __ne__(self, other):
+        return np.logical_not(self == other)
+
     @property
     def flat_array(self):
         """
@@ -670,3 +714,142 @@ Invalid indices for take with allow_fill True: {inds}""".format(
             dtype.construct_array_type()._from_sequence(np.asarray(self))
 
         return np.array([v for v in self], dtype=dtype, copy=copy)
+
+
+def _eq_ragged_ragged(ra1, ra2):
+    """
+    Compare elements of two ragged arrays of the same length
+
+    Parameters
+    ----------
+    ra1: RaggedArray
+    ra2: RaggedArray
+
+    Returns
+    -------
+    mask: ndarray
+        1D bool array of same length as inputs with elements True when
+        corresponding elements are equal, False otherwise
+    """
+    start_indices1 = ra1.start_indices
+    flat_array1 = ra1.flat_array
+
+    start_indices2 = ra2.start_indices
+    flat_array2 = ra2.flat_array
+
+    n = len(start_indices1)
+    m1 = len(flat_array1)
+    m2 = len(flat_array2)
+
+    result = np.zeros(n, dtype=np.bool)
+
+    for i in range(n):
+        # Extract inds for ra1
+        start_index1 = start_indices1[i]
+        stop_index1 = start_indices1[i + 1] if i < n - 1 else m1
+
+        # Extract inds for ra2
+        start_index2 = start_indices2[i]
+        stop_index2 = start_indices2[i + 1] if i < n - 1 else m2
+
+        result[i] = np.array_equal(flat_array1[start_index1:stop_index1],
+                                   flat_array2[start_index2:stop_index2])
+
+    return result
+
+
+def _eq_ragged_scalar(ra, val):
+    """
+    Compare elements of a RaggedArray with a scalar array
+
+    Parameters
+    ----------
+    ra: RaggedArray
+    val: ndarray
+
+    Returns
+    -------
+    mask: ndarray
+        1D bool array of same length as inputs with elements True when
+        ragged element equals scalar val, False otherwise.
+    """
+    start_indices = ra.start_indices
+    flat_array = ra.flat_array
+
+    n = len(start_indices)
+    m = len(flat_array)
+    result = np.zeros(n, dtype=np.bool)
+    for i in range(n):
+        start_index = start_indices[i]
+        stop_index = start_indices[i+1] if i < n - 1 else m
+        result[i] = np.array_equal(flat_array[start_index:stop_index], val)
+
+    return result
+
+
+def _eq_ragged_ndarray1d(ra, a):
+    """
+    Compare a RaggedArray with a 1D numpy object array of the same length
+
+    Parameters
+    ----------
+    ra: RaggedArray
+    a: ndarray
+        1D numpy array of same length as ra
+
+    Returns
+    -------
+    mask: ndarray
+        1D bool array of same length as input with elements True when
+        corresponding elements are equal, False otherwise
+    """
+    start_indices = ra.start_indices
+    flat_array = ra.flat_array
+
+    n = len(start_indices)
+    m = len(flat_array)
+    result = np.zeros(n, dtype=np.bool)
+    for i in range(n):
+        start_index = start_indices[i]
+        stop_index = start_indices[i + 1] if i < n - 1 else m
+        a_val = a[i]
+        if (a_val is None or
+                (np.isscalar(a_val) and np.isnan(a_val)) or
+                len(a_val) == 0):
+            result[i] = start_index == stop_index
+        else:
+            result[i] = np.array_equal(flat_array[start_index:stop_index],
+                                       a_val)
+
+    return result
+
+
+def _eq_ragged_ndarray2d(ra, a):
+    """
+    Compare a RaggedArray with rows of a 2D numpy object array
+
+    Parameters
+    ----------
+    ra: RaggedArray
+    a: ndarray
+        A 2D numpy array where the length of the first dimension matches the
+        length of the RaggedArray
+
+    Returns
+    -------
+    mask: ndarray
+        1D bool array of same length as input RaggedArray with elements True
+        when corresponding elements of ra equals corresponding row of a
+    """
+    start_indices = ra.start_indices
+    flat_array = ra.flat_array
+
+    n = len(start_indices)
+    m = len(flat_array)
+    result = np.zeros(n, dtype=np.bool)
+    for i in range(n):
+        start_index = start_indices[i]
+        stop_index = start_indices[i + 1] if i < n - 1 else m
+        result[i] = np.array_equal(flat_array[start_index:stop_index],
+                                   a[i, :])
+    return result
