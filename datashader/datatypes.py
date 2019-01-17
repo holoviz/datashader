@@ -131,7 +131,7 @@ def missing(v):
 
 
 class RaggedArray(ExtensionArray):
-    def __init__(self, data, dtype=None):
+    def __init__(self, data, dtype=None, copy=False):
         """
         Construct a RaggedArray
 
@@ -157,6 +157,10 @@ class RaggedArray(ExtensionArray):
             Datatype to use to store underlying values from data.
             If none (the default) then dtype will be determined using the
             numpy.result_type function.
+        copy : bool (default False)
+            Whether to deep copy the input arrays. Only relevant when `data`
+            has type `dict` or `RaggedArray`. When data is a `list` or
+            `array`, input arrays are always copied.
         """
         self._dtype = RaggedDtype()
         if (isinstance(data, dict) and
@@ -169,9 +173,17 @@ class RaggedArray(ExtensionArray):
 
             self._start_indices = data['start_indices']
             self._flat_array = data['flat_array']
+
+            if copy:
+                self._start_indices = self._start_indices.copy()
+                self._flat_array = self._flat_array.copy()
         elif isinstance(data, RaggedArray):
-            self._flat_array = data.flat_array.copy()
-            self._start_indices = data.start_indices.copy()
+            self._flat_array = data.flat_array
+            self._start_indices = data.start_indices
+
+            if copy:
+                self._start_indices = self._start_indices.copy()
+                self._flat_array = self._flat_array.copy()
         else:
             # Compute lengths
             index_len = len(data)
@@ -659,11 +671,7 @@ Invalid indices for take with allow_fill True: {inds}""".format(
             flat_array=self.flat_array,
             start_indices=self.start_indices)
 
-        if deep:
-            # Copy underlying numpy arrays
-            data = {k: v.copy() for k, v in data.items()}
-
-        return RaggedArray(data)
+        return RaggedArray(data, copy=deep)
 
     @classmethod
     def _concat_same_type(cls, to_concat):
@@ -690,7 +698,8 @@ Invalid indices for take with allow_fill True: {inds}""".format(
                                    for offset, ra in zip(offsets, to_concat)])
 
         return RaggedArray(dict(
-            flat_array=flat_array, start_indices=start_indices))
+            flat_array=flat_array, start_indices=start_indices),
+            copy=False)
 
     @property
     def dtype(self):
