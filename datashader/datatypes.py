@@ -69,14 +69,14 @@ Elements of start_indices must be less than the length of flat_array ({m})
 # Internal ragged element array wrapper that provides
 # equality, ordering, and hashing.
 @total_ordering
-class RaggedElement(object):
+class _RaggedElement(object):
 
     @staticmethod
     def ragged_or_nan(a):
         if np.isscalar(a) and np.isnan(a):
             return a
         else:
-            return RaggedElement(a)
+            return _RaggedElement(a)
 
     @staticmethod
     def array_or_nan(a):
@@ -92,15 +92,13 @@ class RaggedElement(object):
         return hash(self.array.tobytes())
 
     def __eq__(self, other):
-        if not isinstance(other, RaggedElement):
+        if not isinstance(other, _RaggedElement):
             return False
         return np.array_equal(self.array, other.array)
 
     def __lt__(self, other):
-        # TODO: Rewrite using self.array directly without tuples
-        if not isinstance(other, RaggedElement):
+        if not isinstance(other, _RaggedElement):
             return NotImplemented
-        # return tuple(self.array) < tuple(other.array)
         return _lexograph_lt(self.array, other.array)
 
     def __repr__(self):
@@ -110,7 +108,6 @@ class RaggedElement(object):
 
 @register_extension_dtype
 class RaggedDtype(ExtensionDtype):
-    name = 'ragged'
     type = np.ndarray
     base = np.dtype('O')
     _subtype_re = re.compile(r"^ragged\[(?P<subtype>\w+)\]$")
@@ -461,11 +458,11 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         ExtensionArray.factorize
         """
         return RaggedArray(
-            [RaggedElement.array_or_nan(v) for v in values],
+            [_RaggedElement.array_or_nan(v) for v in values],
             dtype=original.flat_array.dtype)
 
     def _as_ragged_element_array(self):
-        return np.array([RaggedElement.ragged_or_nan(self[i])
+        return np.array([_RaggedElement.ragged_or_nan(self[i])
                          for i in range(len(self))])
 
     def _values_for_factorize(self):
@@ -486,7 +483,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
         uniques = unique(self._as_ragged_element_array())
         return self._from_sequence(
-            [RaggedElement.array_or_nan(v) for v in uniques],
+            [_RaggedElement.array_or_nan(v) for v in uniques],
             dtype=self.dtype)
 
     def fillna(self, value=None, method=None, limit=None):
@@ -654,7 +651,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         if isinstance(value, RaggedArray):
             search_value = value._as_ragged_element_array()
         else:
-            search_value = RaggedElement(value)
+            search_value = _RaggedElement(value)
         return arr.searchsorted(search_value, side=side, sorter=sorter)
 
     def isna(self):
