@@ -75,6 +75,7 @@ sources:
     driver: netcdf
     args:
       urlpath: '{{ CATALOG_DIR }}/data/opensky.h5'
+      chunks: {}
     metadata:
       fields:
         ascending:
