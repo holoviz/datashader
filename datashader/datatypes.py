@@ -89,8 +89,7 @@ class RaggedElement(object):
         self.array = array
 
     def __hash__(self):
-        # TODO: Rewrite using self.array directly without tuple
-        return hash(tuple(self.array))
+        return hash(self.array.tobytes())
 
     def __eq__(self, other):
         if not isinstance(other, RaggedElement):
@@ -101,7 +100,8 @@ class RaggedElement(object):
         # TODO: Rewrite using self.array directly without tuples
         if not isinstance(other, RaggedElement):
             return NotImplemented
-        return tuple(self.array) < tuple(other.array)
+        # return tuple(self.array) < tuple(other.array)
+        return _lexograph_lt(self.array, other.array)
 
     def __repr__(self):
         array_repr = repr(self.array)
@@ -931,3 +931,26 @@ def _eq_ragged_ndarray2d(ra, a):
         result[i] = np.array_equal(flat_array[start_index:stop_index],
                                    a[i, :])
     return result
+
+
+def _lexograph_lt(a1, a2):
+    """
+    Compare two 1D numpy arrays lexographically
+    Parameters
+    ----------
+    a1: ndarray
+        1D numpy array
+    a2: ndarray
+        1D numpy array
+
+    Returns
+    -------
+    comparison:
+        True if a1 < a2, False otherwise
+    """
+    for e1, e2 in zip(a1, a2):
+        if e1 < e2:
+            return True
+        elif e1 > e2:
+            return False
+    return len(a1) < len(a2)
