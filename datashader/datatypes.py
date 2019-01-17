@@ -9,26 +9,28 @@ from pandas.api.types import pandas_dtype
 from pandas.core.dtypes.common import is_extension_array_dtype
 
 
-def _validate_ragged_properties(data):
+def _validate_ragged_properties(start_indices, flat_array):
     """
-    Validate that dict contains the necessary properties to construct a
-    RaggedArray.
+    Validate that start_indices are flat_array arrays may be used to
+    represent a valid RaggedArray.
 
     Parameters
     ----------
-    data: dict
-        A dict containing 'start_indices' and 'flat_array' keys
-        with numpy array values
-
+    flat_array: numpy array containing concatenation
+                of all nested arrays to be represented
+                by this ragged array
+    start_indices: unsiged integer numpy array the same
+                   length as the ragged array where values
+                   represent the index into flat_array where
+                   the corresponding ragged array element
+                   begins
     Raises
     ------
     ValueError:
-        if input contains invalid or incompatible properties
+        if input arguments are invalid or incompatible properties
     """
 
     # Validate start_indices
-    start_indices = data['start_indices']
-
     if (not isinstance(start_indices, np.ndarray) or
             start_indices.dtype.kind != 'u' or
             start_indices.ndim != 1):
@@ -39,8 +41,6 @@ unsigned integers (start_indices.dtype.kind == 'u')
             typ=type(start_indices), v=repr(start_indices)))
 
     # Validate flat_array
-    flat_array = data['flat_array']
-
     if (not isinstance(flat_array, np.ndarray) or
             flat_array.ndim != 1):
         raise ValueError("""
@@ -163,7 +163,9 @@ class RaggedArray(ExtensionArray):
                 all(k in data for k in
                     ['start_indices', 'flat_array'])):
 
-            _validate_ragged_properties(data)
+            _validate_ragged_properties(
+                start_indices=data['start_indices'],
+                flat_array=data['flat_array'])
 
             self._start_indices = data['start_indices']
             self._flat_array = data['flat_array']
