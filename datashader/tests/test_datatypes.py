@@ -664,14 +664,9 @@ class TestRaggedPrinting(eb.BasePrintingTests):
 
 
 class TestRaggedMissing(eb.BaseMissingTests):
-
     # Pandas doesn't like using an ndarray as fill value.
     # Errors like:
-    #   ValueError: Length of 'value' does not match. Got (3)  expected 2
-    @pytest.mark.skip(reason="Can't fill with ndarray")
-    def test_fillna_scalar(self, data_missing):
-        pass
-
+    #   ValueError: invalid fill value with a <class 'numpy.ndarray'>
     @pytest.mark.skip(reason="Can't fill with ndarray")
     def test_fillna_series(self, data_missing):
         pass

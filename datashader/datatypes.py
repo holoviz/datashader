@@ -365,13 +365,102 @@ class RaggedArray(ExtensionArray):
             [RaggedElement.array_or_nan(v) for v in uniques],
             dtype=self.dtype)
 
+    def fillna(self, value=None, method=None, limit=None):
+        """
+        Fill NA/NaN values using the specified method.
+
+        Parameters
+        ----------
+        value : scalar, array-like
+            If a scalar value is passed it is used to fill all missing values.
+            Alternatively, an array-like 'value' can be given. It's expected
+            that the array-like have the same length as 'self'.
+        method : {'backfill', 'bfill', 'pad', 'ffill', None}, default None
+            Method to use for filling holes in reindexed Series
+            pad / ffill: propagate last valid observation forward to next valid
+            backfill / bfill: use NEXT valid observation to fill gap
+        limit : int, default None
+            If method is specified, this is the maximum number of consecutive
+            NaN values to forward/backward fill. In other words, if there is
+            a gap with more than this number of consecutive NaNs, it will only
+            be partially filled. If method is not specified, this is the
+            maximum number of entries along the entire axis where NaNs will be
+            filled.
+
+        Returns
+        -------
+        filled : ExtensionArray with NA/NaN filled
+        """
+        # Override in RaggedArray to handle ndarray fill values
+        from pandas.api.types import is_array_like
+        from pandas.util._validators import validate_fillna_kwargs
+        from pandas.core.missing import pad_1d, backfill_1d
+
+        value, method = validate_fillna_kwargs(value, method)
+
+        mask = self.isna()
+
+        if isinstance(value, RaggedArray):
+            if len(value) != len(self):
+                raise ValueError("Length of 'value' does not match. Got ({}) "
+                                 " expected {}".format(len(value), len(self)))
+            value = value[mask]
+
+        if mask.any():
+            if method is not None:
+                func = pad_1d if method == 'pad' else backfill_1d
+                new_values = func(self.astype(object), limit=limit,
+                                  mask=mask)
+                new_values = self._from_sequence(new_values, dtype=self.dtype)
+            else:
+                # fill with value
+                new_values = list(self)
+                mask_indices, = np.where(mask)
+                for ind in mask_indices:
+                    new_values[ind] = value
+
+                new_values = self._from_sequence(new_values, dtype=self.dtype)
+        else:
+            new_values = self.copy()
+        return new_values
+
     def shift(self, periods=1, fill_value=None):
         # type: (int, object) -> ExtensionArray
         """
         Shift values by desired number.
 
-        Override in RaggedArray to handle ndarray fill values
+        Newly introduced missing values are filled with
+        ``self.dtype.na_value``.
+
+        .. versionadded:: 0.24.0
+
+        Parameters
+        ----------
+        periods : int, default 1
+            The number of periods to shift. Negative values are allowed
+            for shifting backwards.
+
+        fill_value : object, optional
+            The scalar value to use for newly introduced missing values.
+            The default is ``self.dtype.na_value``
+
+            .. versionadded:: 0.24.0
+
+        Returns
+        -------
+        shifted : ExtensionArray
+
+        Notes
+        -----
+        If ``self`` is empty or ``periods`` is 0, a copy of ``self`` is
+        returned.
+
+        If ``periods > len(self)``, then an array of size
+        len(self) is returned, with all values filled with
+        ``self.dtype.na_value``.
         """
+        # Override in RaggedArray to handle ndarray fill values
+
         # Note: this implementation assumes that `self.dtype.na_value` can be
         # stored in an instance of your ExtensionArray with `self.dtype`.
         if not len(self) or periods == 0:
