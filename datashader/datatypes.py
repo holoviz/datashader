@@ -722,7 +722,8 @@ Invalid indices for take with allow_fill True: {inds}""".format(
             return self
 
         elif is_extension_array_dtype(dtype):
-            dtype.construct_array_type()._from_sequence(np.asarray(self))
+            return dtype.construct_array_type()._from_sequence(
+                np.asarray(self))
 
         return np.array([v for v in self], dtype=dtype, copy=copy)
 
