@@ -322,7 +322,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
             else:
                 # Convert negative item index
                 if item < 0:
-                    item = len(self) + item
+                    item += len(self)
 
                 slice_start = self.start_indices[item]
                 slice_end = (self.start_indices[item+1]
