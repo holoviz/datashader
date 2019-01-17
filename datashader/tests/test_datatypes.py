@@ -12,7 +12,7 @@ from datashader.datatypes import RaggedDtype, RaggedArray
 def assert_ragged_arrays_equal(ra1, ra2):
     assert np.array_equal(ra1.start_indices, ra2.start_indices)
     assert np.array_equal(ra1.flat_array, ra2.flat_array)
-    assert np.array_equal(ra1.flat_array.dtype, ra2.flat_array.dtype)
+    assert ra1.flat_array.dtype == ra2.flat_array.dtype
 
     # Make sure ragged elements are equal when iterated over
     for a1, a2 in zip(ra1, ra2):
@@ -24,7 +24,7 @@ def assert_ragged_arrays_equal(ra1, ra2):
 def test_construct_ragged_dtype():
     dtype = RaggedDtype()
     assert dtype.type == np.ndarray
-    assert dtype.name == 'ragged'
+    assert dtype.name == 'Ragged[{subtype}]'.format(subtype=dtype.subtype)
     assert dtype.kind == 'O'
 
 
@@ -384,35 +384,35 @@ def test_concat_same_type():
 # ----------------------
 def test_pandas_array_construction():
     arg = [[0, 1], [1, 2, 3, 4], None, [-1, -2]] * 2
-    ra = pd.array(arg, dtype='ragged')
+    ra = pd.array(arg, dtype='ragged[int64]')
 
     expected = RaggedArray(arg)
     assert_ragged_arrays_equal(ra, expected)
 
 
 def test_series_construction():
-    arg = [[0, 1], [1, 2, 3, 4], None, [-1, -2]] * 2
-    rs = pd.Series(arg, dtype='ragged')
+    arg = [[0, 1], [1.0, 2, 3.0, 4], None, [-1, -2]] * 2
+    rs = pd.Series(arg, dtype='Ragged[int64]')
     ra = rs.array
 
-    expected = RaggedArray(arg)
+    expected = RaggedArray(arg, dtype='int64')
     assert_ragged_arrays_equal(ra, expected)
 
 
 def test_concat_series():
     arg1 = [[1, 2], [], [10, 20], None, [11, 22, 33, 44]]
-    s1 = pd.Series(arg1, dtype='ragged')
+    s1 = pd.Series(arg1, dtype='ragged[int16]')
 
     arg2 = [[100, 200], None, [99, 100, 101]]
-    s2 = pd.Series(arg2, dtype='ragged')
+    s2 = pd.Series(arg2, dtype='ragged[int16]')
 
     arg3 = [None, [27, 28]]
-    s3 = pd.Series(arg3, dtype='ragged')
+    s3 = pd.Series(arg3, dtype='ragged[int16]')
 
     s_concat = pd.concat([s1, s2, s3])
 
     expected = pd.Series(arg1+arg2+arg3,
-                         dtype='ragged',
+                         dtype='ragged[int16]',
                          index=[0, 1, 2, 3, 4, 0, 1, 2, 0, 1])
 
     pd.testing.assert_series_equal(s_concat, expected)

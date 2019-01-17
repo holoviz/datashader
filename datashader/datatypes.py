@@ -1,3 +1,4 @@
+import re
 from functools import total_ordering
 
 import numpy as np
@@ -112,6 +113,15 @@ class RaggedDtype(ExtensionDtype):
     name = 'ragged'
     type = np.ndarray
     base = np.dtype('O')
+    _subtype_re = re.compile(r"^ragged\[(?P<subtype>\w+)\]$")
+    _metadata = ('_dtype',)
+
+    @property
+    def name(self):
+        return 'Ragged[{subtype}]'.format(subtype=self.subtype)
+
+    def __repr__(self):
+        return self.name
 
     @classmethod
     def construct_array_type(cls):
@@ -119,11 +129,61 @@ class RaggedDtype(ExtensionDtype):
 
     @classmethod
     def construct_from_string(cls, string):
-        if string == 'ragged':
-            return RaggedDtype()
+        # lowercase string
+        string = string.lower()
+
+        msg = "Cannot construct a 'RaggedDtype' from '{}'"
+        if string.startswith('ragged'):
+            # Extract subtype
+            try:
+                subtype_string = cls._parse_subtype(string)
+                return RaggedDtype(dtype=subtype_string)
+            except Exception:
+                raise TypeError(msg.format(string))
         else:
-            raise TypeError("Cannot construct a '{}' from '{}'"
-                            .format(cls, string))
+            raise TypeError(msg.format(string))
+
+    def __init__(self, dtype=np.float64):
+        if isinstance(dtype, RaggedDtype):
+            self._dtype = dtype.subtype
+        else:
+            self._dtype = np.dtype(dtype)
+
+    @property
+    def subtype(self):
+        return self._dtype
+
+    @classmethod
+    def _parse_subtype(cls, dtype_string):
+        """
+        Parse a datatype string to get the subtype
+
+        Parameters
+        ----------
+        dtype_string: str
+            A string like Ragged[subtype]
+
+        Returns
+        -------
+        subtype: str
+
+        Raises
+        ------
+        ValueError
+            When the subtype cannot be extracted
+        """
+        # Be case insensitive
+        dtype_string = dtype_string.lower()
+
+        match = cls._subtype_re.match(dtype_string)
+        if match:
+            subtype_string = match.groupdict()['subtype']
+        elif dtype_string == 'ragged':
+            subtype_string = 'float64'
+        else:
+            raise ValueError("Cannot parse {dtype_string}".format(
+                dtype_string=dtype_string))
+        return subtype_string
 
 
 def missing(v):
@@ -153,7 +213,7 @@ class RaggedArray(ExtensionArray):
                                      begins
             * RaggedArray: A RaggedArray instance to copy
 
-        dtype: np.dtype or str or None (default None)
+        dtype: RaggedDtype or np.dtype or str or None (default None)
             Datatype to use to store underlying values from data.
             If none (the default) then dtype will be determined using the
             numpy.result_type function.
@@ -162,7 +222,6 @@ class RaggedArray(ExtensionArray):
             has type `dict` or `RaggedArray`. When data is a `list` or
             `array`, input arrays are always copied.
         """
-        self._dtype = RaggedDtype()
         if (isinstance(data, dict) and
                 all(k in data for k in
                     ['start_indices', 'flat_array'])):
@@ -173,13 +232,16 @@ class RaggedArray(ExtensionArray):
 
             self._start_indices = data['start_indices']
             self._flat_array = data['flat_array']
+            dtype = self._flat_array.dtype
 
             if copy:
                 self._start_indices = self._start_indices.copy()
                 self._flat_array = self._flat_array.copy()
+
         elif isinstance(data, RaggedArray):
             self._flat_array = data.flat_array
             self._start_indices = data.start_indices
+            dtype = self._flat_array.dtype
 
             if copy:
                 self._start_indices = self._start_indices.copy()
@@ -206,6 +268,8 @@ class RaggedArray(ExtensionArray):
                     dtype = np.result_type(*non_missing)
                 else:
                     dtype = 'float64'
+            elif isinstance(dtype, RaggedDtype):
+                dtype = dtype.subtype
 
             # Initialize representation arrays
             self._start_indices = np.zeros(index_len, dtype=start_indices_dtype)
@@ -225,6 +289,8 @@ class RaggedArray(ExtensionArray):
 
                 # increment next start index
                 next_start_ind += n
+
+        self._dtype = RaggedDtype(dtype=dtype)
 
     def __eq__(self, other):
         if isinstance(other, RaggedArray):
@@ -375,7 +441,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         -------
         RaggedArray
         """
-        return RaggedArray(scalars)
+        return RaggedArray(scalars, dtype=dtype)
 
     @classmethod
     def _from_factorized(cls, values, original):
