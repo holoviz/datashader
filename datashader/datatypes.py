@@ -2,6 +2,7 @@ import re
 from functools import total_ordering
 
 import numpy as np
+from numba import jit
 from pandas.api.extensions import (
     ExtensionDtype, ExtensionArray, register_extension_dtype)
 from numbers import Integral
@@ -299,7 +300,9 @@ Cannot check equality of RaggedArray values of unequal length
                     len_ra1=len(self),
                     len_ra2=len(other)))
 
-            result = _eq_ragged_ragged(self, other)
+            result = _eq_ragged_ragged(
+                self.start_indices, self.flat_array,
+                other.start_indices, other.flat_array)
         else:
             # Convert other to numpy arrauy
             if not isinstance(other, np.ndarray):
@@ -310,19 +313,22 @@ Cannot check equality of RaggedArray values of unequal length
             if other_array.ndim == 1 and other_array.dtype.kind != 'O':
 
                 # Treat as ragged scalar
-                result = _eq_ragged_scalar(self, other_array)
+                result = _eq_ragged_scalar(
+                    self.start_indices, self.flat_array, other_array)
             elif (other_array.ndim == 1 and
                   other_array.dtype.kind == 'O' and
                   len(other_array) == len(self)):
 
                 # Treat as vector
-                result = _eq_ragged_ndarray1d(self, other_array)
+                result = _eq_ragged_ndarray1d(
+                    self.start_indices, self.flat_array, other_array)
             elif (other_array.ndim == 2 and
                   other_array.dtype.kind != 'O' and
                   other_array.shape[0] == len(self)):
 
                 # Treat rows as ragged elements
-                result = _eq_ragged_ndarray2d(self, other_array)
+                result = _eq_ragged_ndarray2d(
+                    self.start_indices, self.flat_array, other_array)
             else:
                 raise ValueError("""
 Cannot check equality of RaggedArray of length {ra_len} with:
@@ -791,14 +797,24 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         return np.array([v for v in self], dtype=dtype, copy=copy)
 
 
-def _eq_ragged_ragged(ra1, ra2):
+@jit(nopython=True, nogil=True)
+def _eq_ragged_ragged(start_indices1,
+                      flat_array1,
+                      start_indices2,
+                      flat_array2):
     """
     Compare elements of two ragged arrays of the same length
 
     Parameters
     ----------
-    ra1: RaggedArray
-    ra2: RaggedArray
+    start_indices1: ndarray
+        start indices of a RaggedArray 1
+    flat_array1: ndarray
+        flat_array property of a RaggedArray 1
+    start_indices2: ndarray
+        start indices of a RaggedArray 2
+    flat_array2: ndarray
+        flat_array property of a RaggedArray 2
 
     Returns
     -------
@@ -806,40 +822,50 @@ def _eq_ragged_ragged(ra1, ra2):
         1D bool array of same length as inputs with elements True when
         corresponding elements are equal, False otherwise
     """
-    start_indices1 = ra1.start_indices
-    flat_array1 = ra1.flat_array
-
-    start_indices2 = ra2.start_indices
-    flat_array2 = ra2.flat_array
-
     n = len(start_indices1)
     m1 = len(flat_array1)
     m2 = len(flat_array2)
 
-    result = np.zeros(n, dtype=np.bool)
+    result = np.zeros(n, dtype=np.bool_)
 
     for i in range(n):
         # Extract inds for ra1
         start_index1 = start_indices1[i]
         stop_index1 = start_indices1[i + 1] if i < n - 1 else m1
+        len_1 = stop_index1 - start_index1
 
         # Extract inds for ra2
         start_index2 = start_indices2[i]
         stop_index2 = start_indices2[i + 1] if i < n - 1 else m2
+        len_2 = stop_index2 - start_index2
 
-        result[i] = np.array_equal(flat_array1[start_index1:stop_index1],
-                                   flat_array2[start_index2:stop_index2])
+        if len_1 != len_2:
+            el_equal = False
+        else:
+            el_equal = True
+            for flat_index1, flat_index2 in \
+                    zip(range(start_index1, stop_index1),
+                        range(start_index2, stop_index2)):
+                el_1 = flat_array1[flat_index1]
+                el_2 = flat_array2[flat_index2]
+                el_equal &= el_1 == el_2
+
+        result[i] = el_equal
 
     return result
 
 
-def _eq_ragged_scalar(ra, val):
+@jit(nopython=True, nogil=True)
+def _eq_ragged_scalar(start_indices, flat_array, val):
     """
     Compare elements of a RaggedArray with a scalar array
 
     Parameters
     ----------
-    ra: RaggedArray
+    start_indices: ndarray
+        start indices of a RaggedArray
+    flat_array: ndarray
+        flat_array property of a RaggedArray
     val: ndarray
 
     Returns
@@ -848,27 +874,36 @@ def _eq_ragged_scalar(ra, val):
         1D bool array of same length as inputs with elements True when
         ragged element equals scalar val, False otherwise.
     """
-    start_indices = ra.start_indices
-    flat_array = ra.flat_array
-
     n = len(start_indices)
     m = len(flat_array)
-    result = np.zeros(n, dtype=np.bool)
+    cols = len(val)
+    result = np.zeros(n, dtype=np.bool_)
     for i in range(n):
         start_index = start_indices[i]
         stop_index = start_indices[i+1] if i < n - 1 else m
-        result[i] = np.array_equal(flat_array[start_index:stop_index], val)
+
+        if stop_index - start_index != cols:
+            el_equal = False
+        else:
+            el_equal = True
+            for val_index, flat_index in \
+                    enumerate(range(start_index, stop_index)):
+                el_equal &= flat_array[flat_index] == val[val_index]
+        result[i] = el_equal
 
     return result
 
 
-def _eq_ragged_ndarray1d(ra, a):
+def _eq_ragged_ndarray1d(start_indices, flat_array, a):
     """
     Compare a RaggedArray with a 1D numpy object array of the same length
 
     Parameters
     ----------
-    ra: RaggedArray
+    start_indices: ndarray
+        start indices of a RaggedArray
+    flat_array: ndarray
+        flat_array property of a RaggedArray
     a: ndarray
         1D numpy array of same length as ra
 
@@ -877,13 +912,16 @@ def _eq_ragged_ndarray1d(ra, a):
     mask: ndarray
         1D bool array of same length as input with elements True when
         corresponding elements are equal, False otherwise
+
+    Notes
+    -----
+    This function is not numba accelerated because it, but design, inputs
+    a numpy object array
     """
-    start_indices = ra.start_indices
-    flat_array = ra.flat_array
 
     n = len(start_indices)
     m = len(flat_array)
-    result = np.zeros(n, dtype=np.bool)
+    result = np.zeros(n, dtype=np.bool_)
     for i in range(n):
         start_index = start_indices[i]
         stop_index = start_indices[i + 1] if i < n - 1 else m
@@ -899,13 +937,17 @@ def _eq_ragged_ndarray1d(ra, a):
     return result
 
 
-def _eq_ragged_ndarray2d(ra, a):
+@jit(nopython=True, nogil=True)
+def _eq_ragged_ndarray2d(start_indices, flat_array, a):
     """
     Compare a RaggedArray with rows of a 2D numpy object array
 
     Parameters
     ----------
-    ra: RaggedArray
+    start_indices: ndarray
+        start indices of a RaggedArray
+    flat_array: ndarray
+        flat_array property of a RaggedArray
     a: ndarray
         A 2D numpy array where the length of the first dimension matches the
         length of the RaggedArray
@@ -916,20 +958,29 @@ def _eq_ragged_ndarray2d(ra, a):
         1D bool array of same length as input RaggedArray with elements True
         when corresponding elements of ra equals corresponding row of a
     """
-    start_indices = ra.start_indices
-    flat_array = ra.flat_array
-
     n = len(start_indices)
     m = len(flat_array)
-    result = np.zeros(n, dtype=np.bool)
-    for i in range(n):
-        start_index = start_indices[i]
-        stop_index = start_indices[i + 1] if i < n - 1 else m
-        result[i] = np.array_equal(flat_array[start_index:stop_index],
-                                   a[i, :])
+    cols = a.shape[1]
+
+    # np.bool is an alias for Python's built-in bool type, np.bool_ is the
+    # numpy type that numba recognizes
+    result = np.zeros(n, dtype=np.bool_)
+    for row in range(n):
+        start_index = start_indices[row]
+        stop_index = start_indices[row + 1] if row < n - 1 else m
+
+        # Check equality
+        if stop_index - start_index != cols:
+            el_equal = False
+        else:
+            el_equal = True
+            for col, flat_index in enumerate(range(start_index, stop_index)):
+                el_equal &= flat_array[flat_index] == a[row, col]
+        result[row] = el_equal
     return result
 
 
+@jit(nopython=True, nogil=True)
 def _lexograph_lt(a1, a2):
     """
     Compare two 1D numpy arrays lexographically

@@ -425,7 +425,7 @@ def test_concat_series():
 ])
 def test_array_eq_scalar(scalar):
     # Build RaggedArray
-    arg1 = [[1, 2], [], [1, 2], None, [11, 22, 33, 44]]
+    arg1 = [[1, 2], [], [1, 2], [1, 3], [11, 22, 33, 44]]
     ra = RaggedArray(arg1, dtype='int32')
 
     # Check equality
@@ -445,11 +445,12 @@ def test_array_eq_numpy1():
 
     # Construct arrays
     ra = RaggedArray(arg1, dtype='int32')
-    npa = np.array(arg1, dtype='object')
+    npa = np.array([[1, 2], [2], [1, 2], None, [10, 20, 30, 40]],
+                   dtype='object')
 
     # Check equality
     result = ra == npa
-    expected = np.array([1, 1, 1, 1, 1], dtype='bool')
+    expected = np.array([1, 0, 1, 1, 0], dtype='bool')
     np.testing.assert_array_equal(result, expected)
 
     # Check non-equality
@@ -460,7 +461,7 @@ def test_array_eq_numpy1():
 
 def test_array_eq_numpy2d():
     # Construct arrays
-    ra = RaggedArray([[1, 2], [], [1, 2], None, [11, 22, 33, 44]],
+    ra = RaggedArray([[1, 2], [1], [1, 2], None, [33, 44]],
                      dtype='int32')
     npa = np.array([[1, 2], [2, 3], [1, 2], [0, 1], [11, 22]],
                    dtype='int32')
@@ -478,16 +479,16 @@ def test_array_eq_numpy2d():
 
 def test_array_eq_ragged():
     # Build RaggedArray
-    arg1 = [[1, 2], [], [1, 2], None, [11, 22, 33, 44]]
+    arg1 = [[1, 2], [], [1, 2], [3, 2, 1], [11, 22, 33, 44]]
     ra1 = RaggedArray(arg1, dtype='int32')
 
     # Build RaggedArray
-    arg2 = [[1, 2], [2, 3, 4, 5], [1, 2], None, [11]]
+    arg2 = [[1, 2], [2, 3, 4, 5], [1, 2], [11, 22, 33], [11]]
     ra2 = RaggedArray(arg2, dtype='int32')
 
     # Check equality
     result = ra1 == ra2
-    expected = np.array([1, 0, 1, 1, 0], dtype='bool')
+    expected = np.array([1, 0, 1, 0, 0], dtype='bool')
     np.testing.assert_array_equal(result, expected)
 
     # Check non-equality
