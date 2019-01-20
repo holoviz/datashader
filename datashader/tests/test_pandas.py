@@ -627,3 +627,31 @@ def test_lines_xy():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq(agg, out)
+
+
+def test_lines_ragged():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(
+        axis.compute_scale_and_translate((-3., 3.), 7), 7)
+
+    df = pd.DataFrame({
+        'x': pd.array([[4, -4], [-4, 4, -4, 4]], dtype='Ragged[float32]'),
+        'y': pd.array([[0, 0], [-4, 4, 0, 0]], dtype='Ragged[float32]')
+    })
+
+    cvs = ds.Canvas(plot_width=7, plot_height=7,
+                    x_range=(-3, 3), y_range=(-3, 3))
+
+    agg = cvs.lines(df, 'x', 'y', ds.count())
+
+    sol = np.array([[0, 0, 1, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)

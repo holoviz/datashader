@@ -7,6 +7,8 @@ from dask.array import Array
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
+from datashader.datatypes import RaggedArray
+from datashader.glyphs import LinesRagged
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
@@ -202,29 +204,23 @@ class Canvas(object):
                 * str: The name of a RaggedArray column in source that
                        contains the x or y coordinates of the line segments.
                 * list: A list of the names of float or integer
-                               columns that contains the x or y coordinates of
-                               the line segment
+                        columns that contains the x or y coordinates of
+                        the line segment
         agg : Reduction, optional
             Reduction to compute. Default is ``any()``.
-        x_constant, y_constant: list or array of numbers
-            If xs is set to a list of column labels then y_constants may be
-            set to a list of numbers the same length as xs. These y
-            coordinates will be applied to every row.  Similarly, if ys is
-            a list of column labels, x_constants may be set to a list of
-            numbers to specify the x coordinates to be applied to every line
-            segment.
-
-            Exactly one of xs and x_constants may be specified and exactly
-            one of ys and y_constants may be specified.
         """
         from .glyphs import LinesXY
         from .reductions import any as any_rdn
         if agg is None:
             agg = any_rdn()
-        return bypixel(source,
-                       self,
-                       LinesXY(tuple(x), tuple(y)),
-                       agg)
+        # TODO: Check inputs and make LinesRagged, LinesX, LinesY
+
+        if isinstance(x, RaggedArray):
+            glyph = LinesRagged(x, y)
+        else:
+            glyph = LinesXY(tuple(x), tuple(y))
+
+        return bypixel(source, self, glyph, agg)
 
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then
