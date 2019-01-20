@@ -27,6 +27,14 @@ class _PointLike(Glyph):
         elif not isreal(in_dshape.measure[self.y]):
             raise ValueError('y must be real')
 
+    @property
+    def x_label(self):
+        return self.x
+
+    @property
+    def y_label(self):
+        return self.y
+
     def required_columns(self):
         return [self.x, self.y]
 
@@ -221,6 +229,49 @@ class Line(_PointLike):
             cols = aggs + info(df)
             # line may be clipped, then mapped to pixels
             extend_line(vt, bounds, xs, ys, plot_start, *cols)
+
+        return extend
+
+
+class LinesXY(_PointLike):
+    def validate(self, in_dshape):
+        # TODO
+        pass
+
+    def required_columns(self):
+        return self.x + self.y
+
+    @property
+    def x_label(self):
+        return 'x'
+
+    @property
+    def y_label(self):
+        return 'y'
+
+    def compute_x_bounds(self, df):
+        # return self._compute_x_bounds(df[self.x].values)
+        raise NotImplementedError()
+
+    def compute_y_bounds(self, df):
+        # return self._compute_y_bounds(df[self.y].values)
+        raise NotImplementedError()
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        draw_line = _build_draw_line(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        extend_lines_xy = _build_extend_lines_xy(draw_line, map_onto_pixel)
+        x_names = self.x
+        y_names = self.y
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            xs = tuple(df[x_name].values for x_name in x_names)
+            ys = tuple(df[y_name].values for y_name in y_names)
+
+            cols = aggs + info(df)
+            # line may be clipped, then mapped to pixels
+            extend_lines_xy(vt, bounds, xs, ys, plot_start, *cols)
 
         return extend
 
@@ -463,6 +514,33 @@ def _build_extend_line(draw_line, map_onto_pixel):
             i += 1
 
     return extend_line
+
+
+def _build_extend_lines_xy(draw_line, map_onto_pixel):
+    extend_line = _build_extend_line(draw_line, map_onto_pixel)
+
+    @ngjit
+    def extend_lines_xy(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+        """
+        here xs and ys are tuples of arrays and non-empty
+        """
+        cols = len(xs)
+        rows = len(xs[0])
+        line_xs = np.zeros(cols, dtype=xs[0].dtype)
+        line_ys = np.zeros(cols, dtype=xs[0].dtype)
+
+        for r in range(rows):
+            # populate line_xs/line_ys
+            for c in range(cols):
+                line_xs[c] = xs[c][r]
+                line_ys[c] = ys[c][r]
+
+            # extend line
+            extend_line(
+                vt, bounds, line_xs, line_ys, plot_start, *aggs_and_cols)
+
+    return extend_lines_xy
+
 
 
 def _build_draw_triangle(append):

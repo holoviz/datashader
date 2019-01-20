@@ -187,6 +187,45 @@ class Canvas(object):
             agg = any_rdn()
         return bypixel(source, self, Line(x, y), agg)
 
+    def lines(self, source, x, y, agg=None,
+              x_constant=None, y_constant=None):
+        """Compute a reduction by pixel, mapping each row of source to pixels
+        in a distinct line
+
+        Parameters
+        ----------
+        source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
+            The input datasource.
+        x, y: str or list
+            The x and y coordinates defining the line segments. Either xs and
+            ys are both strings or both lists.
+                * str: The name of a RaggedArray column in source that
+                       contains the x or y coordinates of the line segments.
+                * list: A list of the names of float or integer
+                               columns that contains the x or y coordinates of
+                               the line segment
+        agg : Reduction, optional
+            Reduction to compute. Default is ``any()``.
+        x_constant, y_constant: list or array of numbers
+            If xs is set to a list of column labels then y_constants may be
+            set to a list of numbers the same length as xs. These y
+            coordinates will be applied to every row.  Similarly, if ys is
+            a list of column labels, x_constants may be set to a list of
+            numbers to specify the x coordinates to be applied to every line
+            segment.
+
+            Exactly one of xs and x_constants may be specified and exactly
+            one of ys and y_constants may be specified.
+        """
+        from .glyphs import LinesXY
+        from .reductions import any as any_rdn
+        if agg is None:
+            agg = any_rdn()
+        return bypixel(source,
+                       self,
+                       LinesXY(tuple(x), tuple(y)),
+                       agg)
+
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then
     # show the output as a numpy array that has a compact

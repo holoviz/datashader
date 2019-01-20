@@ -41,4 +41,6 @@ def pointlike(glyph, df, schema, canvas, summary):
     bases = create((height, width))
     extend(bases, df, x_st + y_st, x_range + y_range)
 
-    return finalize(bases, coords=[y_axis, x_axis], dims=[glyph.y, glyph.x])
+    return finalize(bases,
+                    coords=[y_axis, x_axis],
+                    dims=[glyph.y_label, glyph.x_label])
