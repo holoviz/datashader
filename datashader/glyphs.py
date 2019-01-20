@@ -233,8 +233,10 @@ class Triangles(_PolygonLike):
         draw_triangle, draw_triangle_interp = _build_draw_triangle(append)
         map_onto_pixel = _build_map_onto_pixel_for_triangle(x_mapper, y_mapper)
         extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
+        weight_type = self.weight_type
+        interpolate = self.interpolate
 
-        def extend(aggs, df, vt, bounds, weight_type=True, interpolate=True):
+        def extend(aggs, df, vt, bounds, plot_start=True):
             cols = info(df)
             assert cols, 'There must be at least one column on which to aggregate'
             # mapped to pixels, then may be clipped
