@@ -541,10 +541,9 @@ def bypixel(source, canvas, glyph, agg):
 
 def _cols_to_keep(columns, glyph, agg):
     cols_to_keep = OrderedDict({col: False for col in columns})
-    cols_to_keep[glyph.x] = True
-    cols_to_keep[glyph.y] = True
-    if hasattr(glyph, 'z'):
-        cols_to_keep[glyph.z[0]] = True
+    for col in glyph.required_columns():
+        cols_to_keep[col] = True
+
     if hasattr(agg, 'values'):
         for subagg in agg.values:
             if subagg.column is not None:

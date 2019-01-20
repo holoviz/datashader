@@ -27,6 +27,9 @@ class _PointLike(Glyph):
         elif not isreal(in_dshape.measure[self.y]):
             raise ValueError('y must be real')
 
+    def required_columns(self):
+        return [self.x, self.y]
+
     def compute_x_bounds(self, df):
         return self._compute_x_bounds(df[self.x].values)
 
@@ -88,7 +91,6 @@ class _PointLike(Glyph):
             #print("No x range; defaulting to x-1,x+1")
             minval, maxval = minval-1, minval+1
         return minval, maxval
-        
 
     @memoize
     def compute_y_bounds_dask(self, df):
@@ -134,6 +136,9 @@ class _PolygonLike(_PointLike):
         for col in [self.x, self.y] + list(self.z):
             if not isreal(in_dshape.measure[col]):
                 raise ValueError('{} must be real'.format(col))
+
+    def required_columns(self):
+        return [self.x, self.y] + list(self.z)
 
     def compute_x_bounds(self, df):
         xs = df[self.x].values
