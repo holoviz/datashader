@@ -593,3 +593,37 @@ def test_bug_570():
     yi, xi = np.where(agg.values == 1)
     assert np.array_equal(yi, np.arange(73, 300))
     assert np.array_equal(xi, np.array([590] * len(yi)))
+
+
+def test_lines_xy():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
+
+    df = pd.DataFrame({
+        'x0': [4, -4],
+        'x1': [0,  0],
+        'x2': [-4, 4],
+        'y0': [0,  0],
+        'y1': [-4, 4],
+        'y2': [0,  0]
+    })
+
+    cvs = ds.Canvas(plot_width=7, plot_height=7,
+                    x_range=(-3, 3), y_range=(-3, 3))
+
+    agg = cvs.lines(df,
+                    ['x0', 'x1', 'x2'],
+                    ['y0', 'y1', 'y2'],
+                    ds.count())
+
+    sol = np.array([[0, 0, 1, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
