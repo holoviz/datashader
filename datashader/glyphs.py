@@ -27,6 +27,12 @@ class _PointLike(Glyph):
         elif not isreal(in_dshape.measure[self.y]):
             raise ValueError('y must be real')
 
+    def compute_x_bounds(self, df):
+        return self._compute_x_bounds(df[self.x].values)
+
+    def compute_y_bounds(self, df):
+        return self._compute_y_bounds(df[self.y].values)
+
     @staticmethod
     @ngjit
     def _compute_x_bounds(xs):
@@ -68,7 +74,7 @@ class _PointLike(Glyph):
         return minval, maxval
 
     @memoize
-    def _compute_x_bounds_dask(self, df):
+    def compute_x_bounds_dask(self, df):
         """Like ``PointLike._compute_x_bounds``, but memoized because
         ``df`` is immutable/hashable (a Dask dataframe).
         """
@@ -85,7 +91,7 @@ class _PointLike(Glyph):
         
 
     @memoize
-    def _compute_y_bounds_dask(self, df):
+    def compute_y_bounds_dask(self, df):
         """Like ``PointLike._compute_y_bounds``, but memoized because
         ``df`` is immutable/hashable (a Dask dataframe).
         """
@@ -128,6 +134,14 @@ class _PolygonLike(_PointLike):
         for col in [self.x, self.y] + list(self.z):
             if not isreal(in_dshape.measure[col]):
                 raise ValueError('{} must be real'.format(col))
+
+    def compute_x_bounds(self, df):
+        xs = df[self.x].values
+        return self._compute_x_bounds(xs.reshape(np.prod(xs.shape)))
+
+    def compute_y_bounds(self, df):
+        ys = df[self.y].values
+        return self._compute_y_bounds(ys.reshape(np.prod(ys.shape)))
 
 
 class Point(_PointLike):
