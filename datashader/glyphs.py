@@ -234,9 +234,12 @@ class Line(_PointLike):
 
 
 class LinesXY(_PointLike):
+
     def validate(self, in_dshape):
-        # TODO
-        pass
+        if not all([isreal(in_dshape.measure[xcol]) for xcol in self.x]):
+            raise ValueError('x columns must be real')
+        elif not all([isreal(in_dshape.measure[ycol]) for ycol in self.y]):
+            raise ValueError('y columns must be real')
 
     def required_columns(self):
         return self.x + self.y

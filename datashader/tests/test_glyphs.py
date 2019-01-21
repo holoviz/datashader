@@ -3,9 +3,11 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from datashader.glyphs import (Point, _build_draw_line, _build_map_onto_pixel_for_line,
+from datashader.glyphs import (Point, _build_draw_line,
+                               _build_map_onto_pixel_for_line,
                                _build_extend_line, _build_draw_triangle,
-                               _build_map_onto_pixel_for_triangle, _build_extend_triangles)
+                               _build_map_onto_pixel_for_triangle,
+                               _build_extend_triangles, LinesXY)
 from datashader.utils import ngjit
 
 
@@ -363,3 +365,13 @@ def test_line_awkward_point_on_upper_bound_maps_to_last_pixel():
                                       1.0, y)
 
     assert pymax==num_y_pixels-1
+
+
+def test_lines_xy_validate():
+    g = LinesXY(['x0', 'x1'], ['y11', 'y12'])
+    g.validate(
+        dshape("{x0: int32, x1: float32, y11: int16, y12: float32}"))
+
+    with pytest.raises(ValueError):
+        g.validate(
+            dshape("{x0: int32, x1: float32, y11: string, y12: float32}"))
