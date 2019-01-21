@@ -627,3 +627,39 @@ def test_lines_xy():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq(agg, out)
+
+
+def test_lines_xy_autorange():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(
+        axis.compute_scale_and_translate((-4., 4.), 9), 9)
+
+    df = pd.DataFrame({
+        'x0': [4, -4],
+        'x1': [0,  0],
+        'x2': [-4, 4],
+        'y0': [0,  0],
+        'y1': [-4, 4],
+        'y2': [0,  0]
+    })
+
+    cvs = ds.Canvas(plot_width=9, plot_height=9)
+
+    agg = cvs.lines(df,
+                    ['x0', 'x1', 'x2'],
+                    ['y0', 'y1', 'y2'],
+                    ds.count())
+
+    sol = np.array([[0, 0, 0, 0, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                    [2, 0, 0, 0, 0, 0, 0, 0, 2],
+                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0, 0, 0, 0]], dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)

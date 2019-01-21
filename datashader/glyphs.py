@@ -250,12 +250,24 @@ class LinesXY(_PointLike):
         return 'y'
 
     def compute_x_bounds(self, df):
-        # return self._compute_x_bounds(df[self.x].values)
-        raise NotImplementedError()
+        xs = tuple(df[xlabel] for xlabel in self.x)
+
+        x_bounds_list = [self._compute_x_bounds(xcol.values) for xcol in xs]
+        x_mins, x_maxes = zip(*x_bounds_list)
+
+        x_min = min(x_mins)
+        x_max = max(x_maxes)
+        return x_min, x_max
 
     def compute_y_bounds(self, df):
-        # return self._compute_y_bounds(df[self.y].values)
-        raise NotImplementedError()
+        ys = tuple(df[ylabel] for ylabel in self.y)
+
+        y_bounds_list = [self._compute_y_bounds(ycol.values) for ycol in ys]
+        y_mins, y_maxes = zip(*y_bounds_list)
+
+        y_min = min(y_mins)
+        y_max = max(y_maxes)
+        return y_min, y_max
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
