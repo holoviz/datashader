@@ -33,6 +33,11 @@ data:
     files:
       - census.snappy.parq
 
+  - url: http://s3.amazonaws.com/datashader-data/opensky.parq
+    title: 'OpenSky flights, Sept 5-13 2016'
+    files:
+      - opensky.parq
+
   - url: http://s3.amazonaws.com/datashader-data/mobile_landsat8.zip
     title: 'Mobile, AL Landsat8 Data'
     files:
