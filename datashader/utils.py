@@ -37,15 +37,15 @@ class Dispatcher(object):
     def __init__(self):
         self._lookup = {}
 
-    def register(self, type, func=None):
-        """Register dispatch of `func` on arguments of type `type`"""
+    def register(self, typ, func=None):
+        """Register dispatch of `func` on arguments of type `typ`"""
         if func is None:
-            return lambda f: self.register(type, f)
-        if isinstance(type, tuple):
-            for t in type:
+            return lambda f: self.register(typ, f)
+        if isinstance(typ, tuple):
+            for t in typ:
                 self.register(t, func)
         else:
-            self._lookup[type] = func
+            self._lookup[typ] = func
         return func
 
     def __call__(self, head, *rest, **kwargs):
@@ -97,7 +97,7 @@ def calc_bbox(xs, ys, res):
     """Calculate the bounding box of a raster, and return it in a four-element
     tuple: (xmin, ymin, xmax, ymax). This calculation assumes the raster is
     uniformly sampled (equivalent to a flat-earth assumption, for geographic
-    data) so that an affine transform (using the "Augmented Matrix" approach) 
+    data) so that an affine transform (using the "Augmented Matrix" approach)
     suffices:
     https://en.wikipedia.org/wiki/Affine_transformation#Augmented_matrix
 
@@ -372,7 +372,7 @@ def dshape_from_dask(df):
 
 def dataframe_from_multiple_sequences(x_values, y_values):
    """
-   Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional 
+   Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional
    numpy array into a pandas dataframe that can be plotted by datashader.
    The pandas dataframe eventually contains two columns ('x' and 'y') with the data.
    Each time series is separated by a row of NaNs.
@@ -382,7 +382,7 @@ def dataframe_from_multiple_sequences(x_values, y_values):
    y_values: 2D numpy array with the sequences to be plotted of shape (num sequences X length of each sequence)
 
    """
-   
+
    # Add a NaN at the end of the array of x values
    x = np.zeros(x_values.shape[0] + 1)
    x[-1] = np.nan
