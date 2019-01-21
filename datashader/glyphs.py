@@ -273,6 +273,42 @@ class LinesXY(_PointLike):
         return y_min, y_max
 
     @memoize
+    def compute_x_bounds_dask(self, df):
+        """Like ``PointLike._compute_x_bounds``, but memoized because
+        ``df`` is immutable/hashable (a Dask dataframe).
+        """
+        x_mins = [np.nanmin(df[xlabel].values) for xlabel in self.x]
+        x_maxes = [np.nanmax(df[xlabel].values) for xlabel in self.x]
+
+        minval, maxval = np.nanmin(x_mins), np.nanmax(x_maxes)
+
+        if minval == np.nan and maxval == np.nan:
+            # print("No x values; defaulting to range -1,1")
+            minval, maxval = -1, 1
+        elif minval == maxval:
+            # print("No x range; defaulting to x-1,x+1")
+            minval, maxval = minval - 1, minval + 1
+        return minval, maxval
+
+    @memoize
+    def compute_y_bounds_dask(self, df):
+        """Like ``PointLike._compute_x_bounds``, but memoized because
+        ``df`` is immutable/hashable (a Dask dataframe).
+        """
+        y_mins = [np.nanmin(df[ylabel].values) for ylabel in self.y]
+        y_maxes = [np.nanmax(df[ylabel].values) for ylabel in self.y]
+
+        minval, maxval = np.nanmin(y_mins), np.nanmax(y_maxes)
+
+        if minval == np.nan and maxval == np.nan:
+            # print("No x values; defaulting to range -1,1")
+            minval, maxval = -1, 1
+        elif minval == maxval:
+            # print("No x range; defaulting to x-1,x+1")
+            minval, maxval = minval - 1, minval + 1
+        return minval, maxval
+
+    @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         draw_line = _build_draw_line(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)

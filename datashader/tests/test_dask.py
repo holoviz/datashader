@@ -282,6 +282,80 @@ def test_line():
     assert_eq(agg, out)
 
 
+def test_lines_xy():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
+
+    df = pd.DataFrame({
+        'x0': [4, -4, 4],
+        'x1': [0,  0, 0],
+        'x2': [-4, 4, -4],
+        'y0': [0,  0, 0],
+        'y1': [-4, 4, 0],
+        'y2': [0,  0, 0]
+    })
+
+    ddf = dd.from_pandas(df, npartitions=2)
+
+    cvs = ds.Canvas(plot_width=7, plot_height=7,
+                    x_range=(-3, 3), y_range=(-3, 3))
+
+    agg = cvs.lines(ddf,
+                    ['x0', 'x1', 'x2'],
+                    ['y0', 'y1', 'y2'],
+                    ds.count())
+
+    sol = np.array([[0, 0, 1, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
+
+
+def test_lines_xy_autorange():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(
+        axis.compute_scale_and_translate((-4., 4.), 9), 9)
+
+    df = pd.DataFrame({
+        'x0': [4, -4, 4],
+        'x1': [0, 0, 0],
+        'x2': [-4, 4, -4],
+        'y0': [0, 0, 0],
+        'y1': [-4, 4, 0],
+        'y2': [0, 0, 0]
+    })
+
+    ddf = dd.from_pandas(df, npartitions=2)
+
+    cvs = ds.Canvas(plot_width=9, plot_height=9)
+
+    agg = cvs.lines(ddf,
+                    ['x0', 'x1', 'x2'],
+                    ['y0', 'y1', 'y2'],
+                    ds.count())
+
+    sol = np.array([[0, 0, 0, 0, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                    [3, 1, 1, 1, 1, 1, 1, 1, 3],
+                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0, 0, 0, 0]], dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
+
+
 def test_log_axis_line():
     axis = ds.core.LogAxis()
     logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
