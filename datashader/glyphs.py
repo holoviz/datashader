@@ -234,7 +234,14 @@ class Line(_PointLike):
 
 
 class LinesXY(_PointLike):
+    """A collection of lines (on line per row) with vertices defined
+    by the lists of columns in ``x`` and ``y``
 
+    Parameters
+    ----------
+    x, y : list
+        Lists of column names for the x and y coordinates
+    """
     def validate(self, in_dshape):
         if not all([isreal(in_dshape.measure[xcol]) for xcol in self.x]):
             raise ValueError('x columns must be real')
@@ -283,10 +290,8 @@ class LinesXY(_PointLike):
         minval, maxval = np.nanmin(x_mins), np.nanmax(x_maxes)
 
         if minval == np.nan and maxval == np.nan:
-            # print("No x values; defaulting to range -1,1")
             minval, maxval = -1, 1
         elif minval == maxval:
-            # print("No x range; defaulting to x-1,x+1")
             minval, maxval = minval - 1, minval + 1
         return minval, maxval
 
@@ -301,10 +306,8 @@ class LinesXY(_PointLike):
         minval, maxval = np.nanmin(y_mins), np.nanmax(y_maxes)
 
         if minval == np.nan and maxval == np.nan:
-            # print("No x values; defaulting to range -1,1")
             minval, maxval = -1, 1
         elif minval == maxval:
-            # print("No x range; defaulting to x-1,x+1")
             minval, maxval = minval - 1, minval + 1
         return minval, maxval
 
