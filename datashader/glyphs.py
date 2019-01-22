@@ -467,36 +467,38 @@ def _build_draw_line(append):
     return draw_line
 
 
-def _build_extend_line(draw_line, map_onto_pixel):
-    @ngjit
-    def outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
-        if x0 < xmin and x1 < xmin:
-            return True
-        if x0 > xmax and x1 > xmax:
-            return True
-        if y0 < ymin and y1 < ymin:
-            return True
-        return y0 > ymax and y1 > ymax
+@ngjit
+def _outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
+    if x0 < xmin and x1 < xmin:
+        return True
+    if x0 > xmax and x1 > xmax:
+        return True
+    if y0 < ymin and y1 < ymin:
+        return True
+    return y0 > ymax and y1 > ymax
 
-    @ngjit
-    def clipt(p, q, t0, t1):
-        accept = True
-        if p < 0 and q < 0:
-            r = q / p
-            if r > t1:
-                accept = False
-            elif r > t0:
-                t0 = r
-        elif p > 0 and q < p:
-            r = q / p
-            if r < t0:
-                accept = False
-            elif r < t1:
-                t1 = r
-        elif q < 0:
+
+@ngjit
+def _clipt(p, q, t0, t1):
+    accept = True
+    if p < 0 and q < 0:
+        r = q / p
+        if r > t1:
             accept = False
-        return t0, t1, accept
+        elif r > t0:
+            t0 = r
+    elif p > 0 and q < p:
+        r = q / p
+        if r < t0:
+            accept = False
+        elif r < t1:
+            t1 = r
+    elif q < 0:
+        accept = False
+    return t0, t1, accept
 
+
+def _build_extend_line(draw_line, map_onto_pixel):
     @ngjit
     def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
@@ -517,7 +519,7 @@ def _build_extend_line(draw_line, map_onto_pixel):
                 continue
 
             # Use Liang-Barsky (1992) to clip the segment to a bounding box
-            if outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
+            if _outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
                 plot_start = True
                 i += 1
                 continue
@@ -527,24 +529,24 @@ def _build_extend_line(draw_line, map_onto_pixel):
             t0, t1 = 0, 1
             dx = x1 - x0
 
-            t0, t1, accept = clipt(-dx, x0 - xmin, t0, t1)
+            t0, t1, accept = _clipt(-dx, x0 - xmin, t0, t1)
             if not accept:
                 i += 1
                 continue
 
-            t0, t1, accept = clipt(dx, xmax - x0, t0, t1)
+            t0, t1, accept = _clipt(dx, xmax - x0, t0, t1)
             if not accept:
                 i += 1
                 continue
 
             dy = y1 - y0
 
-            t0, t1, accept = clipt(-dy, y0 - ymin, t0, t1)
+            t0, t1, accept = _clipt(-dy, y0 - ymin, t0, t1)
             if not accept:
                 i += 1
                 continue
 
-            t0, t1, accept = clipt(dy, ymax - y0, t0, t1)
+            t0, t1, accept = _clipt(dy, ymax - y0, t0, t1)
             if not accept:
                 i += 1
                 continue
@@ -578,23 +580,82 @@ def _build_extend_lines_xy(draw_line, map_onto_pixel):
         """
         here xs and ys are tuples of arrays and non-empty
         """
-        cols = len(xs)
-        rows = len(xs[0])
-        line_xs = np.zeros(cols, dtype=xs[0].dtype)
-        line_ys = np.zeros(cols, dtype=xs[0].dtype)
+        xmin, xmax, ymin, ymax = bounds
+        nrows = xs[0].shape[0]
+        ncols = len(xs)
 
-        for r in range(rows):
-            # populate line_xs/line_ys
-            for c in range(cols):
-                line_xs[c] = xs[c][r]
-                line_ys[c] = ys[c][r]
+        i = 0
+        while i < nrows:
+            plot_start = True
+            j = 0
+            while j < ncols - 1:
+                x0 = xs[j][i]
+                y0 = ys[j][i]
+                x1 = xs[j+1][i]
+                y1 = ys[j+1][i]
 
-            # extend line
-            extend_line(
-                vt, bounds, line_xs, line_ys, plot_start, *aggs_and_cols)
+                # If any of the coordinates are NaN, there's a discontinuity.
+                # Skip the entire segment.
+                if np.isnan(x0) or np.isnan(y0) or np.isnan(x1) or np.isnan(
+                        y1):
+                    plot_start = True
+                    j += 1
+                    continue
+
+                # Use Liang-Barsky (1992) to clip the segment to a bounding box
+                if _outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
+                    plot_start = True
+                    j += 1
+                    continue
+
+                clipped = False
+
+                t0, t1 = 0, 1
+                dx = x1 - x0
+
+                t0, t1, accept = _clipt(-dx, x0 - xmin, t0, t1)
+                if not accept:
+                    j += 1
+                    continue
+
+                t0, t1, accept = _clipt(dx, xmax - x0, t0, t1)
+                if not accept:
+                    j += 1
+                    continue
+
+                dy = y1 - y0
+
+                t0, t1, accept = _clipt(-dy, y0 - ymin, t0, t1)
+                if not accept:
+                    j += 1
+                    continue
+
+                t0, t1, accept = _clipt(dy, ymax - y0, t0, t1)
+                if not accept:
+                    j += 1
+                    continue
+
+                if t1 < 1:
+                    clipped = True
+                    x1 = x0 + t1 * dx
+                    y1 = y0 + t1 * dy
+
+                if t0 > 0:
+                    # If x0 is clipped, we need to plot the new start
+                    clipped = True
+                    plot_start = True
+                    x0 = x0 + t0 * dx
+                    y0 = y0 + t0 * dy
+
+                x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+                x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
+                          *aggs_and_cols)
+                plot_start = False
+                j += 1
+            i += 1
 
     return extend_lines_xy
-
 
 
 def _build_draw_triangle(append):
