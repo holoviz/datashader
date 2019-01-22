@@ -30,7 +30,6 @@ If you need any of the functionality listed below and want to help make it a pri
   -  [#92](../../issues/92)  Box select support
   -  [#61](../../issues/61)  Add information on requirements for osm example
   - [#242](../../issues/242) Spatiotemporal data animation
-  - [Bokeh 7651](https://github.com/bokeh/bokeh/pull/7651) Image hover using Bokeh
 
 
 Also see the [PyViz.org roadmap](http://pyviz.org/roadmap.html).
