@@ -573,7 +573,6 @@ def _build_extend_line(draw_line, map_onto_pixel):
 
 
 def _build_extend_lines_xy(draw_line, map_onto_pixel):
-    extend_line = _build_extend_line(draw_line, map_onto_pixel)
 
     @ngjit
     def extend_lines_xy(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
