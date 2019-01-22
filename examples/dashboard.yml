@@ -43,6 +43,7 @@ sources:
         xlim: !!python/tuple [-8240227.037, -8231283.905]
         ylim: !!python/tuple [4974203.152, 4979238.441]
         kind: points
+        hover_cols: ['dropoff_hour', 'pickup_hour', 'passenger_count']
       plots:
         dropoff:
           label: NYC Taxi Dropoffs
