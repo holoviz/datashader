@@ -281,7 +281,7 @@ class LinesXY(_PointLike):
 
     @memoize
     def compute_x_bounds_dask(self, df):
-        """Like ``PointLike._compute_x_bounds``, but memoized because
+        """Like ``PointLike.compute_x_bounds``, but memoized because
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         x_mins = [np.nanmin(df[xlabel].values) for xlabel in self.x]
