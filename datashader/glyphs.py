@@ -17,6 +17,10 @@ class _PointLike(Glyph):
         self.x = x
         self.y = y
 
+    def __hash__(self):
+        return hash(
+            tuple([self.__class__, self.x, self.y]))
+
     @property
     def inputs(self):
         return (self.x, self.y)
@@ -135,6 +139,11 @@ class _PolygonLike(_PointLike):
             self.z = z
         self.interpolate = interp
         self.weight_type = weight_type
+
+    def __hash__(self):
+        return hash(
+            tuple([self.__class__, self.x, self.y, tuple(self.z),
+                   self.interpolate, self.weight_type]))
 
     @property
     def inputs(self):
