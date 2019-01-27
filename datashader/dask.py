@@ -8,7 +8,7 @@ from dask.base import tokenize, compute
 from .core import bypixel
 from .compatibility import apply
 from .compiler import compile_components
-from .glyphs import Glyph, Line
+from .glyphs import Glyph, LineAxis0
 from .utils import Dispatcher
 
 __all__ = ()
@@ -79,7 +79,7 @@ def default(glyph, df, schema, canvas, summary):
     return dsk, name
 
 
-@glyph_dispatch.register(Line)
+@glyph_dispatch.register(LineAxis0)
 def line(glyph, df, schema, canvas, summary):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 

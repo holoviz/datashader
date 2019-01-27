@@ -611,10 +611,11 @@ def test_lines_xy():
     cvs = ds.Canvas(plot_width=7, plot_height=7,
                     x_range=(-3, 3), y_range=(-3, 3))
 
-    agg = cvs.lines(df,
-                    ['x0', 'x1', 'x2'],
-                    ['y0', 'y1', 'y2'],
-                    ds.count())
+    agg = cvs.line(df,
+                   ['x0', 'x1', 'x2'],
+                   ['y0', 'y1', 'y2'],
+                   ds.count(),
+                   axis=1)
 
     sol = np.array([[0, 0, 1, 0, 1, 0, 0],
                     [0, 1, 0, 0, 0, 1, 0],
@@ -645,10 +646,11 @@ def test_lines_xy_autorange():
 
     cvs = ds.Canvas(plot_width=9, plot_height=9)
 
-    agg = cvs.lines(df,
-                    ['x0', 'x1', 'x2'],
-                    ['y0', 'y1', 'y2'],
-                    ds.count())
+    agg = cvs.line(df,
+                   ['x0', 'x1', 'x2'],
+                   ['y0', 'y1', 'y2'],
+                   ds.count(),
+                   axis=1)
 
     sol = np.array([[0, 0, 0, 0, 1, 0, 0, 0, 0],
                     [0, 0, 0, 1, 0, 1, 0, 0, 0],

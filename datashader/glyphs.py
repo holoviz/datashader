@@ -216,7 +216,7 @@ class Point(_PointLike):
         return extend
 
 
-class Line(_PointLike):
+class LineAxis0(_PointLike):
     """A line, with vertices defined by ``x`` and ``y``.
 
     Parameters
@@ -242,7 +242,7 @@ class Line(_PointLike):
         return extend
 
 
-class LinesXY(_PointLike):
+class LinesAxis1(_PointLike):
     """A collection of lines (on line per row) with vertices defined
     by the lists of columns in ``x`` and ``y``
 
@@ -251,6 +251,10 @@ class LinesXY(_PointLike):
     x, y : list
         Lists of column names for the x and y coordinates
     """
+
+    def __init__(self, x, y):
+        super().__init__(tuple(x), tuple(y))
+
     def validate(self, in_dshape):
         if not all([isreal(in_dshape.measure[xcol]) for xcol in self.x]):
             raise ValueError('x columns must be real')

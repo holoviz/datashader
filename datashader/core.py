@@ -1,9 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
+from numbers import Number
+
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 from dask.array import Array
+from six import string_types
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
@@ -160,8 +163,9 @@ class Canvas(object):
             agg = count_rdn()
         return bypixel(source, self, Point(x, y), agg)
 
-    def line(self, source, x, y, agg=None):
-        """Compute a reduction by pixel, mapping data to pixels as a line.
+    def line(self, source, x, y, agg=None, axis=0):
+        """Compute a reduction by pixel, mapping data to pixels as one or
+        more lines.
 
         For aggregates that take in extra fields, the interpolated bins will
         receive the fields from the previous point. In pseudocode:
@@ -176,39 +180,50 @@ class Canvas(object):
         ----------
         source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
             The input datasource.
-        x, y : str
-            Column names for the x and y coordinates of each vertex.
+        x, y : str or number or list or tuple
+            Column labels for the x and y coordinates of each vertex.
+            If axis=0 then x and y must be column labels in source.
+            If axis=1 then x and y must be lists or tuples of column labels
         agg : Reduction, optional
             Reduction to compute. Default is ``any()``.
+        axis : 0 or 1, default 0
+            Axis in source to draw lines along
+            - 0: Draw one line across all rows using data from the
+               specified columns
+            - 1: Draw one line per row using data from the specified columns
         """
-        from .glyphs import Line
+        from .glyphs import LineAxis0, LinesAxis1
         from .reductions import any as any_rdn
         if agg is None:
             agg = any_rdn()
-        return bypixel(source, self, Line(x, y), agg)
 
-    def lines(self, source, x, y, agg=None):
-        """Compute a reduction by pixel, mapping each row of source to pixels
-        in a distinct line
+        if axis == 0:
+            if (isinstance(x, (Number, string_types)) and
+                    isinstance(y, (Number, string_types))):
+                glyph = LineAxis0(x, y)
+            else:
+                raise ValueError("""
+The x and y arguments to Canvas.line must be strings or numbers when axis=0
+    Received:
+        x: {x}
+        y: {y}""".format(x=repr(x), y=repr(y)))
 
-        Parameters
-        ----------
-        source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
-            The input datasource.
-        x, y: list
-            A list of the names of float or integer columns that contains
-            the x or y coordinates of the line segment
-        agg : Reduction, optional
-            Reduction to compute. Default is ``any()``.
-        """
-        from .glyphs import LinesXY
-        from .reductions import any as any_rdn
-        if agg is None:
-            agg = any_rdn()
-        return bypixel(source,
-                       self,
-                       LinesXY(tuple(x), tuple(y)),
-                       agg)
+        elif axis == 1:
+            if isinstance(x, (list, tuple)) and isinstance(y, (list, tuple)):
+                glyph = LinesAxis1(x, y)
+            else:
+                raise ValueError("""
+The x and y arguments to Canvas.line must be lists or tuples when axis=1
+    Received:
+        x: {x}
+        y: {y}""".format(x=repr(x), y=repr(y)))
+
+        else:
+            raise ValueError("""
+The axis argument to Canvas.line must be 0 or 1
+    Received: {axis}""".format(axis=axis))
+
+        return bypixel(source, self, glyph, agg)
 
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then

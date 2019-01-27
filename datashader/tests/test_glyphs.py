@@ -7,7 +7,7 @@ from datashader.glyphs import (Point, _build_draw_line,
                                _build_map_onto_pixel_for_line,
                                _build_extend_line, _build_draw_triangle,
                                _build_map_onto_pixel_for_triangle,
-                               _build_extend_triangles, LinesXY)
+                               _build_extend_triangles, LinesAxis1)
 from datashader.utils import ngjit
 
 
@@ -368,7 +368,7 @@ def test_line_awkward_point_on_upper_bound_maps_to_last_pixel():
 
 
 def test_lines_xy_validate():
-    g = LinesXY(['x0', 'x1'], ['y11', 'y12'])
+    g = LinesAxis1(['x0', 'x1'], ['y11', 'y12'])
     g.validate(
         dshape("{x0: int32, x1: float32, y11: int16, y12: float32}"))
 
