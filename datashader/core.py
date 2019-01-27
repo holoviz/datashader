@@ -180,19 +180,67 @@ class Canvas(object):
         ----------
         source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
             The input datasource.
-        x, y : str or number or list or tuple
-            Column labels for the x and y coordinates of each vertex.
-            If axis=0 then x and y must be column labels in source.
-            If axis=1 then x and y must be lists or tuples of column labels
+        x, y : str or number or list or tuple or np.ndarray
+            Specification of the x and y coordinates of each vertex
+            * str or number: Column labels in source
+            * list or tuple: List or tuple of column labels in source
+            * np.ndarray: When axis=1, a literal array of the
+              coordinates to be used for every row
         agg : Reduction, optional
             Reduction to compute. Default is ``any()``.
         axis : 0 or 1, default 0
             Axis in source to draw lines along
-            - 0: Draw one line across all rows using data from the
-               specified columns
-            - 1: Draw one line per row using data from the specified columns
+            * 0: Draw lines using data from the specified columns across
+                 all rows in source
+            * 1: Draw one line per row in source using data from the
+                 specified columns
+
+        Examples
+        --------
+        Define a canvas and a pandas DataFrame with N rows
+        >>> import pandas as pd
+        >>> import numpy as np
+        >>> from datashader import Canvas
+        >>> import datashader.transfer_functions as tf
+        >>> cvs = Canvas()
+        >>> df = pd.DataFrame({
+        ...    'A1': [1, 1.5, 2, 2.5, 3, 4],
+        ...    'A2': [1.5, 2, 3, 3.2, 4, 5],
+        ...    'B1': [10, 12, 11, 14, 13, 15],
+        ...    'B2': [11, 9, 10, 7, 8, 12],
+        ... }, dtype='float64')
+
+        Aggregate one line across all rows, with coordinates df.A1 by df.B1
+        >>> agg = cvs.line(df, x='A1', y='B1', axis=0)
+        >>> tf.shade(agg)
+
+        Aggregate two lines across all rows. The first with coordinates
+        df.A1 by df.B1 and the second with coordinates df.A2 by df.B2
+        >>> agg = cvs.line(df, x=['A1', 'A2'], y=['B1', 'B2'], axis=0)
+        >>> tf.shade(agg)
+
+        Aggregate two lines across all rows where the lines share the same
+        x coordinates. The first line will have coordinates df.A1 by df.B1
+        and the second will have coordinates df.A1 by df.B2
+        >>> agg = cvs.line(df, x='A1', y=['B1', 'B2'], axis=0)
+        >>> tf.shade(agg)
+
+        Aggregate 6 length-2 lines, one per row, where the ith line has
+        coordinates [df.A1[i], df.A2[i]] by [df.B1[i], df.B2[i]]
+        >>> agg = cvs.line(df, x=['A1', 'A2'], y=['B1', 'B2'], axis=1)
+        >>> tf.shade(agg)
+
+        Aggregate 6 length-4 lines, one per row, where the x coordinates
+        of every line are [0, 1, 2, 3] and the y coordinates of the ith line
+        are [df.A1[i], df.A2[i], df.B1[i], df.B2[i]].
+        >>> agg = cvs.line(df,
+        ...                x=np.arange(4),
+        ...                y=['A1', 'A2', 'B1', 'B2'],
+        ...                axis=1)
+        >>> tf.shade(agg)
         """
-        from .glyphs import LineAxis0, LinesAxis1
+        from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
+                             LinesAxis1YConstant, LineAxis0Multi)
         from .reductions import any as any_rdn
         if agg is None:
             agg = any_rdn()
@@ -201,22 +249,41 @@ class Canvas(object):
             if (isinstance(x, (Number, string_types)) and
                     isinstance(y, (Number, string_types))):
                 glyph = LineAxis0(x, y)
+            elif (isinstance(x, (list, tuple)) and
+                    isinstance(y, (list, tuple))):
+                glyph = LineAxis0Multi(tuple(x), tuple(y))
+            elif (isinstance(x, (list, tuple)) and
+                    isinstance(y, (Number, string_types))):
+                glyph = LineAxis0Multi(tuple(x), (y,) * len(x))
+            elif (isinstance(x, (Number, string_types)) and
+                    isinstance(y, (list, tuple))):
+                glyph = LineAxis0Multi((x,) * len(y), tuple(y))
             else:
                 raise ValueError("""
-The x and y arguments to Canvas.line must be strings or numbers when axis=0
+Invalid combination of x and y arguments to Canvas.line when axis=0.
     Received:
         x: {x}
-        y: {y}""".format(x=repr(x), y=repr(y)))
+        y: {y}
+See docstring for more information on valid usage""".format(
+                    x=repr(x), y=repr(y)))
 
         elif axis == 1:
             if isinstance(x, (list, tuple)) and isinstance(y, (list, tuple)):
-                glyph = LinesAxis1(x, y)
+                glyph = LinesAxis1(tuple(x), tuple(y))
+            elif (isinstance(x, np.ndarray) and
+                  isinstance(y,  (list, tuple))):
+                glyph = LinesAxis1XConstant(x, tuple(y))
+            elif (isinstance(x, (list, tuple)) and
+                  isinstance(y, np.ndarray)):
+                glyph = LinesAxis1YConstant(tuple(x), y)
             else:
                 raise ValueError("""
-The x and y arguments to Canvas.line must be lists or tuples when axis=1
+Invalid combination of x and y arguments to Canvas.line when axis=1.
     Received:
         x: {x}
-        y: {y}""".format(x=repr(x), y=repr(y)))
+        y: {y}
+See docstring for more information on valid usage""".format(
+                    x=repr(x), y=repr(y)))
 
         else:
             raise ValueError("""
