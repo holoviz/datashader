@@ -253,7 +253,7 @@ class LinesAxis1(_PointLike):
     """
 
     def __init__(self, x, y):
-        super(_PointLike, self).__init__(tuple(x), tuple(y))
+        super(LinesAxis1, self).__init__(tuple(x), tuple(y))
 
     def validate(self, in_dshape):
         if not all([isreal(in_dshape.measure[xcol]) for xcol in self.x]):
