@@ -197,13 +197,13 @@ class Canvas(object):
 
         Examples
         --------
-        Define a canvas and a pandas DataFrame with N rows
-        >>> import pandas as pd
-        >>> import numpy as np
-        >>> from datashader import Canvas
-        >>> import datashader.transfer_functions as tf
-        >>> cvs = Canvas()
-        >>> df = pd.DataFrame({
+        Define a canvas and a pandas DataFrame with 6 rows
+        >>> import pandas as pd  # doctest: +SKIP
+        ... import numpy as np
+        ... from datashader import Canvas
+        ... import datashader.transfer_functions as tf
+        ... cvs = Canvas()
+        ... df = pd.DataFrame({
         ...    'A1': [1, 1.5, 2, 2.5, 3, 4],
         ...    'A2': [1.5, 2, 3, 3.2, 4, 5],
         ...    'B1': [10, 12, 11, 14, 13, 15],
@@ -211,33 +211,33 @@ class Canvas(object):
         ... }, dtype='float64')
 
         Aggregate one line across all rows, with coordinates df.A1 by df.B1
-        >>> agg = cvs.line(df, x='A1', y='B1', axis=0)
-        >>> tf.shade(agg)
+        >>> agg = cvs.line(df, x='A1', y='B1', axis=0)  # doctest: +SKIP
+        ... tf.shade(agg)
 
         Aggregate two lines across all rows. The first with coordinates
         df.A1 by df.B1 and the second with coordinates df.A2 by df.B2
-        >>> agg = cvs.line(df, x=['A1', 'A2'], y=['B1', 'B2'], axis=0)
-        >>> tf.shade(agg)
+        >>> agg = cvs.line(df, x=['A1', 'A2'], y=['B1', 'B2'], axis=0)  # doctest: +SKIP
+        ... tf.shade(agg)
 
         Aggregate two lines across all rows where the lines share the same
         x coordinates. The first line will have coordinates df.A1 by df.B1
         and the second will have coordinates df.A1 by df.B2
-        >>> agg = cvs.line(df, x='A1', y=['B1', 'B2'], axis=0)
-        >>> tf.shade(agg)
+        >>> agg = cvs.line(df, x='A1', y=['B1', 'B2'], axis=0)  # doctest: +SKIP
+        ... tf.shade(agg)
 
         Aggregate 6 length-2 lines, one per row, where the ith line has
         coordinates [df.A1[i], df.A2[i]] by [df.B1[i], df.B2[i]]
-        >>> agg = cvs.line(df, x=['A1', 'A2'], y=['B1', 'B2'], axis=1)
-        >>> tf.shade(agg)
+        >>> agg = cvs.line(df, x=['A1', 'A2'], y=['B1', 'B2'], axis=1)  # doctest: +SKIP
+        ... tf.shade(agg)
 
         Aggregate 6 length-4 lines, one per row, where the x coordinates
         of every line are [0, 1, 2, 3] and the y coordinates of the ith line
         are [df.A1[i], df.A2[i], df.B1[i], df.B2[i]].
-        >>> agg = cvs.line(df,
+        >>> agg = cvs.line(df,  # doctest: +SKIP
         ...                x=np.arange(4),
         ...                y=['A1', 'A2', 'B1', 'B2'],
         ...                axis=1)
-        >>> tf.shade(agg)
+        ... tf.shade(agg)
         """
         from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
                              LinesAxis1YConstant, LineAxis0Multi)
