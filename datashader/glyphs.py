@@ -254,6 +254,20 @@ class LineAxis0Multi(_PointLike):
         return self.maybe_expand_bounds((min(mins), max(maxes)))
 
     @memoize
+    def compute_x_bounds_dask(self, df):
+        bounds_list = [self._compute_x_bounds(df[x].values.compute())
+                       for x in self.x]
+        mins, maxes = zip(*bounds_list)
+        return self.maybe_expand_bounds((min(mins), max(maxes)))
+
+    @memoize
+    def compute_y_bounds_dask(self, df):
+        bounds_list = [self._compute_y_bounds(df[y].values.compute())
+                       for y in self.y]
+        mins, maxes = zip(*bounds_list)
+        return self.maybe_expand_bounds((min(mins), max(maxes)))
+
+    @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         draw_line = _build_draw_line(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
