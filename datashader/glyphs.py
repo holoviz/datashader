@@ -22,9 +22,9 @@ class _PointLike(Glyph):
         return (self.x, self.y)
 
     def validate(self, in_dshape):
-        if not isreal(in_dshape.measure[self.x]):
+        if not isreal(in_dshape.measure[str(self.x)]):
             raise ValueError('x must be real')
-        elif not isreal(in_dshape.measure[self.y]):
+        elif not isreal(in_dshape.measure[str(self.y)]):
             raise ValueError('y must be real')
 
     @property
@@ -127,7 +127,7 @@ class _PolygonLike(_PointLike):
 
     def validate(self, in_dshape):
         for col in [self.x, self.y] + list(self.z):
-            if not isreal(in_dshape.measure[col]):
+            if not isreal(in_dshape.measure[str(col)]):
                 raise ValueError('{} must be real'.format(col))
 
     def required_columns(self):
@@ -225,9 +225,9 @@ class LineAxis0Multi(_PointLike):
     """
 
     def validate(self, in_dshape):
-        if not all([isreal(in_dshape.measure[xcol]) for xcol in self.x]):
+        if not all([isreal(in_dshape.measure[str(xcol)]) for xcol in self.x]):
             raise ValueError('x columns must be real')
-        elif not all([isreal(in_dshape.measure[ycol]) for ycol in self.y]):
+        elif not all([isreal(in_dshape.measure[str(ycol)]) for ycol in self.y]):
             raise ValueError('y columns must be real')
 
     @property
