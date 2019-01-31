@@ -1,9 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
+from numbers import Number
+
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 from dask.array import Array
+from six import string_types
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
@@ -160,8 +163,9 @@ class Canvas(object):
             agg = count_rdn()
         return bypixel(source, self, Point(x, y), agg)
 
-    def line(self, source, x, y, agg=None):
-        """Compute a reduction by pixel, mapping data to pixels as a line.
+    def line(self, source, x, y, agg=None, axis=0):
+        """Compute a reduction by pixel, mapping data to pixels as one or
+        more lines.
 
         For aggregates that take in extra fields, the interpolated bins will
         receive the fields from the previous point. In pseudocode:
@@ -176,16 +180,117 @@ class Canvas(object):
         ----------
         source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
             The input datasource.
-        x, y : str
-            Column names for the x and y coordinates of each vertex.
+        x, y : str or number or list or tuple or np.ndarray
+            Specification of the x and y coordinates of each vertex
+            * str or number: Column labels in source
+            * list or tuple: List or tuple of column labels in source
+            * np.ndarray: When axis=1, a literal array of the
+              coordinates to be used for every row
         agg : Reduction, optional
             Reduction to compute. Default is ``any()``.
+        axis : 0 or 1, default 0
+            Axis in source to draw lines along
+            * 0: Draw lines using data from the specified columns across
+                 all rows in source
+            * 1: Draw one line per row in source using data from the
+                 specified columns
+
+        Examples
+        --------
+        Define a canvas and a pandas DataFrame with 6 rows
+        >>> import pandas as pd  # doctest: +SKIP
+        ... import numpy as np
+        ... from datashader import Canvas
+        ... import datashader.transfer_functions as tf
+        ... cvs = Canvas()
+        ... df = pd.DataFrame({
+        ...    'A1': [1, 1.5, 2, 2.5, 3, 4],
+        ...    'A2': [1.5, 2, 3, 3.2, 4, 5],
+        ...    'B1': [10, 12, 11, 14, 13, 15],
+        ...    'B2': [11, 9, 10, 7, 8, 12],
+        ... }, dtype='float64')
+
+        Aggregate one line across all rows, with coordinates df.A1 by df.B1
+        >>> agg = cvs.line(df, x='A1', y='B1', axis=0)  # doctest: +SKIP
+        ... tf.shade(agg)
+
+        Aggregate two lines across all rows. The first with coordinates
+        df.A1 by df.B1 and the second with coordinates df.A2 by df.B2
+        >>> agg = cvs.line(df, x=['A1', 'A2'], y=['B1', 'B2'], axis=0)  # doctest: +SKIP
+        ... tf.shade(agg)
+
+        Aggregate two lines across all rows where the lines share the same
+        x coordinates. The first line will have coordinates df.A1 by df.B1
+        and the second will have coordinates df.A1 by df.B2
+        >>> agg = cvs.line(df, x='A1', y=['B1', 'B2'], axis=0)  # doctest: +SKIP
+        ... tf.shade(agg)
+
+        Aggregate 6 length-2 lines, one per row, where the ith line has
+        coordinates [df.A1[i], df.A2[i]] by [df.B1[i], df.B2[i]]
+        >>> agg = cvs.line(df, x=['A1', 'A2'], y=['B1', 'B2'], axis=1)  # doctest: +SKIP
+        ... tf.shade(agg)
+
+        Aggregate 6 length-4 lines, one per row, where the x coordinates
+        of every line are [0, 1, 2, 3] and the y coordinates of the ith line
+        are [df.A1[i], df.A2[i], df.B1[i], df.B2[i]].
+        >>> agg = cvs.line(df,  # doctest: +SKIP
+        ...                x=np.arange(4),
+        ...                y=['A1', 'A2', 'B1', 'B2'],
+        ...                axis=1)
+        ... tf.shade(agg)
         """
-        from .glyphs import Line
+        from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
+                             LinesAxis1YConstant, LineAxis0Multi)
         from .reductions import any as any_rdn
         if agg is None:
             agg = any_rdn()
-        return bypixel(source, self, Line(x, y), agg)
+
+        if axis == 0:
+            if (isinstance(x, (Number, string_types)) and
+                    isinstance(y, (Number, string_types))):
+                glyph = LineAxis0(x, y)
+            elif (isinstance(x, (list, tuple)) and
+                    isinstance(y, (list, tuple))):
+                glyph = LineAxis0Multi(tuple(x), tuple(y))
+            elif (isinstance(x, (list, tuple)) and
+                    isinstance(y, (Number, string_types))):
+                glyph = LineAxis0Multi(tuple(x), (y,) * len(x))
+            elif (isinstance(x, (Number, string_types)) and
+                    isinstance(y, (list, tuple))):
+                glyph = LineAxis0Multi((x,) * len(y), tuple(y))
+            else:
+                raise ValueError("""
+Invalid combination of x and y arguments to Canvas.line when axis=0.
+    Received:
+        x: {x}
+        y: {y}
+See docstring for more information on valid usage""".format(
+                    x=repr(x), y=repr(y)))
+
+        elif axis == 1:
+            if isinstance(x, (list, tuple)) and isinstance(y, (list, tuple)):
+                glyph = LinesAxis1(tuple(x), tuple(y))
+            elif (isinstance(x, np.ndarray) and
+                  isinstance(y,  (list, tuple))):
+                glyph = LinesAxis1XConstant(x, tuple(y))
+            elif (isinstance(x, (list, tuple)) and
+                  isinstance(y, np.ndarray)):
+                glyph = LinesAxis1YConstant(tuple(x), y)
+            else:
+                raise ValueError("""
+Invalid combination of x and y arguments to Canvas.line when axis=1.
+    Received:
+        x: {x}
+        y: {y}
+See docstring for more information on valid usage""".format(
+                    x=repr(x), y=repr(y)))
+
+        else:
+            raise ValueError("""
+The axis argument to Canvas.line must be 0 or 1
+    Received: {axis}""".format(axis=axis))
+
+        return bypixel(source, self, glyph, agg)
 
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then
@@ -541,10 +646,9 @@ def bypixel(source, canvas, glyph, agg):
 
 def _cols_to_keep(columns, glyph, agg):
     cols_to_keep = OrderedDict({col: False for col in columns})
-    cols_to_keep[glyph.x] = True
-    cols_to_keep[glyph.y] = True
-    if hasattr(glyph, 'z'):
-        cols_to_keep[glyph.z[0]] = True
+    for col in glyph.required_columns():
+        cols_to_keep[col] = True
+
     if hasattr(agg, 'values'):
         for subagg in agg.values:
             if subagg.column is not None:

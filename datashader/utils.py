@@ -23,13 +23,30 @@ class Expr(object):
     defines that expression.
     """
     def __hash__(self):
-        return hash((type(self), self.inputs))
+        return hash((type(self), self._hashable_inputs()))
 
     def __eq__(self, other):
-        return type(self) is type(other) and self.inputs == other.inputs
+        return (type(self) is type(other) and
+                self._hashable_inputs() == other._hashable_inputs())
 
     def __ne__(self, other):
         return not self == other
+
+    def _hashable_inputs(self):
+        """
+        Return a version of the inputs tuple that is suitable for hashing and
+        equality comparisons
+        """
+        result = []
+        for ip in self.inputs:
+            if isinstance(ip, (list, set)):
+                result.append(tuple(ip))
+            elif isinstance(ip, np.ndarray):
+                result.append(ip.tobytes())
+            else:
+                result.append(ip)
+
+        return tuple(result)
 
 
 class Dispatcher(object):

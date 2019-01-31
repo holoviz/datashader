@@ -22,10 +22,29 @@ class _PointLike(Glyph):
         return (self.x, self.y)
 
     def validate(self, in_dshape):
-        if not isreal(in_dshape.measure[self.x]):
+        if not isreal(in_dshape.measure[str(self.x)]):
             raise ValueError('x must be real')
-        elif not isreal(in_dshape.measure[self.y]):
+        elif not isreal(in_dshape.measure[str(self.y)]):
             raise ValueError('y must be real')
+
+    @property
+    def x_label(self):
+        return self.x
+
+    @property
+    def y_label(self):
+        return self.y
+
+    def required_columns(self):
+        return [self.x, self.y]
+
+    def compute_x_bounds(self, df):
+        bounds = self._compute_x_bounds(df[self.x].values)
+        return self.maybe_expand_bounds(bounds)
+
+    def compute_y_bounds(self, df):
+        bounds = self._compute_y_bounds(df[self.y].values)
+        return self.maybe_expand_bounds(bounds)
 
     @staticmethod
     @ngjit
@@ -39,12 +58,6 @@ class _PointLike(Glyph):
                 if x > maxval:
                     maxval = x
 
-        if not (np.isfinite(minval) and np.isfinite(maxval)):
-            #print("No x values; defaulting to range -1,1")
-            minval, maxval = -1.0, 1.0
-        elif minval==maxval:
-            #print("No x range; defaulting to x-1,x+1")
-            minval, maxval = minval-1, minval+1
         return minval, maxval
 
     @staticmethod
@@ -59,46 +72,34 @@ class _PointLike(Glyph):
                 if y > maxval:
                     maxval = y
 
+        return minval, maxval
+
+    @staticmethod
+    def maybe_expand_bounds(bounds):
+        minval, maxval = bounds
         if not (np.isfinite(minval) and np.isfinite(maxval)):
-            #print("No y values; defaulting to range -1,1")
-            minval, maxval = -1, 1
-        elif minval==maxval:
-            #print("No y range; defaulting to y-1,y+1")
+            minval, maxval = -1.0, 1.0
+        elif minval == maxval:
             minval, maxval = minval-1, minval+1
         return minval, maxval
 
     @memoize
-    def _compute_x_bounds_dask(self, df):
+    def compute_x_bounds_dask(self, df):
         """Like ``PointLike._compute_x_bounds``, but memoized because
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         xs = df[self.x].values
         minval, maxval = np.nanmin(xs), np.nanmax(xs)
-        
-        if minval == np.nan and maxval == np.nan:
-            #print("No x values; defaulting to range -1,1")
-            minval, maxval = -1,1
-        elif minval==maxval:
-            #print("No x range; defaulting to x-1,x+1")
-            minval, maxval = minval-1, minval+1
-        return minval, maxval
-        
+        return self.maybe_expand_bounds((minval, maxval))
 
     @memoize
-    def _compute_y_bounds_dask(self, df):
+    def compute_y_bounds_dask(self, df):
         """Like ``PointLike._compute_y_bounds``, but memoized because
         ``df`` is immutable/hashable (a Dask dataframe).
         """
         ys = df[self.y].values
         minval, maxval = np.nanmin(ys), np.nanmax(ys)
-        
-        if minval == np.nan and maxval == np.nan:
-            #print("No y values; defaulting to range -1,1")
-            minval, maxval = -1,1
-        elif minval==maxval:
-            #print("No y range; defaulting to y-1,y+1")
-            minval, maxval = minval-1, minval+1
-        return minval, maxval
+        return self.maybe_expand_bounds((minval, maxval))
 
 
 
@@ -126,8 +127,21 @@ class _PolygonLike(_PointLike):
 
     def validate(self, in_dshape):
         for col in [self.x, self.y] + list(self.z):
-            if not isreal(in_dshape.measure[col]):
+            if not isreal(in_dshape.measure[str(col)]):
                 raise ValueError('{} must be real'.format(col))
+
+    def required_columns(self):
+        return [self.x, self.y] + list(self.z)
+
+    def compute_x_bounds(self, df):
+        xs = df[self.x].values
+        bounds = self._compute_x_bounds(xs.reshape(np.prod(xs.shape)))
+        return self.maybe_expand_bounds(bounds)
+
+    def compute_y_bounds(self, df):
+        ys = df[self.y].values
+        bounds = self._compute_y_bounds(ys.reshape(np.prod(ys.shape)))
+        return self.maybe_expand_bounds(bounds)
 
 
 class Point(_PointLike):
@@ -180,7 +194,7 @@ class Point(_PointLike):
         return extend
 
 
-class Line(_PointLike):
+class LineAxis0(_PointLike):
     """A line, with vertices defined by ``x`` and ``y``.
 
     Parameters
@@ -192,7 +206,7 @@ class Line(_PointLike):
     def _build_extend(self, x_mapper, y_mapper, info, append):
         draw_line = _build_draw_line(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_line = _build_extend_line(draw_line, map_onto_pixel)
+        extend_line = _build_extend_line_axis0(draw_line, map_onto_pixel)
         x_name = self.x
         y_name = self.y
 
@@ -202,6 +216,255 @@ class Line(_PointLike):
             cols = aggs + info(df)
             # line may be clipped, then mapped to pixels
             extend_line(vt, bounds, xs, ys, plot_start, *cols)
+
+        return extend
+
+
+class LineAxis0Multi(_PointLike):
+    """
+    """
+
+    def validate(self, in_dshape):
+        if not all([isreal(in_dshape.measure[str(xcol)]) for xcol in self.x]):
+            raise ValueError('x columns must be real')
+        elif not all([isreal(in_dshape.measure[str(ycol)]) for ycol in self.y]):
+            raise ValueError('y columns must be real')
+
+    @property
+    def x_label(self):
+        return 'x'
+
+    @property
+    def y_label(self):
+        return 'y'
+
+    def required_columns(self):
+        return self.x + self.y
+
+    def compute_x_bounds(self, df):
+        bounds_list = [self._compute_x_bounds(df[x].values)
+                       for x in self.x]
+        mins, maxes = zip(*bounds_list)
+        return self.maybe_expand_bounds((min(mins), max(maxes)))
+
+    def compute_y_bounds(self, df):
+        bounds_list = [self._compute_y_bounds(df[y].values)
+                       for y in self.y]
+        mins, maxes = zip(*bounds_list)
+        return self.maybe_expand_bounds((min(mins), max(maxes)))
+
+    @memoize
+    def compute_x_bounds_dask(self, df):
+        bounds_list = [self._compute_x_bounds(df[x].values.compute())
+                       for x in self.x]
+        mins, maxes = zip(*bounds_list)
+        return self.maybe_expand_bounds((min(mins), max(maxes)))
+
+    @memoize
+    def compute_y_bounds_dask(self, df):
+        bounds_list = [self._compute_y_bounds(df[y].values.compute())
+                       for y in self.y]
+        mins, maxes = zip(*bounds_list)
+        return self.maybe_expand_bounds((min(mins), max(maxes)))
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        draw_line = _build_draw_line(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        extend_line = _build_extend_line_axis0_multi(draw_line, map_onto_pixel)
+        x_names = self.x
+        y_names = self.y
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            xs = tuple(df[x_name].values for x_name in x_names)
+            ys = tuple(df[y_name].values for y_name in y_names)
+
+            cols = aggs + info(df)
+            # line may be clipped, then mapped to pixels
+            extend_line(vt, bounds, xs, ys, plot_start, *cols)
+
+        return extend
+
+
+class LinesAxis1(_PointLike):
+    """A collection of lines (on line per row) with vertices defined
+    by the lists of columns in ``x`` and ``y``
+
+    Parameters
+    ----------
+    x, y : list
+        Lists of column names for the x and y coordinates
+    """
+
+    def validate(self, in_dshape):
+        if not all([isreal(in_dshape.measure[str(xcol)])
+                    for xcol in self.x]):
+            raise ValueError('x columns must be real')
+        elif not all([isreal(in_dshape.measure[str(ycol)])
+                      for ycol in self.y]):
+            raise ValueError('y columns must be real')
+
+        unique_x_measures = set(in_dshape.measure[str(xcol)]
+                                for xcol in self.x)
+        if len(unique_x_measures) > 1:
+            raise ValueError('x columns must have the same data type')
+
+        unique_y_measures = set(in_dshape.measure[str(ycol)]
+                                for ycol in self.y)
+        if len(unique_y_measures) > 1:
+            raise ValueError('y columns must have the same data type')
+
+
+    def required_columns(self):
+        return self.x + self.y
+
+    @property
+    def x_label(self):
+        return 'x'
+
+    @property
+    def y_label(self):
+        return 'y'
+
+    def compute_x_bounds(self, df):
+        xs = tuple(df[xlabel] for xlabel in self.x)
+
+        bounds_list = [self._compute_x_bounds(xcol.values) for xcol in xs]
+        mins, maxes = zip(*bounds_list)
+
+        return self.maybe_expand_bounds((min(mins), max(maxes)))
+
+    def compute_y_bounds(self, df):
+        ys = tuple(df[ylabel] for ylabel in self.y)
+
+        bounds_list = [self._compute_y_bounds(ycol.values) for ycol in ys]
+        mins, maxes = zip(*bounds_list)
+
+        return self.maybe_expand_bounds((min(mins), max(maxes)))
+
+    @memoize
+    def compute_x_bounds_dask(self, df):
+        """Like ``PointLike.compute_x_bounds``, but memoized because
+        ``df`` is immutable/hashable (a Dask dataframe).
+        """
+        x_mins = [np.nanmin(df[xlabel].values) for xlabel in self.x]
+        x_maxes = [np.nanmax(df[xlabel].values) for xlabel in self.x]
+
+        minval, maxval = np.nanmin(x_mins), np.nanmax(x_maxes)
+
+        return self.maybe_expand_bounds((minval, maxval))
+
+    @memoize
+    def compute_y_bounds_dask(self, df):
+        """Like ``PointLike.compute_x_bounds``, but memoized because
+        ``df`` is immutable/hashable (a Dask dataframe).
+        """
+        y_mins = [np.nanmin(df[ylabel].values) for ylabel in self.y]
+        y_maxes = [np.nanmax(df[ylabel].values) for ylabel in self.y]
+
+        minval, maxval = np.nanmin(y_mins), np.nanmax(y_maxes)
+
+        return self.maybe_expand_bounds((minval, maxval))
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        draw_line = _build_draw_line(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        extend_lines_xy = _build_extend_line_axis1_none_constant(draw_line, map_onto_pixel)
+        x_names = self.x
+        y_names = self.y
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            xs = tuple(df[x_name].values for x_name in x_names)
+            ys = tuple(df[y_name].values for y_name in y_names)
+
+            cols = aggs + info(df)
+            # line may be clipped, then mapped to pixels
+            extend_lines_xy(vt, bounds, xs, ys, plot_start, *cols)
+
+        return extend
+
+
+class LinesAxis1XConstant(LinesAxis1):
+    """
+    """
+    def validate(self, in_dshape):
+        if not all([isreal(in_dshape.measure[str(ycol)]) for ycol in self.y]):
+            raise ValueError('y columns must be real')
+
+        unique_y_measures = set(in_dshape.measure[str(ycol)]
+                                for ycol in self.y)
+        if len(unique_y_measures) > 1:
+            raise ValueError('y columns must have the same data type')
+
+    def required_columns(self):
+        return self.y
+
+    def compute_x_bounds(self, *args):
+        x_min = np.nanmin(self.x)
+        x_max = np.nanmax(self.x)
+        return self.maybe_expand_bounds((x_min, x_max))
+
+    def compute_x_bounds_dask(self, df):
+        return self.compute_x_bounds()
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        draw_line = _build_draw_line(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        extend_lines = _build_extend_line_axis1_x_constant(draw_line, map_onto_pixel)
+
+        x_values = self.x
+        y_names = self.y
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            ys = tuple(df[y_name].values for y_name in y_names)
+
+            cols = aggs + info(df)
+            # line may be clipped, then mapped to pixels
+            extend_lines(vt, bounds, x_values, ys, plot_start, *cols)
+
+        return extend
+
+
+class LinesAxis1YConstant(LinesAxis1):
+    """
+    """
+    def validate(self, in_dshape):
+        if not all([isreal(in_dshape.measure[str(xcol)]) for xcol in self.x]):
+            raise ValueError('x columns must be real')
+
+        unique_x_measures = set(in_dshape.measure[str(xcol)]
+                                for xcol in self.x)
+        if len(unique_x_measures) > 1:
+            raise ValueError('x columns must have the same data type')
+
+    def required_columns(self):
+        return self.x
+
+    def compute_y_bounds(self, *args):
+        y_min = np.nanmin(self.y)
+        y_max = np.nanmax(self.y)
+        return self.maybe_expand_bounds((y_min, y_max))
+
+    def compute_y_bounds_dask(self, df):
+        return self.compute_y_bounds()
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        draw_line = _build_draw_line(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        extend_lines = _build_extend_line_axis1_y_constant(draw_line, map_onto_pixel)
+
+        x_names = self.x
+        y_values = self.y
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            xs = tuple(df[x_name].values for x_name in x_names)
+
+            cols = aggs + info(df)
+            # line may be clipped, then mapped to pixels
+            extend_lines(vt, bounds, xs, y_values, plot_start, *cols)
 
         return extend
 
@@ -219,8 +482,10 @@ class Triangles(_PolygonLike):
         draw_triangle, draw_triangle_interp = _build_draw_triangle(append)
         map_onto_pixel = _build_map_onto_pixel_for_triangle(x_mapper, y_mapper)
         extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
+        weight_type = self.weight_type
+        interpolate = self.interpolate
 
-        def extend(aggs, df, vt, bounds, weight_type=True, interpolate=True):
+        def extend(aggs, df, vt, bounds, plot_start=True):
             cols = info(df)
             assert cols, 'There must be at least one column on which to aggregate'
             # mapped to pixels, then may be clipped
@@ -341,40 +606,93 @@ def _build_draw_line(append):
     return draw_line
 
 
-def _build_extend_line(draw_line, map_onto_pixel):
-    @ngjit
-    def outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
-        if x0 < xmin and x1 < xmin:
-            return True
-        if x0 > xmax and x1 > xmax:
-            return True
-        if y0 < ymin and y1 < ymin:
-            return True
-        return y0 > ymax and y1 > ymax
+@ngjit
+def _outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
+    if x0 < xmin and x1 < xmin:
+        return True
+    if x0 > xmax and x1 > xmax:
+        return True
+    if y0 < ymin and y1 < ymin:
+        return True
+    return y0 > ymax and y1 > ymax
 
-    @ngjit
-    def clipt(p, q, t0, t1):
-        accept = True
-        if p < 0 and q < 0:
-            r = q / p
-            if r > t1:
-                accept = False
-            elif r > t0:
-                t0 = r
-        elif p > 0 and q < p:
-            r = q / p
-            if r < t0:
-                accept = False
-            elif r < t1:
-                t1 = r
-        elif q < 0:
+
+@ngjit
+def _clipt(p, q, t0, t1):
+    accept = True
+    if p < 0 and q < 0:
+        r = q / p
+        if r > t1:
             accept = False
-        return t0, t1, accept
+        elif r > t0:
+            t0 = r
+    elif p > 0 and q < p:
+        r = q / p
+        if r < t0:
+            accept = False
+        elif r < t1:
+            t1 = r
+    elif q < 0:
+        accept = False
+    return t0, t1, accept
 
+
+@ngjit
+def _skip_or_clip(x0, x1, y0, y1, bounds, plot_start):
+    xmin, xmax, ymin, ymax = bounds
+    skip = False
+
+    # If any of the coordinates are NaN, there's a discontinuity.
+    # Skip the entire segment.
+    if np.isnan(x0) or np.isnan(y0) or np.isnan(x1) or np.isnan(
+            y1):
+        plot_start = True
+        skip = True
+
+    # Use Liang-Barsky (1992) to clip the segment to a bounding box
+    if _outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
+        plot_start = True
+        skip = True
+
+    clipped = False
+    t0, t1 = 0, 1
+    dx = x1 - x0
+    t0, t1, accept = _clipt(-dx, x0 - xmin, t0, t1)
+    if not accept:
+        skip = True
+
+    t0, t1, accept = _clipt(dx, xmax - x0, t0, t1)
+    if not accept:
+        skip = True
+
+    dy = y1 - y0
+    t0, t1, accept = _clipt(-dy, y0 - ymin, t0, t1)
+    if not accept:
+        skip = True
+
+    t0, t1, accept = _clipt(dy, ymax - y0, t0, t1)
+    if not accept:
+        skip = True
+
+    if t1 < 1:
+        clipped = True
+        x1 = x0 + t1 * dx
+        y1 = y0 + t1 * dy
+
+    if t0 > 0:
+        # If x0 is clipped, we need to plot the new start
+        clipped = True
+        plot_start = True
+        x0 = x0 + t0 * dx
+        y0 = y0 + t0 * dy
+
+    return x0, x1, y0, y1, skip, clipped, plot_start
+
+
+def _build_extend_line_axis0(draw_line, map_onto_pixel):
     @ngjit
     def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
-        xmin, xmax, ymin, ymax = bounds
         nrows = xs.shape[0]
         i = 0
         while i < nrows - 1:
@@ -383,62 +701,148 @@ def _build_extend_line(draw_line, map_onto_pixel):
             x1 = xs[i + 1]
             y1 = ys[i + 1]
 
-            # If any of the coordinates are NaN, there's a discontinuity. Skip
-            # the entire segment.
-            if np.isnan(x0) or np.isnan(y0) or np.isnan(x1) or np.isnan(y1):
-                plot_start = True
+            x0, x1, y0, y1, skip, clipped, plot_start = \
+                _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+
+            if not skip:
+                x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+                x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped, *aggs_and_cols)
+                plot_start = False
+            i += 1
+
+    return extend_line
+
+
+def _build_extend_line_axis0_multi(draw_line, map_onto_pixel):
+    @ngjit
+    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+        """Aggregate along a line formed by ``xs`` and ``ys``"""
+        nrows = xs[0].shape[0]
+        ncols = len(xs)
+        orig_plot_start = plot_start
+
+        j = 0
+        while j < ncols:
+            plot_start = orig_plot_start
+            i = 0
+            while i < nrows - 1:
+                x0 = xs[j][i]
+                y0 = ys[j][i]
+                x1 = xs[j][i + 1]
+                y1 = ys[j][i + 1]
+
+                x0, x1, y0, y1, skip, clipped, plot_start = \
+                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+
+                if not skip:
+                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                    draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped, *aggs_and_cols)
+                    plot_start = False
                 i += 1
-                continue
+            j += 1
 
-            # Use Liang-Barsky (1992) to clip the segment to a bounding box
-            if outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
-                plot_start = True
-                i += 1
-                continue
+    return extend_line
 
-            clipped = False
 
-            t0, t1 = 0, 1
-            dx = x1 - x0
+def _build_extend_line_axis1_none_constant(draw_line, map_onto_pixel):
+    @ngjit
+    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+        """
+        here xs and ys are tuples of arrays and non-empty
+        """
+        nrows = xs[0].shape[0]
+        ncols = len(xs)
 
-            t0, t1, accept = clipt(-dx, x0 - xmin, t0, t1)
-            if not accept:
-                i += 1
-                continue
+        i = 0
+        while i < nrows:
+            plot_start = True
+            j = 0
+            while j < ncols - 1:
+                x0 = xs[j][i]
+                y0 = ys[j][i]
+                x1 = xs[j + 1][i]
+                y1 = ys[j + 1][i]
 
-            t0, t1, accept = clipt(dx, xmax - x0, t0, t1)
-            if not accept:
-                i += 1
-                continue
+                x0, x1, y0, y1, skip, clipped, plot_start = \
+                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
 
-            dy = y1 - y0
+                if not skip:
+                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                    draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
+                              *aggs_and_cols)
+                    plot_start = False
+                j += 1
+            i += 1
 
-            t0, t1, accept = clipt(-dy, y0 - ymin, t0, t1)
-            if not accept:
-                i += 1
-                continue
+    return extend_line
 
-            t0, t1, accept = clipt(dy, ymax - y0, t0, t1)
-            if not accept:
-                i += 1
-                continue
 
-            if t1 < 1:
-                clipped = True
-                x1 = x0 + t1 * dx
-                y1 = y0 + t1 * dy
+def _build_extend_line_axis1_x_constant(draw_line, map_onto_pixel):
+    @ngjit
+    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+        """
+        here xs and ys are tuples of arrays and non-empty
+        """
+        nrows = ys[0].shape[0]
+        ncols = len(ys)
 
-            if t0 > 0:
-                # If x0 is clipped, we need to plot the new start
-                clipped = True
-                plot_start = True
-                x0 = x0 + t0 * dx
-                y0 = y0 + t0 * dy
+        i = 0
+        while i < nrows:
+            plot_start = True
+            j = 0
+            while j < ncols - 1:
+                x0 = xs[j]
+                y0 = ys[j][i]
+                x1 = xs[j+1]
+                y1 = ys[j+1][i]
 
-            x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-            x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
-            draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped, *aggs_and_cols)
-            plot_start = False
+                x0, x1, y0, y1, skip, clipped, plot_start = \
+                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+
+                if not skip:
+                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                    draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
+                              *aggs_and_cols)
+                    plot_start = False
+                j += 1
+            i += 1
+
+    return extend_line
+
+
+def _build_extend_line_axis1_y_constant(draw_line, map_onto_pixel):
+    @ngjit
+    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+        """
+        here xs and ys are tuples of arrays and non-empty
+        """
+        nrows = xs[0].shape[0]
+        ncols = len(xs)
+
+        i = 0
+        while i < nrows:
+            plot_start = True
+            j = 0
+            while j < ncols - 1:
+                x0 = xs[j][i]
+                y0 = ys[j]
+                x1 = xs[j + 1][i]
+                y1 = ys[j + 1]
+
+                x0, x1, y0, y1, skip, clipped, plot_start = \
+                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+
+                if not skip:
+                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                    draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
+                              *aggs_and_cols)
+                    plot_start = False
+                j += 1
             i += 1
 
     return extend_line
