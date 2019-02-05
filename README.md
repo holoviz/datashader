@@ -5,6 +5,13 @@ Datashader
 [![Windows build status](https://ci.appveyor.com/api/projects/status/uc7atn5y35ay38eb/branch/master?svg=true)](https://ci.appveyor.com/project/pyviz/datashader/branch/master)
 [![Task Status](https://badge.waffle.io/pyviz/datashader.png?label=ready&title=tasks)](https://waffle.io/pyviz/datashader)
 
+[![Github tag](https://img.shields.io/github/tag/pyviz/datashader.svg?colorB=bbcc00)](https://github.com/pyviz/datashader/tags)
+[![PyPI version](https://img.shields.io/pypi/v/datashader.svg?colorB=44aaff)](https://pypi.python.org/pypi/datashader)
+[![Pyviz version](https://img.shields.io/conda/v/pyviz/datashader.svg?colorB=00ccbb&style=flat)](https://anaconda.org/pyviz/datashader)
+[![conda-forge version](https://img.shields.io/conda/v/conda-forge/datashader.svg?label=conda%7Cconda-forge&colorB=aa77dd)](https://anaconda.org/conda-forge/datashader)
+[![defaults version](https://img.shields.io/conda/v/anaconda/datashader.svg?label=conda%7Cdefaults&style=flat)](https://anaconda.org/anaconda/datashader)
+
+
 
 Datashader is a data rasterization pipeline for automating the process of
 creating meaningful representations of large amounts of data. Datashader
