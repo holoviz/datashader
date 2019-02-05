@@ -77,7 +77,7 @@ extras_require = {
 }
 
 extras_require['doc'] = extras_require['examples_extra'] + [
-    'nbsite >=0.4.4',
+    'nbsite >=0.5.2',
     'sphinx_ioam_theme',
     'numpydoc'
 ]
@@ -93,7 +93,7 @@ setup_args = dict(
     version=param.version.get_setup_version(__file__,"datashader",archive_commit="$Format:%h$"),
     description='Data visualization toolchain based on aggregating into a grid',
     long_description=open("README.md").read(),
-    long_description_content_type="text/markdown",    
+    long_description_content_type="text/markdown",
     url='http://datashader.org',
     maintainer='Datashader developers',
     maintainer_email='dev@datashader.org',
@@ -108,7 +108,7 @@ setup_args = dict(
         'console_scripts': [
             'datashader = datashader.__main__:main'
         ]
-    },   
+    },
 )
 
 if __name__ == '__main__':
