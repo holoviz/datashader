@@ -1,8 +1,6 @@
 name: ds
 channels:
- - bokeh
  - conda-forge
- - ioam
 
 dependencies:
  - attrs
@@ -21,7 +19,7 @@ dependencies:
  - fastparquet
  - flake8
  - geoviews
- - ioam::holoviews>=1.8.3
+ - pyviz/label/dev::holoviews>=1.11.2
  - ipython
  - iris
  - jupyter

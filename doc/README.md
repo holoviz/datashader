@@ -7,7 +7,6 @@ $ conda install -c pyviz/label/dev pyctdev # if you don't already have pyctdev
 $ doit env_create -c pyviz/label/dev -c conda-forge --python=3.6 --name=dsdocs
 $ conda activate dsdocs
 $ doit develop_install -c pyviz/label/dev -c defaults -c conda-forge -o doc
-$ datashader fetch-data --path=examples
 ```
 
 WARNING: when you run `develop_install` above, which uses python/pip
@@ -20,18 +19,17 @@ https://github.com/pyviz/pyct/issues/22)
 
 (optional) Building the docs does not check the notebooks run without errors (you have to watch out for tracebacks flying by). Building the docs also runs the notebooks with modifications (e.g. setting backend options). If you want to be sure all the notebooks run normally without exception, execute `doit test_examples_extra`. (Requires running the notebooks twice; this is future work for nbsite.)
 
-Build the docs (note: it's future pyctdev/nbsite work to make this simpler):
+**TODO:** At this time (2019-02-05) thumb-nailing is being done by hand.
 
-1. Generate rst containers for notebooks:
-   `nbsite generate-rst --org pyviz --project-name datashader --repo datashader`
+Build the docs:
 
-2. Build site:
-   `nbsite build --what=html --output=builtdocs`
+1. Build site: `doit build_website`
 
-3. Inspect result: `pushd builtdocs && python -m http.server && popd`
+2. Inspect result: `cd builtdocs && python -m http.server` then `open http://0.0.0.0:8000`
 
-4. Edit notebooks as desired and repeat steps 1-3 as required. Unedited notebooks will not be re-run.
+3. Edit notebooks as desired and repeat steps 1 and 2 as required. Unedited notebooks will not be re-run.
 
-5. Clean up for deployment: `nbsite_cleandisthtml.py builtdocs take_a_chance`
+4. Deploy to S3 bucket: `doit release_website` - note this can also be done using the AWS UI, just be sure to make it public
 
-6. Deploy to S3 bucket: `pushd builtdocs && aws s3 sync --delete --acl public-read . s3://datashader.org && popd`
+**NOTE:** To see what is going on behind the scenes with these doit commands, inspect dodo.py.
+It is recommended that if you do something different, you edit the command in that file.
