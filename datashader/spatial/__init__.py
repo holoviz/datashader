@@ -152,7 +152,7 @@ class SpatialPointsFrame(object):
 
     Then, construct a SpatialPointsFrame and use it to extract
     subsets of the original dataframe based on x/y range extents.
-    >>> sframe = SpatialPointsFrame(filename, persist=True)
+    >>> sframe = SpatialPointsFrame(filename, persist=True)  # doctest: +SKIP
     ...
     ... def create_image(x_range, y_range):
     ...     cvs = ds.Canvas(x_range=x_range, y_range=y_range)
