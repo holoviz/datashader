@@ -35,6 +35,7 @@ extras_require = {
         'pytest-benchmark ==3.0.0',
         'flake8',
         'nbsmoke >=0.2.6',
+        'fastparquet >=0.2.1',  # optional dependency
     ],
     'examples': [],
     'examples_extra':[
