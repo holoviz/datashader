@@ -525,7 +525,7 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         -------
         x_bin_edges: np.ndarray
         """
-        return np.linspace(*self.x_range, self._side_length + 1)
+        return np.linspace(*self.x_range, num=self._side_length + 1)
 
     @property
     def y_bin_edges(self):
@@ -537,7 +537,7 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         -------
         y_bin_edges: np.ndarray
         """
-        return np.linspace(*self.y_range, self._side_length + 1)
+        return np.linspace(*self.y_range, num=self._side_length + 1)
 
     @property
     def distance_divisions(self):
