@@ -2,11 +2,14 @@ from __future__ import absolute_import
 from datashader.utils import ngjit
 from numba import jit, vectorize, int64
 import numpy as np
+import os
 
 """
 Initially based on https://github.com/galtay/hilbert_curve, but specialized
 for 2 dimensions with numba acceleration
 """
+
+NUMBA_DISABLE_JIT = os.environ.get('NUMBA_DISABLE_JIT', 0)
 
 
 @ngjit
@@ -51,7 +54,7 @@ def _hilbert_integer_to_transpose(p, h):
     return x
 
 
-@jit([int64(int64, int64, int64)], nopython=True)
+@ngjit
 def _transpose_to_hilbert_integer(p, x, y):
     """Restore a hilbert integer (`h`) from its transpose (`x`).
 
@@ -115,7 +118,13 @@ def coordinates_from_distance(p, h):
     return x
 
 
-@vectorize([int64(int64, int64, int64)], nopython=True)
+if NUMBA_DISABLE_JIT:
+    vect = np.vectorize
+else:
+    vect = vectorize([int64(int64, int64, int64)], nopython=True)
+
+
+@vect
 def distance_from_coordinates(p, x, y):
     """Return the hilbert distance for a given set of coordinates.
 

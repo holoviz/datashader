@@ -51,7 +51,7 @@ def _data2coord(vals, val_range, side_length):
             ).astype(np.int64).clip(0, side_length - 1)
 
 
-def _compute_distance(df, x, y, p, x_range, y_range):
+def _compute_distance(df, x, y, p, x_range, y_range, as_series=False):
     """
     Compute an array of Hilbert distances from a pandas dataframe
 
@@ -71,6 +71,8 @@ def _compute_distance(df, x, y, p, x_range, y_range):
     y_range: tuple
         Start (y_range[0]) and stop (y_range[1]) range of Hilbert y
         scale in data coordinates
+    as_series: bool (default False)
+        Whether to return results as a pandas series with index matching df
 
     Returns
     -------
@@ -80,7 +82,10 @@ def _compute_distance(df, x, y, p, x_range, y_range):
     side_length = 2 ** p
     x_coords = _data2coord(df[x], x_range, side_length)
     y_coords = _data2coord(df[y], y_range, side_length)
-    return hc.distance_from_coordinates(p, x_coords, y_coords)
+    res = hc.distance_from_coordinates(p, x_coords, y_coords)
+    if as_series:
+        res = pd.Series(res, index=df.index)
+    return res
 
 
 def _compute_extents(df, x, y):
@@ -266,7 +271,7 @@ Received value of type {typ}""".format(typ=type(df)))
         # Compute distance of points along the Hilbert-curve
         ddf = ddf.assign(distance=ddf.map_partitions(
             _compute_distance, x=x, y=y, p=p,
-            x_range=x_range, y_range=y_range))
+            x_range=x_range, y_range=y_range, as_series=True))
 
         # Set index to distance. This will trigger an expensive shuffle
         # sort operation
