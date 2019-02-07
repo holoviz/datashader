@@ -29,6 +29,8 @@ def df():
 @pytest.fixture()
 def s_points_frame(tmp_path, df):
 
+    # Work around https://bugs.python.org/issue33617
+    tmp_path = str(tmp_path)
     p = 5
     filename = os.path.join(tmp_path, 'spatial_points.parquet')
 
@@ -100,6 +102,8 @@ def test_query_partitions(s_points_frame, x_range, y_range):
 
 
 def test_validate_parquet_file(df, tmp_path):
+    # Work around https://bugs.python.org/issue33617
+    tmp_path = str(tmp_path)
 
     # Write DataFrame to parquet
     filename = os.path.join(tmp_path, 'df.parquet')
