@@ -228,9 +228,10 @@ class SpatialPointsFrame(object):
 
         # Validate filename
         if (not isinstance(filename, basestring) or
-                not filename.endswith('.parquet')):
-            raise ValueError(
-                'filename must be a string ending with a .parquet extension')
+                not (filename.endswith('.parquet') or
+                     filename.endswith('.parq'))):
+            raise ValueError("""\
+'filename must be a string ending with a .parquet or .parq extension""")
 
         # Remove any existing directory
         if os.path.exists(filename):
