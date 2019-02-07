@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from datashader.utils import ngjit
 from numba import jit, vectorize, int64
 import numpy as np
 
@@ -7,7 +9,7 @@ for 2 dimensions with numba acceleration
 """
 
 
-@jit(nopython=True)
+@ngjit
 def _int_2_binary(n, width):
     """Return a binary byte array representation of `n` zero padded to `width`
     bits."""
@@ -19,7 +21,7 @@ def _int_2_binary(n, width):
     return res
 
 
-@jit(nopython=True)
+@ngjit
 def _binary_2_int(bin_vec):
     """Convert a binary byte array to an integer"""
     res = 0
@@ -31,7 +33,7 @@ def _binary_2_int(bin_vec):
     return res
 
 
-@jit(nopython=True)
+@ngjit
 def _hilbert_integer_to_transpose(p, h):
     """Store a hilbert integer (`h`) as its transpose (`x`).
 
@@ -72,7 +74,7 @@ def _transpose_to_hilbert_integer(p, x, y):
     return h
 
 
-@jit(nopython=True)
+@ngjit
 def coordinates_from_distance(p, h):
     """Return the coordinates for a given hilbert distance.
 
