@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 
+from datashader.utils import ngjit
 from datashader.spatial import hilbert_curve as hc
 try:
     import fastparquet as fp
@@ -310,65 +311,6 @@ Received value of type {typ}""".format(typ=type(df)))
         fn = os.path.join(filename, '_common_metadata')
         fp.writer.write_common_metadata(fn, new_fmd)
 
-    @staticmethod
-    def _build_distance_grid(p):
-        """
-        Build a (2 ** p) x (2 ** p) array containing the Hilbert distance of
-        each discrete location in the grid
-
-        Parameters
-        ----------
-        p: int
-            Hilbert curve order
-
-        Returns
-        -------
-        np.ndarray
-            2D array containing the Hilbert curve distances for a curve with
-            order p
-        """
-        side_length = 2 ** p
-        distance_grid = np.zeros([side_length] * 2, dtype='int')
-        for i in range(side_length):
-            for j in range(side_length):
-                distance_grid[i, j] = (
-                    hc.distance_from_coordinates(p, i, j))
-        return distance_grid
-
-    @staticmethod
-    def _build_partition_grid(dask_divisions, p):
-        """
-        Build a (2 ** p) x (2 ** p) array containing the partition number
-        of each discrete location in the grid
-
-        Parameters
-        ----------
-        dask_divisions: list of int
-            Hilbert distance divisions for the parquet file
-        p: int
-            Hilbert curve order
-
-        Returns
-        -------
-        np.ndarray
-            2D array containing the Hilbert distance partitions for a curve
-            with order p
-        """
-        distance_grid = SpatialPointsFrame._build_distance_grid(p)
-        search_divisions = np.array(
-            list(dask_divisions[1:-1]))
-
-        side_length = 2 ** p
-        partition_grid = np.zeros([side_length] * 2, dtype='int')
-        for i in range(side_length):
-            for j in range(side_length):
-                partition_grid[i, j] = np.searchsorted(
-                    search_divisions,
-                    distance_grid[i, j],
-                    sorter=None,
-                    side='right')
-        return partition_grid
-
     def __init__(self, filename, persist=False):
         """
         Construct a SpatialPointsFrame from a spatially partitioned parquet
@@ -408,7 +350,7 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         self._npartitions = len(self._distance_divisions) - 1
 
         # Compute grids
-        self._partition_grid = SpatialPointsFrame._build_partition_grid(
+        self._partition_grid = _build_partition_grid(
             self._distance_divisions, self._p)
 
         # Compute derived properties
@@ -619,3 +561,63 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         int
         """
         return self._npartitions
+
+
+@ngjit
+def _build_distance_grid(p):
+    """
+    Build a (2 ** p) x (2 ** p) array containing the Hilbert distance of
+    each discrete location in the grid
+
+    Parameters
+    ----------
+    p: int
+        Hilbert curve order
+
+    Returns
+    -------
+    np.ndarray
+        2D array containing the Hilbert curve distances for a curve with
+        order p
+    """
+    side_length = int(2 ** p)
+    distance_grid = np.zeros((side_length, side_length), dtype=np.int64)
+    for i in range(side_length):
+        for j in range(side_length):
+            distance_grid[i, j] = (
+                hc.distance_from_coordinates(p, i, j))
+    return distance_grid
+
+
+@ngjit
+def _build_partition_grid(dask_divisions, p):
+    """
+    Build a (2 ** p) x (2 ** p) array containing the partition number
+    of each discrete location in the grid
+
+    Parameters
+    ----------
+    dask_divisions: list of int
+        Hilbert distance divisions for the parquet file
+    p: int
+        Hilbert curve order
+
+    Returns
+    -------
+    np.ndarray
+        2D array containing the Hilbert distance partitions for a curve
+        with order p
+    """
+    distance_grid = _build_distance_grid(p)
+    search_divisions = np.array(
+        list(dask_divisions[1:-1]))
+
+    side_length = 2 ** p
+    partition_grid = np.zeros((side_length, side_length), dtype=np.int64)
+    for i in range(side_length):
+        for j in range(side_length):
+            partition_grid[i, j] = np.searchsorted(
+                search_divisions,
+                distance_grid[i, j],
+                side='right')
+    return partition_grid
