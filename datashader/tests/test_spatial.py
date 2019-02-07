@@ -2,7 +2,7 @@ import os
 import pytest
 import numpy as np
 import pandas as pd
-
+import dask.dataframe as dd
 from datashader.spatial import SpatialPointsFrame
 
 
@@ -103,7 +103,8 @@ def test_validate_parquet_file(df, tmp_path):
 
     # Write DataFrame to parquet
     filename = os.path.join(tmp_path, 'df.parquet')
-    df.to_parquet(filename, engine='fastparquet')
+    ddf = dd.from_pandas(df, npartitions=4)
+    ddf.to_parquet(filename, engine='fastparquet')
 
     # Try to construct a SpatialPointsFrame from it
     with pytest.raises(ValueError) as e:
