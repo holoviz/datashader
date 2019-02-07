@@ -145,7 +145,7 @@ def eq_hist(data, mask=None, nbins=256*256):
     if not isinstance(data, np.ndarray):
         raise TypeError("data must be np.ndarray")
     data2 = data if mask is None else data[~mask]
-    if np.issubdtype(data2.dtype, np.integer):
+    if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
         hist = np.bincount(data2.ravel())
         bin_centers = np.arange(len(hist))
         idx = np.nonzero(hist)[0][0]
@@ -210,16 +210,17 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
 
         interp = data - offset
         
-    data = interpolater(interp, mask)
-    if span is None:
-        span = [np.nanmin(data), np.nanmax(data)]
-    else:
-        if how == 'eq_hist':
-            # For eq_hist to work with span, we'll need to store the histogram
-            # from the data and then apply it to the span argument.
-            raise ValueError("span is not (yet) valid to use with eq_hist")
-
-        span = interpolater([0, span[1] - span[0]], 0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        data = interpolater(interp, mask)
+        if span is None:
+            span = [np.nanmin(data), np.nanmax(data)]
+        else:
+            if how == 'eq_hist':
+                # For eq_hist to work with span, we'll need to store the histogram
+                # from the data and then apply it to the span argument.
+                raise ValueError("span is not (yet) valid to use with eq_hist")
+        
+            span = interpolater([0, span[1] - span[0]], 0)
         
     if isinstance(cmap, Iterator):
         cmap = list(cmap)

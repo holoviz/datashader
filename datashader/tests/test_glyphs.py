@@ -3,9 +3,11 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from datashader.glyphs import (Point, _build_draw_line, _build_map_onto_pixel_for_line,
-                               _build_extend_line, _build_draw_triangle,
-                               _build_map_onto_pixel_for_triangle, _build_extend_triangles)
+from datashader.glyphs import (Point, _build_draw_line,
+                               _build_map_onto_pixel_for_line,
+                               _build_extend_line_axis0, _build_draw_triangle,
+                               _build_map_onto_pixel_for_triangle,
+                               _build_extend_triangles, LinesAxis1)
 from datashader.utils import ngjit
 
 
@@ -42,7 +44,7 @@ map_onto_pixel_for_triangle = _build_map_onto_pixel_for_triangle(mapper, mapper)
 
 # Line rasterization
 draw_line = _build_draw_line(append)
-extend_line = _build_extend_line(draw_line, map_onto_pixel_for_line)
+extend_line = _build_extend_line_axis0(draw_line, map_onto_pixel_for_line)
 
 # Triangles rasterization
 draw_triangle, draw_triangle_interp = _build_draw_triangle(tri_append)
@@ -363,3 +365,13 @@ def test_line_awkward_point_on_upper_bound_maps_to_last_pixel():
                                       1.0, y)
 
     assert pymax==num_y_pixels-1
+
+
+def test_lines_xy_validate():
+    g = LinesAxis1(['x0', 'x1'], ['y11', 'y12'])
+    g.validate(
+        dshape("{x0: int32, x1: int32, y11: float32, y12: float32}"))
+
+    with pytest.raises(ValueError):
+        g.validate(
+            dshape("{x0: int32, x1: float32, y11: string, y12: float32}"))

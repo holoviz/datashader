@@ -1,9 +1,14 @@
+"""
+Binary graphical composition operators
+
+See https://www.cairographics.org/operators/; more could easily be added from there.
+"""
+
 from __future__ import division
 
 import numba as nb
 import numpy as np
 import os
-
 
 __all__ = ('composite_op_lookup', 'over', 'add', 'saturate', 'source')
 
@@ -11,8 +16,8 @@ __all__ = ('composite_op_lookup', 'over', 'add', 'saturate', 'source')
 @nb.jit('(uint32,)', nopython=True, nogil=True, cache=True)
 def extract_scaled(x):
     """Extract components as float64 values in [0.0, 1.0]"""
-    r = np.float64((x & 255) / 255)
-    g = np.float64(((x >> 8) & 255) / 255)
+    r = np.float64(( x        & 255) / 255)
+    g = np.float64(((x >>  8) & 255) / 255)
     b = np.float64(((x >> 16) & 255) / 255)
     a = np.float64(((x >> 24) & 255) / 255)
     return r, g, b, a
@@ -22,10 +27,10 @@ def extract_scaled(x):
         nogil=True, cache=True)
 def combine_scaled(r, g, b, a):
     """Combine components in [0, 1] to rgba uint32"""
-    r2 = np.uint32(r * 255)
-    g2 = np.uint32(g * 255)
-    b2 = np.uint32(b * 255)
-    a2 = np.uint32(a * 255)
+    r2 = min(255, np.uint32(r * 255))
+    g2 = min(255, np.uint32(g * 255))
+    b2 = min(255, np.uint32(b * 255))
+    a2 = min(255, np.uint32(a * 255))
     return np.uint32((a2 << 24) | (b2 << 16) | (g2 << 8) | r2)
 
 

@@ -282,6 +282,142 @@ def test_line():
     assert_eq(agg, out)
 
 
+# # Line tests
+@pytest.mark.parametrize('df,x,y,ax', [
+    # axis1 none constant
+    (pd.DataFrame({
+        'x0': [4, -4, 4],
+        'x1': [0,  0, 0],
+        'x2': [-4, 4, -4],
+        'y0': [0,  0, 0],
+        'y1': [-4, 4, 0],
+        'y2': [0,  0, 0]
+    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+
+    # axis1 x constant
+    (pd.DataFrame({
+        'y0': [0, 0,  0],
+        'y1': [0, 4, -4],
+        'y2': [0, 0,  0]
+    }), np.array([-4, 0, 4]), ['y0', 'y1', 'y2'], 1),
+
+    # axis0 single
+    (pd.DataFrame({
+        'x': [4, 0, -4, np.nan, -4, 0, 4, np.nan, 4, 0, -4],
+        'y': [0, -4, 0, np.nan, 0, 4, 0, np.nan, 0, 0, 0],
+    }), 'x', 'y', 0),
+
+    # axis0 multi
+    (pd.DataFrame({
+        'x0': [4,  0, -4],
+        'x1': [-4, 0,  4],
+        'x2': [4,  0, -4],
+        'y0': [0, -4,  0],
+        'y1': [0,  4,  0],
+        'y2': [0,  0,  0]
+    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 0),
+
+    # axis0 multi with string
+    (pd.DataFrame({
+        'x0': [-4,  0, 4],
+        'y0': [0, -4,  0],
+        'y1': [0,  4,  0],
+        'y2': [0,  0,  0]
+    }), 'x0', ['y0', 'y1', 'y2'], 0),
+])
+def test_line_manual_range(df, x, y, ax):
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
+
+    ddf = dd.from_pandas(df, npartitions=2)
+
+    cvs = ds.Canvas(plot_width=7, plot_height=7,
+                    x_range=(-3, 3), y_range=(-3, 3))
+
+    agg = cvs.line(ddf, x, y, ds.count(), axis=ax)
+
+    sol = np.array([[0, 0, 1, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
+
+
+@pytest.mark.parametrize('df,x,y,ax', [
+    # axis1 none constant
+    (pd.DataFrame({
+        'x0': [0,  0, 0],
+        'x1': [-4, 0, 4],
+        'x2': [0,  0, 0],
+        'y0': [-4, 4, -4],
+        'y1': [0,  0,  0],
+        'y2': [4, -4,  4]
+    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+
+    # axis1 y constant
+    (pd.DataFrame({
+        'x0': [0,  0, 0],
+        'x1': [-4, 0, 4],
+        'x2': [0,  0, 0],
+    }), ['x0', 'x1', 'x2'], np.array([-4, 0, 4]), 1),
+
+    # axis0 single
+    (pd.DataFrame({
+        'x': [0, -4, 0, np.nan, 0, 0, 0, np.nan, 0, 4, 0],
+        'y': [-4, 0, 4, np.nan, 4, 0, -4, np.nan, -4, 0, 4],
+    }), 'x', 'y', 0),
+
+    # axis0 multi
+    (pd.DataFrame({
+        'x0': [0, -4,  0],
+        'x1': [0,  0,  0],
+        'x2': [0,  4,  0],
+        'y0': [-4, 0,  4],
+        'y1': [4,  0, -4],
+        'y2': [-4, 0,  4]
+    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 0),
+
+    # axis0 multi with string
+    (pd.DataFrame({
+        'x0': [0, -4,  0],
+        'x1': [0,  0,  0],
+        'x2': [0,  4,  0],
+        'y0': [-4, 0,  4]
+    }), ['x0', 'x1', 'x2'], 'y0', 0),
+
+])
+def test_line_autorange(df, x, y, ax):
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(
+        axis.compute_scale_and_translate((-4., 4.), 9), 9)
+
+    ddf = dd.from_pandas(df, npartitions=2)
+
+    cvs = ds.Canvas(plot_width=9, plot_height=9)
+
+    agg = cvs.line(ddf, x, y, ds.count(), axis=ax)
+
+    sol = np.array([[0, 0, 0, 0, 3, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 1, 0, 0, 0],
+                    [0, 0, 1, 0, 1, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 1, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                    [0, 1, 0, 0, 1, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 1, 0, 1, 0, 0],
+                    [0, 0, 0, 1, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 3, 0, 0, 0, 0]], dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
+
+
 def test_log_axis_line():
     axis = ds.core.LogAxis()
     logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)

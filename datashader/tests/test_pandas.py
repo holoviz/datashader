@@ -595,7 +595,186 @@ def test_bug_570():
     assert np.array_equal(xi, np.array([590] * len(yi)))
 
 
-def test_lines_xy():
+# # Line tests
+@pytest.mark.parametrize('df,x,y,ax', [
+    # axis1 none constant
+    (pd.DataFrame({
+        'x0': [4, -4],
+        'x1': [0,  0],
+        'x2': [-4, 4],
+        'y0': [0,  0],
+        'y1': [-4, 4],
+        'y2': [0,  0]
+    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+
+    # axis1 x constant
+    (pd.DataFrame({
+        'y0': [0,  0],
+        'y1': [-4, 4],
+        'y2': [0,  0]
+    }), np.array([-4, 0, 4]), ['y0', 'y1', 'y2'], 1),
+
+    # axis1 y constant
+    (pd.DataFrame({
+        'x0': [0, 0],
+        'x1': [-4, 4],
+        'x2': [0, 0]
+    }), ['x0', 'x1', 'x2'], np.array([-4, 0, 4]), 1),
+
+    # axis0 single
+    (pd.DataFrame({
+        'x': [0, -4, 0, np.nan, 0,  4, 0],
+        'y': [-4, 0, 4, np.nan, -4, 0, 4],
+    }), 'x', 'y', 0),
+
+    # axis0 multi
+    (pd.DataFrame({
+        'x0': [0, -4, 0],
+        'x1': [0,  4, 0],
+        'y0': [-4, 0, 4],
+        'y1': [-4, 0, 4],
+    }), ['x0', 'x1'], ['y0', 'y1'], 0),
+
+    # axis0 multi with string
+    (pd.DataFrame({
+        'x0': [0, -4, 0],
+        'x1': [0,  4, 0],
+        'y0': [-4, 0, 4],
+        'y1': [-4, 0, 4],
+    }), ['x0', 'x1'], 'y0', 0),
+])
+def test_line_manual_range(df, x, y, ax):
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(
+        axis.compute_scale_and_translate((-3., 3.), 7), 7)
+
+    cvs = ds.Canvas(plot_width=7, plot_height=7,
+                    x_range=(-3, 3), y_range=(-3, 3))
+
+    agg = cvs.line(df,
+                   x,
+                   y,
+                   ds.count(),
+                   axis=ax)
+
+    sol = np.array([[0, 0, 1, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [1, 0, 0, 0, 0, 0, 1],
+                    [0, 1, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
+
+
+@pytest.mark.parametrize('df,x,y,ax', [
+    # axis1 none constant
+    (pd.DataFrame({
+        'x0': [0,  0],
+        'x1': [-4, 4],
+        'x2': [0,  0],
+        'y0': [-4, -4],
+        'y1': [0,  0],
+        'y2': [4,  4]
+    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+
+    # axis1 y constant
+    (pd.DataFrame({
+        'x0': [0, 0],
+        'x1': [-4, 4],
+        'x2': [0, 0]
+    }), ['x0', 'x1', 'x2'], np.array([-4, 0, 4]), 1),
+
+    # axis0 single
+    (pd.DataFrame({
+        'x': [0, -4, 0, np.nan, 0,  4, 0],
+        'y': [-4, 0, 4, np.nan, -4, 0, 4],
+    }), 'x', 'y', 0),
+
+    # axis0 multi
+    (pd.DataFrame({
+        'x0': [0, -4, 0],
+        'x1': [0,  4, 0],
+        'y0': [-4, 0, 4],
+        'y1': [-4, 0, 4],
+    }), ['x0', 'x1'], ['y0', 'y1'], 0),
+
+    # axis0 multi with string
+    (pd.DataFrame({
+        'x0': [0, -4, 0],
+        'x1': [0,  4, 0],
+        'y0': [-4, 0, 4],
+        'y1': [-4, 0, 4],
+    }), ['x0', 'x1'], 'y0', 0),
+])
+def test_line_autorange(df, x, y, ax):
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(
+        axis.compute_scale_and_translate((-4., 4.), 9), 9)
+
+    cvs = ds.Canvas(plot_width=9, plot_height=9)
+
+    agg = cvs.line(df,
+                   x,
+                   y,
+                   ds.count(),
+                   axis=ax)
+
+    sol = np.array([[0, 0, 0, 0, 2, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 2, 0, 0, 0, 0]], dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
+
+
+def test_line_autorange_axis1_x_constant():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(
+        axis.compute_scale_and_translate((-4., 4.), 9), 9)
+
+    xs = np.array([-4, 0, 4])
+    df = pd.DataFrame({
+        'y0': [0,  0],
+        'y1': [-4, 4],
+        'y2': [0,  0]
+    })
+
+    cvs = ds.Canvas(plot_width=9, plot_height=9)
+
+    agg = cvs.line(df,
+                   xs,
+                   ['y0', 'y1', 'y2'],
+                   ds.count(),
+                   axis=1)
+
+    sol = np.array([[0, 0, 0, 0, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                    [2, 0, 0, 0, 0, 0, 0, 0, 2],
+                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0, 0, 0, 0]], dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
+
+
+# Sum aggregate
+def test_line_agg_sum_axis1_none_constant():
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
 
@@ -605,24 +784,26 @@ def test_lines_xy():
         'x2': [-4, 4],
         'y0': [0,  0],
         'y1': [-4, 4],
-        'y2': [0,  0]
+        'y2': [0,  0],
+        'v': [7, 9]
     })
 
     cvs = ds.Canvas(plot_width=7, plot_height=7,
                     x_range=(-3, 3), y_range=(-3, 3))
 
-    agg = cvs.lines(df,
-                    ['x0', 'x1', 'x2'],
-                    ['y0', 'y1', 'y2'],
-                    ds.count())
-
-    sol = np.array([[0, 0, 1, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 0, 1, 0],
-                    [1, 0, 0, 0, 0, 0, 1],
-                    [0, 0, 0, 0, 0, 0, 0],
-                    [1, 0, 0, 0, 0, 0, 1],
-                    [0, 1, 0, 0, 0, 1, 0],
-                    [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
+    agg = cvs.line(df,
+                   ['x0', 'x1', 'x2'],
+                   ['y0', 'y1', 'y2'],
+                   ds.sum('v'),
+                   axis=1)
+    nan = np.nan
+    sol = np.array([[nan, nan, 7,   nan, 7,   nan, nan],
+                    [nan, 7,   nan, nan, nan, 7,   nan],
+                    [7,   nan, nan, nan, nan, nan, 7],
+                    [nan, nan, nan, nan, nan, nan, nan],
+                    [9,   nan, nan, nan, nan, nan, 9],
+                    [nan, 9,   nan, nan, nan, 9,   nan],
+                    [nan, nan, 9,   nan, 9,   nan, nan]], dtype='float32')
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])

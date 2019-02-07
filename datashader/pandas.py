@@ -1,11 +1,10 @@
 from __future__ import absolute_import, division
 
-import numpy as np
 import pandas as pd
 
 from .core import bypixel
 from .compiler import compile_components
-from .glyphs import _PointLike, _PolygonLike
+from .glyphs import _PointLike
 from .utils import Dispatcher
 
 __all__ = ()

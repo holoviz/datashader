@@ -77,33 +77,4 @@ with an unreliable connection (e.g. if you see `Loading BokehJS ...` but never
 BOKEH_RESOURCES=inline jupyter notebook --NotebookApp.iopub_data_rate_limit=100000000
 ```
 
-## Dashboard
-
-An example interactive dashboard using
-[bokeh server](http://bokeh.pydata.org/en/latest/docs/user_guide/server.html)
-integrated with a datashading pipeline.
-
-To start, launch it with one of the supported datasets specified:
-
-```
-python dashboard/dashboard.py -c dashboard/nyc_taxi.yml
-python dashboard/dashboard.py -c dashboard/census.yml
-python dashboard/dashboard.py -c dashboard/opensky.yml
-python dashboard/dashboard.py -c dashboard/osm.yml
-```
-
-The '.yml' configuration file sets up the dashboard to use one of the
-datasets downloaded above. You can write similar configuration files
-for working with other datasets of your own, while adding features to
-`dashboard.py` itself if needed to support them.
-
-For most of these datasets, if you have less than 16GB of RAM on your
-machine, you will want to add the "-o" option before "-c" to tell it
-to work out of core instead of loading all data into memory.  However,
-doing so will make interactive use substantially slower than if
-sufficient memory were available.
-
-To launch multiple dashboards at once, you'll need to add "-p 5001"
-(etc.) to select a unique port number for the web page to use for
-communicating with the Bokeh server.  Otherwise, be sure to kill the
-server process before launching another instance.
+See dashboard.ipynb in this directory for a Datashder dashboard for viewing data.

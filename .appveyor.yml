@@ -1,6 +1,6 @@
 environment:
   global:
-    CHANNELS: "-c pyviz/label/dev"
+    CHANNELS: "-c conda-forge -c pyviz/label/dev"
   matrix:
     - PY: "2.7"
       CONDA: "C:\\Miniconda-x64"
@@ -10,6 +10,7 @@ environment:
 install:
   - "SET PATH=%CONDA%;%CONDA%\\Scripts;%PATH%"
   - "conda install -y -c pyviz pyctdev && doit ecosystem_setup"
+  - conda install -y "conda<4.6"
   - "doit env_create %CHANNELS% --name=test --python=%PY%"
   - "activate test"
   - "doit develop_install %CHANNELS%"

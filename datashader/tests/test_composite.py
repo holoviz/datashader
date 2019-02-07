@@ -7,8 +7,8 @@ src = np.array([[0x00000000, 0x00ffffff, 0xffffffff],
                 [0xffff0000, 0xff000000, 0x3a3b3c3d]], dtype='uint32')
 
 clear = np.uint32(0)
-clear_black = np.uint32(0x00ffffff)
-black = np.uint32(0xffffffff)
+clear_white = np.uint32(0x00ffffff)
+white = np.uint32(0xffffffff)
 blue = np.uint32(0xffff0000)
 half_blue = np.uint32(0x7dff0000)
 half_purple = np.uint32(0x7d7d007d)
@@ -18,8 +18,8 @@ def test_source():
     o = src.copy()
     o[0, :2] = clear
     np.testing.assert_equal(source(src, clear), o)
-    o[0, :2] = clear_black
-    np.testing.assert_equal(source(src, clear_black), o)
+    o[0, :2] = clear_white
+    np.testing.assert_equal(source(src, clear_white), o)
     o[0, :2] = half_blue
     np.testing.assert_equal(source(src, half_blue), o)
 
@@ -28,11 +28,11 @@ def test_over():
     o = src.copy()
     o[0, 1] = 0
     np.testing.assert_equal(over(src, clear), o)
-    np.testing.assert_equal(over(src, clear_black), o)
+    np.testing.assert_equal(over(src, clear_white), o)
     o = np.array([[0xffffffff, 0xffffffff, 0xffffffff],
                   [0xffff8282, 0xff82ff82, 0xff8282ff],
                   [0xffff0000, 0xff000000, 0xffd2d2d2]])
-    np.testing.assert_equal(over(src, black), o)
+    np.testing.assert_equal(over(src, white), o)
     o = np.array([[0xffff0000, 0xffff0000, 0xffffffff],
                   [0xffff0000, 0xff827d00, 0xff82007d],
                   [0xffff0000, 0xff000000, 0xffd20d0d]])
@@ -51,22 +51,22 @@ def test_add():
     o = src.copy()
     o[0, 1] = 0
     np.testing.assert_equal(add(src, clear), o)
-    np.testing.assert_equal(add(src, clear_black), o)
-    o = np.array([[0xffffffff, 0xffffffff, 0xfffffffe],
-                  [0xff7cffff, 0xffff7cff, 0xffffff7c],
-                  [0xfffeffff, 0xffffffff, 0xff0d0d0c]])
-    np.testing.assert_equal(add(src, black), o)
-    o = np.array([[0xffff0000, 0xffff0000, 0xfffeffff],
-                  [0xff7c0000, 0xffff7d00, 0xffff007d],
-                  [0xfffe0000, 0xffff0000, 0xff0c0d0d]])
+    np.testing.assert_equal(add(src, clear_white), o)
+    o = np.array([[0xffffffff, 0xffffffff, 0xffffffff],
+                  [0xffffffff, 0xffffffff, 0xffffffff],
+                  [0xffffffff, 0xffffffff, 0xffffffff]])
+    np.testing.assert_equal(add(src, white), o)
+    o = np.array([[0xffff0000, 0xffff0000, 0xffffffff],
+                  [0xffff0000, 0xffff7d00, 0xffff007d],
+                  [0xffff0000, 0xffff0000, 0xffff0d0d]])
     np.testing.assert_equal(add(src, blue), o)
-    o = np.array([[0x7dff0000, 0x7dff0000, 0xff7cffff],
+    o = np.array([[0x7dff0000, 0x7dff0000, 0xffffffff],
                   [0xfaff0000, 0xfa7f7f00, 0xfa7f007f],
-                  [0xff7c0000, 0xff7d0000, 0xb7c01313]])
+                  [0xffff0000, 0xff7d0000, 0xb7c01313]])
     np.testing.assert_equal(add(src, half_blue), o)
-    o = np.array([[0x7d7d007d, 0x7d7d007d, 0xff3cff3c],
+    o = np.array([[0x7d7d007d, 0x7d7d007d, 0xffffffff],
                   [0xfabe003e, 0xfa3e7f3e, 0xfa3e00be],
-                  [0xff3c003d, 0xff3d003d, 0xb7681368]])
+                  [0xffff003d, 0xff3d003d, 0xb7681368]])
     np.testing.assert_equal(add(src, half_purple), o)
 
 
@@ -74,9 +74,9 @@ def test_saturate():
     o = src.copy()
     o[0, 1] = 0
     np.testing.assert_equal(saturate(src, clear), o)
-    np.testing.assert_equal(saturate(src, clear_black), o)
-    o = np.full((3, 3), black, dtype='uint32')
-    np.testing.assert_equal(saturate(src, black), o)
+    np.testing.assert_equal(saturate(src, clear_white), o)
+    o = np.full((3, 3), white, dtype='uint32')
+    np.testing.assert_equal(saturate(src, white), o)
     o = np.full((3, 3), blue, dtype='uint32')
     np.testing.assert_equal(saturate(src, blue), o)
     o = np.array([[0x7dff0000, 0x7dff0000, 0xffff8282],
