@@ -123,7 +123,8 @@ class _PolygonLike(_PointLike):
 
     @property
     def inputs(self):
-        return tuple([self.x, self.y] + list(self.z))
+        return (tuple([self.x, self.y] + list(self.z)) +
+                (self.weight_type, self.interpolate))
 
     def validate(self, in_dshape):
         for col in [self.x, self.y] + list(self.z):

@@ -450,18 +450,16 @@ def _dd_mesh(vertices, simplices):
     Dask DataFrame objects.
     """
     # Construct mesh by indexing into vertices with simplex indices
-    # TODO: For dask: avoid .compute() calls, and add winding auto-detection
-    vertex_idxs = simplices.values[:, :3].astype(np.int64)
-    vals = vertices.values.compute()[vertex_idxs]
-    vals = vals.reshape(np.prod(vals.shape[:2]), vals.shape[2])
-    res = pd.DataFrame(vals, columns=vertices.columns)
+    # TODO: For dask: avoid .compute() calls
+    res = _pd_mesh(vertices.compute(), simplices.compute())
 
-    # If vertices don't have weights, use simplex weights
-    verts_have_weights = len(vertices.columns) > 2
-    if not verts_have_weights:
-        weight_col = simplices.columns[3]
-        res[weight_col] = simplices.values[:, 3].compute().repeat(3)
+    # Compute a chunksize that will not split the vertices of a single
+    # triangle across partitions
+    approx_npartitions = max(vertices.npartitions, simplices.npartitions)
+    chunksize = int(np.ceil(len(res) / (3*approx_npartitions)) * 3)
 
+    # Create dask dataframe
+    res = dd.from_pandas(res, chunksize=chunksize)
     return res
 
 

@@ -10,7 +10,6 @@ environment:
 install:
   - "SET PATH=%CONDA%;%CONDA%\\Scripts;%PATH%"
   - "conda install -y -c pyviz pyctdev && doit ecosystem_setup"
-  - conda install -y "conda<4.6"
   - "doit env_create %CHANNELS% --name=test --python=%PY%"
   - "activate test"
   - "doit develop_install %CHANNELS%"

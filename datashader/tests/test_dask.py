@@ -1,3 +1,4 @@
+from __future__ import division
 from dask.context import config
 import dask.dataframe as dd
 import numpy as np
@@ -5,6 +6,7 @@ import pandas as pd
 import xarray as xr
 
 import datashader as ds
+import datashader.utils as du
 
 import pytest
 
@@ -476,3 +478,53 @@ def test_trimesh_no_double_edge():
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+
+
+@pytest.mark.parametrize('npartitions', list(range(1, 6)))
+def test_trimesh_dask_partitions(npartitions):
+    """Assert that when two triangles share an edge that would normally get
+    double-drawn, the edge is only drawn for the rightmost (or bottommost)
+    triangle.
+    """
+    # Test left/right edge shared
+    verts = dd.from_pandas(pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
+                                         'y': [4, 5, 5, 5, 4, 4]}),
+                           npartitions=npartitions)
+    tris = dd.from_pandas(
+        pd.DataFrame(
+            {'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 2]}),
+        npartitions=npartitions)
+
+    cvs = ds.Canvas(plot_width=20, plot_height=20,
+                    x_range=(0, 5), y_range=(0, 5))
+
+    # Precompute mesh with dask dataframes
+    mesh = du.mesh(verts, tris)
+
+    # Make sure mesh is a dask DataFrame
+    assert isinstance(mesh, dd.DataFrame)
+
+    # Check mesh length
+    n = len(mesh)
+    assert n == 6
+
+    # Make sure we have expected number of partitions
+    expected_chunksize = int(np.ceil(len(mesh) / (3*npartitions)) * 3)
+    expected_npartitions = int(np.ceil(n / expected_chunksize))
+    assert expected_npartitions == mesh.npartitions
+
+    # Make sure triangles don't straddle partitions
+    partitions_lens = mesh.map_partitions(len).compute()
+    for partitions_len in partitions_lens:
+        assert partitions_len % 3 == 0
+
+    agg = cvs.trimesh(verts, tris, mesh)
+    sol = np.array([
+        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ], dtype='i4')
+    np.testing.assert_array_equal(
+        np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
