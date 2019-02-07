@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from datashader.utils import ngjit
-from numba import jit, vectorize, int64
+from numba import vectorize, int64
 import numpy as np
 import os
 
