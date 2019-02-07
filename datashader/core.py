@@ -294,38 +294,6 @@ The axis argument to Canvas.line must be 0 or 1
 
         return bypixel(source, self, glyph, agg)
 
-    def lines(self, source, x, y, agg=None,
-              x_constant=None, y_constant=None):
-        """Compute a reduction by pixel, mapping each row of source to pixels
-        in a distinct line
-
-        Parameters
-        ----------
-        source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
-            The input datasource.
-        x, y: str or list
-            The x and y coordinates defining the line segments. Either xs and
-            ys are both strings or both lists.
-                * str: The name of a RaggedArray column in source that
-                       contains the x or y coordinates of the line segments.
-                * list: A list of the names of float or integer
-                        columns that contains the x or y coordinates of
-                        the line segment
-        agg : Reduction, optional
-            Reduction to compute. Default is ``any()``.
-        """
-        from .glyphs import LinesXY
-        from .reductions import any as any_rdn
-        if agg is None:
-            agg = any_rdn()
-        # TODO: Check inputs and make LinesRagged, LinesX, LinesY
-
-        if isinstance(x, RaggedArray):
-            glyph = LinesRagged(x, y)
-        else:
-            glyph = LinesXY(tuple(x), tuple(y))
-
-        return bypixel(source, self, glyph, agg)
 
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then
