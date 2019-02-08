@@ -12,6 +12,8 @@ from xarray import DataArray
 import dask.dataframe as dd
 import datashape
 
+from datashader.datatypes import RaggedDtype
+
 ngjit = nb.jit(nopython=True, nogil=True)
 
 
@@ -369,6 +371,8 @@ def dshape_from_pandas_helper(col):
             # Pandas stores this as a pytz.tzinfo, but DataShape wants a string
             tz = str(tz)
         return datashape.Option(datashape.DateTime(tz=tz))
+    elif isinstance(col.dtype, RaggedDtype):
+        return col.dtype
     dshape = datashape.CType.from_numpy_dtype(col.dtype)
     dshape = datashape.string if dshape == datashape.object_ else dshape
     if dshape in (datashape.string, datashape.datetime_):

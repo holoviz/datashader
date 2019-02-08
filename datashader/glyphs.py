@@ -469,7 +469,7 @@ class LinesAxis1YConstant(LinesAxis1):
         return extend
 
 
-class LinesRagged(_PointLike):
+class LinesAxis1Ragged(_PointLike):
     def validate(self, in_dshape):
         # TODO
         pass
@@ -478,18 +478,18 @@ class LinesRagged(_PointLike):
         return self.x + self.y
 
     def compute_x_bounds(self, df):
-        # return self._compute_x_bounds(df[self.x].values)
-        raise NotImplementedError()
+        bounds = self._compute_x_bounds(df[self.x].array.flat_array)
+        return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, df):
-        # return self._compute_y_bounds(df[self.y].values)
-        raise NotImplementedError()
+        bounds = self._compute_y_bounds(df[self.y].array.flat_array)
+        return self.maybe_expand_bounds(bounds)
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         draw_line = _build_draw_line(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_lines_ragged = _build_extend_lines_ragged(draw_line, map_onto_pixel)
+        extend_lines_ragged = _build_extend_line_axis1_ragged(draw_line, map_onto_pixel)
         x_name = self.x
         y_name = self.y
 
@@ -882,13 +882,9 @@ def _build_extend_line_axis1_y_constant(draw_line, map_onto_pixel):
     return extend_line
 
 
-def _build_extend_lines_ragged(draw_line, map_onto_pixel):
-    extend_line = _build_extend_line(draw_line, map_onto_pixel)
+def _build_extend_line_axis1_ragged(draw_line, map_onto_pixel):
 
-    def extend_lines_ragged(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
-        """
-        here xs and ys are tuples of arrays and non-empty
-        """
+    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         x_start_indices = xs.start_indices
         x_flat_array = xs.flat_array
 
@@ -914,32 +910,52 @@ def _build_extend_lines_ragged(draw_line, map_onto_pixel):
                                     plot_start,
                                     *aggs_and_cols):
 
+        nrows = len(x_start_indices)
         x_flat_len = len(x_flat_array)
         y_flat_len = len(y_flat_array)
 
-        rows = len(x_start_indices)
-        for r in range(rows):
+        i = 0
+        while i < nrows:
+            plot_start = True
+
             # Get x index range
-            x_start_index = x_start_indices[r]
-            x_stop_index = (x_start_indices[r + 1]
-                            if r < rows - 1
+            x_start_index = x_start_indices[i]
+            x_stop_index = (x_start_indices[i + 1]
+                            if i < nrows - 1
                             else x_flat_len)
 
             # Get y index range
-            y_start_index = y_start_indices[r]
-            y_stop_index = (y_start_indices[r + 1]
-                            if r < rows - 1
+            y_start_index = y_start_indices[i]
+            y_stop_index = (y_start_indices[i + 1]
+                            if i < nrows - 1
                             else y_flat_len)
 
-            # Build line slices
-            line_xs = x_flat_array[x_start_index:x_stop_index]
-            line_ys = y_flat_array[y_start_index:y_stop_index]
+            # Find line segment length as shorter of the two segments
+            segment_len = min(x_stop_index - x_start_index,
+                              y_stop_index - y_start_index)
 
-            # Perform extend line
-            extend_line(
-                vt, bounds, line_xs, line_ys, plot_start, *aggs_and_cols)
+            j = 0
+            while j < segment_len - 1:
 
-    return extend_lines_ragged
+                x0 = x_flat_array[x_start_index + j]
+                y0 = y_flat_array[y_start_index + j]
+                x1 = x_flat_array[x_start_index + j + 1]
+                y1 = y_flat_array[y_start_index + j + 1]
+
+                x0, x1, y0, y1, skip, clipped, plot_start = \
+                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+
+                if not skip:
+                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                    draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
+                              *aggs_and_cols)
+                    plot_start = False
+
+                j += 1
+            i += 1
+
+    return extend_line
 
 
 def _build_draw_triangle(append):
