@@ -472,8 +472,15 @@ class LinesAxis1YConstant(LinesAxis1):
 
 class LinesAxis1Ragged(_PointLike):
     def validate(self, in_dshape):
-        # TODO
-        pass
+        try:
+            from datashader.datatypes import RaggedDtype
+        except ImportError:
+            RaggedDtype = type(None)
+
+        if not isinstance(in_dshape[str(self.x)], RaggedDtype):
+            raise ValueError('x must be a RaggedArray')
+        elif not isinstance(in_dshape[str(self.x)], RaggedDtype):
+            raise ValueError('y must be a RaggedArray')
 
     def required_columns(self):
         return self.x + self.y
