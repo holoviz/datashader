@@ -21,7 +21,7 @@ except ImportError:
 # pandas >= 0.24.0 is installed
 from pandas import __version__ as pandas_version
 if LooseVersion(pandas_version) >= LooseVersion('0.24.0'):
-    from . import datatypes
+    from . import datatypes  # noqa (API import)
 
 # make pyct's example/data commands available if possible
 from functools import partial

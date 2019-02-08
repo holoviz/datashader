@@ -240,8 +240,8 @@ def test_get_item_scalar():
 @pytest.mark.parametrize('index', [-1000, -6, 5, 1000])
 def test_get_item_scalar_out_of_bounds(index):
     rarray = RaggedArray([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]])
-    with pytest.raises(IndexError) as e:
-        result = rarray[index]
+    with pytest.raises(IndexError):
+        rarray[index]
 
 
 def test_get_item_slice():
@@ -511,7 +511,7 @@ def test_equality_validation(other):
 
     # invalid scalar
     with pytest.raises(ValueError, match="Cannot check equality"):
-        res = ra1 == other
+        ra1 == other
 
 
 # Pandas-provided extension array tests

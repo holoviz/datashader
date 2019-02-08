@@ -525,7 +525,6 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         filled : ExtensionArray with NA/NaN filled
         """
         # Override in RaggedArray to handle ndarray fill values
-        from pandas.api.types import is_array_like
         from pandas.util._validators import validate_fillna_kwargs
         from pandas.core.missing import pad_1d, backfill_1d
 
