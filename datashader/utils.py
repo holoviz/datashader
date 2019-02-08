@@ -12,7 +12,10 @@ from xarray import DataArray
 import dask.dataframe as dd
 import datashape
 
-from datashader.datatypes import RaggedDtype
+try:
+    from datashader.datatypes import RaggedDtype
+except ImportError:
+    RaggedDtype = type(None)
 
 ngjit = nb.jit(nopython=True, nogil=True)
 
