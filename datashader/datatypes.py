@@ -10,6 +10,12 @@ from numbers import Integral
 from pandas.api.types import pandas_dtype
 from pandas.core.dtypes.common import is_extension_array_dtype
 
+try:
+    # See if we can register extension type with dask >= 1.1.0
+    from dask.dataframe.extensions import make_array_nonempty
+except ImportError:
+    make_array_nonempty = None
+
 
 def _validate_ragged_properties(start_indices, flat_array):
     """
@@ -1002,3 +1008,11 @@ def _lexograph_lt(a1, a2):
         elif e1 > e2:
             return False
     return len(a1) < len(a2)
+
+
+def ragged_array_non_empty(dtype):
+    return RaggedArray([[1], [1, 2]], dtype=dtype)
+
+
+if make_array_nonempty:
+    make_array_nonempty.register(RaggedDtype)(ragged_array_non_empty)

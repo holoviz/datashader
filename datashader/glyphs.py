@@ -486,6 +486,24 @@ class LinesAxis1Ragged(_PointLike):
         return self.maybe_expand_bounds(bounds)
 
     @memoize
+    def compute_x_bounds_dask(self, df):
+        """Like ``PointLike._compute_x_bounds``, but memoized because
+        ``df`` is immutable/hashable (a Dask dataframe).
+        """
+        xs = df[self.x].compute().array.flat_array
+        minval, maxval = np.nanmin(xs), np.nanmax(xs)
+        return self.maybe_expand_bounds((minval, maxval))
+
+    @memoize
+    def compute_y_bounds_dask(self, df):
+        """Like ``PointLike._compute_y_bounds``, but memoized because
+        ``df`` is immutable/hashable (a Dask dataframe).
+        """
+        ys = df[self.y].compute().array.flat_array
+        minval, maxval = np.nanmin(ys), np.nanmax(ys)
+        return self.maybe_expand_bounds((minval, maxval))
+
+    @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         draw_line = _build_draw_line(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)

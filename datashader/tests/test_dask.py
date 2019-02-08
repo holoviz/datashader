@@ -324,6 +324,12 @@ def test_line():
         'y1': [0,  4,  0],
         'y2': [0,  0,  0]
     }), 'x0', ['y0', 'y1', 'y2'], 0),
+
+    # axis1 RaggedArray
+    (pd.DataFrame({
+        'x': [[4, 0, -4], [-4, 0, 4, 4, 0, -4]],
+        'y': [[0, -4, 0], [0, 4, 0, 0, 0, 0]],
+    }, dtype='Ragged[int64]'), 'x', 'y', 1),
 ])
 def test_line_manual_range(df, x, y, ax):
     axis = ds.core.LinearAxis()
@@ -390,6 +396,12 @@ def test_line_manual_range(df, x, y, ax):
         'x2': [0,  4,  0],
         'y0': [-4, 0,  4]
     }), ['x0', 'x1', 'x2'], 'y0', 0),
+
+    # axis1 RaggedArray
+    (pd.DataFrame({
+        'x': [[0, -4, 0], [0, 0, 0], [0, 4, 0]],
+        'y': [[-4, 0, 4], [4, 0, -4], [-4, 0, 4]],
+    }, dtype='Ragged[int64]'), 'x', 'y', 1),
 
 ])
 def test_line_autorange(df, x, y, ax):
