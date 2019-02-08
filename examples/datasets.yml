@@ -12,6 +12,11 @@ data:
     files:
       - nyc_crime.csv
 
+  - url: https://s3.amazonaws.com/datashader-data/nyc_taxi_wide.parq
+    title: 'NYC Taxi Data Wide'
+    files:
+      - nyc_taxi_wide.parq
+
   - url: http://s3.amazonaws.com/datashader-data/nyc_taxi.zip
     title: 'NYC Taxi Data'
     files:
