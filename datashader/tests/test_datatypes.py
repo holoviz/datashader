@@ -182,7 +182,7 @@ def test_start_indices_dtype():
 
 
 @pytest.mark.parametrize('arg,expected', [
-    ([[1, 2]], 'int64'),
+    ([np.array([1, 2], dtype='int64')], 'int64'),
     ([[True], [False, True]], 'bool'),
     (np.array([np.array([1, 2], dtype='int8'),
                np.array([1, 2], dtype='int32')]), 'int32'),
@@ -386,7 +386,7 @@ def test_pandas_array_construction():
     arg = [[0, 1], [1, 2, 3, 4], None, [-1, -2]] * 2
     ra = pd.array(arg, dtype='ragged[int64]')
 
-    expected = RaggedArray(arg)
+    expected = RaggedArray(arg, dtype='int64')
     assert_ragged_arrays_equal(ra, expected)
 
 
