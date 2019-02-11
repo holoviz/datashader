@@ -41,25 +41,25 @@ def s_points_frame(tmp_path, df):
 
 
 def test_spacial_points_frame_properties(s_points_frame):
-    assert s_points_frame.x == 'x'
-    assert s_points_frame.y == 'y'
-    assert s_points_frame.p == 5
+    assert s_points_frame.spatial_x == 'x'
+    assert s_points_frame.spatial_y == 'y'
+    assert s_points_frame.spatial_p == 5
     assert s_points_frame.npartitions == 10
-    assert s_points_frame.x_range == (0, 1)
-    assert s_points_frame.y_range == (0, 2)
+    assert s_points_frame.spatial_x_range == (0, 1)
+    assert s_points_frame.spatial_y_range == (0, 2)
 
     # x_bin_edges
     np.testing.assert_array_equal(
-        s_points_frame.x_bin_edges,
+        s_points_frame.spatial_x_bin_edges,
         np.linspace(0.0, 1.0, 2 ** 5 + 1))
 
     # y_bin_edges
     np.testing.assert_array_equal(
-        s_points_frame.y_bin_edges,
+        s_points_frame.spatial_y_bin_edges,
         np.linspace(0.0, 2.0, 2 ** 5 + 1))
 
     # distance_divisions
-    distance_divisions = s_points_frame.distance_divisions
+    distance_divisions = s_points_frame.spatial_distance_divisions
     assert len(distance_divisions) == 10 + 1
 
 
@@ -71,7 +71,7 @@ def test_spacial_points_frame_properties(s_points_frame):
 def test_query_partitions(s_points_frame, x_range, y_range):
 
     # Get original
-    ddf = s_points_frame.frame
+    ddf = s_points_frame
 
     # Query subset
     query_ddf = s_points_frame.query_partitions(x_range, y_range)

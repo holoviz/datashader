@@ -125,7 +125,7 @@ def _validate_fastparquet():
 The datashader.spatial module requires the fastparquet package""")
 
 
-class SpatialPointsFrame(object):
+class SpatialPointsFrame(dd.DataFrame):
     """
     Class that wraps a spatially partitioned parquet data set and provides
     a query_partitions method to access the subset of partitions necessary to
@@ -353,7 +353,6 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         self._x_range = tuple(props['x_range'])
         self._y_range = tuple(props['y_range'])
         self._distance_divisions = tuple(props['distance_divisions'])
-        self._npartitions = len(self._distance_divisions) - 1
 
         # Compute grids
         self._partition_grid = _build_partition_grid(
@@ -369,11 +368,18 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         self._y_bin_width = self._y_width / self._side_length
 
         # Read parquet file
-        self._frame = dd.read_parquet(filename)
+        frame = dd.read_parquet(filename)
 
         # Persist if requested
         if persist:
-            self._frame = self._frame.persist()
+            frame = frame.persist()
+
+        # Call DataFrame constructor with the internals of frame
+        super(SpatialPointsFrame, self).__init__(
+            dsk=frame.dask,
+            name=frame._name,
+            meta=frame._meta,
+            divisions=frame.divisions)
 
     def query_partitions(self, x_range, y_range):
         """
@@ -415,57 +421,45 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         query_partitions = sorted(np.unique(partition_query))
 
         if query_partitions:
-            partition_dfs = [self._frame.get_partition(p)
+            partition_dfs = [self.get_partition(p)
                              for p in query_partitions]
             query_frame = dd.concat(partition_dfs)
             return query_frame
         else:
             # return an empty Dask dataframe with the right shape
-            return (self._frame
-                    .get_partition(0)
+            return (self.get_partition(0)
                     .map_partitions(lambda df: df.iloc[1:0]))
 
     # Read-only properties
     @property
-    def frame(self):
+    def spatial_distances(self):
         """
-        Dask dataframe backed by a spatially partitioned parquet file
-
-        Returns
-        -------
-        dd.DataFrame
-        """
-        return self._frame
-
-    @property
-    def hilbert_distances(self):
-        """
-        Dask series containing the Hilbert distance of each row in frame
+        Dask series containing the Hilbert distance of each row
 
         Returns
         -------
         dd.Series
         """
-        x = self.x
-        y = self._y
-        p = self._p
-        x_range = self._x_range
-        y_range = self._y_range
-        return self._frame.map_partitions(
+        x = self.spatial_x
+        y = self.spatial_y
+        p = self.spatial_p
+        x_range = self.spatial_x_range
+        y_range = self.spatial_y_range
+        return self.map_partitions(
             _compute_distance, x=x, y=y, p=p,
             x_range=x_range, y_range=y_range)
 
     @property
-    def partitions(self):
+    def spatial_partitions(self):
         """
-        Dask series containing the partition of each row in frame
+        Dask series containing the partition of each row
 
         Returns
         -------
         dd.Series
         """
-        search_divisions = np.array(self.distance_divisions[:-1])
-        return self.hilbert_distances.map_partitions(
+        search_divisions = np.array(self.spatial_distance_divisions[:-1])
+        return self.spatial_distances.map_partitions(
             lambda s: pd.Series(
                 np.ones(len(s)) *
                 search_divisions.searchsorted(s.iloc[0], side='right'),
@@ -473,21 +467,21 @@ SpatialPointsFrame.partition_and_write static method.""".format(
                 index=s.index))
 
     @property
-    def x(self):
+    def spatial_x(self):
         """
-        Column label in frame containing the x coordinate of each row
+        Column label containing the x coordinate of each row
         """
         return self._x
 
     @property
-    def y(self):
+    def spatial_y(self):
         """
-        Column label in frame containing the x coordinate of each row
+        Column label containing the x coordinate of each row
         """
         return self._y
 
     @property
-    def p(self):
+    def spatial_p(self):
         """
         Hilbert curve order parameter
 
@@ -498,7 +492,7 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         return self._p
 
     @property
-    def x_range(self):
+    def spatial_x_range(self):
         """
         x range extents for the entire dataset
 
@@ -510,7 +504,7 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         return self._x_range
 
     @property
-    def y_range(self):
+    def spatial_y_range(self):
         """
         y range extents for the entire dataset
 
@@ -522,7 +516,7 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         return self._y_range
 
     @property
-    def x_bin_edges(self):
+    def spatial_x_bin_edges(self):
         """
         Array of the discrete x-coordinates that points are rounded to
         in order to compute their Hilbert curve distance
@@ -531,10 +525,10 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         -------
         x_bin_edges: np.ndarray
         """
-        return np.linspace(*self.x_range, num=self._side_length + 1)
+        return np.linspace(*self.spatial_x_range, num=self._side_length + 1)
 
     @property
-    def y_bin_edges(self):
+    def spatial_y_bin_edges(self):
         """
         Array of the discrete y-coordinates that points are rounded to
         in order to compute their Hilbert curve distance
@@ -543,30 +537,19 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         -------
         y_bin_edges: np.ndarray
         """
-        return np.linspace(*self.y_range, num=self._side_length + 1)
+        return np.linspace(*self.spatial_y_range, num=self._side_length + 1)
 
     @property
-    def distance_divisions(self):
+    def spatial_distance_divisions(self):
         """
         tuple of the Hilbert distance divisions corresponding to the
-        partitions in frame
+        dataframe's partitions
 
         Returns
         -------
         tuple
         """
         return self._distance_divisions
-
-    @property
-    def npartitions(self):
-        """
-        The number of partitions in frame
-
-        Returns
-        -------
-        int
-        """
-        return self._npartitions
 
 
 @ngjit
