@@ -3,6 +3,8 @@ import pytest
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
+
+from datashader import Canvas
 from datashader.spatial import SpatialPointsFrame
 
 
@@ -99,6 +101,30 @@ def test_query_partitions(s_points_frame, x_range, y_range):
     df1 = df.loc[range_inds].sort_values(['x', 'y', 'a'])
     df2 = query_df.loc[query_range_inds].sort_values(['x', 'y', 'a'])
     pd.testing.assert_frame_equal(df1, df2)
+
+
+@pytest.mark.parametrize('x_range,y_range', [
+    ((0, 0.2), (0, 0.2)),
+    ((0.3, 1.0), (0.5, 1.5)),
+    ((5, 10), (5, 10))  # Outside of bounds
+])
+def test_aggregation_partitions(s_points_frame, x_range, y_range):
+    # Get original as pandas
+    df = s_points_frame.compute()
+
+    # Query subset
+    query_ddf = s_points_frame.query_partitions(x_range, y_range)
+
+    # Create canvas
+    cvs = Canvas(x_range=x_range, y_range=y_range)
+
+    # Aggregate with full pandas frame
+    agg_expected = cvs.points(df, 'x', 'y')
+    agg_query = cvs.points(query_ddf, 'x', 'y')
+    agg = cvs.points(s_points_frame, 'x', 'y')
+
+    assert agg.equals(agg_expected)
+    assert agg.equals(agg_query)
 
 
 def test_validate_parquet_file(df, tmp_path):
