@@ -371,10 +371,10 @@ SpatialPointsFrame.partition_and_write static method.""".format(
     def persist(self, **kwargs):
         """Persist this dask collection into memory along with spatial metadata
 
-        Refer to the dask.DataFrame for the full docstring. This
-        method extends the default behavior to ensure the spatial
-        properties of the SpatialPointsFrame are inherited by the
-        in-memory copy.
+        Refer to dask.dataframe.DataFrame.persist for the full
+        docstring. This method extends the default behavior of
+        .persist() to ensure the spatial properties of the
+        SpatialPointsFrame are inherited by the in-memory copy.
 
         Parameters
         ----------
