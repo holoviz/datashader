@@ -28,8 +28,8 @@ def df():
     return df
 
 
-@pytest.fixture()
-def s_points_frame(tmp_path, df):
+@pytest.fixture(params=[False, True])
+def s_points_frame(request, tmp_path, df):
 
     # Work around https://bugs.python.org/issue33617
     tmp_path = str(tmp_path)
@@ -39,29 +39,32 @@ def s_points_frame(tmp_path, df):
     SpatialPointsFrame.partition_and_write(
         df, 'x', 'y', filename=filename, p=p, npartitions=10)
 
-    return SpatialPointsFrame(filename=filename)
+    spf = SpatialPointsFrame.from_parquet(filename=filename)
+    if request.param:
+        spf = spf.persist()
+    return spf
 
 
 def test_spacial_points_frame_properties(s_points_frame):
-    assert s_points_frame.spatial_x == 'x'
-    assert s_points_frame.spatial_y == 'y'
-    assert s_points_frame.spatial_p == 5
+    assert s_points_frame.spatial.x == 'x'
+    assert s_points_frame.spatial.y == 'y'
+    assert s_points_frame.spatial.p == 5
     assert s_points_frame.npartitions == 10
-    assert s_points_frame.spatial_x_range == (0, 1)
-    assert s_points_frame.spatial_y_range == (0, 2)
+    assert s_points_frame.spatial.x_range == (0, 1)
+    assert s_points_frame.spatial.y_range == (0, 2)
 
     # x_bin_edges
     np.testing.assert_array_equal(
-        s_points_frame.spatial_x_bin_edges,
+        s_points_frame.spatial.x_bin_edges,
         np.linspace(0.0, 1.0, 2 ** 5 + 1))
 
     # y_bin_edges
     np.testing.assert_array_equal(
-        s_points_frame.spatial_y_bin_edges,
+        s_points_frame.spatial.y_bin_edges,
         np.linspace(0.0, 2.0, 2 ** 5 + 1))
 
     # distance_divisions
-    distance_divisions = s_points_frame.spatial_distance_divisions
+    distance_divisions = s_points_frame.spatial.distance_divisions
     assert len(distance_divisions) == 10 + 1
 
 
@@ -138,7 +141,7 @@ def test_validate_parquet_file(df, tmp_path):
 
     # Try to construct a SpatialPointsFrame from it
     with pytest.raises(ValueError) as e:
-        SpatialPointsFrame(filename)
+        SpatialPointsFrame.from_parquet(filename)
 
     assert 'SpatialPointsFrame.partition_and_write' in str(e.value)
 

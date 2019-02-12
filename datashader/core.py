@@ -164,7 +164,9 @@ class Canvas(object):
             agg = count_rdn()
 
         if (isinstance(source, SpatialPointsFrame) and
-                source.spatial_x == x and source.spatial_y == y):
+                source.spatial is not None and
+                source.spatial.x == x and source.spatial.y == y):
+
             source = source.query_partitions(
                 x_range=self.x_range, y_range=self.y_range)
 
