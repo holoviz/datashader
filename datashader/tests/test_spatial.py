@@ -45,7 +45,7 @@ def s_points_frame(request, tmp_path, df):
     return spf
 
 
-def test_spacial_points_frame_properties(s_points_frame):
+def test_spatial_points_frame_properties(s_points_frame):
     assert s_points_frame.spatial.x == 'x'
     assert s_points_frame.spatial.y == 'y'
     assert s_points_frame.spatial.p == 5

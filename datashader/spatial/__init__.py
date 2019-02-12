@@ -332,7 +332,7 @@ Received value of type {typ}""".format(typ=type(df)))
         Returns
         -------
         SpatialPointsFrame
-            A SpatialDataFrame reconstructed from disk
+            A spatially sorted Dask dataframe reconstructed from disk
         """
         _validate_fastparquet()
 
@@ -420,7 +420,9 @@ SpatialPointsFrame.partition_and_write static method.""".format(
     def spatial_query(self, x_range, y_range):
         """
         Query the underlying parquet file for the partitions that potentially
-        intersect with a given rectangular region.
+        intersect with a given rectangular region.  Typically returns some data 
+        outside of the specified ranges, but is guaranteed not to exclude any
+        data inside the range.
 
         Parameters
         ----------
