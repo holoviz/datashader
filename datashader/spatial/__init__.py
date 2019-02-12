@@ -317,7 +317,8 @@ Received value of type {typ}""".format(typ=type(df)))
         fn = os.path.join(filename, '_common_metadata')
         fp.writer.write_common_metadata(fn, new_fmd)
 
-    def __init__(self, filename, persist=False):
+    @staticmethod
+    def from_parquet(filename):
         """
         Construct a SpatialPointsFrame from a spatially partitioned parquet
         file
@@ -330,6 +331,11 @@ Received value of type {typ}""".format(typ=type(df)))
         persist: bool (default False)
             Whether to persist the entire parquet file as a Dask dataframe
             in memory
+
+        Returns
+        -------
+        SpatialPointsFrame
+            A SpatialDataFrame reconstructed from disk
         """
         _validate_fastparquet()
 
@@ -347,14 +353,33 @@ SpatialPointsFrame.partition_and_write static method.""".format(
 
         # Load metadata
         props = json.loads(pf.key_value_metadata['SpatialPointsFrame'])
-        self._x = props['x']
-        self._y = props['y']
-        self._p = props['p']
-        self._x_range = tuple(props['x_range'])
-        self._y_range = tuple(props['y_range'])
-        self._distance_divisions = tuple(props['distance_divisions'])
 
-        # Compute grids
+        # Read parquet file
+        frame = dd.read_parquet(filename)
+
+        # Call DataFrame constructor with the internals of frame
+        return SpatialPointsFrame(frame.dask, frame._name, frame._meta,
+                                  frame.divisions, props)
+
+    def __init__(self, dsk, name, meta, divisions, props=None):
+        super(SpatialPointsFrame, self).__init__(dsk, name, meta, divisions)
+        if props:
+            self._set_spatial_props(props)
+        else:
+            self._spatial = False
+
+    def _set_spatial_props(self, props):
+        self._x = props.get('x')
+        self._y = props.get('y')
+        self._p = props.get('p')
+        self._x_range = tuple(props.get('x_range', (None, None))
+        self._y_range = tuple(props.get('y_range', (None, None))
+        self._distance_divisions = tuple(props.get('distance_divisions', (None, None)))
+        self._spatial = bool(props)
+
+        if not self_spatial:
+            return
+
         self._partition_grid = _build_partition_grid(
             self._distance_divisions, self._p)
 
@@ -367,19 +392,51 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         self._x_bin_width = self._x_width / self._side_length
         self._y_bin_width = self._y_width / self._side_length
 
-        # Read parquet file
-        frame = dd.read_parquet(filename)
+    def persist(self, **kwargs):
+        """Persist this dask collection into memory
 
-        # Persist if requested
-        if persist:
-            frame = frame.persist()
+        This turns a lazy Dask collection into a Dask collection with the same
+        metadata, but now with the results fully computed or actively computing
+        in the background.
 
-        # Call DataFrame constructor with the internals of frame
-        super(SpatialPointsFrame, self).__init__(
-            dsk=frame.dask,
-            name=frame._name,
-            meta=frame._meta,
-            divisions=frame.divisions)
+        The action of function differs significantly depending on the active
+        task scheduler.  If the task scheduler supports asynchronous computing,
+        such as is the case of the dask.distributed scheduler, then persist
+        will return *immediately* and the return value's task graph will
+        contain Dask Future objects.  However if the task scheduler only
+        supports blocking computation then the call to persist will *block*
+        and the return value's task graph will contain concrete Python results.
+
+        This function is particularly useful when using distributed systems,
+        because the results will be kept in distributed memory, rather than
+        returned to the local process as with compute.
+
+        Parameters
+        ----------
+        scheduler : string, optional
+            Which scheduler to use like "threads", "synchronous" or "processes".
+            If not provided, the default is to check the global settings first,
+            and then fall back to the collection defaults.
+        optimize_graph : bool, optional
+            If True [default], the graph is optimized before computation.
+            Otherwise the graph is run as is. This can be useful for debugging.
+        **kwargs
+            Extra keywords to forward to the scheduler function.
+
+        Returns
+        -------
+        New dask collections backed by in-memory data
+
+        See Also
+        --------
+        dask.base.persist
+        """
+        persisted = super(SpatialPointsFrame, self).persist(**kwargs)
+        props = dict(x=self._x, y=self._y, p=self._p,
+                     x_range=self._x_range, y_range=self._y_range,
+                     distance_divisions=self._distance_divisions)
+        persisted._set_spatial_props(props)
+        return persisted
 
     def query_partitions(self, x_range, y_range):
         """
@@ -397,6 +454,10 @@ SpatialPointsFrame.partition_and_write static method.""".format(
             Dask dataframe containing all data from all partitions that
             potentially intersect with the specified x_range/y_range box.
         """
+        if not self._spatial:
+            raise RuntimeError("SpatialPointFrame is missing spatial "
+                               "properties and cannot be queried.")
+
         # Expand upper range to account for rounding
         expanded_x_range = [x_range[0],
                             x_range[1] + self._x_bin_width]
@@ -440,6 +501,10 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         -------
         dd.Series
         """
+        if not self._spatial:
+            raise RuntimeError("SpatialPointFrame is missing spatial "
+                               "properties.")
+
         x = self.spatial_x
         y = self.spatial_y
         p = self.spatial_p
@@ -458,6 +523,10 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         -------
         dd.Series
         """
+        if not self._spatial:
+            raise RuntimeError("SpatialPointFrame is missing spatial "
+                               "properties.")
+
         search_divisions = np.array(self.spatial_distance_divisions[:-1])
         return self.spatial_distances.map_partitions(
             lambda s: pd.Series(
@@ -525,6 +594,10 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         -------
         x_bin_edges: np.ndarray
         """
+        if not self._spatial:
+            raise RuntimeError("SpatialPointFrame is missing spatial "
+                               "properties.")
+
         return np.linspace(*self.spatial_x_range, num=self._side_length + 1)
 
     @property
@@ -537,6 +610,10 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         -------
         y_bin_edges: np.ndarray
         """
+        if not self._spatial:
+            raise RuntimeError("SpatialPointFrame is missing spatial "
+                               "properties.")
+
         return np.linspace(*self.spatial_y_range, num=self._side_length + 1)
 
     @property
