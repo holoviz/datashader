@@ -125,7 +125,7 @@ def _validate_fastparquet():
 The datashader.spatial module requires the fastparquet package""")
 
 
-class SpatialPointsFrame(object):
+class SpatialPointsFrame(dd.DataFrame):
     """
     Class that wraps a spatially partitioned parquet data set and provides
     a query_partitions method to access the subset of partitions necessary to
@@ -158,11 +158,11 @@ class SpatialPointsFrame(object):
 
     Then, construct a SpatialPointsFrame and use it to extract
     subsets of the original dataframe based on x/y range extents.
-    >>> sframe = SpatialPointsFrame(filename, persist=True)  # doctest: +SKIP
+    >>> sframe = SpatialPointsFrame.from_parquet(filename).persist()  # doctest: +SKIP
     ...
     ... def create_image(x_range, y_range):
     ...     cvs = ds.Canvas(x_range=x_range, y_range=y_range)
-    ...     df = sframe.query_partitions(x_range, y_range)
+    ...     df = sframe.spatial_query(x_range, y_range)
     ...     agg = cvs.points(df, 'x', 'y')
     ...     return tf.dynspread(tf.shade(agg))
     ...
@@ -317,7 +317,8 @@ Received value of type {typ}""".format(typ=type(df)))
         fn = os.path.join(filename, '_common_metadata')
         fp.writer.write_common_metadata(fn, new_fmd)
 
-    def __init__(self, filename, persist=False):
+    @staticmethod
+    def from_parquet(filename):
         """
         Construct a SpatialPointsFrame from a spatially partitioned parquet
         file
@@ -327,9 +328,11 @@ Received value of type {typ}""".format(typ=type(df)))
         filename: str
             Path to a spatially partitioned parquet file that was created
             using SpatialPointsFrame.partition_and_write
-        persist: bool (default False)
-            Whether to persist the entire parquet file as a Dask dataframe
-            in memory
+
+        Returns
+        -------
+        SpatialPointsFrame
+            A spatially sorted Dask dataframe reconstructed from disk
         """
         _validate_fastparquet()
 
@@ -347,38 +350,68 @@ SpatialPointsFrame.partition_and_write static method.""".format(
 
         # Load metadata
         props = json.loads(pf.key_value_metadata['SpatialPointsFrame'])
-        self._x = props['x']
-        self._y = props['y']
-        self._p = props['p']
-        self._x_range = tuple(props['x_range'])
-        self._y_range = tuple(props['y_range'])
-        self._distance_divisions = tuple(props['distance_divisions'])
-        self._npartitions = len(self._distance_divisions) - 1
-
-        # Compute grids
-        self._partition_grid = _build_partition_grid(
-            self._distance_divisions, self._p)
-
-        # Compute derived properties
-        n = 2
-        self._side_length = 2 ** self._p
-        self._max_distance = 2 ** (n * self._p) - 1
-        self._x_width = self._x_range[1] - self._x_range[0]
-        self._y_width = self._y_range[1] - self._y_range[0]
-        self._x_bin_width = self._x_width / self._side_length
-        self._y_bin_width = self._y_width / self._side_length
 
         # Read parquet file
-        self._frame = dd.read_parquet(filename)
+        frame = dd.read_parquet(filename)
 
-        # Persist if requested
-        if persist:
-            self._frame = self._frame.persist()
+        # Call DataFrame constructor with the internals of frame
+        return SpatialPointsFrame(frame.dask, frame._name, frame._meta,
+                                  frame.divisions, props)
 
-    def query_partitions(self, x_range, y_range):
+    def __init__(self, dsk, name, meta, divisions, props=None):
+        super(SpatialPointsFrame, self).__init__(dsk, name, meta, divisions)
+        self._set_spatial_props(props)
+
+    def _set_spatial_props(self, props):
+        if not props:
+            self._spatial = None
+        else:
+            self._spatial = self.SpatialProperties(self, **props)
+
+    def persist(self, **kwargs):
+        """Persist this dask collection into memory along with spatial metadata
+
+        Refer to dask.dataframe.DataFrame.persist for the full
+        docstring. This method extends the default behavior of
+        .persist() to ensure the spatial properties of the
+        SpatialPointsFrame are inherited by the in-memory copy.
+
+        Parameters
+        ----------
+        scheduler : string, optional
+            Which scheduler to use like "threads", "synchronous" or "processes".
+            If not provided, the default is to check the global settings first,
+            and then fall back to the collection defaults.
+        optimize_graph : bool, optional
+            If True [default], the graph is optimized before computation.
+            Otherwise the graph is run as is. This can be useful for debugging.
+        **kwargs
+            Extra keywords to forward to the scheduler function.
+
+        Returns
+        -------
+        New dask collections backed by in-memory data
+
+        See Also
+        --------
+        dask.base.persist
+        """
+        persisted = super(SpatialPointsFrame, self).persist(**kwargs)
+
+        s = self.spatial
+        props = dict(x=s.x, y=s.y, p=s.p,
+                     x_range=s.x_range, y_range=s.y_range,
+                     distance_divisions=s.distance_divisions)
+
+        persisted._set_spatial_props(props)
+        return persisted
+
+    def spatial_query(self, x_range, y_range):
         """
         Query the underlying parquet file for the partitions that potentially
-        intersect with a given rectangular region.
+        intersect with a given rectangular region.  Typically returns some data 
+        outside of the specified ranges, but is guaranteed not to exclude any
+        data inside the range.
 
         Parameters
         ----------
@@ -391,182 +424,210 @@ SpatialPointsFrame.partition_and_write static method.""".format(
             Dask dataframe containing all data from all partitions that
             potentially intersect with the specified x_range/y_range box.
         """
+        if self.spatial is None:
+            raise RuntimeError("SpatialPointFrame is missing spatial "
+                               "properties and cannot be queried.")
+
         # Expand upper range to account for rounding
         expanded_x_range = [x_range[0],
-                            x_range[1] + self._x_bin_width]
+                            x_range[1] + self.spatial._x_bin_width]
 
         expanded_y_range = [y_range[0],
-                            y_range[1] + self._y_bin_width]
+                            y_range[1] + self.spatial._y_bin_width]
 
         # Compute ranges in integer coordinates
         query_x_range_coord = _data2coord(expanded_x_range,
-                                          self._x_range,
-                                          self._side_length)
+                                          self.spatial.x_range,
+                                          self.spatial._side_length)
 
         query_y_range_coord = _data2coord(expanded_y_range,
-                                          self._y_range,
-                                          self._side_length)
+                                          self.spatial.y_range,
+                                          self.spatial._side_length)
 
         # Get corresponding slice of partition grid
-        partition_query = self._partition_grid[
+        partition_query = self.spatial._partition_grid[
             slice(*query_x_range_coord), slice(*query_y_range_coord)]
 
         # Get unique partitions present in slice
         query_partitions = sorted(np.unique(partition_query))
 
         if query_partitions:
-            partition_dfs = [self._frame.get_partition(p)
+            partition_dfs = [self.get_partition(p)
                              for p in query_partitions]
             query_frame = dd.concat(partition_dfs)
             return query_frame
         else:
             # return an empty Dask dataframe with the right shape
-            return (self._frame
-                    .get_partition(0)
+            return (self.get_partition(0)
                     .map_partitions(lambda df: df.iloc[1:0]))
 
-    # Read-only properties
     @property
-    def frame(self):
+    def spatial(self):
         """
-        Dask dataframe backed by a spatially partitioned parquet file
+        Accessor for the spacial properties associated with this dataframe
+        or None if the spatial properties are not configured
 
         Returns
         -------
-        dd.DataFrame
+        SpatialPointsFrame.SpatialProperties or None
         """
-        return self._frame
+        return self._spatial
 
-    @property
-    def hilbert_distances(self):
-        """
-        Dask series containing the Hilbert distance of each row in frame
+    class SpatialProperties(object):
+        def __init__(self, frame, x, y, p, x_range, y_range,
+                     distance_divisions, **_):
 
-        Returns
-        -------
-        dd.Series
-        """
-        x = self.x
-        y = self._y
-        p = self._p
-        x_range = self._x_range
-        y_range = self._y_range
-        return self._frame.map_partitions(
-            _compute_distance, x=x, y=y, p=p,
-            x_range=x_range, y_range=y_range)
+            self._frame = frame
+            self._x = x
+            self._y = y
+            self._p = p
+            self._x_range = tuple(x_range)
+            self._y_range = tuple(y_range)
+            self._distance_divisions = distance_divisions
 
-    @property
-    def partitions(self):
-        """
-        Dask series containing the partition of each row in frame
+            self._partition_grid = _build_partition_grid(
+                list(self._distance_divisions), self._p)
 
-        Returns
-        -------
-        dd.Series
-        """
-        search_divisions = np.array(self.distance_divisions[:-1])
-        return self.hilbert_distances.map_partitions(
-            lambda s: pd.Series(
-                np.ones(len(s)) *
-                search_divisions.searchsorted(s.iloc[0], side='right'),
-                dtype='int64',
-                index=s.index))
+            # Compute derived properties
+            n = 2
+            self._side_length = 2 ** self._p
+            self._max_distance = 2 ** (n * self._p) - 1
+            self._x_width = self._x_range[1] - self._x_range[0]
+            self._y_width = self._y_range[1] - self._y_range[0]
+            self._x_bin_width = self._x_width / self._side_length
+            self._y_bin_width = self._y_width / self._side_length
 
-    @property
-    def x(self):
-        """
-        Column label in frame containing the x coordinate of each row
-        """
-        return self._x
+        # Read-only properties
+        @property
+        def frame(self):
+            """
+            Dask dataframe that these spatial properties apply to
 
-    @property
-    def y(self):
-        """
-        Column label in frame containing the x coordinate of each row
-        """
-        return self._y
+            Returns
+            -------
+            dd.DataFrame
+            """
+            return self._frame
 
-    @property
-    def p(self):
-        """
-        Hilbert curve order parameter
+        @property
+        def distances(self):
+            """
+            Dask series containing the Hilbert distance of each row
 
-        Returns
-        -------
-        int
-        """
-        return self._p
+            Returns
+            -------
+            dd.Series
+            """
+            x = self.x
+            y = self.y
+            p = self.p
+            x_range = self.x_range
+            y_range = self.y_range
+            return self.frame.map_partitions(
+                _compute_distance, x=x, y=y, p=p,
+                x_range=x_range, y_range=y_range)
 
-    @property
-    def x_range(self):
-        """
-        x range extents for the entire dataset
+        @property
+        def partitions(self):
+            """
+            Dask series containing the partition of each row
 
-        Returns
-        -------
-        x_range: tuple
-            The min (x_range[0]) and max (x_range[1]) x coordinates in frame
-        """
-        return self._x_range
+            Returns
+            -------
+            dd.Series
+            """
+            search_divisions = np.array(self.distance_divisions[:-1])
+            return self.distances.map_partitions(
+                lambda s: pd.Series(
+                    np.ones(len(s)) *
+                    search_divisions.searchsorted(s.iloc[0], side='right'),
+                    dtype='int64',
+                    index=s.index))
 
-    @property
-    def y_range(self):
-        """
-        y range extents for the entire dataset
+        @property
+        def x(self):
+            """
+            Column label containing the x coordinate of each row
+            """
+            return self._x
 
-        Returns
-        -------
-        y_range: tuple
-            The min (y_range[0]) and max (y_range[1]) y coordinates in frame
-        """
-        return self._y_range
+        @property
+        def y(self):
+            """
+            Column label containing the x coordinate of each row
+            """
+            return self._y
 
-    @property
-    def x_bin_edges(self):
-        """
-        Array of the discrete x-coordinates that points are rounded to
-        in order to compute their Hilbert curve distance
+        @property
+        def p(self):
+            """
+            Hilbert curve order parameter
 
-        Returns
-        -------
-        x_bin_edges: np.ndarray
-        """
-        return np.linspace(*self.x_range, num=self._side_length + 1)
+            Returns
+            -------
+            int
+            """
+            return self._p
 
-    @property
-    def y_bin_edges(self):
-        """
-        Array of the discrete y-coordinates that points are rounded to
-        in order to compute their Hilbert curve distance
+        @property
+        def x_range(self):
+            """
+            x range extents for the entire dataset
 
-        Returns
-        -------
-        y_bin_edges: np.ndarray
-        """
-        return np.linspace(*self.y_range, num=self._side_length + 1)
+            Returns
+            -------
+            x_range: tuple
+                The min (x_range[0]) and max (x_range[1]) x coordinates in frame
+            """
+            return self._x_range
 
-    @property
-    def distance_divisions(self):
-        """
-        tuple of the Hilbert distance divisions corresponding to the
-        partitions in frame
+        @property
+        def y_range(self):
+            """
+            y range extents for the entire dataset
 
-        Returns
-        -------
-        tuple
-        """
-        return self._distance_divisions
+            Returns
+            -------
+            y_range: tuple
+                The min (y_range[0]) and max (y_range[1]) y coordinates in frame
+            """
+            return self._y_range
 
-    @property
-    def npartitions(self):
-        """
-        The number of partitions in frame
+        @property
+        def x_bin_edges(self):
+            """
+            Array of the discrete x-coordinates that points are rounded to
+            in order to compute their Hilbert curve distance
 
-        Returns
-        -------
-        int
-        """
-        return self._npartitions
+            Returns
+            -------
+            x_bin_edges: np.ndarray
+            """
+            return np.linspace(*self.x_range, num=self._side_length + 1)
+
+        @property
+        def y_bin_edges(self):
+            """
+            Array of the discrete y-coordinates that points are rounded to
+            in order to compute their Hilbert curve distance
+
+            Returns
+            -------
+            y_bin_edges: np.ndarray
+            """
+            return np.linspace(*self.y_range, num=self._side_length + 1)
+
+        @property
+        def distance_divisions(self):
+            """
+            tuple of the Hilbert distance divisions corresponding to the
+            dataframe's partitions
+
+            Returns
+            -------
+            tuple
+            """
+            return self._distance_divisions
 
 
 @ngjit

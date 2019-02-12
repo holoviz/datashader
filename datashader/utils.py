@@ -362,7 +362,7 @@ def dshape_from_pandas_helper(col):
         ))
         return datashape.Categorical(col.cat.categories.values,
                                      type=cat_dshape,
-                                     ordered=col.cat.categorical.ordered)
+                                     ordered=col.cat.ordered)
     elif col.dtype.kind == 'M':
         tz = getattr(col.dtype, 'tz', None)
         if tz is not None:
