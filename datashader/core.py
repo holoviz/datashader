@@ -167,7 +167,7 @@ class Canvas(object):
                 source.spatial is not None and
                 source.spatial.x == x and source.spatial.y == y):
 
-            source = source.query_partitions(
+            source = source.spatial_query(
                 x_range=self.x_range, y_range=self.y_range)
 
         return bypixel(source, self, Point(x, y), agg)

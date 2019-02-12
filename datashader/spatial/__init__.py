@@ -162,7 +162,7 @@ class SpatialPointsFrame(dd.DataFrame):
     ...
     ... def create_image(x_range, y_range):
     ...     cvs = ds.Canvas(x_range=x_range, y_range=y_range)
-    ...     df = sframe.query_partitions(x_range, y_range)
+    ...     df = sframe.spatial_query(x_range, y_range)
     ...     agg = cvs.points(df, 'x', 'y')
     ...     return tf.dynspread(tf.shade(agg))
     ...
@@ -417,7 +417,7 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         persisted._set_spatial_props(props)
         return persisted
 
-    def query_partitions(self, x_range, y_range):
+    def spatial_query(self, x_range, y_range):
         """
         Query the underlying parquet file for the partitions that potentially
         intersect with a given rectangular region.

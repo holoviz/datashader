@@ -79,7 +79,7 @@ def test_query_partitions(s_points_frame, x_range, y_range):
     ddf = s_points_frame
 
     # Query subset
-    query_ddf = s_points_frame.query_partitions(x_range, y_range)
+    query_ddf = s_points_frame.spatial_query(x_range, y_range)
 
     # Make sure we have less partitions
     assert query_ddf.npartitions < ddf.npartitions
@@ -116,7 +116,7 @@ def test_aggregation_partitions(s_points_frame, x_range, y_range):
     df = s_points_frame.compute()
 
     # Query subset
-    query_ddf = s_points_frame.query_partitions(x_range, y_range)
+    query_ddf = s_points_frame.spatial_query(x_range, y_range)
 
     # Create canvas
     cvs = Canvas(x_range=x_range, y_range=y_range)
