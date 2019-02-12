@@ -372,12 +372,12 @@ SpatialPointsFrame.partition_and_write static method.""".format(
         self._x = props.get('x')
         self._y = props.get('y')
         self._p = props.get('p')
-        self._x_range = tuple(props.get('x_range', (None, None))
-        self._y_range = tuple(props.get('y_range', (None, None))
+        self._x_range = tuple(props.get('x_range', (None, None)))
+        self._y_range = tuple(props.get('y_range', (None, None)))
         self._distance_divisions = tuple(props.get('distance_divisions', (None, None)))
         self._spatial = bool(props)
 
-        if not self_spatial:
+        if not self._spatial:
             return
 
         self._partition_grid = _build_partition_grid(
