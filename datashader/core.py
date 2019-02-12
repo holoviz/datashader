@@ -165,7 +165,8 @@ class Canvas(object):
 
         if (isinstance(source, SpatialPointsFrame) and
                 source.spatial is not None and
-                source.spatial.x == x and source.spatial.y == y):
+                source.spatial.x == x and source.spatial.y == y and
+                self.x_range is not None and self.y_range is not None):
 
             source = source.spatial_query(
                 x_range=self.x_range, y_range=self.y_range)
