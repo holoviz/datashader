@@ -495,7 +495,7 @@ SpatialPointsFrame.partition_and_write static method.""".format(
             self._distance_divisions = distance_divisions
 
             self._partition_grid = _build_partition_grid(
-                self._distance_divisions, self._p)
+                list(self._distance_divisions), self._p)
 
             # Compute derived properties
             n = 2
