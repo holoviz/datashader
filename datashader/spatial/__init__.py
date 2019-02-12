@@ -158,7 +158,7 @@ class SpatialPointsFrame(dd.DataFrame):
 
     Then, construct a SpatialPointsFrame and use it to extract
     subsets of the original dataframe based on x/y range extents.
-    >>> sframe = SpatialPointsFrame(filename, persist=True)  # doctest: +SKIP
+    >>> sframe = SpatialPointsFrame.from_parquet(filename).persist()  # doctest: +SKIP
     ...
     ... def create_image(x_range, y_range):
     ...     cvs = ds.Canvas(x_range=x_range, y_range=y_range)
@@ -328,9 +328,6 @@ Received value of type {typ}""".format(typ=type(df)))
         filename: str
             Path to a spatially partitioned parquet file that was created
             using SpatialPointsFrame.partition_and_write
-        persist: bool (default False)
-            Whether to persist the entire parquet file as a Dask dataframe
-            in memory
 
         Returns
         -------
