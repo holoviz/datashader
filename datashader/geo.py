@@ -10,7 +10,7 @@ import datashader.transfer_functions as tf
 
 from datashader import Canvas
 from datashader.colors import rgb
-from datashader.utils import ngjit
+from datashader.utils import ngjit, lnglat_to_meters   # noqa (API import)
 from xarray import DataArray
 
 
