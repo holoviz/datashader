@@ -13,8 +13,8 @@ from datashader.colors import rgb
 from datashader.utils import ngjit, lnglat_to_meters   # noqa (API import)
 from xarray import DataArray
 
-
-__all__ = ['mean', 'binary', 'slope', 'aspect', 'ndvi', 'hillshade', 'generate_terrain']
+__all__ = ['mean', 'binary', 'slope', 'aspect', 'ndvi', 'hillshade', 'generate_terrain',
+           'lnglat_to_meters']
 
 
 def hillshade(agg, azimuth=225, angle_altitude=25):
