@@ -5,7 +5,7 @@ import pandas as pd
 import dask.dataframe as dd
 
 from datashader import Canvas
-from datashader.spatial import SpatialPointsFrame
+import datashader.spatial.points as dsp
 
 
 @pytest.fixture()
@@ -34,14 +34,16 @@ def s_points_frame(request, tmp_path, df):
     # Work around https://bugs.python.org/issue33617
     tmp_path = str(tmp_path)
     p = 5
-    filename = os.path.join(tmp_path, 'spatial_points.parquet')
+    path = os.path.join(tmp_path, 'spatial_points.parquet')
 
-    SpatialPointsFrame.partition_and_write(
-        df, 'x', 'y', filename=filename, p=p, npartitions=10)
+    dsp.to_parquet(
+        df, path, 'x', 'y', p=p, npartitions=10)
 
-    spf = SpatialPointsFrame.from_parquet(filename=filename)
+    spf = dsp.read_parquet(path)
+
     if request.param:
         spf = spf.persist()
+
     return spf
 
 
@@ -140,8 +142,6 @@ def test_validate_parquet_file(df, tmp_path):
     ddf.to_parquet(filename, engine='fastparquet')
 
     # Try to construct a SpatialPointsFrame from it
-    with pytest.raises(ValueError) as e:
-        SpatialPointsFrame.from_parquet(filename)
+    spf = dsp.read_parquet(filename)
 
-    assert 'SpatialPointsFrame.partition_and_write' in str(e.value)
-
+    assert spf.spatial is None
