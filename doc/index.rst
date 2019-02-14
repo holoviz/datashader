@@ -1,7 +1,8 @@
 .. Datashader documentation master file
 
-Datashader
-----------
+.. raw:: html
+
+  <h1><img src="_static/logo_horizontal.png" style="width: 50%;"></h1>
 
 .. raw:: html
     :file: latest_news.html
@@ -12,7 +13,7 @@ Datashader
     :offset: 0
 
 .. toctree::
-    :titlesonly:
+    :hidden:
     :maxdepth: 2
 
     Introduction <self>
@@ -21,3 +22,4 @@ Datashader
     Topics <topics/index>
     API <api>
     FAQ <FAQ>
+    About <about>
