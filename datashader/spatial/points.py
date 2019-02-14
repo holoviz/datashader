@@ -534,7 +534,7 @@ class SpatialPointsFrame(dd.DataFrame):
             return self.distances.map_partitions(
                 lambda s: pd.Series(
                     np.ones(len(s)) *
-                    search_divisions.searchsorted(s.iloc[0], side='right'),
+                    search_divisions.searchsorted(s.iloc[0], side='right') - 1,
                     dtype='int64',
                     index=s.index))
 
