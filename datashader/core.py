@@ -10,7 +10,7 @@ from six import string_types
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
-from datashader.spatial import SpatialPointsFrame
+from datashader.spatial.points import SpatialPointsFrame
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
