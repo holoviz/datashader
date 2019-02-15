@@ -3,8 +3,8 @@
 The best way to understand how Datashader works is to try out our
 extensive set of examples. [Datashader.org](http://datashader.org)
 includes static versions of the 
-[getting started guide](http://datashader.org/getting-started), 
-[user manual](http://datashader.org/user-guide), and
+[getting started guide](http://datashader.org/getting_started), 
+[user manual](http://datashader.org/user_guide), and
 [topic examples](http://datashader.org/topics), but for the full
 experience with dynamic updating you will need to install them on a
 live server. 
