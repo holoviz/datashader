@@ -54,6 +54,7 @@ def test_spatial_points_frame_properties(s_points_frame):
     assert s_points_frame.npartitions == 10
     assert s_points_frame.spatial.x_range == (0, 1)
     assert s_points_frame.spatial.y_range == (0, 2)
+    assert s_points_frame.spatial.nrows == 1000
 
     # x_bin_edges
     np.testing.assert_array_equal(

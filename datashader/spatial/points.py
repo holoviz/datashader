@@ -202,11 +202,14 @@ def to_parquet(df, path, x, y, p=10, npartitions=None, shuffle=None,
 df must be a pandas or dask DataFrame instance.
 Received value of type {typ}""".format(typ=type(df)))
 
+    # Get number of rows
+    nrows = len(df)
+
     # Compute npartitions if needed
     if npartitions is None:
         # Make partitions of ~8 million rows with a minimum of 8
         # partitions
-        npartitions = max(len(df) // 2**23, 8)
+        npartitions = max(nrows // 2**23, 8)
 
     # Compute data extents
     extents = ddf.map_partitions(
@@ -241,6 +244,7 @@ Received value of type {typ}""".format(typ=type(df)))
         distance_divisions=distance_divisions,
         x_range=x_range,
         y_range=y_range,
+        nrows=nrows
     )
 
     # Drop distance index to save storage space
@@ -394,7 +398,7 @@ class SpatialPointsFrame(dd.DataFrame):
 
         s = self.spatial
         props = dict(x=s.x, y=s.y, p=s.p,
-                     x_range=s.x_range, y_range=s.y_range,
+                     x_range=s.x_range, y_range=s.y_range, nrows=s.nrows,
                      distance_divisions=s.distance_divisions)
 
         persisted._set_spatial_props(props)
@@ -468,7 +472,7 @@ class SpatialPointsFrame(dd.DataFrame):
         return self._spatial
 
     class SpatialProperties(object):
-        def __init__(self, frame, x, y, p, x_range, y_range,
+        def __init__(self, frame, x, y, p, x_range, y_range, nrows,
                      distance_divisions, **_):
 
             self._frame = frame
@@ -477,6 +481,7 @@ class SpatialPointsFrame(dd.DataFrame):
             self._p = p
             self._x_range = tuple(x_range)
             self._y_range = tuple(y_range)
+            self._nrows = nrows
             self._distance_divisions = distance_divisions
 
             self._partition_grid = _build_partition_grid(
@@ -586,6 +591,17 @@ class SpatialPointsFrame(dd.DataFrame):
                 The min (y_range[0]) and max (y_range[1]) y coordinates in frame
             """
             return self._y_range
+
+        @property
+        def nrows(self):
+            """
+            The number of rows in the dataset
+
+            Returns
+            -------
+            int
+            """
+            return self._nrows
 
         @property
         def x_bin_edges(self):
