@@ -4,7 +4,7 @@ from nbsite.shared_conf import *
 
 project = u'Datashader'
 authors = u'Datashader contributors'
-copyright = u'2016-2018, Anaconda, Inc.'
+copyright = u'2016-2019, Anaconda, Inc.'
 description = 'Turns even the largest data into images, accurately.'
 
 from datashader import __version__
@@ -15,15 +15,18 @@ html_theme = 'sphinx_ioam_theme'
 html_theme_options = {
     'logo':'datashader-logo.png',
     'favicon':'favicon.ico',
-#    'css':'site.css'
+    'css':'site.css'
 }
+
+templates_path = ['_templates']
 
 _NAV =  (
     ('Getting Started', 'getting_started/index'),
     ('User Guide', 'user_guide/index'),
     ('Topics', 'topics/index'),
     ('API', 'api'),
-    ('FAQ', 'FAQ')
+    ('FAQ', 'FAQ'),
+    ('About', 'about')
 )
 
 html_context.update({
@@ -35,9 +38,10 @@ html_context.update({
     'NAV': _NAV,
     'LINKS': _NAV,
     'SOCIAL': (
-        ('Twitter', '//twitter.com/datashader/'),
-        ('Gitter', '//gitter.im/pyviz/pyviz'),
-        ('Github', '//github.com/bokeh/datashader/'),
+        ('Github', 'https://github.com/bokeh/datashader/'),
+        ('Twitter', 'https://twitter.com/datashader/'),
+        ('Gitter', 'https://gitter.im/pyviz/pyviz'),
+        ('PyViz', 'http://pyviz.org'),
     )
 })
 

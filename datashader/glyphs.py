@@ -84,23 +84,20 @@ class _PointLike(Glyph):
         return minval, maxval
 
     @memoize
-    def compute_x_bounds_dask(self, df):
-        """Like ``PointLike._compute_x_bounds``, but memoized because
-        ``df`` is immutable/hashable (a Dask dataframe).
-        """
-        xs = df[self.x].values
-        minval, maxval = np.nanmin(xs), np.nanmax(xs)
-        return self.maybe_expand_bounds((minval, maxval))
+    def compute_bounds_dask(self, ddf):
 
-    @memoize
-    def compute_y_bounds_dask(self, df):
-        """Like ``PointLike._compute_y_bounds``, but memoized because
-        ``df`` is immutable/hashable (a Dask dataframe).
-        """
-        ys = df[self.y].values
-        minval, maxval = np.nanmin(ys), np.nanmax(ys)
-        return self.maybe_expand_bounds((minval, maxval))
+        r = ddf.map_partitions(lambda df: np.array([[
+            np.nanmin(df[self.x].values),
+            np.nanmax(df[self.x].values),
+            np.nanmin(df[self.y].values),
+            np.nanmax(df[self.y].values)]]
+        )).compute()
 
+        x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
+        y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
+
+        return (self.maybe_expand_bounds(x_extents),
+                self.maybe_expand_bounds(y_extents))
 
 
 class _PolygonLike(_PointLike):
@@ -255,18 +252,20 @@ class LineAxis0Multi(_PointLike):
         return self.maybe_expand_bounds((min(mins), max(maxes)))
 
     @memoize
-    def compute_x_bounds_dask(self, df):
-        bounds_list = [self._compute_x_bounds(df[x].values.compute())
-                       for x in self.x]
-        mins, maxes = zip(*bounds_list)
-        return self.maybe_expand_bounds((min(mins), max(maxes)))
+    def compute_bounds_dask(self, ddf):
 
-    @memoize
-    def compute_y_bounds_dask(self, df):
-        bounds_list = [self._compute_y_bounds(df[y].values.compute())
-                       for y in self.y]
-        mins, maxes = zip(*bounds_list)
-        return self.maybe_expand_bounds((min(mins), max(maxes)))
+        r = ddf.map_partitions(lambda df: np.array([[
+            np.nanmin([np.nanmin(df[c].values) for c in self.x]),
+            np.nanmax([np.nanmax(df[c].values) for c in self.x]),
+            np.nanmin([np.nanmin(df[c].values) for c in self.y]),
+            np.nanmax([np.nanmax(df[c].values) for c in self.y])]]
+        )).compute()
+
+        x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
+        y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
+
+        return (self.maybe_expand_bounds(x_extents),
+                self.maybe_expand_bounds(y_extents))
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
@@ -344,28 +343,20 @@ class LinesAxis1(_PointLike):
         return self.maybe_expand_bounds((min(mins), max(maxes)))
 
     @memoize
-    def compute_x_bounds_dask(self, df):
-        """Like ``PointLike.compute_x_bounds``, but memoized because
-        ``df`` is immutable/hashable (a Dask dataframe).
-        """
-        x_mins = [np.nanmin(df[xlabel].values) for xlabel in self.x]
-        x_maxes = [np.nanmax(df[xlabel].values) for xlabel in self.x]
+    def compute_bounds_dask(self, ddf):
 
-        minval, maxval = np.nanmin(x_mins), np.nanmax(x_maxes)
+        r = ddf.map_partitions(lambda df: np.array([[
+            np.nanmin([np.nanmin(df[c].values) for c in self.x]),
+            np.nanmax([np.nanmax(df[c].values) for c in self.x]),
+            np.nanmin([np.nanmin(df[c].values) for c in self.y]),
+            np.nanmax([np.nanmax(df[c].values) for c in self.y])]]
+        )).compute()
 
-        return self.maybe_expand_bounds((minval, maxval))
+        x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
+        y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
 
-    @memoize
-    def compute_y_bounds_dask(self, df):
-        """Like ``PointLike.compute_x_bounds``, but memoized because
-        ``df`` is immutable/hashable (a Dask dataframe).
-        """
-        y_mins = [np.nanmin(df[ylabel].values) for ylabel in self.y]
-        y_maxes = [np.nanmax(df[ylabel].values) for ylabel in self.y]
-
-        minval, maxval = np.nanmin(y_mins), np.nanmax(y_maxes)
-
-        return self.maybe_expand_bounds((minval, maxval))
+        return (self.maybe_expand_bounds(x_extents),
+                self.maybe_expand_bounds(y_extents))
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
@@ -406,8 +397,18 @@ class LinesAxis1XConstant(LinesAxis1):
         x_max = np.nanmax(self.x)
         return self.maybe_expand_bounds((x_min, x_max))
 
-    def compute_x_bounds_dask(self, df):
-        return self.compute_x_bounds()
+    @memoize
+    def compute_bounds_dask(self, ddf):
+
+        r = ddf.map_partitions(lambda df: np.array([[
+            np.nanmin([np.nanmin(df[c].values) for c in self.y]),
+            np.nanmax([np.nanmax(df[c].values) for c in self.y])]]
+        )).compute()
+
+        y_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
+
+        return (self.compute_x_bounds(),
+                self.maybe_expand_bounds(y_extents))
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
@@ -448,8 +449,18 @@ class LinesAxis1YConstant(LinesAxis1):
         y_max = np.nanmax(self.y)
         return self.maybe_expand_bounds((y_min, y_max))
 
-    def compute_y_bounds_dask(self, df):
-        return self.compute_y_bounds()
+    @memoize
+    def compute_bounds_dask(self, ddf):
+
+        r = ddf.map_partitions(lambda df: np.array([[
+            np.nanmin([np.nanmin(df[c].values) for c in self.x]),
+            np.nanmax([np.nanmax(df[c].values) for c in self.x])]]
+        )).compute()
+
+        x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
+
+        return (self.maybe_expand_bounds(x_extents),
+                self.compute_y_bounds())
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):

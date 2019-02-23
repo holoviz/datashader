@@ -31,8 +31,13 @@ def dask_pipeline(df, schema, canvas, glyph, summary):
 
 
 def shape_bounds_st_and_axis(df, canvas, glyph):
-    x_range = canvas.x_range or glyph.compute_x_bounds_dask(df)
-    y_range = canvas.y_range or glyph.compute_y_bounds_dask(df)
+    if not canvas.x_range or not canvas.y_range:
+        x_extents, y_extents = glyph.compute_bounds_dask(df)
+    else:
+        x_extents, y_extents = None, None
+
+    x_range = canvas.x_range or x_extents
+    y_range = canvas.y_range or y_extents
     x_min, x_max, y_min, y_max = bounds = compute(*(x_range + y_range))
     x_range, y_range = (x_min, x_max), (y_min, y_max)
 

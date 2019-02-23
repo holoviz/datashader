@@ -12,6 +12,11 @@ data:
     files:
       - nyc_crime.csv
 
+  - url: https://s3.amazonaws.com/datashader-data/nyc_taxi_wide.parq
+    title: 'NYC Taxi Data Wide'
+    files:
+      - nyc_taxi_wide.parq
+
   - url: http://s3.amazonaws.com/datashader-data/nyc_taxi.zip
     title: 'NYC Taxi Data'
     files:
@@ -28,10 +33,10 @@ data:
     files:
       - calvert_uk_research2017_nodes.csv
 
-  - url: http://s3.amazonaws.com/datashader-data/census.snappy.parq.zip
-    title: 'Census Synthetic People'
+  - url: http://s3.amazonaws.com/datashader-data/census2010.parq.zip
+    title: '2010 Census Synthetic People'
     files:
-      - census.snappy.parq
+      - census2010.parq
 
   - url: http://s3.amazonaws.com/datashader-data/opensky.parq
     title: 'OpenSky flights, Sept 5-13 2016'

@@ -3,7 +3,7 @@ sources:
     description: 1-billion-point OpenStreetMap GPS dataset
     driver: parquet
     args:
-      urlpath: '{{ CATALOG_DIR }}/data/osm-1billion.snappy.parq'
+      urlpath: '{{ CATALOG_DIR }}/data/osm-1billion.parq'
       columns: ['x','y']
     metadata:
       fields:
@@ -87,7 +87,7 @@ sources:
     description: US Census Synthetic Data
     driver: parquet
     args:
-      urlpath: '{{ CATALOG_DIR }}/data/census.snappy.parq'
+      urlpath: '{{ CATALOG_DIR }}/data/census2010.parq'
     metadata:
       fields:
         counts:

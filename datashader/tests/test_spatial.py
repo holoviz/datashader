@@ -3,7 +3,9 @@ import pytest
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
-from datashader.spatial import SpatialPointsFrame
+
+from datashader import Canvas
+import datashader.spatial.points as dsp
 
 
 @pytest.fixture()
@@ -26,40 +28,46 @@ def df():
     return df
 
 
-@pytest.fixture()
-def s_points_frame(tmp_path, df):
+@pytest.fixture(params=[False, True])
+def s_points_frame(request, tmp_path, df):
 
     # Work around https://bugs.python.org/issue33617
     tmp_path = str(tmp_path)
     p = 5
-    filename = os.path.join(tmp_path, 'spatial_points.parquet')
+    path = os.path.join(tmp_path, 'spatial_points.parquet')
 
-    SpatialPointsFrame.partition_and_write(
-        df, 'x', 'y', filename=filename, p=p, npartitions=10)
+    dsp.to_parquet(
+        df, path, 'x', 'y', p=p, npartitions=10)
 
-    return SpatialPointsFrame(filename=filename)
+    spf = dsp.read_parquet(path)
+
+    if request.param:
+        spf = spf.persist()
+
+    return spf
 
 
-def test_spacial_points_frame_properties(s_points_frame):
-    assert s_points_frame.x == 'x'
-    assert s_points_frame.y == 'y'
-    assert s_points_frame.p == 5
+def test_spatial_points_frame_properties(s_points_frame):
+    assert s_points_frame.spatial.x == 'x'
+    assert s_points_frame.spatial.y == 'y'
+    assert s_points_frame.spatial.p == 5
     assert s_points_frame.npartitions == 10
-    assert s_points_frame.x_range == (0, 1)
-    assert s_points_frame.y_range == (0, 2)
+    assert s_points_frame.spatial.x_range == (0, 1)
+    assert s_points_frame.spatial.y_range == (0, 2)
+    assert s_points_frame.spatial.nrows == 1000
 
     # x_bin_edges
     np.testing.assert_array_equal(
-        s_points_frame.x_bin_edges,
+        s_points_frame.spatial.x_bin_edges,
         np.linspace(0.0, 1.0, 2 ** 5 + 1))
 
     # y_bin_edges
     np.testing.assert_array_equal(
-        s_points_frame.y_bin_edges,
+        s_points_frame.spatial.y_bin_edges,
         np.linspace(0.0, 2.0, 2 ** 5 + 1))
 
     # distance_divisions
-    distance_divisions = s_points_frame.distance_divisions
+    distance_divisions = s_points_frame.spatial.distance_divisions
     assert len(distance_divisions) == 10 + 1
 
 
@@ -71,10 +79,10 @@ def test_spacial_points_frame_properties(s_points_frame):
 def test_query_partitions(s_points_frame, x_range, y_range):
 
     # Get original
-    ddf = s_points_frame.frame
+    ddf = s_points_frame
 
     # Query subset
-    query_ddf = s_points_frame.query_partitions(x_range, y_range)
+    query_ddf = s_points_frame.spatial_query(x_range, y_range)
 
     # Make sure we have less partitions
     assert query_ddf.npartitions < ddf.npartitions
@@ -101,6 +109,30 @@ def test_query_partitions(s_points_frame, x_range, y_range):
     pd.testing.assert_frame_equal(df1, df2)
 
 
+@pytest.mark.parametrize('x_range,y_range', [
+    ((0, 0.2), (0, 0.2)),
+    ((0.3, 1.0), (0.5, 1.5)),
+    ((5, 10), (5, 10))  # Outside of bounds
+])
+def test_aggregation_partitions(s_points_frame, x_range, y_range):
+    # Get original as pandas
+    df = s_points_frame.compute()
+
+    # Query subset
+    query_ddf = s_points_frame.spatial_query(x_range, y_range)
+
+    # Create canvas
+    cvs = Canvas(x_range=x_range, y_range=y_range)
+
+    # Aggregate with full pandas frame
+    agg_expected = cvs.points(df, 'x', 'y')
+    agg_query = cvs.points(query_ddf, 'x', 'y')
+    agg = cvs.points(s_points_frame, 'x', 'y')
+
+    assert agg.equals(agg_expected)
+    assert agg.equals(agg_query)
+
+
 def test_validate_parquet_file(df, tmp_path):
     # Work around https://bugs.python.org/issue33617
     tmp_path = str(tmp_path)
@@ -111,8 +143,6 @@ def test_validate_parquet_file(df, tmp_path):
     ddf.to_parquet(filename, engine='fastparquet')
 
     # Try to construct a SpatialPointsFrame from it
-    with pytest.raises(ValueError) as e:
-        SpatialPointsFrame(filename)
+    spf = dsp.read_parquet(filename)
 
-    assert 'SpatialPointsFrame.partition_and_write' in str(e.value)
-
+    assert spf.spatial is None

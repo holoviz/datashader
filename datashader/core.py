@@ -10,6 +10,7 @@ from six import string_types
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
+from datashader.spatial.points import SpatialPointsFrame
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
@@ -161,6 +162,15 @@ class Canvas(object):
         from .reductions import count as count_rdn
         if agg is None:
             agg = count_rdn()
+
+        if (isinstance(source, SpatialPointsFrame) and
+                source.spatial is not None and
+                source.spatial.x == x and source.spatial.y == y and
+                self.x_range is not None and self.y_range is not None):
+
+            source = source.spatial_query(
+                x_range=self.x_range, y_range=self.y_range)
+
         return bypixel(source, self, Point(x, y), agg)
 
     def line(self, source, x, y, agg=None, axis=0):
