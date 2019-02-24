@@ -505,22 +505,20 @@ class LinesAxis1Ragged(_PointLike):
         return self.maybe_expand_bounds(bounds)
 
     @memoize
-    def compute_x_bounds_dask(self, df):
-        """Like ``PointLike._compute_x_bounds``, but memoized because
-        ``df`` is immutable/hashable (a Dask dataframe).
-        """
-        xs = df[self.x].compute().array.flat_array
-        minval, maxval = np.nanmin(xs), np.nanmax(xs)
-        return self.maybe_expand_bounds((minval, maxval))
+    def compute_bounds_dask(self, ddf):
 
-    @memoize
-    def compute_y_bounds_dask(self, df):
-        """Like ``PointLike._compute_y_bounds``, but memoized because
-        ``df`` is immutable/hashable (a Dask dataframe).
-        """
-        ys = df[self.y].compute().array.flat_array
-        minval, maxval = np.nanmin(ys), np.nanmax(ys)
-        return self.maybe_expand_bounds((minval, maxval))
+        r = ddf.map_partitions(lambda df: np.array([[
+            np.nanmin(df[self.x].array.flat_array),
+            np.nanmax(df[self.x].array.flat_array),
+            np.nanmin(df[self.y].array.flat_array),
+            np.nanmax(df[self.y].array.flat_array)]]
+        )).compute()
+
+        x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
+        y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
+
+        return (self.maybe_expand_bounds(x_extents),
+                self.maybe_expand_bounds(y_extents))
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
