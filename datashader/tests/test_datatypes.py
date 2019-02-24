@@ -712,9 +712,9 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
 
 class TestRaggedMethods(eb.BaseMethodsTests):
 
-    # AttributeError: 'RaggedArray' object has no attribute 'value_counts'
+    # # AttributeError: 'RaggedArray' object has no attribute 'value_counts'
     @pytest.mark.skip(reason="value_counts not supported")
-    def test_value_counts(self, all_data, dropna):
+    def test_value_counts(self):
         pass
 
     # Add array equality
@@ -732,26 +732,26 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     # Pandas raises
     #   ValueError: invalid fill value with a <class 'numpy.ndarray'>
     @pytest.mark.skip(reason="pandas cannot fill with ndarray")
-    def test_fillna_copy_frame(self, data_missing):
+    def test_fillna_copy_frame(self):
         pass
 
     @pytest.mark.skip(reason="pandas cannot fill with ndarray")
-    def test_fillna_copy_series(self, data_missing):
+    def test_fillna_copy_series(self):
         pass
 
     # Ragged array elements don't support binary operators
     @pytest.mark.skip(reason="ragged does not support <= on elements")
-    def test_combine_le(self, data_repeated):
+    def test_combine_le(self):
         pass
 
     @pytest.mark.skip(reason="ragged does not support + on elements")
-    def test_combine_add(self, data_repeated):
+    def test_combine_add(self):
         pass
 
     # Block manager error:
     #   ValueError: setting an array element with a sequence.
     @pytest.mark.skip(reason="combine_first not supported")
-    def test_combine_first(self, data):
+    def test_combine_first(self):
         pass
 
 
@@ -764,11 +764,11 @@ class TestRaggedMissing(eb.BaseMissingTests):
     # Errors like:
     #   ValueError: invalid fill value with a <class 'numpy.ndarray'>
     @pytest.mark.skip(reason="Can't fill with ndarray")
-    def test_fillna_series(self, data_missing):
+    def test_fillna_series(self):
         pass
 
     @pytest.mark.skip(reason="Can't fill with ndarray")
-    def test_fillna_frame(self, data_missing):
+    def test_fillna_frame(self):
         pass
 
 
