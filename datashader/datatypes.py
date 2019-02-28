@@ -123,6 +123,9 @@ class RaggedDtype(ExtensionDtype):
 
     @property
     def name(self):
+        """
+        See docstring for ExtensionDtype.name
+        """
         return 'Ragged[{subtype}]'.format(subtype=self.subtype)
 
     def __repr__(self):
@@ -130,10 +133,16 @@ class RaggedDtype(ExtensionDtype):
 
     @classmethod
     def construct_array_type(cls):
+        """
+        See docstring for ExtensionDtype.construct_array_type
+        """
         return RaggedArray
 
     @classmethod
     def construct_from_string(cls, string):
+        """
+        See docstring for ExtensionDtype.construct_from_string
+        """
         # lowercase string
         string = string.lower()
 
@@ -372,25 +381,13 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
     def __len__(self):
         """
-        Length of this array
-
-        Returns
-        -------
-        length : int
+        See docstring for ExtensionArray.__len__
         """
         return len(self._start_indices)
 
     def __getitem__(self, item):
         """
-        Parameters
-        ----------
-        item : int, slice, or ndarray
-            * int: The position in 'self' to get.
-
-            * slice: A slice object, where 'start', 'stop', and 'step' are
-              integers or None
-
-            * ndarray: A 1-d boolean NumPy ndarray the same length as 'self'
+        See docstring for ExtensionArray.__getitem__
         """
         if isinstance(item, Integral):
             if item < -len(self) or item >= len(self):
@@ -434,41 +431,14 @@ Cannot check equality of RaggedArray of length {ra_len} with:
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
         """
-        Construct a new RaggedArray from a sequence of scalars.
-
-        Parameters
-        ----------
-        scalars : Sequence
-            Each element will be an instance of the scalar type for this
-            array, ``cls.dtype.type``.
-        dtype : dtype, optional
-            Construct for this particular dtype. This should be a Dtype
-            compatible with the ExtensionArray.
-        copy : boolean, default False
-            If True, copy the underlying data.
-
-        Returns
-        -------
-        RaggedArray
+        See docstring for ExtensionArray._from_sequence
         """
         return RaggedArray(scalars, dtype=dtype)
 
     @classmethod
     def _from_factorized(cls, values, original):
         """
-        Reconstruct a RaggedArray after factorization.
-
-        Parameters
-        ----------
-        values : ndarray
-            An integer ndarray with the factorized values.
-        original : RaggedArray
-            The original RaggedArray that factorize was called on.
-
-        See Also
-        --------
-        pandas.factorize
-        ExtensionArray.factorize
+        See docstring for ExtensionArray._from_factorized
         """
         return RaggedArray(
             [_RaggedElement.array_or_nan(v) for v in values],
@@ -479,18 +449,20 @@ Cannot check equality of RaggedArray of length {ra_len} with:
                          for i in range(len(self))])
 
     def _values_for_factorize(self):
+        """
+        See docstring for ExtensionArray._values_for_factorize
+        """
         return self._as_ragged_element_array(), np.nan
 
     def _values_for_argsort(self):
+        """
+        See docstring for ExtensionArray._values_for_argsort
+        """
         return self._as_ragged_element_array()
 
     def unique(self):
         """
-        Compute the ExtensionArray of unique values.
-
-        Returns
-        -------
-        uniques : ExtensionArray
+        See docstring for ExtensionArray.unique
         """
         from pandas import unique
 
@@ -501,29 +473,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
     def fillna(self, value=None, method=None, limit=None):
         """
-        Fill NA/NaN values using the specified method.
-
-        Parameters
-        ----------
-        value : scalar, array-like
-            If a scalar value is passed it is used to fill all missing values.
-            Alternatively, an array-like 'value' can be given. It's expected
-            that the array-like have the same length as 'self'.
-        method : {'backfill', 'bfill', 'pad', 'ffill', None}, default None
-            Method to use for filling holes in reindexed Series
-            pad / ffill: propagate last valid observation forward to next valid
-            backfill / bfill: use NEXT valid observation to fill gap
-        limit : int, default None
-            If method is specified, this is the maximum number of consecutive
-            NaN values to forward/backward fill. In other words, if there is
-            a gap with more than this number of consecutive NaNs, it will only
-            be partially filled. If method is not specified, this is the
-            maximum number of entries along the entire axis where NaNs will be
-            filled.
-
-        Returns
-        -------
-        filled : ExtensionArray with NA/NaN filled
+        See docstring for ExtensionArray.fillna
         """
         # Override in RaggedArray to handle ndarray fill values
         from pandas.util._validators import validate_fillna_kwargs
@@ -560,37 +510,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
     def shift(self, periods=1, fill_value=None):
         # type: (int, object) -> ExtensionArray
         """
-        Shift values by desired number.
-
-        Newly introduced missing values are filled with
-        ``self.dtype.na_value``.
-
-        .. versionadded:: 0.24.0
-
-        Parameters
-        ----------
-        periods : int, default 1
-            The number of periods to shift. Negative values are allowed
-            for shifting backwards.
-
-        fill_value : object, optional
-            The scalar value to use for newly introduced missing values.
-            The default is ``self.dtype.na_value``
-
-            .. versionadded:: 0.24.0
-
-        Returns
-        -------
-        shifted : ExtensionArray
-
-        Notes
-        -----
-        If ``self`` is empty or ``periods`` is 0, a copy of ``self`` is
-        returned.
-
-        If ``periods > len(self)``, then an array of size
-        len(self) is returned, with all values filled with
-        ``self.dtype.na_value``.
+        See docstring for ExtensionArray.shift
         """
         # Override in RaggedArray to handle ndarray fill values
 
@@ -616,49 +536,8 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
     def searchsorted(self, value, side="left", sorter=None):
         """
-        Find indices where elements should be inserted to maintain order.
-
-        .. versionadded:: 0.24.0
-
-        Find the indices into a sorted array `self` (a) such that, if the
-        corresponding elements in `v` were inserted before the indices, the
-        order of `self` would be preserved.
-
-        Assuming that `a` is sorted:
-
-        ======  ============================
-        `side`  returned index `i` satisfies
-        ======  ============================
-        left    ``self[i-1] < v <= self[i]``
-        right   ``self[i-1] <= v < self[i]``
-        ======  ============================
-
-        Parameters
-        ----------
-        value : array_like
-            Values to insert into `self`.
-        side : {'left', 'right'}, optional
-            If 'left', the index of the first suitable location found is given.
-            If 'right', return the last such index.  If there is no suitable
-            index, return either 0 or N (where N is the length of `self`).
-        sorter : 1-D array_like, optional
-            Optional array of integer indices that sort array a into ascending
-            order. They are typically the result of argsort.
-
-        Returns
-        -------
-        indices : array of ints
-            Array of insertion points with the same shape as `value`.
-
-        See Also
-        --------
-        numpy.searchsorted : Similar method from NumPy.
+        See docstring for ExtensionArray.searchsorted
         """
-        # Note: the base tests provided by pandas only test the basics.
-        # We do not test
-        # 1. Values outside the range of the `data_for_sorting` fixture
-        # 2. Values between the values in the `data_for_sorting` fixture
-        # 3. Missing values.
         arr = self._as_ragged_element_array()
         if isinstance(value, RaggedArray):
             search_value = value._as_ragged_element_array()
@@ -668,13 +547,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
     def isna(self):
         """
-        A 1-D array indicating if each value is missing.
-
-        Returns
-        -------
-        na_values : np.ndarray
-            boolean ndarray the same length as the ragged array where values
-            of True represent missing/NA values.
+        See docstring for ExtensionArray.isna
         """
         stop_indices = np.hstack([self.start_indices[1:],
                                   [len(self.flat_array)]])
@@ -684,34 +557,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
     def take(self, indices, allow_fill=False, fill_value=None):
         """
-        Take elements from an array.
-
-        Parameters
-        ----------
-        indices : sequence of integers
-            Indices to be taken.
-        allow_fill : bool, default False
-            How to handle negative values in `indices`.
-
-            * False: negative values in `indices` indicate positional indices
-              from the right (the default). This is similar to
-              :func:`numpy.take`.
-
-            * True: negative values in `indices` indicate
-              missing values. These values are set to `fill_value`. Any other
-              other negative values raise a ``ValueError``.
-
-        fill_value : any, default None
-            Fill value to use for NA-indices when `allow_fill` is True.
-
-        Returns
-        -------
-        RaggedArray
-
-        Raises
-        ------
-        IndexError
-            When the indices are out of bounds for the array.
+        See docstring for ExtensionArray.take
         """
         if allow_fill:
             invalid_inds = [i for i in indices if i < -1]
@@ -731,16 +577,7 @@ Invalid indices for take with allow_fill True: {inds}""".format(
 
     def copy(self, deep=False):
         """
-        Return a copy of the array.
-
-        Parameters
-        ----------
-        deep : bool, default False
-            Also copy the underlying data backing this array.
-
-        Returns
-        -------
-        RaggedArray
+        See docstring for ExtensionArray.copy
         """
         data = dict(
             flat_array=self.flat_array,
@@ -751,15 +588,7 @@ Invalid indices for take with allow_fill True: {inds}""".format(
     @classmethod
     def _concat_same_type(cls, to_concat):
         """
-        Concatenate multiple RaggedArray instances
-
-        Parameters
-        ----------
-        to_concat : list of RaggedArray
-
-        Returns
-        -------
-        RaggedArray
+        See docstring for ExtensionArray._concat_same_type
         """
         # concat flat_arrays
         flat_array = np.hstack(ra.flat_array for ra in to_concat)
@@ -778,18 +607,23 @@ Invalid indices for take with allow_fill True: {inds}""".format(
 
     @property
     def dtype(self):
+        """
+        See docstring for ExtensionArray.dtype
+        """
         return self._dtype
 
     @property
     def nbytes(self):
         """
-        The number of bytes needed to store this object in memory.
+        See docstring for ExtensionArray.nbytes
         """
         return (self._flat_array.nbytes +
                 self._start_indices.nbytes)
 
     def astype(self, dtype, copy=True):
-
+        """
+        See docstring for ExtensionArray.astype
+        """
         dtype = pandas_dtype(dtype)
         if isinstance(dtype, RaggedDtype):
             if copy:
