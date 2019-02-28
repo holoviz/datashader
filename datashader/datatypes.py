@@ -20,7 +20,7 @@ except ImportError:
 
 def _validate_ragged_properties(start_indices, flat_array):
     """
-    Validate that start_indices are flat_array arrays may be used to
+    Validate that start_indices are flat_array arrays that may be used to
     represent a valid RaggedArray.
 
     Parameters
@@ -456,14 +456,14 @@ Cannot check equality of RaggedArray of length {ra_len} with:
     @classmethod
     def _from_factorized(cls, values, original):
         """
-        Reconstruct an ExtensionArray after factorization.
+        Reconstruct a RaggedArray after factorization.
 
         Parameters
         ----------
         values : ndarray
             An integer ndarray with the factorized values.
         original : RaggedArray
-            The original ExtensionArray that factorize was called on.
+            The original RaggedArray that factorize was called on.
 
         See Also
         --------
@@ -921,7 +921,7 @@ def _eq_ragged_ndarray1d(start_indices, flat_array, a):
 
     Notes
     -----
-    This function is not numba accelerated because it, but design, inputs
+    This function is not numba accelerated because it, by design, inputs
     a numpy object array
     """
 
@@ -962,7 +962,7 @@ def _eq_ragged_ndarray2d(start_indices, flat_array, a):
     -------
     mask: ndarray
         1D bool array of same length as input RaggedArray with elements True
-        when corresponding elements of ra equals corresponding row of a
+        when corresponding elements of ra equal corresponding row of `a`
     """
     n = len(start_indices)
     m = len(flat_array)
