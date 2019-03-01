@@ -116,6 +116,12 @@ class _RaggedElement(object):
 
 @register_extension_dtype
 class RaggedDtype(ExtensionDtype):
+    """
+    Pandas ExtensionDtype to represent a ragged array datatype
+
+    Methods not otherwise documented here are inherited from ExtensionDtype;
+    please see the corresponding method on that class for the docstring
+    """
     type = np.ndarray
     base = np.dtype('O')
     _subtype_re = re.compile(r"^ragged\[(?P<subtype>\w+)\]$")
@@ -123,9 +129,6 @@ class RaggedDtype(ExtensionDtype):
 
     @property
     def name(self):
-        """
-        See docstring for ExtensionDtype.name
-        """
         return 'Ragged[{subtype}]'.format(subtype=self.subtype)
 
     def __repr__(self):
@@ -133,16 +136,10 @@ class RaggedDtype(ExtensionDtype):
 
     @classmethod
     def construct_array_type(cls):
-        """
-        See docstring for ExtensionDtype.construct_array_type
-        """
         return RaggedArray
 
     @classmethod
     def construct_from_string(cls, string):
-        """
-        See docstring for ExtensionDtype.construct_from_string
-        """
         # lowercase string
         string = string.lower()
 
@@ -205,6 +202,12 @@ def missing(v):
 
 
 class RaggedArray(ExtensionArray):
+    """
+    Pandas ExtensionArray to represent ragged arrays
+
+    Methods not otherwise documented here are inherited from ExtensionArray;
+    please see the corresponding method on that class for the docstring
+    """
     def __init__(self, data, dtype=None, copy=False):
         """
         Construct a RaggedArray
@@ -380,15 +383,9 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         return self._start_indices
 
     def __len__(self):
-        """
-        See docstring for ExtensionArray.__len__
-        """
         return len(self._start_indices)
 
     def __getitem__(self, item):
-        """
-        See docstring for ExtensionArray.__getitem__
-        """
         if isinstance(item, Integral):
             if item < -len(self) or item >= len(self):
                 raise IndexError("{item} is out of bounds".format(item=item))
@@ -430,16 +427,10 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
-        """
-        See docstring for ExtensionArray._from_sequence
-        """
         return RaggedArray(scalars, dtype=dtype)
 
     @classmethod
     def _from_factorized(cls, values, original):
-        """
-        See docstring for ExtensionArray._from_factorized
-        """
         return RaggedArray(
             [_RaggedElement.array_or_nan(v) for v in values],
             dtype=original.flat_array.dtype)
@@ -449,21 +440,12 @@ Cannot check equality of RaggedArray of length {ra_len} with:
                          for i in range(len(self))])
 
     def _values_for_factorize(self):
-        """
-        See docstring for ExtensionArray._values_for_factorize
-        """
         return self._as_ragged_element_array(), np.nan
 
     def _values_for_argsort(self):
-        """
-        See docstring for ExtensionArray._values_for_argsort
-        """
         return self._as_ragged_element_array()
 
     def unique(self):
-        """
-        See docstring for ExtensionArray.unique
-        """
         from pandas import unique
 
         uniques = unique(self._as_ragged_element_array())
@@ -472,9 +454,6 @@ Cannot check equality of RaggedArray of length {ra_len} with:
             dtype=self.dtype)
 
     def fillna(self, value=None, method=None, limit=None):
-        """
-        See docstring for ExtensionArray.fillna
-        """
         # Override in RaggedArray to handle ndarray fill values
         from pandas.util._validators import validate_fillna_kwargs
         from pandas.core.missing import pad_1d, backfill_1d
@@ -508,10 +487,6 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         return new_values
 
     def shift(self, periods=1, fill_value=None):
-        # type: (int, object) -> ExtensionArray
-        """
-        See docstring for ExtensionArray.shift
-        """
         # Override in RaggedArray to handle ndarray fill values
 
         # Note: this implementation assumes that `self.dtype.na_value` can be
@@ -535,9 +510,6 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         return self._concat_same_type([a, b])
 
     def searchsorted(self, value, side="left", sorter=None):
-        """
-        See docstring for ExtensionArray.searchsorted
-        """
         arr = self._as_ragged_element_array()
         if isinstance(value, RaggedArray):
             search_value = value._as_ragged_element_array()
@@ -546,9 +518,6 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         return arr.searchsorted(search_value, side=side, sorter=sorter)
 
     def isna(self):
-        """
-        See docstring for ExtensionArray.isna
-        """
         stop_indices = np.hstack([self.start_indices[1:],
                                   [len(self.flat_array)]])
 
@@ -556,9 +525,6 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         return element_lengths == 0
 
     def take(self, indices, allow_fill=False, fill_value=None):
-        """
-        See docstring for ExtensionArray.take
-        """
         if allow_fill:
             invalid_inds = [i for i in indices if i < -1]
             if invalid_inds:
@@ -576,9 +542,6 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         return RaggedArray(sequence, dtype=self.flat_array.dtype)
 
     def copy(self, deep=False):
-        """
-        See docstring for ExtensionArray.copy
-        """
         data = dict(
             flat_array=self.flat_array,
             start_indices=self.start_indices)
@@ -587,9 +550,6 @@ Invalid indices for take with allow_fill True: {inds}""".format(
 
     @classmethod
     def _concat_same_type(cls, to_concat):
-        """
-        See docstring for ExtensionArray._concat_same_type
-        """
         # concat flat_arrays
         flat_array = np.hstack(ra.flat_array for ra in to_concat)
 
@@ -607,23 +567,14 @@ Invalid indices for take with allow_fill True: {inds}""".format(
 
     @property
     def dtype(self):
-        """
-        See docstring for ExtensionArray.dtype
-        """
         return self._dtype
 
     @property
     def nbytes(self):
-        """
-        See docstring for ExtensionArray.nbytes
-        """
         return (self._flat_array.nbytes +
                 self._start_indices.nbytes)
 
     def astype(self, dtype, copy=True):
-        """
-        See docstring for ExtensionArray.astype
-        """
         dtype = pandas_dtype(dtype)
         if isinstance(dtype, RaggedDtype):
             if copy:
