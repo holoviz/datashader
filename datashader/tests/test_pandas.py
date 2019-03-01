@@ -642,6 +642,12 @@ def test_bug_570():
         'y0': [-4, 0, 4],
         'y1': [-4, 0, 4],
     }), ['x0', 'x1'], 'y0', 0),
+
+    # axis1 ragged arrays
+    (pd.DataFrame({
+        'x': pd.array([[4, 0], [0, -4, 0, 4]], dtype='Ragged[float32]'),
+        'y': pd.array([[0, -4], [-4, 0, 4, 0]], dtype='Ragged[float32]')
+    }), 'x', 'y', 1)
 ])
 def test_line_manual_range(df, x, y, ax):
     axis = ds.core.LinearAxis()
@@ -709,6 +715,12 @@ def test_line_manual_range(df, x, y, ax):
         'y0': [-4, 0, 4],
         'y1': [-4, 0, 4],
     }), ['x0', 'x1'], 'y0', 0),
+
+    # axis1 ragged arrays
+    (pd.DataFrame({
+        'x': pd.array([[0, -4, 0], [0,  4, 0]], dtype='Ragged[float32]'),
+        'y': pd.array([[-4, 0, 4], [-4, 0, 4]], dtype='Ragged[float32]')
+    }), 'x', 'y', 1)
 ])
 def test_line_autorange(df, x, y, ax):
     axis = ds.core.LinearAxis()
@@ -804,6 +816,39 @@ def test_line_agg_sum_axis1_none_constant():
                     [9,   nan, nan, nan, nan, nan, 9],
                     [nan, 9,   nan, nan, nan, 9,   nan],
                     [nan, nan, 9,   nan, 9,   nan, nan]], dtype='float32')
+
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
+
+
+def test_line_autorange_axis1_ragged():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(
+        axis.compute_scale_and_translate((-4., 4.), 9), 9)
+
+    df = pd.DataFrame({
+        'x': pd.array([[4, 0], [0, -4, 0, 4]], dtype='Ragged[float32]'),
+        'y': pd.array([[0, -4], [-4, 0, 4, 0]], dtype='Ragged[float32]')
+    })
+
+    cvs = ds.Canvas(plot_width=9, plot_height=9)
+
+    agg = cvs.line(df,
+                   'x',
+                   'y',
+                   ds.count(),
+                   axis=1)
+
+    sol = np.array([[0, 0, 0, 0, 2, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 2],
+                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0, 0, 0, 0]], dtype='i4')
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])

@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+from distutils.version import LooseVersion
+
 import param
 __version__ = str(param.version.Version(fpath=__file__, archive_commit="$Format:%h$",reponame="datashader"))
 
@@ -14,6 +16,12 @@ try:
     from . import dask                       # noqa (build backend dispatch)
 except ImportError:
     pass
+
+# Make RaggedArray pandas extension array available for
+# pandas >= 0.24.0 is installed
+from pandas import __version__ as pandas_version
+if LooseVersion(pandas_version) >= LooseVersion('0.24.0'):
+    from . import datatypes  # noqa (API import)
 
 # make pyct's example/data commands available if possible
 from functools import partial

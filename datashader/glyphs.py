@@ -481,6 +481,64 @@ class LinesAxis1YConstant(LinesAxis1):
         return extend
 
 
+class LinesAxis1Ragged(_PointLike):
+    def validate(self, in_dshape):
+        try:
+            from datashader.datatypes import RaggedDtype
+        except ImportError:
+            RaggedDtype = type(None)
+
+        if not isinstance(in_dshape[str(self.x)], RaggedDtype):
+            raise ValueError('x must be a RaggedArray')
+        elif not isinstance(in_dshape[str(self.x)], RaggedDtype):
+            raise ValueError('y must be a RaggedArray')
+
+    def required_columns(self):
+        return self.x + self.y
+
+    def compute_x_bounds(self, df):
+        bounds = self._compute_x_bounds(df[self.x].array.flat_array)
+        return self.maybe_expand_bounds(bounds)
+
+    def compute_y_bounds(self, df):
+        bounds = self._compute_y_bounds(df[self.y].array.flat_array)
+        return self.maybe_expand_bounds(bounds)
+
+    @memoize
+    def compute_bounds_dask(self, ddf):
+
+        r = ddf.map_partitions(lambda df: np.array([[
+            np.nanmin(df[self.x].array.flat_array),
+            np.nanmax(df[self.x].array.flat_array),
+            np.nanmin(df[self.y].array.flat_array),
+            np.nanmax(df[self.y].array.flat_array)]]
+        )).compute()
+
+        x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
+        y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
+
+        return (self.maybe_expand_bounds(x_extents),
+                self.maybe_expand_bounds(y_extents))
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        draw_line = _build_draw_line(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        extend_lines_ragged = _build_extend_line_axis1_ragged(draw_line, map_onto_pixel)
+        x_name = self.x
+        y_name = self.y
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            xs = df[x_name].array
+            ys = df[y_name].array
+
+            cols = aggs + info(df)
+            # line may be clipped, then mapped to pixels
+            extend_lines_ragged(vt, bounds, xs, ys, plot_start, *cols)
+
+        return extend
+
+
 class Triangles(_PolygonLike):
     """An unstructured mesh of triangles, with vertices defined by ``xs`` and ``ys``.
 
@@ -563,7 +621,6 @@ def _build_map_onto_pixel_for_triangle(x_mapper, y_mapper):
         return (xx - 1 if x == xmax else xx,
                 yy - 1 if y == ymax else yy)
     return map_onto_pixel
-
 
 
 def _build_draw_line(append):
@@ -854,6 +911,82 @@ def _build_extend_line_axis1_y_constant(draw_line, map_onto_pixel):
                     draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
                               *aggs_and_cols)
                     plot_start = False
+                j += 1
+            i += 1
+
+    return extend_line
+
+
+def _build_extend_line_axis1_ragged(draw_line, map_onto_pixel):
+
+    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+        x_start_indices = xs.start_indices
+        x_flat_array = xs.flat_array
+
+        y_start_indices = ys.start_indices
+        y_flat_array = ys.flat_array
+
+        perform_extend_lines_ragged(vt,
+                                    bounds,
+                                    x_start_indices,
+                                    x_flat_array,
+                                    y_start_indices,
+                                    y_flat_array,
+                                    plot_start,
+                                    *aggs_and_cols)
+
+    # @ngjit
+    def perform_extend_lines_ragged(vt,
+                                    bounds,
+                                    x_start_indices,
+                                    x_flat_array,
+                                    y_start_indices,
+                                    y_flat_array,
+                                    plot_start,
+                                    *aggs_and_cols):
+
+        nrows = len(x_start_indices)
+        x_flat_len = len(x_flat_array)
+        y_flat_len = len(y_flat_array)
+
+        i = 0
+        while i < nrows:
+            plot_start = True
+
+            # Get x index range
+            x_start_index = x_start_indices[i]
+            x_stop_index = (x_start_indices[i + 1]
+                            if i < nrows - 1
+                            else x_flat_len)
+
+            # Get y index range
+            y_start_index = y_start_indices[i]
+            y_stop_index = (y_start_indices[i + 1]
+                            if i < nrows - 1
+                            else y_flat_len)
+
+            # Find line segment length as shorter of the two segments
+            segment_len = min(x_stop_index - x_start_index,
+                              y_stop_index - y_start_index)
+
+            j = 0
+            while j < segment_len - 1:
+
+                x0 = x_flat_array[x_start_index + j]
+                y0 = y_flat_array[y_start_index + j]
+                x1 = x_flat_array[x_start_index + j + 1]
+                y1 = y_flat_array[y_start_index + j + 1]
+
+                x0, x1, y0, y1, skip, clipped, plot_start = \
+                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+
+                if not skip:
+                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                    draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
+                              *aggs_and_cols)
+                    plot_start = False
+
                 j += 1
             i += 1
 

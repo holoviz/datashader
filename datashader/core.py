@@ -210,6 +210,7 @@ class Canvas(object):
         Define a canvas and a pandas DataFrame with 6 rows
         >>> import pandas as pd  # doctest: +SKIP
         ... import numpy as np
+        ... import datashader as ds
         ... from datashader import Canvas
         ... import datashader.transfer_functions as tf
         ... cvs = Canvas()
@@ -222,23 +223,23 @@ class Canvas(object):
 
         Aggregate one line across all rows, with coordinates df.A1 by df.B1
         >>> agg = cvs.line(df, x='A1', y='B1', axis=0)  # doctest: +SKIP
-        ... tf.shade(agg)
+        ... tf.spread(tf.shade(agg))
 
         Aggregate two lines across all rows. The first with coordinates
         df.A1 by df.B1 and the second with coordinates df.A2 by df.B2
         >>> agg = cvs.line(df, x=['A1', 'A2'], y=['B1', 'B2'], axis=0)  # doctest: +SKIP
-        ... tf.shade(agg)
+        ... tf.spread(tf.shade(agg))
 
         Aggregate two lines across all rows where the lines share the same
         x coordinates. The first line will have coordinates df.A1 by df.B1
         and the second will have coordinates df.A1 by df.B2
         >>> agg = cvs.line(df, x='A1', y=['B1', 'B2'], axis=0)  # doctest: +SKIP
-        ... tf.shade(agg)
+        ... tf.spread(tf.shade(agg))
 
         Aggregate 6 length-2 lines, one per row, where the ith line has
         coordinates [df.A1[i], df.A2[i]] by [df.B1[i], df.B2[i]]
         >>> agg = cvs.line(df, x=['A1', 'A2'], y=['B1', 'B2'], axis=1)  # doctest: +SKIP
-        ... tf.shade(agg)
+        ... tf.spread(tf.shade(agg))
 
         Aggregate 6 length-4 lines, one per row, where the x coordinates
         of every line are [0, 1, 2, 3] and the y coordinates of the ith line
@@ -247,10 +248,32 @@ class Canvas(object):
         ...                x=np.arange(4),
         ...                y=['A1', 'A2', 'B1', 'B2'],
         ...                axis=1)
-        ... tf.shade(agg)
+        ... tf.spread(tf.shade(agg))
+
+        Aggregate RaggedArrays of variable length lines, one per row
+        (requires pandas >= 0.24.0)
+        >>> df_ragged = pd.DataFrame({  # doctest: +SKIP
+        ...    'A1': pd.array([
+        ...        [1, 1.5], [2, 2.5, 3], [1.5, 2, 3, 4], [3.2, 4, 5]],
+        ...        dtype='Ragged[float32]'),
+        ...    'B1': pd.array([
+        ...        [10, 12], [11, 14, 13], [10, 7, 9, 10], [7, 8, 12]],
+        ...        dtype='Ragged[float32]'),
+        ...    'group': pd.Categorical([0, 1, 2, 1])
+        ... })
+        ...
+        ... agg = cvs.line(df_ragged, x='A1', y='B1', axis=1)
+        ... tf.spread(tf.shade(agg))
+
+        Aggregate RaggedArrays of variable length lines by group column,
+        one per row (requires pandas >= 0.24.0)
+        >>> agg = cvs.line(df_ragged, x='A1', y='B1',  # doctest: +SKIP
+        ...                agg=ds.count_cat('group'), axis=1)
+        ... tf.spread(tf.shade(agg))
         """
         from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
-                             LinesAxis1YConstant, LineAxis0Multi)
+                             LinesAxis1YConstant, LineAxis0Multi,
+                             LinesAxis1Ragged)
         from .reductions import any as any_rdn
         if agg is None:
             agg = any_rdn()
@@ -286,6 +309,9 @@ See docstring for more information on valid usage""".format(
             elif (isinstance(x, (list, tuple)) and
                   isinstance(y, np.ndarray)):
                 glyph = LinesAxis1YConstant(tuple(x), y)
+            elif (isinstance(x, (Number, string_types)) and
+                    isinstance(y, (Number, string_types))):
+                glyph = LinesAxis1Ragged(x, y)
             else:
                 raise ValueError("""
 Invalid combination of x and y arguments to Canvas.line when axis=1.
@@ -301,6 +327,7 @@ The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
         return bypixel(source, self, glyph, agg)
+
 
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then

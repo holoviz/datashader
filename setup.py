@@ -36,6 +36,7 @@ extras_require = {
         'flake8',
         'nbsmoke >=0.2.6',
         'fastparquet >=0.1.6',  # optional dependency
+        'pandas >=0.24.1',  # optional ragged array support
     ],
     'examples': [],
     'examples_extra':[
