@@ -23,7 +23,7 @@ install_requires = [
     'colorcet >=0.9.0',
     'param >=1.6.0',
     'pyct[cmd]',
-    'scikit-image',
+    'scikit-image >=0.14.2',
     'bokeh',
     'scipy',
     'testpath<0.4' # temporary due to pip issue?

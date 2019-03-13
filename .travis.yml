@@ -9,7 +9,7 @@ os:
 env:
   global:
     - PYENV_VERSION=3.6
-    - CHANS_DEV="-c pyviz/label/dev"
+    - CHANS_DEV="-c pyviz/label/dev -c conda-forge"
     - CHANS_REL="-c pyviz"
     - LABELS_DEV="--label dev"
     - LABELS_REL="--label dev --label main"
@@ -25,7 +25,7 @@ cache:
 before_cache:
   - rm -rf $HOME/miniconda/pkgs
   - rm -rf $HOME/miniconda/conda-bld/*
-  - rm -rf $HOME/miniconda/envs/*/conda-bld  
+  - rm -rf $HOME/miniconda/envs/*/conda-bld
 
 # quick hack to determine what tag is (improvements welcomed)
 #     release: ^v(\d+|\.)*[^a-z]\d*$
@@ -64,7 +64,7 @@ jobs:
       install:
         - doit env_create $CHANS_DEV --python=$PYENV_VERSION
         - source activate test-environment
-        - doit develop_install $CHANS_DEV
+        - doit develop_install $CHANS_DEV -o all
         - doit env_capture
       script:
         - doit test_all
