@@ -64,7 +64,7 @@ jobs:
       install:
         - doit env_create $CHANS_DEV --python=$PYENV_VERSION
         - source activate test-environment
-        - doit develop_install $CHANS_DEV -o all
+        - doit develop_install $CHANS_DEV
         - doit env_capture
       script:
         - doit test_all
