@@ -13,6 +13,7 @@ sources:
         xlim: !!python/tuple [-8240227, -8231284]
         ylim: !!python/tuple [ 4974203,  4979238]
         kind: points
+        persist: true
       plots:
         counts:
           label: 1 billion OpenStreetMap GPS locations
@@ -41,6 +42,7 @@ sources:
         ylim: !!python/tuple [4974203.152, 4979238.441]
         kind: points
         hover_cols: ['dropoff_hour', 'pickup_hour', 'passenger_count']
+        persist: true
       plots:
         dropoff:
           label: NYC Taxi Dropoffs
@@ -72,6 +74,7 @@ sources:
         xlim: !!python/tuple [-8240227.037, -8231283.905]
         ylim: !!python/tuple [4974203.152, 4979238.441]
         kind: points
+        persist: true
         hover_cols: ['dropoff_hour', 'pickup_hour', 'passenger_count']
       plots:
         dropoff:
