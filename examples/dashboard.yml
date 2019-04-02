@@ -13,6 +13,7 @@ sources:
         xlim: !!python/tuple [-8240227, -8231284]
         ylim: !!python/tuple [ 4974203,  4979238]
         kind: points
+        persist: true
       plots:
         counts:
           label: 1 billion OpenStreetMap GPS locations
@@ -36,11 +37,11 @@ sources:
           label: Drop-off Hour
         pickup_hour:
           label: Pick-up Hour
-      plot:
         xlim: !!python/tuple [-8240227.037, -8231283.905]
         ylim: !!python/tuple [4974203.152, 4979238.441]
         kind: points
         hover_cols: ['dropoff_hour', 'pickup_hour', 'passenger_count']
+        persist: true
       plots:
         dropoff:
           label: NYC Taxi Dropoffs
@@ -73,6 +74,7 @@ sources:
         ylim: !!python/tuple [4974203.152, 4979238.441]
         kind: points
         hover_cols: ['dropoff_hour', 'pickup_hour', 'passenger_count']
+        persist: true
       plots:
         dropoff:
           label: NYC Taxi Dropoffs
@@ -106,7 +108,8 @@ sources:
         y: northing
         xlim: !!python/tuple [-13914936, -7235767]
         ylim: !!python/tuple [2632019, 6446276]
-        kind: points  
+        kind: points 
+        persist: true
       plots:
         people:
           label: US Census Synthetic people
@@ -144,6 +147,7 @@ sources:
         kind: points
         x: longitude
         y: latitude
+        persist: true
       plots:
         flight_paths:
           label: OpenSky Flight Paths
