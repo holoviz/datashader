@@ -63,7 +63,7 @@ extras_require = {
         'requests',
         'tblib',
         'xarray',
-        'pyyaml',
+        'pyyaml <5.1',
         'streamz ==0.2.0',
         'webargs',
         ### conda only below here
