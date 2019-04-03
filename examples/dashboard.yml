@@ -19,7 +19,7 @@ sources:
           label: 1 billion OpenStreetMap GPS locations
           x: x
           y: y
-          
+
   nyc_taxi:
     description: Large version of nyc taxi dataset
     driver: parquet
@@ -37,6 +37,7 @@ sources:
           label: Drop-off Hour
         pickup_hour:
           label: Pick-up Hour
+      plot:
         xlim: !!python/tuple [-8240227.037, -8231283.905]
         ylim: !!python/tuple [4974203.152, 4979238.441]
         kind: points
@@ -51,7 +52,7 @@ sources:
           label: NYC Taxi Pickups
           x: pickup_x
           y: pickup_y
-          
+
   nyc_taxi_50k:
     description: Small version of nyc taxi dataset
     driver: parquet
@@ -84,7 +85,7 @@ sources:
           label: NYC Taxi Pickups
           x: pickup_x
           y: pickup_y
-          
+
   census:
     description: US Census Synthetic Data
     driver: parquet
@@ -96,19 +97,12 @@ sources:
           label: Counts
         race:
           label: Race
-# this doesn't work, but I think something like it might. 
-#           labels:
-#             w: White
-#             b: Black
-#             a: Asian
-#             h: Hispanic
-#             o: Other
       plot:
         x: easting
         y: northing
         xlim: !!python/tuple [-13914936, -7235767]
         ylim: !!python/tuple [2632019, 6446276]
-        kind: points 
+        kind: points
         persist: true
       plots:
         people:
@@ -122,7 +116,7 @@ sources:
             a: red
             h: orange
             o: saddlebrown
-  
+
   opensky:
     description: OpenSky Flight Paths
     driver: netcdf
