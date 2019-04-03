@@ -85,6 +85,7 @@ extras_require = {
 
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.5.2',
+    'nbconvert ==5.4.1',
     'sphinx_ioam_theme',
     'numpydoc'
 ]
