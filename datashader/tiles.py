@@ -92,7 +92,11 @@ def render_super_tile(tile_info, output_path, load_data_func,
     agg = rasterize_func(df, x_range=tile_info['x_range'],
                          y_range=tile_info['y_range'], height=tile_size,
                          width=tile_size)
-    ds_img = shader_func(agg, span=tile_info['span'])
+    # if the rasterized data is empty, do not create subtiles.
+    if np.sum(agg) == 0:
+        pass
+    else:
+        ds_img = shader_func(agg, span=tile_info['span'])
     return create_sub_tiles(ds_img, level, tile_info, output_path, post_render_func)
 
 def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func=None):
@@ -303,6 +307,10 @@ class TileRenderer(object):
             x, y, z, data_extent = t
             dxmin, dymin, dxmax, dymax = data_extent
             arr = da.loc[{'x':slice(dxmin, dxmax), 'y':slice(dymin, dymax)}]
+
+            # If the tile is empty, do not render it.
+            if np.sum(arr.data) == 0:
+                continue
 
             if 0 in arr.shape:
                 continue
