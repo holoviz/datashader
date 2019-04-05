@@ -4,6 +4,8 @@ from io import BytesIO
 import math
 import os
 
+import numpy as np
+
 import dask
 import dask.bag as db
 
