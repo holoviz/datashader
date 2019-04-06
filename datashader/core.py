@@ -328,6 +328,37 @@ The axis argument to Canvas.line must be 0 or 1
 
         return bypixel(source, self, glyph, agg)
 
+    def area(self, source, x, y, agg=None):
+        """Compute a reduction by pixel, mapping data to pixels as a filled
+        area region
+
+        Parameters
+        ----------
+        source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
+            The input datasource.
+        x: str
+            Column name for the x coordinates of the area boundary.
+        y: str or list of str
+            * str: Column name for the y coordinates of the area boundary. The
+            area to be filled is the region between this y coordinate and y=0.
+            * list of 2 str: Columns names for the two y coordinate of the
+            area boundary. The area to be filled is the region between these
+            two y coordinates.
+        agg : Reduction, optional
+            Reduction to compute. Default is ``count()``.
+        """
+        #
+        from .glyphs import AreaToZero, AreaToLine
+        from .reductions import any as any_rdn
+        if agg is None:
+            agg = any_rdn()
+
+        if isinstance(y, (list, tuple)):
+            glyph = AreaToLine(x, tuple(y))
+        else:
+            glyph = AreaToZero(x, y)
+
+        return bypixel(source, self, glyph, agg)
 
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then

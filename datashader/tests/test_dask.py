@@ -506,6 +506,103 @@ def test_auto_range_line():
                        dims=['y', 'x'])
     assert_eq(agg, out)
 
+
+def test_area_to_zero_fixedrange():
+    axis = ds.core.LinearAxis()
+    lincoords_y = axis.compute_index(
+        axis.compute_scale_and_translate((-2.25, 2.25), 5), 5)
+
+    lincoords_x = axis.compute_index(
+        axis.compute_scale_and_translate((-3.75, 3.75), 9), 9)
+
+    cvs = ds.Canvas(plot_width=9, plot_height=5,
+                    x_range=[-3.75, 3.75], y_range=[-2.25, 2.25])
+
+    df = pd.DataFrame({
+        'x': [-4, -2, 0, np.nan, 2, 4],
+        'y': [0, -4, 0, np.nan, 4, 0],
+    })
+    ddf = dd.from_pandas(df, npartitions=2)
+
+    agg = cvs.area(ddf, 'x', 'y', ds.count())
+
+    sol = np.array([[0, 1, 1, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 1, 0, 1, 1, 1],
+                    [0, 0, 0, 0, 0, 0, 1, 1, 1],
+                    [0, 0, 0, 0, 0, 0, 1, 1, 0]],
+                   dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
+
+
+def test_area_to_zero_autorange():
+    axis = ds.core.LinearAxis()
+    lincoords_y = axis.compute_index(
+        axis.compute_scale_and_translate((-4., 4.), 7), 7)
+    lincoords_x = axis.compute_index(
+        axis.compute_scale_and_translate((-4., 4.), 13), 13)
+
+    cvs = ds.Canvas(plot_width=13, plot_height=7)
+
+    df = pd.DataFrame({
+        'x': [-4, -2, 0, np.nan, 2, 4],
+        'y': [0, -4, 0, np.nan, 4, 0],
+    })
+    ddf = dd.from_pandas(df, npartitions=2)
+
+    agg = cvs.area(ddf, 'x', 'y', ds.count())
+
+    sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]],
+                   dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
+                       dims=['y', 'x'])
+    assert_eq(agg, out)
+
+
+def test_area_to_zero_autorange_stack():
+    axis = ds.core.LinearAxis()
+    lincoords_y = axis.compute_index(
+        axis.compute_scale_and_translate((-4., 4.), 7), 7)
+    lincoords_x = axis.compute_index(
+        axis.compute_scale_and_translate((-4., 4.), 13), 13)
+
+    cvs = ds.Canvas(plot_width=13, plot_height=7)
+
+    df = pd.DataFrame({
+        'x': [-4, -2, 0, np.nan, 2, 4],
+        'y0': [0, -4, 0, np.nan, 4, 0],
+        'y1': [0,  0, 0, np.nan, 0, 0],
+    })
+    ddf = dd.from_pandas(df, npartitions=2)
+
+    # When a line is specified to fill to, this line is not included in
+    # the fill.  So we expect the y=0 line to not be filled.
+    agg = cvs.area(ddf, 'x', ['y0', 'y1'], ds.count())
+
+    sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]],
+                   dtype='i4')
+
+    out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
+                       dims=['y0', 'x'])
+    assert_eq(agg, out)
+
+
 def test_trimesh_no_double_edge():
     """Assert that when two triangles share an edge that would normally get
     double-drawn, the edge is only drawn for the rightmost (or bottommost)

@@ -539,6 +539,145 @@ class LinesAxis1Ragged(_PointLike):
         return extend
 
 
+class AreaToZero(_PointLike):
+    """A filled area glyph
+    The area to be filled is the region from the line defined by ``x`` and
+    ``y`` and the y=0 line
+
+    Parameters
+    ----------
+    x, y
+        Column names for the x and y coordinates of each vertex.
+    """
+
+    def compute_y_bounds(self, df):
+        # Compute bounds of curve
+        bounds = self._compute_y_bounds(df[self.y].values)
+
+        # Make sure bounds include zero
+        bounds = min(bounds[0], 0), max(bounds[1], 0)
+
+        # Expand bounds if needed
+        return self.maybe_expand_bounds(bounds)
+
+    @memoize
+    def compute_bounds_dask(self, ddf):
+
+        r = ddf.map_partitions(lambda df: np.array([[
+            np.nanmin(df[self.x].values),
+            np.nanmax(df[self.x].values),
+            np.nanmin(df[self.y].values),
+            np.nanmax(df[self.y].values)]]
+        )).compute()
+
+        x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
+        y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
+
+        # Make sure y_extents include 0
+        y_extents = min(y_extents[0], 0), max(y_extents[1], 0)
+
+        return (self.maybe_expand_bounds(x_extents),
+                self.maybe_expand_bounds(y_extents))
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        extend_area = _build_extend_area_to_zero(
+            draw_trapezoid_y, map_onto_pixel)
+        x_name = self.x
+        y_name = self.y
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            xs = df[x_name].values
+            ys = df[y_name].values
+            cols = aggs + info(df)
+            extend_area(vt, bounds, xs, ys, plot_start, *cols)
+
+        return extend
+
+
+class AreaToLine(_PointLike):
+    """A filled area glyph
+    The area to be filled is the region from the line defined by ``x`` and
+    ``y[0]`` and the line defined by ``x`` and ``y[1]``.
+
+    Parameters
+    ----------
+    x
+        Column names for the x and y coordinates of each vertex.
+    y
+        List or tuple of length two containing the column names of the
+        y-coordinates of the two curves that define the area region.
+    """
+    @property
+    def y_label(self):
+        # Name by first line
+        return self.y[0]
+
+    def required_columns(self):
+        return (self.x,) + self.y
+
+    def validate(self, in_dshape):
+        if not isreal(in_dshape.measure[str(self.x)]):
+            raise ValueError('x must be real')
+        elif not all([isreal(in_dshape.measure[str(ycol)])
+                      for ycol in self.y]):
+            raise ValueError('y columns must be real')
+
+    def compute_y_bounds(self, df):
+        # Compute bounds of each curve
+        bounds0 = self._compute_y_bounds(df[self.y[0]].values)
+        bounds1 = self._compute_y_bounds(df[self.y[1]].values)
+
+        # Combine bounds from the two curves
+        bounds = min(bounds0[0], bounds1[0]), max(bounds0[1], bounds1[1])
+
+        # Expand bounds if needed
+        return self.maybe_expand_bounds(bounds)
+
+    @memoize
+    def compute_bounds_dask(self, ddf):
+        r = ddf.map_partitions(lambda df: np.array([[
+            np.nanmin(df[self.x].values),
+            np.nanmax(df[self.x].values),
+            np.nanmin(df[self.y[0]].values),
+            np.nanmax(df[self.y[0]].values),
+            np.nanmin(df[self.y[1]].values),
+            np.nanmax(df[self.y[1]].values)]]
+        )).compute()
+
+        x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
+        y0_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
+        y1_extents = np.nanmin(r[:, 4]), np.nanmax(r[:, 5])
+
+        # Make sure y_extents include 0
+        y_extents = (min(y0_extents[0], y1_extents[0]),
+                     max(y0_extents[1], y1_extents[1]))
+
+        return (self.maybe_expand_bounds(x_extents),
+                self.maybe_expand_bounds(y_extents))
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        extend_area = _build_extend_area_to_line(
+            draw_trapezoid_y, map_onto_pixel)
+        x_name = self.x
+        y_names = self.y
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            xs = df[x_name].values
+            ys0 = df[y_names[0]].values
+            ys1 = df[y_names[1]].values
+
+            cols = aggs + info(df)
+            extend_area(vt, bounds, xs, ys0, ys1, plot_start, *cols)
+
+        return extend
+
+
 class Triangles(_PolygonLike):
     """An unstructured mesh of triangles, with vertices defined by ``xs`` and ``ys``.
 
