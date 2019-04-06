@@ -794,14 +794,14 @@ def test_line_awkward_point_on_upper_bound_maps_to_last_pixel():
     num_y_pixels = 2
     ymax = 0.1
     bigy = 10e9
-    
+
     sy = num_y_pixels/ymax
     y = bigy-(bigy-ymax) # simulates clipped line
 
     # check that test is set up ok
     assert y!=ymax
     np.testing.assert_almost_equal(y,ymax,decimal=6)
-    
+
     _,pymax = map_onto_pixel_for_line((1.0, 0.0, sy, 0.0),
                                       (0.0, 1.0, 0.0, ymax),
                                       1.0, y)
