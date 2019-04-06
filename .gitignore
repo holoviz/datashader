@@ -23,6 +23,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+pip-wheel-metadata/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -44,6 +45,7 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+test_tiles_output/
 
 # Translations
 *.mo
@@ -63,6 +65,7 @@ target/
 
 #Editor files
 *~
+\.idea/
 
 # Example output, notes
 examples/times
