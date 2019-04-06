@@ -926,7 +926,7 @@ def _build_draw_trapezoid_y(append):
                 y = y_start
                 iy = (y_start < y_stop) - (y_stop < y_start)
 
-                if not stacked:
+                if not stacked and -1 <= y_stop + iy <= ymaxi + 1:
                     # If not stacking, include bin on line from
                     # (x0, y1) to (x1, y2), otherwise leave it out
                     y_stop += iy
@@ -953,7 +953,7 @@ def _build_draw_trapezoid_y(append):
                 y = y_start
                 iy = (y_start < y_stop) - (y_stop < y_start)
 
-                if not stacked:
+                if not stacked and -1 <= y_stop + iy <= ymaxi + 1:
                     # If not stacking, include bin on line from
                     # (x0, y1) to (x1, y2), otherwise leave it
                     y_stop += iy
@@ -1022,7 +1022,7 @@ def _build_draw_trapezoid_y(append):
                 y = y_start
                 iy = (y_start < y_stop) - (y_stop < y_start)
 
-                if not stacked:
+                if not stacked and -1 <= y_stop + iy <= ymaxi + 1:
                     # If not stacking, aggregate bin on line from
                     # (x0, y1) to (x1, y2), otherwise leave it out
                     y_stop += iy
