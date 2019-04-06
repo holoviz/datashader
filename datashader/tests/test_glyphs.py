@@ -7,7 +7,8 @@ from datashader.glyphs import (Point, _build_draw_line,
                                _build_map_onto_pixel_for_line,
                                _build_extend_line_axis0, _build_draw_triangle,
                                _build_map_onto_pixel_for_triangle,
-                               _build_extend_triangles, LinesAxis1)
+                               _build_extend_triangles, LinesAxis1,
+                               _build_draw_trapezoid_y)
 from datashader.utils import ngjit
 
 
@@ -49,6 +50,9 @@ extend_line = _build_extend_line_axis0(draw_line, map_onto_pixel_for_line)
 # Triangles rasterization
 draw_triangle, draw_triangle_interp = _build_draw_triangle(tri_append)
 extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel_for_triangle)
+
+# Trapezoid y rasterization
+draw_trapezoid = _build_draw_trapezoid_y(append)
 
 bounds = (-3, 1, -3, 1)
 vt = (1., 3., 1., 3.)
@@ -117,6 +121,10 @@ def test_draw_line_same_point():
     draw_line(x0, y0, x1, y1, 0, True, True, agg)
     assert agg.sum() == 1
     assert agg[3, 3] == 1
+    agg = new_agg()
+    draw_line(x0, y0, x1, y1, 0, False, True, agg)
+    assert agg.sum() == 0
+    assert agg[3, 3] == 0
 
 
 def test_draw_line_vertical_horizontal():
@@ -201,6 +209,440 @@ def test_extend_lines_exact_bounds():
                     [1, 0, 0, 1],
                     [1, 1, 1, 1]])
     np.testing.assert_equal(agg, out)
+
+
+def test_draw_trapezoid_acute():
+    x0, x1 = (0, 3)
+    y0, y1, y2, y3 = (1, 3, 4, 0)
+
+    out = np.array([[0, 0, 1, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 0],
+                    [0, 0, 0, 0, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from left to right
+    plot_start = True
+    clipped = False
+    stacked = True
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # Specify vertices from right to left should give same result
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+
+def test_draw_trapezoid_acute_not_stacked():
+    x0, x1 = (0, 3)
+    y0, y1, y2, y3 = (1, 3, 4, 0)
+
+    out = np.array([[0, 0, 1, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from left to right
+    plot_start = True
+    clipped = False
+    stacked = False
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # Specify vertices from right to left should give same result
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+
+def test_draw_trapezoid_right():
+    x0, x1 = (0, 3)
+    y0, y1, y2, y3 = (1, 3, 4, 1)
+
+    out = np.array([[0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 0],
+                    [0, 0, 0, 0, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from left to right
+    plot_start = True
+    clipped = False
+    stacked = True
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # Specify vertices from right to left should give same result
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+
+def test_draw_trapezoid_obtuse():
+    x0, x1 = (0, 3)
+    y0, y1, y2, y3 = (0, 3, 5, 1)
+
+    out = np.array([[1, 1, 0, 0, 0],
+                    [1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [0, 1, 1, 1, 0],
+                    [0, 0, 0, 1, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from left to right
+    plot_start = True
+    clipped = False
+    stacked = True
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # Specify vertices from right to left should give same result
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+
+def test_draw_trapezoid_intersecting():
+    x0, x1 = (0, 3)
+    y0, y1, y2, y3 = (0, 5, 1, 4)
+
+    out = np.array([[1, 0, 0, 0, 0],
+                    [1, 1, 0, 0, 0],
+                    [1, 1, 0, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [1, 0, 0, 1, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from left to right
+    plot_start = True
+    clipped = False
+    stacked = True
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # Specify vertices from right to left should give same result
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+
+def test_draw_trapezoid_vertical_line_start_and_not_clipped():
+    x0, x1 = (2, 2)
+    y0, y1, y2, y3 = (1, 3, 4, 0)
+
+    out = np.array([[0, 0, 1, 0, 0],
+                    [0, 0, 2, 0, 0],
+                    [0, 0, 2, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from inner to outer
+    plot_start = True
+    clipped = False
+    stacked = True
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # Specify vertices from outer to inner which should give same result
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+
+def test_draw_trapezoid_vertical_line_not_start_and_not_clipped():
+    x0, x1 = (2, 2)
+    y0, y1, y2, y3 = (1, 3, 4, 0)
+    plot_start = False
+    clipped = False
+    stacked = True
+
+    # plot_start=False, clipped=False
+    out = np.array([[0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from inner to outer
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    out = np.array([[0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0]])
+
+    # Specify vertices from outer to inner
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+
+def test_draw_trapezoid_vertical_line_start_and_clipped():
+    x0, x1 = (2, 2)
+    y0, y1, y2, y3 = (1, 3, 4, 0)
+    plot_start = True
+    clipped = True
+    stacked = True
+
+    out = np.array([[0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from inner to outer
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    out = np.array([[0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0]])
+
+    # Specify vertices from outer to inner
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+
+def test_draw_trapezoid_vertical_line_not_start_and_clipped():
+    x0, x1 = (2, 2)
+    y0, y1, y2, y3 = (1, 3, 4, 0)
+    plot_start = False
+    clipped = True
+    stacked = True
+
+    out = np.array([[0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from inner to outer
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # Specify vertices from outer to inner
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+
+def test_draw_trapezoid_horizontal_line():
+    # Obtuse trapezoid
+    x0, x1 = (0, 3)
+    y0, y1, y2, y3 = (2, 2, 2, 2)
+    plot_start = True
+    clipped = False
+    stacked = False
+
+    out = np.array([[0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from left to right
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # Specify vertices from right to left should give same result
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # with stacked = True, the zero width line is not rendered
+    stacked = True
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg.sum(), 0)
+
+
+def test_draw_trapezoid_diagonal_line():
+    # Obtuse trapezoid
+    x0, x1 = (0, 3)
+    y0, y1, y2, y3 = (0, 0, 2, 2)
+    plot_start = True
+    clipped = False
+    stacked = False
+
+    out = np.array([[1, 0, 0, 0, 0],
+                    [0, 1, 1, 0, 0],
+                    [0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from left to right
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # Specify vertices from right to left should give same result
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # with stacked = True, the zero width line is not rendered
+    stacked = True
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg.sum(), 0)
+
+
+def test_draw_trapezoid_point():
+    # Obtuse trapezoid
+    x0, x1 = (3, 3)
+    y0, y1, y2, y3 = (2, 2, 2, 2)
+    plot_start = True
+    clipped = False
+    stacked = False
+
+    out = np.array([[0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 2, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Specify vertices from left to right
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # plot_start=False and clipped=False causes only a single aggregation in
+    # the point bin
+    plot_start = False
+    clipped = False
+    out[2, 3] = 1
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # plot_start=True and clipt=True causes only a single aggregation in
+    # the point bin
+    plot_start = True
+    clipped = True
+    out[2, 3] = 1
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # plot_start=False and clipped=True causes no aggregation to be performed
+    plot_start = False
+    clipped = True
+    out[2, 3] = 0
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out);
+
+    # with stacked = True, the zero width line is not rendered
+    plot_start = True
+    clipped = False
+    stacked = True
+    out[2, 3] = 0
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out);
+
+
+@pytest.mark.parametrize('shifty', range(-5, 6))
+@pytest.mark.parametrize('shiftx', range(-5, 6))
+def test_draw_trapezoid_with_clipping(shiftx, shifty):
+
+    x0, x1 = (0 + shiftx, 3 + shiftx)
+    y0, y1, y2, y3 = (1 + shifty, 3 + shifty, 4 + shifty, 0 + shifty)
+    plot_start = True
+    clipped = False
+    stacked = True
+
+    out = np.array([[0, 0, 1, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 0],
+                    [0, 0, 0, 0, 0]])
+    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
+
+    # Shift expected output
+
+    # shift x
+    out = np.roll(out, shiftx, axis=1)
+    if shiftx < 0:
+        out[:, shiftx:] = 0
+    else:
+        out[:, :shiftx] = 0
+
+    # shift y
+    out = np.roll(out, shifty, axis=0)
+    if shifty < 0:
+        out[shifty:, :] = 0
+    else:
+        out[:shifty, :] = 0
+
+    # Specify vertices from left to right
+    agg = new_agg()
+    draw_trapezoid(x0, x1, y0, y1, y2, y3, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
+    # Specify vertices from right to left should give same result
+    agg = new_agg()
+    draw_trapezoid(x1, x0, y3, y2, y1, y0, xmaxi, ymaxi, 0,
+                   plot_start, clipped, stacked, agg)
+    np.testing.assert_equal(agg, out)
+
 
 def test_draw_triangle_nointerp():
     """Assert that we draw triangles properly, without interpolation enabled.

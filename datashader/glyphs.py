@@ -675,6 +675,226 @@ def _build_draw_line(append):
     return draw_line
 
 
+def _build_draw_trapezoid_y(append):
+    """Specialize a plotting kernel for drawing a trapezoid with two
+    sides parallel to the y-axis"""
+
+    @ngjit
+    def clamp_y_indices(ystarti, ystopi, ymaxi):
+        """Utility function to compute clamped y-indices"""
+
+        # First, check if the y indices are both out of bounds in the same
+        # direction. If this is true, then there is nothing to fill.
+        #
+        # Note that if the indices are out of bounds in opposite directions,
+        # then the pair is not considered out of bounds because part of the
+        # filled area between the coordinates will be in bounds.
+        out_of_bounds = ((ystarti < 0 and ystopi <= 0) or
+                         (ystarti > ymaxi and ystopi >= ymaxi))
+
+        # Clamp ystarti to be within 0 and ymaxi
+        clamped_ystarti = max(0, min(ymaxi, ystarti))
+
+        # Following the Python range convention, clamp ystopi to be within
+        # -1 and ymaxi+1.
+        clamped_ystopi = max(-1, min(ymaxi + 1, ystopi))
+
+        return out_of_bounds, clamped_ystarti, clamped_ystopi
+
+    @ngjit
+    def draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
+                         i, plot_start, clipped, stacked, *aggs_and_cols):
+        """Draw a filled trapezoid that has two sides parallel to the y-axis
+
+        Such a trapezoid is defined by two x coordinates (x0 for the left
+        edge and x1 for the right parallel edge) and four y-coordinates
+        (y0 for top left vertex, y1 for bottom left vertex, y2 for the bottom
+        right vertex and y3 for the top right vertex).
+
+                                          (x1, y3)
+                                      _ +
+                        (x0, y0)  _--   |
+                                +       |
+                                |       |
+                                |       |
+                                +       |
+                        (x0, y1)  -     |
+                                    -   |
+                                      - |
+                                        +
+                                          (x1, y2)
+
+        In a proper trapezoid (as drawn above), y0 >= y1 and y3 >= y2 so that
+        edges do not intersect. This function also handles the case where
+        y1 < y0 or y2 < y3, which results in a crossing edge.
+
+        The trapezoid is filled using a vertical scan line algorithm where the
+        start and stop bins are calculated by what amounts to a pair of
+        Bresenham's line algorithms, one for the top edge and one for the
+        bottom edge.
+
+        Bins in the line connecting (x0, y1) and (x1, y2) are not filled if
+        the `stacked` argument is set to True. This way stacked trapezoids
+        will not have any overlapping bins.
+
+        Parameters
+        ----------
+        x0i, x1i: int
+            x-coordinate indices of the start and stop edge of the trapezoid
+        y0i, y1i, y2i, y3i: int
+            y-coordinate indices of the four corners of the trapezoid
+        xmaxi, ymaxi: int
+            The maximum allowable x-index and y-index respectively.
+            The trapezoid will be clipped to these index values.
+        i: int
+            Group index
+        plot_start: bool
+            If True, the filled trapezoid will include the (x0, y0) to (x0, y1)
+            edge. Otherwise this edge will not be included.
+        clipped: bool
+            If True, the filled trapezoid will include the (x1, y3) to (x1, y2)
+            edge. Otherwise this edge will not be included.
+        stacked: bool
+            If False, the filled trapezoid will include the
+            (x0, y1) to (x1, y2) edge. Otherwise this edge will not
+            be included.
+        """
+        # Compute x-delta and which direction we need to iterate through
+        # the x-bins
+        dx = x1i - x0i
+        ix = (dx > 0) - (dx < 0)
+
+        # Compute y-delta and iteration direction for the top and bottom edge.
+        # Note that these are numbered to match the y-coordinate of the start
+        # of the line
+        dy0 = y3i - y0i
+        iy0 = (dy0 > 0) - (dy0 < 0)
+        dy1 = y2i - y1i
+        iy1 = (dy1 > 0) - (dy1 < 0)
+
+        # Handle drawing the initial vertical line if plot_start is True
+        if plot_start:
+            y_oob, y_start, y_stop = clamp_y_indices(y0i, y1i, ymaxi)
+            x_oob = x0i < 0 or x0i > xmaxi
+            if y_oob or x_oob:
+                # Out of bounds, nothing to do
+                pass
+            elif y_start == y_stop and not stacked:
+                # No height, append to single bin if not in stacked mode
+                append(i, x0i, y_start, *aggs_and_cols)
+            else:
+                # Non-zero height
+                y = y_start
+                iy = (y_start < y_stop) - (y_stop < y_start)
+
+                if not stacked:
+                    # If not stacking, include bin on line from
+                    # (x0, y1) to (x1, y2), otherwise leave it out
+                    y_stop += iy
+
+                while y != y_stop:
+                    append(i, x0i, y, *aggs_and_cols)
+                    y += iy
+
+        # Handle zero width cases
+        if dx == 0 and not clipped:
+            y_oob, y_start, y_stop = clamp_y_indices(y3i, y2i, ymaxi)
+            x_oob = x1i < 0 or x1i > xmaxi
+
+            # y0-y1 edge already aggregated above if plot_start.
+            # Now aggregate the y3-y2 edge
+            if y_oob or x_oob:
+                # Out of bounds, nothing to do
+                pass
+            elif y_start == y_stop and not stacked:
+                # No height, append to single bin if not in stacked mode
+                append(i, x1i, y_start, *aggs_and_cols)
+            else:
+                # Non-zero height
+                y = y_start
+                iy = (y_start < y_stop) - (y_stop < y_start)
+
+                if not stacked:
+                    # If not stacking, include bin on line from
+                    # (x0, y1) to (x1, y2), otherwise leave it
+                    y_stop += iy
+
+                while y != y_stop:
+                    append(i, x1i, y, *aggs_and_cols)
+                    y += iy
+            return
+
+        # Non-zero width.
+        # Compute initial Bresenham line errors using the integer formulation.
+        # Note that unlike that standard Bresenham's algorithm,
+        # we are forcing the "driving axis" to be x regardless of the
+        # relationship between x and y deltas.
+        dx = abs(dx) * 2
+        dy0 = abs(dy0) * 2
+        dy1 = abs(dy1) * 2
+
+        error0 = 2 * dy0 - dx
+        error1 = 2 * dy1 - dx
+
+        while x0i != x1i:
+            # Update error and y-bin index for y0 line.
+            #
+            # Note that in the standard Bresenham's algorithm this would be
+            # an if statement.  We need to make this a while statement in our
+            # case because we are forcing the x-axis to be the driving axis
+            # which requires the ability to increment the y-index multiple
+            # times for each step in the x-index.
+            while error0 >= 0 and (error0 or ix > 0):
+                error0 -= 2 * dx
+                y0i += iy0
+
+            error0 += 2 * dy0
+
+            # Update error and y-bin index for y1 line
+            while error1 >= 0 and (error1 or ix > 0):
+                error1 -= 2 * dx
+                y1i += iy1
+
+            error1 += 2 * dy1
+
+            # Update x
+            x0i += ix
+
+            # Check if x0i is in bounds.
+            x_oob = x0i < 0 or x0i > xmaxi
+            if x_oob:
+                # Note that it's important that we have already updated the
+                # error values and y indices before continuing to the next
+                # loop iteration
+                continue
+
+            # Compute clamped y indices
+            y_oob, y_start, y_stop = clamp_y_indices(y0i, y1i, ymaxi)
+
+            if y_oob:
+                # Out of bounds, nothing to do
+                pass
+            elif y_start == y_stop and not stacked:
+                # No height case, append to single bin if not in stacked mode
+                append(i, x0i, y_start, *aggs_and_cols)
+            else:
+                # Non-zero height case,
+                # append to bins in trapezoid column
+                y = y_start
+                iy = (y_start < y_stop) - (y_stop < y_start)
+
+                if not stacked:
+                    # If not stacking, aggregate bin on line from
+                    # (x0, y1) to (x1, y2), otherwise leave it out
+                    y_stop += iy
+
+                while y != y_stop:
+                    append(i, x0i, y, *aggs_and_cols)
+                    y += iy
+
+    return draw_trapezoid_y
+
+
 @ngjit
 def _outside_bounds(x0, y0, x1, y1, xmin, xmax, ymin, ymax):
     if x0 < xmin and x1 < xmin:
@@ -756,6 +976,64 @@ def _skip_or_clip(x0, x1, y0, y1, bounds, plot_start):
         y0 = y0 + t0 * dy
 
     return x0, x1, y0, y1, skip, clipped, plot_start
+
+
+@ngjit
+def _skip_or_clip_trapezoid_y(x0, x1, y0, y1, y2, y3, bounds, plot_start):
+    xmin, xmax, ymin, ymax = bounds
+    skip = False
+    clipped = False
+
+    # If any of the coordinates are NaN, there's a discontinuity.
+    # Skip the entire trapezoid.
+    if (np.isnan(x0) or
+            np.isnan(x1) or
+            np.isnan(y0) or
+            np.isnan(y1) or
+            np.isnan(y2) or
+            np.isnan(y3)):
+        plot_start = True
+        skip = True
+
+    # Check if trapezoid is out of bounds vertically
+    if ((y0 > ymax and y1 > ymax and y2 > ymax and y3 > ymax) or
+            (y0 < ymin and y1 < ymin and y2 < ymin and y3 < ymin)):
+        # No need to perform clipping, we will skip the whole thing
+        plot_start = True
+        skip = True
+        return x0, x1, y0, y1, y2, y3, skip, clipped, plot_start
+
+    # Initialize Liang-Barsky parameters
+    t0, t1 = 0, 1
+    dx = x1 - x0
+    dy0 = y3 - y0
+    dy1 = y2 - y1
+
+    # Clip on x boundaries only
+    t0, t1, accept = _clipt(-dx, x0 - xmin, t0, t1)
+    if not accept:
+        skip = True
+
+    t0, t1, accept = _clipt(dx, xmax - x0, t0, t1)
+    if not accept:
+        skip = True
+
+    # Update lines on clipping
+    if t1 < 1:
+        clipped = True
+        x1 = x0 + t1 * dx
+        y2 = y1 + t1 * dy1
+        y3 = y0 + t1 * dy0
+
+    if t0 > 0:
+        # If x0 is clipped, we need to plot the new start
+        clipped = True
+        plot_start = True
+        x0 = x0 + t0 * dx
+        y0 = y0 + t0 * dy0
+        y1 = y1 + t0 * dy1
+
+    return x0, x1, y0, y1, y2, y3, skip, clipped, plot_start
 
 
 def _build_extend_line_axis0(draw_line, map_onto_pixel):
@@ -991,6 +1269,84 @@ def _build_extend_line_axis1_ragged(draw_line, map_onto_pixel):
             i += 1
 
     return extend_line
+
+
+def _build_extend_area_to_zero(draw_trapezoid_y, map_onto_pixel):
+    @ngjit
+    def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+        """Aggregate filled area along a line formed by
+        ``xs`` and ``ys``, filled to the y=0 line"""
+
+        stacked = False
+        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+
+        nrows = xs.shape[0]
+        i = 0
+        while i < nrows - 1:
+            x0 = xs[i]
+            x1 = xs[i + 1]
+
+            y0 = ys[i]
+            y1 = 0.0
+            y2 = 0.0
+            y3 = ys[i + 1]
+
+            x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
+                _skip_or_clip_trapezoid_y(
+                    x0, x1, y0, y1, y2, y3, bounds, plot_start)
+
+            if not skip:
+                x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+                _, y1i = map_onto_pixel(vt, bounds, x0, y1)
+                y2i = y1i
+                x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+
+                draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
+                                 i, plot_start, clipped, stacked,
+                                 *aggs_and_cols)
+                plot_start = False
+            i += 1
+
+    return extend_area
+
+
+def _build_extend_area_to_line(draw_trapezoid_y, map_onto_pixel):
+    @ngjit
+    def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
+        """Aggregate filled area between the line formed by
+        ``xs`` and ``ys0`` and the line formed by ``xs`` and ``ys1``"""
+
+        stacked = True
+        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+
+        nrows = xs.shape[0]
+        i = 0
+        while i < nrows - 1:
+            x0 = xs[i]
+            x1 = xs[i + 1]
+
+            y0 = ys0[i]
+            y1 = ys1[i]
+            y2 = ys1[i + 1]
+            y3 = ys0[i + 1]
+
+            x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
+                _skip_or_clip_trapezoid_y(
+                    x0, x1, y0, y1, y2, y3, bounds, plot_start)
+
+            if not skip:
+                x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
+                _, y1i = map_onto_pixel(vt, bounds, x0, y1)
+                _, y2i = map_onto_pixel(vt, bounds, x1, y2)
+                x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+
+                draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
+                                 i, plot_start, clipped, stacked,
+                                 *aggs_and_cols)
+                plot_start = False
+            i += 1
+
+    return extend_area
 
 
 def _build_draw_triangle(append):
