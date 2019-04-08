@@ -7,6 +7,8 @@ import dask.dataframe as dd
 from datashader import Canvas
 import datashader.spatial.points as dsp
 
+pytest.importorskip('fastparquet')
+
 
 @pytest.fixture()
 def df():
