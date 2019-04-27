@@ -539,7 +539,7 @@ class LinesAxis1Ragged(_PointLike):
         return extend
 
 
-class AreaToZero(_PointLike):
+class AreaToZeroAxis0(_PointLike):
     """A filled area glyph
     The area to be filled is the region from the line defined by ``x`` and
     ``y`` and the y=0 line
@@ -583,7 +583,7 @@ class AreaToZero(_PointLike):
     def _build_extend(self, x_mapper, y_mapper, info, append):
         draw_trapezoid_y = _build_draw_trapezoid_y(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_zero(
+        extend_area = _build_extend_area_axis0(
             draw_trapezoid_y, map_onto_pixel)
         x_name = self.x
         y_name = self.y
@@ -592,12 +592,12 @@ class AreaToZero(_PointLike):
             xs = df[x_name].values
             ys = df[y_name].values
             cols = aggs + info(df)
-            extend_area(vt, bounds, xs, ys, plot_start, *cols)
+            extend_area(vt, bounds, xs, ys, np.array([0.0]), plot_start, *cols)
 
         return extend
 
 
-class AreaToLine(_PointLike):
+class AreaToLineAxis0(_PointLike):
     """A filled area glyph
     The area to be filled is the region from the line defined by ``x`` and
     ``y[0]`` and the line defined by ``x`` and ``y[1]``.
@@ -662,7 +662,7 @@ class AreaToLine(_PointLike):
     def _build_extend(self, x_mapper, y_mapper, info, append):
         draw_trapezoid_y = _build_draw_trapezoid_y(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_line(
+        extend_area = _build_extend_area_axis0(
             draw_trapezoid_y, map_onto_pixel)
         x_name = self.x
         y_names = self.y
@@ -1410,7 +1410,7 @@ def _build_extend_line_axis1_ragged(draw_line, map_onto_pixel):
     return extend_line
 
 
-def _build_extend_area_to_zero(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_zero_axis0(draw_trapezoid_y, map_onto_pixel):
     @ngjit
     def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate filled area along a line formed by
@@ -1449,7 +1449,7 @@ def _build_extend_area_to_zero(draw_trapezoid_y, map_onto_pixel):
     return extend_area
 
 
-def _build_extend_area_to_line(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_axis0(draw_trapezoid_y, map_onto_pixel):
     @ngjit
     def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
         """Aggregate filled area between the line formed by

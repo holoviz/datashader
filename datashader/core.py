@@ -328,7 +328,7 @@ The axis argument to Canvas.line must be 0 or 1
 
         return bypixel(source, self, glyph, agg)
 
-    def area(self, source, x, y, agg=None):
+    def area(self, source, x, y, agg=None, axis=0):
         """Compute a reduction by pixel, mapping data to pixels as a filled
         area region
 
@@ -348,15 +348,15 @@ The axis argument to Canvas.line must be 0 or 1
             Reduction to compute. Default is ``count()``.
         """
         #
-        from .glyphs import AreaToZero, AreaToLine
+        from .glyphs import AreaToZeroAxis0, AreaToLineAxis0
         from .reductions import any as any_rdn
         if agg is None:
             agg = any_rdn()
 
         if isinstance(y, (list, tuple)):
-            glyph = AreaToLine(x, tuple(y))
+            glyph = AreaToLineAxis0(x, tuple(y))
         else:
-            glyph = AreaToZero(x, y)
+            glyph = AreaToZeroAxis0(x, y)
 
         return bypixel(source, self, glyph, agg)
 
