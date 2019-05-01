@@ -278,6 +278,11 @@ class Canvas(object):
         if agg is None:
             agg = any_rdn()
 
+        # Broadcast column specifications to handle cases where
+        # x is a list and y is a string or vice versa
+        orig_x, orig_y = x, y
+        x, y = _broadcast_column_specifications(x, y)
+
         if axis == 0:
             if (isinstance(x, (Number, string_types)) and
                     isinstance(y, (Number, string_types))):
@@ -285,12 +290,6 @@ class Canvas(object):
             elif (isinstance(x, (list, tuple)) and
                     isinstance(y, (list, tuple))):
                 glyph = LineAxis0Multi(tuple(x), tuple(y))
-            elif (isinstance(x, (list, tuple)) and
-                    isinstance(y, (Number, string_types))):
-                glyph = LineAxis0Multi(tuple(x), (y,) * len(x))
-            elif (isinstance(x, (Number, string_types)) and
-                    isinstance(y, (list, tuple))):
-                glyph = LineAxis0Multi((x,) * len(y), tuple(y))
             else:
                 raise ValueError("""
 Invalid combination of x and y arguments to Canvas.line when axis=0.
@@ -298,7 +297,7 @@ Invalid combination of x and y arguments to Canvas.line when axis=0.
         x: {x}
         y: {y}
 See docstring for more information on valid usage""".format(
-                    x=repr(x), y=repr(y)))
+                    x=repr(orig_x), y=repr(orig_y)))
 
         elif axis == 1:
             if isinstance(x, (list, tuple)) and isinstance(y, (list, tuple)):
@@ -319,7 +318,7 @@ Invalid combination of x and y arguments to Canvas.line when axis=1.
         x: {x}
         y: {y}
 See docstring for more information on valid usage""".format(
-                    x=repr(x), y=repr(y)))
+                    x=repr(orig_x), y=repr(orig_y)))
 
         else:
             raise ValueError("""
@@ -328,7 +327,7 @@ The axis argument to Canvas.line must be 0 or 1
 
         return bypixel(source, self, glyph, agg)
 
-    def area(self, source, x, y, agg=None, axis=0):
+    def area(self, source, x, y, agg=None, axis=0, y_stack=None):
         """Compute a reduction by pixel, mapping data to pixels as a filled
         area region
 
@@ -339,24 +338,127 @@ The axis argument to Canvas.line must be 0 or 1
         x: str
             Column name for the x coordinates of the area boundary.
         y: str or list of str
+            TODO: same as line ys
             * str: Column name for the y coordinates of the area boundary. The
             area to be filled is the region between this y coordinate and y=0.
             * list of 2 str: Columns names for the two y coordinate of the
             area boundary. The area to be filled is the region between these
             two y coordinates.
+        y_stack: str
+            TODO: same as line
         agg : Reduction, optional
             Reduction to compute. Default is ``count()``.
         """
         #
-        from .glyphs import AreaToZeroAxis0, AreaToLineAxis0
+        from .glyphs import (
+            AreaToZeroAxis0, AreaToLineAxis0,
+            AreaToZeroAxis0Multi, AreaToLineAxis0Multi,
+            AreaToZeroAxis1, AreaToLineAxis1,
+            AreaToZeroAxis1XConstant, AreaToLineAxis1XConstant,
+            AreaToZeroAxis1YConstant, AreaToLineAxis1YConstant,
+            AreaToZeroAxis1Ragged, AreaToLineAxis1Ragged,
+        )
         from .reductions import any as any_rdn
         if agg is None:
             agg = any_rdn()
 
-        if isinstance(y, (list, tuple)):
-            glyph = AreaToLineAxis0(x, tuple(y))
-        else:
-            glyph = AreaToZeroAxis0(x, y)
+        # Broadcast column specifications to handle cases where
+        # x is a list and y is a string or vice versa
+        orig_x, orig_y, orig_y_stack = x, y, y_stack
+        x, y, y_stack = _broadcast_column_specifications(x, y, y_stack)
+
+        if axis == 0:
+            if y_stack is None:
+                if (isinstance(x, (Number, string_types)) and
+                        isinstance(y, (Number, string_types))):
+                    glyph = AreaToZeroAxis0(x, y)
+                elif (isinstance(x, (list, tuple)) and
+                      isinstance(y, (list, tuple))):
+                    glyph = AreaToZeroAxis0Multi(tuple(x), tuple(y))
+                else:
+                    raise ValueError("""
+Invalid combination of x and y arguments to Canvas.area when axis=0.
+    Received:
+        x: {x}
+        y: {y}
+See docstring for more information on valid usage""".format(
+                        x=repr(x), y=repr(y)))
+            else:
+                # y_stack is not None
+                if (isinstance(x, (Number, string_types)) and
+                        isinstance(y, (Number, string_types)) and
+                        isinstance(y_stack, (Number, string_types))):
+
+                    glyph = AreaToLineAxis0(x, y, y_stack)
+                elif (isinstance(x, (list, tuple)) and
+                      isinstance(y, (list, tuple)) and
+                      isinstance(y_stack, (list, tuple))):
+                    glyph = AreaToLineAxis0Multi(
+                        tuple(x), tuple(y), tuple(y_stack))
+                else:
+                    raise ValueError("""
+Invalid combination of x, y, and y_stack arguments to Canvas.area when axis=0.
+    Received:
+        x: {x}
+        y: {y}
+        y_stack: {y_stack}
+See docstring for more information on valid usage""".format(
+                        x=repr(orig_x),
+                        y=repr(orig_y),
+                        y_stack=repr(orig_y_stack)))
+
+        elif axis == 1:
+            if y_stack is None:
+                if (isinstance(x, (list, tuple)) and
+                        isinstance(y, (list, tuple))):
+                    glyph = AreaToZeroAxis1(tuple(x), tuple(y))
+                elif (isinstance(x, np.ndarray) and
+                      isinstance(y, (list, tuple))):
+                    glyph = AreaToZeroAxis1XConstant(x, tuple(y))
+                elif (isinstance(x, (list, tuple)) and
+                      isinstance(y, np.ndarray)):
+                    glyph = AreaToZeroAxis1YConstant(tuple(x), y)
+                elif (isinstance(x, (Number, string_types)) and
+                      isinstance(y, (Number, string_types))):
+                    glyph = AreaToZeroAxis1Ragged(x, y)
+                else:
+                    raise ValueError("""
+Invalid combination of x and y arguments to Canvas.area when axis=1.
+    Received:
+        x: {x}
+        y: {y}
+See docstring for more information on valid usage""".format(
+                        x=repr(x), y=repr(y)))
+            else:
+                if (isinstance(x, (list, tuple)) and
+                        isinstance(y, (list, tuple)) and
+                        isinstance(y_stack, (list, tuple))):
+                    glyph = AreaToLineAxis1(
+                        tuple(x), tuple(y), tuple(y_stack))
+                elif (isinstance(x, np.ndarray) and
+                      isinstance(y, (list, tuple)) and
+                      isinstance(y_stack, (list, tuple))):
+                    glyph = AreaToLineAxis1XConstant(
+                        x, tuple(y), tuple(y_stack))
+                elif (isinstance(x, (list, tuple)) and
+                      isinstance(y, np.ndarray) and
+                      isinstance(y_stack, np.ndarray)):
+                    glyph = AreaToLineAxis1YConstant(tuple(x), y, y_stack)
+                elif (isinstance(x, (Number, string_types)) and
+                      isinstance(y, (Number, string_types)) and
+                      isinstance(y_stack, (Number, string_types))):
+                    glyph = AreaToLineAxis1Ragged(x, y, y_stack)
+                else:
+                    raise ValueError("""
+Invalid combination of x, y, and y_stack arguments to Canvas.area when axis=1.
+    Received:
+        x: {x}
+        y: {y}
+        y_stack: {y_stack}
+See docstring for more information on valid usage""".format(
+                        x=repr(orig_x),
+                        y=repr(orig_y),
+                        y_stack=repr(orig_y_stack)))
 
         return bypixel(source, self, glyph, agg)
 
@@ -724,6 +826,19 @@ def _cols_to_keep(columns, glyph, agg):
     elif agg.column is not None:
         cols_to_keep[agg.column] = True
     return [col for col, keepit in cols_to_keep.items() if keepit]
+
+
+def _broadcast_column_specifications(*args):
+    lengths = {len(a) for a in args if isinstance(a, (list, tuple))}
+    if len(lengths) != 1:
+        # None of the inputs are lists/tuples, return them as is
+        return args
+    else:
+        n = lengths.pop()
+        return tuple(
+            (arg,) * n if isinstance(arg, (Number, string_types)) else arg
+            for arg in args
+        )
 
 
 bypixel.pipeline = Dispatcher()

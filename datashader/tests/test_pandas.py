@@ -915,7 +915,7 @@ def test_area_to_zero_autorange():
     assert_eq(agg, out)
 
 
-def test_area_to_zero_autorange_stack():
+def test_area_to_line_autorange():
     axis = ds.core.LinearAxis()
     lincoords_y = axis.compute_index(
         axis.compute_scale_and_translate((-4., 4.), 7), 7)
@@ -932,7 +932,7 @@ def test_area_to_zero_autorange_stack():
 
     # When a line is specified to fill to, this line is not included in
     # the fill.  So we expect the y=0 line to not be filled.
-    agg = cvs.area(df, 'x', ['y0', 'y1'], ds.count())
+    agg = cvs.area(df, 'x', 'y0', ds.count(), y_stack='y1')
 
     sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
