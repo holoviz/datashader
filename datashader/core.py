@@ -335,21 +335,119 @@ The axis argument to Canvas.line must be 0 or 1
         ----------
         source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
             The input datasource.
-        x: str
-            Column name for the x coordinates of the area boundary.
-        y: str or list of str
-            TODO: same as line ys
-            * str: Column name for the y coordinates of the area boundary. The
-            area to be filled is the region between this y coordinate and y=0.
-            * list of 2 str: Columns names for the two y coordinate of the
-            area boundary. The area to be filled is the region between these
-            two y coordinates.
-        y_stack: str
-            TODO: same as line
+        x, y : str or number or list or tuple or np.ndarray
+            Specification of the x and y coordinates of each vertex of the
+            line defining the starting edge of the area region.
+            * str or number: Column labels in source
+            * list or tuple: List or tuple of column labels in source
+            * np.ndarray: When axis=1, a literal array of the
+              coordinates to be used for every row
         agg : Reduction, optional
             Reduction to compute. Default is ``count()``.
+        axis : 0 or 1, default 0
+            Axis in source to draw lines along
+            * 0: Draw area regions using data from the specified columns
+                 across all rows in source
+            * 1: Draw one area region per row in source using data from the
+                 specified columns
+        y_stack: str or number or list or tuple or np.ndarray or None
+            Specification of the y coordinates of each vertex of the line
+            defining the ending edge of the area region, where the x
+            coordinate is given by the x argument described above.
+
+            If y_stack is None, then the area region is filled to the y=0 line
+
+            If y_stack is not None, then the form of y_stack must match the
+            form of y.
+
+        Examples
+        --------
+        Define a canvas and a pandas DataFrame with 6 rows
+        >>> import pandas as pd  # doctest: +SKIP
+        ... import numpy as np
+        ... import datashader as ds
+        ... from datashader import Canvas
+        ... import datashader.transfer_functions as tf
+        ... cvs = Canvas()
+        ... df = pd.DataFrame({
+        ...    'A1': [1, 1.5, 2, 2.5, 3, 4],
+        ...    'A2': [1.6, 2.1, 2.9, 3.2, 4.2, 5],
+        ...    'B1': [10, 12, 11, 14, 13, 15],
+        ...    'B2': [11, 9, 10, 7, 8, 12],
+        ... }, dtype='float64')
+
+        Aggregate one area region across all rows, that starts with
+        coordinates df.A1 by df.B1 and is filled to the y=0 line
+        >>> agg = cvs.area(df, x='A1', y='B1',  # doctest: +SKIP
+        ...                agg=ds.count(), axis=0)
+        ... tf.shade(agg)
+
+        Aggregate one area region across all rows, that starts with
+        coordinates df.A1 by df.B1 and is filled to the line with coordinates
+        df.A1 by df.B2
+        >>> agg = cvs.area(df, x='A1', y='B1', y_stack='B2', # doctest: +SKIP
+        ...                agg=ds.count(), axis=0)
+        ... tf.shade(agg)
+
+        Aggregate two area regions across all rows. The first starting
+        with coordinates df.A1 by df.B1 and the second with coordinates
+        df.A2 by df.B2. Both regions are filled to the y=0 line
+        >>> agg = cvs.area(df, x=['A1', 'A2'], y=['B1', 'B2'], agg=ds.count(), axis=0)  # doctest: +SKIP
+        ... tf.shade(agg)
+
+        Aggregate two area regions across all rows where the regions share the
+        same x coordinates. The first region will start with coordinates
+        df.A1 by df.B1 and the second will start with coordinates
+        df.A1 by df.B2. Both regions are filled to the y=0 line
+        >>> agg = cvs.area(df, x='A1', y=['B1', 'B2'], agg=ds.count(), axis=0)  # doctest: +SKIP
+        ... tf.shade(agg)
+
+        Aggregate 6 length-2 area regions, one per row, where the ith region
+        starts with coordinates [df.A1[i], df.A2[i]] by [df.B1[i], df.B2[i]]
+        and is filled to the y=0 line
+        >>> agg = cvs.area(df, x=['A1', 'A2'], y=['B1', 'B2'], agg=ds.count(), axis=1)  # doctest: +SKIP
+        ... tf.shade(agg)
+
+        Aggregate 6 length-4 area regions, one per row, where the
+        starting x coordinates of every region are [0, 1, 2, 3] and
+        the starting y coordinates of the ith region are
+        [df.A1[i], df.A2[i], df.B1[i], df.B2[i]].  All regions are filled to
+        the y=0 line
+        >>> agg = cvs.area(df,  # doctest: +SKIP
+        ...                x=np.arange(4),
+        ...                y=['A1', 'A2', 'B1', 'B2'],
+        ...                agg=ds.count(),
+        ...                axis=1)
+        ... tf.shade(agg)
+
+        Aggregate RaggedArrays of variable length area regions, one per row.
+        The starting coordinates of the ith region are df_ragged.A1 by
+        df_ragged.B1 and the regions are filled to the y=0 line.
+        (requires pandas >= 0.24.0)
+        >>> df_ragged = pd.DataFrame({  # doctest: +SKIP
+        ...    'A1': pd.array([
+        ...        [1, 1.5], [2, 2.5, 3], [1.5, 2, 3, 4], [3.2, 4, 5]],
+        ...        dtype='Ragged[float32]'),
+        ...    'B1': pd.array([
+        ...        [10, 12], [11, 14, 13], [10, 7, 9, 10], [7, 8, 12]],
+        ...        dtype='Ragged[float32]'),
+        ...    'B2': pd.array([
+        ...        [6, 10], [9, 10, 18], [9, 5, 6, 8], [4, 5, 11]],
+        ...        dtype='Ragged[float32]'),
+        ...    'group': pd.Categorical([0, 1, 2, 1])
+        ... })
+        ...
+        ... agg = cvs.area(df_ragged, x='A1', y='B1', agg=ds.count(), axis=1)
+        ... tf.shade(agg)
+
+        Instead of filling regions to the y=0 line, fill to the line with
+        coordinates df_ragged.A1 by df_ragged.B2
+        >>> agg = cvs.area(df_ragged, x='A1', y='B1', y_stack='B2', # doctest: +SKIP
+        ...                agg=ds.count(), axis=1)
+        ... tf.shade(agg)
+
+        (requires pandas >= 0.24.0)
         """
-        #
         from .glyphs import (
             AreaToZeroAxis0, AreaToLineAxis0,
             AreaToZeroAxis0Multi, AreaToLineAxis0Multi,
@@ -459,6 +557,10 @@ See docstring for more information on valid usage""".format(
                         x=repr(orig_x),
                         y=repr(orig_y),
                         y_stack=repr(orig_y_stack)))
+        else:
+            raise ValueError("""
+The axis argument to Canvas.line must be 0 or 1
+    Received: {axis}""".format(axis=axis))
 
         return bypixel(source, self, glyph, agg)
 
