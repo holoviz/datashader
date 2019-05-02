@@ -2275,7 +2275,7 @@ def _build_extend_area_to_line_axis0_multi(draw_trapezoid_y, map_onto_pixel):
                 if not skip:
                     x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
                     _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    y2i = y1i
+                    _, y2i = map_onto_pixel(vt, bounds, x1, y2)
                     x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
 
                     draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi,
@@ -2366,7 +2366,7 @@ def _build_extend_area_to_line_axis1_none_constant(draw_trapezoid_y, map_onto_pi
                 if not skip:
                     x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
                     _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    y2i = y1i
+                    _, y2i = map_onto_pixel(vt, bounds, x1, y2)
                     x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
 
                     draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
@@ -2456,7 +2456,7 @@ def _build_extend_area_to_line_axis1_x_constant(draw_trapezoid_y, map_onto_pixel
                 if not skip:
                     x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
                     _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    y2i = y1i
+                    _, y2i = map_onto_pixel(vt, bounds, x1, y2)
                     x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
 
                     draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
@@ -2546,7 +2546,7 @@ def _build_extend_area_to_line_axis1_y_constant(draw_trapezoid_y, map_onto_pixel
                 if not skip:
                     x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
                     _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    y2i = y1i
+                    _, y2i = map_onto_pixel(vt, bounds, x1, y2)
                     x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
 
                     draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
@@ -2712,7 +2712,7 @@ def _build_extend_area_to_line_axis1_ragged(draw_trapezoid_y, map_onto_pixel):
                 if not skip:
                     x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
                     _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    y2i = y1i
+                    _, y2i = map_onto_pixel(vt, bounds, x1, y2)
                     x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
 
                     draw_trapezoid_y(
