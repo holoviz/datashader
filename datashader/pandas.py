@@ -4,7 +4,7 @@ import pandas as pd
 
 from .core import bypixel
 from .compiler import compile_components
-from .glyphs import _PointLike
+from .glyphs import _PointLike, _AreaToLineLike
 from .utils import Dispatcher
 
 __all__ = ()
@@ -19,6 +19,7 @@ glyph_dispatch = Dispatcher()
 
 
 @glyph_dispatch.register(_PointLike)
+@glyph_dispatch.register(_AreaToLineLike)
 def pointlike(glyph, df, schema, canvas, summary):
     create, info, append, _, finalize = compile_components(summary, schema, glyph)
     x_mapper = canvas.x_axis.mapper
