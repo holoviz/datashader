@@ -59,8 +59,8 @@ jobs:
         # ...and now install doit/pyctdev into miniconda
         - conda install -c pyviz "pyctdev>=0.5" && doit ecosystem_setup
       install:
-        - doit env_create $CHANS_DEV --python=$PYENV_VERSION
-        - source activate test-environment
+        - doit env_create $CHANS_DEV --python=$PYENV_VERSION --name=$PYENV_VERSION
+        - source activate $PYENV_VERSION
         - doit develop_install $CHANS_DEV
         - doit env_capture
       script:
