@@ -1,13 +1,7 @@
 # TODO:
 #
 #  * restore previous sections
-dist: xenial   # required for Python >= 3.7
 language: python
-python:
-  - "2.7"
-  - "3.5"
-  - "3.6"
-  - "3.7"
 sudo: false
 os:
   - linux
@@ -55,6 +49,7 @@ jobs:
 
     - &conda_default
       stage: test
+      python: 3.6
       env: DESC="dev test_all"
       before_install:
         # install doit/pyctdev and use to install miniconda...
@@ -75,11 +70,13 @@ jobs:
     # python 2 flake checking typically catches python 2 syntax
     # errors where python 3's been assumed...
     - <<: *conda_default
+      python: 2.7
       env: DESC="py2 flakes" PYENV_VERSION=2.7
       script: doit test_lint
 
     # test using python 3.5
     - <<: *conda_default
+      python: 3.5
       env: PYENV_VERSION=3.5
       script:
         - doit test_all
@@ -87,6 +84,7 @@ jobs:
 
     # test using python 3.7
     - <<: *conda_default
+      python: 3.7
       env: PYENV_VERSION=3.7
       script:
         - doit test_all
