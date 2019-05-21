@@ -18,14 +18,14 @@ env:
     - TMPDIR=$HOME/tmp
     - PYPI="https://upload.pypi.org/legacy/"
 
-cache:
-  directories:
-    - $HOME/miniconda
+# cache:
+#   directories:
+#     - $HOME/miniconda
 
-before_cache:
-  - rm -rf $HOME/miniconda/pkgs
-  - rm -rf $HOME/miniconda/conda-bld/*
-  - rm -rf $HOME/miniconda/envs/*/conda-bld
+# before_cache:
+#   - rm -rf $HOME/miniconda/pkgs
+#   - rm -rf $HOME/miniconda/conda-bld/*
+#   - rm -rf $HOME/miniconda/envs/*/conda-bld
 
 # quick hack to determine what tag is (improvements welcomed)
 #     release: ^v(\d+|\.)*[^a-z]\d*$
@@ -84,6 +84,7 @@ jobs:
 
     # test using python 3.7
     - <<: *conda_default
+      dist: xenial
       python: 3.7
       env: PYENV_VERSION=3.7
       script:
