@@ -74,14 +74,6 @@ jobs:
       env: DESC="py2 flakes" PYENV_VERSION=2.7
       script: doit test_lint
 
-    # test using python 3.5
-    - <<: *conda_default
-      python: 3.5
-      env: PYENV_VERSION=3.5
-      script:
-        - doit test_all
-        - export NUMBA_DISABLE_JIT=1; doit test_unit_nojit
-
     # test using python 3.7
     - <<: *conda_default
       dist: xenial
