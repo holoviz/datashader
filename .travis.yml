@@ -1,7 +1,7 @@
 # TODO:
 #
 #  * restore previous sections
-language: generic
+language: python
 sudo: false
 os:
   - linux
@@ -25,7 +25,7 @@ cache:
 before_cache:
   - rm -rf $HOME/miniconda/pkgs
   - rm -rf $HOME/miniconda/conda-bld/*
-  - rm -rf $HOME/miniconda/envs/*/conda-bld  
+  - rm -rf $HOME/miniconda/envs/*/conda-bld
 
 # quick hack to determine what tag is (improvements welcomed)
 #     release: ^v(\d+|\.)*[^a-z]\d*$
@@ -49,12 +49,9 @@ jobs:
 
     - &conda_default
       stage: test
+      python: 3.6
       env: DESC="dev test_all"
       before_install:
-        # brew-installed geos interferes with conda's cartopy?
-        - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-            brew uninstall --ignore-dependencies geos gdal postgis;
-          fi
         # install doit/pyctdev and use to install miniconda...
         - pip install pyctdev && doit miniconda_install && pip uninstall -y doit pyctdev
         - export PATH="$HOME/miniconda/bin:$PATH" && hash -r
@@ -62,8 +59,8 @@ jobs:
         # ...and now install doit/pyctdev into miniconda
         - conda install -c pyviz "pyctdev>=0.5" && doit ecosystem_setup
       install:
-        - doit env_create $CHANS_DEV --python=$PYENV_VERSION
-        - source activate test-environment
+        - doit env_create $CHANS_DEV --python=$PYENV_VERSION --name=$PYENV_VERSION
+        - source activate $PYENV_VERSION
         - doit develop_install $CHANS_DEV
         - doit env_capture
       script:
@@ -73,8 +70,19 @@ jobs:
     # python 2 flake checking typically catches python 2 syntax
     # errors where python 3's been assumed...
     - <<: *conda_default
+      python: 2.7
       env: DESC="py2 flakes" PYENV_VERSION=2.7
       script: doit test_lint
+
+    # test using python 3.7
+    - <<: *conda_default
+      dist: xenial
+      python: 3.7
+      env: PYENV_VERSION=3.7
+      script:
+        - doit test_all
+        - export NUMBA_DISABLE_JIT=1; doit test_unit_nojit
+
 
     ########## END-USER PACKAGES ##########
 
