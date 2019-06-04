@@ -642,7 +642,7 @@ The axis argument to Canvas.line must be 0 or 1
 
         if agg is None:
             agg = mean_rdn(weight_col)
-        elif agg.column is None:
+        elif hasattr(agg, 'column') and agg.column is None:
             agg.column = weight_col
 
         cols = source.columns
@@ -717,7 +717,7 @@ The axis argument to Canvas.line must be 0 or 1
                              % type(source).__name__)
 
         column = None
-        if isinstance(agg, rd.Reduction):
+        if isinstance(agg, rd.ReductionSingleColumn):
             agg, column = type(agg), agg.column
             if (isinstance(source, DataArray) and column is not None
                 and source.name != column):
@@ -923,10 +923,14 @@ def _cols_to_keep(columns, glyph, agg):
 
     if hasattr(agg, 'values'):
         for subagg in agg.values:
-            if subagg.column is not None:
-                cols_to_keep[subagg.column] = True
-    elif agg.column is not None:
-        cols_to_keep[agg.column] = True
+            for col in subagg.columns:
+                if col is not None:
+                    cols_to_keep[col] = True
+    else:
+        for col in agg.columns:
+            if col is not None:
+                cols_to_keep[col] = True
+
     return [col for col, keepit in cols_to_keep.items() if keepit]
 
 

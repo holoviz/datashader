@@ -33,21 +33,16 @@ class category_codes(Preprocess):
 
 class Reduction(Expr):
     """Base class for per-bin reductions."""
-    def __init__(self, column=None):
-        self.column = column
 
     def validate(self, in_dshape):
-        if not self.column in in_dshape.dict:
-            raise ValueError("specified column not found")
-        if not isnumeric(in_dshape.measure[self.column]):
-            raise ValueError("input must be numeric")
-
-    def out_dshape(self, in_dshape):
-        return self._dshape
+        raise NotImplementedError()
 
     @property
     def inputs(self):
-        return (extract(self.column),)
+        raise NotImplementedError()
+
+    def out_dshape(self, in_dshape):
+        return self._dshape
 
     @property
     def _bases(self):
@@ -70,11 +65,49 @@ class Reduction(Expr):
         return self._finalize
 
 
-class OptionalFieldReduction(Reduction):
-    """Base class for things like ``count`` or ``any``"""
+class ReductionSingleColumn(Reduction):
+    """
+    Base class for per-bin reductions that operate on at most one column.
+    """
     def __init__(self, column=None):
         self.column = column
 
+    @property
+    def columns(self):
+        return (self.column,) if self.column is not None else ()
+
+    def validate(self, in_dshape):
+        if not self.column in in_dshape.dict:
+            raise ValueError("specified column not found")
+        if not isnumeric(in_dshape.measure[self.column]):
+            raise ValueError("input must be numeric")
+
+    @property
+    def inputs(self):
+        return (extract(self.column),)
+
+
+class ReductionMultiColumn(Reduction):
+    """
+    Base class for per-bin reductions that operate on more than one column.
+    """
+    def __init__(self, *args):
+        self.columns = args
+
+    def validate(self, in_dshape):
+        for col in self.columns:
+            if col not in in_dshape.dict:
+                raise ValueError("column {} not found".format(repr(col)))
+            if not isnumeric(in_dshape.measure[col]):
+                raise ValueError("column {} must be numeric".format(repr(col)))
+
+    @property
+    def inputs(self):
+        return tuple(extract(col) for col in self.columns)
+
+
+class OptionalFieldReduction(ReductionSingleColumn):
+    """Base class for things like ``count`` or ``any``"""
     @property
     def inputs(self):
         return (extract(self.column),) if self.column is not None else ()
@@ -88,6 +121,45 @@ class OptionalFieldReduction(Reduction):
     @staticmethod
     def _finalize(bases, **kwargs):
         return xr.DataArray(bases[0], **kwargs)
+
+
+class compare(ReductionMultiColumn):
+    """
+    Compare the value of two columns per bin.
+
+    Returns a value of 1 if column1 >= column2 in a particular bin more often
+    column1 < column2.  Returns -1 otherwise.
+
+    Parameters
+    ----------
+    column1, column2: str
+        The names of the two columns to compare
+    """
+    _dshape = dshape(ct.int8)
+
+    def __init__(self, column1, column2):
+        super().__init__(column1, column2)
+
+    @staticmethod
+    def _create(shape):
+        return np.zeros(shape, dtype='i4')
+
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field1, field2):
+        if not np.isnan(field1) and not np.isnan(field2):
+            if field1 >= field2:
+                agg[y, x] += 1
+            else:
+                agg[y, x] -= 1
+
+    @staticmethod
+    def _combine(aggs):
+        return aggs.sum(axis=0, dtype='i4')
+
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        return xr.DataArray(bases[0].clip(-1, 1).astype('i1'), **kwargs)
 
 
 class count(OptionalFieldReduction):
@@ -151,7 +223,7 @@ class any(OptionalFieldReduction):
         return aggs.sum(axis=0, dtype='bool')
 
 
-class FloatingReduction(Reduction):
+class FloatingReduction(ReductionSingleColumn):
     """Base classes for reductions that always have floating-point dtype."""
     _dshape = dshape(Option(ct.float64))
 
@@ -270,7 +342,7 @@ class max(FloatingReduction):
         return np.nanmax(aggs, axis=0)
 
 
-class count_cat(Reduction):
+class count_cat(ReductionSingleColumn):
     """Count of all elements in ``column``, grouped by category.
 
     Parameters
@@ -315,7 +387,7 @@ class count_cat(Reduction):
         return finalize
 
 
-class mean(Reduction):
+class mean(ReductionSingleColumn):
     """Mean of all elements in ``column``.
 
     Parameters
@@ -338,7 +410,7 @@ class mean(Reduction):
         return xr.DataArray(x, **kwargs)
 
 
-class var(Reduction):
+class var(ReductionSingleColumn):
     """Variance of all elements in ``column``.
 
     Parameters
@@ -361,7 +433,7 @@ class var(Reduction):
         return xr.DataArray(x, **kwargs)
 
 
-class std(Reduction):
+class std(ReductionSingleColumn):
     """Standard Deviation of all elements in ``column``.
 
     Parameters
@@ -384,7 +456,7 @@ class std(Reduction):
         return xr.DataArray(x, **kwargs)
 
 
-class first(Reduction):
+class first(ReductionSingleColumn):
     """First value encountered in ``column``.
 
     Useful for categorical data where an actual value must always be returned, 
@@ -418,7 +490,7 @@ class first(Reduction):
 
 
 
-class last(Reduction):
+class last(ReductionSingleColumn):
     """Last value encountered in ``column``.
 
     Useful for categorical data where an actual value must always be returned, 
@@ -452,7 +524,7 @@ class last(Reduction):
 
 
 
-class mode(Reduction):
+class mode(ReductionSingleColumn):
     """Mode (most common value) of all the values encountered in ``column``.
 
     Useful for categorical data where an actual value must always be returned, 
@@ -527,6 +599,8 @@ class summary(Expr):
 
 __all__ = list(set([_k for _k,_v in locals().items()
                     if isinstance(_v,type) and (issubclass(_v,Reduction) or _v is summary)
-                    and _v not in [Reduction, OptionalFieldReduction,
-                                   FloatingReduction, m2]]))
-    
+                    and _v not in [
+                        Reduction, OptionalFieldReduction,
+                        FloatingReduction, m2,
+                        ReductionSingleColumn, ReductionMultiColumn]]))
+

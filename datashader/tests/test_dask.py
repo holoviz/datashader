@@ -18,8 +18,10 @@ df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'log_y': np.array(([1.] * 5 + [10] * 5 + [1] * 5 + [10] * 5)),
                    'i32': np.arange(20, dtype='i4'),
                    'i64': np.arange(20, dtype='i8'),
+                   'i64b': ((np.arange(20) / 2) + 5).astype('i8'),
                    'f32': np.arange(20, dtype='f4'),
                    'f64': np.arange(20, dtype='f8'),
+                   'f64b': (np.arange(20, dtype='f8') / 2) + 5,
                    'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                    'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
 df.cat = df.cat.astype('category')
@@ -136,6 +138,13 @@ def test_std():
                        coords=coords, dims=dims)
     assert_eq(c.points(ddf, 'x', 'y', ds.std('f32')), out)
     assert_eq(c.points(ddf, 'x', 'y', ds.std('f64')), out)
+
+
+def test_compare():
+    out = xr.DataArray(np.array([[-1, 1], [-1, 1]], dtype='i1'),
+                       coords=coords, dims=dims)
+    assert_eq(c.points(ddf, 'x', 'y', ds.compare('f64', 'f64b')), out)
+    assert_eq(c.points(ddf, 'x', 'y', ds.compare('i64', 'i64b')), out)
 
 
 def test_count_cat():
