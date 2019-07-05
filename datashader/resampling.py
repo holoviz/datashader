@@ -26,9 +26,13 @@ SOFTWARE.
 
 from __future__ import absolute_import, division, print_function
 
+from itertools import groupby
+
+import dask.array as da
 import numpy as np
 import numba as nb
 
+from dask.delayed import delayed
 from numba import prange
 from .utils import ngjit
 
@@ -79,30 +83,162 @@ downsample_methods = dict(first=DS_FIRST, last=DS_LAST, mode=DS_MODE,
                           mean=DS_MEAN,   var=DS_VAR,   std=DS_STD,
                           min=DS_MIN,     max=DS_MAX)
 
+
+def map_chunks(in_shape, out_shape, out_chunks):
+    """
+    Maps index in source array to target array chunks.
+    
+    For each chunk in the target array this function computes the
+    indexes into the source array that will be fed into the regridding
+    operation.
+
+    Parameters
+    ----------
+    in_shape: tuple(int, int)
+      The shape of the input array
+    out_shape: tuple(int, int)
+      The shape of the output array
+    out_chunks: tuple(int, int)
+      The shape of each chunk in the output array
+
+    Returns
+    -------
+      Dictionary mapping of chunks and their indexes
+      in the input and output array.
+    """
+    outy, outx = out_shape
+    cys, cxs = out_chunks
+    xchunks = list(range(0, outx, cxs)) + [outx]
+    ychunks = list(range(0, outy, cys)) + [outy]
+    iny, inx = in_shape
+    xscale = inx/outx
+    yscale = iny/outy
+    mapping = {}
+    for i in range(len(ychunks)-1):
+        cumy0, cumy1 = ychunks[i:i+2]
+        for j in range(len(xchunks)-1):
+            cumx0, cumx1 = xchunks[j:j+2]
+            inx0, inx1 = round(cumx0*xscale), round(cumx1*xscale)
+            iny0, iny1 = round(cumy0*yscale), round(cumy1*yscale)
+            mapping[(i, j)] = {
+                'out': {
+                    'x': (cumx0, cumx1),
+                    'y': (cumy0, cumy1),
+                    'w': (cumx1-cumx0),
+                    'h': (cumy1-cumy0),
+                },
+                'in': {
+                    'x': (inx0, inx1),
+                    'y': (iny0, iny1),
+                }
+            }
+    return mapping
+
+
+def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear', fill_value=None, mode_rank=1, out_chunks=None):
+    """
+    A distributed version of 2-d grid resampling which operates on
+    dask arrays and performs regridding on a chunked array.
+
+    Parameters
+    ----------
+    src : dask.array.Array
+        The source array to resample
+    w : int
+        New grid width
+    h : int
+        New grid height
+    ds_method : str (optional)
+        Grid cell aggregation method for a possible downsampling
+        (one of the *DS_* constants).
+    us_method : str (optional)
+        Grid cell interpolation method for a possible upsampling
+        (one of the *US_* constants, optional).
+    fill_value : scalar (optional)
+        If None, numpy's default value is used.
+    mode_rank : scalar (optional)
+        The rank of the frequency determined by the *ds_method*
+        ``DS_MODE``. One (the default) means most frequent value, zwo
+        means second most frequent value, and so forth.
+    out_chunks : tuple(int, int) (optional)
+        Size of the output chunks. By default this the chunk size is
+        inherited from the *src* array.
+
+    Returns
+    -------
+    resampled : dask.array.Array
+        A resampled version of the *src* array.
+    """
+    if not out_chunks:
+        out_chunks = src.chunksize
+
+    delayed_chunks = src.to_delayed()
+    chunk_map = map_chunks(
+        src.shape, (h, w), out_chunks)
+
+    out_chunks = {}
+    for (i, j), chunk in chunk_map.items():
+        inds = chunk['in']
+        inx0, inx1 = inds['x']
+        iny0, iny1 = inds['y']
+        out = chunk['out']
+        chunk_array = src[iny0:iny1, inx0:inx1]
+        resampled = _resample_2d_delayed(
+                chunk_array, out['w'], out['h'], ds_method, us_method,
+                fill_value, mode_rank)
+        out_chunks[(i, j)] = {
+            'array': resampled,
+            'shape': (out['h'], out['w']),
+            'dtype': src.dtype,
+            'in': chunk['in'],
+            'out': out
+        }
+
+    rows = groupby(out_chunks.items(), lambda x: x[0][0])
+    cols = []
+    for i, row in rows:
+        row = da.concatenate([
+            da.from_delayed(chunk['array'], chunk['shape'], chunk['dtype'])
+            for _, chunk in row], 1)
+        cols.append(row)
+    return da.concatenate(cols, 0)
+
+
 def resample_2d(src, w, h, ds_method='mean', us_method='linear', fill_value=None, mode_rank=1, out=None):
     """
     Resample a 2-D grid to a new resolution.
 
-    :param src: 2-D *ndarray*
-    :param w: *int*
+    Parameters
+    ----------
+    src : np.ndarray
+        The source array to resample
+    w : int
         New grid width
-    :param h:  *int*
+    h : int
         New grid height
-    :param ds_method: one of the *DS_* constants, optional
+    ds_method : str (optional)
         Grid cell aggregation method for a possible downsampling
-    :param us_method: one of the *US_* constants, optional
+        (one of the *DS_* constants).
+    us_method : str (optional)
         Grid cell interpolation method for a possible upsampling
-    :param fill_value: *scalar*, optional
+        (one of the *US_* constants, optional).
+    fill_value : scalar (optional)
         If ``None``, it is taken from **src** if it is a masked array,
         otherwise from *out* if it is a masked array,
         otherwise numpy's default value is used.
-    :param mode_rank: *scalar*, optional
-        The rank of the frequency determined by the *ds_method* ``DS_MODE``. One (the default) means
-        most frequent value, zwo means second most frequent value, and so forth.
-    :param out: 2-D *ndarray*, optional
-        Alternate output array in which to place the result. The default is *None*; if provided, it must have the same
-        shape as the expected output.
-    :return: A resampled version of the *src* array.
+    mode_rank : scalar (optional)
+        The rank of the frequency determined by the *ds_method*
+        ``DS_MODE``. One (the default) means most frequent value, zwo
+        means second most frequent value, and so forth.
+    out : numpy.ndarray (optional)
+        Alternate output array in which to place the result. The
+        default is *None*; if provided, it must have the same shape as
+        the expected output.
+
+    Returns
+    -------
+    resampled : numpy.ndarray or dask.array.Array
+        A resampled version of the *src* array.
     """
     out = _get_out(out, src, (h, w))
     if out is None:
@@ -117,25 +253,32 @@ def resample_2d(src, w, h, ds_method='mean', us_method='linear', fill_value=None
                         src, fill_value)
 
 
+_resample_2d_delayed = delayed(resample_2d)
+
+
 def upsample_2d(src, w, h, method=US_LINEAR, fill_value=None, out=None):
     """
     Upsample a 2-D grid to a higher resolution by interpolating original grid cells.
 
-    :param src: 2-D *ndarray*
-    :param w: *int*
+    src: 2-D *ndarray*
+    w: *int*
         Grid width, which must be greater than or equal to *src.shape[-1]*
-    :param h:  *int*
+    h:  *int*
         Grid height, which must be greater than or equal to *src.shape[-2]*
-    :param method: one of the *US_* constants, optional
+    method: one of the *US_* constants, optional
         Grid cell interpolation method
-    :param fill_value: *scalar*, optional
+    fill_value: *scalar*, optional
         If ``None``, it is taken from **src** if it is a masked array,
         otherwise from *out* if it is a masked array,
         otherwise numpy's default value is used.
-    :param out: 2-D *ndarray*, optional
+    out: 2-D *ndarray*, optional
         Alternate output array in which to place the result. The default is *None*; if provided, it must have the same
         shape as the expected output.
-    :return: An upsampled version of the *src* array.
+
+    Returns
+    -------
+    upsampled : numpy.ndarray or dask.array.Array
+        An upsampled version of the *src* array.
     """
     out = _get_out(out, src, (h, w))
     if out is None:
@@ -154,24 +297,34 @@ def downsample_2d(src, w, h, method=DS_MEAN, fill_value=None, mode_rank=1, out=N
     """
     Downsample a 2-D grid to a lower resolution by aggregating original grid cells.
 
-    :param src: 2-D *ndarray*
-    :param w: *int*
-        Grid width, which must be less than or equal to *src.shape[-1]*
-    :param h:  *int*
-        Grid height, which must be less than or equal to *src.shape[-2]*
-    :param method: one of the *DS_* constants, optional
-        Grid cell aggregation method
-    :param fill_value: *scalar*, optional
+    Parameters
+    ----------
+    src : numpy.ndarray or dask.array.Array
+        The source array to resample
+    w : int
+        New grid width
+    h : int
+        New grid height
+    ds_method : str (optional)
+        Grid cell aggregation method for a possible downsampling
+        (one of the *DS_* constants).
+    fill_value : scalar (optional)
         If ``None``, it is taken from **src** if it is a masked array,
         otherwise from *out* if it is a masked array,
         otherwise numpy's default value is used.
-    :param mode_rank: *scalar*, optional
-        The rank of the frequency determined by the *method* ``DS_MODE``. One (the default) means
-        most frequent value, zwo means second most frequent value, and so forth.
-    :param out: 2-D *ndarray*, optional
-        Alternate output array in which to place the result. The default is *None*; if provided, it must have the same
-        shape as the expected output.
-    :return: A downsampled version of the *src* array.
+    mode_rank : scalar (optional)
+        The rank of the frequency determined by the *ds_method*
+        ``DS_MODE``. One (the default) means most frequent value, zwo
+        means second most frequent value, and so forth.
+    out : numpy.ndarray (optional)
+        Alternate output array in which to place the result. The
+        default is *None*; if provided, it must have the same shape as
+        the expected output.
+
+    Returns
+    -------
+    downsampled : numpy.ndarray or dask.array.Array
+        An downsampled version of the *src* array.
     """
     if method == DS_MODE and mode_rank < 1:
         raise ValueError('mode_rank must be >= 1')

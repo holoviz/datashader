@@ -5,7 +5,7 @@ from numbers import Number
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
-from dask.array import Array
+import dask.array as da
 from six import string_types
 from xarray import DataArray, Dataset
 from collections import OrderedDict
@@ -14,7 +14,7 @@ from datashader.spatial.points import SpatialPointsFrame
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
-from .resampling import resample_2d
+from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
 
 
@@ -786,11 +786,12 @@ The axis argument to Canvas.line must be 0 or 1
                       us_method=interpolate, fill_value=fill_value)
         if array.ndim == 2:
             source_window = array[rmin:rmax+1, cmin:cmax+1]
-            if isinstance(source_window, Array):
-                source_window = source_window.compute()
             if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
-            data = resample_2d(source_window, **kwargs)
+            if isinstance(source_window, da.Array):
+                data = resample_2d_distributed(source_window, **kwargs)
+            else:
+                data = resample_2d(source_window, **kwargs)
             layers = 1
         else:
             source_window = array[:, rmin:rmax+1, cmin:cmax+1]
@@ -798,9 +799,11 @@ The axis argument to Canvas.line must be 0 or 1
                 source_window = source_window.astype('f')
             arrays = []
             for arr in source_window:
-                if isinstance(arr, Array):
-                    arr = arr.compute()
-                arrays.append(resample_2d(arr, **kwargs))
+                if isinstance(arr, da.Array):
+                    arr = resample_2d_distributed(arr, **kwargs)
+                else:
+                    arr = resample_2d(arr, **kwargs)
+                arrays.append(arr)
             data = np.dstack(arrays)
             layers = len(arrays)
 
@@ -830,8 +833,11 @@ The axis argument to Canvas.line must be 0 or 1
             top_pad = np.full(tshape, fill_value, source_window.dtype)
             bottom_pad = np.full(bshape, fill_value, source_window.dtype)
 
-            data = np.concatenate((top_pad, data, bottom_pad), axis=0)
-            data = np.concatenate((left_pad, data, right_pad), axis=1)
+            concat = da.concatenate if isinstance(data, da.Array) else np.concatenate
+            if top_pad.shape[0] > 0:
+                data = concat((top_pad, data, bottom_pad), axis=0)
+            if left_pad.shape[1] > 0:
+                data = concat((left_pad, data, right_pad), axis=1)
 
         # Reorient array to original orientation
         if res[1] > 0: data = data[::-1]
