@@ -231,7 +231,7 @@ def _get_fill_value(fill_value, src, out):
     return fill_value
 
 
-@ngjit_parallel
+@ngjit
 def _get_dimensions(src, out):
     src_w = src.shape[-1]
     src_h = src.shape[-2]
