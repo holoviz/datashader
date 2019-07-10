@@ -13,6 +13,8 @@ install:
   - "doit env_create %CHANNELS% --name=test --python=%PY%"
   - "activate test"
   - "doit develop_install %CHANNELS%"
+  # Fix for https://github.com/conda-forge/pytest-benchmark-feedstock/issues/6
+  - "pip install pytest-benchmark"
   - "doit env_capture"
 
 build: off
