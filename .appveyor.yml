@@ -14,7 +14,7 @@ install:
   - "activate test"
   - "doit develop_install %CHANNELS%"
   # Fix for https://github.com/conda-forge/pytest-benchmark-feedstock/issues/6
-  - "pip install pytest-benchmark"
+  - "pip install pytest-benchmark --ignore-installed"
   - "doit env_capture"
 
 build: off
