@@ -30,13 +30,12 @@ install_requires = [
 
 extras_require = {
     'tests': [
-        'pytest ==3.9.3',
-        'pytest-benchmark ==3.0.0',
+        'pytest >=3.9.3',
+        'pytest-benchmark >=3.0.0',
         'flake8',
         'nbsmoke >=0.2.6',
         'fastparquet >=0.1.6',  # optional dependency
         'pandas >=0.24.1',  # optional ragged array support
-        'nbconvert ==5.4.1',
     ],
     'examples': [],
     'examples_extra':[
@@ -57,13 +56,13 @@ extras_require = {
         'matplotlib',
         'networkx >=2.0',
         'pandas >=0.24.1',
-        'panel ==0.4.0',
+        'panel >=0.4.0',
         'paramnb',
         'requests',
         'tblib',
         'xarray',
         'pyyaml <5.1',
-        'streamz ==0.2.0',
+        'streamz >=0.2.0',
         'webargs',
         ### conda only below here
         'cartopy',
