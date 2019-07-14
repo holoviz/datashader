@@ -195,8 +195,8 @@ def test_auto_range_points():
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
     sol = np.zeros((2*n, 2*n), int)
     np.fill_diagonal(sol, 1)
-    sol[[range(1, 4, 2)]] = 0
-    sol[[range(4, 8, 2)]] = 0
+    sol[[tuple(range(1, 4, 2))]] = 0
+    sol[[tuple(range(4, 8, 2))]] = 0
     np.testing.assert_equal(agg.data, sol)
 
     cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)
