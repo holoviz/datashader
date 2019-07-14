@@ -485,7 +485,7 @@ class SpatialPointsFrame(dd.DataFrame):
             self._distance_divisions = distance_divisions
 
             self._partition_grid = _build_partition_grid(
-                list(self._distance_divisions), self._p)
+                tuple(self._distance_divisions), self._p)
 
             # Compute derived properties
             n = 2
