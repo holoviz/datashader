@@ -878,7 +878,7 @@ The axis argument to Canvas.line must be 0 or 1
         coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
         attrs = dict(res=res[0])
-        if source._file_obj is not None:
+        if source._file_obj is not None and hasattr(source._file_obj, 'nodata'):
             attrs['nodata'] = source._file_obj.nodata
 
         # Handle DataArray with layers
