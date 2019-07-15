@@ -162,13 +162,14 @@ def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
     chunksize : tuple(int, int)
         Size of the output chunks.
     """
+    start_chunksize = src.chunksize if chunksize is None else chunksize
     if max_mem is None:
-        return src.chunksize if chunksize is None else chunksize
+        return start_chunksize
 
     sh, sw = src.shape
     height_fraction = float(sh)/h
     width_fraction = float(sw)/w
-    ch, cw = src.chunksize
+    ch, cw = start_chunksize
     dim = True
     nbytes = src.dtype.itemsize
     while ((ch * height_fraction) * (cw * width_fraction) * nbytes) > max_mem:
@@ -178,13 +179,14 @@ def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
             ch -= 1
         dim = not dim
     if ch == 0 or cw == 0:
+        min_mem = height_fraction * width_fraction * nbytes
         raise ValueError(
             "Given the memory constraints the resampling operation "
             "could not find a chunksize that avoids loading too much "
-            "data into memory. Either relax the memory constraint or "
-            "resample to a larger grid size. Note: A future "
-            "implementation may handle this condition by declaring "
-            "temporary arrays.")
+            "data into memory. Either relax the memory constraint to "
+            "a minimum of %d bytes or resample to a larger grid size. "
+            "Note: A future implementation may handle this condition "
+            "by declaring temporary arrays." % min_mem)
     return ch, cw
 
 
@@ -231,9 +233,7 @@ def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear',
     if chunksize is None:
         chunksize = src.chunksize
 
-    chunk_map = map_chunks(
-        src.shape, (h, w), temp_chunks)
-
+    chunk_map = map_chunks(src.shape, (h, w), temp_chunks)
     out_chunks = {}
     for (i, j), chunk in chunk_map.items():
         inds = chunk['in']
