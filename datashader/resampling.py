@@ -135,7 +135,62 @@ def map_chunks(in_shape, out_shape, out_chunks):
     return mapping
 
 
-def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear', fill_value=None, mode_rank=1, out_chunks=None):
+def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
+    """
+    Attempts to compute a chunksize for the resampling output array
+    that is as close as possible to the input array chunksize, while
+    also respecting the maximum memory constraint to avoid loading
+    to much data into memory at the same time.
+
+    Parameters
+    ----------
+    src : dask.array.Array
+        The source array to resample
+    w : int
+        New grid width
+    h : int
+        New grid height
+    chunksize : tuple(int, int) (optional)
+        Size of the output chunks. By default this the chunk size is
+        inherited from the *src* array.
+    max_mem : int (optional)
+        The maximum number of bytes that should be loaded into memory
+        during the regridding operation.
+
+    Returns
+    -------
+    chunksize : tuple(int, int)
+        Size of the output chunks.
+    """
+    if max_mem is None:
+        return src.chunksize if chunksize is None else chunksize
+
+    sh, sw = src.shape
+    height_fraction = float(sh)/h
+    width_fraction = float(sw)/w
+    ch, cw = src.chunksize
+    dim = True
+    nbytes = src.dtype.itemsize
+    while ((ch * height_fraction) * (cw * width_fraction) * nbytes) > max_mem:
+        if dim:
+            cw -= 1
+        else:
+            ch -= 1
+        dim = not dim
+    if ch == 0 or cw == 0:
+        raise ValueError(
+            "Given the memory constraints the resampling operation "
+            "could not find a chunksize that avoids loading too much "
+            "data into memory. Either relax the memory constraint or "
+            "resample to a larger grid size. Note: A future "
+            "implementation may handle this condition by declaring "
+            "temporary arrays.")
+    return ch, cw
+
+
+def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear',
+                            fill_value=None, mode_rank=1, chunksize=None,
+                            max_mem=None):
     """
     A distributed version of 2-d grid resampling which operates on
     dask arrays and performs regridding on a chunked array.
@@ -160,21 +215,24 @@ def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear', fil
         The rank of the frequency determined by the *ds_method*
         ``DS_MODE``. One (the default) means most frequent value, zwo
         means second most frequent value, and so forth.
-    out_chunks : tuple(int, int) (optional)
+    chunksize : tuple(int, int) (optional)
         Size of the output chunks. By default this the chunk size is
         inherited from the *src* array.
-
+    max_mem : int (optional)
+        The maximum number of bytes that should be loaded into memory
+        during the regridding operation.
+    
     Returns
     -------
     resampled : dask.array.Array
         A resampled version of the *src* array.
     """
-    if not out_chunks:
-        out_chunks = src.chunksize
+    temp_chunks = compute_chunksize(src, w, h, chunksize, max_mem)
+    if chunksize is None:
+        chunksize = src.chunksize
 
-    delayed_chunks = src.to_delayed()
     chunk_map = map_chunks(
-        src.shape, (h, w), out_chunks)
+        src.shape, (h, w), temp_chunks)
 
     out_chunks = {}
     for (i, j), chunk in chunk_map.items():
@@ -201,7 +259,12 @@ def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear', fil
             da.from_delayed(chunk['array'], chunk['shape'], chunk['dtype'])
             for _, chunk in row], 1)
         cols.append(row)
-    return da.concatenate(cols, 0)
+    out = da.concatenate(cols, 0)
+
+    # Ensure chunksize conforms to specified chunksize
+    if chunksize is not None and out.chunksize != chunksize:
+        out = out.rechunk(chunksize)
+    return out
 
 
 def resample_2d(src, w, h, ds_method='mean', us_method='linear', fill_value=None, mode_rank=1, out=None):

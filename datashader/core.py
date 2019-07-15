@@ -657,7 +657,9 @@ The axis argument to Canvas.line must be 0 or 1
                downsample_method=rd.mean(), # Deprecated as of datashader=0.6.4
                nan_value=None,
                agg=None,
-               interpolate=None):
+               interpolate=None,
+               chunksize=None,
+               max_mem=None):
         """Sample a raster dataset by canvas size and bounds.
 
         Handles 2D or 3D xarray DataArrays, assuming that the last two
@@ -670,6 +672,13 @@ The axis argument to Canvas.line must be 0 or 1
         "nodata" attribute of the raster) are replaced with `NaN` if
         floats, and 0 if int.
 
+        Also supports resampling out-of-core DataArrays backed by dask
+        Arrays. By default it will try to maintain the same chunksize
+        in the output array but a custom chunksize may be provided.
+        If there are memory constrains they may be defined using the
+        max_mem parameter, which determines how large the chunks in
+        memory may be.
+
         Parameters
         ----------
         source : xarray.DataArray or xr.Dataset
@@ -677,21 +686,30 @@ The axis argument to Canvas.line must be 0 or 1
             define the data variable).
         layer : float
             For a 3D array, value along the z dimension : optional default=None
-        interpolate : str, optional  default=linear
-            Resampling mode when upsampling raster.
-            options include: nearest, linear.
+        ds_method : str (optional)
+            Grid cell aggregation method for a possible downsampling.
+        us_method : str (optional)
+            Grid cell interpolation method for a possible upsampling.
+        nan_value : int or float, optional
+            Optional nan_value which will be masked out when applying
+            the resampling.
         agg : Reduction, optional default=mean()
             Resampling mode when downsampling raster.
             options include: first, last, mean, mode, var, std, min, max
             Also accepts string names, for backwards compatibility.
-        nan_value : int or float, optional
-            Optional nan_value which will be masked out when applying
-            the resampling.
+        interpolate : str, optional  default=linear
+            Resampling mode when upsampling raster.
+            options include: nearest, linear.
+        chunksize : tuple(int, int) (optional)
+            Size of the output chunks. By default this the chunk size is
+            inherited from the *src* array.
+        max_mem : int (optional)
+            The maximum number of bytes that should be loaded into memory
+            during the regridding operation.
 
         Returns
         -------
         data : xarray.Dataset
-
         """
         # For backwards compatibility
         if agg         is None: agg=downsample_method
@@ -789,7 +807,9 @@ The axis argument to Canvas.line must be 0 or 1
             if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
             if isinstance(source_window, da.Array):
-                data = resample_2d_distributed(source_window, **kwargs)
+                data = resample_2d_distributed(
+                    source_window, chunksize=chunksize, max_mem=max_mem,
+                    **kwargs)
             else:
                 data = resample_2d(source_window, **kwargs)
             layers = 1
@@ -800,7 +820,9 @@ The axis argument to Canvas.line must be 0 or 1
             arrays = []
             for arr in source_window:
                 if isinstance(arr, da.Array):
-                    arr = resample_2d_distributed(arr, **kwargs)
+                    arr = resample_2d_distributed(
+                        arr, chunksize=chunksize, max_mem=max_mem,
+                        **kwargs)
                 else:
                     arr = resample_2d(arr, **kwargs)
                 arrays.append(arr)
