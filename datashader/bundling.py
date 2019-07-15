@@ -33,9 +33,9 @@ def distance_between(a, b):
     return (((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2))**(0.5)
 
 
-@nb.jit
+@nb.jit(forceobj=True)
 def resample_segment(segments, new_segments, min_segment_length, max_segment_length, ndims):
-    next_point = np.array([0.0] * ndims)
+    next_point = np.zeros(ndims)
     current_point = segments[0]
     pos = 0
     index = 1
@@ -183,9 +183,8 @@ def get_gradients(img):
 
 class BaseSegment(object):
     @classmethod
-    @nb.jit
     def create_delimiter(cls):
-        return np.array([[np.nan] * cls.ndims])
+        return np.full((1, cls.ndims), np.nan)
 
 
 class UnweightedSegment(BaseSegment):
@@ -393,12 +392,11 @@ class connect_edges(param.ParameterizedFunction):
 
 directly_connect_edges = connect_edges # For bockwards compatibility; deprecated
 
-@nb.jit
+
 def minmax_normalize(X, lower, upper):
     return (X - lower) / (upper - lower)
 
 
-@nb.jit
 def minmax_denormalize(X, lower, upper):
     return X * (upper - lower) + lower
 

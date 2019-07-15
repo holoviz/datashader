@@ -285,9 +285,9 @@ def mean(agg, passes=1, excludes=[np.nan]):
     out = None
     for i in range(passes):
         if out is None:
-            out = _mean(agg.data, excludes)
+            out = _mean(agg.data, tuple(excludes))
         else:
-            out = _mean(out, excludes)
+            out = _mean(out, tuple(excludes))
 
     return DataArray(out, dims=['y', 'x'], attrs=agg.attrs)
 
@@ -429,7 +429,7 @@ def bump(width, height, count=None, height_func=None, spread=1):
 
     bump_xs = np.random.choice(linx, count).tolist()
     bump_ys = np.random.choice(liny, count).tolist()
-    locs = list(zip(bump_xs, bump_ys))
+    locs = tuple(zip(bump_xs, bump_ys))
     heights = height_func(locs)
     bumps = _finish_bump(width, height, locs, heights, spread)
     return DataArray(bumps, dims=['y', 'x'], attrs=dict(res=1))

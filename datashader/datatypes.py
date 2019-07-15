@@ -551,7 +551,7 @@ Invalid indices for take with allow_fill True: {inds}""".format(
     @classmethod
     def _concat_same_type(cls, to_concat):
         # concat flat_arrays
-        flat_array = np.hstack(ra.flat_array for ra in to_concat)
+        flat_array = np.hstack([ra.flat_array for ra in to_concat])
 
         # offset and concat start_indices
         offsets = np.hstack([
