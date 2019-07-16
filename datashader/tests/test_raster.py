@@ -2,6 +2,7 @@ import pytest
 rasterio = pytest.importorskip("rasterio")
 
 from os import path
+from itertools import product
 
 import datashader as ds
 import xarray as xr
@@ -361,28 +362,28 @@ def test_raster_single_pixel_range_with_padding():
     assert np.allclose(agg.y.values, np.array([-0.40625, -0.21875, -0.03125,  0.15625]))
 
 
-def test_raster_distributed_downsample():
+@pytest.mark.parametrize('in_size, out_size, agg', product(range(5, 8), range(2, 5), ['mean', 'min', 'max', 'first', 'last', 'var', 'std', 'mode']))
+def test_raster_distributed_downsample(in_size, out_size, agg):
     """
     Ensure that distributed regrid is equivalent to regular regrid.
     """
-    cvs = ds.Canvas(plot_height=2, plot_width=2)
+    cvs = ds.Canvas(plot_height=out_size, plot_width=out_size)
 
-    size = 4
-    vs = np.linspace(-1, 1, size)
+    vs = np.linspace(-1, 1, in_size)
     xs, ys = np.meshgrid(vs, vs)
     arr = np.sin(xs*ys)
 
     darr = da.from_array(arr, (2, 2))
-    xr_darr = xr.DataArray(darr, coords=[('y', range(size)), ('x', range(size))], name='z')
-    xr_arr = xr.DataArray(arr, coords=[('y', range(size)), ('x', range(size))], name='z')
+    coords = [('y', range(in_size)), ('x', range(in_size))]
+    xr_darr = xr.DataArray(darr, coords=coords, name='z')
+    xr_arr = xr.DataArray(arr, coords=coords, name='z')
 
-    agg_arr = cvs.raster(xr_arr)
-    agg_darr = cvs.raster(xr_darr)
+    agg_arr = cvs.raster(xr_arr, agg=agg)
+    agg_darr = cvs.raster(xr_darr, agg=agg)
 
     assert np.allclose(agg_arr.data, agg_darr.data.compute())
     assert np.allclose(agg_arr.x.values, agg_darr.x.values)
     assert np.allclose(agg_arr.y.values, agg_darr.y.values)
-
 
 def test_raster_distributed_upsample():
     """

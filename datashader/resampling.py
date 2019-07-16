@@ -27,6 +27,7 @@ SOFTWARE.
 from __future__ import absolute_import, division, print_function
 
 from itertools import groupby
+from math import floor, ceil
 
 import dask.array as da
 import numpy as np
@@ -87,7 +88,7 @@ downsample_methods = dict(first=DS_FIRST, last=DS_LAST, mode=DS_MODE,
 def map_chunks(in_shape, out_shape, out_chunks):
     """
     Maps index in source array to target array chunks.
-    
+
     For each chunk in the target array this function computes the
     indexes into the source array that will be fed into the regridding
     operation.
@@ -116,10 +117,14 @@ def map_chunks(in_shape, out_shape, out_chunks):
     mapping = {}
     for i in range(len(ychunks)-1):
         cumy0, cumy1 = ychunks[i:i+2]
+        iny0, iny1 = cumy0*yscale, cumy1*yscale
+        iny0r, iny1r = floor(iny0), ceil(iny1)
+        y0_off, y1_off = iny0-iny0r, iny1r-iny1
         for j in range(len(xchunks)-1):
             cumx0, cumx1 = xchunks[j:j+2]
-            inx0, inx1 = round(cumx0*xscale), round(cumx1*xscale)
-            iny0, iny1 = round(cumy0*yscale), round(cumy1*yscale)
+            inx0, inx1 = cumx0*xscale, cumx1*xscale
+            inx0r, inx1r = floor(inx0), ceil(inx1)
+            x0_off, x1_off = inx0-inx0r, inx1r-inx1
             mapping[(i, j)] = {
                 'out': {
                     'x': (cumx0, cumx1),
@@ -128,8 +133,10 @@ def map_chunks(in_shape, out_shape, out_chunks):
                     'h': (cumy1-cumy0),
                 },
                 'in': {
-                    'x': (inx0, inx1),
-                    'y': (iny0, iny1),
+                    'x': (inx0r, inx1r),
+                    'y': (iny0r, iny1r),
+                    'xoffset': (x0_off, x1_off),
+                    'yoffset': (y0_off, y1_off),
                 }
             }
     return mapping
@@ -223,7 +230,7 @@ def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear',
     max_mem : int (optional)
         The maximum number of bytes that should be loaded into memory
         during the regridding operation.
-    
+
     Returns
     -------
     resampled : dask.array.Array
@@ -243,7 +250,7 @@ def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear',
         chunk_array = src[iny0:iny1, inx0:inx1]
         resampled = _resample_2d_delayed(
                 chunk_array, out['w'], out['h'], ds_method, us_method,
-                fill_value, mode_rank)
+                fill_value, mode_rank, inds['xoffset'], inds['yoffset'])
         out_chunks[(i, j)] = {
             'array': resampled,
             'shape': (out['h'], out['w']),
@@ -267,7 +274,9 @@ def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear',
     return out
 
 
-def resample_2d(src, w, h, ds_method='mean', us_method='linear', fill_value=None, mode_rank=1, out=None):
+def resample_2d(src, w, h, ds_method='mean', us_method='linear',
+                fill_value=None, mode_rank=1, x_offset=(0, 0),
+                y_offset=(0, 0), out=None):
     """
     Resample a 2-D grid to a new resolution.
 
@@ -293,6 +302,14 @@ def resample_2d(src, w, h, ds_method='mean', us_method='linear', fill_value=None
         The rank of the frequency determined by the *ds_method*
         ``DS_MODE``. One (the default) means most frequent value, zwo
         means second most frequent value, and so forth.
+    x_offset : tuple(float, float) (optional)
+        Offsets for the x-axis indices in the source array (useful
+        for distributed regridding where chunks are not aligned with
+        the underlying array).
+    y_offset : tuple(float, float) (optional)
+        Offsets for the x-axis indices in the source array (useful
+        for distributed regridding where chunks are not aligned with
+        the underlying array).
     out : numpy.ndarray (optional)
         Alternate output array in which to place the result. The
         default is *None*; if provided, it must have the same shape as
@@ -311,9 +328,10 @@ def resample_2d(src, w, h, ds_method='mean', us_method='linear', fill_value=None
 
     us_method=upsample_methods[us_method]
     ds_method=downsample_methods[ds_method]
-    
-    return _mask_or_not(_resample_2d(src, mask, use_mask, ds_method, us_method, fill_value, mode_rank, out),
-                        src, fill_value)
+
+    resampled = _resample_2d(src, mask, use_mask, ds_method, us_method,
+                             fill_value, mode_rank, x_offset, y_offset, out)
+    return _mask_or_not(resampled, src, fill_value)
 
 
 _resample_2d_delayed = delayed(resample_2d)
@@ -353,7 +371,9 @@ def upsample_2d(src, w, h, method=US_LINEAR, fill_value=None, out=None):
         raise ValueError('invalid upsampling method')
 
     upsampling_method = UPSAMPLING_METHODS[method]
-    return _mask_or_not(upsampling_method(src, mask, use_mask, fill_value, out), src, fill_value)
+    upsampled = upsampling_method(
+        src, mask, use_mask, fill_value, (0, 0), (0, 0), out)
+    return _mask_or_not(upsampled, src, fill_value)
 
 
 def downsample_2d(src, w, h, method=DS_MEAN, fill_value=None, mode_rank=1, out=None):
@@ -401,7 +421,10 @@ def downsample_2d(src, w, h, method=DS_MEAN, fill_value=None, mode_rank=1, out=N
         raise ValueError('invalid downsampling method')
 
     downsampling_method = DOWNSAMPLING_METHODS[method]
-    return _mask_or_not(downsampling_method(src, mask, use_mask, method, fill_value, mode_rank, out), src, fill_value)
+    downsampled = downsampling_method(
+        src, mask, use_mask, method, fill_value, mode_rank, (0, 0),
+        (0, 0), out)
+    return _mask_or_not(downsampled, src, fill_value)
 
 
 def _get_out(out, src, shape):
@@ -456,7 +479,8 @@ def _get_dimensions(src, out):
     return src_w, src_h, out_w, out_h
 
 
-def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value, mode_rank, out):
+def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value,
+                 mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
     if us_method not in UPSAMPLING_METHODS:
@@ -470,30 +494,42 @@ def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value, mode_ran
     if src_h == 0 or src_w == 0 or out_h == 0 or out_w == 0:
        return np.zeros((out_h, out_w), dtype=src.dtype)
     elif out_w < src_w and out_h < src_h:
-        return downsampling_method(src, mask, use_mask, ds_method, fill_value, mode_rank, out)
+        return downsampling_method(src, mask, use_mask, ds_method,
+                                   fill_value, mode_rank, x_offset,
+                                   y_offset, out)
     elif out_w < src_w:
         if out_h > src_h:
             temp = np.zeros((src_h, out_w), dtype=src.dtype)
-            temp = downsampling_method(src, mask, use_mask, ds_method, fill_value, mode_rank, temp)
+            temp = downsampling_method(src, mask, use_mask, ds_method,
+                                       fill_value, mode_rank, x_offset,
+                                       y_offset,  temp)
             # todo - write test & fix: must use mask=np.ma.getmaskarray(temp) here if use_mask==True
-            return upsampling_method(temp, mask, use_mask, fill_value, out)
+            return upsampling_method(temp, mask, use_mask, fill_value,
+                                     x_offset, y_offset, out)
         else:
-            return downsampling_method(src, mask, use_mask, ds_method, fill_value, mode_rank, out)
+            return downsampling_method(src, mask, use_mask, ds_method,
+                                       fill_value, mode_rank, x_offset,
+                                       y_offset, out)
     elif out_h < src_h:
         if out_w > src_w:
             temp = np.zeros((out_h, src_w), dtype=src.dtype)
-            temp = downsampling_method(src, mask, use_mask, ds_method, fill_value, mode_rank, temp)
+            temp = downsampling_method(src, mask, use_mask, ds_method,
+                                       fill_value, mode_rank, x_offset,
+                                       y_offset,  temp)
             # todo - write test & fix: must use mask=np.ma.getmaskarray(temp) here if use_mask==True
-            return upsampling_method(temp, mask, use_mask, fill_value, out)
+            return upsampling_method(temp, mask, use_mask, fill_value,
+                                     x_offset, y_offset, out)
         else:
-            return downsampling_method(src, mask, use_mask, ds_method, fill_value, mode_rank, out)
+            return downsampling_method(src, mask, use_mask, ds_method,
+                                       fill_value, mode_rank, x_offset,
+                                       y_offset, out)
     elif out_w > src_w or out_h > src_h:
-        return upsampling_method(src, mask, use_mask, fill_value, out)
+        return upsampling_method(src, mask, use_mask, fill_value,
+                                 x_offset, y_offset,  out)
     return src
 
 
-@ngjit_parallel
-def _upsample_2d_nearest(src, mask, use_mask, fill_value, out):
+def _upsample_2d_nearest(src, mask, use_mask, fill_value, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
     if src_w == out_w and src_h == out_h:
         return src
@@ -503,10 +539,11 @@ def _upsample_2d_nearest(src, mask, use_mask, fill_value, out):
 
     scale_x = src_w / out_w
     scale_y = src_h / out_h
-    for out_y in prange(out_h):
-        src_y = int(scale_y * out_y)
+
+    for out_y in range(out_h):
+        src_y = int((scale_y * out_y) + y0_off)
         for out_x in range(out_w):
-            src_x = int(scale_x * out_x)
+            src_x = int((scale_x * out_x) + x0_off)
             value = src[src_y, src_x]
             if np.isfinite(value) and not (use_mask and mask[src_y, src_x]):
                 out[out_y, out_x] = value
@@ -516,7 +553,7 @@ def _upsample_2d_nearest(src, mask, use_mask, fill_value, out):
 
 
 @ngjit_parallel
-def _upsample_2d_linear(src, mask, use_mask, fill_value, out):
+def _upsample_2d_linear(src, mask, use_mask, fill_value, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
     if src_w == out_w and src_h == out_h:
         return src
@@ -587,7 +624,8 @@ UPSAMPLING_METHODS = {US_LINEAR: _upsample_2d_linear,
 
 
 @ngjit_parallel
-def _downsample_2d_first_last(src, mask, use_mask, method, fill_value, mode_rank, out):
+def _downsample_2d_first_last(src, mask, use_mask, method, fill_value,
+                              mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
     if src_w == out_w and src_h == out_h:
@@ -596,11 +634,13 @@ def _downsample_2d_first_last(src, mask, use_mask, method, fill_value, mode_rank
     if out_w > src_w or out_h > src_h:
         raise ValueError("invalid target size")
 
-    scale_x = src_w / out_w
-    scale_y = src_h / out_h
+    x0_off, x1_off = x_offset
+    y0_off, y1_off = y_offset
+    scale_x = (src_w - x0_off - x1_off) / out_w
+    scale_y = (src_h - y0_off - y1_off) / out_h
 
     for out_y in prange(out_h):
-        src_yf0 = scale_y * out_y
+        src_yf0 = (scale_y * out_y) + y0_off
         src_yf1 = src_yf0 + scale_y
         src_y0 = int(src_yf0)
         src_y1 = int(src_yf1)
@@ -608,7 +648,7 @@ def _downsample_2d_first_last(src, mask, use_mask, method, fill_value, mode_rank
         if wy1 < _EPS and src_y1 > src_y0:
             src_y1 -= 1
         for out_x in range(out_w):
-            src_xf0 = scale_x * out_x
+            src_xf0 = (scale_x * out_x) + x0_off
             src_xf1 = src_xf0 + scale_x
             src_x0 = int(src_xf0)
             src_x1 = int(src_xf1)
@@ -632,7 +672,8 @@ def _downsample_2d_first_last(src, mask, use_mask, method, fill_value, mode_rank
 
 
 @ngjit_parallel
-def _downsample_2d_min_max(src, mask, use_mask, method, fill_value, mode_rank, out):
+def _downsample_2d_min_max(src, mask, use_mask, method, fill_value,
+                           mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
     if src_w == out_w and src_h == out_h:
@@ -641,11 +682,13 @@ def _downsample_2d_min_max(src, mask, use_mask, method, fill_value, mode_rank, o
     if out_w > src_w or out_h > src_h:
         raise ValueError("invalid target size")
 
-    scale_x = src_w / out_w
-    scale_y = src_h / out_h
+    x0_off, x1_off = x_offset
+    y0_off, y1_off = y_offset
+    scale_x = (src_w - x0_off - x1_off) / out_w
+    scale_y = (src_h - y0_off - y1_off) / out_h
 
     for out_y in prange(out_h):
-        src_yf0 = scale_y * out_y
+        src_yf0 = (scale_y * out_y) + y0_off
         src_yf1 = src_yf0 + scale_y
         src_y0 = int(src_yf0)
         src_y1 = int(src_yf1)
@@ -653,7 +696,7 @@ def _downsample_2d_min_max(src, mask, use_mask, method, fill_value, mode_rank, o
         if wy1 < _EPS and src_y1 > src_y0:
             src_y1 -= 1
         for out_x in range(out_w):
-            src_xf0 = scale_x * out_x
+            src_xf0 = (scale_x * out_x) + x0_off
             src_xf1 = src_xf0 + scale_x
             src_x0 = int(src_xf0)
             src_x1 = int(src_xf1)
@@ -682,7 +725,8 @@ def _downsample_2d_min_max(src, mask, use_mask, method, fill_value, mode_rank, o
 
 
 @ngjit_parallel
-def _downsample_2d_mode(src, mask, use_mask, method, fill_value, mode_rank, out):
+def _downsample_2d_mode(src, mask, use_mask, method, fill_value,
+                        mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
     if src_w == out_w and src_h == out_h:
@@ -691,8 +735,10 @@ def _downsample_2d_mode(src, mask, use_mask, method, fill_value, mode_rank, out)
     if out_w > src_w or out_h > src_h:
         raise ValueError("invalid target size")
 
-    scale_x = src_w / out_w
-    scale_y = src_h / out_h
+    x0_off, x1_off = x_offset
+    y0_off, y1_off = y_offset
+    scale_x = (src_w - x0_off - x1_off) / out_w
+    scale_y = (src_h - y0_off - y1_off) / out_h
 
     max_value_count = int(scale_x + 1) * int(scale_y + 1)
     if mode_rank >= max_value_count:
@@ -702,7 +748,7 @@ def _downsample_2d_mode(src, mask, use_mask, method, fill_value, mode_rank, out)
         values = np.zeros((max_value_count,), dtype=src.dtype)
         frequencies = np.zeros((max_value_count,), dtype=np.uint32)
 
-        src_yf0 = scale_y * out_y
+        src_yf0 = (scale_y * out_y) + y0_off
         src_yf1 = src_yf0 + scale_y
         src_y0 = int(src_yf0)
         src_y1 = int(src_yf1)
@@ -713,7 +759,7 @@ def _downsample_2d_mode(src, mask, use_mask, method, fill_value, mode_rank, out)
             if src_y1 > src_y0:
                 src_y1 -= 1
         for out_x in range(out_w):
-            src_xf0 = scale_x * out_x
+            src_xf0 = (scale_x * out_x) + x0_off
             src_xf1 = src_xf0 + scale_x
             src_x0 = int(src_xf0)
             src_x1 = int(src_xf1)
@@ -765,7 +811,8 @@ def _downsample_2d_mode(src, mask, use_mask, method, fill_value, mode_rank, out)
 
 
 @ngjit_parallel
-def _downsample_2d_mean(src, mask, use_mask, method, fill_value, mode_rank, out):
+def _downsample_2d_mean(src, mask, use_mask, method, fill_value,
+                        mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
     if src_w == out_w and src_h == out_h:
@@ -774,14 +821,17 @@ def _downsample_2d_mean(src, mask, use_mask, method, fill_value, mode_rank, out)
     if out_w > src_w or out_h > src_h:
         raise ValueError("invalid target size")
 
-    scale_x = src_w / out_w
-    scale_y = src_h / out_h
-            
+    x0_off, x1_off = x_offset
+    y0_off, y1_off = y_offset
+    scale_x = (src_w - x0_off - x1_off) / out_w
+    scale_y = (src_h - y0_off - y1_off) / out_h
+
     for out_y in prange(out_h):
-        src_yf0 = scale_y * out_y
-        src_yf1 = src_yf0 + scale_y
+        src_yf0 = (scale_y * out_y) + y0_off
+        src_yf1 = (src_yf0 + scale_y)
         src_y0 = int(src_yf0)
         src_y1 = int(src_yf1)
+
         wy0 = 1.0 - (src_yf0 - src_y0)
         wy1 = src_yf1 - src_y1
         if wy1 < _EPS:
@@ -789,7 +839,7 @@ def _downsample_2d_mean(src, mask, use_mask, method, fill_value, mode_rank, out)
             if src_y1 > src_y0:
                 src_y1 -= 1
         for out_x in range(out_w):
-            src_xf0 = scale_x * out_x
+            src_xf0 = (scale_x * out_x) + x0_off
             src_xf1 = src_xf0 + scale_x
             src_x0 = int(src_xf0)
             src_x1 = int(src_xf1)
@@ -818,7 +868,8 @@ def _downsample_2d_mean(src, mask, use_mask, method, fill_value, mode_rank, out)
 
 
 @ngjit_parallel
-def _downsample_2d_std_var(src, mask, use_mask, method, fill_value, mode_rank, out):
+def _downsample_2d_std_var(src, mask, use_mask, method, fill_value,
+                           mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
 
     if src_w == out_w and src_h == out_h:
@@ -827,11 +878,13 @@ def _downsample_2d_std_var(src, mask, use_mask, method, fill_value, mode_rank, o
     if out_w > src_w or out_h > src_h:
         raise ValueError("invalid target size")
 
-    scale_x = src_w / out_w
-    scale_y = src_h / out_h
+    x0_off, x1_off = x_offset
+    y0_off, y1_off = y_offset
+    scale_x = (src_w - x0_off - x1_off) / out_w
+    scale_y = (src_h - y0_off - y1_off) / out_h
 
     for out_y in prange(out_h):
-        src_yf0 = scale_y * out_y
+        src_yf0 = (scale_y * out_y) + y0_off
         src_yf1 = src_yf0 + scale_y
         src_y0 = int(src_yf0)
         src_y1 = int(src_yf1)
@@ -842,7 +895,7 @@ def _downsample_2d_std_var(src, mask, use_mask, method, fill_value, mode_rank, o
             if src_y1 > src_y0:
                 src_y1 -= 1
         for out_x in range(out_w):
-            src_xf0 = scale_x * out_x
+            src_xf0 = (scale_x * out_x) + x0_off
             src_xf1 = src_xf0 + scale_x
             src_x0 = int(src_xf0)
             src_x1 = int(src_xf1)
