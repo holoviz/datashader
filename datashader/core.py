@@ -675,7 +675,7 @@ The axis argument to Canvas.line must be 0 or 1
         Also supports resampling out-of-core DataArrays backed by dask
         Arrays. By default it will try to maintain the same chunksize
         in the output array but a custom chunksize may be provided.
-        If there are memory constrains they may be defined using the
+        If there are memory constraints they may be defined using the
         max_mem parameter, which determines how large the chunks in
         memory may be.
 
@@ -696,7 +696,7 @@ The axis argument to Canvas.line must be 0 or 1
         agg : Reduction, optional default=mean()
             Resampling mode when downsampling raster.
             options include: first, last, mean, mode, var, std, min, max
-            Also accepts string names, for backwards compatibility.
+            Accepts an executable function, function object, or string name.
         interpolate : str, optional  default=linear
             Resampling mode when upsampling raster.
             options include: nearest, linear.

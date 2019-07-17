@@ -158,7 +158,7 @@ def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
     h : int
         New grid height
     chunksize : tuple(int, int) (optional)
-        Size of the output chunks. By default this the chunk size is
+        Size of the output chunks. By default the chunk size is
         inherited from the *src* array.
     max_mem : int (optional)
         The maximum number of bytes that should be loaded into memory
@@ -192,7 +192,7 @@ def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
             "could not find a chunksize that avoids loading too much "
             "data into memory. Either relax the memory constraint to "
             "a minimum of %d bytes or resample to a larger grid size. "
-            "Note: A future implementation may handle this condition "
+            "Note: A future implementation could handle this condition "
             "by declaring temporary arrays." % min_mem)
     return ch, cw
 
@@ -222,7 +222,7 @@ def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear',
         If None, numpy's default value is used.
     mode_rank : scalar (optional)
         The rank of the frequency determined by the *ds_method*
-        ``DS_MODE``. One (the default) means most frequent value, zwo
+        ``DS_MODE``. One (the default) means most frequent value, two
         means second most frequent value, and so forth.
     chunksize : tuple(int, int) (optional)
         Size of the output chunks. By default this the chunk size is
@@ -397,7 +397,7 @@ def downsample_2d(src, w, h, method=DS_MEAN, fill_value=None, mode_rank=1, out=N
         otherwise numpy's default value is used.
     mode_rank : scalar (optional)
         The rank of the frequency determined by the *ds_method*
-        ``DS_MODE``. One (the default) means most frequent value, zwo
+        ``DS_MODE``. One (the default) means most frequent value, two
         means second most frequent value, and so forth.
     out : numpy.ndarray (optional)
         Alternate output array in which to place the result. The
