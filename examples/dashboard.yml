@@ -10,8 +10,8 @@ sources:
         counts:
           label: GPS coordinates
       plot:
-        xlim: !!python/tuple [-8240227, -8231284]
-        ylim: !!python/tuple [ 4974203,  4979238]
+        xlim: [-8240227, -8231284]
+        ylim: [ 4974203,  4979238]
         kind: points
         persist: true
       plots:
@@ -38,8 +38,8 @@ sources:
         pickup_hour:
           label: Pick-up Hour
       plot:
-        xlim: !!python/tuple [-8240227.037, -8231283.905]
-        ylim: !!python/tuple [4974203.152, 4979238.441]
+        xlim: [-8240227.037, -8231283.905]
+        ylim: [4974203.152, 4979238.441]
         kind: points
         hover_cols: ['dropoff_hour', 'pickup_hour', 'passenger_count']
         persist: true
@@ -71,8 +71,8 @@ sources:
         pickup_hour:
           label: Pick-up Hour
       plot:
-        xlim: !!python/tuple [-8240227.037, -8231283.905]
-        ylim: !!python/tuple [4974203.152, 4979238.441]
+        xlim: [-8240227.037, -8231283.905]
+        ylim: [4974203.152, 4979238.441]
         kind: points
         hover_cols: ['dropoff_hour', 'pickup_hour', 'passenger_count']
         persist: true
@@ -100,8 +100,8 @@ sources:
       plot:
         x: easting
         y: northing
-        xlim: !!python/tuple [-13914936, -7235767]
-        ylim: !!python/tuple [2632019, 6446276]
+        xlim: [-13914936, -7235767]
+        ylim: [2632019, 6446276]
         kind: points
         persist: true
       plots:
@@ -136,8 +136,8 @@ sources:
             True: Ascending
             False: Descending
       plot:
-        xlim: !!python/tuple [-2000000, 2500000]
-        ylim: !!python/tuple [4100000, 7800000]
+        xlim: [-2000000, 2500000]
+        ylim: [4100000, 7800000]
         kind: points
         x: longitude
         y: latitude
