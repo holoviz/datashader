@@ -2,10 +2,14 @@ import pytest
 rasterio = pytest.importorskip("rasterio")
 
 from os import path
+from itertools import product
 
 import datashader as ds
 import xarray as xr
 import numpy as np
+import dask.array as da
+
+from datashader.resampling import compute_chunksize
 
 BASE_PATH = path.split(__file__)[0]
 DATA_PATH = path.abspath(path.join(BASE_PATH, 'data'))
@@ -357,6 +361,85 @@ def test_raster_single_pixel_range_with_padding():
     assert np.allclose(agg.x.values, np.array([-0.40625, -0.21875, -0.03125,  0.15625]))
     assert np.allclose(agg.y.values, np.array([-0.40625, -0.21875, -0.03125,  0.15625]))
 
+
+@pytest.mark.parametrize('in_size, out_size, agg', product(range(5, 8), range(2, 5), ['mean', 'min', 'max', 'first', 'last', 'var', 'std', 'mode']))
+def test_raster_distributed_downsample(in_size, out_size, agg):
+    """
+    Ensure that distributed regrid is equivalent to regular regrid.
+    """
+    cvs = ds.Canvas(plot_height=out_size, plot_width=out_size)
+
+    vs = np.linspace(-1, 1, in_size)
+    xs, ys = np.meshgrid(vs, vs)
+    arr = np.sin(xs*ys)
+
+    darr = da.from_array(arr, (2, 2))
+    coords = [('y', range(in_size)), ('x', range(in_size))]
+    xr_darr = xr.DataArray(darr, coords=coords, name='z')
+    xr_arr = xr.DataArray(arr, coords=coords, name='z')
+
+    agg_arr = cvs.raster(xr_arr, agg=agg)
+    agg_darr = cvs.raster(xr_darr, agg=agg)
+
+    assert np.allclose(agg_arr.data, agg_darr.data.compute())
+    assert np.allclose(agg_arr.x.values, agg_darr.x.values)
+    assert np.allclose(agg_arr.y.values, agg_darr.y.values)
+
+
+@pytest.mark.parametrize('in_size, out_size', product(range(2, 5), range(7, 9)))
+def test_raster_distributed_upsample(in_size, out_size):
+    """
+    Ensure that distributed regrid is equivalent to regular regrid.
+    """
+    cvs = ds.Canvas(plot_height=out_size, plot_width=out_size)
+
+    vs = np.linspace(-1, 1, in_size)
+    xs, ys = np.meshgrid(vs, vs)
+    arr = np.sin(xs*ys)
+
+    darr = da.from_array(arr, (2, 2))
+    coords = [('y', range(in_size)), ('x', range(in_size))]
+    xr_darr = xr.DataArray(darr, coords=coords, name='z')
+    xr_arr = xr.DataArray(arr, coords=coords, name='z')
+
+    agg_arr = cvs.raster(xr_arr, interpolate='nearest')
+    agg_darr = cvs.raster(xr_darr, interpolate='nearest')
+
+    assert np.allclose(agg_arr.data, agg_darr.data.compute())
+    assert np.allclose(agg_arr.x.values, agg_darr.x.values)
+    assert np.allclose(agg_arr.y.values, agg_darr.y.values)
+
+
+def test_raster_distributed_regrid_chunksize():
+    """
+    Ensure that distributed regrid respects explicit chunk size.
+    """
+    cvs = ds.Canvas(plot_height=2, plot_width=2)
+
+    size = 4
+    vs = np.linspace(-1, 1, size)
+    xs, ys = np.meshgrid(vs, vs)
+    arr = np.sin(xs*ys)
+
+    darr = da.from_array(arr, (2, 2))
+    xr_darr = xr.DataArray(darr, coords=[('y', range(size)), ('x', range(size))], name='z')
+
+    agg_darr = cvs.raster(xr_darr, chunksize=(1, 1))
+
+    assert agg_darr.data.chunksize == (1, 1)
+
+
+def test_resample_compute_chunksize():
+    """
+    Ensure chunksize computation is correct.
+    """
+    darr = da.from_array(np.zeros((100, 100)), (10, 10))
+
+    mem_limited_chunksize = compute_chunksize(darr, 10, 10, max_mem=2000)
+    assert mem_limited_chunksize == (2, 1)
+
+    explicit_chunksize = compute_chunksize(darr, 10, 10, chunksize=(5, 4))
+    assert explicit_chunksize == (5, 4)
 
 
 def test_resample_methods():
