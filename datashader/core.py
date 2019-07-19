@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
+import warnings
+
 from numbers import Number
 
 import numpy as np
@@ -14,7 +16,9 @@ from datashader.spatial.points import SpatialPointsFrame
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
-from .resampling import resample_2d, resample_2d_distributed
+from .resampling import (
+    resample_2d, resample_2d_distributed, aggregators, rectilinear_agg,
+    curvilinear_agg, infer_interval_breaks)
 from . import reductions as rd
 
 
@@ -888,6 +892,120 @@ The axis argument to Canvas.line must be 0 or 1
             coords[layer_dim] = source.coords[layer_dim]
             dims = [layer_dim]+dims
         return DataArray(data, coords=coords, dims=dims, attrs=attrs)
+
+
+    def quadmesh(self, source, x=None, y=None, agg='mean'):
+        """Samples a recti- or curvi-linear quadmesh by canvas size and bounds.
+
+        Parameters
+        ----------
+        source : xarray.DataArray or Dataset
+            The input datasource.
+        x, y : str
+            Column names for the x and y coordinates of each point.
+        agg : Reduction, optional
+            Reduction to compute. Default is ``mean()``.
+
+        Returns
+        -------
+        data : xarray.DataArray
+        """
+        column = None
+        if isinstance(agg, rd.Reduction):
+            agg, column = type(agg).__name__, agg.column
+
+        if isinstance(source, Dataset):
+            if column is None:
+                column = list(source.data_vars)[0]
+            source = source[column]
+
+        if x is None and y is None:
+            y, x = source.dims
+        elif not x or not y:
+            raise ValueError("Either specify both x and y coordinates"
+                             "or allow them to be inferred.")
+        yarr, xarr = source[y], source[x]
+        if (yarr.ndim > 1 or xarr.ndim > 1) and xarr.dims != yarr.dims:
+            raise ValueError("Ensure that x- and y-coordinate arrays "
+                             "share the same dimensions. x-coordinates "
+                             "are indexed by %s dims while "
+                             "y-coordinates are indexed by %s dims." %
+                             (xarr.dims, yarr.dims))
+        xarr, yarr = xarr.values, yarr.values
+        zs = source.values
+        ys, xs = source.shape
+
+        if source.name is not None and column != source.name:
+            agg_repr = '%s(%r)' % (agg, column)
+            raise ValueError('DataArray name %r does not match '
+                             'supplied reduction %s.' %
+                             (source.name, agg_repr))
+
+        if xarr.ndim == 1 and len(xarr) != xs:
+            xarr = infer_interval_breaks(xarr)
+        elif xarr.ndim == 2 and xarr.shape == zs.shape:
+            xarr = infer_interval_breaks(xarr, axis=1)
+            xarr = infer_interval_breaks(xarr, axis=0)
+
+        if yarr.ndim == 1 and len(yarr) != ys:
+            yarr = infer_interval_breaks(yarr)
+        elif yarr.ndim == 2 and yarr.shape == zs.shape:
+            yarr = infer_interval_breaks(yarr, axis=1)
+            yarr = infer_interval_breaks(yarr, axis=0)
+
+        x0, x1 = self.x_range or (np.nanmin(xarr), np.nanmax(xarr))
+        y0, y1 = self.y_range or (np.nanmin(yarr), np.nanmax(yarr))
+
+        xspan = x1 - x0
+        yspan = y1 - y0
+        xscaled = (xarr-x0) / xspan
+        yscaled = (yarr-y0) / yspan
+
+        if xscaled.ndim == 1:
+            xmask = np.where((xscaled >= 0) & (xscaled <= 1))
+            ymask = np.where((yscaled >= 0) & (yscaled <= 1))
+            xm0, xm1 = max(xmask[0].min()-1, 0), min(xmask[0].max()+1, xs)
+            ym0, ym1 = max(ymask[0].min()-1, 0), min(ymask[0].max()+1, ys)
+            xarr = (xscaled[xm0:xm1+1] * self.plot_width).astype(int)
+            yarr = (yscaled[ym0:ym1+1] * self.plot_height).astype(int)
+            zs = zs[ym0:ym1, xm0:xm1]
+            mask = None
+        else:
+            x = (xscaled * self.plot_width).astype(int)
+            y = (yscaled * self.plot_height).astype(int)
+
+        if agg in ['count', 'any', 'sum', 'mean']:
+            fill_val = 0.
+        else:
+            fill_val = np.nan
+
+        agg = aggregators[agg]
+
+        out = np.full((self.plot_height, self.plot_width), fill_val)
+        if xscaled.ndim == 1:
+            if agg is aggregators['mean']:
+                out_count = np.zeros((self.plot_height, self.plot_width))
+                rectilinear_agg(xarr, yarr, zs, agg, out, out_count)
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('ignore', r'invalid value encountered')
+                    warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
+                    out /= out_count
+            else:
+                rectilinear_agg(xarr, yarr, zs, agg, out)
+        else:
+            if agg is aggregators['mean']:
+                out_count = np.zeros((self.plot_height, self.plot_width), dtype='uint32')
+                curvilinear_agg(x, y, zs, agg, out, out_count)
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('ignore', r'invalid value encountered')
+                    warnings.filterwarnings('ignore', r'divide by zero encountered in true_divide')
+                    out /= out_count
+            else:
+                curvilinear_agg(x, y, zs, agg, out)
+
+        xs, ys = compute_coords(self.plot_width, self.plot_height, (x0, x1), (y0, y1), (0, 0))
+        coords = {'x': xs, 'y': ys}
+        return DataArray(out, coords=coords, dims=('y', 'x'))
 
     def validate(self):
         """Check that parameter settings are valid for this object"""

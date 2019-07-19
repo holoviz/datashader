@@ -1,5 +1,6 @@
 """
-This module was adapted from https://github.com/CAB-LAB/gridtools
+The image resampling code in this module was adapted from
+https://github.com/CAB-LAB/gridtools
 
                         The MIT License (MIT)
 
@@ -26,6 +27,9 @@ SOFTWARE.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
+import datetime as dt
+
 from itertools import groupby
 from math import floor, ceil
 
@@ -35,6 +39,7 @@ import numba as nb
 
 from dask.delayed import delayed
 from numba import prange
+
 from .utils import ngjit
 
 try:
@@ -952,3 +957,136 @@ DOWNSAMPLING_METHODS = {DS_MEAN: _downsample_2d_mean,
                         DS_MODE: _downsample_2d_mode,
                         DS_STD: _downsample_2d_std_var,
                         DS_VAR: _downsample_2d_std_var}
+
+
+def infer_interval_breaks(coord, axis=0):
+    """
+    >>> infer_interval_breaks(np.arange(5))
+    array([-0.5,  0.5,  1.5,  2.5,  3.5,  4.5])
+    >>> infer_interval_breaks([[0, 1], [3, 4]], axis=1)
+    array([[-0.5,  0.5,  1.5],
+    [ 2.5,  3.5,  4.5]])
+    """
+    coord = np.asarray(coord)
+    if sys.version_info.major == 2 and len(coord) and isinstance(coord[0], (dt.datetime, dt.date)):
+        # np.diff does not work on datetimes in python 2
+        coord = coord.astype('datetime64')
+    if len(coord) == 0:
+        return np.array([], dtype=coord.dtype)
+    deltas = 0.5 * np.diff(coord, axis=axis)
+    first = np.take(coord, [0], axis=axis) - np.take(deltas, [0], axis=axis)
+    last = np.take(coord, [-1], axis=axis) + np.take(deltas, [-1], axis=axis)
+    trim_last = tuple(slice(None, -1) if n == axis else slice(None)
+                      for n in range(coord.ndim))
+    return np.concatenate([first, coord[trim_last] + deltas, last], axis=axis)
+
+
+@ngjit
+def area(x1, y1, x2, y2, x3, y3):
+    return abs((x1 * (y2 - y3) +
+                x2 * (y3 - y1) +
+                x3 * (y1 - y2)) / 2.0)
+
+@ngjit
+def point_in_rectangle(x1, x2, x3, x4, y1, y2, y3, y4, x, y):
+    A = (area(x1, y1, x2, y2, x3, y3) +
+         area(x1, y1, x4, y4, x3, y3))
+
+    A1 = area(x, y, x1, y1, x2, y2)
+    A2 = area(x, y, x2, y2, x3, y3)
+    A3 = area(x, y, x3, y3, x4, y4)
+    A4 = area(x, y, x1, y1, x4, y4)
+
+    return (A == (A1 + A2 + A3 + A4))
+
+@ngjit
+def pixel_in_rectangle(x1, x2, x3, x4, y1, y2, y3, y4, x0, y0):
+    return (point_in_rectangle(x1, x2, x3, x4, y1, y2, y3, y4, x0, y0) |
+            point_in_rectangle(x1, x2, x3, x4, y1, y2, y3, y4, x0+1, y0) |
+            point_in_rectangle(x1, x2, x3, x4, y1, y2, y3, y4, x0, y0+1) |
+            point_in_rectangle(x1, x2, x3, x4, y1, y2, y3, y4, x0+1, y0+1))
+
+## Aggregators
+
+@ngjit
+def count_agg(xi, yi, value, out, out2):
+    out[yi, xi] += 1
+
+@ngjit
+def sum_agg(xi, yi, value, out, out2):
+    out[yi, xi] += value
+
+@ngjit
+def mean_agg(xi, yi, value, out, out2):
+    out[yi, xi] += value
+    out2[yi, xi] += 1
+
+@ngjit
+def min_agg(xi, yi, value, out, out2):
+    old = out[yi, xi]
+    if np.isnan(old):
+        out[yi, xi] = value
+    else:
+        out[yi, xi] = min(value, old)
+
+@ngjit
+def max_agg(xi, yi, value, out, out2):
+    old = out[yi, xi]
+    if np.isnan(old):
+        out[yi, xi] = value
+    else:
+        out[yi, xi] = max(value, old)
+
+@ngjit
+def first_agg(xi, yi, value, out, out2):
+    old = out[yi, xi]
+    if np.isnan(old):
+        out[yi, xi] = value
+
+@ngjit
+def last_agg(xi, yi, value, out, out2):
+    out[yi, xi] = value
+
+aggregators = {
+    'first': first_agg,
+    'last': last_agg,
+    'count': count_agg,
+    'sum': sum_agg,
+    'mean': mean_agg,
+    'min': min_agg,
+    'max': max_agg
+}
+
+@ngjit_parallel
+def rectilinear_agg(x, y, z, agg, out, out2=None):
+    ys, xs = out.shape
+    for i in prange(len(x)-1):
+        for j in range(len(y)-1):
+            value = z[j, i]
+            if not np.isfinite(value):
+                continue
+            x0, x1 = max(x[i], 0), min(x[i+1], xs)
+            y0, y1 = max(y[j], 0), min(y[j+1], ys)
+            for xi in range(x0, x1):
+                for yi in range(y0, y1):
+                    agg(xi, yi, value, out, out2)
+
+@ngjit_parallel
+def curvilinear_agg(x, y, z, agg, out, out2=None):
+    ys, xs = x.shape
+    oys, oxs = out.shape[0]-1, out.shape[1]-1
+    for i in prange(xs-1):
+        for j in range(ys-1):
+            value = z[j, i]
+            if not np.isfinite(value):
+                continue
+            x1, x2, x3, x4 = (x[j, i], x[j, i+1], x[j+1, i+1], x[j+1, i])
+            y1, y2, y3, y4 = (y[j, i], y[j, i+1], y[j+1, i+1], y[j+1, i])
+            xmin = max(min(x1, x2, x3, x4), 0)
+            xmax = min(max(x1, x2, x3, x4), oxs)
+            ymin = max(min(y1, y2, y3, y4), 0)
+            ymax = min(max(y1, y2, y3, y4), oys)
+            for xi in range(xmin, xmax):
+                for yi in range(ymin, ymax):
+                    if pixel_in_rectangle(x1, x2, x3, x4, y1, y2, y3, y4, xi, yi):
+                        agg(xi, yi, value, out, out2)
