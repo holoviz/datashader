@@ -969,7 +969,6 @@ The axis argument to Canvas.line must be 0 or 1
             xarr = (xscaled[xm0:xm1+1] * self.plot_width).astype(int)
             yarr = (yscaled[ym0:ym1+1] * self.plot_height).astype(int)
             zs = zs[ym0:ym1, xm0:xm1]
-            mask = None
         else:
             x = (xscaled * self.plot_width).astype(int)
             y = (yscaled * self.plot_height).astype(int)
