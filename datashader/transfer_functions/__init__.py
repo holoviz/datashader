@@ -560,8 +560,9 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
         Optional string name to give to the Image object to return,
         to label results for display.
     """
-    if not isinstance(img, Image):
-        raise TypeError("Expected `Image`, got: `{0}`".format(type(img)))
+    if not isinstance(img, xr.DataArray):
+        raise TypeError("Expected `xr.DataArray`, got: `{0}`".format(type(img)))
+    is_image = isinstance(img, Image)
     name = img.name if name is None else name
     if mask is None:
         if not isinstance(px, int) or px < 0:
@@ -574,20 +575,22 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
         raise ValueError("mask must be a square 2 dimensional ndarray with "
                          "odd dimensions.")
         mask = mask if mask.dtype == 'bool' else mask.astype('bool')
-    kernel = _build_spread_kernel(how)
+    kernel = _build_spread_kernel(how, is_image)
     w = mask.shape[0]
     extra = w // 2
     M, N = img.shape
-    buf = np.zeros((M + 2*extra, N + 2*extra), dtype='uint32')
+    buf = np.zeros((M + 2*extra, N + 2*extra),
+                   dtype='uint32' if is_image else img.dtype)
     kernel(img.data, mask, buf)
     out = buf[extra:-extra, extra:-extra].copy()
     return Image(out, dims=img.dims, coords=img.coords, name=name)
 
 
 @tz.memoize
-def _build_spread_kernel(how):
+def _build_spread_kernel(how, is_image):
     """Build a spreading kernel for a given composite operator"""
-    op = composite_op_lookup[how]
+    op_name = how + ("" if is_image else "_arr")
+    op = composite_op_lookup[op_name]
 
     @ngjit
     def kernel(arr, mask, out):
@@ -597,7 +600,7 @@ def _build_spread_kernel(how):
             for x in range(N):
                 el = arr[y, x]
                 # Skip if data is transparent
-                if (el >> 24) & 255:
+                if (not is_image) or ((el >> 24) & 255):
                     for i in range(w):
                         for j in range(w):
                             # Skip if mask is False at this value

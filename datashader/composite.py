@@ -10,7 +10,8 @@ import numba as nb
 import numpy as np
 import os
 
-__all__ = ('composite_op_lookup', 'over', 'add', 'saturate', 'source')
+__all__ = ('composite_op_lookup', 'over', 'add', 'saturate', 'source',
+           'over_arr', 'add_arr', 'saturate_arr', 'source_arr')
 
 
 @nb.jit('(uint32,)', nopython=True, nogil=True, cache=True)
@@ -46,7 +47,7 @@ composite_op_lookup = {}
 
 
 def operator(f):
-    """Define and register a new composite operator"""
+    """Define and register a new image composite operator"""
 
     if jit_enabled:
         f2 = nb.vectorize(f)
@@ -109,3 +110,33 @@ def saturate(src, dst):
     g = (factor * sg + dg * da)/a
     b = (factor * sb + db * da)/a
     return combine_scaled(r, g, b, a)
+
+
+
+def arr_operator(f):
+    """Define and register a new array composite operator"""
+    ## Should be using jit as for operator(f), but will need
+    ## to deal with different agg types (uint32, float32 at least)
+    f2 = np.vectorize(f)
+
+    composite_op_lookup[f.__name__] = f2
+    return f2
+
+@arr_operator
+def source_arr(src, dst):
+    if src:
+        return src
+    else:
+        return dst
+
+@arr_operator
+def over_arr(src, dst):
+    return src + dst
+
+@arr_operator
+def add_arr(src, dst):
+    return src + dst
+
+@arr_operator
+def saturate_arr(src, dst):
+    return src + dst
