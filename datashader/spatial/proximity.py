@@ -1,3 +1,4 @@
+import xarray
 import numpy as np
 import numba as nb
 from numba import jit, prange
@@ -7,7 +8,7 @@ import warnings
 
 SQUARE_DISTANCE = 0
 DISTANCE_METRICS = [SQUARE_DISTANCE]
-
+DISTANCE_METRICS_STR = ['square distance']
 
 @jit(nb.f8(nb.f8, nb.f8, nb.f8, nb.f8, nb.i8), nopython=True)
 def distance(x1, x2, y1, y2, metric):
@@ -129,7 +130,7 @@ def process_proximity_line(source_line, pan_near_x, pan_near_y, is_forward,
 
 @jit(nb.f8[:, :](nb.u1[:, :], nb.f8, nb.f8, nb.u1[:], nb.f8, nb.i8),
      nopython=True)
-def _proximity(img, min_distance, max_distance, target_values, no_data,
+def _proximity(img, min_distance, max_distance, target_values, nodata,
                distance_metric):
     """
     Implementation of proximity()
@@ -137,12 +138,12 @@ def _proximity(img, min_distance, max_distance, target_values, no_data,
     :param min_distance: np.float64, minimum distance to search.
                             Proximity distances less than this value will not
                             be computed. Instead output pixels will be set to
-                            no_data value.
+                            nodata value.
     :param max_distance: np.float64, maximum distance to search.
                             Proximity distances greater than this value
                             will not be computed. Instead output pixels will be
-                            set to no_data value.
-    :param no_data: The NODATA value to use on the output band for pixels that
+                            set to nodata value.
+    :param nodata: The NODATA value to use on the output band for pixels that
                         are beyond [min_distance, max_distance].
     :param distance_metric: The metric for calculating distance between
                             2 points. Default is square distance.
@@ -213,7 +214,7 @@ def _proximity(img, min_distance, max_distance, target_values, no_data,
         for i in prange(width):
             if line_proximity[i] < 0.0:
                 # beyond max_distance
-                line_proximity[i] = no_data
+                line_proximity[i] = nodata
             elif line_proximity[i] > 0:
                 line_proximity[i] = line_proximity[i] * 1.0
 
@@ -224,8 +225,8 @@ def _proximity(img, min_distance, max_distance, target_values, no_data,
 
 # ported from
 # https://github.com/OSGeo/gdal/blob/master/gdal/alg/gdalproximity.cpp
-def proximity(img, min_distance=None, max_distance=None, target_values=[],
-              no_data=np.nan, distance_metric=None):
+def proximity(raster, min_distance=None, max_distance=None, target_values=[],
+              nodata=np.nan, distance_metric=None):
     """
         Compute the proximity of all pixels in the image to a set of pixels in
         the source image.
@@ -252,7 +253,7 @@ def proximity(img, min_distance=None, max_distance=None, target_values=[],
                             Proximity distances greater than this value will
                             not be computed.  Instead output pixels will be
                             set to a nodata value.
-        :param no_data: The NODATA value to use on the output band for pixels
+        :param nodata: The NODATA value to use on the output band for pixels
                         that are beyond [min_distance, max_distance].
         :param distance_metric: The metric for calculating distance
                                 between 2 points. Default is square distance.
@@ -298,25 +299,26 @@ def proximity(img, min_distance=None, max_distance=None, target_values=[],
 
         # calculate proximity within a max distance, set pixels that beyond
         # the max distance to a specific value
-        prox = proximity(img, target_values=[3, 4], max_distance=3, no_data=-1)
+        prox = proximity(img, target_values=[3, 4], max_distance=3, nodata=-1)
         # Result
-        array([[ 0.        ,  0.        ,  1.        ,  1.41421356,  1.        ],
-               [ 1.        ,  1.        ,  1.41421356,  1.        ,  0.        ],
-               [ 2.        ,  2.        ,  2.23606798,  1.41421356,  1.        ],
-               [ 3.        ,  3.        ,  2.82842712,  2.23606798,  2.        ],
-               [-1.        , -1.        , -1.        , -1.        ,  3.        ]])
+        array([[ 0.        ,  0.        ,  1.        ,  1.41421356,  1.     ],
+               [ 1.        ,  1.        ,  1.41421356,  1.        ,  0.     ],
+               [ 2.        ,  2.        ,  2.23606798,  1.41421356,  1.     ],
+               [ 3.        ,  3.        ,  2.82842712,  2.23606798,  2.     ],
+               [-1.        , -1.        , -1.        , -1.        ,  3.     ]])
         """
 
     if not distance_metric:
         warnings.warn("No distance metric specified. "
-                      "Using square distance for calculating proximity")
+                      "Using square distance for calculating proximity.")
         distance_metric = SQUARE_DISTANCE
 
     if not callable(DISTANCE_METRICS[distance_metric]):
         warnings.warn("Invalid distance metric. "
-                      "Using square distance for calculating proximity")
+                      "Using square distance for calculating proximity.")
         distance_metric = SQUARE_DISTANCE
 
+    img = raster.values
     height, width = img.shape
     if max_distance is None:
         max_distance = height + width
@@ -328,10 +330,27 @@ def proximity(img, min_distance=None, max_distance=None, target_values=[],
     max_distance *= 1.0
 
     if max_distance < min_distance:
-        raise ValueError("min_distance must not exceed max_distance")
+        raise ValueError("min_distance must not exceed max_distance.")
+
+    if not len(target_values):
+        warnings.warn("No target value specified. "
+                      "Calculate proximity from non-zero pixels.")
+        distance_metric = SQUARE_DISTANCE
 
     target_values = np.asarray(target_values).astype(np.uint8)
-    no_data = np.float64(no_data)
+    nodata = np.float64(nodata)
 
-    return _proximity(img, min_distance, max_distance, target_values, no_data,
-                      distance_metric)
+    proximity_img =  _proximity(img, min_distance, max_distance, target_values,
+                                nodata, distance_metric)
+
+    result = xarray.DataArray(proximity_img,
+                              coords=raster.coords,
+                              dims=raster.dims)
+    
+    result.attrs['min_distance'] = min_distance
+    result.attrs['max_distance'] = max_distance 
+    result.attrs['target_values'] = target_values 
+    result.attrs['nodata_value'] = nodata
+    result.attrs['distance_metric'] = DISTANCE_METRICS_STR[distance_metric]
+
+    return result
