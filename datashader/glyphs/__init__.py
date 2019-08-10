@@ -1,6 +1,6 @@
 from __future__ import absolute_import
-from .points import Point
-from .line import (
+from .points import Point   # noqa (API import)
+from .line import (  # noqa (API import)
     LineAxis0,
     LineAxis0Multi,
     LinesAxis1,
@@ -8,7 +8,7 @@ from .line import (
     LinesAxis1YConstant,
     LinesAxis1Ragged,
 )
-from .area import (
+from .area import (  # noqa (API import)
     AreaToZeroAxis0,
     AreaToZeroAxis0Multi,
     AreaToZeroAxis1,
@@ -22,5 +22,5 @@ from .area import (
     AreaToLineAxis1YConstant,
     AreaToLineAxis1Ragged,
 )
-from .trimesh import Triangles
-from .glyph import Glyph
+from .trimesh import Triangles  # noqa (API import)
+from .glyph import Glyph  # noqa (API import)
