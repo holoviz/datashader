@@ -4,7 +4,8 @@ import pandas as pd
 
 from .core import bypixel
 from .compiler import compile_components
-from .glyphs import _PointLike, _AreaToLineLike
+from .glyphs.points import _PointLike
+from .glyphs.area import _AreaToLineLike
 from .utils import Dispatcher
 
 __all__ = ()
