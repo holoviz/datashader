@@ -2,7 +2,9 @@ import pytest
 
 import numpy as np
 
-from datashader.glyphs import _build_draw_line, _build_extend_line_axis0, _build_map_onto_pixel_for_line
+from datashader.glyphs.line import (
+    _build_draw_line, _build_extend_line_axis0, _build_map_onto_pixel_for_line
+)
 from datashader.utils import ngjit
 
 

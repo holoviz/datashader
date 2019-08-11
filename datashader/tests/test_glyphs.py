@@ -3,12 +3,19 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from datashader.glyphs import (Point, _build_draw_line,
-                               _build_map_onto_pixel_for_line,
-                               _build_extend_line_axis0, _build_draw_triangle,
-                               _build_map_onto_pixel_for_triangle,
-                               _build_extend_triangles, LinesAxis1,
-                               _build_draw_trapezoid_y)
+from datashader.glyphs import Point, LinesAxis1
+
+from datashader.glyphs.area import _build_draw_trapezoid_y
+from datashader.glyphs.line import (
+    _build_map_onto_pixel_for_line,
+    _build_draw_line,
+    _build_extend_line_axis0,
+)
+from datashader.glyphs.trimesh import(
+    _build_map_onto_pixel_for_triangle,
+    _build_draw_triangle,
+    _build_extend_triangles
+)
 from datashader.utils import ngjit
 
 

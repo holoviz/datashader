@@ -4,7 +4,7 @@ import pytest
 
 import numpy as np
 
-from datashader.glyphs import _build_draw_line
+from datashader.glyphs.line import _build_draw_line
 from datashader.utils import ngjit
 
 
