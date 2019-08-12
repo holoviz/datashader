@@ -21,7 +21,7 @@ glyph_dispatch = Dispatcher()
 
 @glyph_dispatch.register(_PointLike)
 @glyph_dispatch.register(_AreaToLineLike)
-def pointlike(glyph, df, schema, canvas, summary):
+def default(glyph, df, schema, canvas, summary):
     create, info, append, _, finalize = compile_components(summary, schema, glyph)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
