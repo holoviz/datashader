@@ -712,7 +712,7 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
                 tm.assert_numpy_array_equal(a2, a1)
 
     # # NotImplementedError: 'RaggedArray' does not support __setitem__
-    @pytest.mark.skip(reason="value_counts not supported")
+    @pytest.mark.skip(reason="__setitem__ not supported")
     def test_copy(self):
         pass
 
