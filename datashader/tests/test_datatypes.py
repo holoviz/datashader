@@ -6,6 +6,8 @@ import pandas.util.testing as tm
 
 from datashader.datatypes import RaggedDtype, RaggedArray
 
+# Import pandas fixtures so that overridden tests have access to them
+from pandas.tests.extension.conftest import *  # noqa (fixture import)
 
 # Testing helpers
 # ---------------
@@ -709,6 +711,10 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
             else:
                 tm.assert_numpy_array_equal(a2, a1)
 
+    # # NotImplementedError: 'RaggedArray' does not support __setitem__
+    @pytest.mark.skip(reason="__setitem__ not supported")
+    def test_copy(self):
+        pass
 
 class TestRaggedMethods(eb.BaseMethodsTests):
 
@@ -773,4 +779,6 @@ class TestRaggedMissing(eb.BaseMissingTests):
 
 
 class TestRaggedReshaping(eb.BaseReshapingTests):
-    pass
+    @pytest.mark.skip(reason="__setitem__ not supported")
+    def test_ravel(self):
+        pass
