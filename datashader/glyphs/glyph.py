@@ -6,6 +6,21 @@ from datashader.utils import Expr, ngjit
 
 class Glyph(Expr):
     """Base class for glyphs."""
+
+    @property
+    def ndims(self):
+        """
+        The number of dimensions required in the data structure this Glyph is
+        constructed from. Or None if input data structure is irregular
+
+        For example
+         * ndims is 1 if glyph is constructed from a DataFrame
+         * ndims is 2 if glyph is constructed from a 2D xarray DataArray
+         * ndims is None if glyph is constructed from multiple DataFrames of
+           different lengths
+        """
+        raise NotImplementedError()
+
     @staticmethod
     def maybe_expand_bounds(bounds):
         minval, maxval = bounds
