@@ -16,6 +16,10 @@ class _AreaToLineLike(Glyph):
         self.y_stack = y_stack
 
     @property
+    def ndims(self):
+        return 1
+
+    @property
     def inputs(self):
         return (self.x, self.y, self.y_stack)
 

@@ -25,6 +25,10 @@ class _PolygonLike(_PointLike):
         self.weight_type = weight_type
 
     @property
+    def ndims(self):
+        return None
+
+    @property
     def inputs(self):
         return (tuple([self.x, self.y] + list(self.z)) +
                 (self.weight_type, self.interpolate))
@@ -89,7 +93,7 @@ def _build_draw_triangle(append):
         w0, w1, w2 = weights
         if minx == maxx and miny == maxy:
             # Subpixel case; area == 0
-            append(minx, miny, aggs, (w0 + w1 + w2) / 3)
+            append(minx, miny, *(aggs + ((w0 + w1 + w2) / 3,)))
         else:
             (ax, ay), (bx, by), (cx, cy) = verts
             bias0, bias1, bias2 = biases
@@ -101,7 +105,7 @@ def _build_draw_triangle(append):
                     g1 = edge_func(cx, cy, ax, ay, i, j)
                     if ((g2 + bias0) | (g0 + bias1) | (g1 + bias2)) >= 0:
                         interp_res = (g0 * w0 + g1 * w1 + g2 * w2) / area
-                        append(i, j, aggs, interp_res)
+                        append(i, j, *(aggs + (interp_res,)))
 
     @ngjit
     def draw_triangle(verts, bbox, biases, aggs, val):
@@ -114,7 +118,7 @@ def _build_draw_triangle(append):
         minx, maxx, miny, maxy = bbox
         if minx == maxx and miny == maxy:
             # Subpixel case; area == 0
-            append(minx, miny, aggs, val)
+            append(minx, miny, *(aggs + (val,)))
         else:
             (ax, ay), (bx, by), (cx, cy) = verts
             bias0, bias1, bias2 = biases
@@ -123,7 +127,7 @@ def _build_draw_triangle(append):
                     if ((edge_func(ax, ay, bx, by, i, j) + bias0) >= 0 and
                             (edge_func(bx, by, cx, cy, i, j) + bias1) >= 0 and
                             (edge_func(cx, cy, ax, ay, i, j) + bias2) >= 0):
-                        append(i, j, aggs, val)
+                        append(i, j, *(aggs + (val,)))
 
 
     return draw_triangle, draw_triangle_interp

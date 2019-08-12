@@ -7,7 +7,6 @@ import numpy as np
 import xarray as xr
 
 from .compatibility import _exec
-from .glyphs import Triangles
 from .reductions import summary
 from .utils import ngjit
 
@@ -101,27 +100,34 @@ def make_append(bases, cols, calls, glyph):
     local_lk = {}
     namespace = {}
     body = []
+    ndims = glyph.ndims
+    if ndims is not None:
+        subscript = ', '.join(['i' + str(n) for n in range(ndims)])
+    else:
+        subscript = None
+
     for func, bases, cols, temps in calls:
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
-        if isinstance(glyph, Triangles):
+        if ndims is None:
             args.extend('{0}'.format(arg_lk[i]) for i in cols)
         else:
-            args.extend('{0}[i]'.format(arg_lk[i]) for i in cols)
+            args.extend('{0}[{1}]'.format(arg_lk[i], subscript)
+                        for i in cols)
+
         args.extend([local_lk[i] for i in temps])
         body.append('{0}(x, y, {1})'.format(func_name, ', '.join(args)))
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body
-    if isinstance(glyph, Triangles):
-        code = 'def append(x, y, aggs, {0}):'.format(signature[-1])
-        for n_agg, i in enumerate(inputs[:-1]):
-            code += '\n    {1} = aggs[{0}]'.format(n_agg, arg_lk[i])
-        code += ('\n    ' + '\n    '.join(body))
-    else:
-        code = ('def append(i, x, y, {0}):\n'
+    if ndims is None:
+        code = ('def append(x, y, {0}):\n'
                 '    {1}').format(', '.join(signature), '\n    '.join(body))
+    else:
+        code = ('def append({0}, x, y, {1}):\n'
+                '    {2}'
+                ).format(subscript, ', '.join(signature), '\n    '.join(body))
     _exec(code, namespace)
     return ngjit(namespace['append'])
 

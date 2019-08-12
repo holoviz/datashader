@@ -661,7 +661,7 @@ def test_draw_triangle_nointerp():
                     [1, 1, 1, 1, 1],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(tri, (0, 4, 0, 5), (0, 0, 0), agg, 1)
+    draw_triangle(tri, (0, 4, 0, 5), (0, 0, 0), (agg,), 1)
     np.testing.assert_equal(agg, out)
 
     # Right triangle
@@ -671,7 +671,7 @@ def test_draw_triangle_nointerp():
                     [2, 2, 2, 0, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(tri, (0, 4, 0, 5), (0, 0, 0), agg, 2)
+    draw_triangle(tri, (0, 4, 0, 5), (0, 0, 0), (agg,), 2)
     np.testing.assert_equal(agg, out)
 
     # Two right trimesh
@@ -682,8 +682,8 @@ def test_draw_triangle_nointerp():
                     [0, 0, 3, 3, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(tri[:3], (0, 4, 0, 5), (0, 0, 0), agg, 3)
-    draw_triangle(tri[3:], (0, 4, 0, 5), (0, 0, 0), agg, 3)
+    draw_triangle(tri[:3], (0, 4, 0, 5), (0, 0, 0), (agg,), 3)
+    draw_triangle(tri[3:], (0, 4, 0, 5), (0, 0, 0), (agg,), 3)
     np.testing.assert_equal(agg, out)
 
     # Draw isoc triangle with clipping
@@ -693,7 +693,7 @@ def test_draw_triangle_nointerp():
                     [1, 1, 1, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(tri, (0, 3, 0, 2), (0, 0, 0), agg, 1)
+    draw_triangle(tri, (0, 3, 0, 2), (0, 0, 0), (agg,), 1)
     np.testing.assert_equal(agg, out)
     # clip from right and left
     out = np.array([[0, 0, 1, 0, 0],
@@ -701,7 +701,7 @@ def test_draw_triangle_nointerp():
                     [0, 1, 1, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(tri, (1, 3, 0, 2), (0, 0, 0), agg, 1)
+    draw_triangle(tri, (1, 3, 0, 2), (0, 0, 0), (agg,), 1)
     np.testing.assert_equal(agg, out)
     # clip from right, left, top
     out = np.array([[0, 0, 0, 0, 0],
@@ -709,7 +709,7 @@ def test_draw_triangle_nointerp():
                     [0, 1, 1, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(tri, (1, 3, 1, 2), (0, 0, 0), agg, 1)
+    draw_triangle(tri, (1, 3, 1, 2), (0, 0, 0), (agg,), 1)
     np.testing.assert_equal(agg, out)
     # clip from right, left, top, bottom
     out = np.array([[0, 0, 0, 0, 0],
@@ -717,7 +717,7 @@ def test_draw_triangle_nointerp():
                     [0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(tri, (1, 3, 1, 1), (0, 0, 0), agg, 1)
+    draw_triangle(tri, (1, 3, 1, 1), (0, 0, 0), (agg,), 1)
     np.testing.assert_equal(agg, out)
 
 def test_draw_triangle_interp():
@@ -730,7 +730,7 @@ def test_draw_triangle_interp():
                     [3, 3, 3, 3, 3],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (3, 3, 3))
+    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), (agg,), (3, 3, 3))
     np.testing.assert_equal(agg, out)
 
     tri = ((2, 0), (0, 2), (4, 2))
@@ -739,7 +739,7 @@ def test_draw_triangle_interp():
                     [2, 2, 2, 2, 3],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (1, 2, 3))
+    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), (agg,), (1, 2, 3))
     np.testing.assert_equal(agg, out)
 
     tri = ((2, 0), (0, 2), (4, 2))
@@ -748,7 +748,7 @@ def test_draw_triangle_interp():
                     [6, 6, 7, 8, 9],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (3, 6, 9))
+    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), (agg,), (3, 6, 9))
     np.testing.assert_equal(agg, out)
 
     tri = ((2, 0), (0, 2), (4, 2))
@@ -757,7 +757,7 @@ def test_draw_triangle_interp():
                     [4, 3, 3, 2, 2],
                     [0, 0, 0, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), agg, (6, 4, 2))
+    draw_triangle_interp(tri, (0, 4, 0, 5), (0, 0, 0), (agg,), (6, 4, 2))
     np.testing.assert_equal(agg, out)
 
 def test_draw_triangle_subpixel():
@@ -773,9 +773,9 @@ def test_draw_triangle_subpixel():
                     [4, 3, 3, 2, 2],
                     [0, 0, 8, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle_interp(tri[:3], (0, 4, 0, 5), (0, 0, 0), agg, (6, 4, 2))
-    draw_triangle_interp(tri[3:6], (2, 2, 3, 3), (0, 0, 0), agg, (6, 4, 2))
-    draw_triangle_interp(tri[6:], (2, 2, 3, 3), (0, 0, 0), agg, (6, 4, 2))
+    draw_triangle_interp(tri[:3], (0, 4, 0, 5), (0, 0, 0), (agg,), (6, 4, 2))
+    draw_triangle_interp(tri[3:6], (2, 2, 3, 3), (0, 0, 0), (agg,), (6, 4, 2))
+    draw_triangle_interp(tri[6:], (2, 2, 3, 3), (0, 0, 0), (agg,), (6, 4, 2))
     np.testing.assert_equal(agg, out)
 
     # Without interpolation
@@ -787,9 +787,9 @@ def test_draw_triangle_subpixel():
                     [2, 2, 2, 2, 2],
                     [0, 0, 4, 0, 0]])
     agg = np.zeros((4, 5), dtype='i4')
-    draw_triangle(tri[:3], (0, 4, 0, 5), (0, 0, 0), agg, 2)
-    draw_triangle(tri[3:6], (2, 2, 3, 3), (0, 0, 0), agg, 2)
-    draw_triangle(tri[6:], (2, 2, 3, 3), (0, 0, 0), agg, 2)
+    draw_triangle(tri[:3], (0, 4, 0, 5), (0, 0, 0), (agg,), 2)
+    draw_triangle(tri[3:6], (2, 2, 3, 3), (0, 0, 0), (agg,), 2)
+    draw_triangle(tri[6:], (2, 2, 3, 3), (0, 0, 0), (agg,), 2)
     np.testing.assert_equal(agg, out)
 
 

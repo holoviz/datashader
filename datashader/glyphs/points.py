@@ -13,6 +13,10 @@ class _PointLike(Glyph):
         self.y = y
 
     @property
+    def ndims(self):
+        return 1
+
+    @property
     def inputs(self):
         return (self.x, self.y)
 
