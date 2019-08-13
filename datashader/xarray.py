@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from datashader.glyphs.quadmesh import _QuadMeshLike
 from datashader.pandas import default
 from .core import bypixel
