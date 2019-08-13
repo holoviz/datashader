@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import datashader as ds
 import xarray as xr
 import numpy as np

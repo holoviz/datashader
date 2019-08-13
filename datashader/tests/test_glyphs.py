@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from datashape import dshape
 import pandas as pd
 import numpy as np

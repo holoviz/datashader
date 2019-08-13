@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 import pandas as pd
 import datashader as ds
@@ -46,7 +47,7 @@ def test_interactive_image_update():
 
     # Ensure bokeh Document is instantiated
     img._repr_html_()
-    assert isinstance(img.doc, Document) 
+    assert isinstance(img.doc, Document)
 
     # Ensure image is updated
     img.update_image({'xmin': 0.5, 'xmax': 1, 'ymin': 0.5, 'ymax': 1, 'w': 1, 'h': 1})
