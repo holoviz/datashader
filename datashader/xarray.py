@@ -1,4 +1,3 @@
-from datashader.compiler import compile_components
 from datashader.glyphs.quadmesh import _QuadMeshLike
 from datashader.pandas import default
 from .core import bypixel
