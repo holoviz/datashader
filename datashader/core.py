@@ -602,7 +602,7 @@ The axis argument to Canvas.line must be 0 or 1
             agg = mean_rnd(name)
 
         if x is None and y is None:
-            y, x = source.dims
+            y, x = source[name].dims
         elif not x or not y:
             raise ValueError("Either specify both x and y coordinates"
                              "or allow them to be inferred.")
