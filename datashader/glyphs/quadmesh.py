@@ -67,20 +67,25 @@ class QuadMeshRectilinear(_QuadMeshLike):
         @ngjit
         def _extend(vt, bounds, xs, ys, *aggs_and_cols):
             for i in range(len(xs) - 1):
+                x0i, x1i = xs[i], xs[i + 1]
+
+                # Makes sure x0 <= x1
+                if x0i > x1i:
+                    x0i, x1i = x1i, x0i
+
+                # Make sure single pixel quads are represented
+                if x0i == x1i:
+                    x1i += 1
+
                 for j in range(len(ys) - 1):
-                    x0i, x1i = xs[i], xs[i + 1]
+
                     y0i, y1i = ys[j], ys[j + 1]
 
-                    # Makes sure x0 <= x1 and y0 <= y1
-                    if x0i > x1i:
-                        x0i, x1i = x1i, x0i
+                    # Makes  y0 <= y1
                     if y0i > y1i:
                         y0i, y1i = y1i, y0i
 
                     # Make sure single pixel quads are represented
-                    if x0i == x1i:
-                        x1i += 1
-
                     if y0i == y1i:
                         y1i += 1
 
