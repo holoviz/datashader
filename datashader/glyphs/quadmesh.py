@@ -65,40 +65,22 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
         @ngjit
         def _extend(vt, bounds, xs, ys, *aggs_and_cols):
-            sx, tx, sy, ty = vt
-            xmin, xmax, ymin, ymax = bounds
-
-            # Compute max valid x and y index
-            xmaxi = int(round(x_mapper(xmax) * sx + tx))
-            ymaxi = int(round(y_mapper(ymax) * sy + ty))
-
             for i in range(len(xs) - 1):
                 for j in range(len(ys) - 1):
-                    x0, x1 = max(xs[i], xmin), min(xs[i + 1], xmax)
-                    y0, y1 = max(ys[j], ymin), min(ys[j + 1], ymax)
+                    x0i, x1i = xs[i], xs[i + 1]
+                    y0i, y1i = ys[j], ys[j + 1]
 
                     # Makes sure x0 <= x1 and y0 <= y1
-                    if x0 > x1:
-                        x0, x1 = x1, x0
-                    if y0 > y1:
-                        y0, y1 = y1, y0
-
-                    # check whether we can skip quad. To avoid overlapping
-                    # quads, skip if upper bound equals viewport lower bound.
-                    if x1 <= xmin or x0 > xmax or y1 <= ymin or y0 > ymax:
-                        continue
-
-                    # Map onto pixels and clip to viewport
-                    x0i = max(int(x_mapper(x0) * sx + tx), 0)
-                    x1i = min(int(x_mapper(x1) * sx + tx), xmaxi)
-                    y0i = max(int(y_mapper(y0) * sy + ty), 0)
-                    y1i = min(int(y_mapper(y1) * sy + ty), ymaxi)
+                    if x0i > x1i:
+                        x0i, x1i = x1i, x0i
+                    if y0i > y1i:
+                        y0i, y1i = y1i, y0i
 
                     # Make sure single pixel quads are represented
-                    if x0i == x1i and x1i < ymaxi:
+                    if x0i == x1i:
                         x1i += 1
 
-                    if y0i == y1i and y1i < ymaxi:
+                    if y0i == y1i:
                         y1i += 1
 
                     # x1i and y1i are not included in the iteration. this
@@ -113,8 +95,31 @@ class QuadMeshRectilinear(_QuadMeshLike):
             # Convert from bin centers to interval edges
             xs = infer_interval_breaks(xr_ds[x_name].values)
             ys = infer_interval_breaks(xr_ds[y_name].values)
-            cols = aggs + info(xr_ds.transpose(y_name, x_name))
-            _extend(vt, bounds, xs, ys, *cols)
+
+            x0, x1, y0, y1 = bounds
+            xspan = x1 - x0
+            yspan = y1 - y0
+            xscaled = (x_mapper(xs) - x0) / xspan
+            yscaled = (y_mapper(ys) - y0) / yspan
+
+            xmask = np.where((xscaled >= 0) & (xscaled <= 1))
+            ymask = np.where((yscaled >= 0) & (yscaled <= 1))
+            xm0, xm1 = max(xmask[0].min() - 1, 0), xmask[0].max() + 1
+            ym0, ym1 = max(ymask[0].min() - 1, 0), ymask[0].max() + 1
+
+            plot_height, plot_width = aggs[0].shape[:2]
+
+            # Downselect xs and ys and convert to int
+            xs = (xscaled[xm0:xm1 + 1] * plot_width).astype(int).clip(0, plot_width)
+            ys = (yscaled[ym0:ym1 + 1] * plot_height).astype(int).clip(0, plot_width)
+
+            # For each of aggs and cols, down select to valid range
+            cols_full = info(xr_ds.transpose(y_name, x_name))
+            cols = tuple([c[ym0:ym1, xm0:xm1] for c in cols_full])
+
+            aggs_and_cols = aggs + cols
+
+            _extend(vt, bounds, xs, ys, *aggs_and_cols)
 
         return extend
 
