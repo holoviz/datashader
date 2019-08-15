@@ -65,11 +65,12 @@ class QuadMeshRectilinear(_QuadMeshLike):
         y_name = self.y
 
         @ngjit
+        @self.expand_aggs_and_cols(append)
         def _extend(vt, bounds, xs, ys, *aggs_and_cols):
             for i in range(len(xs) - 1):
                 x0i, x1i = xs[i], xs[i + 1]
 
-                # Makes sure x0 <= x1
+                # Make sure x0 <= x1
                 if x0i > x1i:
                     x0i, x1i = x1i, x0i
 
@@ -81,7 +82,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
                     y0i, y1i = ys[j], ys[j + 1]
 
-                    # Makes  y0 <= y1
+                    # Make sure  y0 <= y1
                     if y0i > y1i:
                         y0i, y1i = y1i, y0i
 
@@ -96,17 +97,6 @@ class QuadMeshRectilinear(_QuadMeshLike):
                     for xi in range(x0i, x1i):
                         for yi in range(y0i, y1i):
                             append(j, i, xi, yi, *aggs_and_cols)
-
-                            # # Inline mean aggregation
-                            # # <function sum._append>
-                            # if np.isnan(aggs_and_cols[0][yi, xi]):
-                            #     aggs_and_cols[0][yi, xi] = aggs_and_cols[2][j, i]
-                            # else:
-                            #     aggs_and_cols[0][yi, xi] += aggs_and_cols[2][j, i]
-                            #
-                            # # <function count._append_non_na>
-                            # if not np.isnan(aggs_and_cols[2][j, i]):
-                            #     aggs_and_cols[1][yi, xi] += 1
 
         def extend(aggs, xr_ds, vt, bounds):
             # Convert from bin centers to interval edges
