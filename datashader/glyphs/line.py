@@ -16,9 +16,12 @@ class LineAxis0(_PointLike):
     """
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_line = _build_draw_line(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_line = _build_extend_line_axis0(draw_line, map_onto_pixel)
+        extend_line = _build_extend_line_axis0(
+            draw_line, map_onto_pixel, expand_aggs_and_cols
+        )
         x_name = self.x
         y_name = self.y
 
@@ -83,9 +86,12 @@ class LineAxis0Multi(_PointLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_line = _build_draw_line(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_line = _build_extend_line_axis0_multi(draw_line, map_onto_pixel)
+        extend_line = _build_extend_line_axis0_multi(
+            draw_line, map_onto_pixel, expand_aggs_and_cols
+        )
         x_names = self.x
         y_names = self.y
 
@@ -173,9 +179,12 @@ class LinesAxis1(_PointLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_line = _build_draw_line(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_lines_xy = _build_extend_line_axis1_none_constant(draw_line, map_onto_pixel)
+        extend_lines_xy = _build_extend_line_axis1_none_constant(
+            draw_line, map_onto_pixel, expand_aggs_and_cols
+        )
         x_names = self.x
         y_names = self.y
 
@@ -225,9 +234,12 @@ class LinesAxis1XConstant(LinesAxis1):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_line = _build_draw_line(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_lines = _build_extend_line_axis1_x_constant(draw_line, map_onto_pixel)
+        extend_lines = _build_extend_line_axis1_x_constant(
+            draw_line, map_onto_pixel, expand_aggs_and_cols
+        )
 
         x_values = self.x
         y_names = self.y
@@ -277,9 +289,12 @@ class LinesAxis1YConstant(LinesAxis1):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_line = _build_draw_line(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_lines = _build_extend_line_axis1_y_constant(draw_line, map_onto_pixel)
+        extend_lines = _build_extend_line_axis1_y_constant(
+            draw_line, map_onto_pixel, expand_aggs_and_cols
+        )
 
         x_names = self.x
         y_values = self.y
@@ -335,9 +350,12 @@ class LinesAxis1Ragged(_PointLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_line = _build_draw_line(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_lines_ragged = _build_extend_line_axis1_ragged(draw_line, map_onto_pixel)
+        extend_lines_ragged = _build_extend_line_axis1_ragged(
+            draw_line, map_onto_pixel, expand_aggs_and_cols
+        )
         x_name = self.x
         y_name = self.y
 
@@ -391,9 +409,10 @@ def _build_map_onto_pixel_for_line(x_mapper, y_mapper):
     return map_onto_pixel
 
 
-def _build_draw_line(append):
+def _build_draw_line(append, expand_aggs_and_cols):
     """Specialize a line plotting kernel for a given append/axis combination"""
     @ngjit
+    @expand_aggs_and_cols
     def draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped, *aggs_and_cols):
         """Draw a line using Bresenham's algorithm
 
@@ -526,8 +545,9 @@ def _skip_or_clip(x0, x1, y0, y1, bounds, plot_start):
     return x0, x1, y0, y1, skip, clipped, plot_start
 
 
-def _build_extend_line_axis0(draw_line, map_onto_pixel):
+def _build_extend_line_axis0(draw_line, map_onto_pixel, expand_aggs_and_cols):
     @ngjit
+    @expand_aggs_and_cols
     def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
         nrows = xs.shape[0]
@@ -551,8 +571,9 @@ def _build_extend_line_axis0(draw_line, map_onto_pixel):
     return extend_line
 
 
-def _build_extend_line_axis0_multi(draw_line, map_onto_pixel):
+def _build_extend_line_axis0_multi(draw_line, map_onto_pixel, expand_aggs_and_cols):
     @ngjit
+    @expand_aggs_and_cols
     def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
         nrows = xs[0].shape[0]
@@ -583,8 +604,11 @@ def _build_extend_line_axis0_multi(draw_line, map_onto_pixel):
     return extend_line
 
 
-def _build_extend_line_axis1_none_constant(draw_line, map_onto_pixel):
+def _build_extend_line_axis1_none_constant(
+        draw_line, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """
         here xs and ys are tuples of arrays and non-empty
@@ -617,8 +641,11 @@ def _build_extend_line_axis1_none_constant(draw_line, map_onto_pixel):
     return extend_line
 
 
-def _build_extend_line_axis1_x_constant(draw_line, map_onto_pixel):
+def _build_extend_line_axis1_x_constant(
+        draw_line, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """
         here xs and ys are tuples of arrays and non-empty
@@ -651,8 +678,11 @@ def _build_extend_line_axis1_x_constant(draw_line, map_onto_pixel):
     return extend_line
 
 
-def _build_extend_line_axis1_y_constant(draw_line, map_onto_pixel):
+def _build_extend_line_axis1_y_constant(
+        draw_line, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """
         here xs and ys are tuples of arrays and non-empty
@@ -685,7 +715,9 @@ def _build_extend_line_axis1_y_constant(draw_line, map_onto_pixel):
     return extend_line
 
 
-def _build_extend_line_axis1_ragged(draw_line, map_onto_pixel):
+def _build_extend_line_axis1_ragged(
+        draw_line, map_onto_pixel, expand_aggs_and_cols
+):
 
     def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         x_start_indices = xs.start_indices
@@ -704,6 +736,7 @@ def _build_extend_line_axis1_ragged(draw_line, map_onto_pixel):
                                     *aggs_and_cols)
 
     @ngjit
+    @expand_aggs_and_cols
     def perform_extend_lines_ragged(vt,
                                     bounds,
                                     x_start_indices,
