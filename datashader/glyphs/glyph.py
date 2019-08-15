@@ -93,6 +93,14 @@ class Glyph(Expr):
 
     @staticmethod
     def _expand_aggs_and_cols(append, ndims):
+        if os.environ.get('NUMBA_DISABLE_JIT', None):
+            # If the NUMBA_DISABLE_JIT environment is set, then we return an
+            # identity decorator (one that return function unchanged).
+            #
+            # Doing this makes it possible to debug functions that are
+            # decorated with @jit and @expand_varargs decorators
+            return lambda fn: fn
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
