@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division
 import inspect
 import warnings
+import os
 import numpy as np
 
 from datashader.utils import Expr, ngjit
@@ -72,7 +73,11 @@ class Glyph(Expr):
 
         Rationale: When we know the fixed length of a variable length
         argument, replacing it with fixed arguments can help numba better
-        optimize the the function
+        optimize the the function.
+
+        If this ever causes problems in the future, this decorator can be
+        safely removed without changing the functionality of the decorated
+        function.
 
         Parameters
         ----------
