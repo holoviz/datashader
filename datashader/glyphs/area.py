@@ -89,10 +89,14 @@ class AreaToZeroAxis0(_PointLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(
+            append, expand_aggs_and_cols
+        )
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_zero_axis0(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
         x_name = self.x
         y_name = self.y
 
@@ -154,10 +158,12 @@ class AreaToLineAxis0(_AreaToLineLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_line_axis0(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
         x_name = self.x
         y_name = self.y
         y_stack_name = self.y_stack
@@ -229,10 +235,12 @@ class AreaToZeroAxis0Multi(_PointLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_zero_axis0_multi(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
         x_names = self.x
         y_names = self.y
 
@@ -302,10 +310,12 @@ class AreaToLineAxis0Multi(_AreaToLineLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_line_axis0_multi(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
         x_names = self.x
         y_names = self.y
         y_stack_names = self.y_stack
@@ -393,10 +403,12 @@ class AreaToZeroAxis1(_PointLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_zero_axis1_none_constant(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
 
         x_names = self.x
         y_names = self.y
@@ -486,10 +498,12 @@ class AreaToLineAxis1(_AreaToLineLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_line_axis1_none_constant(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
         x_names = self.x
         y_names = self.y
         y_stack_names = self.y_stack
@@ -539,10 +553,12 @@ class AreaToZeroAxis1XConstant(AreaToZeroAxis1):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_zero_axis1_x_constant(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
 
         x_values = self.x
         y_names = self.y
@@ -603,10 +619,12 @@ class AreaToLineAxis1XConstant(AreaToLineAxis1):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_line_axis1_x_constant(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
 
         x_values = self.x
         y_names = self.y
@@ -656,10 +674,12 @@ class AreaToZeroAxis1YConstant(AreaToZeroAxis1):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_zero_axis1_y_constant(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
 
         x_names = self.x
         y_values = self.y
@@ -707,10 +727,12 @@ class AreaToLineAxis1YConstant(AreaToLineAxis1):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_line_axis1_y_constant(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
         x_names = self.x
         y_values = self.y
         y_stack_values = self.y_stack
@@ -773,10 +795,12 @@ class AreaToZeroAxis1Ragged(_PointLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_zero_axis1_ragged(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
         x_name = self.x
         y_name = self.y
 
@@ -842,10 +866,12 @@ class AreaToLineAxis1Ragged(_AreaToLineLike):
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
-        draw_trapezoid_y = _build_draw_trapezoid_y(append)
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         extend_area = _build_extend_area_to_line_axis1_ragged(
-            draw_trapezoid_y, map_onto_pixel)
+            draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+        )
         x_name = self.x
         y_name = self.y
         y_stack_name = self.y_stack
@@ -861,7 +887,7 @@ class AreaToLineAxis1Ragged(_AreaToLineLike):
         return extend
 
 
-def _build_draw_trapezoid_y(append):
+def _build_draw_trapezoid_y(append, expand_aggs_and_cols):
     """Specialize a plotting kernel for drawing a trapezoid with two
     sides parallel to the y-axis"""
 
@@ -888,6 +914,7 @@ def _build_draw_trapezoid_y(append):
         return out_of_bounds, clamped_ystarti, clamped_ystopi
 
     @ngjit
+    @expand_aggs_and_cols
     def draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
                          i, plot_start, clipped, stacked, *aggs_and_cols):
         """Draw a filled trapezoid that has two sides parallel to the y-axis
@@ -1139,8 +1166,11 @@ def _skip_or_clip_trapezoid_y(x0, x1, y0, y1, y2, y3, bounds, plot_start):
     return x0, x1, y0, y1, y2, y3, skip, clipped, plot_start
 
 
-def _build_extend_area_to_zero_axis0(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_zero_axis0(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1150,6 +1180,7 @@ def _build_extend_area_to_zero_axis0(draw_trapezoid_y, map_onto_pixel):
 
         nrows = xs.shape[0]
         i = 0
+
         while i < nrows - 1:
             x0 = xs[i]
             x1 = xs[i + 1]
@@ -1178,8 +1209,11 @@ def _build_extend_area_to_zero_axis0(draw_trapezoid_y, map_onto_pixel):
     return extend_area
 
 
-def _build_extend_area_to_line_axis0(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_line_axis0(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
         """Aggregate filled area between the line formed by
         ``xs`` and ``ys0`` and the line formed by ``xs`` and ``ys1``"""
@@ -1217,8 +1251,11 @@ def _build_extend_area_to_line_axis0(draw_trapezoid_y, map_onto_pixel):
     return extend_area
 
 
-def _build_extend_area_to_zero_axis0_multi(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_zero_axis0_multi(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1264,8 +1301,11 @@ def _build_extend_area_to_zero_axis0_multi(draw_trapezoid_y, map_onto_pixel):
     return extend_area
 
 
-def _build_extend_area_to_line_axis0_multi(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_line_axis0_multi(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1311,8 +1351,11 @@ def _build_extend_area_to_line_axis0_multi(draw_trapezoid_y, map_onto_pixel):
     return extend_area
 
 
-def _build_extend_area_to_zero_axis1_none_constant(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_zero_axis1_none_constant(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1356,8 +1399,11 @@ def _build_extend_area_to_zero_axis1_none_constant(draw_trapezoid_y, map_onto_pi
     return extend_area
 
 
-def _build_extend_area_to_line_axis1_none_constant(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_line_axis1_none_constant(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1401,8 +1447,11 @@ def _build_extend_area_to_line_axis1_none_constant(draw_trapezoid_y, map_onto_pi
     return extend_area
 
 
-def _build_extend_area_to_zero_axis1_x_constant(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_zero_axis1_x_constant(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1446,8 +1495,11 @@ def _build_extend_area_to_zero_axis1_x_constant(draw_trapezoid_y, map_onto_pixel
     return extend_area
 
 
-def _build_extend_area_to_line_axis1_x_constant(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_line_axis1_x_constant(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1491,8 +1543,11 @@ def _build_extend_area_to_line_axis1_x_constant(draw_trapezoid_y, map_onto_pixel
     return extend_area
 
 
-def _build_extend_area_to_zero_axis1_y_constant(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_zero_axis1_y_constant(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1536,8 +1591,11 @@ def _build_extend_area_to_zero_axis1_y_constant(draw_trapezoid_y, map_onto_pixel
     return extend_area
 
 
-def _build_extend_area_to_line_axis1_y_constant(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_line_axis1_y_constant(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
     @ngjit
+    @expand_aggs_and_cols
     def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1581,7 +1639,9 @@ def _build_extend_area_to_line_axis1_y_constant(draw_trapezoid_y, map_onto_pixel
     return extend_area
 
 
-def _build_extend_area_to_zero_axis1_ragged(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_zero_axis1_ragged(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
 
     def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
         x_start_indices = xs.start_indices
@@ -1595,6 +1655,7 @@ def _build_extend_area_to_zero_axis1_ragged(draw_trapezoid_y, map_onto_pixel):
             y_start_indices, y_flat_array, plot_start, *aggs_and_cols)
 
     @ngjit
+    @expand_aggs_and_cols
     def perform_extend_area_to_zero_axis1_ragged(
             vt, bounds, x_start_indices, x_flat_array,
             y_start_indices, y_flat_array, plot_start, *aggs_and_cols):
@@ -1659,7 +1720,9 @@ def _build_extend_area_to_zero_axis1_ragged(draw_trapezoid_y, map_onto_pixel):
     return extend_line
 
 
-def _build_extend_area_to_line_axis1_ragged(draw_trapezoid_y, map_onto_pixel):
+def _build_extend_area_to_line_axis1_ragged(
+        draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
+):
 
     def extend_line(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
         x_start_indices = xs.start_indices
@@ -1677,6 +1740,7 @@ def _build_extend_area_to_line_axis1_ragged(draw_trapezoid_y, map_onto_pixel):
             plot_start, *aggs_and_cols)
 
     @ngjit
+    @expand_aggs_and_cols
     def perform_extend_area_to_line_axis1_ragged(
             vt, bounds, x_start_indices, x_flat_array,
             y0_start_indices, y0_flat_array, y1_start_indices, y1_flat_array,

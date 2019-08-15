@@ -80,6 +80,7 @@ class Point(_PointLike):
         y_name = self.y
 
         @ngjit
+        @self.expand_aggs_and_cols(append)
         def _extend(vt, bounds, xs, ys, *aggs_and_cols):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds

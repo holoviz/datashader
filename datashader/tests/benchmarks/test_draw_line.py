@@ -4,8 +4,11 @@ import pytest
 
 import numpy as np
 
+from datashader.glyphs import Glyph
 from datashader.glyphs.line import _build_draw_line
 from datashader.utils import ngjit
+
+
 
 
 @pytest.fixture
@@ -14,7 +17,8 @@ def draw_line():
     def append(i, x, y, agg):
         agg[y, x] += 1
 
-    return _build_draw_line(append)
+    expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
+    return _build_draw_line(append, expand_aggs_and_cols)
 
 
 @pytest.mark.benchmark(group="draw_line")
