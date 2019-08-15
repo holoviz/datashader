@@ -128,7 +128,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
             # Downselect xs and ys and convert to int
             xs = (xscaled[xm0:xm1 + 1] * plot_width).astype(int).clip(0, plot_width)
-            ys = (yscaled[ym0:ym1 + 1] * plot_height).astype(int).clip(0, plot_width)
+            ys = (yscaled[ym0:ym1 + 1] * plot_height).astype(int).clip(0, plot_height)
 
             # For each of aggs and cols, down select to valid range
             cols_full = info(xr_ds.transpose(y_name, x_name))
