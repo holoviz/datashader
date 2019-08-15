@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division
 import inspect
+import warnings
 import numpy as np
 
 from datashader.utils import Expr, ngjit
@@ -87,12 +88,14 @@ class Glyph(Expr):
 
     @staticmethod
     def _expand_aggs_and_cols(append, ndims):
-        try:
-            # Numba keeps original function around as append.py_func
-            append_args = inspect.getfullargspec(append.py_func).args
-        except (TypeError, AttributeError):
-            # Treat append as a normal python function
-            append_args = inspect.getfullargspec(append).args
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            try:
+                # Numba keeps original function around as append.py_func
+                append_args = inspect.getargspec(append.py_func).args
+            except (TypeError, AttributeError):
+                # Treat append as a normal python function
+                append_args = inspect.getargspec(append).args
 
         # Get number of arguments accepted by append
         append_arglen = len(append_args)

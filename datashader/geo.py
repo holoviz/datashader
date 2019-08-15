@@ -3,7 +3,7 @@ This module contains geoscience-related transfer functions whose use is complete
 
 """
 
-from __future__ import division
+from __future__ import division, absolute_import
 
 import numpy as np
 import datashader.transfer_functions as tf

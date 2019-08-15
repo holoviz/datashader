@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+import warnings
 import pytest
 
 from datashader.macros import expand_varargs
@@ -30,7 +32,10 @@ def function_with_vararg_call_numba(a, b, *others):
 
 # Help functions
 def get_args(fn):
-    spec = inspect.getfullargspec(fn)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        spec = inspect.getargspec(fn)
+
     args = spec.args
     if spec.varargs:
         args += ['*' + spec.varargs]

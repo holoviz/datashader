@@ -20,7 +20,10 @@ class NameVisitor(ast.NodeVisitor):
         self.names.add(node.id)
 
     def visit_arg(self, node):
-        self.names.add(node.arg)
+        if hasattr(node, 'arg'):
+            self.names.add(node.arg)
+        elif hasattr(node, 'id'):
+            self.names.add(node.id)
 
     def get_new_names(self, num_names):
         """
@@ -41,8 +44,8 @@ class NameVisitor(ast.NodeVisitor):
         -------
         list of str
         """
-        prop_re = re.compile(r"_(\d+)")
-        matching_names = [n for n in self.names if prop_re.fullmatch(n)]
+        prop_re = re.compile(r"^_(\d+)$")
+        matching_names = [n for n in self.names if prop_re.match(n)]
         if matching_names:
             start_number = max([int(n[1:]) for n in matching_names]) + 1
         else:
@@ -72,10 +75,25 @@ class ExpandVarargTransformer(ast.NodeTransformer):
         self.starred_name = starred_name
         self.expand_names = expand_names
 
+
+class ExpandVarargTransformerStarred(ExpandVarargTransformer):
+    # Python 3
     def visit_Starred(self, node):
         if node.value.id == self.starred_name:
             return [ast.Name(id=name, ctx=node.ctx) for name in
                     self.expand_names]
+        else:
+            return node
+
+
+class ExpandVarargTransformerCallArg(ExpandVarargTransformer):
+    # Python 2
+    def visit_Call(self, node):
+        if getattr(node, 'starargs', None) and node.starargs.id == self.starred_name:
+            node.starargs = None
+            node.args.extend([ast.Name(id=name, ctx=ast.Load())
+                              for name in self.expand_names])
+            return node
         else:
             return node
 
@@ -142,6 +160,15 @@ def function_ast_to_function(fn_ast, stacklevel=1):
     return scope[fndef_ast.name]
 
 
+def _build_arg(name):
+    try:
+        # Python 3
+        return ast.arg(arg=name)
+    except AttributeError:
+        # Python 2
+        return ast.Name(id=name, ctx=ast.Param())
+
+
 def expand_function_ast_varargs(fn_ast, expand_number):
     """
     Given a function AST that use a variable length positional argument
@@ -189,7 +216,7 @@ def expand_function_ast_varargs(fn_ast, expand_number):
     # Get function args
     fn_args = fndef_ast.args
 
-    # Function variabel arity argument
+    # Function variable arity argument
     fn_vararg = fn_args.vararg
 
     # Require vararg
@@ -200,23 +227,35 @@ Input function AST does not have a variable length positional argument
     assert fn_vararg
 
     # Get vararg name
-    vararg_name = fn_vararg.arg
+    if isinstance(fn_vararg, str):
+        vararg_name = fn_vararg
+    else:
+        vararg_name = fn_vararg.arg
 
     # Compute new unique names to use in place of the variable argument
     before_name_visitor = NameVisitor()
     before_name_visitor.visit(fn_ast)
     expand_names = before_name_visitor.get_new_names(expand_number)
 
-    # Replace vararg with additional args in function signature
-    fndef_ast.args.args.extend(
-        [ast.arg(arg=name, annotation=None) for name in expand_names]
-    )
-    fndef_ast.args.vararg = None
-
     # Replace use of *args in function body
-    new_fn_ast = ExpandVarargTransformer(
+    if hasattr(ast, "Starred"):
+        # Python 3
+        expand_transformer = ExpandVarargTransformerStarred
+    else:
+        # Python 2
+        expand_transformer = ExpandVarargTransformerCallArg
+
+    new_fn_ast = expand_transformer(
         vararg_name, expand_names
     ).visit(fn_ast)
+
+    new_fndef_ast = new_fn_ast.body[0]
+
+    # Replace vararg with additional args in function signature
+    new_fndef_ast.args.args.extend(
+        [_build_arg(name=name) for name in expand_names]
+    )
+    new_fndef_ast.args.vararg = None
 
     # Run a new NameVistor an see if there were any other non-starred uses
     # of the variable length argument. If so, raise an exception
