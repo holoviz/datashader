@@ -56,7 +56,6 @@ def test_rect_quadmesh_autorange_reversed():
     )
 
     res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
-    print(res)
     assert res.equals(out)
 
     # Check transpose gives same answer
