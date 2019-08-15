@@ -310,7 +310,9 @@ class count_cat(Reduction):
 
         def finalize(bases, **kwargs):
             dims = kwargs['dims'] + [self.column]
-            coords = kwargs['coords'] + [cats]
+
+            coords = kwargs['coords']
+            coords[self.column] = cats
             return xr.DataArray(bases[0], dims=dims, coords=coords)
         return finalize
 
