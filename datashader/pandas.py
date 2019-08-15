@@ -7,6 +7,7 @@ from .compiler import compile_components
 from .glyphs.points import _PointLike
 from .glyphs.area import _AreaToLineLike
 from .utils import Dispatcher
+from collections import OrderedDict
 
 __all__ = ()
 
@@ -43,5 +44,6 @@ def default(glyph, df, schema, canvas, summary):
     extend(bases, df, x_st + y_st, x_range + y_range)
 
     return finalize(bases,
-                    coords=[y_axis, x_axis],
+                    coords=OrderedDict([(glyph.x_label, x_axis),
+                                        (glyph.y_label, y_axis)]),
                     dims=[glyph.y_label, glyph.x_label])
