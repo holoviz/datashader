@@ -1,7 +1,11 @@
 from __future__ import absolute_import, division
+import inspect
+import warnings
+import os
 import numpy as np
 
 from datashader.utils import Expr, ngjit
+from datashader.macros import expand_varargs
 
 
 class Glyph(Expr):
@@ -58,4 +62,65 @@ class Glyph(Expr):
 
         return minval, maxval
 
+    def expand_aggs_and_cols(self, append):
+        """
+        Create a decorator that can be used on functions that accept
+        *aggs_and_cols as a variable length argument. The decorator will
+        replace *aggs_and_cols with a fixed number of arguments.
 
+        The appropriate fixed number of arguments is calculated from the input
+        append function.
+
+        Rationale: When we know the fixed length of a variable length
+        argument, replacing it with fixed arguments can help numba better
+        optimize the the function.
+
+        If this ever causes problems in the future, this decorator can be
+        safely removed without changing the functionality of the decorated
+        function.
+
+        Parameters
+        ----------
+        append: function
+            The append function for the current aggregator
+
+        Returns
+        -------
+        function
+            Decorator function
+        """
+        return self._expand_aggs_and_cols(append, self.ndims)
+
+    @staticmethod
+    def _expand_aggs_and_cols(append, ndims):
+        if os.environ.get('NUMBA_DISABLE_JIT', None):
+            # If the NUMBA_DISABLE_JIT environment is set, then we return an
+            # identity decorator (one that return function unchanged).
+            #
+            # Doing this makes it possible to debug functions that are
+            # decorated with @jit and @expand_varargs decorators
+            return lambda fn: fn
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            try:
+                # Numba keeps original function around as append.py_func
+                append_args = inspect.getargspec(append.py_func).args
+            except (TypeError, AttributeError):
+                # Treat append as a normal python function
+                append_args = inspect.getargspec(append).args
+
+        # Get number of arguments accepted by append
+        append_arglen = len(append_args)
+
+        # We will subtract 2 because we always pass in the x and y position
+        xy_arglen = 2
+
+        # We will also subtract the number of dimensions in this glyph,
+        # becuase that's how many data index arguments are passed to append
+        dim_arglen = (ndims or 0)
+
+        # The remaining arguments are for aggregates and columns
+        aggs_and_cols_len = append_arglen - xy_arglen - dim_arglen
+
+        return expand_varargs(aggs_and_cols_len)

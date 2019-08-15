@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from datashader.glyphs import Point, LinesAxis1
+from datashader.glyphs import Point, LinesAxis1, Glyph
 
 from datashader.glyphs.area import _build_draw_trapezoid_y
 from datashader.glyphs.line import (
@@ -51,15 +51,18 @@ map_onto_pixel_for_line = _build_map_onto_pixel_for_line(mapper, mapper)
 map_onto_pixel_for_triangle = _build_map_onto_pixel_for_triangle(mapper, mapper)
 
 # Line rasterization
-draw_line = _build_draw_line(append)
-extend_line = _build_extend_line_axis0(draw_line, map_onto_pixel_for_line)
+expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
+draw_line = _build_draw_line(append, expand_aggs_and_cols)
+extend_line = _build_extend_line_axis0(
+    draw_line, map_onto_pixel_for_line, expand_aggs_and_cols
+)
 
 # Triangles rasterization
 draw_triangle, draw_triangle_interp = _build_draw_triangle(tri_append)
 extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel_for_triangle)
 
 # Trapezoid y rasterization
-draw_trapezoid = _build_draw_trapezoid_y(append)
+draw_trapezoid = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
 
 bounds = (-3, 1, -3, 1)
 vt = (1., 3., 1., 3.)
