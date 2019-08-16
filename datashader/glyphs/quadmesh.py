@@ -159,22 +159,45 @@ class QuadMeshCurvialinear(_QuadMeshLike):
             for i in range(x_len - 1):
                 for j in range(y_len - 1):
 
-                    # Extract quad vertices
-                    x1 = xs[j, i]
-                    x2 = xs[j, i + 1]
-                    x3 = xs[j + 1, i + 1]
-                    x4 = xs[j + 1, i]
+                    # make array of quad x any vertices
+                    xverts = np.array([
+                        xs[j, i],
+                        xs[j, i + 1],
+                        xs[j + 1, i + 1],
+                        xs[j + 1, i],
+                        xs[j, i]]
+                    )
 
-                    y1 = ys[j, i]
-                    y2 = ys[j, i + 1]
-                    y3 = ys[j + 1, i + 1]
-                    y4 = ys[j + 1, i]
+                    yverts = np.array([
+                        ys[j, i],
+                        ys[j, i + 1],
+                        ys[j + 1, i + 1],
+                        ys[j + 1, i],
+                        ys[j, i],
+                    ])
 
-                    # Compute the rectilinear bounding box around the quad
-                    xmin = max(min(x1, x2, x3, x4), 0)
-                    xmax = min(max(x1, x2, x3, x4), plot_width - 1)
-                    ymin = max(min(y1, y2, y3, y4), 0)
-                    ymax = min(max(y1, y2, y3, y4), plot_height - 1)
+                    # Compute the rectilinear bounding box around the quad and
+                    # skip quad if there is no chance for it to intersect
+                    # viewport
+                    xmin = min(xverts)
+                    if xmin >= plot_width:
+                        continue
+                    xmin = max(xmin, 0)
+
+                    xmax = max(xverts)
+                    if xmax < 0:
+                        continue
+                    xmax = min(xmax, plot_width - 1)
+
+                    ymin = min(yverts)
+                    if ymin >= plot_height:
+                        continue
+                    ymin = max(ymin, 0)
+
+                    ymax = max(yverts)
+                    if ymax < 0:
+                        continue
+                    ymax = min(ymax, plot_height - 1)
 
                     # Make sure single pixel quads are represented
                     if xmin == xmax:
@@ -183,13 +206,70 @@ class QuadMeshCurvialinear(_QuadMeshLike):
                     if ymin == ymax:
                         ymax += 1
 
-                    in_quad = []
-                    for xi in range(xmin, xmax):
-                        for yi in range(ymin, ymax):
-                            if point_in_quad(
-                                    x1, x2, x3, x4, y1, y2, y3, y4, xi, yi):
+                    # make array holding whether each edge is increasing
+                    # vertically (+1), decreasing vertically (-1),
+                    # or horizontal (0).
+                    yincreasing = np.zeros(4, dtype=np.int8)
+                    yincreasing[yverts[1:] > yverts[:-1]] = 1
+                    yincreasing[yverts[1:] < yverts[:-1]] = -1
+
+                    # Init array that will hold mask of whether edges are
+                    # eligible for intersection tests
+                    eligible = np.ones(4, dtype=np.int8)
+
+                    # Init array that will hold a mask of whether edges
+                    # intersect the ray to the right of test point
+                    intersect = np.zeros(4, dtype=np.int8)
+
+                    for yi in range(ymin, ymax):
+                        eligible.fill(True)
+                        for xi in range(xmin, xmax):
+                            intersect.fill(False)
+                            # Test edges
+                            for edge_i in range(4):
+                                # Skip if we already know edge is ineligible
+                                if not eligible[edge_i]:
+                                    continue
+
+                                # Check if edge is fully to left of point. If
+                                # so, we don't need to consider it again for
+                                # this row.
+                                if ((xverts[edge_i] < xi) and
+                                        (xverts[edge_i + 1] < xi)):
+                                    eligible[edge_i] = False
+                                    continue
+
+                                # Check if edge is fully above or below point.
+                                # If so, we don't need to consider it again
+                                # for this  row.
+                                if ((yverts[edge_i] > yi) ==
+                                        (yverts[edge_i + 1] > yi)):
+
+                                    eligible[edge_i] = False
+                                    continue
+
+                                # Now check if edge is to the right of point.
+                                # A is vector from point to first vertex
+                                ax = xverts[edge_i] - xi
+                                ay = yverts[edge_i] - yi
+
+                                # B is vector from point to second vertex
+                                bx = xverts[edge_i + 1] - xi
+                                by = yverts[edge_i + 1] - yi
+
+                                # Compute cross product of B and A
+                                bxa = (bx*ay - by*ax)
+
+                                # If cross product has same sign as yincreasing
+                                # then edge intersects to the right
+                                intersect[edge_i] = (
+                                        bxa * yincreasing[edge_i] < 0
+                                )
+
+                            if intersect.sum() % 2 == 1:
+                                # If odd number of intersections, point
+                                # is inside quad
                                 append(j, i, xi, yi, *aggs_and_cols)
-                                in_quad.append((xi, y1))
 
         def extend(aggs, xr_ds, vt, bounds):
             # Convert from bin centers to interval edges
@@ -224,28 +304,28 @@ class QuadMeshCurvialinear(_QuadMeshLike):
 
 
 @ngjit
-def tri_area(x1, y1, x2, y2, x3, y3):
-    return abs((x1 * (y2 - y3) +
-                x2 * (y3 - y1) +
-                x3 * (y1 - y2)) / 2.0)
+def tri_area(x0, y0, x1, y1, x2, y2):
+    return abs((x0 * (y1 - y2) +
+                x1 * (y2 - y0) +
+                x2 * (y0 - y1)) / 2.0)
 
 
 @ngjit
-def point_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x, y):
-    quad_area = (tri_area(x1, y1, x2, y2, x3, y3) +
-                 tri_area(x1, y1, x4, y4, x3, y3))
+def point_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x, y):
+    quad_area = (tri_area(x0, y0, x1, y1, x2, y2) +
+                 tri_area(x0, y0, x3, y3, x2, y2))
 
-    area_1 = tri_area(x, y, x1, y1, x2, y2)
-    area_2 = tri_area(x, y, x2, y2, x3, y3)
-    area_3 = tri_area(x, y, x3, y3, x4, y4)
-    area_4 = tri_area(x, y, x1, y1, x4, y4)
+    area_1 = tri_area(x, y, x0, y0, x1, y1)
+    area_2 = tri_area(x, y, x1, y1, x2, y2)
+    area_3 = tri_area(x, y, x2, y2, x3, y3)
+    area_4 = tri_area(x, y, x0, y0, x3, y3)
 
     return quad_area == (area_1 + area_2 + area_3 + area_4)
 
 
 @ngjit
-def pixel_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x0, y0):
-    return (point_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x0, y0) |
-            point_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x0+1, y0) |
-            point_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x0, y0+1) |
-            point_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x0+1, y0+1))
+def pixel_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x, y):
+    return (point_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x, y) |
+            point_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x + 1, y) |
+            point_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x, y + 1) |
+            point_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x + 1, y + 1))
