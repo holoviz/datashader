@@ -156,25 +156,40 @@ class QuadMeshCurvialinear(_QuadMeshLike):
         def _extend(plot_height, plot_width, xs, ys, *aggs_and_cols):
             y_len, x_len, = xs.shape
 
+            # For performance, we initialize all arrays once before the loop
+
+            # xverts/yverts arrays
+            xverts = np.zeros(5, dtype=np.int32)
+            yverts = np.zeros(5, dtype=np.int32)
+
+            # Array holding whether each edge is increasing
+            # vertically (+1), decreasing vertically (-1),
+            # or horizontal (0).
+            yincreasing = np.zeros(4, dtype=np.int8)
+
+            # Array that will hold mask of whether edges are
+            # eligible for intersection tests
+            eligible = np.ones(4, dtype=np.int8)
+
+            # Array that will hold a mask of whether edges
+            # intersect the ray to the right of test point
+            intersect = np.zeros(4, dtype=np.int8)
+
             for i in range(x_len - 1):
                 for j in range(y_len - 1):
 
                     # make array of quad x any vertices
-                    xverts = np.array([
-                        xs[j, i],
-                        xs[j, i + 1],
-                        xs[j + 1, i + 1],
-                        xs[j + 1, i],
-                        xs[j, i]]
-                    )
+                    xverts[0] = xs[j, i]
+                    xverts[1] = xs[j, i + 1]
+                    xverts[2] = xs[j + 1, i + 1]
+                    xverts[3] = xs[j + 1, i]
+                    xverts[4] = xs[j, i]
 
-                    yverts = np.array([
-                        ys[j, i],
-                        ys[j, i + 1],
-                        ys[j + 1, i + 1],
-                        ys[j + 1, i],
-                        ys[j, i],
-                    ])
+                    yverts[0] = ys[j, i]
+                    yverts[1] = ys[j, i + 1]
+                    yverts[2] = ys[j + 1, i + 1]
+                    yverts[3] = ys[j + 1, i]
+                    yverts[4] = ys[j, i]
 
                     # Compute the rectilinear bounding box around the quad and
                     # skip quad if there is no chance for it to intersect
@@ -206,25 +221,17 @@ class QuadMeshCurvialinear(_QuadMeshLike):
                     if ymin == ymax:
                         ymax += 1
 
-                    # make array holding whether each edge is increasing
-                    # vertically (+1), decreasing vertically (-1),
+                    # make yincreasing an array holding whether each edge is
+                    # increasing vertically (+1), decreasing vertically (-1),
                     # or horizontal (0).
-                    yincreasing = np.zeros(4, dtype=np.int8)
+                    yincreasing.fill(0)
                     yincreasing[yverts[1:] > yverts[:-1]] = 1
                     yincreasing[yverts[1:] < yverts[:-1]] = -1
 
-                    # Init array that will hold mask of whether edges are
-                    # eligible for intersection tests
-                    eligible = np.ones(4, dtype=np.int8)
-
-                    # Init array that will hold a mask of whether edges
-                    # intersect the ray to the right of test point
-                    intersect = np.zeros(4, dtype=np.int8)
-
                     for yi in range(ymin, ymax):
-                        eligible.fill(True)
+                        eligible.fill(1)
                         for xi in range(xmin, xmax):
-                            intersect.fill(False)
+                            intersect.fill(0)
                             # Test edges
                             for edge_i in range(4):
                                 # Skip if we already know edge is ineligible
@@ -236,7 +243,7 @@ class QuadMeshCurvialinear(_QuadMeshLike):
                                 # this row.
                                 if ((xverts[edge_i] < xi) and
                                         (xverts[edge_i + 1] < xi)):
-                                    eligible[edge_i] = False
+                                    eligible[edge_i] = 0
                                     continue
 
                                 # Check if edge is fully above or below point.
@@ -245,7 +252,7 @@ class QuadMeshCurvialinear(_QuadMeshLike):
                                 if ((yverts[edge_i] > yi) ==
                                         (yverts[edge_i + 1] > yi)):
 
-                                    eligible[edge_i] = False
+                                    eligible[edge_i] = 0
                                     continue
 
                                 # Now check if edge is to the right of point.
@@ -292,10 +299,6 @@ class QuadMeshCurvialinear(_QuadMeshLike):
 
             xs = (xscaled * plot_width).astype(int)
             ys = (yscaled * plot_height).astype(int)
-
-            # Question: Should we try to compute a slice of xs and ys that
-            # eliminates rows and columns of quads that are all outside the
-            # viewport?
 
             aggs_and_cols = aggs + info(xr_ds)
             _extend(plot_height, plot_width, xs, ys, *aggs_and_cols)
