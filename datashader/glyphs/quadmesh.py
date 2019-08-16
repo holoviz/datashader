@@ -214,12 +214,19 @@ class QuadMeshCurvialinear(_QuadMeshLike):
                         continue
                     ymax = min(ymax, plot_height)
 
-                    # Make sure single pixel quads are represented
-                    if xmin == xmax and xmax < plot_width:
-                        xmax += 1
+                    # Handle subpixel quads
+                    if xmin == xmax or ymin == ymax:
+                        # If either dimension is a single pixel, then render it
+                        if xmin == xmax and xmax < plot_width:
+                            xmax += 1
+                        if ymin == ymax and ymax < plot_height:
+                            ymax += 1
 
-                    if ymin == ymax and ymax < plot_height:
-                        ymax += 1
+                        for yi in range(ymin, ymax):
+                            for xi in range(xmin, xmax):
+                                append(j, i, xi, yi, *aggs_and_cols)
+
+                        continue
 
                     # make yincreasing an array holding whether each edge is
                     # increasing vertically (+1), decreasing vertically (-1),
