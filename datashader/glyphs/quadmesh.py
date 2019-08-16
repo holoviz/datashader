@@ -202,7 +202,7 @@ class QuadMeshCurvialinear(_QuadMeshLike):
                     xmax = max(xverts)
                     if xmax < 0:
                         continue
-                    xmax = min(xmax, plot_width - 1)
+                    xmax = min(xmax, plot_width)
 
                     ymin = min(yverts)
                     if ymin >= plot_height:
@@ -212,13 +212,13 @@ class QuadMeshCurvialinear(_QuadMeshLike):
                     ymax = max(yverts)
                     if ymax < 0:
                         continue
-                    ymax = min(ymax, plot_height - 1)
+                    ymax = min(ymax, plot_height)
 
                     # Make sure single pixel quads are represented
-                    if xmin == xmax:
+                    if xmin == xmax and xmax < plot_width:
                         xmax += 1
 
-                    if ymin == ymax:
+                    if ymin == ymax and ymax < plot_height:
                         ymax += 1
 
                     # make yincreasing an array holding whether each edge is
