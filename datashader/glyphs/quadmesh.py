@@ -66,7 +66,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
         @ngjit
         @self.expand_aggs_and_cols(append)
-        def _extend(vt, bounds, xs, ys, *aggs_and_cols):
+        def _extend(xs, ys, *aggs_and_cols):
             for i in range(len(xs) - 1):
                 x0i, x1i = xs[i], xs[i + 1]
 
@@ -100,14 +100,14 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
         def extend(aggs, xr_ds, vt, bounds):
             # Convert from bin centers to interval edges
-            xs = infer_interval_breaks(xr_ds[x_name].values)
-            ys = infer_interval_breaks(xr_ds[y_name].values)
+            x_breaks = infer_interval_breaks(xr_ds[x_name].values)
+            y_breaks = infer_interval_breaks(xr_ds[y_name].values)
 
             x0, x1, y0, y1 = bounds
             xspan = x1 - x0
             yspan = y1 - y0
-            xscaled = (x_mapper(xs) - x0) / xspan
-            yscaled = (y_mapper(ys) - y0) / yspan
+            xscaled = (x_mapper(x_breaks) - x0) / xspan
+            yscaled = (y_mapper(y_breaks) - y0) / yspan
 
             xmask = np.where((xscaled >= 0) & (xscaled <= 1))
             ymask = np.where((yscaled >= 0) & (yscaled <= 1))
@@ -120,16 +120,132 @@ class QuadMeshRectilinear(_QuadMeshLike):
             xs = (xscaled[xm0:xm1 + 1] * plot_width).astype(int).clip(0, plot_width)
             ys = (yscaled[ym0:ym1 + 1] * plot_height).astype(int).clip(0, plot_height)
 
-            # For each of aggs and cols, down select to valid range
+            # For input "column", down select to valid range
             cols_full = info(xr_ds.transpose(y_name, x_name))
             cols = tuple([c[ym0:ym1, xm0:xm1] for c in cols_full])
 
             aggs_and_cols = aggs + cols
 
-            _extend(vt, bounds, xs, ys, *aggs_and_cols)
+            _extend(xs, ys, *aggs_and_cols)
 
         return extend
 
 
 class QuadMeshCurvialinear(_QuadMeshLike):
-    pass
+    def compute_x_bounds(self, xr_ds):
+        xs = xr_ds[self.x].values
+        xs = infer_interval_breaks(xs, axis=1)
+        xs = infer_interval_breaks(xs, axis=0)
+        bounds = Glyph._compute_bounds_2d(xs)
+        return self.maybe_expand_bounds(bounds)
+
+    def compute_y_bounds(self, xr_ds):
+        ys = xr_ds[self.y].values
+        ys = infer_interval_breaks(ys, axis=1)
+        ys = infer_interval_breaks(ys, axis=0)
+        bounds = Glyph._compute_bounds_2d(ys)
+        return self.maybe_expand_bounds(bounds)
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        x_name = self.x
+        y_name = self.y
+
+        @ngjit
+        @self.expand_aggs_and_cols(append)
+        def _extend(plot_height, plot_width, xs, ys, *aggs_and_cols):
+            y_len, x_len, = xs.shape
+
+            for i in range(x_len - 1):
+                for j in range(y_len - 1):
+
+                    # Extract quad vertices
+                    x1 = xs[j, i]
+                    x2 = xs[j, i + 1]
+                    x3 = xs[j + 1, i + 1]
+                    x4 = xs[j + 1, i]
+
+                    y1 = ys[j, i]
+                    y2 = ys[j, i + 1]
+                    y3 = ys[j + 1, i + 1]
+                    y4 = ys[j + 1, i]
+
+                    # Compute the rectilinear bounding box around the quad
+                    xmin = max(min(x1, x2, x3, x4), 0)
+                    xmax = min(max(x1, x2, x3, x4), plot_width - 1)
+                    ymin = max(min(y1, y2, y3, y4), 0)
+                    ymax = min(max(y1, y2, y3, y4), plot_height - 1)
+
+                    # Make sure single pixel quads are represented
+                    if xmin == xmax:
+                        xmax += 1
+
+                    if ymin == ymax:
+                        ymax += 1
+
+                    in_quad = []
+                    for xi in range(xmin, xmax):
+                        for yi in range(ymin, ymax):
+                            if point_in_quad(
+                                    x1, x2, x3, x4, y1, y2, y3, y4, xi, yi):
+                                append(j, i, xi, yi, *aggs_and_cols)
+                                in_quad.append((xi, y1))
+
+        def extend(aggs, xr_ds, vt, bounds):
+            # Convert from bin centers to interval edges
+            x_breaks = xr_ds[x_name].values
+            x_breaks = infer_interval_breaks(x_breaks, axis=1)
+            x_breaks = infer_interval_breaks(x_breaks, axis=0)
+
+            y_breaks = xr_ds[y_name].values
+            y_breaks = infer_interval_breaks(y_breaks, axis=1)
+            y_breaks = infer_interval_breaks(y_breaks, axis=0)
+
+            # Scale x and y vertices into integer canvas coordinates
+            x0, x1, y0, y1 = bounds
+            xspan = x1 - x0
+            yspan = y1 - y0
+            xscaled = (x_mapper(x_breaks) - x0) / xspan
+            yscaled = (y_mapper(y_breaks) - y0) / yspan
+
+            plot_height, plot_width = aggs[0].shape[:2]
+
+            xs = (xscaled * plot_width).astype(int)
+            ys = (yscaled * plot_height).astype(int)
+
+            # Question: Should we try to compute a slice of xs and ys that
+            # eliminates rows and columns of quads that are all outside the
+            # viewport?
+
+            aggs_and_cols = aggs + info(xr_ds)
+            _extend(plot_height, plot_width, xs, ys, *aggs_and_cols)
+
+        return extend
+
+
+@ngjit
+def tri_area(x1, y1, x2, y2, x3, y3):
+    return abs((x1 * (y2 - y3) +
+                x2 * (y3 - y1) +
+                x3 * (y1 - y2)) / 2.0)
+
+
+@ngjit
+def point_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x, y):
+    quad_area = (tri_area(x1, y1, x2, y2, x3, y3) +
+                 tri_area(x1, y1, x4, y4, x3, y3))
+
+    area_1 = tri_area(x, y, x1, y1, x2, y2)
+    area_2 = tri_area(x, y, x2, y2, x3, y3)
+    area_3 = tri_area(x, y, x3, y3, x4, y4)
+    area_4 = tri_area(x, y, x1, y1, x4, y4)
+
+    return quad_area == (area_1 + area_2 + area_3 + area_4)
+
+
+@ngjit
+def pixel_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x0, y0):
+    return (point_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x0, y0) |
+            point_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x0+1, y0) |
+            point_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x0, y0+1) |
+            point_in_quad(x1, x2, x3, x4, y1, y2, y3, y4, x0+1, y0+1))
