@@ -312,31 +312,3 @@ class QuadMeshCurvialinear(_QuadMeshLike):
             _extend(plot_height, plot_width, xs, ys, *aggs_and_cols)
 
         return extend
-
-
-@ngjit
-def tri_area(x0, y0, x1, y1, x2, y2):
-    return abs((x0 * (y1 - y2) +
-                x1 * (y2 - y0) +
-                x2 * (y0 - y1)) / 2.0)
-
-
-@ngjit
-def point_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x, y):
-    quad_area = (tri_area(x0, y0, x1, y1, x2, y2) +
-                 tri_area(x0, y0, x3, y3, x2, y2))
-
-    area_1 = tri_area(x, y, x0, y0, x1, y1)
-    area_2 = tri_area(x, y, x1, y1, x2, y2)
-    area_3 = tri_area(x, y, x2, y2, x3, y3)
-    area_4 = tri_area(x, y, x0, y0, x3, y3)
-
-    return quad_area == (area_1 + area_2 + area_3 + area_4)
-
-
-@ngjit
-def pixel_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x, y):
-    return (point_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x, y) |
-            point_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x + 1, y) |
-            point_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x, y + 1) |
-            point_in_quad(x0, x1, x2, x3, y0, y1, y2, y3, x + 1, y + 1))
