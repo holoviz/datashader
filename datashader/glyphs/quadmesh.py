@@ -300,7 +300,8 @@ class QuadMeshCurvialinear(_QuadMeshLike):
             xs = (xscaled * plot_width).astype(int)
             ys = (yscaled * plot_height).astype(int)
 
-            aggs_and_cols = aggs + info(xr_ds)
+            coord_dims = xr_ds.coords[x_name].dims
+            aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims))
             _extend(plot_height, plot_width, xs, ys, *aggs_and_cols)
 
         return extend
