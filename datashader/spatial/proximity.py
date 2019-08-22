@@ -312,43 +312,13 @@ def proximity(raster, target_values=[], distance_metric='EUCLIDEAN'):
     -------
     proximity: xarray.DataArray
         Proximity image with shape=(height, width)
-
-    Examples
-    --------
-    Define a input raster
-    >>> img = np.array([[3, 3, 0, 1, 2],
-                        [2, 0, 0, 0, 4],
-                        [2, 0, 0, 0, 1],
-                        [2, 0, 0, 0, 1],
-                        [2, 0, 0, 0, 1]], dtype=np.uint8)
-    >>> raster = xarray.DataArray(img)
-
-    Calculate proximity using default setting
-    >>> prox = proximity(raster)
-    >>> prox.values
-    array([[0.        , 0.        , 1.        , 0.        , 0.        ],
-           [0.        , 1.        , 1.41421356, 1.        , 0.        ],
-           [0.        , 1.        , 2.        , 1.        , 0.        ],
-           [0.        , 1.        , 2.        , 1.        , 0.        ],
-           [0.        , 1.        , 2.        , 1.        , 0.        ]])
-
-    Calculate proximity for specific target values
-    >>> prox = proximity(img, target_values=[3, 4])
-    >>> prox.values
-    array([[0.        , 0.        , 1.        , 1.41421356, 1.        ],
-           [1.        , 1.        , 1.41421356, 1.        , 0.        ],
-           [2.        , 2.        , 2.23606798, 1.41421356, 1.        ],
-           [3.        , 3.        , 2.82842712, 2.23606798, 2.        ],
-           [4.        , 4.        , 3.60555128, 3.16227766, 3.        ]])
     """
 
     raster_dims = raster.dims
-    if raster_dims != ('y', 'x') and raster_dims != ('lon', 'lat')\
-            and raster_dims != ('longitude', 'latitude'):
+    if raster_dims != ('y', 'x'):
         raise ValueError("In function proximity(). "
                          "raster.coords should be named as coordinates:"
-                         "either ('y', 'x') or ('lon', 'lat')"
-                         "or ('longitude', 'latitude').")
+                         "('y', 'x')")
 
     # convert distance metric from string to integer, the correct type
     # of argument for function _distance()
