@@ -1,6 +1,7 @@
 import pytest
 
 from datashader.spatial import proximity
+from datashader.spatial import great_circle_distance
 import datashader as ds
 
 import numpy as np
@@ -10,8 +11,6 @@ import xarray as xa
 width = 10
 height = 5
 
-from datashader.spatial import proximity
-from datashader.colors import viridis
 
 df = pd.DataFrame({
    'x': [-10, -10, -4, -4, 1, 3, 7, 7, 7],
@@ -93,12 +92,14 @@ def test_greate_circle_invalid_x_coords():
     x1 = -181
     x2 = 0
     with pytest.raises(Exception) as e_info:
-        d = great_circle_distance(x1, x2, y1, y2)
+        great_circle_distance(x1, x2, y1, y2)
+        assert e_info
 
     x1 = 181
     x2 = 0
     with pytest.raises(Exception) as e_info:
-        d = great_circle_distance(x1, x2, y1, y2)
+        great_circle_distance(x1, x2, y1, y2)
+        assert e_info
 
 
 @pytest.mark.proximity
@@ -110,9 +111,11 @@ def test_proximity_invalid_y_coords():
     y1 = -91
     y2 = 0
     with pytest.raises(Exception) as e_info:
-        d = great_circle_distance(x1, x2, y1, y2)
+        great_circle_distance(x1, x2, y1, y2)
+        assert e_info
 
     y1 = 91
     y2 = 0
     with pytest.raises(Exception) as e_info:
-        d = great_circle_distance(x1, x2, y1, y2)
+        great_circle_distance(x1, x2, y1, y2)
+        assert e_info

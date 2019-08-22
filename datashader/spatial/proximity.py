@@ -2,7 +2,6 @@ import xarray
 import numpy as np
 from numba import njit, prange
 from math import sqrt
-import warnings
 
 EUCLIDEAN = 0
 GREAT_CIRCLE = 1
