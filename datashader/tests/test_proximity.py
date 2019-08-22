@@ -1,21 +1,29 @@
 import pytest
 
 from datashader.spatial import proximity
+import datashader as ds
 
 import numpy as np
+import pandas as pd
 import xarray as xa
 
 width = 10
 height = 5
 
-agg_values = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                       [0, 0, 0, 0, 0, 0, 2, 0, 0, 0],
-                       [0, 0, 0, 0, 3, 5, 4, 0, 0, 3],
-                       [0, 0, 0, 0, 0, 0, 1, 0, 0, 2]],
-                       dtype=np.uint8)
+from datashader.spatial import proximity
+from datashader.colors import viridis
 
-raster = xa.DataArray(agg_values)
+df = pd.DataFrame({
+   'x': [-10, -10, -4, -4, 1, 3, 7, 7, 7],
+   'y': [-5, -10, -5, -5, 0, 5, 10, 10, 10]
+})
+
+cvs = ds.Canvas(plot_width=width,
+                plot_height=height,
+                x_range=(-20, 20),
+                y_range=(-20, 20))
+
+raster = cvs.points(df, x='x', y='y')
 raster_image = raster.values
 nonzeros_raster = np.count_nonzero(raster_image)
 zeros_raster = width * height - nonzeros_raster

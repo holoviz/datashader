@@ -1,8 +1,6 @@
 import xarray
 import numpy as np
-import numba as nb
-from numba import jit, njit, prange
-import math
+from numba import njit, prange
 from math import sqrt
 import warnings
 
@@ -98,7 +96,7 @@ def great_circle_distance(x1, x2, y1, y2):
 
 @njit(nogil=True)
 def _distance(x1, x2, y1, y2, metric):
- 
+
     if metric == EUCLIDEAN:
         return euclidean_distance(x1, x2, y1, y2)
 
@@ -115,7 +113,7 @@ def _process_proximity_line(source_line, x_coords, y_coords,
                             values, distance_metric):
 
     # Process proximity for a line of pixels in an image
-    # 
+    #
     # source_line: 1d ndarray, input data
     # pan_near_x:  1d ndarray
     # pan_near_y:  1d ndarray
@@ -358,13 +356,7 @@ def proximity(raster, target_values=[], distance_metric='EUCLIDEAN'):
     distance_metric = DISTANCE_METRICS.get(distance_metric, None)
 
     if distance_metric is None:
-        warnings.warn("Invalid distance metric. "
-                      "Using euclidean distance for calculating proximity.")
         distance_metric = DISTANCE_METRICS['EUCLIDEAN']
-
-    if not len(target_values):
-        warnings.warn("No target value specified. "
-                      "Calculate proximity from non-zero pixels.")
 
     target_values = np.asarray(target_values).astype(np.uint8)
 
