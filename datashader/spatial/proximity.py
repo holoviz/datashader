@@ -5,6 +5,7 @@ from math import sqrt
 
 EUCLIDEAN = 0
 GREAT_CIRCLE = 1
+MANHATTAN = 2
 NAN = np.nan
 
 
@@ -13,6 +14,7 @@ def _distance_metric_mapping():
     DISTANCE_METRICS = {}
     DISTANCE_METRICS['EUCLIDEAN'] = EUCLIDEAN
     DISTANCE_METRICS['GREAT_CIRCLE'] = GREAT_CIRCLE
+    DISTANCE_METRICS['MANHATTAN'] = MANHATTAN
 
     return DISTANCE_METRICS
 
@@ -44,6 +46,31 @@ def euclidean_distance(x1, x2, y1, y2):
     x = x1 - x2
     y = y1 - y2
     return np.sqrt(x * x + y * y)
+
+
+@njit(nogil=True)
+def manhattan_distance(x1, x2, y1, y2):
+    """Calculate manhattan distance between (x1, y1) and (x2, y2).
+
+    Parameters
+    ----------
+    x1 : float
+         x-coordinate of the first point.
+    x2: float
+        x-coordinate of the second point.
+    y1: float
+        y-coordinate of the first point.
+    y2: float
+        y-coordinate of the second point.
+
+    Returns
+    -------
+    distance: float
+    """
+
+    x = x1 - x2
+    y = y1 - y2
+    return x * x + y * y
 
 
 @njit(nogil=True)
@@ -101,6 +128,9 @@ def _distance(x1, x2, y1, y2, metric):
 
     if metric == GREAT_CIRCLE:
         return great_circle_distance(x1, x2, y1, y2)
+
+    if metric == MANHATTAN:
+        return manhattan_distance(x1, x2, y1, y2)
 
     return -1.0
 
@@ -306,6 +336,7 @@ def proximity(raster, target_values=[], distance_metric='EUCLIDEAN'):
         Currently pixel values are internally processed as integers.
     distance_metric: string
         The metric for calculating distance between 2 points.
+        Valid distance_metrics include: 'EUCLIDEAN', 'GREAT_CIRCLE', and 'MANHATTAN'
         Default is 'EUCLIDEAN'.
 
     Returns
