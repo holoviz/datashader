@@ -43,7 +43,7 @@ def euclidean_distance(x1, x2, y1, y2):
 
     x = x1 - x2
     y = y1 - y2
-    return x * x + y * y
+    return np.sqrt(x * x + y * y)
 
 
 @njit(nogil=True)
