@@ -7,6 +7,8 @@ import os
 import dask
 import dask.bag as db
 
+import numpy as np
+
 from PIL.Image import fromarray
 
 
@@ -32,7 +34,7 @@ def _get_super_tile_min_max(tile_info, load_data_func, rasterize_func):
     agg = rasterize_func(df, x_range=tile_info['x_range'],
                          y_range=tile_info['y_range'],
                          height=tile_size, width=tile_size)
-    return [agg.data.min(), agg.data.max()]
+    return [np.nanmin(agg.data), np.nanmax(agg.data)]
 
 
 def calculate_zoom_level_stats(full_extent, level, load_data_func,
