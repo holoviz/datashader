@@ -26,6 +26,8 @@ SOFTWARE.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
+import datetime as dt
 from itertools import groupby
 from math import floor, ceil
 
@@ -952,3 +954,25 @@ DOWNSAMPLING_METHODS = {DS_MEAN: _downsample_2d_mean,
                         DS_MODE: _downsample_2d_mode,
                         DS_STD: _downsample_2d_std_var,
                         DS_VAR: _downsample_2d_std_var}
+
+
+def infer_interval_breaks(coord, axis=0):
+    """
+    >>> infer_interval_breaks(np.arange(5))
+    array([-0.5,  0.5,  1.5,  2.5,  3.5,  4.5])
+    >>> infer_interval_breaks([[0, 1], [3, 4]], axis=1)
+    array([[-0.5,  0.5,  1.5],
+           [ 2.5,  3.5,  4.5]])
+    """
+    coord = np.asarray(coord)
+    if sys.version_info.major == 2 and len(coord) and isinstance(coord[0], (dt.datetime, dt.date)):
+        # np.diff does not work on datetimes in python 2
+        coord = coord.astype('datetime64')
+    if len(coord) == 0:
+        return np.array([], dtype=coord.dtype)
+    deltas = 0.5 * np.diff(coord, axis=axis)
+    first = np.take(coord, [0], axis=axis) - np.take(deltas, [0], axis=axis)
+    last = np.take(coord, [-1], axis=axis) + np.take(deltas, [-1], axis=axis)
+    trim_last = tuple(slice(None, -1) if n == axis else slice(None)
+                      for n in range(coord.ndim))
+    return np.concatenate([first, coord[trim_last] + deltas, last], axis=axis)

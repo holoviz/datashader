@@ -12,6 +12,7 @@ from .pipeline import Pipeline                           # noqa (API import)
 from . import transfer_functions as tf                   # noqa (API import)
 
 from . import pandas                         # noqa (build backend dispatch)
+from . import xarray                         # noqa (build backend dispatch)
 try:
     from . import dask                       # noqa (build backend dispatch)
 except ImportError:

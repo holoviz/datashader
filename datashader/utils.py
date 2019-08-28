@@ -394,6 +394,14 @@ def dshape_from_dask(df):
     return datashape.var * dshape_from_pandas(df.head()).measure
 
 
+def dshape_from_xarray_dataset(xr_ds):
+    """Return a datashape.DataShape object given a xarray Dataset."""
+    return datashape.var * datashape.Record([
+        (k, dshape_from_pandas_helper(xr_ds[k]))
+        for k in list(xr_ds.data_vars) + list(xr_ds.coords)
+    ])
+
+
 def dataframe_from_multiple_sequences(x_values, y_values):
    """
    Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional
