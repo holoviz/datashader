@@ -50,7 +50,7 @@ def euclidean_distance(x1, x2, y1, y2):
 
 @njit(nogil=True)
 def manhattan_distance(x1, x2, y1, y2):
-    """Calculate manhattan distance between (x1, y1) and (x2, y2).
+    """Calculate Manhattan distance between (x1, y1) and (x2, y2).
 
     Parameters
     ----------
