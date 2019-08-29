@@ -75,7 +75,7 @@ def manhattan_distance(x1, x2, y1, y2):
 
 @njit(nogil=True)
 def great_circle_distance(x1, x2, y1, y2):
-    """Calculate Great-circle distance between (x1, y1) and (x2, y2).
+    """Calculate great-circle distance between (x1, y1) and (x2, y2), assuming each point is a longitude, latitude pair.
 
     Parameters
     ----------
