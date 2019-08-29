@@ -25,7 +25,7 @@ DISTANCE_METRICS = _distance_metric_mapping()
 
 @njit(nogil=True)
 def euclidean_distance(x1, x2, y1, y2):
-    """Calculate euclidean distance between (x1, y1) and (x2, y2).
+    """Calculate Euclidean distance between (x1, y1) and (x2, y2).
 
     Parameters
     ----------
