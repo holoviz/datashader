@@ -69,6 +69,18 @@ def test_proximity_target_value():
 
     assert num_target == tv_zeros
 
+@pytest.mark.proximity
+def test_proximity_manhattan():
+
+    # distance_metric SETTING
+    dm_proximity = proximity(raster, distance_metric='MANHATTAN')
+
+    # output must be an xarray DataArray
+    assert isinstance(dm_proximity, xa.DataArray)
+    assert isinstance(dm_proximity.values, np.ndarray)
+    assert type(dm_proximity.values[0][0]) == np.float64
+    assert dm_proximity.values.shape[0] == height
+    assert dm_proximity.values.shape[1] == width
 
 @pytest.mark.proximity
 def test_proximity_distance_metric():
