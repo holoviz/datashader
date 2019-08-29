@@ -25,7 +25,7 @@ DISTANCE_METRICS = _distance_metric_mapping()
 
 @njit(nogil=True)
 def euclidean_distance(x1, x2, y1, y2):
-    """Calculate euclidean distance between (x1, y1) and (x2, y2).
+    """Calculate Euclidean distance between (x1, y1) and (x2, y2).
 
     Parameters
     ----------
@@ -50,7 +50,7 @@ def euclidean_distance(x1, x2, y1, y2):
 
 @njit(nogil=True)
 def manhattan_distance(x1, x2, y1, y2):
-    """Calculate manhattan distance between (x1, y1) and (x2, y2).
+    """Calculate Manhattan distance between (x1, y1) and (x2, y2).
 
     Parameters
     ----------
@@ -75,7 +75,7 @@ def manhattan_distance(x1, x2, y1, y2):
 
 @njit(nogil=True)
 def great_circle_distance(x1, x2, y1, y2):
-    """Calculate great circle distance between (x1, y1) and (x2, y2).
+    """Calculate Great-circle distance between (x1, y1) and (x2, y2).
 
     Parameters
     ----------
