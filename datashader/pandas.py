@@ -4,8 +4,10 @@ import pandas as pd
 
 from .core import bypixel
 from .compiler import compile_components
-from .glyphs import _PointLike, _AreaToLineLike
+from .glyphs.points import _PointLike
+from .glyphs.area import _AreaToLineLike
 from .utils import Dispatcher
+from collections import OrderedDict
 
 __all__ = ()
 
@@ -20,7 +22,7 @@ glyph_dispatch = Dispatcher()
 
 @glyph_dispatch.register(_PointLike)
 @glyph_dispatch.register(_AreaToLineLike)
-def pointlike(glyph, df, schema, canvas, summary):
+def default(glyph, df, schema, canvas, summary):
     create, info, append, _, finalize = compile_components(summary, schema, glyph)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
@@ -42,5 +44,6 @@ def pointlike(glyph, df, schema, canvas, summary):
     extend(bases, df, x_st + y_st, x_range + y_range)
 
     return finalize(bases,
-                    coords=[y_axis, x_axis],
+                    coords=OrderedDict([(glyph.x_label, x_axis),
+                                        (glyph.y_label, y_axis)]),
                     dims=[glyph.y_label, glyph.x_label])

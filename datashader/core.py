@@ -11,7 +11,8 @@ from xarray import DataArray, Dataset
 from collections import OrderedDict
 
 from datashader.spatial.points import SpatialPointsFrame
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, compute_coords
+from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
+    compute_coords, dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
@@ -564,6 +565,75 @@ The axis argument to Canvas.line must be 0 or 1
 
         return bypixel(source, self, glyph, agg)
 
+    def quadmesh(self, source, x=None, y=None, agg=None):
+        """Samples a recti- or curvi-linear quadmesh by canvas size and bounds.
+        Parameters
+        ----------
+        source : xarray.DataArray or Dataset
+            The input datasource.
+        x, y : str
+            Column names for the x and y coordinates of each point.
+        agg : Reduction, optional
+            Reduction to compute. Default is ``mean()``.
+        Returns
+        -------
+        data : xarray.DataArray
+        """
+        from .glyphs import QuadMeshRectilinear, QuadMeshCurvialinear
+
+        # Determine reduction operation
+        from .reductions import mean as mean_rnd
+
+        if isinstance(source, Dataset):
+            if agg is None or agg.column is None:
+                name = list(source.data_vars)[0]
+            else:
+                name = agg.column
+            # Keep as dataset so that source[agg.column] works
+            source = source[[name]]
+        elif isinstance(source, DataArray):
+            # Make dataset so that source[agg.column] works
+            name = source.name
+            source = source.to_dataset()
+        else:
+            raise ValueError("Invalid input type")
+
+        if agg is None:
+            agg = mean_rnd(name)
+
+        if x is None and y is None:
+            y, x = source[name].dims
+        elif not x or not y:
+            raise ValueError("Either specify both x and y coordinates"
+                             "or allow them to be inferred.")
+        yarr, xarr = source[y], source[x]
+
+        if (yarr.ndim > 1 or xarr.ndim > 1) and xarr.dims != yarr.dims:
+            raise ValueError("Ensure that x- and y-coordinate arrays "
+                             "share the same dimensions. x-coordinates "
+                             "are indexed by %s dims while "
+                             "y-coordinates are indexed by %s dims." %
+                             (xarr.dims, yarr.dims))
+
+        if (name is not None
+                and agg.column is not None
+                and agg.column != name):
+            raise ValueError('DataArray name %r does not match '
+                             'supplied reduction %s.' %
+                             (source.name, agg))
+
+        if xarr.ndim == 1:
+            glyph = QuadMeshRectilinear(x, y, name)
+        elif xarr.ndim == 2:
+            glyph = QuadMeshCurvialinear(x, y, name)
+        else:
+            raise ValueError("""\
+x- and y-coordinate arrays must have 1 or 2 dimensions.
+    Received arrays with dimensions: {dims}""".format(
+                dims=list(xarr.dims)))
+
+        return bypixel(source, self, glyph, agg)
+
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then
     # show the output as a numpy array that has a compact
@@ -910,11 +980,13 @@ def bypixel(source, canvas, glyph, agg):
     glyph : Glyph
     agg : Reduction
     """
-    if isinstance(source, DataArray):
+
+    # Convert 1D xarray DataArrays and DataSets into Dask DataFrames
+    if isinstance(source, DataArray) and source.ndim == 1:
         if not source.name:
             source.name = 'value'
         source = source.reset_coords()
-    if isinstance(source, Dataset):
+    if isinstance(source, Dataset) and len(source.dims) == 1:
         columns = list(source.coords.keys()) + list(source.data_vars.keys())
         cols_to_keep = _cols_to_keep(columns, glyph, agg)
         source = source.drop([col for col in columns if col not in cols_to_keep])
@@ -931,6 +1003,9 @@ def bypixel(source, canvas, glyph, agg):
         dshape = dshape_from_pandas(source)
     elif isinstance(source, dd.DataFrame):
         dshape = dshape_from_dask(source)
+    elif isinstance(source, Dataset):
+        # Multi-dimensional Dataset
+        dshape = dshape_from_xarray_dataset(source)
     else:
         raise ValueError("source must be a pandas or dask DataFrame")
     schema = dshape.measure

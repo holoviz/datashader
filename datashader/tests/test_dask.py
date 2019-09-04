@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, absolute_import
 from dask.context import config
 import dask.dataframe as dd
 import numpy as np

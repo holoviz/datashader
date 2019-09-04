@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from datashader.colors import rgb, hex_to_rgb
 
 import pytest
