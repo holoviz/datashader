@@ -40,8 +40,6 @@ PROJ_NONE = -1
 PI = math.pi
 
 NAN = -9999999999999999
-# define Radians(x) ((x) * PI/180.0)
-# define Degrees(x) ((x) * 180.0/PI)
 
 
 class TreeValue:
@@ -785,6 +783,7 @@ class ViewOptions:
     def __init__(self, obs_elev=OBS_ELEV, tgt_elev=TARGET_ELEV, max_dist=INF,
                  do_curv=DO_CURVE, ellps_a=ELLPS_A,
                  do_refr=DO_REFR, refr_coef=REFR_COEF):
+
 
         # observer elevation above the terrain
         self.obs_elev = obs_elev
@@ -1810,10 +1809,7 @@ def _viewshed(raster, vp, v_op, g_hd):
     return visibility_grid
 
 
-def viewshed(raster, x_view, y_view, x_range=None, y_range=None,
-             observer_elev=OBS_ELEV, target_elev=TARGET_ELEV,
-             do_curve=DO_CURVE, do_refr=DO_REFR,
-             max_distance=INF, proj=PROJ_NONE):
+def viewshed(raster, x, y, observer_elev=OBS_ELEV, target_elev=TARGET_ELEV):
     """Calculate viewshed of a raster (the visible cells in the raster)
     for the given viewpoint (observer) location.
 
@@ -1821,66 +1817,44 @@ def viewshed(raster, x_view, y_view, x_range=None, y_range=None,
     ----------
     raster: xarray.DataArray
         Input raster image.
-    x_view: int
-        x-coordinate of the vp, corresponds to the x-th column of the raster.
-    y_view: int
-        y-coordinate of the vp, corresponds to the y-th row of the raster.
+    x: int, float
+        x-coordinate in data space of observer location
+    y: int, float
+        y-coordinate in data space of observer location
     observer_elev: float
         Observer elevation above the terrain.
     target_elev: float
         Target elevation offset above the terrain.
-    do_curve: boolean
-        Determines if the curvature of the earth should be considered.
-    do_refr: boolean
-        Determines if atmospheric refraction should be considered.
-    max_distance: float
-        Points that are farther than this distance from the vp are not visible.
-    proj: int
-        This value is either PROJ_LL (lat-lon projection)
-        or PROJ_NONE (no projection)
+
 
     Returns
     -------
-    visibility: xarray.DataArray
+    viewshed: xarray.DataArray
              A cell x in the visibility grid is recorded as follows:
                 If it is invisible, then x is set to INVISIBLE.
                 If it is visible,  then x is set to the vertical angle w.r.t
                 the viewpoint.
     """
+    height, width = raster.shape
 
-    # get information from raster
-    height, width = raster.values.shape[:2]
+    selection = raster.sel(x=[x], y=[y], method='nearest')
+    x = selection.x.values[0]
+    y = selection.y.values[0]
 
-    # if x_range or y_range is not provided.
-    # Calculate these values from `affine` attribute of the input.
-    # If `affine` not found, this will raise a KeyError
-    if x_range is None or y_range is None:
-        # (top_left_x, x_res, x_rotation, top_left_y, y_rotation, y_res)
-        affine = raster.attrs['affine']
+    y_index = raster.indexes.get('y').values
+    y_view = np.where(y_index == y)[0][0]
+    y_range = (y_index[0], y_index[-1])
 
-        x_min = affine[0]
-        x_max = width / affine[1] + x_min
-        affine_x_range = np.array([x_min, x_max]) * 1.0
-        if x_range is None:
-            x_range = affine_x_range
-        else:
-            x_range = np.array(x_range)
-            if x_range != affine_x_range:
-                raise ValueError('The provided x_range does not match'
-                                 'the x_range of input raster')
+    x_index = raster.indexes.get('x').values
+    x_view = np.where(x_index == x)[0][0]
+    x_range = (x_index[0], x_index[-1])
 
-        y_max = affine[3]
-        y_min = height / affine[5] + y_max
-        affine_y_range = np.array([y_min, y_max]) * 1.0
-        if y_range is None:
-            y_range = affine_y_range
-        else:
-            y_range = np.array(y_range)
-            if y_range != affine_y_range:
-                raise ValueError('The provided y_range does not match'
-                                 'the y_range of input raster')
-
-    # validate input
+    # TODO: Remove these in the future ---
+    do_curve = DO_CURVE
+    do_refr = DO_REFR
+    max_distance = INF
+    proj = PROJ_NONE
+    # ------------------------------------
 
     # x-coordinate of the vp
     if x_view >= width:
@@ -1916,5 +1890,6 @@ def viewshed(raster, x_view, y_view, x_range=None, y_range=None,
 
     visibility = xarray.DataArray(viewshed_img,
                                   coords=raster.coords,
+                                  attrs=raster.attrs,
                                   dims=raster.dims)
     return visibility
