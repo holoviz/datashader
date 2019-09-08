@@ -179,9 +179,13 @@ class Tree:
 
     # for debug purpose, traverse through the tree
     def __iter__(self):
+
         if not self.root:
-            return list()
-        yield from self.root.__iter__()
+            yield list()
+
+        else:
+            for r in self.root.__iter__():
+                yield r
 
     def _left_rotate(self, x):
          # A utility function to left rotate subtree rooted with a node.
