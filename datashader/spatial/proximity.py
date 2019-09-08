@@ -74,7 +74,7 @@ def manhattan_distance(x1, x2, y1, y2):
 
 
 @njit(nogil=True)
-def great_circle_distance(x1, x2, y1, y2):
+def great_circle_distance(x1, x2, y1, y2, radius=6378137):
     """Calculate great-circle distance between (x1, y1) and (x2, y2), assuming each point is a longitude, latitude pair.
 
     Parameters
@@ -117,7 +117,7 @@ def great_circle_distance(x1, x2, y1, y2):
         np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0) ** 2
 
     # earth radius: 6378137
-    return 6378137 * 2 * np.arcsin(np.sqrt(a))
+    return radius * 2 * np.arcsin(np.sqrt(a))
 
 
 @njit(nogil=True)
