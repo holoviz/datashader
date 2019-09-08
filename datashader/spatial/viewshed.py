@@ -2,9 +2,8 @@ import xarray
 import numpy as np
 import math
 from math import atan, sqrt
-from timeit import default_timer as timer
 import numba as nb
-from numba import jit, prange
+from numba import jit
 
 
 # view options default values
