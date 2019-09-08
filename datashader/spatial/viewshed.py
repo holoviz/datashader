@@ -864,6 +864,7 @@ def _radian(x):
     return x * PI / 180.0
 
 
+# TODO Move this to utils or proximity.py
 @jit(nb.f8(nb.f8, nb.f8, nb.f8, nb.f8), nopython=True)
 def _g_geodesic_distance(lon1, lat1, lon2, lat2):
     # Calculates geodesic distance from (lon1, lat1) to (lon2, lat2) in meters.
@@ -1837,17 +1838,30 @@ def viewshed(raster, x, y, observer_elev=OBS_ELEV, target_elev=TARGET_ELEV):
     """
     height, width = raster.shape
 
+    y_coords = raster.indexes.get('y').values
+    x_coords = raster.indexes.get('x').values
+
+    # validate x arg
+    if x < x_coords[0]:
+        raise ValueError("x argument outside of raster x_range")
+    elif x > x_coords[-1]:
+        raise ValueError("x argument outside of raster x_range")
+
+    # validate y arg
+    if y < y_coords[0]:
+        raise ValueError("y argument outside of raster y_range")
+    elif y > y_coords[-1]:
+        raise ValueError("y argument outside of raster y_range")
+
     selection = raster.sel(x=[x], y=[y], method='nearest')
     x = selection.x.values[0]
     y = selection.y.values[0]
 
-    y_index = raster.indexes.get('y').values
-    y_view = np.where(y_index == y)[0][0]
-    y_range = (y_index[0], y_index[-1])
+    y_view = np.where(y_coords == y)[0][0]
+    y_range = (y_coords[0], y_coords[-1])
 
-    x_index = raster.indexes.get('x').values
-    x_view = np.where(x_index == x)[0][0]
-    x_range = (x_index[0], x_index[-1])
+    x_view = np.where(x_coords == x)[0][0]
+    x_range = (x_coords[0], x_coords[-1])
 
     # TODO: Remove these in the future ---
     do_curve = DO_CURVE
@@ -1855,26 +1869,6 @@ def viewshed(raster, x, y, observer_elev=OBS_ELEV, target_elev=TARGET_ELEV):
     max_distance = INF
     proj = PROJ_NONE
     # ------------------------------------
-
-    # x-coordinate of the vp
-    if x_view >= width:
-        raise ValueError("In function viewshed(). "
-                         "The x-coordinate of the vp cannot exceed the width "
-                         "of the visibility grid."
-                         "It must be in range [0, width-1].")
-    if x_view < 0:
-        raise ValueError("In function viewshed(). "
-                         "The x-coordinate of vp must be a positive integer.")
-
-    # y-coordinate of the vp
-    if y_view >= height:
-        raise ValueError("In function viewshed(). "
-                         "The y-coordinate of the vp cannot exceed "
-                         "the height of the visibility grid."
-                         "It must be in range [0, height-1].")
-    if y_view < 0:
-        raise ValueError("In function viewshed(). "
-                         "The y-coordinate of vp must be a positive integer.")
 
     viewpoint = ViewPoint(row=y_view, col=x_view)
 
