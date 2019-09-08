@@ -117,13 +117,16 @@ class TreeNode:
 
     # for debug purpose, traverse through the tree
     def __iter__(self):
+
         if self.left != NIL:
-            yield from self.left.__iter__()
+            for l in self.left.__iter__():
+                yield l
 
         yield self.val.key
 
         if self.right != NIL:
-            yield from self.right.__iter__()
+            for r in self.right.__iter__():
+                yield r
 
 
 NIL_VALUE = TreeValue(key=0,
