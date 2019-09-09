@@ -3,8 +3,9 @@ This module contains geoscience-related transfer functions whose use is complete
 
 """
 
-from __future__ import division
+from __future__ import division, absolute_import
 
+import pandas as pd
 import numpy as np
 import datashader.transfer_functions as tf
 
@@ -292,16 +293,20 @@ def mean(agg, passes=1, excludes=[np.nan]):
     return DataArray(out, dims=['y', 'x'], attrs=agg.attrs)
 
 
-def generate_terrain(canvas, seed=10, zfactor=4000, full_extent='3857'):
+def generate_terrain(canvas, seed=10, zfactor=4000, full_extent=None):
     """
     Generates a pseudo-random terrain which can be helpful for testing raster functions
 
     Parameters
     ----------
     canvas : ds.Canvas instance for passing output dimensions / ranges
+
     seed : seed for random number generator
+
     zfactor : used as multipler for z values
-    canvas_wkid : wellknownid of input canvas
+
+    full_extent : optional string, bbox<xmin, ymin, xmax, ymax>
+      full extent of coordinate system.
 
     Returns
     -------
@@ -337,19 +342,21 @@ def generate_terrain(canvas, seed=10, zfactor=4000, full_extent='3857'):
 
     if isinstance(full_extent, str):
         full_extent = crs_extents[full_extent]
+
     elif full_extent is None:
-        full_extent = mercator_extent
+        full_extent = (canvas.x_range[0], canvas.y_range[0], canvas.x_range[1], canvas.y_range[1])
+
     elif not isinstance(full_extent, (list, tuple)) and len(full_extent) != 4:
         raise TypeError('full_extent must be tuple(4) or str wkid')
 
     full_xrange = (full_extent[0], full_extent[2])
     full_yrange = (full_extent[1], full_extent[3])
 
-    x_range_scaled = (_scale(canvas.x_range[0], full_xrange, (0, 1)),
-                      _scale(canvas.x_range[1], full_xrange, (0, 1)))
+    x_range_scaled = (_scale(canvas.x_range[0], full_xrange, (0.0, 1.0)),
+                      _scale(canvas.x_range[1], full_xrange, (0.0, 1.0)))
 
-    y_range_scaled = (_scale(canvas.y_range[0], full_yrange, (0, 1)),
-                      _scale(canvas.y_range[1], full_yrange, (0, 1)))
+    y_range_scaled = (_scale(canvas.y_range[0], full_yrange, (0.0, 1.0)),
+                      _scale(canvas.y_range[1], full_yrange, (0.0, 1.0)))
 
     data = _gen_terrain(canvas.plot_width, canvas.plot_height, seed,
                         x_range=x_range_scaled, y_range=y_range_scaled)
@@ -358,11 +365,10 @@ def generate_terrain(canvas, seed=10, zfactor=4000, full_extent='3857'):
     data[data < 0.3] = 0  # create water
     data *= zfactor
 
-    xs = np.linspace(canvas.x_range[0], canvas.x_range[1], canvas.plot_width, endpoint=False)
-    ys = np.linspace(canvas.y_range[0], canvas.y_range[1], canvas.plot_height, endpoint=False)
-
+    # DataArray coords were coming back different from cvs.points...
+    hack_agg = canvas.points(pd.DataFrame({'x': [],'y': []}), 'x', 'y')
     agg = DataArray(data,
-                    coords=dict(x=xs, y=ys),
+                    coords=hack_agg.coords,
                     dims=['y', 'x'],
                     attrs={'res':1})
 

@@ -3,6 +3,7 @@ from __future__ import absolute_import, division
 import dask
 import pandas as pd
 import dask.dataframe as dd
+from collections import OrderedDict
 from dask.base import tokenize, compute
 
 from .core import bypixel
@@ -51,7 +52,7 @@ def shape_bounds_st_and_axis(df, canvas, glyph):
 
     x_axis = canvas.x_axis.compute_index(x_st, width)
     y_axis = canvas.y_axis.compute_index(y_st, height)
-    axis = [y_axis, x_axis]
+    axis = OrderedDict([(glyph.x_label, x_axis), (glyph.y_label, y_axis)])
 
     return shape, bounds, st, axis
 

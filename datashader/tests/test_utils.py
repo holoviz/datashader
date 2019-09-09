@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from datashape import dshape
 
 from datashader.utils import Dispatcher, isreal
