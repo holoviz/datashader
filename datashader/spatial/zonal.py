@@ -61,7 +61,9 @@ def zonal_stats(zones, values, stats=['mean', 'max', 'min', 'std', 'var']):
     masked_values = np.ma.masked_invalid(values_val)
 
     if isinstance(stats, dict):
-        zonal_stats_df = pd.DataFrame(columns=[*stats])
+
+        cols = stats.keys()
+        zonal_stats_df = pd.DataFrame(columns=list(cols))
 
         for zone_id in unique_zones:
             # do not consider 0 pixels as a zone
