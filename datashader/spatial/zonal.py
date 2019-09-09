@@ -37,7 +37,11 @@ def zonal_stats(zones, values, stats=['mean', 'max', 'min', 'std', 'var']):
 
     """
 
-    zones_val = zones.values
+    if zones.dtype in (np.float32, np.float64):
+        zones_val = np.nan_to_num(zones.values).astype(np.int)
+    else:
+        zones_val = zones.values
+
     values_val = values.values
 
     assert zones_val.shape == values_val.shape,\
