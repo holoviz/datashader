@@ -1,7 +1,7 @@
 import xarray
 import numpy as np
 import math
-from math import atan, sqrt
+from math import atan, sqrt, fabs
 import numba as nb
 from numba import jit
 
@@ -153,7 +153,7 @@ def _tree_successor(x):
     y = x.parent
     while y != NIL and x == y.right:
         x = y
-        if  y.parent == NIL:
+        if y.parent == NIL:
             return y
         y = y.parent
     return y
@@ -161,7 +161,7 @@ def _tree_successor(x):
 
 def _find_max_value(node):
     # Find the max value in the given tree.
-    if not node:
+    if node is None:
         return SMALLEST_GRAD
 
     return node.val.max_grad
@@ -188,7 +188,7 @@ class Tree:
                 yield r
 
     def _left_rotate(self, x):
-         # A utility function to left rotate subtree rooted with a node.
+        # A utility function to left rotate subtree rooted with a node.
 
         y = x.right
 
@@ -236,7 +236,7 @@ class Tree:
         return
 
     def _right_rotate(self, y):
-         # A utility function to right rotate subtree rooted with a node.
+        # A utility function to right rotate subtree rooted with a node.
 
         x = y.left
 
@@ -424,16 +424,18 @@ class Tree:
                 raise ValueError("current dist too large ")
 
             if check_me and cur_node != key_node:
+
                 if ang < cur_node.val.ang[1]:
                     cur_grad = cur_node.val.grad[1] \
-                               + (cur_node.val.grad[0] - cur_node.val.grad[1])\
-                               * (cur_node.val.ang[1] - ang) \
-                               / (cur_node.val.ang[1] - cur_node.val.ang[0])
+                        + (cur_node.val.grad[0] - cur_node.val.grad[1])\
+                        * (cur_node.val.ang[1] - ang) \
+                        / (cur_node.val.ang[1] - cur_node.val.ang[0])
+
                 elif ang > cur_node.val.ang[1]:
                     cur_grad = cur_node.val.grad[1] \
-                               + (cur_node.val.grad[2] - cur_node.val.grad[1])\
-                               * (ang - cur_node.val.ang[1]) \
-                               / (cur_node.val.ang[2] - cur_node.val.ang[1])
+                        + (cur_node.val.grad[2] - cur_node.val.grad[1])\
+                        * (ang - cur_node.val.ang[1]) \
+                        / (cur_node.val.ang[2] - cur_node.val.ang[1])
                 else:
                     cur_grad = cur_node.val.grad[1]
 
@@ -621,8 +623,8 @@ class Tree:
             while z.parent != NIL:
                 if z.parent.val.max_grad == z_gradient:
                     if z.parent.val.find_value_min_value() != z_gradient and \
-                          not (z.parent.left.val.max_grad == z_gradient) and \
-                          x.parent.right.val.max_grad == z_gradient:
+                        not (z.parent.left.val.max_grad == z_gradient) and \
+                       x.parent.right.val.max_grad == z_gradient:
 
                         left = _find_max_value(z.parent.left)
                         right = _find_max_value(z.parent.right)
@@ -656,8 +658,8 @@ class StatusNode:
     # Attributes:
     #      row, col: int, row and col to determine the position of the cell
     #      distance_to_viewpoint: float, elevation of cell
-    #      gradient: 1d array of 3 float elements, ENTER, CENTER, EXIT gradients
-    #                 of the Line of Sight
+    #      gradient: 1d array of 3 float elements, ENTER, CENTER,
+    #                 EXIT gradients of the Line of Sight
     #      ang:   1d array of 3 float elements, ENTER, CENTER, EXIT angles of
     #                 the Line of Sight
 
@@ -686,6 +688,10 @@ class StatusNode:
             self.ang = ang
         else:
             self.ang = np.array(angle)
+
+    def _print_status_node(self):
+        print(self.row, self.col, self.dist_to_viewpoint,
+              self.grad, self.ang)
 
 
 def _insert_into_status_struct(status_node, tree):
@@ -789,7 +795,6 @@ class ViewOptions:
     def __init__(self, obs_elev=OBS_ELEV, tgt_elev=TARGET_ELEV, max_dist=INF,
                  do_curv=DO_CURVE, ellps_a=ELLPS_A,
                  do_refr=DO_REFR, refr_coef=REFR_COEF):
-
 
         # observer elevation above the terrain
         self.obs_elev = obs_elev
@@ -1047,7 +1052,7 @@ def _outside_max_dist(viewpoint_row, viewpoint_col, west, ew_res, north,
 @jit(nb.types.Tuple((nb.i8, nb.i8))(nb.i8, nb.i8, nb.i8,
                                     nb.i8, nb.i8), nopython=True)
 def _calculate_event_row_col(event_type, event_row, event_col,
-                            viewpoint_row, viewpoint_col):
+                             viewpoint_row, viewpoint_col):
 
     # Calculate the neighbouring of the given event.
     x = 0
@@ -1188,6 +1193,7 @@ def _calc_event_elev(event_type, event_row, event_col, n_rows, n_cols,
 
     return event_elev
 
+
 @jit(nb.types.Tuple((nb.f8, nb.f8))(nb.i8, nb.i8, nb.i8,
                                     nb.i8, nb.i8), nopython=True)
 def _calc_event_pos(event_type, event_row, event_col,
@@ -1312,12 +1318,17 @@ def _calc_event_pos(event_type, event_row, event_col,
 
 @jit(nb.f8(nb.f8, nb.f8, nb.i8, nb.i8), nopython=True)
 def _calculate_angle(event_x, event_y, viewpoint_x, viewpoint_y):
-    # Calculate angle between (x1, y1) and (x2, y2)
 
-    if event_x - viewpoint_x == 0:
-        ang = PI / 2
-    else:
-        ang = atan(abs(event_y - viewpoint_y) / abs(event_x - viewpoint_x))
+    if viewpoint_x == event_x and viewpoint_y > event_y:
+        # between 1st and 2nd quadrant
+        return math.pi / 2
+
+    if viewpoint_x == event_x and viewpoint_y < event_y:
+        # between 3rd and 4th quadrant
+        return math.pi * 3.0 / 2.0
+
+    # Calculate angle between (x1, y1) and (x2, y2)
+    ang = atan(fabs(event_y - viewpoint_y) / fabs(event_x - viewpoint_x))
 
     # M_PI is defined in math.h to represent 3.14159...
     if viewpoint_y == event_y and event_x > viewpoint_x:
@@ -1327,10 +1338,6 @@ def _calculate_angle(event_x, event_y, viewpoint_x, viewpoint_y):
     if event_x > viewpoint_x and event_y < viewpoint_y:
         # first quadrant
         return ang
-
-    if viewpoint_x == event_x and viewpoint_y > event_y:
-        # between 1st and 2nd quadrant
-        return math.pi / 2
 
     if viewpoint_x > event_x and viewpoint_y > event_y:
         # 2nd quadrant
@@ -1343,10 +1350,6 @@ def _calculate_angle(event_x, event_y, viewpoint_x, viewpoint_y):
     if viewpoint_x > event_x and viewpoint_y < event_y:
         # 3rd quadrant
         return math.pi + ang
-
-    if viewpoint_x == event_x and viewpoint_y < event_y:
-        # between 3rd and 4th quadrant
-        return math.pi * 3.0 / 2.0
 
     if viewpoint_x < event_x and viewpoint_y < event_y:
         # 4th quadrant
@@ -1381,11 +1384,15 @@ def _calc_event_grad(row, col, elev, viewpoint_row, viewpoint_col,
 
     # PI / 2 above, - PI / 2 below
     if distance_to_viewpoint == 0:
-        return PI / 2
+        if diff_elev > 0:
+            gradient = PI / 2
+        elif diff_elev < 0:
+            gradient = - PI / 2
+        else:
+            gradient = 0
     else:
-        return atan(diff_elev / sqrt(distance_to_viewpoint))
-
-    return -1
+        gradient = atan(diff_elev / sqrt(distance_to_viewpoint))
+    return gradient
 
 
 # given a StatusNode, fill in its dist2vp and gradient
@@ -1417,8 +1424,15 @@ def _calc_dist_n_grad(status_node_row, status_node_col, elev,
         return distance_to_viewpoint, gradient
 
     # PI / 2 above, - PI / 2 below
+
     if distance_to_viewpoint == 0:
-        gradient = PI / 2
+        if diff_elev > 0:
+            gradient = PI / 2
+        elif diff_elev < 0:
+            gradient = - PI / 2
+        else:
+            gradient = 0
+
     else:
         gradient = atan(diff_elev / sqrt(distance_to_viewpoint))
     return distance_to_viewpoint, gradient
@@ -1691,7 +1705,6 @@ def _viewshed(raster, vp, v_op, g_hd):
                                                    g_hd.north, g_hd.ns_res,
                                                    g_hd.proj)
 
-
             e.type = CENTER_EVENT
             ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
             status_node.ang[1] = _calculate_angle(ax, ay, vp.col, vp.row)
@@ -1719,7 +1732,7 @@ def _viewshed(raster, vp, v_op, g_hd):
             # insert sn into the status structure
             _insert_into_status_struct(status_node, status_struct)
 
-    # sweep the e list
+    # sweep the event_list
 
     # number of visible cells
     nvis = 0
@@ -1753,7 +1766,6 @@ def _viewshed(raster, vp, v_op, g_hd):
                                                    g_hd.west, g_hd.ew_res,
                                                    g_hd.north, g_hd.ns_res,
                                                    g_hd.proj)
-
 
             e.type = CENTER_EVENT
             ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
@@ -1799,7 +1811,7 @@ def _viewshed(raster, vp, v_op, g_hd):
                                              e.ang, status_node.grad[1])
 
             # the point is visible: store its vertical ang
-            if max < status_node.grad[1]:
+            if max <= status_node.grad[1]:
                 vert_ang = _get_vertical_ang(vp.elev,
                                              status_node.dist_to_viewpoint,
                                              e.elev[1] + vp.target_offset)
