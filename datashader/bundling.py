@@ -322,7 +322,7 @@ def _convert_graph_to_edge_segments(nodes, edges, params):
     df = df.filter(items=segment_class.get_merged_columns(params))
 
     edge_segments = []
-    for edge in df.get_values():
+    for edge in df.values:
         edge_segments.append(segment_class.create_segment(edge))
     return edge_segments, segment_class
 

@@ -19,6 +19,7 @@ __all__ = ['Image', 'stack', 'shade', 'set_background', 'spread', 'dynspread']
 
 
 class Image(xr.DataArray):
+    __slots__ = ()    
     __array_priority__ = 70
     border=1
     
