@@ -6,11 +6,11 @@ import dask.dataframe as dd
 from collections import OrderedDict
 from dask.base import tokenize, compute
 
-from .core import bypixel
-from .compatibility import apply
-from .compiler import compile_components
-from .glyphs import Glyph, LineAxis0
-from .utils import Dispatcher
+from datashader.core import bypixel
+from datashader.compatibility import apply
+from datashader.compiler import compile_components
+from datashader.glyphs import Glyph, LineAxis0
+from datashader.utils import Dispatcher
 
 __all__ = ()
 
