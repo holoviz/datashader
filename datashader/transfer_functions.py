@@ -177,47 +177,83 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
+@ngjit
+def masked_clip_2d(data, mask, lower, upper):
+    """
+    Clip the elements of an input array between lower and upper bounds,
+    skipping over elements that are masked out.
+
+    Parameters
+    ----------
+    data: np.ndarray
+        Numeric ndarray that will be clipped in-place
+    mask: np.ndarray
+        Boolean ndarray where True values indicate elements that should be
+        skipped
+    lower: int or float
+        Lower bound to clip to
+    upper: int or float
+        Upper bound to clip to
+
+    Returns
+    -------
+    None
+        data array is modified in-place
+    """
+    for i in range(data.shape[0]):
+        for j in range(data.shape[1]):
+            if mask[i, j]:
+                continue
+            val = data[i, j]
+            if val < lower:
+                data[i, j] = lower
+            elif val > upper:
+                data[i, j] = upper
+
 def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
+    interp = np.interp
+
     if agg.ndim != 2:
         raise ValueError("agg must be 2D")
     interpolater = _normalize_interpolate_how(how)
-    data = orient_array(agg)
+
+    data = orient_array(agg).copy()
+
+    # Compute mask
     if np.issubdtype(data.dtype, np.bool_):
         mask = ~data
-        interp = data
+        data = data.astype(np.int8)
     else:
         if np.issubdtype(data.dtype, np.integer):
             mask = data == 0
         else:
             mask = np.isnan(data)
 
-        masked = data[~mask]
-        if len(masked) == 0:
-            return Image(np.zeros(shape=agg.data.astype(np.uint32).shape, dtype=np.uint32), coords=agg.coords, dims=agg.dims, attrs=agg.attrs, name=name)
+    # Handle case where everything is masked out
+    if mask.all():
+        return Image(np.zeros(shape=agg.data.astype(np.uint32).shape,
+                              dtype=np.uint32), coords=agg.coords,
+                     dims=agg.dims, attrs=agg.attrs, name=name)
 
-        if span is None:
-            offset = masked.min()
-        else:
-            offset = span[0]
+    # Handle offset / clip
+    if span is None:
+        offset = np.nanmin(data[~mask])
+    else:
+        offset = np.array(span, dtype=data.dtype)[0]
+        masked_clip_2d(data, mask, *span)
 
-            # Clip data to span
-            if np.issubdtype(data.dtype, np.integer):
-                # We can't use clip for integers because masked values are
-                # stored as zeros
-                data = data.copy()
-                data[~mask & (data < span[0])] = span[0]
-                data[~mask & (data > span[1])] = span[1]
-            else:
-                # Using clip is safe for floating point arrays since masked
-                # values are stored as nans, which clip ignores
-                data = data.clip(span[0], span[1])
+    # If log/cbrt, could case to float64 right away
+    # If linear, can keep current type
+    data -= offset
 
-        interp = data - offset
-        
     with np.errstate(invalid="ignore", divide="ignore"):
-        data = interpolater(interp, mask)
+        # Transform data (log, eq_hist, etc.)
+        data = interpolater(data, mask)
+
+        # Transform span
         if span is None:
-            span = [np.nanmin(data), np.nanmax(data)]
+            masked_data = np.where(~mask, data, np.nan)
+            span = np.nanmin(masked_data), np.nanmax(masked_data)
         else:
             if how == 'eq_hist':
                 # For eq_hist to work with span, we'll need to store the histogram
@@ -235,25 +271,26 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
         g = interp(data, span, gspan, left=255).astype(np.uint8)
         b = interp(data, span, bspan, left=255).astype(np.uint8)
         a = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
-        img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
+        rgba = np.dstack([r, g, b, a])
     elif isinstance(cmap, str) or isinstance(cmap, tuple):
         color = rgb(cmap)
         aspan = np.arange(min_alpha, alpha+1)
-        rspan, gspan, bspan = np.repeat(list(zip(color)), len(aspan), axis=1)
         span = np.linspace(span[0], span[1], len(aspan))
-        r = np.interp(data, span, rspan, left=255).astype(np.uint8)
-        g = np.interp(data, span, gspan, left=255).astype(np.uint8)
-        b = np.interp(data, span, bspan, left=255).astype(np.uint8)
-        a = np.interp(data, span, aspan, left=0, right=255).astype(np.uint8)
-        img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
+        r = np.full(data.shape, color[0], dtype=np.uint8)
+        g = np.full(data.shape, color[1], dtype=np.uint8)
+        b = np.full(data.shape, color[2], dtype=np.uint8)
+        a = interp(data, span, aspan, left=0, right=255).astype(np.uint8)
+        rgba = np.dstack([r, g, b, a])
     elif callable(cmap):
         # Assume callable is matplotlib colormap
-        img = cmap((data - span[0])/(span[1] - span[0]), bytes=True)
-        img[:, :, 3] = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
-        img = img.view(np.uint32).reshape(data.shape)
+        rgba = cmap((data - span[0])/(span[1] - span[0]), bytes=True)
+        rgba[:, :, 3] = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
     else:
         raise TypeError("Expected `cmap` of `matplotlib.colors.Colormap`, "
                         "`list`, `str`, or `tuple`; got: '{0}'".format(type(cmap)))
+
+    img = rgba.view(np.uint32).reshape(data.shape)
+
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
