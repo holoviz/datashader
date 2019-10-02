@@ -120,8 +120,8 @@ class count(OptionalFieldReduction):
             agg[y, x] += 1
 
     @staticmethod
-    def _create(shape):
-        return np.zeros(shape, dtype='i4')
+    def _create(shape, array_module):
+        return array_module.zeros(shape, dtype='i4')
 
     @staticmethod
     def _combine(aggs):
@@ -154,8 +154,10 @@ class any(OptionalFieldReduction):
             agg[y, x] = True
 
     @staticmethod
-    def _create(shape):
-        return np.zeros(shape, dtype='bool')
+
+    @staticmethod
+    def _create(shape, array_module):
+        return array_module.zeros(shape, dtype='bool')
 
     @staticmethod
     def _combine(aggs):
@@ -167,8 +169,8 @@ class FloatingReduction(Reduction):
     _dshape = dshape(Option(ct.float64))
 
     @staticmethod
-    def _create(shape):
-        return np.full(shape, np.nan, dtype='f8')
+    def _create(shape, array_module):
+        return array_module.full(shape, np.nan, dtype='f8')
 
     @staticmethod
     def _finalize(bases, **kwargs):
@@ -184,6 +186,11 @@ class sum(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+
+    @staticmethod
+    def _create(shape, array_module):
+        return array_module.full(shape, 0.0, dtype='f8')
+
     @staticmethod
     @ngjit
     def _append_int_field(x, y, agg, field):
@@ -215,6 +222,11 @@ class m2(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+
+    @staticmethod
+    def _create(shape, array_module):
+        return array_module.full(shape, 0.0, dtype='f8')
+
     @property
     def _temps(self):
         return (sum(self.column), count(self.column))
@@ -317,7 +329,9 @@ class count_cat(Reduction):
 
     def _build_create(self, out_dshape):
         n_cats = len(out_dshape.measure.fields)
-        return lambda shape: np.zeros(shape + (n_cats,), dtype='i4')
+        return lambda shape, array_module: array_module.zeros(
+            shape + (n_cats,), dtype='i4'
+        )
 
     @staticmethod
     @ngjit
@@ -429,9 +443,9 @@ class first(Reduction):
     @staticmethod 
     def _append(x, y, agg):
         raise NotImplementedError("first is currently implemented only for rasters")
-    
-    @staticmethod 
-    def _create(shape):
+
+    @staticmethod
+    def _create(shape, array_module):
         raise NotImplementedError("first is currently implemented only for rasters")
 
     @staticmethod
@@ -463,9 +477,9 @@ class last(Reduction):
     @staticmethod 
     def _append(x, y, agg):
         raise NotImplementedError("last is currently implemented only for rasters")
-    
-    @staticmethod 
-    def _create(shape):
+
+    @staticmethod
+    def _create(shape, array_module):
         raise NotImplementedError("last is currently implemented only for rasters")
 
     @staticmethod
@@ -500,9 +514,9 @@ class mode(Reduction):
     @staticmethod 
     def _append(x, y, agg):
         raise NotImplementedError("mode is currently implemented only for rasters")
-    
-    @staticmethod 
-    def _create(shape):
+
+    @staticmethod
+    def _create(shape, array_module):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
     @staticmethod

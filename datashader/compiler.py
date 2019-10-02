@@ -85,7 +85,8 @@ def _get_call_tuples(base, dshape, schema):
 
 def make_create(bases, dshapes):
     creators = [b._build_create(d) for (b, d) in zip(bases, dshapes)]
-    return lambda shape: tuple(c(shape) for c in creators)
+    array_module = np
+    return lambda shape: tuple(c(shape, array_module) for c in creators)
 
 
 def make_info(cols):
