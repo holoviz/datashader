@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division
+from math import isnan
 import numpy as np
 from toolz import memoize
 
@@ -94,17 +95,24 @@ class AreaToZeroAxis0(_PointLike):
             append, expand_aggs_and_cols
         )
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_zero_axis0(
+        perform_extend_cpu = _build_extend_area_to_zero_axis0(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
         x_name = self.x
         y_name = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+
             xs = df[x_name].values
             ys = df[y_name].values
-            cols = aggs + info(df)
-            extend_area(vt, bounds, xs, ys, plot_start, *cols)
+            aggs_and_cols = aggs + info(df)
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, ys, plot_start, *aggs_and_cols
+            )
 
         return extend
 
@@ -161,7 +169,7 @@ class AreaToLineAxis0(_AreaToLineLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_line_axis0(
+        perform_extend_cpu = _build_extend_area_to_line_axis0(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
         x_name = self.x
@@ -169,12 +177,18 @@ class AreaToLineAxis0(_AreaToLineLike):
         y_stack_name = self.y_stack
 
         def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
             xs = df[x_name].values
             ys = df[y_name].values
             ys_stacks = df[y_stack_name].values
 
-            cols = aggs + info(df)
-            extend_area(vt, bounds, xs, ys, ys_stacks, plot_start, *cols)
+            aggs_and_cols = aggs + info(df)
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, ys, ys_stacks, plot_start, *aggs_and_cols
+            )
 
         return extend
 
@@ -238,17 +252,23 @@ class AreaToZeroAxis0Multi(_PointLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_zero_axis0_multi(
+        perform_extend_cpu = _build_extend_area_to_zero_axis0_multi(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
         x_names = self.x
         y_names = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
             xs = tuple(df[x_name].values for x_name in x_names)
             ys = tuple(df[y_name].values for y_name in y_names)
-            cols = aggs + info(df)
-            extend_area(vt, bounds, xs, ys, plot_start, *cols)
+            aggs_and_cols = aggs + info(df)
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, ys, plot_start, *aggs_and_cols
+            )
 
         return extend
 
@@ -313,7 +333,7 @@ class AreaToLineAxis0Multi(_AreaToLineLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_line_axis0_multi(
+        perform_extend_cpu = _build_extend_area_to_line_axis0_multi(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
         x_names = self.x
@@ -321,13 +341,19 @@ class AreaToLineAxis0Multi(_AreaToLineLike):
         y_stack_names = self.y_stack
 
         def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
             xs = tuple(df[x_name].values for x_name in x_names)
             ys = tuple(df[y_name].values for y_name in y_names)
             y_stacks = tuple(df[y_stack_name].values
                              for y_stack_name in y_stack_names)
 
-            cols = aggs + info(df)
-            extend_area(vt, bounds, xs, ys, y_stacks, plot_start, *cols)
+            aggs_and_cols = aggs + info(df)
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, ys, y_stacks, plot_start, *aggs_and_cols
+            )
 
         return extend
 
@@ -406,7 +432,7 @@ class AreaToZeroAxis1(_PointLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_zero_axis1_none_constant(
+        perform_extend_cpu = _build_extend_area_to_zero_axis1_none_constant(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
 
@@ -414,12 +440,16 @@ class AreaToZeroAxis1(_PointLike):
         y_names = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            xs = tuple(df[x_name].values for x_name in x_names)
-            ys = tuple(df[y_name].values for y_name in y_names)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
 
-            cols = aggs + info(df)
-            # line may be clipped, then mapped to pixels
-            extend_area(vt, bounds, xs, ys, plot_start, *cols)
+            xs = df[list(x_names)].values
+            ys = df[list(y_names)].values
+
+            perform_extend_cpu(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+            )
 
         return extend
 
@@ -501,7 +531,7 @@ class AreaToLineAxis1(_AreaToLineLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_line_axis1_none_constant(
+        perform_extend_cpu = _build_extend_area_to_line_axis1_none_constant(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
         x_names = self.x
@@ -509,13 +539,18 @@ class AreaToLineAxis1(_AreaToLineLike):
         y_stack_names = self.y_stack
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            xs = tuple(df[x_name].values for x_name in x_names)
-            ys = tuple(df[y_name].values for y_name in y_names)
-            y_stacks = tuple(df[y_stack_name].values
-                             for y_stack_name in y_stack_names)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
 
-            cols = aggs + info(df)
-            extend_area(vt, bounds, xs, ys, y_stacks, plot_start, *cols)
+            xs = df[list(x_names)].values
+            ys = df[list(y_names)].values
+            y_stacks = df[list(y_stack_names)].values
+
+            perform_extend_cpu(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xs, ys, y_stacks, *aggs_and_cols
+            )
 
         return extend
 
@@ -556,7 +591,7 @@ class AreaToZeroAxis1XConstant(AreaToZeroAxis1):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_zero_axis1_x_constant(
+        perform_extend_cpu = _build_extend_area_to_zero_axis1_x_constant(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
 
@@ -564,11 +599,17 @@ class AreaToZeroAxis1XConstant(AreaToZeroAxis1):
         y_names = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            ys = tuple(df[y_name].values for y_name in y_names)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
 
-            cols = aggs + info(df)
-            # line may be clipped, then mapped to pixels
-            extend_area(vt, bounds, x_values, ys, plot_start, *cols)
+            ys = df[list(y_names)].values
+
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                x_values, ys, *aggs_and_cols
+            )
 
         return extend
 
@@ -622,7 +663,7 @@ class AreaToLineAxis1XConstant(AreaToLineAxis1):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_line_axis1_x_constant(
+        perform_extend_cpu = _build_extend_area_to_line_axis1_x_constant(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
 
@@ -631,12 +672,18 @@ class AreaToLineAxis1XConstant(AreaToLineAxis1):
         y_stack_names = self.y_stack
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            ys = tuple(df[y_name].values for y_name in y_names)
-            y_stacks = tuple(df[y_stack_name].values
-                             for y_stack_name in y_stack_names)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
 
-            cols = aggs + info(df)
-            extend_area(vt, bounds, x_values, ys, y_stacks, plot_start, *cols)
+            ys = df[list(y_names)].values
+            y_stacks = df[list(y_stack_names)].values
+
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                x_values, ys, y_stacks, *aggs_and_cols
+            )
 
         return extend
 
@@ -677,7 +724,7 @@ class AreaToZeroAxis1YConstant(AreaToZeroAxis1):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_zero_axis1_y_constant(
+        perform_extend_cpu = _build_extend_area_to_zero_axis1_y_constant(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
 
@@ -685,11 +732,17 @@ class AreaToZeroAxis1YConstant(AreaToZeroAxis1):
         y_values = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            xs = tuple(df[x_name].values for x_name in x_names)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
 
-            cols = aggs + info(df)
-            # line may be clipped, then mapped to pixels
-            extend_area(vt, bounds, xs, y_values, plot_start, *cols)
+            xs = df[list(x_names)].values
+
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, y_values, *aggs_and_cols
+            )
 
         return extend
 
@@ -730,7 +783,7 @@ class AreaToLineAxis1YConstant(AreaToLineAxis1):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_line_axis1_y_constant(
+        perform_extend_cpu = _build_extend_area_to_line_axis1_y_constant(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
         x_names = self.x
@@ -738,11 +791,17 @@ class AreaToLineAxis1YConstant(AreaToLineAxis1):
         y_stack_values = self.y_stack
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            xs = tuple(df[x_name].values for x_name in x_names)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
 
-            cols = aggs + info(df)
-            extend_area(
-                vt, bounds, xs, y_values, y_stack_values, plot_start, *cols)
+            xs = df[list(x_names)].values
+
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, y_values, y_stack_values, *aggs_and_cols
+            )
 
         return extend
 
@@ -798,17 +857,24 @@ class AreaToZeroAxis1Ragged(_PointLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_zero_axis1_ragged(
+        perform_extend_cpu = _build_extend_area_to_zero_axis1_ragged(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
         x_name = self.x
         y_name = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+
             xs = df[x_name].values
             ys = df[y_name].values
-            cols = aggs + info(df)
-            extend_area(vt, bounds, xs, ys, plot_start, *cols)
+            aggs_and_cols = aggs + info(df)
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, ys, *aggs_and_cols
+            )
 
         return extend
 
@@ -869,7 +935,7 @@ class AreaToLineAxis1Ragged(_AreaToLineLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_trapezoid_y = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_area = _build_extend_area_to_line_axis1_ragged(
+        perform_extend_cpu = _build_extend_area_to_line_axis1_ragged(
             draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
         )
         x_name = self.x
@@ -877,12 +943,19 @@ class AreaToLineAxis1Ragged(_AreaToLineLike):
         y_stack_name = self.y_stack
 
         def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+
             xs = df[x_name].values
             ys = df[y_name].values
             y_stacks = df[y_stack_name].values
 
-            cols = aggs + info(df)
-            extend_area(vt, bounds, xs, ys, y_stacks, plot_start, *cols)
+            aggs_and_cols = aggs + info(df)
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, ys, y_stacks, *aggs_and_cols
+            )
 
         return extend
 
@@ -1109,19 +1182,20 @@ def _build_draw_trapezoid_y(append, expand_aggs_and_cols):
 
 
 @ngjit
-def _skip_or_clip_trapezoid_y(x0, x1, y0, y1, y2, y3, bounds, plot_start):
-    xmin, xmax, ymin, ymax = bounds
+def _skip_or_clip_trapezoid_y(
+        x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start
+):
     skip = False
     clipped = False
 
     # If any of the coordinates are NaN, there's a discontinuity.
     # Skip the entire trapezoid.
-    if (np.isnan(x0) or
-            np.isnan(x1) or
-            np.isnan(y0) or
-            np.isnan(y1) or
-            np.isnan(y2) or
-            np.isnan(y3)):
+    if (isnan(x0) or
+            isnan(x1) or
+            isnan(y0) or
+            isnan(y1) or
+            isnan(y2) or
+            isnan(y3)):
         plot_start = True
         skip = True
 
@@ -1171,12 +1245,17 @@ def _build_extend_area_to_zero_axis0(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+    def extend_area(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys, plot_start, *aggs_and_cols
+    ):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
 
         stacked = False
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        xmaxi, ymaxi = map_onto_pixel(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax
+        )
 
         nrows = xs.shape[0]
         i = 0
@@ -1192,13 +1271,19 @@ def _build_extend_area_to_zero_axis0(
 
             x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
                 _skip_or_clip_trapezoid_y(
-                    x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                    x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
             if not skip:
-                x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                _, y1i = map_onto_pixel(vt, bounds, x0, y1)
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                _, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                )
                 y2i = y1i
-                x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+                x1i, y3i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                )
 
                 draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
                                  i, plot_start, clipped, stacked,
@@ -1214,12 +1299,17 @@ def _build_extend_area_to_line_axis0(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
+    def extend_area(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys0, ys1, plot_start, *aggs_and_cols
+    ):
         """Aggregate filled area between the line formed by
         ``xs`` and ``ys0`` and the line formed by ``xs`` and ``ys1``"""
 
         stacked = True
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        xmaxi, ymaxi = map_onto_pixel(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax
+        )
 
         nrows = xs.shape[0]
         i = 0
@@ -1234,13 +1324,21 @@ def _build_extend_area_to_line_axis0(
 
             x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
                 _skip_or_clip_trapezoid_y(
-                    x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                    x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
             if not skip:
-                x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                _, y2i = map_onto_pixel(vt, bounds, x1, y2)
-                x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                _, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                )
+                _, y2i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y2
+                )
+                x1i, y3i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                )
 
                 draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
                                  i, plot_start, clipped, stacked,
@@ -1256,12 +1354,15 @@ def _build_extend_area_to_zero_axis0_multi(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+    def extend_area(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys, plot_start, *aggs_and_cols
+    ):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
 
         stacked = False
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        xmaxi, ymaxi = map_onto_pixel(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax)
 
         nrows = xs[0].shape[0]
         ncols = len(xs)
@@ -1283,13 +1384,19 @@ def _build_extend_area_to_zero_axis0_multi(
 
                 x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
                     _skip_or_clip_trapezoid_y(
-                        x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                        x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
                 if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    _, y1i = map_onto_pixel(vt, bounds, x0, y1)
+                    x0i, y0i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                    )
+                    _, y1i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                    )
                     y2i = y1i
-                    x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+                    x1i, y3i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                    )
 
                     draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
                                      i, plot_start, clipped, stacked,
@@ -1306,12 +1413,17 @@ def _build_extend_area_to_line_axis0_multi(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
+    def extend_area(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys0, ys1, plot_start, *aggs_and_cols
+    ):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
 
         stacked = True
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        xmaxi, ymaxi = map_onto_pixel(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax
+        )
 
         nrows = xs[0].shape[0]
         ncols = len(xs)
@@ -1332,14 +1444,21 @@ def _build_extend_area_to_line_axis0_multi(
 
                 x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
                     _skip_or_clip_trapezoid_y(
-                        x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                        x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
                 if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    _, y2i = map_onto_pixel(vt, bounds, x1, y2)
-                    x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
-
+                    x0i, y0i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                    )
+                    _, y1i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                    )
+                    _, y2i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y2
+                    )
+                    x1i, y3i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                    )
                     draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi,
                                      ymaxi,
                                      i, plot_start, clipped, stacked,
@@ -1356,47 +1475,60 @@ def _build_extend_area_to_zero_axis1_none_constant(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
-        """Aggregate filled area along a line formed by
-        ``xs`` and ``ys``, filled to the y=0 line"""
-
+    def _perform_extend_area(
+            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xmaxi, ymaxi, xs, ys, *aggs_and_cols
+    ):
         stacked = False
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        plot_start = True
+        j = 0
+        ncols = xs.shape[1]
+        while j < ncols - 1:
+            x0 = xs[i, j]
+            x1 = xs[i, j + 1]
 
-        nrows = xs[0].shape[0]
-        ncols = len(xs)
+            y0 = ys[i, j]
+            y1 = 0.0
+            y2 = 0.0
+            y3 = ys[i, j + 1]
 
-        i = 0
-        while i < nrows:
-            plot_start = True
-            j = 0
-            while j < ncols - 1:
-                x0 = xs[j][i]
-                x1 = xs[j + 1][i]
+            x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
+                _skip_or_clip_trapezoid_y(
+                    x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
-                y0 = ys[j][i]
-                y1 = 0.0
-                y2 = 0.0
-                y3 = ys[j + 1][i]
+            if not skip:
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                _, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                )
+                y2i = y1i
+                x1i, y3i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                )
 
-                x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
-                    _skip_or_clip_trapezoid_y(
-                        x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
+                                 i, plot_start, clipped, stacked,
+                                 *aggs_and_cols)
+                plot_start = False
+            j += 1
 
-                if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    y2i = y1i
-                    x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
+        xmaxi, ymaxi = map_onto_pixel(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax
+        )
+        for i in range(xs.shape[0]):
+            _perform_extend_area(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xmaxi, ymaxi, xs, ys, *aggs_and_cols
+            )
 
-                    draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
-                                     i, plot_start, clipped, stacked,
-                                     *aggs_and_cols)
-                    plot_start = False
-                j += 1
-            i += 1
-
-    return extend_area
+    return extend_cpu
 
 
 def _build_extend_area_to_line_axis1_none_constant(
@@ -1404,47 +1536,66 @@ def _build_extend_area_to_line_axis1_none_constant(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
+    def _perform_extend_area(
+            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xmaxi, ymaxi, xs, ys0, ys1, *aggs_and_cols
+    ):
+        stacked = True
+        ncols = xs.shape[1]
+        plot_start = True
+        j = 0
+        while j < ncols - 1:
+            x0 = xs[i, j]
+            x1 = xs[i, j + 1]
+
+            y0 = ys0[i, j]
+            y1 = ys1[i, j]
+            y2 = ys1[i, j + 1]
+            y3 = ys0[i, j + 1]
+
+            x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
+                _skip_or_clip_trapezoid_y(
+                    x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
+
+            if not skip:
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                _, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                )
+                _, y2i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y2
+                )
+                x1i, y3i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                )
+
+                draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
+                                 i, plot_start, clipped, stacked,
+                                 *aggs_and_cols)
+                plot_start = False
+            j += 1
+
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys0, ys1, *aggs_and_cols
+    ):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
+        xmaxi, ymaxi = map_onto_pixel(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax
+        )
 
-        stacked = True
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        for i in range(xs.shape[0]):
+            _perform_extend_area(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xmaxi, ymaxi, xs, ys0, ys1, *aggs_and_cols
+            )
 
-        nrows = xs[0].shape[0]
-        ncols = len(xs)
-
-        i = 0
-        while i < nrows:
-            plot_start = True
-            j = 0
-            while j < ncols - 1:
-                x0 = xs[j][i]
-                x1 = xs[j + 1][i]
-
-                y0 = ys0[j][i]
-                y1 = ys1[j][i]
-                y2 = ys1[j + 1][i]
-                y3 = ys0[j + 1][i]
-
-                x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
-                    _skip_or_clip_trapezoid_y(
-                        x0, x1, y0, y1, y2, y3, bounds, plot_start)
-
-                if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    _, y2i = map_onto_pixel(vt, bounds, x1, y2)
-                    x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
-
-                    draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
-                                     i, plot_start, clipped, stacked,
-                                     *aggs_and_cols)
-                    plot_start = False
-                j += 1
-            i += 1
-
-    return extend_area
+    return extend_cpu
 
 
 def _build_extend_area_to_zero_axis1_x_constant(
@@ -1452,47 +1603,59 @@ def _build_extend_area_to_zero_axis1_x_constant(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
-        """Aggregate filled area along a line formed by
-        ``xs`` and ``ys``, filled to the y=0 line"""
-
+    def _perform_extend_area(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmaxi,
+                             ymaxi, xs, ys, *aggs_and_cols):
         stacked = False
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        plot_start = True
+        ncols = len(xs)
+        j = 0
+        while j < ncols - 1:
+            x0 = xs[j]
+            x1 = xs[j + 1]
 
-        nrows = ys[0].shape[0]
-        ncols = len(ys)
+            y0 = ys[i, j]
+            y1 = 0.0
+            y2 = 0.0
+            y3 = ys[i, j + 1]
 
-        i = 0
-        while i < nrows:
-            plot_start = True
-            j = 0
-            while j < ncols - 1:
-                x0 = xs[j]
-                x1 = xs[j + 1]
+            x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
+                _skip_or_clip_trapezoid_y(
+                    x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
-                y0 = ys[j][i]
-                y1 = 0.0
-                y2 = 0.0
-                y3 = ys[j + 1][i]
+            if not skip:
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                _, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                )
+                y2i = y1i
+                x1i, y3i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                )
 
-                x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
-                    _skip_or_clip_trapezoid_y(
-                        x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
+                                 i, plot_start, clipped, stacked,
+                                 *aggs_and_cols)
+                plot_start = False
+            j += 1
 
-                if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    y2i = y1i
-                    x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
+        xmaxi, ymaxi = map_onto_pixel(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax
+        )
 
-                    draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
-                                     i, plot_start, clipped, stacked,
-                                     *aggs_and_cols)
-                    plot_start = False
-                j += 1
-            i += 1
+        for i in range(ys.shape[0]):
+            _perform_extend_area(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xmaxi, ymaxi, xs, ys, *aggs_and_cols
+            )
 
-    return extend_area
+    return extend_cpu
 
 
 def _build_extend_area_to_line_axis1_x_constant(
@@ -1500,47 +1663,64 @@ def _build_extend_area_to_line_axis1_x_constant(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
-        """Aggregate filled area along a line formed by
-        ``xs`` and ``ys``, filled to the y=0 line"""
-
+    def _perform_extend_area(
+            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xmaxi, ymaxi, xs, ys0, ys1, *aggs_and_cols
+    ):
+        plot_start = True
         stacked = False
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        ncols = len(xs)
+        j = 0
+        while j < ncols - 1:
+            x0 = xs[j]
+            x1 = xs[j + 1]
 
-        nrows = ys0[0].shape[0]
-        ncols = len(ys0)
+            y0 = ys0[i, j]
+            y1 = ys1[i, j]
+            y2 = ys1[i, j + 1]
+            y3 = ys0[i, j + 1]
 
-        i = 0
-        while i < nrows:
-            plot_start = True
-            j = 0
-            while j < ncols - 1:
-                x0 = xs[j]
-                x1 = xs[j + 1]
+            x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
+                _skip_or_clip_trapezoid_y(
+                    x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
-                y0 = ys0[j][i]
-                y1 = ys1[j][i]
-                y2 = ys1[j + 1][i]
-                y3 = ys0[j + 1][i]
+            if not skip:
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                _, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                )
+                _, y2i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y2
+                )
+                x1i, y3i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                )
 
-                x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
-                    _skip_or_clip_trapezoid_y(
-                        x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
+                                 i, plot_start, clipped, stacked,
+                                 *aggs_and_cols)
+                plot_start = False
+            j += 1
 
-                if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    _, y2i = map_onto_pixel(vt, bounds, x1, y2)
-                    x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys0, ys1, *aggs_and_cols
+    ):
+        xmaxi, ymaxi = map_onto_pixel(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax
+        )
 
-                    draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
-                                     i, plot_start, clipped, stacked,
-                                     *aggs_and_cols)
-                    plot_start = False
-                j += 1
-            i += 1
+        for i in range(ys0.shape[0]):
+            _perform_extend_area(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xmaxi, ymaxi, xs, ys0, ys1, *aggs_and_cols
+            )
 
-    return extend_area
+    return extend_cpu
 
 
 def _build_extend_area_to_zero_axis1_y_constant(
@@ -1548,47 +1728,61 @@ def _build_extend_area_to_zero_axis1_y_constant(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_area(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
-        """Aggregate filled area along a line formed by
-        ``xs`` and ``ys``, filled to the y=0 line"""
-
+    def _perform_extend_area(
+            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xmaxi, ymaxi, xs, ys, *aggs_and_cols
+    ):
+        plot_start = True
         stacked = False
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        ncols = len(ys)
+        j = 0
+        while j < ncols - 1:
+            x0 = xs[i, j]
+            x1 = xs[i, j + 1]
 
-        nrows = xs[0].shape[0]
-        ncols = len(xs)
+            y0 = ys[j]
+            y1 = 0.0
+            y2 = 0.0
+            y3 = ys[j + 1]
 
-        i = 0
-        while i < nrows:
-            plot_start = True
-            j = 0
-            while j < ncols - 1:
-                x0 = xs[j][i]
-                x1 = xs[j + 1][i]
+            x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
+                _skip_or_clip_trapezoid_y(
+                    x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
-                y0 = ys[j]
-                y1 = 0.0
-                y2 = 0.0
-                y3 = ys[j + 1]
+            if not skip:
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                _, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                )
+                y2i = y1i
+                x1i, y3i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                )
 
-                x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
-                    _skip_or_clip_trapezoid_y(
-                        x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
+                                 i, plot_start, clipped, stacked,
+                                 *aggs_and_cols)
+                plot_start = False
+            j += 1
 
-                if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    y2i = y1i
-                    x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
+        xmaxi, ymaxi = map_onto_pixel(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax
+        )
 
-                    draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
-                                     i, plot_start, clipped, stacked,
-                                     *aggs_and_cols)
-                    plot_start = False
-                j += 1
-            i += 1
+        for i in range(xs.shape[0]):
+            _perform_extend_area(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xmaxi, ymaxi, xs, ys, *aggs_and_cols
+            )
 
-    return extend_area
+    return extend_cpu
 
 
 def _build_extend_area_to_line_axis1_y_constant(
@@ -1596,54 +1790,69 @@ def _build_extend_area_to_line_axis1_y_constant(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_area(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
-        """Aggregate filled area along a line formed by
-        ``xs`` and ``ys``, filled to the y=0 line"""
-
+    def _perform_extend_area(
+            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xmaxi, ymaxi, xs, ys0, ys1, *aggs_and_cols
+    ):
         stacked = True
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        plot_start = True
+        ncols = len(ys0)
+        j = 0
+        while j < ncols - 1:
+            x0 = xs[i, j]
+            x1 = xs[i, j + 1]
 
-        nrows = xs[0].shape[0]
-        ncols = len(xs)
+            y0 = ys0[j]
+            y1 = ys1[j]
+            y2 = ys1[j + 1]
+            y3 = ys0[j + 1]
 
-        i = 0
-        while i < nrows:
-            plot_start = True
-            j = 0
-            while j < ncols - 1:
-                x0 = xs[j][i]
-                x1 = xs[j + 1][i]
+            x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
+                _skip_or_clip_trapezoid_y(
+                    x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
-                y0 = ys0[j]
-                y1 = ys1[j]
-                y2 = ys1[j + 1]
-                y3 = ys0[j + 1]
+            if not skip:
+                x0i, y0i = map_onto_pixel(sx, tx, sy, ty, xmin, xmax, ymin,
+                                          ymax, x0, y0)
+                _, y1i = map_onto_pixel(sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                                        x0, y1)
+                _, y2i = map_onto_pixel(sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                                        x1, y2)
+                x1i, y3i = map_onto_pixel(sx, tx, sy, ty, xmin, xmax, ymin,
+                                          ymax, x1, y3)
 
-                x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
-                    _skip_or_clip_trapezoid_y(
-                        x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
+                                 i, plot_start, clipped, stacked,
+                                 *aggs_and_cols)
+                plot_start = False
+            j += 1
 
-                if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    _, y2i = map_onto_pixel(vt, bounds, x1, y2)
-                    x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys0, ys1, *aggs_and_cols
+    ):
+        xmaxi, ymaxi = map_onto_pixel(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax
+        )
 
-                    draw_trapezoid_y(x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
-                                     i, plot_start, clipped, stacked,
-                                     *aggs_and_cols)
-                    plot_start = False
-                j += 1
-            i += 1
+        for i in range(xs.shape[0]):
+            _perform_extend_area(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xmaxi, ymaxi, xs, ys0, ys1, *aggs_and_cols
+            )
 
-    return extend_area
+    return extend_cpu
 
 
 def _build_extend_area_to_zero_axis1_ragged(
         draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
 ):
 
-    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+    def extend_line(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
         x_start_indices = xs.start_indices
         x_flat_array = xs.flat_array
 
@@ -1651,17 +1860,21 @@ def _build_extend_area_to_zero_axis1_ragged(
         y_flat_array = ys.flat_array
 
         perform_extend_area_to_zero_axis1_ragged(
-            vt, bounds, x_start_indices, x_flat_array,
-            y_start_indices, y_flat_array, plot_start, *aggs_and_cols)
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            x_start_indices, x_flat_array, y_start_indices, y_flat_array,
+            *aggs_and_cols
+        )
 
     @ngjit
     @expand_aggs_and_cols
     def perform_extend_area_to_zero_axis1_ragged(
-            vt, bounds, x_start_indices, x_flat_array,
-            y_start_indices, y_flat_array, plot_start, *aggs_and_cols):
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            x_start_indices, x_flat_array, y_start_indices, y_flat_array,
+            *aggs_and_cols
+    ):
 
         stacked = False
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        xmaxi, ymaxi = map_onto_pixel(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax)
 
         nrows = len(x_start_indices)
         x_flat_len = len(x_flat_array)
@@ -1700,13 +1913,19 @@ def _build_extend_area_to_zero_axis1_ragged(
 
                 x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
                     _skip_or_clip_trapezoid_y(
-                        x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                        x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
                 if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    _, y1i = map_onto_pixel(vt, bounds, x0, y1)
+                    x0i, y0i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                    )
+                    _, y1i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                    )
                     y2i = y1i
-                    x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+                    x1i, y3i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                    )
 
                     draw_trapezoid_y(
                         x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,
@@ -1724,7 +1943,10 @@ def _build_extend_area_to_line_axis1_ragged(
         draw_trapezoid_y, map_onto_pixel, expand_aggs_and_cols
 ):
 
-    def extend_line(vt, bounds, xs, ys0, ys1, plot_start, *aggs_and_cols):
+    def extend_line(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys0, ys1, *aggs_and_cols
+    ):
         x_start_indices = xs.start_indices
         x_flat_array = xs.flat_array
 
@@ -1735,19 +1957,21 @@ def _build_extend_area_to_line_axis1_ragged(
         y1_flat_array = ys1.flat_array
 
         perform_extend_area_to_line_axis1_ragged(
-            vt, bounds, x_start_indices, x_flat_array,
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, x_start_indices, x_flat_array,
             y0_start_indices, y0_flat_array, y1_start_indices, y1_flat_array,
-            plot_start, *aggs_and_cols)
+            *aggs_and_cols)
 
     @ngjit
     @expand_aggs_and_cols
     def perform_extend_area_to_line_axis1_ragged(
-            vt, bounds, x_start_indices, x_flat_array,
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, x_start_indices, x_flat_array,
             y0_start_indices, y0_flat_array, y1_start_indices, y1_flat_array,
-            plot_start, *aggs_and_cols):
+            *aggs_and_cols):
 
         stacked = True
-        xmaxi, ymaxi = map_onto_pixel(vt, bounds, bounds[1], bounds[3])
+        xmaxi, ymaxi = map_onto_pixel(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xmax, ymax
+        )
 
         nrows = len(x_start_indices)
         x_flat_len = len(x_flat_array)
@@ -1793,13 +2017,21 @@ def _build_extend_area_to_line_axis1_ragged(
 
                 x0, x1, y0, y1, y2, y3, skip, clipped, plot_start = \
                     _skip_or_clip_trapezoid_y(
-                        x0, x1, y0, y1, y2, y3, bounds, plot_start)
+                        x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax, plot_start)
 
                 if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    _, y1i = map_onto_pixel(vt, bounds, x0, y1)
-                    _, y2i = map_onto_pixel(vt, bounds, x1, y2)
-                    x1i, y3i = map_onto_pixel(vt, bounds, x1, y3)
+                    x0i, y0i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                    )
+                    _, y1i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y1
+                    )
+                    _, y2i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y2
+                    )
+                    x1i, y3i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y3
+                    )
 
                     draw_trapezoid_y(
                         x0i, x1i, y0i, y1i, y2i, y3i, xmaxi, ymaxi,

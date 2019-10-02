@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division
+from math import isnan
 import numpy as np
 from toolz import memoize
 
@@ -19,18 +20,25 @@ class LineAxis0(_PointLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_line = _build_extend_line_axis0(
+        perform_extend_cpu = _build_extend_line_axis0(
             draw_line, map_onto_pixel, expand_aggs_and_cols
         )
         x_name = self.x
         y_name = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
             xs = df[x_name].values
             ys = df[y_name].values
-            cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df)
+
             # line may be clipped, then mapped to pixels
-            extend_line(vt, bounds, xs, ys, plot_start, *cols)
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, ys, plot_start, *aggs_and_cols
+            )
 
         return extend
 
@@ -89,19 +97,26 @@ class LineAxis0Multi(_PointLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_line = _build_extend_line_axis0_multi(
+        perform_extend_cpu = _build_extend_line_axis0_multi(
             draw_line, map_onto_pixel, expand_aggs_and_cols
         )
         x_names = self.x
         y_names = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            xs = tuple(df[x_name].values for x_name in x_names)
-            ys = tuple(df[y_name].values for y_name in y_names)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
 
-            cols = aggs + info(df)
+            xs = df[list(x_names)].values
+            ys = df[list(y_names)].values
+
+            aggs_and_cols = aggs + info(df)
             # line may be clipped, then mapped to pixels
-            extend_line(vt, bounds, xs, ys, plot_start, *cols)
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, ys, plot_start, *aggs_and_cols
+            )
 
         return extend
 
@@ -182,19 +197,23 @@ class LinesAxis1(_PointLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_lines_xy = _build_extend_line_axis1_none_constant(
+        perform_extend_cpu = _build_extend_line_axis1_none_constant(
             draw_line, map_onto_pixel, expand_aggs_and_cols
         )
         x_names = self.x
         y_names = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            xs = tuple(df[x_name].values for x_name in x_names)
-            ys = tuple(df[y_name].values for y_name in y_names)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
 
-            cols = aggs + info(df)
-            # line may be clipped, then mapped to pixels
-            extend_lines_xy(vt, bounds, xs, ys, plot_start, *cols)
+            xs = df[list(x_names)].values
+            ys = df[list(y_names)].values
+
+            perform_extend_cpu(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+            )
 
         return extend
 
@@ -237,7 +256,7 @@ class LinesAxis1XConstant(LinesAxis1):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_lines = _build_extend_line_axis1_x_constant(
+        perform_extend_cpu = _build_extend_line_axis1_x_constant(
             draw_line, map_onto_pixel, expand_aggs_and_cols
         )
 
@@ -245,11 +264,17 @@ class LinesAxis1XConstant(LinesAxis1):
         y_names = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            ys = tuple(df[y_name].values for y_name in y_names)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
 
-            cols = aggs + info(df)
-            # line may be clipped, then mapped to pixels
-            extend_lines(vt, bounds, x_values, ys, plot_start, *cols)
+            ys = df[list(y_names)].values
+
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                x_values, ys, *aggs_and_cols
+            )
 
         return extend
 
@@ -292,7 +317,7 @@ class LinesAxis1YConstant(LinesAxis1):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_lines = _build_extend_line_axis1_y_constant(
+        perform_extend_cpu = _build_extend_line_axis1_y_constant(
             draw_line, map_onto_pixel, expand_aggs_and_cols
         )
 
@@ -300,11 +325,18 @@ class LinesAxis1YConstant(LinesAxis1):
         y_values = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            xs = tuple(df[x_name].values for x_name in x_names)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
 
-            cols = aggs + info(df)
-            # line may be clipped, then mapped to pixels
-            extend_lines(vt, bounds, xs, y_values, plot_start, *cols)
+            xs = df[list(x_names)].values
+            _do_extend = perform_extend_cpu
+
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, y_values, *aggs_and_cols
+            )
 
         return extend
 
@@ -353,26 +385,33 @@ class LinesAxis1Ragged(_PointLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_line = _build_draw_line(append, expand_aggs_and_cols)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        extend_lines_ragged = _build_extend_line_axis1_ragged(
+        perform_extend_cpu = _build_extend_line_axis1_ragged(
             draw_line, map_onto_pixel, expand_aggs_and_cols
         )
         x_name = self.x
         y_name = self.y
 
         def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+
             xs = df[x_name].array
             ys = df[y_name].array
 
-            cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df)
             # line may be clipped, then mapped to pixels
-            extend_lines_ragged(vt, bounds, xs, ys, plot_start, *cols)
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                xs, ys, *aggs_and_cols
+            )
 
         return extend
 
 
 def _build_map_onto_pixel_for_line(x_mapper, y_mapper):
     @ngjit
-    def map_onto_pixel(vt, bounds, x, y):
+    def map_onto_pixel(sx, tx, sy, ty, xmin, xmax, ymin, ymax, x, y):
         """Map points onto pixel grid.
 
         Points falling on upper bound are mapped into previous bin.
@@ -385,8 +424,6 @@ def _build_map_onto_pixel_for_line(x_mapper, y_mapper):
         representation of continuous space or in integer space
         doesn't change anything.
         """
-        sx, tx, sy, ty = vt
-        xmax, ymax = bounds[1], bounds[3]
         xx = int(x_mapper(x) * sx + tx)
         yy = int(y_mapper(y) * sy + ty)
 
@@ -494,13 +531,12 @@ def _clipt(p, q, t0, t1):
 
 
 @ngjit
-def _skip_or_clip(x0, x1, y0, y1, bounds, plot_start):
-    xmin, xmax, ymin, ymax = bounds
+def _skip_or_clip(x0, x1, y0, y1, xmin, xmax, ymin, ymax, plot_start):
     skip = False
 
     # If any of the coordinates are NaN, there's a discontinuity.
     # Skip the entire segment.
-    if np.isnan(x0) or np.isnan(y0) or np.isnan(x1) or np.isnan(
+    if isnan(x0) or isnan(y0) or isnan(x1) or isnan(
             y1):
         plot_start = True
         skip = True
@@ -548,7 +584,11 @@ def _skip_or_clip(x0, x1, y0, y1, bounds, plot_start):
 def _build_extend_line_axis0(draw_line, map_onto_pixel, expand_aggs_and_cols):
     @ngjit
     @expand_aggs_and_cols
-    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+    def extend_line(
+            sx, tx, sy, ty,
+            xmin, xmax, ymin, ymax,
+            xs, ys, plot_start, *aggs_and_cols
+    ):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
         nrows = xs.shape[0]
         i = 0
@@ -559,11 +599,15 @@ def _build_extend_line_axis0(draw_line, map_onto_pixel, expand_aggs_and_cols):
             y1 = ys[i + 1]
 
             x0, x1, y0, y1, skip, clipped, plot_start = \
-                _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+                _skip_or_clip(x0, x1, y0, y1, xmin, xmax, ymin, ymax, plot_start)
 
             if not skip:
-                x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                x1i, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+                )
                 draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped, *aggs_and_cols)
                 plot_start = False
             i += 1
@@ -574,10 +618,12 @@ def _build_extend_line_axis0(draw_line, map_onto_pixel, expand_aggs_and_cols):
 def _build_extend_line_axis0_multi(draw_line, map_onto_pixel, expand_aggs_and_cols):
     @ngjit
     @expand_aggs_and_cols
-    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+    def extend_line(
+            sx, tx, sy, ty,
+            xmin, xmax, ymin, ymax,
+            xs, ys, plot_start, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
-        nrows = xs[0].shape[0]
-        ncols = len(xs)
+        nrows, ncols = xs.shape
         orig_plot_start = plot_start
 
         j = 0
@@ -585,17 +631,21 @@ def _build_extend_line_axis0_multi(draw_line, map_onto_pixel, expand_aggs_and_co
             plot_start = orig_plot_start
             i = 0
             while i < nrows - 1:
-                x0 = xs[j][i]
-                y0 = ys[j][i]
-                x1 = xs[j][i + 1]
-                y1 = ys[j][i + 1]
+                x0 = xs[i, j]
+                y0 = ys[i, j]
+                x1 = xs[i + 1, j]
+                y1 = ys[i + 1, j]
 
                 x0, x1, y0, y1, skip, clipped, plot_start = \
-                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+                    _skip_or_clip(x0, x1, y0, y1, xmin, xmax, ymin, ymax, plot_start)
 
                 if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                    x0i, y0i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                    )
+                    x1i, y1i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+                    )
                     draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped, *aggs_and_cols)
                     plot_start = False
                 i += 1
@@ -609,36 +659,47 @@ def _build_extend_line_axis1_none_constant(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
-        """
-        here xs and ys are tuples of arrays and non-empty
-        """
-        nrows = xs[0].shape[0]
-        ncols = len(xs)
+    def _perform_extend_line(
+            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys, *aggs_and_cols
+    ):
+        ncols = xs.shape[1]
+        plot_start = True
+        j = 0
+        while j < ncols - 1:
+            x0 = xs[i, j]
+            y0 = ys[i, j]
+            x1 = xs[i, j + 1]
+            y1 = ys[i, j + 1]
 
-        i = 0
-        while i < nrows:
-            plot_start = True
-            j = 0
-            while j < ncols - 1:
-                x0 = xs[j][i]
-                y0 = ys[j][i]
-                x1 = xs[j + 1][i]
-                y1 = ys[j + 1][i]
+            x0, x1, y0, y1, skip, clipped, plot_start = \
+                _skip_or_clip(x0, x1, y0, y1, xmin, xmax, ymin, ymax,
+                              plot_start)
 
-                x0, x1, y0, y1, skip, clipped, plot_start = \
-                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+            if not skip:
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                x1i, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+                )
+                draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
+                          *aggs_and_cols)
+                plot_start = False
+            j += 1
 
-                if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
-                    draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
-                              *aggs_and_cols)
-                    plot_start = False
-                j += 1
-            i += 1
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
+        for i in range(xs.shape[0]):
+            _perform_extend_line(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xs, ys, *aggs_and_cols
+            )
 
-    return extend_line
+    return extend_cpu
 
 
 def _build_extend_line_axis1_x_constant(
@@ -646,36 +707,43 @@ def _build_extend_line_axis1_x_constant(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
-        """
-        here xs and ys are tuples of arrays and non-empty
-        """
-        nrows = ys[0].shape[0]
-        ncols = len(ys)
+    def _perform_extend_line(
+            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
+        ncols = ys.shape[1]
+        plot_start = True
+        j = 0
+        while j < ncols - 1:
+            x0 = xs[j]
+            y0 = ys[i, j]
+            x1 = xs[j + 1]
+            y1 = ys[i, j + 1]
 
-        i = 0
-        while i < nrows:
-            plot_start = True
-            j = 0
-            while j < ncols - 1:
-                x0 = xs[j]
-                y0 = ys[j][i]
-                x1 = xs[j+1]
-                y1 = ys[j+1][i]
+            x0, x1, y0, y1, skip, clipped, plot_start = \
+                _skip_or_clip(x0, x1, y0, y1, xmin, xmax, ymin, ymax,
+                              plot_start)
 
-                x0, x1, y0, y1, skip, clipped, plot_start = \
-                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+            if not skip:
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                x1i, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+                )
+                draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
+                          *aggs_and_cols)
+                plot_start = False
+            j += 1
 
-                if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
-                    draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
-                              *aggs_and_cols)
-                    plot_start = False
-                j += 1
-            i += 1
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols):
+        for i in range(ys.shape[0]):
+            _perform_extend_line(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+            )
 
-    return extend_line
+    return extend_cpu
 
 
 def _build_extend_line_axis1_y_constant(
@@ -683,67 +751,80 @@ def _build_extend_line_axis1_y_constant(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
-        """
-        here xs and ys are tuples of arrays and non-empty
-        """
-        nrows = xs[0].shape[0]
-        ncols = len(xs)
+    def _perform_extend_line(
+            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
+        ncols = xs.shape[1]
+        plot_start = True
+        j = 0
+        while j < ncols - 1:
+            x0 = xs[i, j]
+            y0 = ys[j]
+            x1 = xs[i, j + 1]
+            y1 = ys[j + 1]
 
-        i = 0
-        while i < nrows:
-            plot_start = True
-            j = 0
-            while j < ncols - 1:
-                x0 = xs[j][i]
-                y0 = ys[j]
-                x1 = xs[j + 1][i]
-                y1 = ys[j + 1]
+            x0, x1, y0, y1, skip, clipped, plot_start = \
+                _skip_or_clip(x0, x1, y0, y1, xmin, xmax, ymin, ymax,
+                              plot_start)
 
-                x0, x1, y0, y1, skip, clipped, plot_start = \
-                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+            if not skip:
+                x0i, y0i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                x1i, y1i = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+                )
+                draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
+                          *aggs_and_cols)
+                plot_start = False
+            j += 1
 
-                if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
-                    draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
-                              *aggs_and_cols)
-                    plot_start = False
-                j += 1
-            i += 1
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu(
+            sx, tx, sy, ty,
+            xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
+        for i in range(xs.shape[0]):
+            _perform_extend_line(
+                i, sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+            )
 
-    return extend_line
+    return extend_cpu
 
 
 def _build_extend_line_axis1_ragged(
         draw_line, map_onto_pixel, expand_aggs_and_cols
 ):
 
-    def extend_line(vt, bounds, xs, ys, plot_start, *aggs_and_cols):
+    def extend_line(
+            sx, tx, sy, ty,
+            xmin, xmax, ymin, ymax,
+            xs, ys, *aggs_and_cols
+    ):
         x_start_indices = xs.start_indices
         x_flat_array = xs.flat_array
 
         y_start_indices = ys.start_indices
         y_flat_array = ys.flat_array
 
-        perform_extend_lines_ragged(vt,
-                                    bounds,
+        perform_extend_lines_ragged(sx, tx, sy, ty,
+                                    xmin, xmax, ymin, ymax,
                                     x_start_indices,
                                     x_flat_array,
                                     y_start_indices,
                                     y_flat_array,
-                                    plot_start,
                                     *aggs_and_cols)
 
     @ngjit
     @expand_aggs_and_cols
-    def perform_extend_lines_ragged(vt,
-                                    bounds,
+    def perform_extend_lines_ragged(sx, tx, sy, ty,
+                                    xmin, xmax, ymin, ymax,
                                     x_start_indices,
                                     x_flat_array,
                                     y_start_indices,
                                     y_flat_array,
-                                    plot_start,
                                     *aggs_and_cols):
 
         nrows = len(x_start_indices)
@@ -779,11 +860,15 @@ def _build_extend_line_axis1_ragged(
                 y1 = y_flat_array[y_start_index + j + 1]
 
                 x0, x1, y0, y1, skip, clipped, plot_start = \
-                    _skip_or_clip(x0, x1, y0, y1, bounds, plot_start)
+                    _skip_or_clip(x0, x1, y0, y1, xmin, xmax, ymin, ymax, plot_start)
 
                 if not skip:
-                    x0i, y0i = map_onto_pixel(vt, bounds, x0, y0)
-                    x1i, y1i = map_onto_pixel(vt, bounds, x1, y1)
+                    x0i, y0i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                    )
+                    x1i, y1i = map_onto_pixel(
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+                    )
                     draw_line(x0i, y0i, x1i, y1i, i, plot_start, clipped,
                               *aggs_and_cols)
                     plot_start = False

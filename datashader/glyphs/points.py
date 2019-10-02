@@ -81,33 +81,35 @@ class Point(_PointLike):
 
         @ngjit
         @self.expand_aggs_and_cols(append)
-        def _extend(vt, bounds, xs, ys, *aggs_and_cols):
+        def _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols):
+            x = xs[i]
+            y = ys[i]
+            # points outside bounds are dropped; remainder
+            # are mapped onto pixels
+            if (xmin <= x <= xmax) and (ymin <= y <= ymax):
+                xx = int(x_mapper(x) * sx + tx)
+                yy = int(y_mapper(y) * sy + ty)
+                xi, yi = (xx - 1 if x == xmax else xx,
+                          yy - 1 if y == ymax else yy)
+
+                append(i, xi, yi, *aggs_and_cols)
+
+        @ngjit
+        @self.expand_aggs_and_cols(append)
+        def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols):
+            for i in range(xs.shape[0]):
+                _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols)
+
+        def extend(aggs, df, vt, bounds):
+            aggs_and_cols = aggs + info(df)
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
 
-            def map_onto_pixel(x, y):
-                """Map points onto pixel grid.
-
-                Points falling on upper bound are mapped into previous bin.
-                """
-                xx = int(x_mapper(x) * sx + tx)
-                yy = int(y_mapper(y) * sy + ty)
-                return (xx - 1 if x == xmax else xx,
-                        yy - 1 if y == ymax else yy)
-
-            for i in range(xs.shape[0]):
-                x = xs[i]
-                y = ys[i]
-                # points outside bounds are dropped; remainder
-                # are mapped onto pixels
-                if (xmin <= x <= xmax) and (ymin <= y <= ymax):
-                    xi, yi = map_onto_pixel(x, y)
-                    append(i, xi, yi, *aggs_and_cols)
-
-        def extend(aggs, df, vt, bounds):
             xs = df[x_name].values
             ys = df[y_name].values
-            cols = aggs + info(df)
-            _extend(vt, bounds, xs, ys, *cols)
+
+            extend_cpu(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+            )
 
         return extend
