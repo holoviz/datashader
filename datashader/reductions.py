@@ -155,8 +155,6 @@ class any(OptionalFieldReduction):
             agg[y, x] = True
 
     @staticmethod
-
-    @staticmethod
     def _create(shape, array_module):
         return array_module.zeros(shape, dtype='bool')
 
