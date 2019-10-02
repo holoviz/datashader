@@ -145,6 +145,9 @@ def eq_hist(data, mask=None, nbins=256*256):
     """
     if not isinstance(data, np.ndarray):
         raise TypeError("data must be np.ndarray")
+    else:
+        interp = np.interp
+
     data2 = data if mask is None else data[~mask]
     if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
         hist = np.bincount(data2.ravel())
@@ -156,7 +159,7 @@ def eq_hist(data, mask=None, nbins=256*256):
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
-    out = np.interp(data.flat, bin_centers, cdf).reshape(data.shape)
+    out = interp(data, bin_centers, cdf).reshape(data.shape)
     return out if mask is None else np.where(mask, np.nan, out)
 
 
@@ -228,9 +231,9 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
         span = np.linspace(span[0], span[1], len(cmap))
-        r = np.interp(data, span, rspan, left=255).astype(np.uint8)
-        g = np.interp(data, span, gspan, left=255).astype(np.uint8)
-        b = np.interp(data, span, bspan, left=255).astype(np.uint8)
+        r = interp(data, span, rspan, left=255).astype(np.uint8)
+        g = interp(data, span, gspan, left=255).astype(np.uint8)
+        b = interp(data, span, bspan, left=255).astype(np.uint8)
         a = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
         img = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
     elif isinstance(cmap, str) or isinstance(cmap, tuple):
@@ -255,6 +258,9 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
 
 
 def _colorize(agg, color_key, how, min_alpha, name):
+    interp = np.interp
+    array = np.array
+
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
     cats = agg.indexes[agg.dims[-1]]
@@ -269,7 +275,7 @@ def _colorize(agg, color_key, how, min_alpha, name):
     if not (0 <= min_alpha <= 255):
         raise ValueError("min_alpha ({}) must be between 0 and 255".format(min_alpha))
     colors = [rgb(color_key[c]) for c in cats]
-    rs, gs, bs = map(np.array, zip(*colors))
+    rs, gs, bs = map(array, zip(*colors))
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
     data = orient_array(agg_t).transpose([1, 2, 0])
@@ -285,8 +291,8 @@ def _colorize(agg, color_key, how, min_alpha, name):
         mask = mask | (total <= 0)
         offset = total[total > 0].min()
     a = _normalize_interpolate_how(how)(total - offset, mask)
-    a = np.interp(a, [np.nanmin(a), np.nanmax(a)],
-                  [min_alpha, 255], left=0, right=255).astype(np.uint8)
+    a = interp(a, array([np.nanmin(a).item(), np.nanmax(a).item()]),
+               array([min_alpha, 255]), left=0, right=255).astype(np.uint8)
     r[mask] = g[mask] = b[mask] = 255
     return Image(np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape),
                  dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1],
