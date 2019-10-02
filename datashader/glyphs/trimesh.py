@@ -43,12 +43,12 @@ class _PolygonLike(_PointLike):
 
     def compute_x_bounds(self, df):
         xs = df[self.x].values
-        bounds = self._compute_x_bounds(xs.reshape(np.prod(xs.shape)))
+        bounds = self._compute_bounds(xs.reshape(np.prod(xs.shape)))
         return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, df):
         ys = df[self.y].values
-        bounds = self._compute_y_bounds(ys.reshape(np.prod(ys.shape)))
+        bounds = self._compute_bounds(ys.reshape(np.prod(ys.shape)))
         return self.maybe_expand_bounds(bounds)
 
 

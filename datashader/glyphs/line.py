@@ -57,13 +57,13 @@ class LineAxis0Multi(_PointLike):
         return self.x + self.y
 
     def compute_x_bounds(self, df):
-        bounds_list = [self._compute_x_bounds(df[x].values)
+        bounds_list = [self._compute_bounds(df[x])
                        for x in self.x]
         mins, maxes = zip(*bounds_list)
         return self.maybe_expand_bounds((min(mins), max(maxes)))
 
     def compute_y_bounds(self, df):
-        bounds_list = [self._compute_y_bounds(df[y].values)
+        bounds_list = [self._compute_bounds(df[y])
                        for y in self.y]
         mins, maxes = zip(*bounds_list)
         return self.maybe_expand_bounds((min(mins), max(maxes)))
@@ -148,7 +148,7 @@ class LinesAxis1(_PointLike):
     def compute_x_bounds(self, df):
         xs = tuple(df[xlabel] for xlabel in self.x)
 
-        bounds_list = [self._compute_x_bounds(xcol.values) for xcol in xs]
+        bounds_list = [self._compute_bounds(xcol) for xcol in xs]
         mins, maxes = zip(*bounds_list)
 
         return self.maybe_expand_bounds((min(mins), max(maxes)))
@@ -156,7 +156,7 @@ class LinesAxis1(_PointLike):
     def compute_y_bounds(self, df):
         ys = tuple(df[ylabel] for ylabel in self.y)
 
-        bounds_list = [self._compute_y_bounds(ycol.values) for ycol in ys]
+        bounds_list = [self._compute_bounds(ycol) for ycol in ys]
         mins, maxes = zip(*bounds_list)
 
         return self.maybe_expand_bounds((min(mins), max(maxes)))
@@ -325,11 +325,11 @@ class LinesAxis1Ragged(_PointLike):
         return (self.x,) + (self.y,)
 
     def compute_x_bounds(self, df):
-        bounds = self._compute_x_bounds(df[self.x].array.flat_array)
+        bounds = self._compute_bounds(df[self.x].array.flat_array)
         return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, df):
-        bounds = self._compute_y_bounds(df[self.y].array.flat_array)
+        bounds = self._compute_bounds(df[self.y].array.flat_array)
         return self.maybe_expand_bounds(bounds)
 
     @memoize

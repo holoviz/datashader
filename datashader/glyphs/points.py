@@ -38,11 +38,11 @@ class _PointLike(Glyph):
         return [self.x, self.y]
 
     def compute_x_bounds(self, df):
-        bounds = self._compute_x_bounds(df[self.x].values)
+        bounds = self._compute_bounds(df[self.x])
         return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, df):
-        bounds = self._compute_y_bounds(df[self.y].values)
+        bounds = self._compute_bounds(df[self.y])
         return self.maybe_expand_bounds(bounds)
 
     @memoize

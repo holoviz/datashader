@@ -43,7 +43,7 @@ class _AreaToLineLike(Glyph):
         return self.x, self.y, self.y_stack
 
     def compute_x_bounds(self, df):
-        bounds = self._compute_x_bounds(df[self.x].values)
+        bounds = self._compute_bounds(df[self.x])
         return self.maybe_expand_bounds(bounds)
 
 
@@ -60,7 +60,7 @@ class AreaToZeroAxis0(_PointLike):
 
     def compute_y_bounds(self, df):
         # Compute bounds of curve
-        bounds = self._compute_y_bounds(df[self.y].values)
+        bounds = self._compute_bounds(df[self.y])
 
         # Make sure bounds include zero
         bounds = min(bounds[0], 0), max(bounds[1], 0)
@@ -125,8 +125,8 @@ class AreaToLineAxis0(_AreaToLineLike):
 
     def compute_y_bounds(self, df):
         # Compute bounds of each curve
-        bounds0 = self._compute_y_bounds(df[self.y].values)
-        bounds1 = self._compute_y_bounds(df[self.y_stack].values)
+        bounds0 = self._compute_bounds(df[self.y])
+        bounds1 = self._compute_bounds(df[self.y_stack])
 
         # Combine bounds from the two curves
         bounds = min(bounds0[0], bounds1[0]), max(bounds0[1], bounds1[1])
@@ -199,13 +199,13 @@ class AreaToZeroAxis0Multi(_PointLike):
         return self.x + self.y
 
     def compute_x_bounds(self, df):
-        bounds_list = [self._compute_x_bounds(df[x].values)
+        bounds_list = [self._compute_bounds(df[x])
                        for x in self.x]
         mins, maxes = zip(*bounds_list)
         return self.maybe_expand_bounds((min(mins), max(maxes)))
 
     def compute_y_bounds(self, df):
-        bounds_list = [self._compute_y_bounds(df[y].values)
+        bounds_list = [self._compute_bounds(df[y])
                        for y in self.y]
         mins, maxes = zip(*bounds_list)
 
@@ -277,13 +277,13 @@ class AreaToLineAxis0Multi(_AreaToLineLike):
         return self.x + self.y + self.y_stack
 
     def compute_x_bounds(self, df):
-        bounds_list = [self._compute_x_bounds(df[x].values)
+        bounds_list = [self._compute_bounds(df[x])
                        for x in self.x]
         mins, maxes = zip(*bounds_list)
         return self.maybe_expand_bounds((min(mins), max(maxes)))
 
     def compute_y_bounds(self, df):
-        bounds_list = [self._compute_y_bounds(df[y].values)
+        bounds_list = [self._compute_bounds(df[y])
                        for y in self.y + self.y_stack]
         mins, maxes = zip(*bounds_list)
 
@@ -365,7 +365,7 @@ class AreaToZeroAxis1(_PointLike):
     def compute_x_bounds(self, df):
         xs = tuple(df[xlabel] for xlabel in self.x)
 
-        bounds_list = [self._compute_x_bounds(xcol.values) for xcol in xs]
+        bounds_list = [self._compute_bounds(xcol) for xcol in xs]
         mins, maxes = zip(*bounds_list)
 
         return self.maybe_expand_bounds((min(mins), max(maxes)))
@@ -373,7 +373,7 @@ class AreaToZeroAxis1(_PointLike):
     def compute_y_bounds(self, df):
         ys = tuple(df[ylabel] for ylabel in self.y)
 
-        bounds_list = [self._compute_y_bounds(ycol.values) for ycol in ys]
+        bounds_list = [self._compute_bounds(ycol) for ycol in ys]
         mins, maxes = zip(*bounds_list)
 
         # Make sure min/max range includes zero
@@ -465,13 +465,13 @@ class AreaToLineAxis1(_AreaToLineLike):
     def compute_x_bounds(self, df):
         xs = tuple(df[xlabel] for xlabel in self.x)
 
-        bounds_list = [self._compute_x_bounds(xcol.values) for xcol in xs]
+        bounds_list = [self._compute_bounds(xcol) for xcol in xs]
         mins, maxes = zip(*bounds_list)
 
         return self.maybe_expand_bounds((min(mins), max(maxes)))
 
     def compute_y_bounds(self, df):
-        bounds_list = [self._compute_y_bounds(df[y].values)
+        bounds_list = [self._compute_bounds(df[y])
                        for y in self.y + self.y_stack]
         mins, maxes = zip(*bounds_list)
 
@@ -763,11 +763,11 @@ class AreaToZeroAxis1Ragged(_PointLike):
         return self.x, self.y
 
     def compute_x_bounds(self, df):
-        bounds = self._compute_x_bounds(df[self.x].array.flat_array)
+        bounds = self._compute_bounds(df[self.x].array.flat_array)
         return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, df):
-        bounds = self._compute_y_bounds(df[self.y].array.flat_array)
+        bounds = self._compute_bounds(df[self.y].array.flat_array)
 
         # Make sure bounds include zero
         bounds = min(bounds[0], 0), max(bounds[1], 0)
@@ -831,12 +831,12 @@ class AreaToLineAxis1Ragged(_AreaToLineLike):
         return self.x, self.y, self.y_stack
 
     def compute_x_bounds(self, df):
-        bounds = self._compute_x_bounds(df[self.x].array.flat_array)
+        bounds = self._compute_bounds(df[self.x].array.flat_array)
         return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, df):
-        bounds_y = self._compute_y_bounds(df[self.y].array.flat_array)
-        bounds_y_stack = self._compute_y_bounds(
+        bounds_y = self._compute_bounds(df[self.y].array.flat_array)
+        bounds_y_stack = self._compute_bounds(
             df[self.y_stack].array.flat_array)
 
         # Make sure bounds include zero
