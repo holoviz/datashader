@@ -379,11 +379,16 @@ def dshape_from_pandas_helper(col):
     dataframe.
     """
     if isinstance(col.dtype, type(pd.Categorical.dtype)) or isinstance(col.dtype, pd.api.types.CategoricalDtype):
+        # Compute category dtype
+        categories = np.array(col.cat.categories)
+        if categories.dtype.kind == 'U':
+            categories = categories.astype('object')
+
         cat_dshape = datashape.dshape('{} * {}'.format(
             len(col.cat.categories),
-            col.cat.categories.dtype,
+            categories.dtype,
         ))
-        return datashape.Categorical(col.cat.categories.values,
+        return datashape.Categorical(categories,
                                      type=cat_dshape,
                                      ordered=col.cat.ordered)
     elif col.dtype.kind == 'M':
