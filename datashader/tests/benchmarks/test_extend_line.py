@@ -29,21 +29,23 @@ def extend_line():
 @pytest.mark.benchmark(group="extend_line")
 def test_extend_line_uniform(benchmark, extend_line, low, high):
     n = 10**6
-    vt = (1, 0, 1, 0)
-    bounds = (0, 0, 10**4, 10**4)
+    sx, tx, sy, ty = (1, 0, 1, 0)
+    xmin, xmax, ymin, ymax = (0, 0, 10**4, 10**4)
 
-    xs = np.random.uniform(bounds[0] + low, bounds[2] + high, n)
-    ys = np.random.uniform(bounds[1] + low, bounds[3] + high, n)
+    xs = np.random.uniform(xmin + low, ymin + high, n)
+    ys = np.random.uniform(xmax + low, ymax + high, n)
 
-    agg = np.zeros((bounds[2], bounds[3]), dtype='i4')
-    benchmark(extend_line, vt, bounds, xs, ys, True, agg)
+    agg = np.zeros((ymin, ymax), dtype='i4')
+    benchmark(
+        extend_line, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg
+    )
 
 
 @pytest.mark.benchmark(group="extend_line")
 def test_extend_line_normal(benchmark, extend_line):
     n = 10**6
-    vt = (1, 0, 1, 0)
-    bounds = (0, 0, 10**4, 10**4)
+    sx, tx, sy, ty = (1, 0, 1, 0)
+    xmin, xmax, ymin, ymax = (0, 0, 10**4, 10**4)
 
     start = 1456297053
     end = start + 60 * 60 * 24
@@ -53,5 +55,7 @@ def test_extend_line_normal(benchmark, extend_line):
     noise = lambda var, bias, n: np.random.normal(bias, var, n)
     ys = signal + noise(1, 10*(np.random.random() - 0.5), n)
 
-    agg = np.zeros((bounds[2], bounds[3]), dtype='i4')
-    benchmark(extend_line, vt, bounds, xs, ys, True, agg)
+    agg = np.zeros((ymin, ymax), dtype='i4')
+    benchmark(
+        extend_line, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg
+    )

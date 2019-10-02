@@ -164,12 +164,14 @@ def test_extend_lines():
                     [0, 1, 0, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = new_agg()
-    extend_line(vt, bounds, xs, ys, False, agg)
+    sx, tx, sy, ty = vt
+    xmin, xmax, ymin, ymax = bounds
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, False, agg)
     np.testing.assert_equal(agg, out)
     # plot_start = True
     out[2, 3] += 1
     agg = new_agg()
-    extend_line(vt, bounds, xs, ys, True, agg)
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
     np.testing.assert_equal(agg, out)
 
     xs = np.array([2, 1, 0, -1, -4, -1, -100, -1, 2])
@@ -180,7 +182,7 @@ def test_extend_lines():
                     [1, 1, 0, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = new_agg()
-    extend_line(vt, bounds, xs, ys, True, agg)
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
     np.testing.assert_equal(agg, out)
 
 
@@ -188,7 +190,9 @@ def test_extend_lines_all_out_of_bounds():
     xs = np.array([-100, -200, -100])
     ys = np.array([0, 0, 1])
     agg = new_agg()
-    extend_line(vt, bounds, xs, ys, True, agg)
+    sx, tx, sy, ty = vt
+    xmin, xmax, ymin, ymax = bounds
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
     assert agg.sum() == 0
 
 
@@ -196,7 +200,9 @@ def test_extend_lines_nan():
     xs = np.array([-3, -2, np.nan, 0, 1])
     ys = np.array([-3, -2, np.nan, 0, 1])
     agg = new_agg()
-    extend_line(vt, bounds, xs, ys, True, agg)
+    sx, tx, sy, ty = vt
+    xmin, xmax, ymin, ymax = bounds
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
     out = np.diag([1, 1, 0, 2, 0])
     np.testing.assert_equal(agg, out)
 
@@ -206,7 +212,9 @@ def test_extend_lines_exact_bounds():
     ys = np.array([-3, -3, 1, 1, -3])
 
     agg = np.zeros((4, 4), dtype='i4')
-    extend_line(vt, bounds, xs, ys, True, agg)
+    sx, tx, sy, ty = vt
+    xmin, xmax, ymin, ymax = bounds
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
     out = np.array([[2, 1, 1, 1],
                     [1, 0, 0, 1],
                     [1, 0, 0, 1],
@@ -214,7 +222,7 @@ def test_extend_lines_exact_bounds():
     np.testing.assert_equal(agg, out)
 
     agg = np.zeros((4, 4), dtype='i4')
-    extend_line(vt, bounds, xs, ys, False, agg)
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, False, agg)
     out = np.array([[1, 1, 1, 1],
                     [1, 0, 0, 1],
                     [1, 0, 0, 1],
@@ -813,8 +821,8 @@ def test_line_awkward_point_on_upper_bound_maps_to_last_pixel():
     assert y!=ymax
     np.testing.assert_almost_equal(y,ymax,decimal=6)
 
-    _,pymax = map_onto_pixel_for_line((1.0, 0.0, sy, 0.0),
-                                      (0.0, 1.0, 0.0, ymax),
+    _,pymax = map_onto_pixel_for_line(1.0, 0.0, sy, 0.0,
+                                      0.0, 1.0, 0.0, ymax,
                                       1.0, y)
 
     assert pymax==num_y_pixels-1
