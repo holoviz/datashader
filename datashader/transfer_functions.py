@@ -152,7 +152,7 @@ def eq_hist(data, mask=None, nbins=256*256):
     if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
         hist = np.bincount(data2.ravel())
         bin_centers = np.arange(len(hist))
-        idx = np.nonzero(hist)[0][0]
+        idx = int(np.nonzero(hist)[0][0])
         hist, bin_centers = hist[idx:], bin_centers[idx:]
     else:
         hist, bin_edges = np.histogram(data2, bins=nbins)
