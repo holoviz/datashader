@@ -6,11 +6,11 @@ import numpy as np
 import xarray as xr
 import PIL
 import pytest
-
+from collections import OrderedDict
 import datashader.transfer_functions as tf
 
 
-coords = [np.array([0, 1, 2]), np.array([3, 4, 5])]
+coords = OrderedDict([('x_axis', [3, 4, 5]), ('y_axis', [0, 1, 2])])
 dims = ['y_axis', 'x_axis']
 
 a = np.arange(10, 19, dtype='i4').reshape((3, 3))
@@ -111,6 +111,9 @@ def test_shade(attr, span):
     img = tf.shade(x, cmap=cmap, how='log', span=span)
     sol = solutions['log']
     assert img.equals(sol)
+    # Check dims/coordinates order
+    assert list(img.coords) == ['x_axis', 'y_axis']
+    assert list(img.dims) == ['y_axis', 'x_axis']
 
     img = tf.shade(x, cmap=cmap, how='cbrt', span=span)
     sol = solutions['cbrt']
@@ -250,6 +253,9 @@ def test_shade_category():
                     [4283774890, 3707764991]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert img.equals(sol)
+    # Check dims/coordinates order
+    assert list(img.coords) == ['x_axis', 'y_axis']
+    assert list(img.dims) == ['y_axis', 'x_axis']
 
     colors = dict(zip('abc', colors))
 

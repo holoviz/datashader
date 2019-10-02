@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
-from collections import Iterator
+from collections import Iterator, OrderedDict
 from io import BytesIO
 
 import numpy as np
@@ -288,8 +288,14 @@ def _colorize(agg, color_key, how, min_alpha, name):
     a = np.interp(a, [np.nanmin(a), np.nanmax(a)],
                   [min_alpha, 255], left=0, right=255).astype(np.uint8)
     r[mask] = g[mask] = b[mask] = 255
-    return Image(np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape),
-                 dims=agg.dims[:-1], coords=list(agg.coords.values())[:-1],
+    values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
+
+    return Image(values,
+                 dims=agg.dims[:-1],
+                 coords=OrderedDict([
+                     (agg.dims[1], agg.coords[agg.dims[1]]),
+                     (agg.dims[0], agg.coords[agg.dims[0]]),
+                 ]),
                  name=name)
 
 
