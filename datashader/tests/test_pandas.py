@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from collections import OrderedDict
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -8,19 +9,23 @@ import datashader as ds
 import pytest
 
 
-df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
-                   'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
-                   'log_x': np.array(([1.] * 10 + [10] * 10)),
-                   'log_y': np.array(([1.] * 5 + [10] * 5 + [1] * 5 + [10] * 5)),
-                   'i32': np.arange(20, dtype='i4'),
-                   'i64': np.arange(20, dtype='i8'),
-                   'f32': np.arange(20, dtype='f4'),
-                   'f64': np.arange(20, dtype='f8'),
-                   'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
-                   'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
-df.cat = df.cat.astype('category')
-df.f32[2] = np.nan
-df.f64[2] = np.nan
+df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
+                      'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
+                      'log_x': np.array(([1.] * 10 + [10] * 10)),
+                      'log_y': np.array(([1.] * 5 + [10] * 5 + [1] * 5 + [10] * 5)),
+                      'i32': np.arange(20, dtype='i4'),
+                      'i64': np.arange(20, dtype='i8'),
+                      'f32': np.arange(20, dtype='f4'),
+                      'f64': np.arange(20, dtype='f8'),
+                      'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
+                      'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
+df_pd.cat = df_pd.cat.astype('category')
+df_pd.f32[2] = np.nan
+df_pd.f64[2] = np.nan
+dfs_pd = [df_pd]
+
+dfs = [df_pd]
+DataFrames = [pd.DataFrame]
 
 c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
 c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
@@ -32,7 +37,7 @@ c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
 
 axis = ds.core.LinearAxis()
 lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
-coords = [lincoords, lincoords]
+coords = OrderedDict([('x', lincoords), ('y', lincoords)])
 dims = ['y', 'x']
 
 
@@ -55,7 +60,14 @@ def floats(n):
         n = n + np.spacing(n)
 
 
-def test_count():
+def values(s):
+    """Get numpy array of values from pandas-like Series, handling Series
+    of different types"""
+    return s.values
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_count(df):
     out = xr.DataArray(np.array([[5, 5], [5, 5]], dtype='i4'),
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.count('i32')), out)
@@ -67,7 +79,8 @@ def test_count():
     assert_eq_xr(c.points(df, 'x', 'y', ds.count('f64')), out)
 
 
-def test_any():
+@pytest.mark.parametrize('df', dfs)
+def test_any(df):
     out = xr.DataArray(np.array([[True, True], [True, True]]),
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.any('i64')), out)
@@ -78,8 +91,9 @@ def test_any():
     assert_eq_xr(c.points(df, 'x', 'y', ds.any('empty_bin')), out)
 
 
-def test_sum():
-    out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).sum(axis=2, dtype='f8').T,
+@pytest.mark.parametrize('df', dfs)
+def test_sum(df):
+    out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.sum('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.sum('i64')), out)
@@ -89,8 +103,9 @@ def test_sum():
     assert_eq_xr(c.points(df, 'x', 'y', ds.sum('f64')), out)
 
 
-def test_min():
-    out = xr.DataArray(df.i64.values.reshape((2, 2, 5)).min(axis=2).astype('f8').T,
+@pytest.mark.parametrize('df', dfs)
+def test_min(df):
+    out = xr.DataArray(values(df.i64).reshape((2, 2, 5)).min(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.min('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.min('i64')), out)
@@ -98,8 +113,9 @@ def test_min():
     assert_eq_xr(c.points(df, 'x', 'y', ds.min('f64')), out)
 
 
-def test_max():
-    out = xr.DataArray(df.i64.values.reshape((2, 2, 5)).max(axis=2).astype('f8').T,
+@pytest.mark.parametrize('df', dfs)
+def test_max(df):
+    out = xr.DataArray(values(df.i64).reshape((2, 2, 5)).max(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('i64')), out)
@@ -107,8 +123,9 @@ def test_max():
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f64')), out)
 
 
-def test_mean():
-    out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
+@pytest.mark.parametrize('df', dfs)
+def test_mean(df):
+    out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.mean('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.mean('i64')), out)
@@ -118,8 +135,9 @@ def test_mean():
     assert_eq_xr(c.points(df, 'x', 'y', ds.mean('f64')), out)
 
 
-def test_var():
-    out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).var(axis=2, dtype='f8').T,
+@pytest.mark.parametrize('df', [df_pd])
+def test_var(df):
+    out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).var(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.var('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.var('i64')), out)
@@ -129,8 +147,9 @@ def test_var():
     assert_eq_xr(c.points(df, 'x', 'y', ds.var('f64')), out)
 
 
-def test_std():
-    out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).std(axis=2, dtype='f8').T,
+@pytest.mark.parametrize('df', [df_pd])
+def test_std(df):
+    out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).std(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.std('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.std('i64')), out)
@@ -140,21 +159,24 @@ def test_std():
     assert_eq_xr(c.points(df, 'x', 'y', ds.std('f64')), out)
 
 
-def test_count_cat():
+@pytest.mark.parametrize('df', dfs)
+def test_count_cat(df):
     sol = np.array([[[5, 0, 0, 0],
                      [0, 0, 5, 0]],
                     [[0, 5, 0, 0],
                      [0, 0, 0, 5]]])
-    out = xr.DataArray(sol, coords=(coords + [['a', 'b', 'c', 'd']]),
-                       dims=(dims + ['cat']))
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.count_cat('cat'))
     assert_eq_xr(agg, out)
 
 
-def test_multiple_aggregates():
+@pytest.mark.parametrize('df', dfs)
+def test_multiple_aggregates(df):
     agg = c.points(df, 'x', 'y',
-                   ds.summary(f64_std=ds.std('f64'),
-                              f64_mean=ds.mean('f64'),
+                   ds.summary(f64_mean=ds.mean('f64'),
                               i32_sum=ds.sum('i32'),
                               i32_count=ds.count('i32')))
 
@@ -164,12 +186,13 @@ def test_multiple_aggregates():
     assert_eq_xr(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
 
 
-def test_auto_range_points():
+@pytest.mark.parametrize('DataFrame', DataFrames)
+def test_auto_range_points(DataFrame):
     n = 10
     data = np.arange(n, dtype='i4')
-    df = pd.DataFrame({'time': np.arange(n),
-                       'x': data,
-                       'y': data})
+    df = DataFrame({'time': np.arange(n),
+                    'x': data,
+                    'y': data})
 
     cvs = ds.Canvas(plot_width=n, plot_height=n)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
@@ -186,9 +209,9 @@ def test_auto_range_points():
 
     n = 4
     data = np.arange(n, dtype='i4')
-    df = pd.DataFrame({'time': np.arange(n),
-                       'x': data,
-                       'y': data})
+    df = DataFrame({'time': np.arange(n),
+                    'x': data,
+                    'y': data})
 
     cvs = ds.Canvas(plot_width=2*n, plot_height=2*n)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
@@ -242,7 +265,8 @@ def test_uniform_diagonal_points(low, high):
     assert abs(bounds[1] - bounds[0]) % 2 == abs(diagonal[1] / high - diagonal[0] / high)
 
 
-def test_log_axis_points():
+@pytest.mark.parametrize('df', dfs)
+def test_log_axis_points(df):
     axis = ds.core.LogAxis()
     logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
 
@@ -322,7 +346,8 @@ def test_lines_on_edge():
     assert_eq_xr(agg, out)
 
 
-def test_log_axis_line():
+@pytest.mark.parametrize('df', dfs_pd)
+def test_log_axis_line(df):
     axis = ds.core.LogAxis()
     logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
 
@@ -425,8 +450,8 @@ def test_trimesh_interp():
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values), sol)
 
     verts = pd.DataFrame({'x': [0, 5, 10],
-                       'y': [0, 10, 0],
-                       'z': [1, 5, 3]})
+                          'y': [0, 10, 0],
+                          'z': [1, 5, 3]})
     cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
@@ -605,60 +630,63 @@ def test_bug_570():
 
 
 # # Line tests
-@pytest.mark.parametrize('df,x,y,ax', [
+@pytest.mark.parametrize('DataFrame', DataFrames)
+@pytest.mark.parametrize('df_args,x,y,ax', [
     # axis1 none constant
-    (pd.DataFrame({
+    ([{
         'x0': [4, -4],
         'x1': [0,  0],
         'x2': [-4, 4],
         'y0': [0,  0],
         'y1': [-4, 4],
         'y2': [0,  0]
-    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+    }], ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
 
     # axis1 x constant
-    (pd.DataFrame({
+    ([{
         'y0': [0,  0],
         'y1': [-4, 4],
         'y2': [0,  0]
-    }), np.array([-4, 0, 4]), ['y0', 'y1', 'y2'], 1),
+    }], np.array([-4, 0, 4]), ['y0', 'y1', 'y2'], 1),
 
     # axis1 y constant
-    (pd.DataFrame({
+    ([{
         'x0': [0, 0],
         'x1': [-4, 4],
         'x2': [0, 0]
-    }), ['x0', 'x1', 'x2'], np.array([-4, 0, 4]), 1),
+    }], ['x0', 'x1', 'x2'], np.array([-4, 0, 4]), 1),
 
     # axis0 single
-    (pd.DataFrame({
+    ([{
         'x': [0, -4, 0, np.nan, 0,  4, 0],
         'y': [-4, 0, 4, np.nan, -4, 0, 4],
-    }), 'x', 'y', 0),
+    }], 'x', 'y', 0),
 
     # axis0 multi
-    (pd.DataFrame({
+    ([{
         'x0': [0, -4, 0],
         'x1': [0,  4, 0],
         'y0': [-4, 0, 4],
         'y1': [-4, 0, 4],
-    }), ['x0', 'x1'], ['y0', 'y1'], 0),
+    }], ['x0', 'x1'], ['y0', 'y1'], 0),
 
     # axis0 multi with string
-    (pd.DataFrame({
+    ([{
         'x0': [0, -4, 0],
         'x1': [0,  4, 0],
         'y0': [-4, 0, 4],
         'y1': [-4, 0, 4],
-    }), ['x0', 'x1'], 'y0', 0),
+    }], ['x0', 'x1'], 'y0', 0),
 
     # axis1 ragged arrays
-    (pd.DataFrame({
+    ([{
         'x': pd.array([[4, 0], [0, -4, 0, 4]], dtype='Ragged[float32]'),
         'y': pd.array([[0, -4], [-4, 0, 4, 0]], dtype='Ragged[float32]')
-    }), 'x', 'y', 1)
+    }], 'x', 'y', 1)
 ])
-def test_line_manual_range(df, x, y, ax):
+def test_line_manual_range(DataFrame, df_args, x, y, ax):
+    df = DataFrame(*df_args)
+
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(
         axis.compute_scale_and_translate((-3., 3.), 7), 7)
@@ -666,11 +694,7 @@ def test_line_manual_range(df, x, y, ax):
     cvs = ds.Canvas(plot_width=7, plot_height=7,
                     x_range=(-3, 3), y_range=(-3, 3))
 
-    agg = cvs.line(df,
-                   x,
-                   y,
-                   ds.count(),
-                   axis=ax)
+    agg = cvs.line(df, x, y, ds.count(), axis=ax)
 
     sol = np.array([[0, 0, 1, 0, 1, 0, 0],
                     [0, 1, 0, 0, 0, 1, 0],
@@ -685,64 +709,63 @@ def test_line_manual_range(df, x, y, ax):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df,x,y,ax', [
+@pytest.mark.parametrize('DataFrame', DataFrames)
+@pytest.mark.parametrize('df_args,x,y,ax', [
     # axis1 none constant
-    (pd.DataFrame({
+    ([{
         'x0': [0,  0],
         'x1': [-4, 4],
         'x2': [0,  0],
         'y0': [-4, -4],
         'y1': [0,  0],
         'y2': [4,  4]
-    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+    }], ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
 
     # axis1 y constant
-    (pd.DataFrame({
+    ([{
         'x0': [0, 0],
         'x1': [-4, 4],
         'x2': [0, 0]
-    }), ['x0', 'x1', 'x2'], np.array([-4, 0, 4]), 1),
+    }], ['x0', 'x1', 'x2'], np.array([-4, 0, 4]), 1),
 
     # axis0 single
-    (pd.DataFrame({
+    ([{
         'x': [0, -4, 0, np.nan, 0,  4, 0],
         'y': [-4, 0, 4, np.nan, -4, 0, 4],
-    }), 'x', 'y', 0),
+    }], 'x', 'y', 0),
 
     # axis0 multi
-    (pd.DataFrame({
+    ([{
         'x0': [0, -4, 0],
         'x1': [0,  4, 0],
         'y0': [-4, 0, 4],
         'y1': [-4, 0, 4],
-    }), ['x0', 'x1'], ['y0', 'y1'], 0),
+    }], ['x0', 'x1'], ['y0', 'y1'], 0),
 
     # axis0 multi with string
-    (pd.DataFrame({
+    ([{
         'x0': [0, -4, 0],
         'x1': [0,  4, 0],
         'y0': [-4, 0, 4],
         'y1': [-4, 0, 4],
-    }), ['x0', 'x1'], 'y0', 0),
+    }], ['x0', 'x1'], 'y0', 0),
 
     # axis1 ragged arrays
-    (pd.DataFrame({
+    ([{
         'x': pd.array([[0, -4, 0], [0,  4, 0]], dtype='Ragged[float32]'),
         'y': pd.array([[-4, 0, 4], [-4, 0, 4]], dtype='Ragged[float32]')
-    }), 'x', 'y', 1)
+    }], 'x', 'y', 1)
 ])
-def test_line_autorange(df, x, y, ax):
+def test_line_autorange(DataFrame, df_args, x, y, ax):
+    df = DataFrame(*df_args)
+
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(
         axis.compute_scale_and_translate((-4., 4.), 9), 9)
 
     cvs = ds.Canvas(plot_width=9, plot_height=9)
 
-    agg = cvs.line(df,
-                   x,
-                   y,
-                   ds.count(),
-                   axis=ax)
+    agg = cvs.line(df, x, y, ds.count(), axis=ax)
 
     sol = np.array([[0, 0, 0, 0, 2, 0, 0, 0, 0],
                     [0, 0, 0, 1, 0, 1, 0, 0, 0],
@@ -759,13 +782,14 @@ def test_line_autorange(df, x, y, ax):
     assert_eq_xr(agg, out)
 
 
-def test_line_autorange_axis1_x_constant():
+@pytest.mark.parametrize('DataFrame', DataFrames)
+def test_line_autorange_axis1_x_constant(DataFrame):
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(
         axis.compute_scale_and_translate((-4., 4.), 9), 9)
 
     xs = np.array([-4, 0, 4])
-    df = pd.DataFrame({
+    df = DataFrame({
         'y0': [0,  0],
         'y1': [-4, 4],
         'y2': [0,  0]
@@ -795,11 +819,12 @@ def test_line_autorange_axis1_x_constant():
 
 
 # Sum aggregate
-def test_line_agg_sum_axis1_none_constant():
+@pytest.mark.parametrize('DataFrame', DataFrames)
+def test_line_agg_sum_axis1_none_constant(DataFrame):
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
 
-    df = pd.DataFrame({
+    df = DataFrame({
         'x0': [4, -4],
         'x1': [0,  0],
         'x2': [-4, 4],
@@ -864,9 +889,10 @@ def test_line_autorange_axis1_ragged():
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df,x,y,ax', [
+@pytest.mark.parametrize('DataFrame', DataFrames)
+@pytest.mark.parametrize('df_kwargs,x,y,ax', [
     # axis1 none constant
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, np.nan],
         'x1': [-2, 2],
         'x2': [0, 4],
@@ -876,26 +902,28 @@ def test_line_autorange_axis1_ragged():
     }, dtype='float32'), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
 
     # axis0 single
-    (pd.DataFrame({
+    (dict(data={
         'x': [-4, -2, 0, np.nan, 2, 4],
         'y': [0, -4, 0, np.nan, 4, 0],
     }), 'x', 'y', 0),
 
     # axis0 multi
-    (pd.DataFrame({
-        'x0': [-4, -2, 0],
+    (dict(data={
+        'x0': [-4., -2., 0],
         'x1': [np.nan, 2, 4],
         'y0': [0, -4, 0],
         'y1': [np.nan, 4, 0],
     }, dtype='float32'), ['x0', 'x1'], ['y0', 'y1'], 0),
 
     # axis1 ragged arrays
-    (pd.DataFrame({
+    (dict(data={
         'x': pd.array([[-4, -2, 0], [2, 4]], dtype='Ragged[float32]'),
         'y': pd.array([[0, -4, 0], [4, 0]], dtype='Ragged[float32]')
     }), 'x', 'y', 1)
 ])
-def test_area_to_zero_fixedrange(df, x, y, ax):
+def test_area_to_zero_fixedrange(DataFrame, df_kwargs, x, y, ax):
+    df = DataFrame(**df_kwargs)
+
     axis = ds.core.LinearAxis()
     lincoords_y = axis.compute_index(
         axis.compute_scale_and_translate((-2.25, 2.25), 5), 5)
@@ -920,9 +948,10 @@ def test_area_to_zero_fixedrange(df, x, y, ax):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df,x,y,ax', [
+@pytest.mark.parametrize('DataFrame', DataFrames)
+@pytest.mark.parametrize('df_kwargs,x,y,ax', [
     # axis1 none constant
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, 0],
         'x1': [-2, 2],
         'x2': [0, 4],
@@ -932,7 +961,7 @@ def test_area_to_zero_fixedrange(df, x, y, ax):
     }, dtype='float32'), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
 
     # axis1 y constant
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, 0],
         'x1': [-2, 2],
         'x2': [0, 4],
@@ -940,13 +969,13 @@ def test_area_to_zero_fixedrange(df, x, y, ax):
      ['x0', 'x1', 'x2'], np.array([0, -4, 0], dtype='float32'), 1),
 
     # axis0 single
-    (pd.DataFrame({
+    (dict(data={
         'x': [-4, -2, 0, 0, 2, 4],
         'y': [0, -4, 0, 0, -4, 0],
     }), 'x', 'y', 0),
 
     # axis0 multi
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, -2, 0],
         'x1': [0, 2, 4],
         'y0': [0, -4, 0],
@@ -954,19 +983,21 @@ def test_area_to_zero_fixedrange(df, x, y, ax):
     }, dtype='float32'), ['x0', 'x1'], ['y0', 'y1'], 0),
 
     # axis0 multi, y string
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, -2, 0],
         'x1': [0, 2, 4],
         'y0': [0, -4, 0],
     }, dtype='float32'), ['x0', 'x1'], 'y0', 0),
 
     # axis1 ragged arrays
-    (pd.DataFrame({
+    (dict(data={
         'x': pd.array([[-4, -2, 0], [0, 2, 4]], dtype='Ragged[float32]'),
         'y': pd.array([[0, -4, 0], [0, -4, 0]], dtype='Ragged[float32]')
     }), 'x', 'y', 1)
 ])
-def test_area_to_zero_autorange(df, x, y, ax):
+def test_area_to_zero_autorange(DataFrame, df_kwargs, x, y, ax):
+    df = DataFrame(**df_kwargs)
+
     axis = ds.core.LinearAxis()
     lincoords_y = axis.compute_index(
         axis.compute_scale_and_translate((-4., 0.), 7), 7)
@@ -991,25 +1022,28 @@ def test_area_to_zero_autorange(df, x, y, ax):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df,x,y,ax', [
+@pytest.mark.parametrize('DataFrame', DataFrames)
+@pytest.mark.parametrize('df_kwargs,x,y,ax', [
     # axis1 none constant
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, np.nan],
+        # 'x0': [-4, 0],
         'x1': [-2, 2],
         'x2': [0, 4],
         'y0': [0, np.nan],
+        # 'y0': [0, 1],
         'y1': [-4, 4],
         'y2': [0, 0]
     }, dtype='float32'), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
 
     # axis0 single
-    (pd.DataFrame({
+    (dict(data={
         'x': [-4, -2, 0, np.nan, 2, 4],
         'y': [0, -4, 0, np.nan, 4, 0],
     }), 'x', 'y', 0),
 
     # axis0 multi
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, -2, 0],
         'x1': [np.nan, 2, 4],
         'y0': [0, -4, 0],
@@ -1017,12 +1051,14 @@ def test_area_to_zero_autorange(df, x, y, ax):
     }, dtype='float32'), ['x0', 'x1'], ['y0', 'y1'], 0),
 
     # axis1 ragged arrays
-    (pd.DataFrame({
+    (dict(data={
         'x': pd.array([[-4, -2, 0], [2, 4]], dtype='Ragged[float32]'),
         'y': pd.array([[0, -4, 0], [4, 0]], dtype='Ragged[float32]')
     }), 'x', 'y', 1)
 ])
-def test_area_to_zero_autorange_gap(df, x, y, ax):
+def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, x, y, ax):
+    df = DataFrame(**df_kwargs)
+
     axis = ds.core.LinearAxis()
     lincoords_y = axis.compute_index(
         axis.compute_scale_and_translate((-4., 4.), 7), 7)
@@ -1047,9 +1083,10 @@ def test_area_to_zero_autorange_gap(df, x, y, ax):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df,x,y,y_stack,ax', [
+@pytest.mark.parametrize('DataFrame', DataFrames)
+@pytest.mark.parametrize('df_kwargs,x,y,y_stack,ax', [
     # axis1 none constant
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, 0],
         'x1': [-2, 2],
         'x2': [0, 4],
@@ -1063,7 +1100,7 @@ def test_area_to_zero_autorange_gap(df, x, y, ax):
      ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], ['y3', 'y4', 'y5'], 1),
 
     # axis1 y constant
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, 0],
         'x1': [-2, 2],
         'x2': [0, 4],
@@ -1073,14 +1110,14 @@ def test_area_to_zero_autorange_gap(df, x, y, ax):
      np.array([0, -2, 0], dtype='float32'), 1),
 
     # axis0 single
-    (pd.DataFrame({
+    (dict(data={
         'x': [-4, -2, 0, 0, 2, 4],
         'y': [0, -4, 0, 0, -4, 0],
         'y_stack': [0, -2, 0, 0, -2, 0],
     }), 'x', 'y', 'y_stack', 0),
 
     # axis0 multi
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, -2, 0],
         'x1': [0, 2, 4],
         'y0': [0, -4, 0],
@@ -1090,7 +1127,7 @@ def test_area_to_zero_autorange_gap(df, x, y, ax):
     }, dtype='float32'), ['x0', 'x1'], ['y0', 'y1'], ['y2', 'y3'], 0),
 
     # axis0 multi, y string
-    (pd.DataFrame({
+    (dict(data={
         'x0': [-4, -2, 0],
         'x1': [0, 2, 4],
         'y0': [0, -4, 0],
@@ -1098,13 +1135,15 @@ def test_area_to_zero_autorange_gap(df, x, y, ax):
     }, dtype='float32'), ['x0', 'x1'], 'y0', 'y2', 0),
 
     # axis1 ragged arrays
-    (pd.DataFrame({
+    (dict(data={
         'x': pd.array([[-4, -2, 0], [0, 2, 4]], dtype='Ragged[float32]'),
         'y': pd.array([[0, -4, 0], [0, -4, 0]], dtype='Ragged[float32]'),
         'y_stack': pd.array([[0, -2, 0], [0, -2, 0]], dtype='Ragged[float32]')
     }), 'x', 'y', 'y_stack', 1)
 ])
-def test_area_to_line_autorange(df, x, y, y_stack, ax):
+def test_area_to_line_autorange(DataFrame, df_kwargs, x, y, y_stack, ax):
+    df = DataFrame(**df_kwargs)
+
     axis = ds.core.LinearAxis()
     lincoords_y = axis.compute_index(
         axis.compute_scale_and_translate((-4., 0.), 7), 7)
