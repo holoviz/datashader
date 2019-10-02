@@ -1121,46 +1121,8 @@ def test_area_to_line_autorange(df, x, y, y_stack, ax):
     assert_eq(agg, out)
 
 
-@pytest.mark.parametrize('df,x,y,y_stack,ax', [
-    # axis1 none constant
-    (pd.DataFrame({
-        'x0': [-4, np.nan],
-        'x1': [-2, 2],
-        'x2': [0, 4],
-        'y0': [0, np.nan],
-        'y1': [-4, 4],
-        'y2': [0, 0],
-        'y4': [0, 0],
-        'y5': [0, 0],
-        'y6': [0, 0]
-    }, dtype='float32'),
-     ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], ['y4', 'y5', 'y6'], 1),
 
-    # axis0 single
-    (pd.DataFrame({
-        'x': [-4, -2, 0, np.nan, 2, 4],
-        'y': [0, -4, 0, np.nan, 4, 0],
-        'y_stack': [0, 0, 0, 0, 0, 0],
-    }), 'x', 'y', 'y_stack', 0),
-
-    # axis0 multi
-    (pd.DataFrame({
-        'x0': [-4, -2, 0],
-        'x1': [np.nan, 2, 4],
-        'y0': [0, -4, 0],
-        'y1': [np.nan, 4, 0],
-        'y2': [0, 0, 0],
-        'y3': [0, 0, 0],
-    }, dtype='float32'), ['x0', 'x1'], ['y0', 'y1'], ['y2', 'y3'], 0),
-
-    # axis1 ragged arrays
-    (pd.DataFrame({
-        'x': pd.array([[-4, -2, 0], [2, 4]], dtype='Ragged[float32]'),
-        'y': pd.array([[0, -4, 0], [4, 0]], dtype='Ragged[float32]'),
-        'y_stack': pd.array([[0, 0, 0], [0, 0]], dtype='Ragged[float32]')
-    }), 'x', 'y', 'y_stack', 1)
-])
-def test_area_to_line_autorange_gap(df, x, y, y_stack, ax):
+def test_area_to_line_autorange_gap():
     axis = ds.core.LinearAxis()
     lincoords_y = axis.compute_index(
         axis.compute_scale_and_translate((-4., 4.), 7), 7)
