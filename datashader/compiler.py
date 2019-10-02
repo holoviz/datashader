@@ -54,7 +54,7 @@ def compile_components(agg, schema, glyph):
     bases = list(unique(concat(r._bases for r in reds)))
     dshapes = [b.out_dshape(schema) for b in bases]
     # List of tuples of (append, base, input columns, temps)
-    calls = [_get_call_tuples(b, d) for (b, d) in zip(bases, dshapes)]
+    calls = [_get_call_tuples(b, d, schema) for (b, d) in zip(bases, dshapes)]
     # List of unique column names needed
     cols = list(unique(concat(pluck(2, calls))))
     # List of temps needed
@@ -79,8 +79,8 @@ def traverse_aggregation(agg):
         yield agg
 
 
-def _get_call_tuples(base, dshape):
-    return base._build_append(dshape), (base,), base.inputs, base._temps
+def _get_call_tuples(base, dshape, schema):
+    return base._build_append(dshape, schema), (base,), base.inputs, base._temps
 
 
 def make_create(bases, dshapes):

@@ -84,6 +84,24 @@ class Dispatcher(object):
         raise TypeError("No dispatch for {0} type".format(typ))
 
 
+def isrealfloat(dt):
+    """Check if a datashape is numeric and real.
+
+    Example
+    -------
+    >>> isrealfloat('int32')
+    False
+    >>> isrealfloat('float64')
+    True
+    >>> isrealfloat('string')
+    False
+    >>> isrealfloat('complex64')
+    False
+    """
+    dt = datashape.predicates.launder(dt)
+    return isinstance(dt, datashape.Unit) and dt in datashape.typesets.floating
+
+
 def isreal(dt):
     """Check if a datashape is numeric and real.
 
