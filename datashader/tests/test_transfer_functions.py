@@ -8,7 +8,7 @@ import PIL
 import pytest
 
 import datashader.transfer_functions as tf
-
+from datashader.tests.test_pandas import assert_eq_xr
 
 coords = [np.array([0, 1, 2]), np.array([3, 4, 5])]
 dims = ['y_axis', 'x_axis']
@@ -62,44 +62,44 @@ def check_span(x, cmap, how, sol):
 
     # All data no span
     img = tf.shade(x, cmap=cmap, how=how, span=None)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # All data with span
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # Decrease smallest. This value should be clipped to span[0] and the
     # resulting image should be identical
     x[0, 1] = 10
     x_input = x.copy()
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # Check that clipping doesn't alter input array
-    assert x.equals(x_input)
+    x.equals(x_input)
 
     # Increase largest. This value should be clipped to span[1] and the
     # resulting image should be identical
     x[2, 1] = 18
     x_input = x.copy()
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # Check that clipping doesn't alter input array
-    assert x.equals(x_input)
+    x.equals(x_input)
 
     # zero out smallest. If span is working properly the zeroed out pixel
     # will be masked out and all other pixels will remain unchanged
     x[0, 1] = 0 if x.dtype.kind == 'i' else np.nan
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
     sol[0, 1] = sol[0, 0]
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # zero out the largest value
     x[2, 1] = 0 if x.dtype.kind == 'i' else np.nan
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
     sol[2, 1] = sol[0, 0]
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
 @pytest.mark.parametrize('attr', ['a', 'b', 'c'])
@@ -110,20 +110,20 @@ def test_shade(attr, span):
 
     img = tf.shade(x, cmap=cmap, how='log', span=span)
     sol = solutions['log']
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     img = tf.shade(x, cmap=cmap, how='cbrt', span=span)
     sol = solutions['cbrt']
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     img = tf.shade(x, cmap=cmap, how='linear', span=span)
     sol = solutions['linear']
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # span option not supported with how='eq_hist'
     img = tf.shade(x, cmap=cmap, how='eq_hist')
     sol = xr.DataArray(eq_hist_sol[attr], coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     img = tf.shade(x, cmap=cmap,
                    how=lambda x, mask: np.where(mask, np.nan, x ** 2))
@@ -131,7 +131,7 @@ def test_shade(attr, span):
                     [4290030335, 0, 4285557503],
                     [4282268415, 4278190335, 0]], dtype='u4')
     sol = xr.DataArray(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
 @pytest.mark.parametrize('attr', ['a', 'b', 'c'])
@@ -189,13 +189,13 @@ def test_shade_bool():
     sol = xr.DataArray(np.where(data, 4278190335, 0).astype('uint32'),
                        coords=coords, dims=dims)
     img = tf.shade(x, cmap=['pink', 'red'], how='log')
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
     img = tf.shade(x, cmap=['pink', 'red'], how='cbrt')
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
     img = tf.shade(x, cmap=['pink', 'red'], how='linear')
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
     img = tf.shade(x, cmap=['pink', 'red'], how='eq_hist')
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
 def test_shade_cmap():
@@ -205,7 +205,7 @@ def test_shade_cmap():
                     [4280344064, 0, 4289091584],
                     [4292225024, 4294901760, 0]])
     sol = xr.DataArray(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
 @pytest.mark.parametrize('cmap', ['black', (0, 0, 0), '#000000'])
@@ -215,7 +215,7 @@ def test_shade_cmap_non_categorical_alpha(cmap):
                     [2701131776,          0, 3640655872],
                     [3976200192, 4278190080,          0]])
     sol = xr.DataArray(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
 def test_shade_cmap_errors():
@@ -233,7 +233,7 @@ def test_shade_mpl_cmap():
                     [4287143710, 5505348, 4282832267],
                     [4280213706, 4280608765, 5505348]])
     sol = xr.DataArray(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
 def test_shade_category():
@@ -249,7 +249,7 @@ def test_shade_category():
     sol = np.array([[2583625728, 335565567],
                     [4283774890, 3707764991]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     colors = dict(zip('abc', colors))
 
@@ -257,13 +257,13 @@ def test_shade_category():
     sol = np.array([[2650734592, 335565567],
                     [4283774890, 3657433343]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
     sol = np.array([[1140785152, 335565567],
                     [4283774890, 2701132031]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     img = tf.shade(cat_agg, color_key=colors,
                    how=lambda x, m: np.where(m, np.nan, x) ** 2,
@@ -271,7 +271,7 @@ def test_shade_category():
     sol = np.array([[503250944, 335565567],
                     [4283774890, 1744830719]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
 coords2 = [np.array([0, 2]), np.array([3, 5])]

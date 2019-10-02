@@ -36,8 +36,16 @@ coords = [lincoords, lincoords]
 dims = ['y', 'x']
 
 
-def assert_eq(agg, b):
+def assert_eq_xr(agg, b):
+    """Assert that two xarray DataArrays are equal, handling the possibility
+    that the two DataArrays may be backed by ndarrays of different types"""
     assert agg.equals(b)
+
+
+def assert_eq_ndarray(data, b):
+    """Assert that two ndarrays are equal, handling the possibility that the
+    ndarrays are of different types"""
+    np.testing.assert_equal(data, b)
 
 
 def floats(n):
@@ -50,86 +58,86 @@ def floats(n):
 def test_count():
     out = xr.DataArray(np.array([[5, 5], [5, 5]], dtype='i4'),
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.count('i32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.count('i64')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.count()), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.count('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.count('i64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.count()), out)
     out = xr.DataArray(np.array([[4, 5], [5, 5]], dtype='i4'),
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.count('f32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.count('f64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.count('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.count('f64')), out)
 
 
 def test_any():
     out = xr.DataArray(np.array([[True, True], [True, True]]),
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.any('i64')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.any('f64')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.any()), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.any('i64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.any('f64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.any()), out)
     out = xr.DataArray(np.array([[True, True], [True, False]]),
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.any('empty_bin')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.any('empty_bin')), out)
 
 
 def test_sum():
     out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).sum(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.sum('i32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.sum('i64')), out)
-    out = xr.DataArray(np.nansum(df.f64.values.reshape((2, 2, 5)), axis=2).T,
+    assert_eq_xr(c.points(df, 'x', 'y', ds.sum('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.sum('i64')), out)
+    out = xr.DataArray(np.nansum(values(df.f64).reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.sum('f32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.sum('f64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.sum('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.sum('f64')), out)
 
 
 def test_min():
     out = xr.DataArray(df.i64.values.reshape((2, 2, 5)).min(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.min('i32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.min('i64')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.min('f32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.min('f64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.min('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.min('i64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.min('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.min('f64')), out)
 
 
 def test_max():
     out = xr.DataArray(df.i64.values.reshape((2, 2, 5)).max(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.max('i32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.max('i64')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.max('f32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.max('f64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.max('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.max('i64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.max('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.max('f64')), out)
 
 
 def test_mean():
     out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.mean('i32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.mean('i64')), out)
-    out = xr.DataArray(np.nanmean(df.f64.values.reshape((2, 2, 5)), axis=2).T,
+    assert_eq_xr(c.points(df, 'x', 'y', ds.mean('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.mean('i64')), out)
+    out = xr.DataArray(np.nanmean(values(df.f64).reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.mean('f32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.mean('f64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.mean('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.mean('f64')), out)
 
 
 def test_var():
     out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).var(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.var('i32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.var('i64')), out)
-    out = xr.DataArray(np.nanvar(df.f64.values.reshape((2, 2, 5)), axis=2).T,
+    assert_eq_xr(c.points(df, 'x', 'y', ds.var('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.var('i64')), out)
+    out = xr.DataArray(np.nanvar(values(df.f64).reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.var('f32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.var('f64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.var('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.var('f64')), out)
 
 
 def test_std():
     out = xr.DataArray(df.i32.values.reshape((2, 2, 5)).std(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.std('i32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.std('i64')), out)
-    out = xr.DataArray(np.nanstd(df.f64.values.reshape((2, 2, 5)), axis=2).T,
+    assert_eq_xr(c.points(df, 'x', 'y', ds.std('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.std('i64')), out)
+    out = xr.DataArray(np.nanstd(values(df.f64).reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
-    assert_eq(c.points(df, 'x', 'y', ds.std('f32')), out)
-    assert_eq(c.points(df, 'x', 'y', ds.std('f64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.std('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.std('f64')), out)
 
 
 def test_count_cat():
@@ -140,7 +148,7 @@ def test_count_cat():
     out = xr.DataArray(sol, coords=(coords + [['a', 'b', 'c', 'd']]),
                        dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.count_cat('cat'))
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 def test_multiple_aggregates():
@@ -151,10 +159,9 @@ def test_multiple_aggregates():
                               i32_count=ds.count('i32')))
 
     f = lambda x: xr.DataArray(x, coords=coords, dims=dims)
-    assert_eq(agg.f64_std, f(np.nanstd(df.f64.values.reshape((2, 2, 5)), axis=2).T))
-    assert_eq(agg.f64_mean, f(np.nanmean(df.f64.values.reshape((2, 2, 5)), axis=2).T))
-    assert_eq(agg.i32_sum, f(df.i32.values.reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
-    assert_eq(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
+    assert_eq_xr(agg.f64_mean, f(np.nanmean(values(df.f64).reshape((2, 2, 5)), axis=2).T))
+    assert_eq_xr(agg.i32_sum, f(values(df.i32).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
+    assert_eq_xr(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
 
 
 def test_auto_range_points():
@@ -168,14 +175,14 @@ def test_auto_range_points():
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
     sol = np.zeros((n, n), int)
     np.fill_diagonal(sol, 1)
-    np.testing.assert_equal(agg.data, sol)
+    assert_eq_ndarray(agg.data, sol)
 
     cvs = ds.Canvas(plot_width=n+1, plot_height=n+1)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
     sol = np.zeros((n+1, n+1), int)
     np.fill_diagonal(sol, 1)
     sol[5, 5] = 0
-    np.testing.assert_equal(agg.data, sol)
+    assert_eq_ndarray(agg.data, sol)
 
     n = 4
     data = np.arange(n, dtype='i4')
@@ -189,7 +196,7 @@ def test_auto_range_points():
     np.fill_diagonal(sol, 1)
     sol[[tuple(range(1, 4, 2))]] = 0
     sol[[tuple(range(4, 8, 2))]] = 0
-    np.testing.assert_equal(agg.data, sol)
+    assert_eq_ndarray(agg.data, sol)
 
     cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
@@ -198,7 +205,7 @@ def test_auto_range_points():
     sol[3, 3] = 1
     sol[6, 6] = 1
     sol[8, 8] = 1
-    np.testing.assert_equal(agg.data, sol)
+    assert_eq_ndarray(agg.data, sol)
 
 
 def test_uniform_points():
@@ -211,7 +218,7 @@ def test_uniform_points():
     cvs = ds.Canvas(plot_width=10, plot_height=2, y_range=(0, 1))
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
     sol = np.array([[10] * 9 + [11], [10] * 9 + [11]], dtype='i4')
-    np.testing.assert_equal(agg.data, sol)
+    assert_eq_ndarray(agg.data, sol)
 
 
 @pytest.mark.parametrize('high', [9, 10, 99, 100])
@@ -245,13 +252,13 @@ def test_log_axis_points():
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
     out = xr.DataArray(sol, coords=[lincoords, logcoords],
                        dims=['y', 'log_x'])
-    assert_eq(c_logx.points(df, 'log_x', 'y', ds.count('i32')), out)
+    assert_eq_xr(c_logx.points(df, 'log_x', 'y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, lincoords],
                        dims=['log_y', 'x'])
-    assert_eq(c_logy.points(df, 'x', 'log_y', ds.count('i32')), out)
+    assert_eq_xr(c_logy.points(df, 'x', 'log_y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, logcoords],
                        dims=['log_y', 'log_x'])
-    assert_eq(c_logxy.points(df, 'log_x', 'log_y', ds.count('i32')), out)
+    assert_eq_xr(c_logxy.points(df, 'log_x', 'log_y', ds.count('i32')), out)
 
 
 def test_line():
@@ -272,7 +279,7 @@ def test_line():
                     [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 def test_points_on_edge():
@@ -292,7 +299,7 @@ def test_points_on_edge():
                                ('y', [0.5, 1.5, 2.5])],
                        dims=['y', 'x'])
 
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 def test_lines_on_edge():
@@ -312,7 +319,7 @@ def test_lines_on_edge():
                                ('y', [0.5, 1.5, 2.5])],
                        dims=['y', 'x'])
 
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 def test_log_axis_line():
@@ -325,13 +332,13 @@ def test_log_axis_line():
     sol = np.array([[5, 5], [5, 5]], dtype='i4')
     out = xr.DataArray(sol, coords=[lincoords, logcoords],
                        dims=['y', 'log_x'])
-    assert_eq(c_logx.line(df, 'log_x', 'y', ds.count('i32')), out)
+    assert_eq_xr(c_logx.line(df, 'log_x', 'y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, lincoords],
                        dims=['log_y', 'x'])
-    assert_eq(c_logy.line(df, 'x', 'log_y', ds.count('i32')), out)
+    assert_eq_xr(c_logy.line(df, 'x', 'log_y', ds.count('i32')), out)
     out = xr.DataArray(sol, coords=[logcoords, logcoords],
                        dims=['log_y', 'log_x'])
-    assert_eq(c_logxy.line(df, 'log_x', 'log_y', ds.count('i32')), out)
+    assert_eq_xr(c_logxy.line(df, 'log_x', 'log_y', ds.count('i32')), out)
 
 
 def test_auto_range_line():
@@ -349,7 +356,8 @@ def test_auto_range_line():
                     [0, 0, 1, 0, 0]], dtype='i4')
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
+
 
 def test_trimesh_no_double_edge():
     """Assert that when two triangles share an edge that would normally get
@@ -674,7 +682,7 @@ def test_line_manual_range(df, x, y, ax):
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 @pytest.mark.parametrize('df,x,y,ax', [
@@ -748,7 +756,7 @@ def test_line_autorange(df, x, y, ax):
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 def test_line_autorange_axis1_x_constant():
@@ -783,7 +791,7 @@ def test_line_autorange_axis1_x_constant():
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 # Sum aggregate
@@ -820,7 +828,7 @@ def test_line_agg_sum_axis1_none_constant():
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 def test_line_autorange_axis1_ragged():
@@ -853,7 +861,7 @@ def test_line_autorange_axis1_ragged():
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 @pytest.mark.parametrize('df,x,y,ax', [
@@ -909,7 +917,7 @@ def test_area_to_zero_fixedrange(df, x, y, ax):
 
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 @pytest.mark.parametrize('df,x,y,ax', [
@@ -980,7 +988,7 @@ def test_area_to_zero_autorange(df, x, y, ax):
 
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 @pytest.mark.parametrize('df,x,y,ax', [
@@ -1036,7 +1044,7 @@ def test_area_to_zero_autorange_gap(df, x, y, ax):
 
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
 
 
 @pytest.mark.parametrize('df,x,y,y_stack,ax', [
@@ -1118,8 +1126,7 @@ def test_area_to_line_autorange(df, x, y, y_stack, ax):
 
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
-    assert_eq(agg, out)
-
+    assert_eq_xr(agg, out)
 
 
 def test_area_to_line_autorange_gap():
@@ -1152,4 +1159,4 @@ def test_area_to_line_autorange_gap():
 
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y0', 'x'])
-    assert_eq(agg, out)
+    assert_eq_xr(agg, out)
