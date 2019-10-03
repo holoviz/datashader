@@ -33,9 +33,9 @@ def distance_between(a, b):
     return (((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2))**(0.5)
 
 
-@nb.jit(forceobj=True)
+@nb.jit
 def resample_segment(segments, new_segments, min_segment_length, max_segment_length, ndims):
-    next_point = np.zeros(ndims)
+    next_point = np.zeros(ndims, dtype=segments.dtype)
     current_point = segments[0]
     pos = 0
     index = 1
