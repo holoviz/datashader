@@ -330,7 +330,6 @@ class LinesAxis1YConstant(LinesAxis1):
             aggs_and_cols = aggs + info(df)
 
             xs = df[list(x_names)].values
-            _do_extend = perform_extend_cpu
 
             perform_extend_cpu(
                 sx, tx, sy, ty,
