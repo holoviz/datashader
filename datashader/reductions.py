@@ -149,6 +149,7 @@ class any(OptionalFieldReduction):
     def _append_int_field(x, y, agg, field):
         agg[y, x] = True
 
+    @staticmethod
     @ngjit
     def _append_float_field(x, y, agg, field):
         if not isnan(field):
