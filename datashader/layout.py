@@ -3,7 +3,6 @@
 
 from __future__ import absolute_import, division, print_function
 
-import numba as nb
 import numpy as np
 import param
 import scipy.sparse
@@ -171,7 +170,6 @@ def _merge_points_with_nodes(nodes, points, params):
     return n
 
 
-@nb.jit(forceobj=True)
 def cooling(matrix, points, temperature, params):
     dt = temperature / float(params.iterations + 1)
     displacement = np.zeros((params.dim, len(points)))
