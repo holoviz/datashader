@@ -8,7 +8,9 @@ import numba as nb
 import numpy as np
 import pandas as pd
 
+from toolz import memoize
 from xarray import DataArray
+
 import dask.dataframe as dd
 import datashape
 
@@ -391,6 +393,7 @@ def dshape_from_pandas(df):
                                        for k in df.columns])
 
 
+@memoize(key=lambda args, kwargs: tuple(args[0].__dask_keys__()))
 def dshape_from_dask(df):
     """Return a datashape.DataShape object given a dask dataframe."""
     cat_columns = [col for col in df.columns if isinstance(df[col].dtype, type(pd.Categorical.dtype))
