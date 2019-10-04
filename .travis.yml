@@ -27,6 +27,10 @@ env:
 
 stages:
   - test
+  - name: docs
+    if: tag =~ ^v(\d+|\.)*[^a-z]\d*$
+  - name: docs_dev
+    if: tag =~ ^v(\d+|\.)*[a-z]\d*$ OR commit_message =~ /^.*(website_dev).*$/
   - name: conda_dev_package
     if: tag =~ ^v(\d+|\.)+[a-z]\d+$
   - name: pip_dev_package
@@ -73,6 +77,39 @@ jobs:
         - doit test_all
         - export NUMBA_DISABLE_JIT=1; doit test_unit_nojit
 
+
+    ########## DOCS ##########
+
+    - &doc_build
+      <<: *conda_default
+      stage: docs
+      env: HV_DOC_HTML="true" DESC="docs" CHANS_DEV="-c pyviz/label/dev"
+      script:
+        - doit develop_install $CHANS_DEV -o doc -o examples_extra
+        - datashader fetch-data --path=examples
+        - nbsite generate-rst --org pyviz --project-name datashader --skip '.*tiling.*,.*streaming-aggregation.*'
+        - nbsite build --what=html --output=builtdocs
+      deploy:
+        provider: pages
+        skip_cleanup: true
+        github_token: $GITHUB_TOKEN
+        local_dir: ./builtdocs
+        fqdn: datashader.org
+        on:
+          tags: true
+          all_branches: true
+
+    - <<: *doc_build
+      stage: docs_dev
+      deploy:
+        provider: pages
+        skip_cleanup: true
+        github_token: $GITHUB_TOKEN
+        local_dir: ./builtdocs
+        repo: pyviz-dev/datashader
+        on:
+          tags: true
+          all_branches: true
 
     ########## END-USER PACKAGES ##########
 
