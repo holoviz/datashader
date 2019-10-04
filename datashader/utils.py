@@ -361,6 +361,8 @@ def dshape_from_pandas_helper(col):
     dataframe.
     """
     if isinstance(col.dtype, type(pd.Categorical.dtype)) or isinstance(col.dtype, pd.api.types.CategoricalDtype):
+        if not getattr(col.cat, 'known', True):
+            col = col.cat.as_known()
         cat_dshape = datashape.dshape('{} * {}'.format(
             len(col.cat.categories),
             col.cat.categories.dtype,
