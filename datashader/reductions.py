@@ -50,12 +50,10 @@ class Reduction(Expr):
     def inputs(self):
         return (extract(self.column),)
 
-    @property
-    def _bases(self):
+    def _build_bases(self):
         return (self,)
 
-    @property
-    def _temps(self):
+    def _build_temps(self):
         return ()
 
     def _build_create(self, dshape):
@@ -263,8 +261,7 @@ class m2(FloatingReduction):
     def _create(shape, array_module):
         return array_module.full(shape, 0.0, dtype='f8')
 
-    @property
-    def _temps(self):
+    def _build_temps(self):
         return (_sum_zero(self.column), count(self.column))
 
     def _build_append(self, dshape, schema):
@@ -405,8 +402,7 @@ class mean(Reduction):
     """
     _dshape = dshape(Option(ct.float64))
 
-    @property
-    def _bases(self):
+    def _build_bases(self):
         return (_sum_zero(self.column), count(self.column))
 
     @staticmethod
@@ -428,8 +424,7 @@ class var(Reduction):
     """
     _dshape = dshape(Option(ct.float64))
 
-    @property
-    def _bases(self):
+    def _build_bases(self):
         return (_sum_zero(self.column), count(self.column), m2(self.column))
 
     @staticmethod
@@ -451,8 +446,7 @@ class std(Reduction):
     """
     _dshape = dshape(Option(ct.float64))
 
-    @property
-    def _bases(self):
+    def _build_bases(self):
         return (_sum_zero(self.column), count(self.column), m2(self.column))
 
     @staticmethod
@@ -466,20 +460,20 @@ class std(Reduction):
 class first(Reduction):
     """First value encountered in ``column``.
 
-    Useful for categorical data where an actual value must always be returned, 
+    Useful for categorical data where an actual value must always be returned,
     not an average or other numerical calculation.
-    
+
     Currently only supported for rasters, externally to this class.
 
     Parameters
     ----------
     column : str
-        Name of the column to aggregate over. If the data type is floating point, 
+        Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
     _dshape = dshape(Option(ct.float64))
 
-    @staticmethod 
+    @staticmethod
     def _append(x, y, agg):
         raise NotImplementedError("first is currently implemented only for rasters")
 
@@ -500,20 +494,20 @@ class first(Reduction):
 class last(Reduction):
     """Last value encountered in ``column``.
 
-    Useful for categorical data where an actual value must always be returned, 
+    Useful for categorical data where an actual value must always be returned,
     not an average or other numerical calculation.
-    
+
     Currently only supported for rasters, externally to this class.
 
     Parameters
     ----------
     column : str
-        Name of the column to aggregate over. If the data type is floating point, 
+        Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
     _dshape = dshape(Option(ct.float64))
 
-    @staticmethod 
+    @staticmethod
     def _append(x, y, agg):
         raise NotImplementedError("last is currently implemented only for rasters")
 
@@ -534,9 +528,9 @@ class last(Reduction):
 class mode(Reduction):
     """Mode (most common value) of all the values encountered in ``column``.
 
-    Useful for categorical data where an actual value must always be returned, 
+    Useful for categorical data where an actual value must always be returned,
     not an average or other numerical calculation.
-    
+
     Currently only supported for rasters, externally to this class.
     Implementing it for other glyph types would be difficult due to potentially
     unbounded data storage requirements to store indefinite point or line
@@ -545,12 +539,12 @@ class mode(Reduction):
     Parameters
     ----------
     column : str
-        Name of the column to aggregate over. If the data type is floating point, 
+        Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
     _dshape = dshape(Option(ct.float64))
 
-    @staticmethod 
+    @staticmethod
     def _append(x, y, agg):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
@@ -608,4 +602,4 @@ __all__ = list(set([_k for _k,_v in locals().items()
                     if isinstance(_v,type) and (issubclass(_v,Reduction) or _v is summary)
                     and _v not in [Reduction, OptionalFieldReduction,
                                    FloatingReduction, m2]]))
-    
+
