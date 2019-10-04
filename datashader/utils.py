@@ -391,7 +391,8 @@ def dshape_from_pandas(df):
 
 def dshape_from_dask(df):
     """Return a datashape.DataShape object given a dask dataframe."""
-    return datashape.var * dshape_from_pandas(df.head()).measure
+    return datashape.var * datashape.Record([(k, dshape_from_pandas_helper(df[k]))
+                                             for k in df.columns])
 
 
 def dshape_from_xarray_dataset(xr_ds):
