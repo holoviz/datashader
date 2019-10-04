@@ -86,7 +86,7 @@ jobs:
       env: HV_DOC_HTML="true" DESC="docs" CHANS_DEV="-c pyviz/label/dev"
       script:
         - doit develop_install $CHANS_DEV -o doc -o examples_extra
-        - datashader fetch-data --path=examples
+        - datashader fetch-data --path=examples --force
         - nbsite generate-rst --org pyviz --project-name datashader --skip '.*tiling.*,.*streaming-aggregation.*'
         - nbsite build --what=html --output=builtdocs
       deploy:
