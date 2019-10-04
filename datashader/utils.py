@@ -8,7 +8,9 @@ import numba as nb
 import numpy as np
 import pandas as pd
 
+from toolz import memoize
 from xarray import DataArray
+
 import dask.dataframe as dd
 import datashape
 
@@ -361,8 +363,6 @@ def dshape_from_pandas_helper(col):
     dataframe.
     """
     if isinstance(col.dtype, type(pd.Categorical.dtype)) or isinstance(col.dtype, pd.api.types.CategoricalDtype):
-        if not getattr(col.cat, 'known', True):
-            col = col.cat.as_known()
         cat_dshape = datashape.dshape('{} * {}'.format(
             len(col.cat.categories),
             col.cat.categories.dtype,
@@ -391,14 +391,13 @@ def dshape_from_pandas(df):
                                        for k in df.columns])
 
 
+@memoize(key=lambda args, kwargs: tuple(args[0].__dask_keys__()))
 def dshape_from_dask(df):
     """Return a datashape.DataShape object given a dask dataframe."""
-    cat_columns = [col for col in df.columns if isinstance(df[col].dtype, type(pd.Categorical.dtype))
-                   or isinstance(df[col].dtype, pd.api.types.CategoricalDtype)]
-    if len(cat_columns) > 1:
-        # If there is more than one categorical column it is faster
-        # to compute the df.head() which will contain all categories
-        return datashape.var * dshape_from_pandas(df.head()).measure
+    cat_columns = [
+        col for col in df.columns if (isinstance(df[col].dtype, type(pd.Categorical.dtype))
+        or isinstance(df[col].dtype, pd.api.types.CategoricalDtype)) and not df[col].cat.known]
+    df = df.categorize(cat_columns, index=False)
     return datashape.var * datashape.Record([(k, dshape_from_pandas_helper(df[k]))
                                              for k in df.columns])
 
