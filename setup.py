@@ -54,7 +54,6 @@ extras_require = {
         'python-snappy',
         'rasterio',
         'snappy',
-        'scipy',
         'statsmodels'
     ]
 }

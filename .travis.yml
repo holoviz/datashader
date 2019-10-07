@@ -47,7 +47,7 @@ jobs:
 
     - &conda_default
       stage: test
-      env: DESC="dev test_all"
+      env: DESC="dev test_all" OPTS=""
       before_install:
         # install doit/pyctdev and use to install miniconda...
         - pip install pyctdev && doit miniconda_install && pip uninstall -y doit pyctdev
@@ -67,12 +67,12 @@ jobs:
     # python 2 flake checking typically catches python 2 syntax
     # errors where python 3's been assumed...
     - <<: *conda_default
-      env: DESC="py2 flakes" PYTHON_VERSION=2.7
+      env: DESC="py2 flakes" PYTHON_VERSION=2.7 OPTS=""
       script: doit test_lint
 
     # test using python 3.7
     - <<: *conda_default
-      env: PYTHON_VERSION=3.7
+      env: PYTHON_VERSION=3.7 OPTS=""
       script:
         - doit test_all
         - export NUMBA_DISABLE_JIT=1; doit test_unit_nojit
@@ -83,9 +83,8 @@ jobs:
     - &doc_build
       <<: *conda_default
       stage: docs
-      env: HV_DOC_HTML="true" DESC="docs" CHANS_DEV="-c pyviz/label/dev"
+      env: HV_DOC_HTML="true" DESC="docs" OPTS="-o doc -o examples_extra"
       script:
-        - doit develop_install $CHANS_DEV -o doc -o examples_extra
         - datashader fetch-data --path=examples --force
         - nbsite generate-rst --org pyviz --project-name datashader --skip '.*tiling.*,.*streaming-aggregation.*'
         - nbsite build --what=html --output=builtdocs
@@ -108,7 +107,6 @@ jobs:
         local_dir: ./builtdocs
         repo: pyviz-dev/datashader
         on:
-          tags: true
           all_branches: true
 
     ########## END-USER PACKAGES ##########
