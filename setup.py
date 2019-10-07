@@ -39,52 +39,29 @@ extras_require = {
     ],
     'examples': [],
     'examples_extra':[
-        'attrs',
-        'beautifulsoup4',
-        'bokeh',
-        #'cachey', # TODO: investigate (no conda package
-        'colorcet',
-        'dill',
         'distributed', # dask
-        'fastparquet >=0.2.1',
         'holoviews >=1.10.0',
-        'hvplot >=0.4.0',
-        'intake >=0.4.1',
-        'intake-parquet',
-        'jupyter',
-        'jupyter_dashboards',
         'matplotlib',
         'networkx >=2.0',
         'pandas >=0.24.1',
-        'panel >=0.4.0',
-        'paramnb',
-        'requests',
-        'tblib',
-        'xarray',
-        'pyyaml <5.1',
         'streamz >=0.2.0',
-        'webargs',
         ### conda only below here
         'cartopy',
         'graphviz',
         'python-graphviz',
         'fastparquet',
         'geoviews',
-        'iris',
-        'krb5',
-        'pyproj',
-        'pytables',
         'python-snappy',
         'rasterio',
         'snappy',
-        'shapely',
         'statsmodels'
     ]
 }
 
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.5.2',
-    'sphinx_ioam_theme',
+    'sphinx_pyviz_theme',
+    'tornado <6.0',
     'numpydoc'
 ]
 

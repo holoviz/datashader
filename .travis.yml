@@ -20,6 +20,7 @@ env:
     - TMPDIR=$HOME/tmp
     - PYPI="https://upload.pypi.org/legacy/"
     - PYTHON_VERSION=3.6
+    - OPTS=""
 
 # quick hack to determine what tag is (improvements welcomed)
 #     release: ^v(\d+|\.)*[^a-z]\d*$
@@ -27,6 +28,10 @@ env:
 
 stages:
   - test
+  - name: docs
+    if: tag =~ ^v(\d+|\.)*[^a-z]\d*$
+  - name: docs_dev
+    if: tag =~ ^v(\d+|\.)*[a-z]\d*$ OR commit_message =~ /^.*(website_dev).*$/
   - name: conda_dev_package
     if: tag =~ ^v(\d+|\.)+[a-z]\d+$
   - name: pip_dev_package
@@ -54,7 +59,7 @@ jobs:
       install:
         - doit env_create $CHANS_DEV --python=$PYTHON_VERSION --name=$PYTHON_VERSION
         - source activate $PYTHON_VERSION
-        - doit develop_install $CHANS_DEV
+        - doit develop_install $CHANS_DEV $OPTS
         - doit env_capture
       script:
         - doit test_all
@@ -63,7 +68,7 @@ jobs:
     # python 2 flake checking typically catches python 2 syntax
     # errors where python 3's been assumed...
     - <<: *conda_default
-      env: DESC="py2 flakes" PYTHON_VERSION=2.7
+      env: DESC="py2 flakes" PYTHON_VERSION=2.7 OPTS=""
       script: doit test_lint
 
     # test using python 3.7
@@ -73,6 +78,37 @@ jobs:
         - doit test_all
         - export NUMBA_DISABLE_JIT=1; doit test_unit_nojit
 
+
+    ########## DOCS ##########
+
+    - &doc_build
+      <<: *conda_default
+      stage: docs
+      env: HV_DOC_HTML="true" DESC="docs" OPTS="-o doc -o examples_extra"
+      script:
+        - datashader fetch-data --path=examples --force
+        - nbsite generate-rst --org pyviz --project-name datashader --skip '.*tiling.*,.*streaming-aggregation.*'
+        - nbsite build --what=html --output=builtdocs
+      deploy:
+        provider: pages
+        skip_cleanup: true
+        github_token: $GITHUB_TOKEN
+        local_dir: ./builtdocs
+        fqdn: datashader.org
+        on:
+          tags: true
+          all_branches: true
+
+    - <<: *doc_build
+      stage: docs_dev
+      deploy:
+        provider: pages
+        skip_cleanup: true
+        github_token: $GITHUB_TOKEN
+        local_dir: ./builtdocs
+        repo: pyviz-dev/datashader
+        on:
+          all_branches: true
 
     ########## END-USER PACKAGES ##########
 
