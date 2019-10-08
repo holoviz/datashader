@@ -121,7 +121,7 @@ jobs:
       install:
         - doit develop_install $CHANS_DEV -o tests && pip uninstall -y datashader
         - doit pip_on_conda
-        - doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=all --sdist-install-build-deps
+        - doit ecosystem=pip package_build --test-python=py36 --test-group=unit
       # script: doit ecosystem=pip package_upload -u $PYPIUSER -p $PYPIPASS --pypi ${PYPI}
 
     - &conda_pkg
