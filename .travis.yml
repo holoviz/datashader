@@ -119,6 +119,8 @@ jobs:
       stage: pip_dev_package
       env: PYPI=testpypi PYPIUSER=$TPPU PYPIPASS=$TPPP TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       install:
+        - doit env_create $CHANS_DEV --python=$PYTHON_VERSION
+        - source activate test-environment
         - doit develop_install $CHANS_DEV -o tests && pip uninstall -y datashader
         - doit pip_on_conda
         - doit ecosystem=pip package_build --test-python=py36 --test-group=unit
