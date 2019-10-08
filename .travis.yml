@@ -39,7 +39,7 @@ stages:
   - name: conda_package
     if: tag =~ ^v(\d+|\.)+[^a-z]\d+$
   - name: pip_package
-    if: tag =~ ^v(\d+|\.)+[^a-z]\d+$
+    # if: tag =~ ^v(\d+|\.)+[^a-z]\d+$
 
 jobs:
   include:
@@ -119,9 +119,9 @@ jobs:
       stage: pip_dev_package
       before_install: pip install pyctdev && doit ecosystem=pip ecosystem_setup
       install:
-        - unset PYENV_VERSION && pyenv global 3.6 2.7
+        - unset PYENV_VERSION && pyenv global 3.7 2.7
         - doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=all --sdist-install-build-deps
-      script: doit ecosystem=pip package_upload -u $PYPIUSER -p $PYPIPASS --pypi ${PYPI}
+      # script: doit ecosystem=pip package_upload -u $PYPIUSER -p $PYPIPASS --pypi ${PYPI}
 
     - &conda_pkg
       <<: *conda_default
