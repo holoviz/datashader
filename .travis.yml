@@ -39,7 +39,7 @@ stages:
   - name: conda_package
     if: tag =~ ^v(\d+|\.)+[^a-z]\d+$
   - name: pip_package
-    # if: tag =~ ^v(\d+|\.)+[^a-z]\d+$
+    if: tag =~ ^v(\d+|\.)+[^a-z]\d+$
 
 jobs:
   include:
@@ -124,7 +124,7 @@ jobs:
         - doit develop_install $CHANS_DEV -o tests && pip uninstall -y datashader
         - doit pip_on_conda
         - doit ecosystem=pip package_build --test-python=py36 --test-group=unit
-      # script: doit ecosystem=pip package_upload -u $PYPIUSER -p $PYPIPASS --pypi ${PYPI}
+      script: doit ecosystem=pip package_upload -u $PYPIUSER -p $PYPIPASS --pypi ${PYPI}
 
     - &conda_pkg
       <<: *default
