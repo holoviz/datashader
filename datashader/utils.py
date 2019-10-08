@@ -207,12 +207,14 @@ def orient_array(raster, res=None, layer=None):
         res = calc_res(raster)
     array = raster.data
     if layer is not None: array = array[layer-1]
+    r0zero = np.timedelta64(0, 'ns') if isinstance(res[0], np.timedelta64) else 0
+    r1zero = np.timedelta64(0, 'ns') if isinstance(res[1], np.timedelta64) else 0
     if array.ndim == 2:
-        if res[0] < 0: array = array[:, ::-1]
-        if res[1] > 0: array = array[::-1]
+        if res[0] < r0zero: array = array[:, ::-1]
+        if res[1] > r1zero: array = array[::-1]
     else:
-        if res[0] < 0: array = array[:, :, ::-1]
-        if res[1] > 0: array = array[:, ::-1]
+        if res[0] < r0zero: array = array[:, :, ::-1]
+        if res[1] > r1zero: array = array[:, ::-1]
     return array
 
 
