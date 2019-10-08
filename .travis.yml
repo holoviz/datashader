@@ -46,7 +46,7 @@ jobs:
 
     ########## DEVELOPER INSTALL ##########
 
-    - &conda_default
+    - &default
       stage: test
       env: DESC="dev test_all"
       before_install:
@@ -67,12 +67,12 @@ jobs:
 
     # python 2 flake checking typically catches python 2 syntax
     # errors where python 3's been assumed...
-    - <<: *conda_default
+    - <<: *default
       env: DESC="py2 flakes" PYTHON_VERSION=2.7 OPTS=""
       script: doit test_lint
 
     # test using python 3.7
-    - <<: *conda_default
+    - <<: *default
       env: PYTHON_VERSION=3.7
       script:
         - doit test_all
@@ -82,7 +82,7 @@ jobs:
     ########## DOCS ##########
 
     - &doc_build
-      <<: *conda_default
+      <<: *default
       stage: docs
       env: HV_DOC_HTML="true" DESC="docs" OPTS="-o doc -o examples_extra"
       script:
@@ -114,17 +114,20 @@ jobs:
 
     ## dev packages
 
-    - &pip_default
-      env: PYPI=testpypi PYPIUSER=$TPPU PYPIPASS=$TPPP TRAVIS_NOCACHE=$TRAVIS_JOB_ID
+    - &pip_pkg
+      <<: *default
       stage: pip_dev_package
-      before_install: pip install pyctdev && doit ecosystem=pip ecosystem_setup
+      env: PYPI=testpypi PYPIUSER=$TPPU PYPIPASS=$TPPP TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       install:
-        - unset PYENV_VERSION && pyenv global 3.6 2.7
-        - doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=all --sdist-install-build-deps
+        - doit env_create $CHANS_DEV --python=$PYTHON_VERSION
+        - source activate test-environment
+        - doit develop_install $CHANS_DEV -o tests && pip uninstall -y datashader
+        - doit pip_on_conda
+        - doit ecosystem=pip package_build --test-python=py36 --test-group=unit
       script: doit ecosystem=pip package_upload -u $PYPIUSER -p $PYPIPASS --pypi ${PYPI}
 
     - &conda_pkg
-      <<: *conda_default
+      <<: *default
       stage: conda_dev_package
       env: DESC="" LABELS=$LABELS_DEV CHANS=$CHANS_DEV TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       install: doit package_build $CHANS $PKG_TEST_PYTHON --test-group=all
@@ -132,7 +135,7 @@ jobs:
 
     ## release packages
 
-    - <<: *pip_default
+    - <<: *pip_pkg
       env: PYPI=pypi PYPIUSER=$PPU PYPIPASS=$PPP TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       stage: pip_package
 
