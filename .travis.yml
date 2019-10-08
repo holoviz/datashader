@@ -114,12 +114,12 @@ jobs:
 
     ## dev packages
 
-    - &pip_default
-      env: PYPI=testpypi PYPIUSER=$TPPU PYPIPASS=$TPPP TRAVIS_NOCACHE=$TRAVIS_JOB_ID PKG_TEST_PYTHON="--test-python=py27 --test-python=py37"
+    - <<: *conda_default
       stage: pip_dev_package
-      before_install: pip install pyctdev && doit ecosystem=pip ecosystem_setup
+      env: PYPI=testpypi PYPIUSER=$TPPU PYPIPASS=$TPPP TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       install:
-        - unset PYENV_VERSION && pyenv global 3.7 2.7
+        - doit develop_install $CHANS_DEV -o tests && pip uninstall -y datashader
+        - doit pip_on_conda
         - doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=all --sdist-install-build-deps
       # script: doit ecosystem=pip package_upload -u $PYPIUSER -p $PYPIPASS --pypi ${PYPI}
 
@@ -133,7 +133,7 @@ jobs:
     ## release packages
 
     - <<: *pip_default
-      env: PYPI=pypi PYPIUSER=$PPU PYPIPASS=$PPP TRAVIS_NOCACHE=$TRAVIS_JOB_ID PKG_TEST_PYTHON="--test-python=py27 --test-python=py37"
+      env: PYPI=pypi PYPIUSER=$PPU PYPIPASS=$PPP TRAVIS_NOCACHE=$TRAVIS_JOB_ID
       stage: pip_package
 
     - <<: *conda_pkg
