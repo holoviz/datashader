@@ -31,7 +31,7 @@ CENTER_EVENT = 0
 
 # this value is returned by findMaxValueWithinDist() if there is no key within
 # that distance
-SMALLEST_GRAD = -9999999999999999999999.0
+SMALLEST_GRAD = -9999999999999999.0
 
 PROJ_LL = 0
 PROJ_NONE = -1
@@ -95,6 +95,10 @@ class TreeValue:
 
         return self.grad[0]
 
+    def _print_tv(self):
+        print('key=', self.key, 'grad=', self.grad, 'ang=', self.ang,
+              'max_grad=', self.max_grad)
+
 
 class TreeNode:
 
@@ -122,7 +126,7 @@ class TreeNode:
             for l in self.left.__iter__():
                 yield l
 
-        yield self.val.key
+        yield self.val
 
         if self.right != NIL:
             for r in self.right.__iter__():
@@ -395,7 +399,6 @@ class Tree:
 
         cur_node = key_node
         max = SMALLEST_GRAD
-
         while cur_node.parent != NIL:
             if cur_node == cur_node.parent.right:
                 # its the right node of its parent
@@ -623,8 +626,8 @@ class Tree:
             while z.parent != NIL:
                 if z.parent.val.max_grad == z_gradient:
                     if z.parent.val.find_value_min_value() != z_gradient and \
-                        not (z.parent.left.val.max_grad == z_gradient) and \
-                       x.parent.right.val.max_grad == z_gradient:
+                        not (z.parent.left.val.max_grad == z_gradient and
+                             x.parent.right.val.max_grad == z_gradient):
 
                         left = _find_max_value(z.parent.left)
                         right = _find_max_value(z.parent.right)
@@ -690,8 +693,9 @@ class StatusNode:
             self.ang = np.array(angle)
 
     def _print_status_node(self):
-        print(self.row, self.col, self.dist_to_viewpoint,
-              self.grad, self.ang)
+        print("row=", self.row, "col=", self.col, "dist_to_viewpoint=",
+              self.dist_to_viewpoint,
+              "grad=", self.grad, "ang=", self.ang)
 
 
 def _insert_into_status_struct(status_node, tree):
@@ -711,7 +715,7 @@ def _max_grad_in_status_struct(tree, distance, angle, gradient):
     # Note: if there is nothing in the status structure,
     #         it means this cell is VISIBLE
 
-    if not tree.root:
+    if tree.root == NIL or tree.root is None:
         return SMALLEST_GRAD
 
     # it is also possible that the status structure is not empty, but
@@ -846,11 +850,42 @@ class Event:
         self.ang = angle
         self.type = event_type
 
+    def __lt__(self, other_event):
+        if self.row == other_event.row and self.col == other_event.col\
+                and self.type == other_event.type:
+            return False
+
+        assert self.ang >= 0 and other_event.ang >= 0
+
+        if self.ang > other_event.ang:
+            return False
+
+        if self.ang < other_event.ang:
+            return True
+
+        # self.ang == other_event.ang
+        if self.type == EXITING_EVENT:
+            return True
+        if other_event.type == EXITING_EVENT:
+            return False
+        if self.type == ENTERING_EVENT:
+            return False
+        if other_event.type == ENTERING_EVENT:
+            return True
+        return False
+
     # for debug purpose
     def _print_event(self):
-        print('event_type = ', self.type,
-              'row = ', self.row,
+        if self.type == 1:
+            t = "ENTERING   "
+        elif self.type == -1:
+            t = "EXITING    "
+        else:
+            t = "CENTER     "
+
+        print('row = ', self.row,
               'col = ', self.col,
+              'event_type = ', t,
               'elevation = ', self.elev,
               'ang = ', self.ang)
 
@@ -990,8 +1025,8 @@ def _g_distance(e1, n1, e2, n2, proj=PROJ_NONE):
 # unchanged.
 # If viewOptions.doRefr is on then adjust the curved height for
 # the effect of atmospheric refraction too.
-@jit(nb.f8(nb.i8, nb.i8, nb.i8, nb.i8, nb.f8, nb.b1, nb.f8, nb.b1,
-           nb.f8, nb.f8, nb.f8, nb.f8, nb.f8, nb.i8), nopython=True)
+@jit(nb.f8(nb.i8, nb.i8, nb.f8, nb.f8, nb.f8, nb.b1, nb.f8,
+           nb.b1, nb.f8, nb.f8, nb.f8, nb.f8, nb.f8, nb.i8), nopython=True)
 def _adjust_curv(viewpoint_row, viewpoint_col, row, col, h, do_curv, ellps_a,
                  do_refr, refr_coef, west, ew_res, north, ns_res, proj):
     # Adjust the passed height for curvature of the earth
@@ -1027,9 +1062,8 @@ def _set_visibility(visibility_grid, i, j, value):
     return
 
 
-@jit(nb.b1(nb.i8, nb.i8,
-           nb.f8, nb.f8, nb.f8, nb.f8, nb.i8,
-           nb.i8, nb.i8, nb.f8), nopython=True)
+@jit(nb.b1(nb.i8, nb.i8, nb.f8, nb.f8, nb.f8,
+           nb.f8, nb.i8, nb.i8, nb.i8, nb.f8), nopython=True)
 def _outside_max_dist(viewpoint_row, viewpoint_col, west, ew_res, north,
                       ns_res, proj, row, col, max_distance):
     # Determine if the point at (row,col) is outside the maximum distance.
@@ -1321,11 +1355,11 @@ def _calculate_angle(event_x, event_y, viewpoint_x, viewpoint_y):
 
     if viewpoint_x == event_x and viewpoint_y > event_y:
         # between 1st and 2nd quadrant
-        return math.pi / 2
+        return PI / 2
 
     if viewpoint_x == event_x and viewpoint_y < event_y:
         # between 3rd and 4th quadrant
-        return math.pi * 3.0 / 2.0
+        return PI * 3.0 / 2.0
 
     # Calculate angle between (x1, y1) and (x2, y2)
     ang = atan(fabs(event_y - viewpoint_y) / fabs(event_x - viewpoint_x))
@@ -1341,27 +1375,26 @@ def _calculate_angle(event_x, event_y, viewpoint_x, viewpoint_y):
 
     if viewpoint_x > event_x and viewpoint_y > event_y:
         # 2nd quadrant
-        return math.pi - ang
+        return PI - ang
 
     if viewpoint_x > event_x and viewpoint_y == event_y:
         # between 1st and 3rd quadrant
-        return math.pi
+        return PI
 
     if viewpoint_x > event_x and viewpoint_y < event_y:
         # 3rd quadrant
-        return math.pi + ang
+        return PI + ang
 
     if viewpoint_x < event_x and viewpoint_y < event_y:
         # 4th quadrant
-        return math.pi * 2.0 - ang
+        return PI * 2.0 - ang
 
     assert event_x == viewpoint_x and event_y == viewpoint_y
     return 0
 
 
-@jit(nb.f8(nb.i8, nb.i8, nb.f8,
-           nb.i8, nb.i8, nb.f8,
-           nb.f8, nb.f8, nb.f8, nb.f8, nb.i8), nopython=True)
+@jit(nb.f8(nb.f8, nb.f8, nb.f8, nb.i8, nb.i8,
+           nb.f8, nb.f8, nb.f8, nb.f8, nb.f8, nb.i8), nopython=True)
 def _calc_event_grad(row, col, elev, viewpoint_row, viewpoint_col,
                      viewpoint_elev, west, ew_res, north, ns_res, proj):
     # Calculate event gradient
@@ -1419,12 +1452,7 @@ def _calc_dist_n_grad(status_node_row, status_node_col, elev,
         dy = (status_node_row - viewpoint_row) * ns_res
         distance_to_viewpoint = (dx * dx) + (dy * dy)
 
-    if diff_elev == 0:
-        gradient = 0
-        return distance_to_viewpoint, gradient
-
     # PI / 2 above, - PI / 2 below
-
     if distance_to_viewpoint == 0:
         if diff_elev > 0:
             gradient = PI / 2
@@ -1432,7 +1460,6 @@ def _calc_dist_n_grad(status_node_row, status_node_col, elev,
             gradient = - PI / 2
         else:
             gradient = 0
-
     else:
         gradient = atan(diff_elev / sqrt(distance_to_viewpoint))
     return distance_to_viewpoint, gradient
@@ -1669,16 +1696,12 @@ def _viewshed(raster, vp, v_op, g_hd):
                      g_hd=g_hd, data=data, visibility_grid=visibility_grid)
 
     # sort the events radially by ang
-    # s = timer()
-    event_list.sort(key=lambda x: x.ang, reverse=False)
-    # e = timer()
-    # print("sort time ", e - s)
+    event_list.sort()
 
     # create the status structure
     status_struct = _create_status_struct()
 
     # Put cells that are initially on the sweepline into status structure
-
     for i in range(vp.col + 1, g_hd.cols):
         status_node = StatusNode(row=vp.row, col=i)
         e = Event(row=vp.row, col=i)
@@ -1804,7 +1827,6 @@ def _viewshed(raster, vp, v_op, g_hd):
 
         elif etype == CENTER_EVENT:
             # calculate visibility
-
             # consider current ang and gradient
             max = _max_grad_in_status_struct(status_struct,
                                              status_node.dist_to_viewpoint,
