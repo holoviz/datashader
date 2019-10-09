@@ -33,7 +33,7 @@ TERRAIN_ELEV_AT_VP = [-1, 0, 1]
 def test_viewshed_invalid_x_view():
     OBSERVER_X = xs[0] - 1
     OBSERVER_Y = 0
-    with pytest.raises(Exception) as e_info:
+    with pytest.raises(Exception) as e_info: # NOQA
         viewshed(raster=empty_agg, x=OBSERVER_X, y=OBSERVER_Y,
                  observer_elev=10)
 
@@ -42,7 +42,7 @@ def test_viewshed_invalid_x_view():
 def test_viewshed_invalid_y_view():
     OBSERVER_X = 0
     OBSERVER_Y = ys[-1] + 1
-    with pytest.raises(Exception) as e_info:
+    with pytest.raises(Exception) as e_info: # NOQA
         viewshed(raster=empty_agg, x=OBSERVER_X, y=OBSERVER_Y,
                  observer_elev=10)
 
