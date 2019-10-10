@@ -31,13 +31,14 @@ CENTER_EVENT = 0
 
 # this value is returned by findMaxValueWithinDist() if there is no key within
 # that distance
-SMALLEST_GRAD = -9999999999999999.0
+SMALLEST_GRAD = float('-inf')
 
 PROJ_LL = 0
 PROJ_NONE = -1
 
 PI = math.pi
 
+#TODO: refactor NAN value...
 NAN = -9999999999999999
 
 
