@@ -4,7 +4,7 @@ import numpy as np
 
 from datashader.glyphs import Glyph
 from datashader.glyphs.line import (
-    _build_draw_line, _build_extend_line_axis0, _build_map_onto_pixel_for_line
+    _build_draw_segment, _build_extend_line_axis0, _build_map_onto_pixel_for_line
 )
 from datashader.utils import ngjit
 
@@ -18,10 +18,8 @@ def extend_line():
     mapper = ngjit(lambda x: x)
     map_onto_pixel = _build_map_onto_pixel_for_line(mapper, mapper)
     expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
-    draw_line = _build_draw_line(append, expand_aggs_and_cols)
-    return _build_extend_line_axis0(
-        draw_line, map_onto_pixel, expand_aggs_and_cols
-    )
+    draw_line = _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols)
+    return _build_extend_line_axis0(draw_line, expand_aggs_and_cols)
 
 
 @pytest.mark.parametrize('high', [0, 10**5])

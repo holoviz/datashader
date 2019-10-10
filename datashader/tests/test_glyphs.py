@@ -9,7 +9,7 @@ from datashader.glyphs import Point, LinesAxis1, Glyph
 from datashader.glyphs.area import _build_draw_trapezoid_y
 from datashader.glyphs.line import (
     _build_map_onto_pixel_for_line,
-    _build_draw_line,
+    _build_draw_segment,
     _build_extend_line_axis0,
 )
 from datashader.glyphs.trimesh import(
@@ -53,10 +53,8 @@ map_onto_pixel_for_triangle = _build_map_onto_pixel_for_triangle(mapper, mapper)
 
 # Line rasterization
 expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
-draw_line = _build_draw_line(append, expand_aggs_and_cols)
-extend_line = _build_extend_line_axis0(
-    draw_line, map_onto_pixel_for_line, expand_aggs_and_cols
-)
+draw_line = _build_draw_segment(append, map_onto_pixel_for_line, expand_aggs_and_cols)
+extend_line = _build_extend_line_axis0(draw_line, expand_aggs_and_cols)
 
 # Triangles rasterization
 draw_triangle, draw_triangle_interp = _build_draw_triangle(tri_append)
@@ -68,6 +66,15 @@ draw_trapezoid = _build_draw_trapezoid_y(append, expand_aggs_and_cols)
 bounds = (-3, 1, -3, 1)
 vt = (1., 3., 1., 3.)
 
+
+def do_draw_line(x0, y0, x1, y1, i, segment_start, agg):
+    sx, tx, sy, ty = 1, 0, 1, 0
+    xmin, xmax, ymin, ymax = 0, 5, 0, 5
+    draw_line(
+        i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+        segment_start, x0, x1, y0, y1, agg)
+
+
 def test_draw_line():
     x0, y0 = (0, 0)
     x1, y1 = (3, 3)
@@ -77,18 +84,18 @@ def test_draw_line():
                     [0, 0, 0, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = new_agg()
-    draw_line(x0, y0, x1, y1, 0, True, False, agg)
+    do_draw_line(x0, y0, x1, y1, 0, True, agg)
     np.testing.assert_equal(agg, out)
     agg = new_agg()
-    draw_line(x1, y1, x0, y0, 0, True, False, agg)
+    do_draw_line(x1, y1, x0, y0, 0, True, agg)
     np.testing.assert_equal(agg, out)
     # plot_start = False
     agg = new_agg()
-    draw_line(x0, y0, x1, y1, 0, False, False, agg)
+    do_draw_line(x0, y0, x1, y1, 0, False, agg)
     out[0, 0] = 0
     np.testing.assert_equal(agg, out)
     agg = new_agg()
-    draw_line(x1, y1, x0, y0, 0, False, False, agg)
+    do_draw_line(x1, y1, x0, y0, 0, False, agg)
     out[0, 0] = 1
     out[3, 3] = 0
     np.testing.assert_equal(agg, out)
@@ -101,41 +108,44 @@ def test_draw_line():
                     [0, 1, 0, 0, 0],
                     [1, 0, 0, 0, 0]])
     agg = new_agg()
-    draw_line(x0, y0, x1, y1, 0, True, False, agg)
+    do_draw_line(x0, y0, x1, y1, 0, True, agg)
     np.testing.assert_equal(agg, out)
     agg = new_agg()
-    draw_line(x1, y1, x0, y0, 0, True, False, agg)
+    do_draw_line(x1, y1, x0, y0, 0, True, agg)
     np.testing.assert_equal(agg, out)
     # plot_start = False
     agg = new_agg()
-    draw_line(x0, y0, x1, y1, 0, False, False, agg)
+    do_draw_line(x0, y0, x1, y1, 0, False, agg)
     out[4, 0] = 0
     np.testing.assert_equal(agg, out)
     agg = new_agg()
-    draw_line(x1, y1, x0, y0, 0, False, False, agg)
+    do_draw_line(x1, y1, x0, y0, 0, False, agg)
     out[4, 0] = 1
     out[1, 3] = 0
 
 
 def test_draw_line_same_point():
-    x0, y0 = (3, 3)
-    x1, y1 = (3, 3)
+    x0, y0 = (4, 4)
+    x1, y1 = (4, 4)
     agg = new_agg()
-    draw_line(x0, y0, x1, y1, 0, True, False, agg)
+    do_draw_line(x0, y0, x1, y1, 0, True, agg)
     assert agg.sum() == 2
-    assert agg[3, 3] == 2
+    assert agg[4, 4] == 2
     agg = new_agg()
-    draw_line(x0, y0, x1, y1, 0, False, False, agg)
+    do_draw_line(x0, y0, x1, y1, 0, False, agg)
     assert agg.sum() == 1
-    assert agg[3, 3] == 1
+    assert agg[4, 4] == 1
+
+    x0, y0 = (4, 4)
+    x1, y1 = (10, 10)
     agg = new_agg()
-    draw_line(x0, y0, x1, y1, 0, True, True, agg)
+    do_draw_line(x0, y0, x1, y1, 0, True, agg)
     assert agg.sum() == 1
-    assert agg[3, 3] == 1
+    assert agg[4, 4] == 1
     agg = new_agg()
-    draw_line(x0, y0, x1, y1, 0, False, True, agg)
+    do_draw_line(x0, y0, x1, y1, 0, False, agg)
     assert agg.sum() == 0
-    assert agg[3, 3] == 0
+    assert agg[4, 4] == 0
 
 
 def test_draw_line_vertical_horizontal():
@@ -143,13 +153,13 @@ def test_draw_line_vertical_horizontal():
     x0, y0 = (3, 3)
     x1, y1 = (3, 0)
     agg = new_agg()
-    draw_line(x0, y0, x1, y1, 0, True, False, agg)
+    do_draw_line(x0, y0, x1, y1, 0, True, agg)
     out = new_agg()
     out[:4, 3] = 1
     np.testing.assert_equal(agg, out)
     # Horizontal
     agg = new_agg()
-    draw_line(y0, x0, y1, x1, 0, True, False, agg)
+    do_draw_line(y0, x0, y1, x1, 0, True, agg)
     out = new_agg()
     out[3, :4] = 1
     np.testing.assert_equal(agg, out)
