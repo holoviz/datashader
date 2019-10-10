@@ -1,7 +1,10 @@
 import xarray
 import numpy as np
 import math
+
 from math import atan, sqrt, fabs
+from math import pi as PI
+
 import numba as nb
 from numba import jit
 
@@ -36,9 +39,9 @@ SMALLEST_GRAD = float('-inf')
 PROJ_LL = 0
 PROJ_NONE = -1
 
-PI = math.pi
 
-#TODO: refactor NAN value...
+# Future refactor?:
+# This value is a placeholder for np.nan in integer arrays
 NAN = -9999999999999999
 
 
