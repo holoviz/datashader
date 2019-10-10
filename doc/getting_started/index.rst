@@ -56,9 +56,9 @@ Usage
     :titlesonly:
     :maxdepth: 2
 
-    1 Introduction <1_Introduction>
-    2 Pipeline <2_Pipeline>
-    3 Interactivity <3_Interactivity>
+    1 Introduction <Introduction>
+    2 Pipeline <Pipeline>
+    3 Interactivity <Interactivity>
 
 If you have any questions, please refer to `FAQ <../FAQ>`_
 and if that doesn't help, feel free to post an issue on GitHub, question on
