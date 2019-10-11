@@ -231,7 +231,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
 
     # Handle case where everything is masked out
     if mask.all():
-        return Image(np.zeros(shape=agg.data.astype(np.uint32).shape,
+        return Image(np.zeros(shape=agg.data.shape,
                               dtype=np.uint32), coords=agg.coords,
                      dims=agg.dims, attrs=agg.attrs, name=name)
 
