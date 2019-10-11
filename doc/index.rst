@@ -14,11 +14,12 @@
 
 .. toctree::
     :hidden:
-    :maxdepth: 2
+    :maxdepth: 3
 
     Introduction <self>
     Getting Started <getting_started/index>
     User Guide <user_guide/index>
+    Topics <topics/index>
     API <api>
     FAQ <FAQ>
     About <about>

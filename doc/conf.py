@@ -11,14 +11,15 @@ from datashader import __version__
 version = release  = __version__
 
 html_static_path += ['_static']
-html_theme = 'sphinx_ioam_theme'
+html_theme = 'sphinx_pyviz_theme'
 html_theme_options = {
-    'logo':'datashader-logo.png',
-    'favicon':'favicon.ico',
-    'css':'site.css'
+    'logo': 'datashader-logo.png',
+    'favicon': 'favicon.ico',
+    'primary_color': '#774c9a',
+    'primary_color_dark': '#460f72',
+    'secondary_color': '#c4a9d6',
+    'second_nav': True,
 }
-
-templates_path = ['_templates']
 
 _NAV =  (
     ('Getting Started', 'getting_started/index'),
