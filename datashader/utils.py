@@ -86,6 +86,24 @@ class Dispatcher(object):
         raise TypeError("No dispatch for {0} type".format(typ))
 
 
+def isrealfloat(dt):
+    """Check if a datashape is numeric and real.
+
+    Example
+    -------
+    >>> isrealfloat('int32')
+    False
+    >>> isrealfloat('float64')
+    True
+    >>> isrealfloat('string')
+    False
+    >>> isrealfloat('complex64')
+    False
+    """
+    dt = datashape.predicates.launder(dt)
+    return isinstance(dt, datashape.Unit) and dt in datashape.typesets.floating
+
+
 def isreal(dt):
     """Check if a datashape is numeric and real.
 
@@ -365,11 +383,16 @@ def dshape_from_pandas_helper(col):
     dataframe.
     """
     if isinstance(col.dtype, type(pd.Categorical.dtype)) or isinstance(col.dtype, pd.api.types.CategoricalDtype):
+        # Compute category dtype
+        categories = np.array(col.cat.categories)
+        if categories.dtype.kind == 'U':
+            categories = categories.astype('object')
+
         cat_dshape = datashape.dshape('{} * {}'.format(
             len(col.cat.categories),
-            col.cat.categories.dtype,
+            categories.dtype,
         ))
-        return datashape.Categorical(col.cat.categories.values,
+        return datashape.Categorical(categories,
                                      type=cat_dshape,
                                      ordered=col.cat.ordered)
     elif col.dtype.kind == 'M':

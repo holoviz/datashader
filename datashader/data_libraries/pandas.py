@@ -2,11 +2,11 @@ from __future__ import absolute_import, division
 
 import pandas as pd
 
-from .core import bypixel
-from .compiler import compile_components
-from .glyphs.points import _PointLike
-from .glyphs.area import _AreaToLineLike
-from .utils import Dispatcher
+from datashader.core import bypixel
+from datashader.compiler import compile_components
+from datashader.glyphs.points import _PointLike
+from datashader.glyphs.area import _AreaToLineLike
+from datashader.utils import Dispatcher
 from collections import OrderedDict
 
 __all__ = ()
@@ -22,14 +22,14 @@ glyph_dispatch = Dispatcher()
 
 @glyph_dispatch.register(_PointLike)
 @glyph_dispatch.register(_AreaToLineLike)
-def default(glyph, df, schema, canvas, summary):
+def default(glyph, source, schema, canvas, summary):
     create, info, append, _, finalize = compile_components(summary, schema, glyph)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
-    x_range = canvas.x_range or glyph.compute_x_bounds(df)
-    y_range = canvas.y_range or glyph.compute_y_bounds(df)
+    x_range = canvas.x_range or glyph.compute_x_bounds(source)
+    y_range = canvas.y_range or glyph.compute_y_bounds(source)
 
     width = canvas.plot_width
     height = canvas.plot_height
@@ -41,7 +41,7 @@ def default(glyph, df, schema, canvas, summary):
     y_axis = canvas.y_axis.compute_index(y_st, height)
 
     bases = create((height, width))
-    extend(bases, df, x_st + y_st, x_range + y_range)
+    extend(bases, source, x_st + y_st, x_range + y_range)
 
     return finalize(bases,
                     coords=OrderedDict([(glyph.x_label, x_axis),

@@ -8,21 +8,27 @@ import PIL
 import pytest
 from collections import OrderedDict
 import datashader.transfer_functions as tf
-
+from datashader.tests.test_pandas import assert_eq_xr
 
 coords = OrderedDict([('x_axis', [3, 4, 5]), ('y_axis', [0, 1, 2])])
 dims = ['y_axis', 'x_axis']
 
-a = np.arange(10, 19, dtype='i4').reshape((3, 3))
-a[[0, 1, 2], [0, 1, 2]] = 0
-s_a = xr.DataArray(a, coords=coords, dims=dims)
-b = np.arange(10, 19, dtype='f4').reshape((3, 3))
-b[[0, 1, 2], [0, 1, 2]] = np.nan
-s_b = xr.DataArray(b, coords=coords, dims=dims)
-c = np.arange(10, 19, dtype='f8').reshape((3, 3))
-c[[0, 1, 2], [0, 1, 2]] = np.nan
-s_c = xr.DataArray(c, coords=coords, dims=dims)
-agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c))
+# CPU
+def build_agg(array_module=np):
+    a = array_module.arange(10, 19, dtype='i4').reshape((3, 3))
+    a[[0, 1, 2], [0, 1, 2]] = 0
+    s_a = xr.DataArray(a, coords=coords, dims=dims)
+    b = array_module.arange(10, 19, dtype='f4').reshape((3, 3))
+    b[[0, 1, 2], [0, 1, 2]] = array_module.nan
+    s_b = xr.DataArray(b, coords=coords, dims=dims)
+    c = array_module.arange(10, 19, dtype='f8').reshape((3, 3))
+    c[[0, 1, 2], [0, 1, 2]] = array_module.nan
+    s_c = xr.DataArray(c, coords=coords, dims=dims)
+    agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c))
+    return agg
+
+aggs = [build_agg(np)]
+arrays = [np.array]
 
 int_span = [11, 17]
 float_span = [11.0, 17.0]
@@ -62,71 +68,72 @@ def check_span(x, cmap, how, sol):
 
     # All data no span
     img = tf.shade(x, cmap=cmap, how=how, span=None)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # All data with span
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # Decrease smallest. This value should be clipped to span[0] and the
     # resulting image should be identical
     x[0, 1] = 10
     x_input = x.copy()
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # Check that clipping doesn't alter input array
-    assert x.equals(x_input)
+    x.equals(x_input)
 
     # Increase largest. This value should be clipped to span[1] and the
     # resulting image should be identical
     x[2, 1] = 18
     x_input = x.copy()
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # Check that clipping doesn't alter input array
-    assert x.equals(x_input)
+    x.equals(x_input)
 
     # zero out smallest. If span is working properly the zeroed out pixel
     # will be masked out and all other pixels will remain unchanged
     x[0, 1] = 0 if x.dtype.kind == 'i' else np.nan
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
     sol[0, 1] = sol[0, 0]
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # zero out the largest value
     x[2, 1] = 0 if x.dtype.kind == 'i' else np.nan
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
     sol[2, 1] = sol[0, 0]
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
+@pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('attr', ['a', 'b', 'c'])
 @pytest.mark.parametrize('span', [None, int_span, float_span])
-def test_shade(attr, span):
+def test_shade(agg, attr, span):
     x = getattr(agg, attr)
     cmap = ['pink', 'red']
 
     img = tf.shade(x, cmap=cmap, how='log', span=span)
     sol = solutions['log']
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
     # Check dims/coordinates order
     assert list(img.coords) == ['x_axis', 'y_axis']
     assert list(img.dims) == ['y_axis', 'x_axis']
 
     img = tf.shade(x, cmap=cmap, how='cbrt', span=span)
     sol = solutions['cbrt']
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     img = tf.shade(x, cmap=cmap, how='linear', span=span)
     sol = solutions['linear']
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     # span option not supported with how='eq_hist'
     img = tf.shade(x, cmap=cmap, how='eq_hist')
     sol = xr.DataArray(eq_hist_sol[attr], coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     img = tf.shade(x, cmap=cmap,
                    how=lambda x, mask: np.where(mask, np.nan, x ** 2))
@@ -134,12 +141,13 @@ def test_shade(attr, span):
                     [4290030335, 0, 4285557503],
                     [4282268415, 4278190335, 0]], dtype='u4')
     sol = xr.DataArray(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
+@pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('attr', ['a', 'b', 'c'])
 @pytest.mark.parametrize('how', ['linear', 'log', 'cbrt'])
-def test_span_cmap_list(attr, how):
+def test_span_cmap_list(agg, attr, how):
     # Get input
     x = getattr(agg, attr).copy()
 
@@ -153,8 +161,9 @@ def test_span_cmap_list(attr, how):
     check_span(x, cmap, how, sol)
 
 
+@pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('cmap', ['black', (0, 0, 0), '#000000'])
-def test_span_cmap_single(cmap):
+def test_span_cmap_single(agg, cmap):
     # Get input
     x = agg.a
 
@@ -168,7 +177,8 @@ def test_span_cmap_single(cmap):
     check_span(x, cmap, 'log', sol)
 
 
-def test_span_cmap_mpl():
+@pytest.mark.parametrize('agg', aggs)
+def test_span_cmap_mpl(agg):
     # Get inputs
     x = agg.a
 
@@ -192,36 +202,39 @@ def test_shade_bool():
     sol = xr.DataArray(np.where(data, 4278190335, 0).astype('uint32'),
                        coords=coords, dims=dims)
     img = tf.shade(x, cmap=['pink', 'red'], how='log')
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
     img = tf.shade(x, cmap=['pink', 'red'], how='cbrt')
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
     img = tf.shade(x, cmap=['pink', 'red'], how='linear')
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
     img = tf.shade(x, cmap=['pink', 'red'], how='eq_hist')
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
-def test_shade_cmap():
+@pytest.mark.parametrize('agg', aggs)
+def test_shade_cmap(agg):
     cmap = ['red', (0, 255, 0), '#0000FF']
     img = tf.shade(agg.a, how='log', cmap=cmap)
     sol = np.array([[0, 4278190335, 4278236489],
                     [4280344064, 0, 4289091584],
                     [4292225024, 4294901760, 0]])
     sol = xr.DataArray(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
+@pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('cmap', ['black', (0, 0, 0), '#000000'])
-def test_shade_cmap_non_categorical_alpha(cmap):
+def test_shade_cmap_non_categorical_alpha(agg, cmap):
     img = tf.shade(agg.a, how='log', cmap=cmap)
     sol = np.array([[         0,  671088640, 1946157056],
                     [2701131776,          0, 3640655872],
                     [3976200192, 4278190080,          0]])
     sol = xr.DataArray(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
-def test_shade_cmap_errors():
+@pytest.mark.parametrize('agg', aggs)
+def test_shade_cmap_errors(agg):
     with pytest.raises(ValueError):
         tf.shade(agg.a, cmap='foo')
 
@@ -229,20 +242,22 @@ def test_shade_cmap_errors():
         tf.shade(agg.a, cmap=[])
 
 
-def test_shade_mpl_cmap():
+@pytest.mark.parametrize('agg', aggs)
+def test_shade_mpl_cmap(agg):
     cm = pytest.importorskip('matplotlib.cm')
     img = tf.shade(agg.a, how='log', cmap=cm.viridis)
     sol = np.array([[5505348, 4283695428, 4287524142],
                     [4287143710, 5505348, 4282832267],
                     [4280213706, 4280608765, 5505348]])
     sol = xr.DataArray(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
-def test_shade_category():
+@pytest.mark.parametrize('array', arrays)
+def test_shade_category(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
-    cat_agg = xr.DataArray(np.array([[(0, 12, 0), (3, 0, 3)],
-                                    [(12, 12, 12), (24, 0, 0)]]),
+    cat_agg = xr.DataArray(array([[(0, 12, 0), (3, 0, 3)],
+                                  [(12, 12, 12), (24, 0, 0)]]),
                            coords=(coords + [['a', 'b', 'c']]),
                            dims=(dims + ['cats']))
 
@@ -252,7 +267,7 @@ def test_shade_category():
     sol = np.array([[2583625728, 335565567],
                     [4283774890, 3707764991]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
     # Check dims/coordinates order
     assert list(img.coords) == ['x_axis', 'y_axis']
     assert list(img.dims) == ['y_axis', 'x_axis']
@@ -263,13 +278,13 @@ def test_shade_category():
     sol = np.array([[2650734592, 335565567],
                     [4283774890, 3657433343]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
     sol = np.array([[1140785152, 335565567],
                     [4283774890, 2701132031]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
     img = tf.shade(cat_agg, color_key=colors,
                    how=lambda x, m: np.where(m, np.nan, x) ** 2,
@@ -277,7 +292,7 @@ def test_shade_category():
     sol = np.array([[503250944, 335565567],
                     [4283774890, 1744830719]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
-    assert img.equals(sol)
+    assert_eq_xr(img, sol)
 
 
 coords2 = [np.array([0, 2]), np.array([3, 5])]

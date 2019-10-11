@@ -1,12 +1,13 @@
 from __future__ import absolute_import, division, print_function
 
+from math import isnan
 import numpy as np
 from datashape import dshape, isnumeric, Record, Option
 from datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 
-from .utils import Expr, ngjit
+from .utils import Expr, ngjit, isrealfloat
 
 
 class Preprocess(Expr):
@@ -49,19 +50,22 @@ class Reduction(Expr):
     def inputs(self):
         return (extract(self.column),)
 
-    @property
-    def _bases(self):
+    def _build_bases(self):
         return (self,)
 
-    @property
-    def _temps(self):
+    def _build_temps(self):
         return ()
 
     def _build_create(self, dshape):
         return self._create
 
-    def _build_append(self, dshape):
-        return self._append
+    def _build_append(self, dshape, schema):
+        if self.column is None:
+            return self._append_no_field
+        elif isrealfloat(schema[self.column]):
+            return self._append_float_field
+        else:
+            return self._append_int_field
 
     def _build_combine(self, dshape):
         return self._combine
@@ -82,9 +86,6 @@ class OptionalFieldReduction(Reduction):
     def validate(self, in_dshape):
         pass
 
-    def _build_append(self, dshape):
-        return self._append if self.column is None else self._append_non_na
-
     @staticmethod
     def _finalize(bases, **kwargs):
         return xr.DataArray(bases[0], **kwargs)
@@ -103,18 +104,23 @@ class count(OptionalFieldReduction):
 
     @staticmethod
     @ngjit
-    def _append(x, y, agg):
+    def _append_no_field(x, y, agg):
         agg[y, x] += 1
 
     @staticmethod
     @ngjit
-    def _append_non_na(x, y, agg, field):
-        if not np.isnan(field):
+    def _append_int_field(x, y, agg, field):
+        agg[y, x] += 1
+
+    @staticmethod
+    @ngjit
+    def _append_float_field(x, y, agg, field):
+        if not isnan(field):
             agg[y, x] += 1
 
     @staticmethod
-    def _create(shape):
-        return np.zeros(shape, dtype='i4')
+    def _create(shape, array_module):
+        return array_module.zeros(shape, dtype='i4')
 
     @staticmethod
     def _combine(aggs):
@@ -133,18 +139,23 @@ class any(OptionalFieldReduction):
 
     @staticmethod
     @ngjit
-    def _append(x, y, agg):
+    def _append_no_field(x, y, agg):
         agg[y, x] = True
 
     @staticmethod
     @ngjit
-    def _append_non_na(x, y, agg, field):
-        if not np.isnan(field):
+    def _append_int_field(x, y, agg, field):
+        agg[y, x] = True
+
+    @staticmethod
+    @ngjit
+    def _append_float_field(x, y, agg, field):
+        if not isnan(field):
             agg[y, x] = True
 
     @staticmethod
-    def _create(shape):
-        return np.zeros(shape, dtype='bool')
+    def _create(shape, array_module):
+        return array_module.zeros(shape, dtype='bool')
 
     @staticmethod
     def _combine(aggs):
@@ -156,16 +167,18 @@ class FloatingReduction(Reduction):
     _dshape = dshape(Option(ct.float64))
 
     @staticmethod
-    def _create(shape):
-        return np.full(shape, np.nan, dtype='f8')
+    def _create(shape, array_module):
+        return array_module.full(shape, np.nan, dtype='f8')
 
     @staticmethod
     def _finalize(bases, **kwargs):
         return xr.DataArray(bases[0], **kwargs)
 
 
-class sum(FloatingReduction):
+class _sum_zero(FloatingReduction):
     """Sum of all elements in ``column``.
+
+    Elements of resulting aggregate are zero if they are not updated.
 
     Parameters
     ----------
@@ -173,9 +186,50 @@ class sum(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+
+    @staticmethod
+    def _create(shape, array_module):
+        return array_module.full(shape, 0.0, dtype='f8')
+
     @staticmethod
     @ngjit
-    def _append(x, y, agg, field):
+    def _append_int_field(x, y, agg, field):
+        agg[y, x] += field
+
+    @staticmethod
+    @ngjit
+    def _append_float_field(x, y, agg, field):
+        if not isnan(field):
+            agg[y, x] += field
+
+    @staticmethod
+    def _combine(aggs):
+        return aggs.sum(axis=0, dtype='f8')
+
+class sum(FloatingReduction):
+    """Sum of all elements in ``column``.
+
+    Elements of resulting aggregate are nan if they are not updated.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Column data type must be numeric.
+        ``NaN`` values in the column are skipped.
+    """
+    _dshape = dshape(Option(ct.float64))
+
+    @staticmethod
+    @ngjit
+    def _append_int_field(x, y, agg, field):
+        if np.isnan(agg[y, x]):
+            agg[y, x] = field
+        else:
+            agg[y, x] += field
+
+    @staticmethod
+    @ngjit
+    def _append_float_field(x, y, agg, field):
         if not np.isnan(field):
             if np.isnan(agg[y, x]):
                 agg[y, x] = field
@@ -202,22 +256,37 @@ class m2(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-    @property
-    def _temps(self):
-        return (sum(self.column), count(self.column))
+
+    @staticmethod
+    def _create(shape, array_module):
+        return array_module.full(shape, 0.0, dtype='f8')
+
+    def _build_temps(self):
+        return (_sum_zero(self.column), count(self.column))
+
+    def _build_append(self, dshape, schema):
+        return super(m2, self)._build_append(dshape, schema)
 
     @staticmethod
     @ngjit
-    def _append(x, y, m2, field, sum, count):
+    def _append_float_field(x, y, m2, field, sum, count):
         # sum & count are the results of sum[y, x], count[y, x] before being
         # updated by field
-        if not np.isnan(field):
-            if count == 0:
-                m2[y, x] = 0
-            else:
+        if not isnan(field):
+            if count > 0:
                 u1 = np.float64(sum) / count
                 u = np.float64(sum + field) / (count + 1)
                 m2[y, x] += (field - u1) * (field - u)
+
+    @staticmethod
+    @ngjit
+    def _append_int_field(x, y, m2, field, sum, count):
+        # sum & count are the results of sum[y, x], count[y, x] before being
+        # updated by field
+        if count > 0:
+            u1 = np.float64(sum) / count
+            u = np.float64(sum + field) / (count + 1)
+            m2[y, x] += (field - u1) * (field - u)
 
     @staticmethod
     def _combine(Ms, sums, ns):
@@ -237,11 +306,12 @@ class min(FloatingReduction):
     """
     @staticmethod
     @ngjit
-    def _append(x, y, agg, field):
-        if np.isnan(agg[y, x]):
+    def _append_float_field(x, y, agg, field):
+        if isnan(agg[y, x]):
             agg[y, x] = field
         elif agg[y, x] > field:
             agg[y, x] = field
+    _append_int_field = _append_float_field
 
     @staticmethod
     def _combine(aggs):
@@ -259,11 +329,12 @@ class max(FloatingReduction):
     """
     @staticmethod
     @ngjit
-    def _append(x, y, agg, field):
-        if np.isnan(agg[y, x]):
+    def _append_float_field(x, y, agg, field):
+        if isnan(agg[y, x]):
             agg[y, x] = field
         elif agg[y, x] < field:
             agg[y, x] = field
+    _append_int_field = _append_float_field
 
     @staticmethod
     def _combine(aggs):
@@ -294,12 +365,15 @@ class count_cat(Reduction):
 
     def _build_create(self, out_dshape):
         n_cats = len(out_dshape.measure.fields)
-        return lambda shape: np.zeros(shape + (n_cats,), dtype='i4')
+        return lambda shape, array_module: array_module.zeros(
+            shape + (n_cats,), dtype='i4'
+        )
 
     @staticmethod
     @ngjit
-    def _append(x, y, agg, field):
+    def _append_int_field(x, y, agg, field):
         agg[y, x, field] += 1
+    _append_float_field = _append_int_field
 
     @staticmethod
     def _combine(aggs):
@@ -328,15 +402,14 @@ class mean(Reduction):
     """
     _dshape = dshape(Option(ct.float64))
 
-    @property
-    def _bases(self):
-        return (sum(self.column), count(self.column))
+    def _build_bases(self):
+        return (_sum_zero(self.column), count(self.column))
 
     @staticmethod
     def _finalize(bases, **kwargs):
         sums, counts = bases
         with np.errstate(divide='ignore', invalid='ignore'):
-            x = sums/counts
+            x = np.where(counts > 0, sums/counts, np.nan)
         return xr.DataArray(x, **kwargs)
 
 
@@ -351,15 +424,14 @@ class var(Reduction):
     """
     _dshape = dshape(Option(ct.float64))
 
-    @property
-    def _bases(self):
-        return (sum(self.column), count(self.column), m2(self.column))
+    def _build_bases(self):
+        return (_sum_zero(self.column), count(self.column), m2(self.column))
 
     @staticmethod
     def _finalize(bases, **kwargs):
         sums, counts, m2s = bases
         with np.errstate(divide='ignore', invalid='ignore'):
-            x = m2s/counts
+            x = np.where(counts > 0, m2s / counts, np.nan)
         return xr.DataArray(x, **kwargs)
 
 
@@ -374,40 +446,39 @@ class std(Reduction):
     """
     _dshape = dshape(Option(ct.float64))
 
-    @property
-    def _bases(self):
-        return (sum(self.column), count(self.column), m2(self.column))
+    def _build_bases(self):
+        return (_sum_zero(self.column), count(self.column), m2(self.column))
 
     @staticmethod
     def _finalize(bases, **kwargs):
         sums, counts, m2s = bases
         with np.errstate(divide='ignore', invalid='ignore'):
-            x = np.sqrt(m2s/counts)
+            x = np.where(counts > 0, np.sqrt(m2s / counts), np.nan)
         return xr.DataArray(x, **kwargs)
 
 
 class first(Reduction):
     """First value encountered in ``column``.
 
-    Useful for categorical data where an actual value must always be returned, 
+    Useful for categorical data where an actual value must always be returned,
     not an average or other numerical calculation.
-    
+
     Currently only supported for rasters, externally to this class.
 
     Parameters
     ----------
     column : str
-        Name of the column to aggregate over. If the data type is floating point, 
+        Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
     _dshape = dshape(Option(ct.float64))
 
-    @staticmethod 
+    @staticmethod
     def _append(x, y, agg):
         raise NotImplementedError("first is currently implemented only for rasters")
-    
-    @staticmethod 
-    def _create(shape):
+
+    @staticmethod
+    def _create(shape, array_module):
         raise NotImplementedError("first is currently implemented only for rasters")
 
     @staticmethod
@@ -423,25 +494,25 @@ class first(Reduction):
 class last(Reduction):
     """Last value encountered in ``column``.
 
-    Useful for categorical data where an actual value must always be returned, 
+    Useful for categorical data where an actual value must always be returned,
     not an average or other numerical calculation.
-    
+
     Currently only supported for rasters, externally to this class.
 
     Parameters
     ----------
     column : str
-        Name of the column to aggregate over. If the data type is floating point, 
+        Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
     _dshape = dshape(Option(ct.float64))
 
-    @staticmethod 
+    @staticmethod
     def _append(x, y, agg):
         raise NotImplementedError("last is currently implemented only for rasters")
-    
-    @staticmethod 
-    def _create(shape):
+
+    @staticmethod
+    def _create(shape, array_module):
         raise NotImplementedError("last is currently implemented only for rasters")
 
     @staticmethod
@@ -457,9 +528,9 @@ class last(Reduction):
 class mode(Reduction):
     """Mode (most common value) of all the values encountered in ``column``.
 
-    Useful for categorical data where an actual value must always be returned, 
+    Useful for categorical data where an actual value must always be returned,
     not an average or other numerical calculation.
-    
+
     Currently only supported for rasters, externally to this class.
     Implementing it for other glyph types would be difficult due to potentially
     unbounded data storage requirements to store indefinite point or line
@@ -468,17 +539,17 @@ class mode(Reduction):
     Parameters
     ----------
     column : str
-        Name of the column to aggregate over. If the data type is floating point, 
+        Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
     _dshape = dshape(Option(ct.float64))
 
-    @staticmethod 
+    @staticmethod
     def _append(x, y, agg):
         raise NotImplementedError("mode is currently implemented only for rasters")
-    
-    @staticmethod 
-    def _create(shape):
+
+    @staticmethod
+    def _create(shape, array_module):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
     @staticmethod
@@ -531,4 +602,4 @@ __all__ = list(set([_k for _k,_v in locals().items()
                     if isinstance(_v,type) and (issubclass(_v,Reduction) or _v is summary)
                     and _v not in [Reduction, OptionalFieldReduction,
                                    FloatingReduction, m2]]))
-    
+

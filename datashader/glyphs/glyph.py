@@ -2,7 +2,10 @@ from __future__ import absolute_import, division
 import inspect
 import warnings
 import os
+from math import isnan
+
 import numpy as np
+import pandas as pd
 
 from datashader.utils import Expr, ngjit
 from datashader.macros import expand_varargs
@@ -35,30 +38,23 @@ class Glyph(Expr):
         return minval, maxval
 
     @staticmethod
+    def _compute_bounds(s):
+        if isinstance(s, pd.Series):
+            return Glyph._compute_bounds_numba(s.values)
+        else:
+            return Glyph._compute_bounds_numba(s)
+
+    @staticmethod
     @ngjit
-    def _compute_x_bounds(xs):
+    def _compute_bounds_numba(arr):
         minval = np.inf
         maxval = -np.inf
-        for x in xs:
-            if not np.isnan(x):
+        for x in arr:
+            if not isnan(x):
                 if x < minval:
                     minval = x
                 if x > maxval:
                     maxval = x
-
-        return minval, maxval
-
-    @staticmethod
-    @ngjit
-    def _compute_y_bounds(ys):
-        minval = np.inf
-        maxval = -np.inf
-        for y in ys:
-            if not np.isnan(y):
-                if y < minval:
-                    minval = y
-                if y > maxval:
-                    maxval = y
 
         return minval, maxval
 

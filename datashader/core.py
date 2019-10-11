@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 from numbers import Number
+from math import log10
 
 import numpy as np
 import pandas as pd
@@ -106,7 +107,7 @@ class LogAxis(Axis):
     @staticmethod
     @ngjit
     def mapper(val):
-        return np.log10(val)
+        return log10(val)
 
     @staticmethod
     @ngjit

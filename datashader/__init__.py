@@ -10,13 +10,8 @@ from .reductions import *                                # noqa (API import)
 from .glyphs import Point                                # noqa (API import)
 from .pipeline import Pipeline                           # noqa (API import)
 from . import transfer_functions as tf                   # noqa (API import)
+from . import data_libraries                             # noqa (API import)
 
-from . import pandas                         # noqa (build backend dispatch)
-from . import xarray                         # noqa (build backend dispatch)
-try:
-    from . import dask                       # noqa (build backend dispatch)
-except ImportError:
-    pass
 
 # Make RaggedArray pandas extension array available for
 # pandas >= 0.24.0 is installed

@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 from datashader.glyphs.quadmesh import _QuadMeshLike
-from datashader.pandas import default
-from .core import bypixel
+from datashader.data_libraries.pandas import default
+from datashader.core import bypixel
 import xarray as xr
-from .utils import Dispatcher
+from datashader.utils import Dispatcher
 
 
 glyph_dispatch = Dispatcher()
