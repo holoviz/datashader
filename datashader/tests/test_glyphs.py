@@ -265,7 +265,6 @@ def test_draw_trapezoid_acute():
                     [1, 1, 1, 1, 0],
                     [0, 0, 1, 1, 0],
                     [0, 0, 0, 0, 0]])
-    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
 
     # Specify vertices from left to right
     trapezoid_start = True
@@ -291,7 +290,6 @@ def test_draw_trapezoid_acute_not_stacked():
                     [1, 1, 1, 1, 0],
                     [1, 1, 1, 1, 0],
                     [0, 0, 1, 1, 0]])
-    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
 
     # Specify vertices from left to right
     trapezoid_start = True
@@ -317,7 +315,6 @@ def test_draw_trapezoid_right():
                     [1, 1, 1, 1, 0],
                     [0, 0, 1, 1, 0],
                     [0, 0, 0, 0, 0]])
-    ymaxi, xmaxi = out.shape[0] - 1, out.shape[1] - 1
 
     # Specify vertices from left to right
     trapezoid_start = True
@@ -445,7 +442,6 @@ def test_draw_trapezoid_clipped():
     x0, x1 = (4, 6)
     y0, y1, y2, y3 = (1, 3, 5, 0)
     trapezoid_start = True
-    clipped = True
     stacked = True
 
     out = np.array([[0, 0, 0, 0, 0],

@@ -1237,7 +1237,6 @@ def _skip_or_clip_trapezoid_y(
         x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax
 ):
     skip = False
-    clipped = False
 
     # If any of the coordinates are NaN, there's a discontinuity.
     # Skip the entire trapezoid.
