@@ -54,7 +54,7 @@ map_onto_pixel_for_triangle = _build_map_onto_pixel_for_triangle(mapper, mapper)
 # Line rasterization
 expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
 _draw_segment = _build_draw_segment(append, map_onto_pixel_for_line, expand_aggs_and_cols)
-extend_line = _build_extend_line_axis0(_draw_segment, expand_aggs_and_cols)
+extend_line, _ = _build_extend_line_axis0(_draw_segment, expand_aggs_and_cols)
 
 # Triangles rasterization
 draw_triangle, draw_triangle_interp = _build_draw_triangle(tri_append)
