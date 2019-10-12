@@ -22,8 +22,8 @@ glyph_dispatch = Dispatcher()
 
 @glyph_dispatch.register(_PointLike)
 @glyph_dispatch.register(_AreaToLineLike)
-def default(glyph, source, schema, canvas, summary):
-    create, info, append, _, finalize = compile_components(summary, schema, glyph)
+def default(glyph, source, schema, canvas, summary, cuda=False):
+    create, info, append, _, finalize = compile_components(summary, schema, glyph, cuda)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
@@ -44,6 +44,7 @@ def default(glyph, source, schema, canvas, summary):
     extend(bases, source, x_st + y_st, x_range + y_range)
 
     return finalize(bases,
+                    cuda=cuda,
                     coords=OrderedDict([(glyph.x_label, x_axis),
                                         (glyph.y_label, y_axis)]),
                     dims=[glyph.y_label, glyph.x_label])

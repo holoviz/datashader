@@ -1,13 +1,19 @@
 from __future__ import absolute_import, division, print_function
 
-from math import isnan
 import numpy as np
 from datashape import dshape, isnumeric, Record, Option
 from datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 
-from .utils import Expr, ngjit, isrealfloat
+from datashader.glyphs.glyph import isnull
+from .utils import Expr, ngjit
+from numba import cuda as nb_cuda
+
+try:
+    import cudf
+except ImportError:
+    cudf = None
 
 
 class Preprocess(Expr):
@@ -23,13 +29,24 @@ class Preprocess(Expr):
 class extract(Preprocess):
     """Extract a column from a dataframe as a numpy array of values."""
     def apply(self, df):
-        return df[self.column].values
+        if cudf and isinstance(df, cudf.DataFrame):
+            import cupy
+            if df[self.column].dtype.kind == 'f':
+                nullval = np.nan
+            else:
+                nullval = 0
+            return cupy.array(df[self.column].to_gpu_array(fillna=nullval))
+        else:
+            return df[self.column].values
 
 
 class category_codes(Preprocess):
     """Extract just the category codes from a categorical column."""
     def apply(self, df):
-        return df[self.column].cat.codes.values
+        if cudf and isinstance(df, cudf.DataFrame):
+            return df[self.column].cat.codes.to_gpu_array()
+        else:
+            return df[self.column].cat.codes.values
 
 
 class Reduction(Expr):
@@ -50,22 +67,26 @@ class Reduction(Expr):
     def inputs(self):
         return (extract(self.column),)
 
-    def _build_bases(self):
+    def _build_bases(self, cuda=False):
         return (self,)
 
-    def _build_temps(self):
+    def _build_temps(self, cuda=False):
         return ()
 
     def _build_create(self, dshape):
         return self._create
 
-    def _build_append(self, dshape, schema):
-        if self.column is None:
-            return self._append_no_field
-        elif isrealfloat(schema[self.column]):
-            return self._append_float_field
+    def _build_append(self, dshape, schema, cuda=False):
+        if cuda:
+            if self.column is None:
+                return self._append_no_field_cuda
+            else:
+                return self._append_cuda
         else:
-            return self._append_int_field
+            if self.column is None:
+                return self._append_no_field
+            else:
+                return self._append
 
     def _build_combine(self, dshape):
         return self._combine
@@ -87,7 +108,7 @@ class OptionalFieldReduction(Reduction):
         pass
 
     @staticmethod
-    def _finalize(bases, **kwargs):
+    def _finalize(bases, cuda=False, **kwargs):
         return xr.DataArray(bases[0], **kwargs)
 
 
@@ -102,21 +123,30 @@ class count(OptionalFieldReduction):
     """
     _dshape = dshape(ct.int32)
 
+    # CPU append functions
     @staticmethod
     @ngjit
     def _append_no_field(x, y, agg):
         agg[y, x] += 1
 
-    @staticmethod
-    @ngjit
-    def _append_int_field(x, y, agg, field):
-        agg[y, x] += 1
 
     @staticmethod
     @ngjit
-    def _append_float_field(x, y, agg, field):
-        if not isnan(field):
+    def _append(x, y, agg, field):
+        if not isnull(field):
             agg[y, x] += 1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_no_field_cuda(x, y, agg):
+        nb_cuda.atomic.add(agg, (y, x), 1)
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field):
+        if not isnull(field):
+            nb_cuda.atomic.add(agg, (y, x), 1)
 
     @staticmethod
     def _create(shape, array_module):
@@ -141,17 +171,14 @@ class any(OptionalFieldReduction):
     @ngjit
     def _append_no_field(x, y, agg):
         agg[y, x] = True
+    _append_no_field_cuda = _append_no_field
 
     @staticmethod
     @ngjit
-    def _append_int_field(x, y, agg, field):
-        agg[y, x] = True
-
-    @staticmethod
-    @ngjit
-    def _append_float_field(x, y, agg, field):
-        if not isnan(field):
+    def _append(x, y, agg, field):
+        if not isnull(field):
             agg[y, x] = True
+    _append_cuda =_append
 
     @staticmethod
     def _create(shape, array_module):
@@ -171,14 +198,12 @@ class FloatingReduction(Reduction):
         return array_module.full(shape, np.nan, dtype='f8')
 
     @staticmethod
-    def _finalize(bases, **kwargs):
+    def _finalize(bases, cuda=False, **kwargs):
         return xr.DataArray(bases[0], **kwargs)
 
 
 class _sum_zero(FloatingReduction):
     """Sum of all elements in ``column``.
-
-    Elements of resulting aggregate are zero if they are not updated.
 
     Parameters
     ----------
@@ -193,14 +218,15 @@ class _sum_zero(FloatingReduction):
 
     @staticmethod
     @ngjit
-    def _append_int_field(x, y, agg, field):
-        agg[y, x] += field
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            agg[y, x] += field
 
     @staticmethod
     @ngjit
-    def _append_float_field(x, y, agg, field):
-        if not isnan(field):
-            agg[y, x] += field
+    def _append_cuda(x, y, agg, field):
+        if not isnull(field):
+            nb_cuda.atomic.add(agg, (y, x), field)
 
     @staticmethod
     def _combine(aggs):
@@ -219,19 +245,29 @@ class sum(FloatingReduction):
     """
     _dshape = dshape(Option(ct.float64))
 
-    @staticmethod
-    @ngjit
-    def _append_int_field(x, y, agg, field):
-        if np.isnan(agg[y, x]):
-            agg[y, x] = field
+    # Cuda implementation
+    def _build_bases(self, cuda=False):
+        if cuda:
+            return (_sum_zero(self.column), any(self.column))
         else:
-            agg[y, x] += field
+            return (self,)
 
     @staticmethod
+    def _finalize(bases, cuda=False, **kwargs):
+        if cuda:
+            sums, anys = bases
+            x = np.where(anys, sums, np.nan)
+            return xr.DataArray(x, **kwargs)
+        else:
+            return xr.DataArray(bases[0], **kwargs)
+
+    # Single pass CPU implementation
+    # These methods will only be called if _build_bases returned (self,)
+    @staticmethod
     @ngjit
-    def _append_float_field(x, y, agg, field):
-        if not np.isnan(field):
-            if np.isnan(agg[y, x]):
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            if isnull(agg[y, x]):
                 agg[y, x] = field
             else:
                 agg[y, x] += field
@@ -242,7 +278,6 @@ class sum(FloatingReduction):
         all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
         set_to_zero = missing_vals & ~all_empty
         return np.where(set_to_zero, 0, aggs).sum(axis=0)
-
 
 class m2(FloatingReduction):
     """Sum of square differences from the mean of all elements in ``column``.
@@ -261,32 +296,25 @@ class m2(FloatingReduction):
     def _create(shape, array_module):
         return array_module.full(shape, 0.0, dtype='f8')
 
-    def _build_temps(self):
+    def _build_temps(self, cuda=False):
         return (_sum_zero(self.column), count(self.column))
 
-    def _build_append(self, dshape, schema):
-        return super(m2, self)._build_append(dshape, schema)
+    def _build_append(self, dshape, schema, cuda=False):
+        if cuda:
+            raise ValueError("""\
+The 'std' and 'var' reduction operations are not yet supported on the GPU""")
+        return super(m2, self)._build_append(dshape, schema, cuda)
 
     @staticmethod
     @ngjit
-    def _append_float_field(x, y, m2, field, sum, count):
+    def _append(x, y, m2, field, sum, count):
         # sum & count are the results of sum[y, x], count[y, x] before being
         # updated by field
-        if not isnan(field):
+        if not isnull(field):
             if count > 0:
                 u1 = np.float64(sum) / count
                 u = np.float64(sum + field) / (count + 1)
                 m2[y, x] += (field - u1) * (field - u)
-
-    @staticmethod
-    @ngjit
-    def _append_int_field(x, y, m2, field, sum, count):
-        # sum & count are the results of sum[y, x], count[y, x] before being
-        # updated by field
-        if count > 0:
-            u1 = np.float64(sum) / count
-            u = np.float64(sum + field) / (count + 1)
-            m2[y, x] += (field - u1) * (field - u)
 
     @staticmethod
     def _combine(Ms, sums, ns):
@@ -306,12 +334,16 @@ class min(FloatingReduction):
     """
     @staticmethod
     @ngjit
-    def _append_float_field(x, y, agg, field):
-        if isnan(agg[y, x]):
+    def _append(x, y, agg, field):
+        if isnull(agg[y, x]):
             agg[y, x] = field
         elif agg[y, x] > field:
             agg[y, x] = field
-    _append_int_field = _append_float_field
+
+    @staticmethod
+    @ngjit
+    def _append_cuda(x, y, agg, field):
+        nb_cuda.atomic.min(agg, (y, x), field)
 
     @staticmethod
     def _combine(aggs):
@@ -329,12 +361,16 @@ class max(FloatingReduction):
     """
     @staticmethod
     @ngjit
-    def _append_float_field(x, y, agg, field):
-        if isnan(agg[y, x]):
+    def _append(x, y, agg, field):
+        if isnull(agg[y, x]):
             agg[y, x] = field
         elif agg[y, x] < field:
             agg[y, x] = field
-    _append_int_field = _append_float_field
+
+    @staticmethod
+    @ngjit
+    def _append_cuda(x, y, agg, field):
+        nb_cuda.atomic.max(agg, (y, x), field)
 
     @staticmethod
     def _combine(aggs):
@@ -371,9 +407,13 @@ class count_cat(Reduction):
 
     @staticmethod
     @ngjit
-    def _append_int_field(x, y, agg, field):
+    def _append(x, y, agg, field):
         agg[y, x, field] += 1
-    _append_float_field = _append_int_field
+
+    @staticmethod
+    @ngjit
+    def _append_cuda(x, y, agg, field):
+        nb_cuda.atomic.add(agg, (y, x, field), 1)
 
     @staticmethod
     def _combine(aggs):
@@ -382,7 +422,7 @@ class count_cat(Reduction):
     def _build_finalize(self, dshape):
         cats = list(dshape[self.column].categories)
 
-        def finalize(bases, **kwargs):
+        def finalize(bases, cuda=False, **kwargs):
             dims = kwargs['dims'] + [self.column]
 
             coords = kwargs['coords']
@@ -402,11 +442,11 @@ class mean(Reduction):
     """
     _dshape = dshape(Option(ct.float64))
 
-    def _build_bases(self):
+    def _build_bases(self, cuda=False):
         return (_sum_zero(self.column), count(self.column))
 
     @staticmethod
-    def _finalize(bases, **kwargs):
+    def _finalize(bases, cuda=False, **kwargs):
         sums, counts = bases
         with np.errstate(divide='ignore', invalid='ignore'):
             x = np.where(counts > 0, sums/counts, np.nan)
@@ -424,11 +464,11 @@ class var(Reduction):
     """
     _dshape = dshape(Option(ct.float64))
 
-    def _build_bases(self):
+    def _build_bases(self, cuda=False):
         return (_sum_zero(self.column), count(self.column), m2(self.column))
 
     @staticmethod
-    def _finalize(bases, **kwargs):
+    def _finalize(bases, cuda=False, **kwargs):
         sums, counts, m2s = bases
         with np.errstate(divide='ignore', invalid='ignore'):
             x = np.where(counts > 0, m2s / counts, np.nan)
@@ -446,11 +486,11 @@ class std(Reduction):
     """
     _dshape = dshape(Option(ct.float64))
 
-    def _build_bases(self):
+    def _build_bases(self, cuda=False):
         return (_sum_zero(self.column), count(self.column), m2(self.column))
 
     @staticmethod
-    def _finalize(bases, **kwargs):
+    def _finalize(bases, cuda=False, **kwargs):
         sums, counts, m2s = bases
         with np.errstate(divide='ignore', invalid='ignore'):
             x = np.where(counts > 0, np.sqrt(m2s / counts), np.nan)

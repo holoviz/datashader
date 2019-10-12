@@ -1,12 +1,19 @@
 from __future__ import absolute_import, division
-from math import isnan
 import numpy as np
 from toolz import memoize
 
-from datashader.glyphs.glyph import Glyph
+from datashader.glyphs.glyph import Glyph, isnull
 from datashader.glyphs.line import _build_map_onto_pixel_for_line, _clipt
 from datashader.glyphs.points import _PointLike
 from datashader.utils import isreal, ngjit
+from numba import cuda
+
+try:
+    import cudf
+    from ..transfer_functions._cuda_utils import cuda_args
+except ImportError:
+    cudf = None
+    cuda_args = None
 
 
 class _AreaToLineLike(Glyph):
@@ -96,7 +103,7 @@ class AreaToZeroAxis0(_PointLike):
             append, map_onto_pixel, expand_aggs_and_cols
         )
 
-        extend_cpu = _build_extend_area_to_zero_axis0(
+        extend_cpu, extend_cuda = _build_extend_area_to_zero_axis0(
             draw_trapezoid_y, expand_aggs_and_cols
         )
         x_name = self.x
@@ -105,14 +112,21 @@ class AreaToZeroAxis0(_PointLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-
-            xs = df[x_name].values
-            ys = df[y_name].values
             aggs_and_cols = aggs + info(df)
-            extend_cpu(
+
+            if cudf and isinstance(df, cudf.DataFrame):
+                xs = self.to_gpu_matrix(df, x_name)
+                ys = self.to_gpu_matrix(df, y_name)
+                do_extend = extend_cuda[cuda_args(xs.shape)]
+            else:
+                xs = df[x_name].values
+                ys = df[y_name].values
+                do_extend = extend_cpu
+
+            do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
-                xs, ys, plot_start, *aggs_and_cols
+                plot_start, xs, ys, *aggs_and_cols
             )
 
         return extend
@@ -172,7 +186,7 @@ class AreaToLineAxis0(_AreaToLineLike):
         draw_trapezoid_y = _build_draw_trapezoid_y(
             append, map_onto_pixel, expand_aggs_and_cols
         )
-        extend_cpu = _build_extend_area_to_line_axis0(
+        extend_cpu, extend_cuda = _build_extend_area_to_line_axis0(
             draw_trapezoid_y, expand_aggs_and_cols
         )
         x_name = self.x
@@ -182,15 +196,22 @@ class AreaToLineAxis0(_AreaToLineLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            xs = df[x_name].values
-            ys = df[y_name].values
-            ys_stacks = df[y_stack_name].values
-
             aggs_and_cols = aggs + info(df)
-            extend_cpu(
-                sx, tx, sy, ty,
-                xmin, xmax, ymin, ymax,
-                xs, ys, ys_stacks, plot_start, *aggs_and_cols
+
+            if cudf and isinstance(df, cudf.DataFrame):
+                xs = self.to_gpu_matrix(df, x_name)
+                ys0 = self.to_gpu_matrix(df, y_name)
+                ys1 = self.to_gpu_matrix(df, y_stack_name)
+                do_extend = extend_cuda[cuda_args(xs.shape)]
+            else:
+                xs = df[x_name].values
+                ys0 = df[y_name].values
+                ys1 = df[y_stack_name].values
+                do_extend = extend_cpu
+
+            do_extend(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                plot_start, xs, ys0, ys1, *aggs_and_cols
             )
 
         return extend
@@ -258,7 +279,7 @@ class AreaToZeroAxis0Multi(_PointLike):
             append, map_onto_pixel, expand_aggs_and_cols
         )
 
-        extend_cpu = _build_extend_area_to_zero_axis0_multi(
+        extend_cpu, extend_cuda = _build_extend_area_to_zero_axis0_multi(
             draw_trapezoid_y, expand_aggs_and_cols
         )
         x_names = self.x
@@ -267,14 +288,20 @@ class AreaToZeroAxis0Multi(_PointLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            xs = df[list(x_names)].values
-            ys = df[list(y_names)].values
-
             aggs_and_cols = aggs + info(df)
-            extend_cpu(
-                sx, tx, sy, ty,
-                xmin, xmax, ymin, ymax,
-                xs, ys, plot_start, *aggs_and_cols
+
+            if cudf and isinstance(df, cudf.DataFrame):
+                xs = self.to_gpu_matrix(df, x_names)
+                ys = self.to_gpu_matrix(df, y_names)
+                do_extend = extend_cuda[cuda_args(xs.shape)]
+            else:
+                xs = df[list(x_names)].values
+                ys = df[list(y_names)].values
+                do_extend = extend_cpu
+
+            do_extend(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                plot_start, xs, ys, *aggs_and_cols
             )
 
         return extend
@@ -342,7 +369,7 @@ class AreaToLineAxis0Multi(_AreaToLineLike):
         draw_trapezoid_y = _build_draw_trapezoid_y(
             append, map_onto_pixel, expand_aggs_and_cols
         )
-        extend_cpu = _build_extend_area_to_line_axis0_multi(
+        extend_cpu, extend_cuda = _build_extend_area_to_line_axis0_multi(
             draw_trapezoid_y, expand_aggs_and_cols
         )
         x_names = self.x
@@ -352,15 +379,22 @@ class AreaToLineAxis0Multi(_AreaToLineLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            xs = df[list(x_names)].values
-            ys = df[list(y_names)].values
-            y_stacks = df[list(y_stack_names)].values
-
             aggs_and_cols = aggs + info(df)
-            extend_cpu(
-                sx, tx, sy, ty,
-                xmin, xmax, ymin, ymax,
-                xs, ys, y_stacks, plot_start, *aggs_and_cols
+
+            if cudf and isinstance(df, cudf.DataFrame):
+                xs = self.to_gpu_matrix(df, x_names)
+                ys0 = self.to_gpu_matrix(df, y_names)
+                ys1 = self.to_gpu_matrix(df, y_stack_names)
+                do_extend = extend_cuda[cuda_args(xs.shape)]
+            else:
+                xs = df[list(x_names)].values
+                ys0 = df[list(y_names)].values
+                ys1 = df[list(y_stack_names)].values
+                do_extend = extend_cpu
+
+            do_extend(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                plot_start, xs, ys0, ys1, *aggs_and_cols
             )
 
         return extend
@@ -443,7 +477,7 @@ class AreaToZeroAxis1(_PointLike):
             append, map_onto_pixel, expand_aggs_and_cols
         )
 
-        extend_cpu = _build_extend_area_to_zero_axis1_none_constant(
+        extend_cpu, extend_cuda = _build_extend_area_to_zero_axis1_none_constant(
             draw_trapezoid_y, expand_aggs_and_cols
         )
 
@@ -455,10 +489,16 @@ class AreaToZeroAxis1(_PointLike):
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
 
-            xs = df[list(x_names)].values
-            ys = df[list(y_names)].values
+            if cudf and isinstance(df, cudf.DataFrame):
+                xs = df[list(x_names)].as_gpu_matrix()
+                ys = df[list(y_names)].as_gpu_matrix()
+                do_extend = extend_cuda[cuda_args(xs.shape)]
+            else:
+                xs = df[list(x_names)].values
+                ys = df[list(y_names)].values
+                do_extend = extend_cpu
 
-            extend_cpu(
+            do_extend(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
             )
 
@@ -544,7 +584,7 @@ class AreaToLineAxis1(_AreaToLineLike):
         draw_trapezoid_y = _build_draw_trapezoid_y(
             append, map_onto_pixel, expand_aggs_and_cols
         )
-        extend_cpu = _build_extend_area_to_line_axis1_none_constant(
+        extend_cpu, extend_cuda = _build_extend_area_to_line_axis1_none_constant(
             draw_trapezoid_y, expand_aggs_and_cols
         )
         x_names = self.x
@@ -556,11 +596,18 @@ class AreaToLineAxis1(_AreaToLineLike):
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
 
-            xs = df[list(x_names)].values
-            ys = df[list(y_names)].values
-            y_stacks = df[list(y_stack_names)].values
+            if cudf and isinstance(df, cudf.DataFrame):
+                xs = df[list(x_names)].as_gpu_matrix()
+                ys = df[list(y_names)].as_gpu_matrix()
+                y_stacks = df[list(y_stack_names)].as_gpu_matrix()
+                do_extend = extend_cuda[cuda_args(xs.shape)]
+            else:
+                xs = df[list(x_names)].values
+                ys = df[list(y_names)].values
+                y_stacks = df[list(y_stack_names)].values
+                do_extend = extend_cpu
 
-            extend_cpu(
+            do_extend(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                 xs, ys, y_stacks, *aggs_and_cols
             )
@@ -606,7 +653,7 @@ class AreaToZeroAxis1XConstant(AreaToZeroAxis1):
         draw_trapezoid_y = _build_draw_trapezoid_y(
             append, map_onto_pixel, expand_aggs_and_cols
         )
-        extend_cpu = _build_extend_area_to_zero_axis1_x_constant(
+        extend_cpu, extend_cuda = _build_extend_area_to_zero_axis1_x_constant(
             draw_trapezoid_y, expand_aggs_and_cols
         )
 
@@ -618,9 +665,14 @@ class AreaToZeroAxis1XConstant(AreaToZeroAxis1):
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
 
-            ys = df[list(y_names)].values
+            if cudf and isinstance(df, cudf.DataFrame):
+                ys = df[list(y_names)].as_gpu_matrix()
+                do_extend = extend_cuda[cuda_args(ys.shape)]
+            else:
+                ys = df[list(y_names)].values
+                do_extend = extend_cpu
 
-            extend_cpu(
+            do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
                 x_values, ys, *aggs_and_cols
@@ -680,7 +732,7 @@ class AreaToLineAxis1XConstant(AreaToLineAxis1):
         draw_trapezoid_y = _build_draw_trapezoid_y(
             append, map_onto_pixel, expand_aggs_and_cols
         )
-        extend_cpu = _build_extend_area_to_line_axis1_x_constant(
+        extend_cpu, extend_cuda = _build_extend_area_to_line_axis1_x_constant(
             draw_trapezoid_y, expand_aggs_and_cols
         )
 
@@ -693,10 +745,16 @@ class AreaToLineAxis1XConstant(AreaToLineAxis1):
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
 
-            ys = df[list(y_names)].values
-            y_stacks = df[list(y_stack_names)].values
+            if cudf and isinstance(df, cudf.DataFrame):
+                ys = df[list(y_names)].as_gpu_matrix()
+                y_stacks = df[list(y_stack_names)].as_gpu_matrix()
+                do_extend = extend_cuda[cuda_args(ys.shape)]
+            else:
+                ys = df[list(y_names)].values
+                y_stacks = df[list(y_stack_names)].values
+                do_extend = extend_cpu
 
-            extend_cpu(
+            do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
                 x_values, ys, y_stacks, *aggs_and_cols
@@ -743,7 +801,7 @@ class AreaToZeroAxis1YConstant(AreaToZeroAxis1):
         draw_trapezoid_y = _build_draw_trapezoid_y(
             append, map_onto_pixel, expand_aggs_and_cols
         )
-        extend_cpu = _build_extend_area_to_zero_axis1_y_constant(
+        extend_cpu, extend_cuda = _build_extend_area_to_zero_axis1_y_constant(
             draw_trapezoid_y, expand_aggs_and_cols
         )
 
@@ -755,9 +813,14 @@ class AreaToZeroAxis1YConstant(AreaToZeroAxis1):
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
 
-            xs = df[list(x_names)].values
+            if cudf and isinstance(df, cudf.DataFrame):
+                xs = df[list(x_names)].as_gpu_matrix()
+                do_extend = extend_cuda[cuda_args(xs.shape)]
+            else:
+                xs = df[list(x_names)].values
+                do_extend = extend_cpu
 
-            extend_cpu(
+            do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
                 xs, y_values, *aggs_and_cols
@@ -804,7 +867,7 @@ class AreaToLineAxis1YConstant(AreaToLineAxis1):
         draw_trapezoid_y = _build_draw_trapezoid_y(
             append, map_onto_pixel, expand_aggs_and_cols
         )
-        extend_cpu = _build_extend_area_to_line_axis1_y_constant(
+        extend_cpu, extend_cuda = _build_extend_area_to_line_axis1_y_constant(
             draw_trapezoid_y, expand_aggs_and_cols
         )
         x_names = self.x
@@ -816,9 +879,14 @@ class AreaToLineAxis1YConstant(AreaToLineAxis1):
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
 
-            xs = df[list(x_names)].values
+            if cudf and isinstance(df, cudf.DataFrame):
+                xs = df[list(x_names)].as_gpu_matrix()
+                do_extend = extend_cuda[cuda_args(xs.shape)]
+            else:
+                xs = df[list(x_names)].values
+                do_extend = extend_cpu
 
-            extend_cpu(
+            do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
                 xs, y_values, y_stack_values, *aggs_and_cols
@@ -1240,12 +1308,12 @@ def _skip_or_clip_trapezoid_y(
 
     # If any of the coordinates are NaN, there's a discontinuity.
     # Skip the entire trapezoid.
-    if (isnan(x0) or
-            isnan(x1) or
-            isnan(y0) or
-            isnan(y1) or
-            isnan(y2) or
-            isnan(y3)):
+    if (isnull(x0) or
+            isnull(x1) or
+            isnull(y0) or
+            isnull(y1) or
+            isnull(y2) or
+            isnull(y3)):
         skip = True
 
     # Check if trapezoid is out of bounds vertically
@@ -1298,7 +1366,7 @@ def _build_extend_area_to_zero_axis0(
     @ngjit
     @expand_aggs_and_cols
     def perform_extend(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                       area_start, xs, ys, *aggs_and_cols):
+                       plot_start, xs, ys, *aggs_and_cols):
         stacked = False
 
         x0 = xs[i]
@@ -1307,8 +1375,8 @@ def _build_extend_area_to_zero_axis0(
         y1 = 0.0
         y2 = 0.0
         y3 = ys[i + 1]
-        trapezoid_start = (area_start if i == 0 else
-                           (isnan(xs[i - 1]) or isnan(ys[i - 1])))
+        trapezoid_start = (plot_start if i == 0 else
+                           (isnull(xs[i - 1]) or isnull(ys[i - 1])))
 
         draw_trapezoid_y(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1319,7 +1387,7 @@ def _build_extend_area_to_zero_axis0(
     @expand_aggs_and_cols
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            xs, ys, plot_start, *aggs_and_cols
+            plot_start, xs, ys, *aggs_and_cols
     ):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1328,7 +1396,20 @@ def _build_extend_area_to_zero_axis0(
             perform_extend(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                            plot_start, xs, ys, *aggs_and_cols)
 
-    return extend_cpu
+    @cuda.jit
+    @expand_aggs_and_cols
+    def extend_cuda(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            plot_start, xs, ys, *aggs_and_cols
+    ):
+        i = cuda.grid(1)
+        if i < xs.shape[0] - 1:
+            perform_extend(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                plot_start, xs, ys, *aggs_and_cols
+            )
+
+    return extend_cpu, extend_cuda
 
 
 def _build_extend_area_to_line_axis0(
@@ -1336,7 +1417,7 @@ def _build_extend_area_to_line_axis0(
 ):
     @ngjit
     @expand_aggs_and_cols
-    def perform_extend(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, area_start,
+    def perform_extend(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, plot_start,
                        xs, ys0, ys1, *aggs_and_cols):
         x0 = xs[i]
         x1 = xs[i + 1]
@@ -1344,10 +1425,10 @@ def _build_extend_area_to_line_axis0(
         y1 = ys1[i]
         y2 = ys1[i + 1]
         y3 = ys0[i + 1]
-        trapezoid_start = (area_start if i == 0 else
-                           (isnan(xs[i - 1]) or
-                            isnan(ys0[i - 1]) or
-                            isnan(ys1[i - 1])))
+        trapezoid_start = (plot_start if i == 0 else
+                           (isnull(xs[i - 1]) or
+                            isnull(ys0[i - 1]) or
+                            isnull(ys1[i - 1])))
         stacked = True
         draw_trapezoid_y(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1359,16 +1440,31 @@ def _build_extend_area_to_line_axis0(
     @expand_aggs_and_cols
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            xs, ys0, ys1, area_start, *aggs_and_cols
+            plot_start, xs, ys0, ys1, *aggs_and_cols
     ):
         """Aggregate filled area between the line formed by
         ``xs`` and ``ys0`` and the line formed by ``xs`` and ``ys1``"""
         nrows = xs.shape[0]
         for i in range(nrows - 1):
-            perform_extend(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                           area_start, xs, ys0, ys1, *aggs_and_cols)
+            perform_extend(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                plot_start, xs, ys0, ys1, *aggs_and_cols
+            )
 
-    return extend_cpu
+    @cuda.jit
+    @expand_aggs_and_cols
+    def extend_cuda(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            plot_start, xs, ys0, ys1, *aggs_and_cols
+    ):
+        i = cuda.grid(1)
+        if i < xs.shape[0] - 1:
+            perform_extend(
+                i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                plot_start, xs, ys0, ys1, *aggs_and_cols
+            )
+
+    return extend_cpu, extend_cuda
 
 
 def _build_extend_area_to_zero_axis0_multi(
@@ -1377,16 +1473,16 @@ def _build_extend_area_to_zero_axis0_multi(
     @ngjit
     @expand_aggs_and_cols
     def perform_extend(i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                       area_start, xs, ys, *aggs_and_cols):
+                       plot_start, xs, ys, *aggs_and_cols):
         x0 = xs[i, j]
         x1 = xs[i + 1, j]
         y0 = ys[i, j]
         y1 = 0.0
         y2 = 0.0
         y3 = ys[i + 1, j]
-        trapezoid_start = (area_start if i == 0 else
-                           (isnan(xs[i - 1, j]) or
-                            isnan(ys[i - 1, j])))
+        trapezoid_start = (plot_start if i == 0 else
+                           (isnull(xs[i - 1, j]) or
+                            isnull(ys[i - 1, j])))
         stacked = False
         draw_trapezoid_y(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1398,7 +1494,7 @@ def _build_extend_area_to_zero_axis0_multi(
     @expand_aggs_and_cols
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            xs, ys, area_start, *aggs_and_cols
+            plot_start, xs, ys, *aggs_and_cols
     ):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1407,9 +1503,22 @@ def _build_extend_area_to_zero_axis0_multi(
         for j in range(ncols):
             for i in range(nrows - 1):
                 perform_extend(i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                               area_start, xs, ys, *aggs_and_cols)
+                               plot_start, xs, ys, *aggs_and_cols)
 
-    return extend_cpu
+    @cuda.jit
+    @expand_aggs_and_cols
+    def extend_cuda(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            plot_start, xs, ys, *aggs_and_cols
+    ):
+        i, j = cuda.grid(2)
+        if i < xs.shape[0] - 1 and j < xs.shape[1]:
+            perform_extend(
+                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                plot_start, xs, ys, *aggs_and_cols
+            )
+
+    return extend_cpu, extend_cuda
 
 
 def _build_extend_area_to_line_axis0_multi(
@@ -1418,17 +1527,17 @@ def _build_extend_area_to_line_axis0_multi(
     @ngjit
     @expand_aggs_and_cols
     def perform_extend(i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                       area_start, xs, ys0, ys1, *aggs_and_cols):
+                       plot_start, xs, ys0, ys1, *aggs_and_cols):
         x0 = xs[i, j]
         x1 = xs[i + 1, j]
         y0 = ys0[i, j]
         y1 = ys1[i, j]
         y2 = ys1[i + 1, j]
         y3 = ys0[i + 1, j]
-        trapezoid_start = (area_start if i == 0 else
-                           (isnan(xs[i - 1, j]) or
-                            isnan(ys0[i - 1, j]) or
-                            isnan(ys1[i - 1, j])))
+        trapezoid_start = (plot_start if i == 0 else
+                           (isnull(xs[i - 1, j]) or
+                            isnull(ys0[i - 1, j]) or
+                            isnull(ys1[i - 1, j])))
         stacked = True
         draw_trapezoid_y(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1440,7 +1549,7 @@ def _build_extend_area_to_line_axis0_multi(
     @expand_aggs_and_cols
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            xs, ys0, ys1, area_start, *aggs_and_cols
+            plot_start, xs, ys0, ys1, *aggs_and_cols
     ):
         """Aggregate filled area along a line formed by
         ``xs`` and ``ys``, filled to the y=0 line"""
@@ -1450,9 +1559,22 @@ def _build_extend_area_to_line_axis0_multi(
         for j in range(ncols):
             for i in range(nrows - 1):
                 perform_extend(i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                               area_start, xs, ys0, ys1, *aggs_and_cols)
+                               plot_start, xs, ys0, ys1, *aggs_and_cols)
 
-    return extend_cpu
+    @cuda.jit
+    @expand_aggs_and_cols
+    def extend_cuda(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            plot_start, xs, ys0, ys1, *aggs_and_cols
+    ):
+        i, j = cuda.grid(2)
+        if i < xs.shape[0] - 1 and j < xs.shape[1]:
+            perform_extend(
+                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                plot_start, xs, ys0, ys1, *aggs_and_cols
+            )
+
+    return extend_cpu, extend_cuda
 
 
 def _build_extend_area_to_zero_axis1_none_constant(
@@ -1473,8 +1595,8 @@ def _build_extend_area_to_zero_axis1_none_constant(
         y3 = ys[i, j + 1]
 
         trapezoid_start = (j == 0 or
-                           isnan(xs[i, j - 1]) or
-                           isnan(ys[i, j - 1]))
+                           isnull(xs[i, j - 1]) or
+                           isnull(ys[i, j - 1]))
         stacked = False
         draw_trapezoid_y(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1494,7 +1616,19 @@ def _build_extend_area_to_zero_axis1_none_constant(
                     xs, ys, *aggs_and_cols
                 )
 
-    return extend_cpu
+    @cuda.jit
+    @expand_aggs_and_cols
+    def extend_cuda(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
+        i, j = cuda.grid(2)
+        if i < xs.shape[0] and j < xs.shape[1] - 1:
+            perform_extend(
+                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xs, ys, *aggs_and_cols
+            )
+
+    return extend_cpu, extend_cuda
 
 
 def _build_extend_area_to_line_axis1_none_constant(
@@ -1515,9 +1649,9 @@ def _build_extend_area_to_line_axis1_none_constant(
         y3 = ys0[i, j + 1]
 
         trapezoid_start = (j == 0 or
-                           isnan(xs[i, j - 1]) or
-                           isnan(ys0[i, j - 1]) or
-                           isnan(ys1[i, j - 1]))
+                           isnull(xs[i, j - 1]) or
+                           isnull(ys0[i, j - 1]) or
+                           isnull(ys1[i, j - 1]))
         stacked = True
         draw_trapezoid_y(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1541,7 +1675,20 @@ def _build_extend_area_to_line_axis1_none_constant(
                     xs, ys0, ys1, *aggs_and_cols
                 )
 
-    return extend_cpu
+    @cuda.jit
+    @expand_aggs_and_cols
+    def extend_cuda(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys0, ys1, *aggs_and_cols
+    ):
+        i, j = cuda.grid(2)
+        if i < xs.shape[0] and j < xs.shape[1] - 1:
+            perform_extend(
+                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xs, ys0, ys1, *aggs_and_cols
+            )
+
+    return extend_cpu, extend_cuda
 
 
 def _build_extend_area_to_zero_axis1_x_constant(
@@ -1561,8 +1708,8 @@ def _build_extend_area_to_zero_axis1_x_constant(
         y3 = ys[i, j + 1]
 
         trapezoid_start = (j == 0 or
-                           isnan(xs[j - 1]) or
-                           isnan(ys[i, j - 1]))
+                           isnull(xs[j - 1]) or
+                           isnull(ys[i, j - 1]))
         stacked = False
         draw_trapezoid_y(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1583,7 +1730,19 @@ def _build_extend_area_to_zero_axis1_x_constant(
                     xs, ys, *aggs_and_cols
                 )
 
-    return extend_cpu
+    @cuda.jit
+    @expand_aggs_and_cols
+    def extend_cuda(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
+        i, j = cuda.grid(2)
+        if i < ys.shape[0] and j < ys.shape[1] - 1:
+            perform_extend(
+                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xs, ys, *aggs_and_cols
+            )
+
+    return extend_cpu, extend_cuda
 
 
 def _build_extend_area_to_line_axis1_x_constant(
@@ -1604,9 +1763,9 @@ def _build_extend_area_to_line_axis1_x_constant(
         y3 = ys0[i, j + 1]
 
         trapezoid_start = (j == 0 or
-                           isnan(xs[j - 1]) or
-                           isnan(ys0[i, j - 1]) or
-                           isnan(ys1[i, j - 1]))
+                           isnull(xs[j - 1]) or
+                           isnull(ys0[i, j - 1]) or
+                           isnull(ys1[i, j - 1]))
         stacked = True
         draw_trapezoid_y(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1627,7 +1786,20 @@ def _build_extend_area_to_line_axis1_x_constant(
                     xs, ys0, ys1, *aggs_and_cols
                 )
 
-    return extend_cpu
+    @cuda.jit
+    @expand_aggs_and_cols
+    def extend_cuda(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys0, ys1, *aggs_and_cols
+    ):
+        i, j = cuda.grid(2)
+        if i < ys0.shape[0] and j < ys0.shape[1] - 1:
+            perform_extend(
+                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xs, ys0, ys1, *aggs_and_cols
+            )
+
+    return extend_cpu, extend_cuda
 
 
 def _build_extend_area_to_zero_axis1_y_constant(
@@ -1648,8 +1820,8 @@ def _build_extend_area_to_zero_axis1_y_constant(
         y3 = ys[j + 1]
 
         trapezoid_start = (j == 0 or
-                           isnan(xs[i, j - 1]) or
-                           isnan(ys[j - 1]))
+                           isnull(xs[i, j - 1]) or
+                           isnull(ys[j - 1]))
         stacked = False
         draw_trapezoid_y(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1670,7 +1842,19 @@ def _build_extend_area_to_zero_axis1_y_constant(
                     xs, ys, *aggs_and_cols
                 )
 
-    return extend_cpu
+    @cuda.jit
+    @expand_aggs_and_cols
+    def extend_cuda(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+    ):
+        i, j = cuda.grid(2)
+        if i < xs.shape[0] and j < xs.shape[1] - 1:
+            perform_extend(
+                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xs, ys, *aggs_and_cols
+            )
+
+    return extend_cpu, extend_cuda
 
 
 def _build_extend_area_to_line_axis1_y_constant(
@@ -1691,9 +1875,9 @@ def _build_extend_area_to_line_axis1_y_constant(
         y3 = ys0[j + 1]
 
         trapezoid_start = (j == 0 or
-                           isnan(xs[i, j - 1]) or
-                           isnan(ys0[j - 1]) or
-                           isnan(ys1[j - 1]))
+                           isnull(xs[i, j - 1]) or
+                           isnull(ys0[j - 1]) or
+                           isnull(ys1[j - 1]))
         stacked = True
         draw_trapezoid_y(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1716,7 +1900,20 @@ def _build_extend_area_to_line_axis1_y_constant(
                     xs, ys0, ys1, *aggs_and_cols
                 )
 
-    return extend_cpu
+    @cuda.jit
+    @expand_aggs_and_cols
+    def extend_cuda(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            xs, ys0, ys1, *aggs_and_cols
+    ):
+        i, j = cuda.grid(2)
+        if i < xs.shape[0] and j < xs.shape[1] - 1:
+            perform_extend(
+                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                xs, ys0, ys1, *aggs_and_cols
+            )
+
+    return extend_cpu, extend_cuda
 
 
 def _build_extend_area_to_zero_axis1_ragged(
@@ -1774,8 +1971,8 @@ def _build_extend_area_to_zero_axis1_ragged(
                 y3 = y_flat[y_start_i + j + 1]
 
                 trapezoid_start = (j == 0 or
-                                   isnan(x_flat[x_start_i + j - 1]) or
-                                   isnan(y_flat[y_start_i + j - 1]))
+                                   isnull(x_flat[x_start_i + j - 1]) or
+                                   isnull(y_flat[y_start_i + j - 1]))
                 stacked = False
                 draw_trapezoid_y(
                     i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1792,7 +1989,7 @@ def _build_extend_area_to_zero_axis1_ragged(
 def _build_extend_area_to_line_axis1_ragged(
         draw_trapezoid_y, expand_aggs_and_cols
 ):
-    def extend_line(
+    def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             xs, ys0, ys1, *aggs_and_cols
     ):
@@ -1851,9 +2048,9 @@ def _build_extend_area_to_line_axis1_ragged(
                 y3 = y0_flat[y0_start_i + j + 1]
 
                 trapezoid_start = (j == 0 or
-                                   isnan(x_flat[x_start_i + j - 1]) or
-                                   isnan(y0_flat[y0_start_i + j - 1]) or
-                                   isnan(y1_flat[y1_start_i + j] - 1))
+                                   isnull(x_flat[x_start_i + j - 1]) or
+                                   isnull(y0_flat[y0_start_i + j - 1]) or
+                                   isnull(y1_flat[y1_start_i + j] - 1))
                 stacked = True
                 draw_trapezoid_y(
                     i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1863,4 +2060,4 @@ def _build_extend_area_to_line_axis1_ragged(
                 j += 1
             i += 1
 
-    return extend_line
+    return extend_cpu

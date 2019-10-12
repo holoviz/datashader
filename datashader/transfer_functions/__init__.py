@@ -9,22 +9,28 @@ import toolz as tz
 import xarray as xr
 from PIL.Image import fromarray
 
+from datashader.colors import rgb, Sets1to3
+from datashader.composite import composite_op_lookup, over
+from datashader.utils import ngjit, orient_array
 
-from .colors import rgb, Sets1to3
-from .composite import composite_op_lookup, over
-from .utils import ngjit, orient_array
-
+try:
+    import cupy
+except ImportError:
+    cupy = None
 
 __all__ = ['Image', 'stack', 'shade', 'set_background', 'spread', 'dynspread']
 
 
 class Image(xr.DataArray):
-    __slots__ = ()    
+    __slots__ = ()
     __array_priority__ = 70
     border=1
-    
+
     def to_pil(self, origin='lower'):
-        arr = np.flipud(self.data) if origin == 'lower' else self.data
+        data = self.data
+        if cupy:
+            data = cupy.asnumpy(data)
+        arr = np.flipud(data) if origin == 'lower' else data
         return fromarray(arr, 'RGBA')
 
     def to_bytesio(self, format='png', origin='lower'):
@@ -58,8 +64,8 @@ class Images(object):
     A list of HTML-representable objects to display in a table.
     Primarily intended for Image objects, but could be anything
     that has _repr_html_.
-    """  
-    
+    """
+
     def __init__(self, *images):
         """Makes an HTML table from a list of HTML-representable arguments."""
         for i in images:
@@ -74,7 +80,7 @@ class Images(object):
         """
         self.num_cols=n
         return self
-        
+
     def _repr_html_(self):
         """Supports rich display in a Jupyter notebook, using an HTML table"""
         htmls = []
@@ -82,14 +88,14 @@ class Images(object):
         tr="""<tr style="background-color:white">"""
         for i in self.images:
             label=i.name if hasattr(i,"name") and i.name is not None else ""
-   
-            htmls.append("""<td style="text-align: center"><b>""" + label + 
+
+            htmls.append("""<td style="text-align: center"><b>""" + label +
                          """</b><br><br>{0}</td>""".format(i._repr_html_()))
             col+=1
             if self.num_cols is not None and col>=self.num_cols:
                 col=0
                 htmls.append("</tr>"+tr)
-                
+
         return """<table style="width:100%; text-align: center"><tbody>"""+ tr +\
                "".join(htmls) + """</tr></tbody></table>"""
 
@@ -116,7 +122,7 @@ def stack(*imgs, **kwargs):
     if len(imgs) == 1:
         return imgs[0]
     imgs = xr.align(*imgs, copy=False, join='outer')
-    with np.errstate(divide='ignore', invalid='ignore'):    
+    with np.errstate(divide='ignore', invalid='ignore'):
         out = tz.reduce(tz.flip(op), [i.data for i in imgs])
     return Image(out, coords=imgs[0].coords, dims=imgs[0].dims, name=name)
 
@@ -143,8 +149,10 @@ def eq_hist(data, mask=None, nbins=256*256):
     ----------
     .. [1] http://scikit-image.org/docs/stable/api/skimage.exposure.html#equalize-hist
     """
-    if not isinstance(data, np.ndarray):
-        raise TypeError("data must be np.ndarray")
+    if cupy and isinstance(data, cupy.ndarray):
+        from._cuda_utils import interp
+    elif not isinstance(data, np.ndarray):
+        raise TypeError("data must be an ndarray")
     else:
         interp = np.interp
 
@@ -211,7 +219,11 @@ def masked_clip_2d(data, mask, lower, upper):
                 data[i, j] = upper
 
 def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
-    interp = np.interp
+    if cupy and isinstance(agg.data, cupy.ndarray):
+        from ._cuda_utils import masked_clip_2d, interp
+    else:
+        from ._cpu_utils import masked_clip_2d
+        interp = np.interp
 
     if agg.ndim != 2:
         raise ValueError("agg must be 2D")
@@ -259,9 +271,9 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
                 # For eq_hist to work with span, we'll need to store the histogram
                 # from the data and then apply it to the span argument.
                 raise ValueError("span is not (yet) valid to use with eq_hist")
-        
+
             span = interpolater([0, span[1] - span[0]], 0)
-        
+
     if isinstance(cmap, Iterator):
         cmap = list(cmap)
     if isinstance(cmap, list):
@@ -291,12 +303,20 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
 
     img = rgba.view(np.uint32).reshape(data.shape)
 
+    if cupy and isinstance(img, cupy.ndarray):
+        # Convert cupy array to numpy for final image
+        img = cupy.asnumpy(img)
+
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
 def _colorize(agg, color_key, how, min_alpha, name):
-    interp = np.interp
-    array = np.array
+    if cupy and isinstance(agg.data, cupy.ndarray):
+        from ._cuda_utils import interp
+        array = cupy.array
+    else:
+        interp = np.interp
+        array = np.array
 
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
@@ -332,6 +352,10 @@ def _colorize(agg, color_key, how, min_alpha, name):
                array([min_alpha, 255]), left=0, right=255).astype(np.uint8)
     r[mask] = g[mask] = b[mask] = 255
     values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
+
+    if cupy and isinstance(values, cupy.ndarray):
+        # Convert cupy array to numpy for final image
+        values = cupy.asnumpy(values)
 
     return Image(values,
                  dims=agg.dims[:-1],
@@ -402,13 +426,13 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         Min and max data values to use for colormap interpolation, when
         wishing to override autoranging.
     name : string name, optional
-        Optional string name to give to the Image object to return, 
+        Optional string name to give to the Image object to return,
         to label results for display.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
     name = agg.name if name is None else name
-    
+
     if agg.ndim == 2:
         return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
     elif agg.ndim == 3:
@@ -459,7 +483,7 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
         with odd dimensions. Pixels are spread from the center of the mask to
         locations where the mask is True.
     name : string name, optional
-        Optional string name to give to the Image object to return, 
+        Optional string name to give to the Image object to return,
         to label results for display.
     """
     if not isinstance(img, Image):
