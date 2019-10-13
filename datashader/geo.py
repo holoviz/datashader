@@ -433,10 +433,13 @@ def bump(width, height, count=None, height_func=None, spread=1):
     if height_func is None:
         height_func = lambda bumps: np.ones(len(bumps))
 
-    bump_xs = np.random.choice(linx, count)
-    bump_ys = np.random.choice(liny, count)
-    locs = np.vstack([bump_xs,bump_ys]).T
-    heights = height_func(locs.tolist())
+    # create 2d array of random x, y for bump locations
+    locs = np.empty((count, 2), dtype=np.uint16)
+    locs[:, 0] = np.random.choice(linx, count)
+    locs[:, 1] = np.random.choice(liny, count)
+
+    heights = height_func(locs)
+
     bumps = _finish_bump(width, height, locs, heights, spread)
     return DataArray(bumps, dims=['y', 'x'], attrs=dict(res=1))
 
