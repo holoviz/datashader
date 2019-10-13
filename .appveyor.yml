@@ -1,6 +1,6 @@
 environment:
   global:
-    CHANNELS: "-c conda-forge -c pyviz/label/dev"
+    CHANNELS: "-c pyviz/label/dev"
   matrix:
     - PY: "2.7"
       CONDA: "C:\\Miniconda-x64"
