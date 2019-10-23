@@ -7,6 +7,7 @@ import json
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
+from dask.bytes.core import get_fs_token_paths
 
 from datashader.utils import ngjit
 from datashader.spatial import hilbert_curve as hc
@@ -126,7 +127,7 @@ The datashader.spatial module requires the fastparquet package""")
 
 
 def to_parquet(df, path, x, y, p=10, npartitions=None, shuffle=None,
-               compression='default'):
+               compression='default', storage_options=None):
     """
     Perform spatial partitioning on an input dataframe and write the
     result to a parquet file.  The resulting parquet file will contain
@@ -177,6 +178,9 @@ def to_parquet(df, path, x, y, p=10, npartitions=None, shuffle=None,
 
     compression: str or None (default)
         The dask.dataframe.to_parquet compression method.
+
+    storage_options : dict or None (default None)
+        Key/value pairs to be passed on to the file-system backend, if any.
     """
 
     _validate_fastparquet()
@@ -252,10 +256,12 @@ Received value of type {typ}""".format(typ=type(df)))
 
     # Save ddf to parquet
     dd.to_parquet(
-        ddf, path, engine='fastparquet', compression=compression)
+        ddf, path, engine='fastparquet', compression=compression, storage_options=storage_options)
 
     # Open resulting parquet file
-    pf = fp.ParquetFile(path)
+    fs, _, paths = get_fs_token_paths(path, mode="wb", storage_options=storage_options)
+    path = fs._strip_protocol(path)
+    pf = fp.ParquetFile(path, open_with=fs.open)
 
     # Add a new property to the file metadata
     new_fmd = copy.copy(pf.fmd)
@@ -266,13 +272,13 @@ Received value of type {typ}""".format(typ=type(df)))
 
     # Overwrite file metadata
     fn = os.path.join(path, '_metadata')
-    fp.writer.write_common_metadata(fn, new_fmd, no_row_groups=False)
+    fp.writer.write_common_metadata(fn, new_fmd, no_row_groups=False, open_with=fs.open)
 
     fn = os.path.join(path, '_common_metadata')
-    fp.writer.write_common_metadata(fn, new_fmd)
+    fp.writer.write_common_metadata(fn, new_fmd, open_with=fs.open)
 
 
-def read_parquet(path):
+def read_parquet(path, storage_options=None):
     """
     Construct a SpatialPointsFrame from a spatially partitioned parquet
     file
@@ -287,6 +293,9 @@ def read_parquet(path):
         Path to a spatially partitioned parquet file that was created
         using datashader.spatial.points.to_parquet
 
+    storage_options : dict or None (default None)
+        Key/value pairs to be passed on to the file-system backend, if any.
+
     Returns
     -------
     SpatialPointsFrame
@@ -294,11 +303,13 @@ def read_parquet(path):
     """
     _validate_fastparquet()
 
-    # Open parquet file
-    pf = fp.ParquetFile(path)
-
     # Read parquet file
-    frame = dd.read_parquet(path)
+    frame = dd.read_parquet(path, storage_options=storage_options)
+
+    # Open parquet file
+    fs, _, paths = get_fs_token_paths(path, mode="rb", storage_options=storage_options)
+    path = fs._strip_protocol(path)
+    pf = fp.ParquetFile(path, open_with=fs.open)
 
     # Check for spatial points metadata
     if 'SpatialPointsFrame' in pf.key_value_metadata:
