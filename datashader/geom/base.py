@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from math import isfinite, inf
+from math import inf
 import re
 from functools import total_ordering
 import numpy as np
@@ -154,12 +154,12 @@ def bounds_interleaved(values):
 
     for i in range(0, len(values), 2):
         x = values[i]
-        if isfinite(x):
+        if np.isfinite(x):
             xmin = min(xmin, x)
             xmax = max(xmax, x)
 
         y = values[i + 1]
-        if isfinite(y):
+        if np.isfinite(y):
             ymin = min(ymin, y)
             ymax = max(ymax, y)
 
@@ -176,7 +176,7 @@ def bounds_interleaved_1d(values, offset):
 
     for i in range(0, len(values), 2):
         v = values[i + offset]
-        if isfinite(v):
+        if np.isfinite(v):
             vmin = min(vmin, v)
             vmax = max(vmax, v)
 

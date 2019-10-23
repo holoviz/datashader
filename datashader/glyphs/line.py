@@ -1,5 +1,4 @@
 from __future__ import absolute_import, division
-from math import isfinite
 import numpy as np
 from toolz import memoize
 
@@ -976,25 +975,25 @@ def _build_extend_line_axis1_geom(
             for j in range(start_index, stop_index - 2, 2):
 
                 x0 = flat[j]
-                if not isfinite(x0):
+                if not np.isfinite(x0):
                     continue
 
                 y0 = flat[j + 1]
-                if not isfinite(y0):
+                if not np.isfinite(y0):
                     continue
 
                 x1 = flat[j + 2]
-                if not isfinite(x1):
+                if not np.isfinite(x1):
                     continue
 
                 y1 = flat[j + 3]
-                if not isfinite(y1):
+                if not np.isfinite(y1):
                     continue
 
                 segment_start = (
                         (j == start_index) or
-                        not isfinite(flat[j - 2]) or
-                        not isfinite(flat[j - 1])
+                        not np.isfinite(flat[j - 2]) or
+                        not np.isfinite(flat[j - 1])
                 )
 
                 draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,

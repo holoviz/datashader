@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 import re
-from math import isfinite
 from functools import total_ordering
 
 import numpy as np
@@ -146,18 +145,18 @@ def compute_area(values):
         ix = values[i]
         jy = values[j + 1]
         ky = values[k + 1]
-        if not isfinite(values[j]):
+        if not np.isfinite(values[j]):
             # last vertex not finite, polygon traversal finished, add wraparound term
             polygon_stop = j
             firstx = values[polygon_start]
             secondy = values[polygon_start + 3]
             lasty = values[polygon_stop - 3]
             area += firstx * (secondy - lasty)
-        elif not isfinite(values[i]):
+        elif not np.isfinite(values[i]):
             # middle vertex not finite, but last vertex is.
             # We're going to start a new polygon
             polygon_start = j
-        elif isfinite(ix) and isfinite(jy) and isfinite(ky):
+        elif np.isfinite(ix) and np.isfinite(jy) and np.isfinite(ky):
             area += ix * (jy - ky)
 
     # wrap-around term for final polygon

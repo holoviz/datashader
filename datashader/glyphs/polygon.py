@@ -1,4 +1,4 @@
-from math import inf, isfinite, nan
+from math import inf, nan
 
 from toolz import memoize
 import numpy as np
@@ -67,12 +67,12 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
         for j in range(start_index, stop_index - 2, 2):
             x = flat[j]
             y = flat[j + 1]
-            if isfinite(x) and isfinite(y):
+            if np.isfinite(x) and np.isfinite(y):
                 poly_xmin = min(poly_xmin, x)
                 poly_ymin = min(poly_ymin, y)
                 poly_xmax = max(poly_xmax, x)
                 poly_ymax = max(poly_ymax, y)
-                if isfinite(flat[j + 2]) and isfinite(flat[j + 3]):
+                if np.isfinite(flat[j + 2]) and np.isfinite(flat[j + 3]):
                     # Valid edge
                     num_edges += 1
 
@@ -107,8 +107,8 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
             y0 = flat[j + 1]
             x1 = flat[j + 2]
             y1 = flat[j + 3]
-            if (isfinite(x0) and isfinite(y0) and
-                    isfinite(y0) and isfinite(y1)):
+            if (np.isfinite(x0) and np.isfinite(y0) and
+                    np.isfinite(y0) and np.isfinite(y1)):
                 # Map to canvas coordinates without rounding
                 x0c = x_mapper(x0) * sx + tx
                 y0c = y_mapper(y0) * sy + ty

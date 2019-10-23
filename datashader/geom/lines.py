@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division
 import re
-from math import sqrt, isfinite
+from math import sqrt
 from functools import total_ordering
 import numpy as np
 
@@ -100,7 +100,7 @@ def compute_length(values):
         x1 = values[i]
         y1 = values[i+1]
 
-        if isfinite(x0) and isfinite(y0) and isfinite(x1) and isfinite(y1):
+        if np.isfinite(x0) and np.isfinite(y0) and np.isfinite(x1) and np.isfinite(y1):
             total_len += sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)
 
         x0 = x1
