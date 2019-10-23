@@ -149,3 +149,15 @@ def test_validate_parquet_file(df, tmp_path):
     spf = dsp.read_parquet(filename)
 
     assert spf.spatial is None
+
+
+def test_filesystem_protocol(df, tmp_path):
+    # Work around https://bugs.python.org/issue33617
+    tmp_path = str(tmp_path)
+    p = 5
+    # Use an filesystem protocol
+    path = "memory://" + os.path.join(tmp_path, 'spatial_points_1.parquet')
+
+    dsp.to_parquet(df, path, 'x', 'y', p=p, npartitions=2)
+    spf = dsp.read_parquet(path)
+    assert isinstance(spf, dsp.SpatialPointsFrame)
