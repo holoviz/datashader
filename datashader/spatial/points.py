@@ -260,6 +260,7 @@ Received value of type {typ}""".format(typ=type(df)))
 
     # Open resulting parquet file
     fs, _, paths = get_fs_token_paths(path, mode="wb", storage_options=storage_options)
+    # Trim any protocol information from the path before forwarding
     path = fs._strip_protocol(path)
     pf = fp.ParquetFile(path, open_with=fs.open)
 
@@ -308,6 +309,7 @@ def read_parquet(path, storage_options=None):
 
     # Open parquet file
     fs, _, paths = get_fs_token_paths(path, mode="rb", storage_options=storage_options)
+    # Trim any protocol information from the path before forwarding
     path = fs._strip_protocol(path)
     pf = fp.ParquetFile(path, open_with=fs.open)
 
