@@ -4,7 +4,7 @@ import pandas as pd
 
 from datashader.core import bypixel
 from datashader.compiler import compile_components
-from datashader.glyphs.points import _PointLike
+from datashader.glyphs.points import _PointLike, _GeomLike
 from datashader.glyphs.area import _AreaToLineLike
 from datashader.utils import Dispatcher
 from collections import OrderedDict
@@ -21,6 +21,7 @@ glyph_dispatch = Dispatcher()
 
 
 @glyph_dispatch.register(_PointLike)
+@glyph_dispatch.register(_GeomLike)
 @glyph_dispatch.register(_AreaToLineLike)
 def default(glyph, source, schema, canvas, summary, cuda=False):
     create, info, append, _, finalize = compile_components(summary, schema, glyph, cuda)

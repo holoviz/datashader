@@ -1,9 +1,10 @@
 from __future__ import absolute_import, division
+from math import isfinite
 import numpy as np
 from toolz import memoize
 
+from datashader.glyphs.points import _PointLike, _GeomLike
 from datashader.glyphs.glyph import isnull
-from datashader.glyphs.points import _PointLike
 from datashader.utils import isreal, ngjit
 from numba import cuda
 
@@ -458,6 +459,35 @@ class LinesAxis1Ragged(_PointLike):
         return extend
 
 
+class LineAxis1Geom(_GeomLike):
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        draw_segment = _build_draw_segment(
+            append, map_onto_pixel, expand_aggs_and_cols
+        )
+
+        perform_extend_cpu = _build_extend_line_axis1_geom(
+            draw_segment, expand_aggs_and_cols
+        )
+        geom_name = self.geometry
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
+            geom_array = df[geom_name].array
+            # line may be clipped, then mapped to pixels
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                geom_array, *aggs_and_cols
+            )
+
+        return extend
+
+
 def _build_map_onto_pixel_for_line(x_mapper, y_mapper):
     @ngjit
     def map_onto_pixel(sx, tx, sy, ty, xmin, xmax, ymin, ymax, x, y):
@@ -903,6 +933,68 @@ def _build_extend_line_axis1_ragged(
                         (j == 0) or
                         isnull(x_flat[x_start_index + j - 1]) or
                         isnull(y_flat[y_start_index + j] - 1)
+                )
+
+                draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                             segment_start, x0, x1, y0, y1, *aggs_and_cols)
+
+    return extend_cpu
+
+
+def _build_extend_line_axis1_geom(
+        draw_segment, expand_aggs_and_cols
+):
+    def extend_cpu(
+            sx, tx, sy, ty,
+            xmin, xmax, ymin, ymax,
+            geom_array, *aggs_and_cols
+    ):
+        start_i = geom_array.start_indices
+        flat = geom_array.flat_array
+
+        extend_cpu_numba(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            start_i, flat, *aggs_and_cols
+        )
+
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu_numba(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            start_i, flat, *aggs_and_cols
+    ):
+        nrows = len(start_i)
+        flat_len = len(flat)
+
+        for i in range(nrows):
+            # Get x index range
+            start_index = int(start_i[i])
+            stop_index = int(start_i[i + 1]
+                             if i < nrows - 1
+                             else flat_len)
+
+            for j in range(start_index, stop_index - 2, 2):
+
+                x0 = flat[j]
+                if not isfinite(x0):
+                    continue
+
+                y0 = flat[j + 1]
+                if not isfinite(y0):
+                    continue
+
+                x1 = flat[j + 2]
+                if not isfinite(x1):
+                    continue
+
+                y1 = flat[j + 3]
+                if not isfinite(y1):
+                    continue
+
+                segment_start = (
+                        (j == start_index) or
+                        not isfinite(flat[j - 2]) or
+                        not isfinite(flat[j - 1])
                 )
 
                 draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,

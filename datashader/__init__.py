@@ -11,7 +11,7 @@ from .glyphs import Point                                # noqa (API import)
 from .pipeline import Pipeline                           # noqa (API import)
 from . import transfer_functions as tf                   # noqa (API import)
 from . import data_libraries                             # noqa (API import)
-
+from . import geom                                       # noqa (API import)
 
 # Make RaggedArray pandas extension array available for
 # pandas >= 0.24.0 is installed

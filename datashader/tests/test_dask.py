@@ -1,4 +1,7 @@
 from __future__ import division, absolute_import
+
+from math import nan
+
 from dask.context import config
 import dask.dataframe as dd
 import numpy as np
@@ -325,6 +328,26 @@ def test_log_axis_points(ddf):
     assert_eq_xr(c_logxy.points(ddf, 'log_x', 'log_y', ds.count('i32')), out)
 
 
+def test_points_geometry():
+    axis = ds.core.LinearAxis()
+    lincoords = axis.compute_index(axis.compute_scale_and_translate((0., 2.), 3), 3)
+
+    ddf = dd.from_pandas(pd.DataFrame({
+        'geom': pd.array(
+            [[0, 0], [0, 1, 1, 1], [0, 2, 1, 2, 2, 2]], dtype='Points[float64]'),
+        'v': [1, 2, 3]
+    }), npartitions=3)
+
+    cvs = ds.Canvas(plot_width=3, plot_height=3)
+    agg = cvs.points(ddf, geometry='geom', agg=ds.sum('v'))
+    sol = np.array([[1, nan, nan],
+                    [2, 2,   nan],
+                    [3, 3,   3]], dtype='float64')
+    out = xr.DataArray(sol, coords=[lincoords, lincoords],
+                       dims=['y', 'x'])
+    assert_eq_xr(agg, out)
+
+
 @pytest.mark.parametrize('DataFrame', DataFrames)
 def test_line(DataFrame):
     axis = ds.core.LinearAxis()
@@ -349,7 +372,7 @@ def test_line(DataFrame):
 
 # # Line tests
 @pytest.mark.parametrize('DataFrame', DataFrames)
-@pytest.mark.parametrize('df_kwargs,x,y,ax', [
+@pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
         'x0': [4, -4, 4],
@@ -358,20 +381,20 @@ def test_line(DataFrame):
         'y0': [0,  0, 0],
         'y1': [-4, 4, 0],
         'y2': [0,  0, 0]
-    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+    }), dict(x=['x0', 'x1', 'x2'], y=['y0', 'y1', 'y2'], axis=1)),
 
     # axis1 x constant
     (dict(data={
         'y0': [0, 0,  0],
         'y1': [0, 4, -4],
         'y2': [0, 0,  0]
-    }), np.array([-4, 0, 4]), ['y0', 'y1', 'y2'], 1),
+    }), dict(x=np.array([-4, 0, 4]), y=['y0', 'y1', 'y2'], axis=1)),
 
     # axis0 single
     (dict(data={
         'x': [4, 0, -4, np.nan, -4, 0, 4, np.nan, 4, 0, -4],
         'y': [0, -4, 0, np.nan, 0, 4, 0, np.nan, 0, 0, 0],
-    }), 'x', 'y', 0),
+    }), dict(x='x', y='y', axis=0)),
 
     # axis0 multi
     (dict(data={
@@ -381,7 +404,7 @@ def test_line(DataFrame):
         'y0': [0, -4,  0],
         'y1': [0,  4,  0],
         'y2': [0,  0,  0]
-    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 0),
+    }), dict(x=['x0', 'x1', 'x2'], y=['y0', 'y1', 'y2'], axis=0)),
 
     # axis0 multi with string
     (dict(data={
@@ -389,17 +412,24 @@ def test_line(DataFrame):
         'y0': [0, -4,  0],
         'y1': [0,  4,  0],
         'y2': [0,  0,  0]
-    }), 'x0', ['y0', 'y1', 'y2'], 0),
+    }), dict(x='x0', y=['y0', 'y1', 'y2'], axis=0)),
 
     # axis1 RaggedArray
     (dict(data={
         'x': [[4, 0, -4], [-4, 0, 4, 4, 0, -4]],
         'y': [[0, -4, 0], [0, 4, 0, 0, 0, 0]],
-    }, dtype='Ragged[int64]'), 'x', 'y', 1),
+    }, dtype='Ragged[int64]'), dict(x='x', y='y', axis=1)),
+
+    # geometry
+    (dict(data={
+        'geom': [[4, 0, 0, -4, -4, 0],
+                 [-4, 0, 0, 4, 4, 0, 4, 0, 0, 0, -4, 0]]
+    }, dtype='Lines[int64]'), dict(geometry='geom')),
 ])
-def test_line_manual_range(DataFrame, df_kwargs, x, y, ax):
+def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
-        if df_kwargs.get('dtype', '').startswith('Ragged'):
+        dtype = df_kwargs.get('dtype', '')
+        if dtype.startswith('Ragged') or dtype.startswith('Lines'):
             pytest.skip("Ragged array not supported with cudf")
 
     axis = ds.core.LinearAxis()
@@ -409,7 +439,7 @@ def test_line_manual_range(DataFrame, df_kwargs, x, y, ax):
     cvs = ds.Canvas(plot_width=7, plot_height=7,
                     x_range=(-3, 3), y_range=(-3, 3))
 
-    agg = cvs.line(ddf, x, y, ds.count(), axis=ax)
+    agg = cvs.line(ddf, agg=ds.count(), **cvs_kwargs)
 
     sol = np.array([[0, 0, 1, 0, 1, 0, 0],
                     [0, 1, 0, 0, 0, 1, 0],
@@ -425,7 +455,7 @@ def test_line_manual_range(DataFrame, df_kwargs, x, y, ax):
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
-@pytest.mark.parametrize('df_kwargs,x,y,ax', [
+@pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
         'x0': [0,  0, 0],
@@ -434,20 +464,20 @@ def test_line_manual_range(DataFrame, df_kwargs, x, y, ax):
         'y0': [-4, 4, -4],
         'y1': [0,  0,  0],
         'y2': [4, -4,  4]
-    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+    }), dict(x=['x0', 'x1', 'x2'], y=['y0', 'y1', 'y2'], axis=1)),
 
     # axis1 y constant
     (dict(data={
         'x0': [0,  0, 0],
         'x1': [-4, 0, 4],
         'x2': [0,  0, 0],
-    }), ['x0', 'x1', 'x2'], np.array([-4, 0, 4]), 1),
+    }), dict(x=['x0', 'x1', 'x2'], y=np.array([-4, 0, 4]), axis=1)),
 
     # axis0 single
     (dict(data={
         'x': [0, -4, 0, np.nan, 0, 0, 0, np.nan, 0, 4, 0],
         'y': [-4, 0, 4, np.nan, 4, 0, -4, np.nan, -4, 0, 4],
-    }), 'x', 'y', 0),
+    }), dict(x='x', y='y', axis=0)),
 
     # axis0 multi
     (dict(data={
@@ -457,7 +487,7 @@ def test_line_manual_range(DataFrame, df_kwargs, x, y, ax):
         'y0': [-4, 0,  4],
         'y1': [4,  0, -4],
         'y2': [-4, 0,  4]
-    }), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 0),
+    }), dict(x=['x0', 'x1', 'x2'], y=['y0', 'y1', 'y2'], axis=0)),
 
     # axis0 multi with string
     (dict(data={
@@ -465,18 +495,25 @@ def test_line_manual_range(DataFrame, df_kwargs, x, y, ax):
         'x1': [0,  0,  0],
         'x2': [0,  4,  0],
         'y0': [-4, 0,  4]
-    }), ['x0', 'x1', 'x2'], 'y0', 0),
+    }), dict(x=['x0', 'x1', 'x2'], y='y0', axis=0)),
 
     # axis1 RaggedArray
     (dict(data={
         'x': [[0, -4, 0], [0, 0, 0], [0, 4, 0]],
         'y': [[-4, 0, 4], [4, 0, -4], [-4, 0, 4]],
-    }, dtype='Ragged[int64]'), 'x', 'y', 1),
+    }, dtype='Ragged[int64]'), dict(x='x', y='y', axis=1)),
 
+    # geometry
+    (dict(data={
+        'geom': [[0, -4, -4, 0, 0, 4],
+                 [0, 4, 0, 0, 0, -4],
+                 [0, -4, 4, 0, 0, 4]]
+    }, dtype='Lines[int64]'), dict(geometry='geom')),
 ])
-def test_line_autorange(DataFrame, df_kwargs, x, y, ax):
+def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
-        if df_kwargs.get('dtype', '').startswith('Ragged'):
+        dtype = df_kwargs.get('dtype', '')
+        if dtype.startswith('Ragged') or dtype.startswith('Lines'):
             pytest.skip("Ragged array not supported with cudf")
 
     axis = ds.core.LinearAxis()
@@ -487,7 +524,7 @@ def test_line_autorange(DataFrame, df_kwargs, x, y, ax):
 
     cvs = ds.Canvas(plot_width=9, plot_height=9)
 
-    agg = cvs.line(ddf, x, y, ds.count(), axis=ax)
+    agg = cvs.line(ddf, agg=ds.count(), **cvs_kwargs)
 
     sol = np.array([[0, 0, 0, 0, 3, 0, 0, 0, 0],
                     [0, 0, 0, 1, 1, 1, 0, 0, 0],
@@ -582,7 +619,7 @@ def test_auto_range_line(DataFrame):
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
-@pytest.mark.parametrize('df_kwargs,x,y,ax', [
+@pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
         'x0': [-4, np.nan],
@@ -591,13 +628,13 @@ def test_auto_range_line(DataFrame):
         'y0': [0, np.nan],
         'y1': [-4, 4],
         'y2': [0, 0]
-    }, dtype='float32'), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+    }, dtype='float32'), dict(x=['x0', 'x1', 'x2'], y=['y0', 'y1', 'y2'], axis=1)),
 
     # axis0 single
     (dict(data={
         'x': [-4, -2, 0, np.nan, 2, 4],
         'y': [0, -4, 0, np.nan, 4, 0],
-    }), 'x', 'y', 0),
+    }), dict(x='x', y='y', axis=0)),
 
     # axis0 multi
     (dict(data={
@@ -605,15 +642,15 @@ def test_auto_range_line(DataFrame):
         'x1': [np.nan, 2, 4],
         'y0': [0, -4, 0],
         'y1': [np.nan, 4, 0],
-    }, dtype='float32'), ['x0', 'x1'], ['y0', 'y1'], 0),
+    }, dtype='float32'),  dict(x=['x0', 'x1'], y=['y0', 'y1'], axis=0)),
 
     # axis1 ragged arrays
     (dict(data={
         'x': pd.array([[-4, -2, 0], [2, 4]]),
         'y': pd.array([[0, -4, 0], [4, 0]])
-    }, dtype='Ragged[float32]'), 'x', 'y', 1)
+    }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
-def test_area_to_zero_fixedrange(DataFrame, df_kwargs, x, y, ax):
+def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
@@ -630,7 +667,7 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, x, y, ax):
 
     ddf = DataFrame(**df_kwargs)
 
-    agg = cvs.area(ddf, x, y, ds.count(), axis=ax)
+    agg = cvs.area(ddf, agg=ds.count(), **cvs_kwargs)
 
     sol = np.array([[0, 1, 1, 0, 0, 0, 0, 0, 0],
                     [1, 1, 1, 1, 0, 0, 0, 0, 0],
@@ -645,7 +682,7 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, x, y, ax):
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
-@pytest.mark.parametrize('df_kwargs,x,y,ax', [
+@pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
         'x0': [-4, 0],
@@ -654,7 +691,8 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, x, y, ax):
         'y0': [0, 0],
         'y1': [-4, -4],
         'y2': [0, 0]
-    }, dtype='float32'), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+    }, dtype='float32'),
+     dict(x=['x0', 'x1', 'x2'], y=['y0', 'y1', 'y2'], axis=1)),
 
     # axis1 y constant
     (dict(data={
@@ -662,13 +700,13 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, x, y, ax):
         'x1': [-2, 2],
         'x2': [0, 4],
     }, dtype='float32'),
-     ['x0', 'x1', 'x2'], np.array([0, -4, 0], dtype='float32'), 1),
+     dict(x=['x0', 'x1', 'x2'], y=np.array([0, -4, 0], dtype='float32'), axis=1)),
 
     # axis0 single
     (dict(data={
         'x': [-4, -2, 0, 0, 2, 4],
         'y': [0, -4, 0, 0, -4, 0],
-    }), 'x', 'y', 0),
+    }), dict(x='x', y='y', axis=0)),
 
     # axis0 multi
     (dict(data={
@@ -676,22 +714,22 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, x, y, ax):
         'x1': [0, 2, 4],
         'y0': [0, -4, 0],
         'y1': [0, -4, 0],
-    }, dtype='float32'), ['x0', 'x1'], ['y0', 'y1'], 0),
+    }, dtype='float32'), dict(x=['x0', 'x1'], y=['y0', 'y1'], axis=0)),
 
     # axis0 multi, y string
     (dict(data={
         'x0': [-4, -2, 0],
         'x1': [0, 2, 4],
         'y0': [0, -4, 0],
-    }, dtype='float32'), ['x0', 'x1'], 'y0', 0),
+    }, dtype='float32'), dict(x=['x0', 'x1'], y='y0', axis=0)),
 
     # axis1 ragged arrays
     (dict(data={
         'x': [[-4, -2, 0], [0, 2, 4]],
         'y': [[0, -4, 0], [0, -4, 0]]
-    }, dtype='Ragged[float32]'), 'x', 'y', 1)
+    }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
-def test_area_to_zero_autorange(DataFrame, df_kwargs, x, y, ax):
+def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
@@ -705,7 +743,7 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, x, y, ax):
     cvs = ds.Canvas(plot_width=13, plot_height=7)
 
     ddf = DataFrame(**df_kwargs)
-    agg = cvs.area(ddf, x, y, ds.count(), axis=ax)
+    agg = cvs.area(ddf, agg=ds.count(), **cvs_kwargs)
 
     sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
                     [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
@@ -722,7 +760,7 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, x, y, ax):
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
-@pytest.mark.parametrize('df_kwargs,x,y,ax', [
+@pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
         'x0': [-4, np.nan],
@@ -731,13 +769,13 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, x, y, ax):
         'y0': [0, np.nan],
         'y1': [-4, 4],
         'y2': [0, 0]
-    }, dtype='float32'), ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], 1),
+    }, dtype='float32'), dict(x=['x0', 'x1', 'x2'], y=['y0', 'y1', 'y2'], axis=1)),
 
     # axis0 single
     (dict(data={
         'x': [-4, -2, 0, np.nan, 2, 4],
         'y': [0, -4, 0, np.nan, 4, 0],
-    }), 'x', 'y', 0),
+    }), dict(x='x', y='y', axis=0)),
 
     # axis0 multi
     (dict(data={
@@ -745,15 +783,15 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, x, y, ax):
         'x1': [np.nan, 2, 4],
         'y0': [0, -4, 0],
         'y1': [np.nan, 4, 0],
-    }, dtype='float32'), ['x0', 'x1'], ['y0', 'y1'], 0),
+    }, dtype='float32'), dict(x=['x0', 'x1'], y=['y0', 'y1'], axis=0)),
 
     # axis1 ragged arrays
     (dict(data={
         'x': [[-4, -2, 0], [2, 4]],
         'y': [[0, -4, 0], [4, 0]],
-    }, dtype='Ragged[float32]'), 'x', 'y', 1)
+    }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
-def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, x, y, ax):
+def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
@@ -768,7 +806,7 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, x, y, ax):
 
     ddf = DataFrame(**df_kwargs)
 
-    agg = cvs.area(ddf, x, y, ds.count(), axis=ax)
+    agg = cvs.area(ddf, agg=ds.count(), **cvs_kwargs)
 
     sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -785,7 +823,7 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, x, y, ax):
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
-@pytest.mark.parametrize('df_kwargs,x,y,y_stack,ax', [
+@pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
         'x0': [-4, 0],
@@ -798,7 +836,8 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, x, y, ax):
         'y4': [-2, -2],
         'y5': [0, 0],
     }, dtype='float32'),
-     ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], ['y3', 'y4', 'y5'], 1),
+     dict(x=['x0', 'x1', 'x2'], y=['y0', 'y1', 'y2'],
+          y_stack=['y3', 'y4', 'y5'], axis=1)),
 
     # axis1 y constant
     (dict(data={
@@ -806,16 +845,15 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, x, y, ax):
         'x1': [-2, 2],
         'x2': [0, 4],
     }, dtype='float32'),
-     ['x0', 'x1', 'x2'],
-     np.array([0, -4, 0]),
-     np.array([0, -2, 0], dtype='float32'), 1),
+     dict(x=['x0', 'x1', 'x2'], y=np.array([0, -4, 0]),
+          y_stack=np.array([0, -2, 0], dtype='float32'), axis=1)),
 
     # axis0 single
     (dict(data={
         'x': [-4, -2, 0, 0, 2, 4],
         'y': [0, -4, 0, 0, -4, 0],
         'y_stack': [0, -2, 0, 0, -2, 0],
-    }), 'x', 'y', 'y_stack', 0),
+    }), dict(x='x', y='y', y_stack='y_stack', axis=0)),
 
     # axis0 multi
     (dict(data={
@@ -825,7 +863,8 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, x, y, ax):
         'y1': [0, -4, 0],
         'y2': [0, -2, 0],
         'y3': [0, -2, 0],
-    }, dtype='float32'), ['x0', 'x1'], ['y0', 'y1'], ['y2', 'y3'], 0),
+    }, dtype='float32'),
+     dict(x=['x0', 'x1'], y=['y0', 'y1'], y_stack=['y2', 'y3'], axis=0)),
 
     # axis0 multi, y string
     (dict(data={
@@ -833,16 +872,16 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, x, y, ax):
         'x1': [0, 2, 4],
         'y0': [0, -4, 0],
         'y2': [0, -2, 0],
-    }, dtype='float32'), ['x0', 'x1'], 'y0', 'y2', 0),
+    }, dtype='float32'), dict(x=['x0', 'x1'], y='y0', y_stack='y2', axis=0)),
 
     # axis1 ragged arrays
     (dict(data={
         'x': [[-4, -2, 0], [0, 2, 4]],
         'y': [[0, -4, 0], [0, -4, 0]],
         'y_stack': [[0, -2, 0], [0, -2, 0]]
-    }, dtype='Ragged[float32]'), 'x', 'y', 'y_stack', 1)
+    }, dtype='Ragged[float32]'), dict(x='x', y='y', y_stack='y_stack', axis=1))
 ])
-def test_area_to_line_autorange(DataFrame, df_kwargs, x, y, y_stack, ax):
+def test_area_to_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
@@ -856,7 +895,7 @@ def test_area_to_line_autorange(DataFrame, df_kwargs, x, y, y_stack, ax):
     cvs = ds.Canvas(plot_width=13, plot_height=7)
 
     ddf = DataFrame(**df_kwargs)
-    agg = cvs.area(ddf, x, y, ds.count(), axis=ax, y_stack=y_stack)
+    agg = cvs.area(ddf, agg=ds.count(), **cvs_kwargs)
 
     sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
                     [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
@@ -873,7 +912,7 @@ def test_area_to_line_autorange(DataFrame, df_kwargs, x, y, y_stack, ax):
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
-@pytest.mark.parametrize('df_kwargs,x,y,y_stack,ax', [
+@pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
         'x0': [-4, np.nan],
@@ -886,14 +925,15 @@ def test_area_to_line_autorange(DataFrame, df_kwargs, x, y, y_stack, ax):
         'y5': [0, 0],
         'y6': [0, 0]
     }, dtype='float32'),
-     ['x0', 'x1', 'x2'], ['y0', 'y1', 'y2'], ['y4', 'y5', 'y6'], 1),
+     dict(x=['x0', 'x1', 'x2'], y=['y0', 'y1', 'y2'],
+          y_stack=['y4', 'y5', 'y6'], axis=1)),
 
     # axis0 single
     (dict(data={
         'x': [-4, -2, 0, np.nan, 2, 4],
         'y': [0, -4, 0, np.nan, 4, 0],
         'y_stack': [0, 0, 0, 0, 0, 0],
-    }), 'x', 'y', 'y_stack', 0),
+    }), dict(x='x', y='y', y_stack='y_stack', axis=0)),
 
     # axis0 multi
     (dict(data={
@@ -903,16 +943,17 @@ def test_area_to_line_autorange(DataFrame, df_kwargs, x, y, y_stack, ax):
         'y1': [np.nan, 4, 0],
         'y2': [0, 0, 0],
         'y3': [0, 0, 0],
-    }, dtype='float32'), ['x0', 'x1'], ['y0', 'y1'], ['y2', 'y3'], 0),
+    }, dtype='float32'),
+     dict(x=['x0', 'x1'], y=['y0', 'y1'], y_stack=['y2', 'y3'], axis=0)),
 
     # axis1 ragged arrays
     (dict(data={
         'x': [[-4, -2, 0], [2, 4]],
         'y': [[0, -4, 0], [4, 0]],
         'y_stack': [[0, 0, 0], [0, 0]],
-    }, dtype='Ragged[float32]'), 'x', 'y', 'y_stack', 1)
+    }, dtype='Ragged[float32]'), dict(x='x', y='y', y_stack='y_stack', axis=1))
 ])
-def test_area_to_line_autorange_gap(DataFrame, df_kwargs, x, y, y_stack, ax):
+def test_area_to_line_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
@@ -929,7 +970,7 @@ def test_area_to_line_autorange_gap(DataFrame, df_kwargs, x, y, y_stack, ax):
 
     # When a line is specified to fill to, this line is not included in
     # the fill.  So we expect the y=0 line to not be filled.
-    agg = cvs.area(ddf, x, y, ds.count(), y_stack=y_stack, axis=ax)
+    agg = cvs.area(ddf, agg=ds.count(), **cvs_kwargs)
 
     sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],

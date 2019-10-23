@@ -22,6 +22,61 @@ def values(s):
         return s.values
 
 
+class _GeomLike(Glyph):
+    def __init__(self, geometry):
+        self.geometry = geometry
+
+    @property
+    def ndims(self):
+        return 1
+
+    @property
+    def inputs(self):
+        return (self.geometry,)
+
+    @property
+    def geom_dtype(self):
+        from datashader.geom import GeomDtype
+        return GeomDtype
+
+    def validate(self, in_dshape):
+        if not isinstance(in_dshape[str(self.geometry)], self.geom_dtype):
+            raise ValueError('{col} must be a {typ} array'.format(
+                col=self.geometry, typ=self.geom_dtype._type_name
+            ))
+
+    @property
+    def x_label(self):
+        return 'x'
+
+    @property
+    def y_label(self):
+        return 'y'
+
+    def required_columns(self):
+        return [self.geometry]
+
+    def compute_x_bounds(self, df):
+        bounds = df[self.geometry].array.bounds_x
+        return self.maybe_expand_bounds(bounds)
+
+    def compute_y_bounds(self, df):
+        bounds = df[self.geometry].array.bounds_y
+        return self.maybe_expand_bounds(bounds)
+
+    @memoize
+    def compute_bounds_dask(self, ddf):
+        r = ddf.map_partitions(lambda df: np.array(
+            [list(df[self.geometry].array.bounds)]
+        )).compute()
+
+        x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 2])
+        y_extents = np.nanmin(r[:, 1]), np.nanmax(r[:, 3])
+
+        return (self.maybe_expand_bounds(x_extents),
+                self.maybe_expand_bounds(y_extents))
+
+
 class _PointLike(Glyph):
     """Shared methods between Point and Line"""
     def __init__(self, x, y):
@@ -139,6 +194,67 @@ class Point(_PointLike):
 
             do_extend(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+            )
+
+        return extend
+
+
+class PointGeom(_GeomLike):
+    @property
+    def geom_dtype(self):
+        from datashader.geom import PointsDtype
+        return PointsDtype
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        geometry_name = self.geometry
+
+        @ngjit
+        @self.expand_aggs_and_cols(append)
+        def _perform_extend_points(
+                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax, flat_array, *aggs_and_cols
+        ):
+            x = flat_array[j]
+            y = flat_array[j + 1]
+            # points outside bounds are dropped; remainder
+            # are mapped onto pixels
+            if (xmin <= x <= xmax) and (ymin <= y <= ymax):
+                xx = int(x_mapper(x) * sx + tx)
+                yy = int(y_mapper(y) * sy + ty)
+                xi, yi = (xx - 1 if x == xmax else xx,
+                          yy - 1 if y == ymax else yy)
+
+                append(i, xi, yi, *aggs_and_cols)
+
+        @ngjit
+        @self.expand_aggs_and_cols(append)
+        def extend_cpu(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                flat_array, start_indices, *aggs_and_cols
+        ):
+            n = len(start_indices)
+            m = len(flat_array)
+            for i in range(n):
+                start = start_indices[i]
+                stop = start_indices[i + 1] if i < n - 1 else m
+                for j in range(start, stop, 2):
+                    _perform_extend_points(
+                        i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                        flat_array, *aggs_and_cols
+                    )
+
+        def extend(aggs, df, vt, bounds):
+            aggs_and_cols = aggs + info(df)
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+
+            geometry = df[geometry_name].array
+            flat_array = geometry.flat_array
+            start_indices = geometry.start_indices
+
+            extend_cpu(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                flat_array, start_indices, *aggs_and_cols
             )
 
         return extend
