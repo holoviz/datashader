@@ -1,6 +1,6 @@
 from __future__ import division, absolute_import
 
-from math import nan
+from numpy import nan
 
 from dask.context import config
 import dask.dataframe as dd

@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 import xarray as xr
-from math import inf, nan
+from numpy import nan
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_xr
 import dask.dataframe as dd
@@ -20,8 +20,8 @@ def test_multipolygon_manual_range(DataFrame):
     df = DataFrame({
         'polygons': pd.Series([
             [0, 0, 2, 0, 2, 2, 1, 3, 0, 0,
-             -inf, -inf, 1, 0.25, 1, 2, 1.75, .25, 0.25, 0.25,
-             inf, inf, 2.5, 1, 4, 1, 4, 2, 2.5, 2, 2.5, 1
+             -np.inf, -np.inf, 1, 0.25, 1, 2, 1.75, .25, 0.25, 0.25,
+             np.inf, np.inf, 2.5, 1, 4, 1, 4, 2, 2.5, 2, 2.5, 1
              ],
         ], dtype='Polygons[float64]'),
         'v': [1]
@@ -65,8 +65,8 @@ def test_multiple_polygons_auto_range(DataFrame):
     df = DataFrame({
         'polygons': pd.Series([
             [0, 0, 2, 0, 2, 2, 1, 3, 0, 0,
-             -inf, -inf, 1, 0.25, 1, 2, 1.75, .25, 0.25, 0.25,
-             inf, inf, 2.5, 1, 4, 1, 4, 2, 2.5, 2, 2.5, 1
+             -np.inf, -np.inf, 1, 0.25, 1, 2, 1.75, .25, 0.25, 0.25,
+             np.inf, np.inf, 2.5, 1, 4, 1, 4, 2, 2.5, 2, 2.5, 1
              ],
         ], dtype='Polygons[float64]'),
         'v': [1]
@@ -111,7 +111,7 @@ def test_no_overlap(DataFrame):
     df = DataFrame({
         'polygons': pd.Series([
             [1, 1, 2, 2, 1, 3, 0, 2, 1, 1,
-             -inf, -inf,
+             -np.inf, -np.inf,
              0.5, 1.5, 0.5, 2.5, 1.5, 2.5, 1.5, 1.5, 0.5, 1.5],
             [0.5, 1.5, 1.5, 1.5, 1.5, 2.5, 0.5, 2.5, 0.5, 1.5],
             [0, 1, 2, 1, 2, 3, 0, 3, 0, 1,
@@ -157,7 +157,7 @@ def test_no_overlap_agg(DataFrame):
     df = DataFrame({
         'polygons': pd.Series([
             [1, 1, 2, 2, 1, 3, 0, 2, 1, 1,
-             -inf, -inf,
+             -np.inf, -np.inf,
              0.5, 1.5, 0.5, 2.5, 1.5, 2.5, 1.5, 1.5, 0.5, 1.5],
             [0.5, 1.5, 1.5, 1.5, 1.5, 2.5, 0.5, 2.5, 0.5, 1.5],
             [0, 1, 2, 1, 2, 3, 0, 3, 0, 1,

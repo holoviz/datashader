@@ -1,4 +1,3 @@
-from math import inf
 import numpy as np
 from datashader.geom import (
     Points, PointsArray, Lines, LinesArray, Polygons, PolygonsArray
@@ -6,8 +5,8 @@ from datashader.geom import (
 
 unit_square_cw = np.array([1, 1,  1, 2,  2, 2,  2, 1,  1, 1], dtype='float64')
 large_square_ccw = np.array([0, 0, 3, 0, 3, 3, 0, 3, 0, 0], dtype='float64')
-hole_sep = np.array([-inf, -inf])
-fill_sep = np.array([inf, inf])
+hole_sep = np.array([-np.inf, -np.inf])
+fill_sep = np.array([np.inf, np.inf])
 
 
 def test_points():

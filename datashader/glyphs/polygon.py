@@ -1,5 +1,3 @@
-from math import inf, nan
-
 from toolz import memoize
 import numpy as np
 
@@ -53,17 +51,17 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
         """Draw a polygon using a winding-number scan-line algorithm
         """
         # Initialize values of pre-allocated buffers
-        xs.fill(nan)
-        ys.fill(nan)
+        xs.fill(np.nan)
+        ys.fill(np.nan)
         yincreasing.fill(0)
         eligible.fill(1)
 
         # First pass, compute bounding box in data coordinates and count number of edges
         num_edges = 0
-        poly_xmin = inf
-        poly_ymin = inf
-        poly_xmax = -inf
-        poly_ymax = -inf
+        poly_xmin = np.inf
+        poly_ymin = np.inf
+        poly_xmax = -np.inf
+        poly_ymax = -np.inf
         for j in range(start_index, stop_index - 2, 2):
             x = flat[j]
             y = flat[j + 1]
@@ -226,8 +224,8 @@ def _build_extend_polygon_geom(
         # number of edges
         max_edges = int(max(max_coordinates, len(flat) - start_i[-1]) // 2)
 
-        xs = np.full((max_edges, 2), nan, dtype=np.float32)
-        ys = np.full((max_edges, 2), nan, dtype=np.float32)
+        xs = np.full((max_edges, 2), np.nan, dtype=np.float32)
+        ys = np.full((max_edges, 2), np.nan, dtype=np.float32)
         yincreasing = np.zeros(max_edges, dtype=np.int8)
 
         # Initialize array indicating which edges are still eligible for processing
