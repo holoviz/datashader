@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from collections import OrderedDict
-from math import nan
+from numpy import nan
 
 import numpy as np
 import pandas as pd
