@@ -200,10 +200,6 @@ class Point(_PointLike):
 
 
 class PointGeom(_GeomLike):
-    @property
-    def geom_dtype(self):
-        from datashader.geom import PointsDtype
-        return PointsDtype
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
