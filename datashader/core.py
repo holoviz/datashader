@@ -610,7 +610,7 @@ The axis argument to Canvas.line must be 0 or 1
 
     def polygons(self, source, geometry, agg=None):
         """Compute a reduction by pixel, mapping data to pixels as one or
-        more polygons.
+        more filled polygons.
 
         Parameters
         ----------
