@@ -30,7 +30,8 @@ requirements:
     {% endfor %}
     # adding pyct here is temporary (this conda recipe template will disappear when new pyctdev is released)
     - pyct
-
+  run_constrained:
+    - cudf >=0.10.0
 test:
   imports:
     - datashader
