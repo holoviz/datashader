@@ -913,7 +913,7 @@ def _adjust_curv(viewpoint_row, viewpoint_col, row, col, h, do_curv, ellps_a,
 
 @jit(nb.void(nb.f8[:, :], nb.i8, nb.i8, nb.f8), nopython=True)
 def _set_visibility(visibility_grid, i, j, value):
-    visibility_grid[i][j] = value
+    visibility_grid[int(i)][int(j)] = value
     return
 
 
@@ -1061,10 +1061,14 @@ def _is_null(value):
            nb.i8, nb.i8, nb.i8[:, :]), nopython=True)
 def _calc_event_elev(event_type, event_row, event_col, n_rows, n_cols,
                      viewpoint_row, viewpoint_col, inrast):
+
     # Calculate ENTER and EXIT event elevation (bilinear interpolation)
+    event_col = int(event_col)
+    event_row = int(event_row)
 
     row1, col1 = _calculate_event_row_col(event_type, event_row, event_col,
                                           viewpoint_row, viewpoint_col)
+
 
     event_elev = inrast[1][event_col]
 
