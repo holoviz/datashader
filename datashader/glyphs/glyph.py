@@ -10,6 +10,19 @@ import pandas as pd
 from datashader.utils import Expr, ngjit
 from datashader.macros import expand_varargs
 
+try:
+    import cudf
+except ImportError:
+    cudf = None
+
+
+@ngjit
+def isnull(val):
+    """
+    Equivalent to isnan for floats, but also numba compatible with integers
+    """
+    return not (val <= 0 or val > 0)
+
 
 class Glyph(Expr):
     """Base class for glyphs."""
@@ -39,7 +52,10 @@ class Glyph(Expr):
 
     @staticmethod
     def _compute_bounds(s):
-        if isinstance(s, pd.Series):
+        if cudf and isinstance(s, cudf.Series):
+            s = s.nans_to_nulls()
+            return (s.min(), s.max())
+        elif isinstance(s, pd.Series):
             return Glyph._compute_bounds_numba(s.values)
         else:
             return Glyph._compute_bounds_numba(s)
@@ -73,6 +89,15 @@ class Glyph(Expr):
                         maxval = v
 
         return minval, maxval
+
+    @staticmethod
+    def to_gpu_matrix(df, columns):
+        if not isinstance(columns, (list, tuple)):
+            return df[columns].to_gpu_array()
+        else:
+            return cudf.concat([
+                df[name].rename(str(i)) for i, name in enumerate(columns)
+            ], axis=1).as_gpu_matrix()
 
     def expand_aggs_and_cols(self, append):
         """

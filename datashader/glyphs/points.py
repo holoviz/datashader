@@ -5,6 +5,22 @@ from toolz import memoize
 from datashader.glyphs.glyph import Glyph
 from datashader.utils import isreal, ngjit
 
+from numba import cuda
+
+try:
+    import cudf
+    from ..transfer_functions._cuda_utils import cuda_args
+except ImportError:
+    cudf = None
+    cuda_args = None
+
+
+def values(s):
+    if isinstance(s, cudf.Series):
+        return s.to_gpu_array(fillna=np.nan)
+    else:
+        return s.values
+
 
 class _PointLike(Glyph):
     """Shared methods between Point and Line"""
@@ -100,15 +116,28 @@ class Point(_PointLike):
             for i in range(xs.shape[0]):
                 _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols)
 
+        @cuda.jit
+        @self.expand_aggs_and_cols(append)
+        def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols):
+            i = cuda.grid(1)
+            if i < xs.shape[0]:
+                _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols)
+
         def extend(aggs, df, vt, bounds):
             aggs_and_cols = aggs + info(df)
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
 
-            xs = df[x_name].values
-            ys = df[y_name].values
+            if cudf and isinstance(df, cudf.DataFrame):
+                xs = df[x_name].to_gpu_array(fillna=np.nan)
+                ys = df[y_name].to_gpu_array(fillna=np.nan)
+                do_extend = extend_cuda[cuda_args(xs.shape[0])]
+            else:
+                xs = df[x_name].values
+                ys = df[y_name].values
+                do_extend = extend_cpu
 
-            extend_cpu(
+            do_extend(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
             )
 

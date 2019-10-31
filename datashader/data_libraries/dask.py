@@ -1,7 +1,6 @@
 from __future__ import absolute_import, division
 
 import dask
-import pandas as pd
 import dask.dataframe as dd
 from collections import OrderedDict
 from dask.base import tokenize, compute
@@ -16,8 +15,8 @@ __all__ = ()
 
 
 @bypixel.pipeline.register(dd.DataFrame)
-def dask_pipeline(df, schema, canvas, glyph, summary):
-    dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary)
+def dask_pipeline(df, schema, canvas, glyph, summary, cuda=False):
+    dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary, cuda=cuda)
 
     # Get user configured scheduler (if any), or fall back to default
     # scheduler for dask DataFrame
@@ -61,12 +60,12 @@ glyph_dispatch = Dispatcher()
 
 
 @glyph_dispatch.register(Glyph)
-def default(glyph, df, schema, canvas, summary):
+def default(glyph, df, schema, canvas, summary, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
     create, info, append, combine, finalize = \
-        compile_components(summary, schema, glyph)
+        compile_components(summary, schema, glyph, cuda=cuda)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
@@ -81,17 +80,22 @@ def default(glyph, df, schema, canvas, summary):
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k)) for (k2, k) in zip(keys2, keys))
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(coords=axis, dims=[glyph.y_label, glyph.x_label]))
+                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label]))
     return dsk, name
 
 
 @glyph_dispatch.register(LineAxis0)
-def line(glyph, df, schema, canvas, summary):
+def line(glyph, df, schema, canvas, summary, cuda=False):
+    if cuda:
+        from cudf import concat
+    else:
+        from pandas import concat
+
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
     create, info, append, combine, finalize = \
-        compile_components(summary, schema, glyph)
+        compile_components(summary, schema, glyph, cuda=cuda)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
@@ -99,7 +103,7 @@ def line(glyph, df, schema, canvas, summary):
     def chunk(df, df2=None):
         plot_start = True
         if df2 is not None:
-            df = pd.concat([df.iloc[-1:], df2])
+            df = concat([df.iloc[-1:], df2])
             plot_start = False
         aggs = create(shape)
         extend(aggs, df, st, bounds, plot_start=plot_start)
@@ -112,5 +116,5 @@ def line(glyph, df, schema, canvas, summary):
         dsk[(name, i)] = (chunk, (old_name, i - 1), (old_name, i))
     keys2 = [(name, i) for i in range(df.npartitions)]
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(coords=axis, dims=[glyph.y_label, glyph.x_label]))
+                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label]))
     return dsk, name

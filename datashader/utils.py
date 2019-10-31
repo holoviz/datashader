@@ -420,11 +420,16 @@ def dshape_from_pandas(df):
 def dshape_from_dask(df):
     """Return a datashape.DataShape object given a dask dataframe."""
     cat_columns = [
-        col for col in df.columns if (isinstance(df[col].dtype, type(pd.Categorical.dtype))
-        or isinstance(df[col].dtype, pd.api.types.CategoricalDtype)) and not df[col].cat.known]
+        col for col in df.columns
+        if (isinstance(df[col].dtype, type(pd.Categorical.dtype)) or
+            isinstance(df[col].dtype, pd.api.types.CategoricalDtype))
+           and not getattr(df['cat'].cat, 'known', True)]
     df = df.categorize(cat_columns, index=False)
-    return datashape.var * datashape.Record([(k, dshape_from_pandas_helper(df[k]))
-                                             for k in df.columns])
+    # get_partition(0) used below because categories are sometimes repeated
+    # for dask-cudf DataFrames with multiple partitions
+    return datashape.var * datashape.Record([
+        (k, dshape_from_pandas_helper(df[k].get_partition(0))) for k in df.columns
+    ])
 
 
 def dshape_from_xarray_dataset(xr_ds):

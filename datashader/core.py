@@ -19,6 +19,15 @@ from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
 
+try:
+    import cudf
+except ImportError:
+    cudf = None
+
+try:
+    import dask_cudf
+except ImportError:
+    dask_cudf = None
 
 class Axis(object):
     """Interface for implementing axis transformations.
@@ -107,7 +116,7 @@ class LogAxis(Axis):
     @staticmethod
     @ngjit
     def mapper(val):
-        return log10(val)
+        return log10(float(val))
 
     @staticmethod
     @ngjit
@@ -993,7 +1002,8 @@ def bypixel(source, canvas, glyph, agg):
         source = source.drop([col for col in columns if col not in cols_to_keep])
         source = source.to_dask_dataframe()
 
-    if isinstance(source, pd.DataFrame):
+    if (isinstance(source, pd.DataFrame) or
+            (cudf and isinstance(source, cudf.DataFrame))):
         # Avoid datashape.Categorical instantiation bottleneck
         # by only retaining the necessary columns:
         # https://github.com/bokeh/datashader/issues/396

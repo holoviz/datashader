@@ -13,7 +13,8 @@ version = release  = __version__
 html_static_path += ['_static']
 html_theme = 'sphinx_pyviz_theme'
 html_theme_options = {
-    'logo': 'datashader-logo.png',
+    'logo': 'logo_horizontal.png',
+    'include_logo_text': False,
     'favicon': 'favicon.ico',
     'primary_color': '#774c9a',
     'primary_color_dark': '#460f72',

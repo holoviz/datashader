@@ -27,8 +27,15 @@ def build_agg(array_module=np):
     agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c))
     return agg
 
-aggs = [build_agg(np)]
-arrays = [np.array]
+
+try:
+    import cupy
+    aggs = [build_agg(np), build_agg(cupy)]
+    arrays = [np.array, cupy.array]
+except ImportError:
+    cupy = None
+    aggs = [build_agg(np)]
+    arrays = [np.array]
 
 int_span = [11, 17]
 float_span = [11.0, 17.0]
