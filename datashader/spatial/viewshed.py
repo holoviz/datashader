@@ -8,6 +8,59 @@ from math import pi as PI
 import numba as nb
 from numba import jit
 
+E_ROW_ID = 0
+E_COL_ID = 1
+E_ELVEV_0 = 2
+E_ELVEV_1 = 3
+E_ELVEV_2 = 4
+E_ANG_ID = 5
+E_TYPE_ID = 6
+
+S_DIST2VP = 0
+S_ROW_ID = 1
+S_COL_ID = 2
+S_GRAD_0 = 3
+S_GRAD_1 = 4
+S_GRAD_2 = 5
+S_ANG_0 = 6
+S_ANG_1 = 7
+S_ANG_2 = 8
+
+TN_KEY_ID = 0
+TN_GRAD_0 = 1
+TN_GRAD_1 = 2
+TN_GRAD_2 = 3
+TN_ANG_0 = 4
+TN_ANG_1 = 5
+TN_ANG_2 = 6
+TN_MAX_GRAD_ID = 7
+TN_COLOR_ID = 8
+TN_LEFT_ID = 9
+TN_RIGHT_ID = 10
+TN_PARENT_ID = 11
+
+NIL_ID = -1
+
+VP_ROW_ID = 0
+VP_COL_ID = 1
+VP_ELEV_ID = 2
+VP_TARGET_ID = 3
+
+VO_OBS_ELEV_ID = 0
+VO_TARGET_ID = 1
+VO_MAX_DIST_ID = 2
+VO_CURVE_ID = 3
+VO_REFR_ID = 4
+VO_ELLPS_A_ID = 5
+VO_REFR_COEF_ID = 6
+
+GH_PROJ_ID = 0
+GH_EW_RES_ID = 1
+GH_NS_RES_ID = 2
+GH_NORTH_ID = 3
+GH_SOUTH_ID = 4
+GH_EAST_ID = 5
+GH_WEST_ID = 6
 
 # view options default values
 OBS_ELEV = 0
@@ -39,687 +92,649 @@ SMALLEST_GRAD = float('-inf')
 PROJ_LL = 0
 PROJ_NONE = -1
 
-
-# Future refactor?:
-# This value is a placeholder for np.nan in integer arrays
 NAN = -9999999999999999
 
 
-class TreeValue:
-
-    # Implementation of value in a tree node.
-    # A tree value represents for an entry (or cell or pixel) in the raster.
-    # There are 3 events occur in each entry:
-    #     ENTERING_EVENT, CENTER_EVENT, EXITING_EVENT
-    #
-    # Attributes:
-    #     key: float, distance from the cell corresponding to the tree node to
-    #             the vp
-    #     gradient: 1d array of 3 elements, gradients wrt vp of ENTERING,
-    #                 CENTER and EXITING events in the corresponding cell.
-    #     ang: 1d array of 3 elements, angs wrt vp of ENTERING, CENTER
-    #                 and EXITING events in the corresponding cell.
-    #     max_grad: float, max_grad within the distance from
-    #                     the corresponding cell to vp.
-
-    __slots__ = ('key', 'grad', 'ang', 'max_grad')
-
-    def __init__(self, key, gradient=[], ang=[],
-                 max_grad=SMALLEST_GRAD):
-        self.key = key
-
-        if not len(gradient):
-            gradient = np.empty(shape=(3,))
-            gradient.fill(NAN)
-            self.grad = gradient
-        else:
-            self.grad = np.array(gradient)
-
-        if not len(ang):
-            ang = np.empty(shape=(3,))
-            ang.fill(NAN)
-            self.ang = ang
-        else:
-            self.ang = np.array(ang)
-
-        self.max_grad = max_grad
-
-    # find the min value in the given tree value
-    def find_value_min_value(self):
-        if self.grad[0] < self.grad[1]:
-            if self.grad[0] < self.grad[2]:
-                return self.grad[0]
-            else:
-                return self.grad[2]
-        else:
-            if self.grad[1] < self.grad[2]:
-                return self.grad[1]
-            else:
-                return self.grad[2]
-
-        return self.grad[0]
-
-    def _print_tv(self):
-        print('key=', self.key, 'grad=', self.grad, 'ang=', self.ang,
-              'max_grad=', self.max_grad)
+@jit(nb.i8(nb.f8, nb.f8), nopython=True)
+def _compare(a, b):
+    if a < b:
+        return -1
+    if a > b:
+        return 1
+    return 0
 
 
-class TreeNode:
-
-    # Implementation of tree node.
-    # Attributes:
-    #     value: TreeValue, value of the node.
-    #     color: int, RB_RED or RB_BLACK
-    #     left: TreeNode, the left node of the this tree node
-    #     right: TreeNode, the right node of the this tree node
-    #     parent: TreeNode, the parent node of the this tree node
-
-    __slots__ = ('val', 'color', 'left', 'right', 'parent')
-
-    def __init__(self, tree_val, color, left=None, right=None, parent=None):
-        self.val = tree_val
-        self.color = color
-        self.left = left
-        self.right = right
-        self.parent = parent
-
-    # for debug purpose, traverse through the tree
-    def __iter__(self):
-
-        if self.left != NIL:
-            for l in self.left.__iter__():
-                yield l
-
-        yield self.val
-
-        if self.right != NIL:
-            for r in self.right.__iter__():
-                yield r
+@jit(nb.f8(nb.f8[:, :], nb.i8), nopython=True)
+def _find_value_min_value(tree, node_id):
+    return min(tree[node_id][TN_GRAD_0],
+               tree[node_id][TN_GRAD_1],
+               tree[node_id][TN_GRAD_2])
 
 
-NIL_VALUE = TreeValue(key=0,
-                      gradient=[SMALLEST_GRAD, SMALLEST_GRAD, SMALLEST_GRAD],
-                      ang=[0, 0, 0], max_grad=SMALLEST_GRAD)
-
-NIL = TreeNode(tree_val=NIL_VALUE, color=RB_BLACK)
+def _print_tree(status_struct):
+    for i in range(len(status_struct)):
+        print(i, status_struct[i][0])
 
 
-# function used by treeSuccessor
-def _tree_minimum(x):
-    while x.left != NIL:
-        x = x.left
+def _print_tv(tv):
+    print('key=', tv[TN_KEY_ID],
+          'grad=', tv[TN_GRAD_0], tv[TN_GRAD_1], tv[TN_GRAD_2],
+          'ang=', tv[TN_ANG_0], tv[TN_ANG_1], tv[TN_ANG_2],
+          'max_grad=', tv[TN_MAX_GRAD_ID])
+    return
+
+
+@jit(nb.void(nb.f8[:, :], nb.i8, nb.f8[:], nb.i8), nopython=True)
+def _create_tree_node(tree, x, val, color=RB_RED):
+    # Create a TreeNode using given TreeValue
+
+    # every node has null nodes as children initially, create one such object
+    # for easy management
+
+    tree[x][TN_KEY_ID] = val[S_DIST2VP]
+    tree[x][TN_GRAD_0] = val[S_GRAD_0]
+    tree[x][TN_GRAD_1] = val[S_GRAD_1]
+    tree[x][TN_GRAD_2] = val[S_GRAD_2]
+    tree[x][TN_ANG_0] = val[S_ANG_0]
+    tree[x][TN_ANG_1] = val[S_ANG_1]
+    tree[x][TN_ANG_2] = val[S_ANG_2]
+    tree[x][TN_MAX_GRAD_ID] = SMALLEST_GRAD
+    tree[x][TN_COLOR_ID] = color
+    tree[x][TN_LEFT_ID] = NIL_ID
+    tree[x][TN_RIGHT_ID] = NIL_ID
+    tree[x][TN_PARENT_ID] = NIL_ID
+    return
+
+
+@jit(nb.i8(nb.f8[:, :], nb.i8), nopython=True)
+def _tree_minimum(tree, x):
+    while int(tree[x][TN_LEFT_ID]) != NIL_ID:
+        x = int(tree[x][TN_LEFT_ID])
     return x
 
 
 # function used by deletion
-def _tree_successor(x):
+@jit(nb.i8(nb.f8[:, :], nb.i8), nopython=True)
+def _tree_successor(tree, x):
     # Find the highest successor of a node in the tree
 
-    if x.right != NIL:
-        return _tree_minimum(x.right)
+    if tree[x][TN_RIGHT_ID] != NIL_ID:
+        return _tree_minimum(tree, int(tree[x][TN_RIGHT_ID]))
 
-    y = x.parent
-    while y != NIL and x == y.right:
+    y = int(tree[x][TN_PARENT_ID])
+    while y != NIL_ID and x == int(tree[y][TN_RIGHT_ID]):
         x = y
-        if y.parent == NIL:
+        if tree[y][TN_PARENT_ID] == NIL_ID:
             return y
-        y = y.parent
+        y = int(tree[y][TN_PARENT_ID])
     return y
 
 
-def _find_max_value(node):
+@jit(nb.f8(nb.f8[:]), nopython=True)
+def _find_max_value(node_value):
     # Find the max value in the given tree.
-    if node is None:
+    return node_value[TN_MAX_GRAD_ID]
+
+
+@jit(nb.i8(nb.f8[:, :], nb.i8, nb.i8), nopython=True)
+def _left_rotate(tree, root, x):
+    # A utility function to left rotate subtree rooted with a node.
+
+    y = int(tree[x][TN_RIGHT_ID])
+
+    # fix x
+    x_left = int(tree[x][TN_LEFT_ID])
+    y_left = int(tree[y][TN_LEFT_ID])
+    if tree[x_left][TN_MAX_GRAD_ID] > tree[y_left][TN_MAX_GRAD_ID]:
+        tmp_max = tree[x_left][TN_MAX_GRAD_ID]
+    else:
+        tmp_max = tree[y_left][TN_MAX_GRAD_ID]
+
+    min_value = _find_value_min_value(tree, x)
+    if tmp_max > min_value:
+        tree[x][TN_MAX_GRAD_ID] = tmp_max
+    else:
+        tree[x][TN_MAX_GRAD_ID] = min_value
+
+    # fix y
+    y_right = int(tree[y][TN_RIGHT_ID])
+    if tree[x][TN_MAX_GRAD_ID] > tree[y_right][TN_MAX_GRAD_ID]:
+        tmp_max = tree[x][TN_MAX_GRAD_ID]
+    else:
+        tmp_max = tree[y_right][TN_MAX_GRAD_ID]
+
+    min_value = _find_value_min_value(tree, y)
+    if tmp_max > min_value:
+        tree[y][TN_MAX_GRAD_ID] = tmp_max
+    else:
+        tree[y][TN_MAX_GRAD_ID] = min_value
+
+    # left rotation
+    # see pseudo code on page 278 CLRS
+
+    # turn y's left subtree into x's right subtree
+    tree[x][TN_RIGHT_ID] = tree[y][TN_LEFT_ID]
+    y_left = int(tree[y][TN_LEFT_ID])
+    tree[y_left][TN_PARENT_ID] = x
+    # link x's parent to y
+    tree[y][TN_PARENT_ID] = int(tree[x][TN_PARENT_ID])
+
+    if tree[x][TN_PARENT_ID] == NIL_ID:
+        root = y
+    else:
+        x_parent = int(tree[x][TN_PARENT_ID])
+        if x == int(tree[x_parent][TN_LEFT_ID]):
+            tree[x_parent][TN_LEFT_ID] = y
+        else:
+            tree[x_parent][TN_RIGHT_ID] = y
+
+    tree[y][TN_LEFT_ID] = x
+    tree[x][TN_PARENT_ID] = y
+    return root
+
+
+@jit(nb.i8(nb.f8[:, :], nb.i8, nb.i8), nopython=True)
+def _right_rotate(tree, root, y):
+    # A utility function to right rotate subtree rooted with a node.
+
+    x = int(tree[y][TN_LEFT_ID])
+
+    # fix y
+    x_right = int(tree[x][TN_RIGHT_ID])
+    y_right = int(tree[y][TN_RIGHT_ID])
+    if tree[x_right][TN_MAX_GRAD_ID] > tree[y_right][TN_MAX_GRAD_ID]:
+        tmp_max = tree[x_right][TN_MAX_GRAD_ID]
+    else:
+        tmp_max = tree[y_right][TN_MAX_GRAD_ID]
+
+    min_value = _find_value_min_value(tree, y)
+    if tmp_max > min_value:
+        tree[y][TN_MAX_GRAD_ID] = tmp_max
+    else:
+        tree[y][TN_MAX_GRAD_ID] = min_value
+
+    # fix x
+    x_left = int(tree[x][TN_LEFT_ID])
+    if tree[x_left][TN_MAX_GRAD_ID] > tree[y][TN_MAX_GRAD_ID]:
+        tmp_max = tree[x_left][TN_MAX_GRAD_ID]
+    else:
+        tmp_max = tree[y][TN_MAX_GRAD_ID]
+
+    min_value = _find_value_min_value(tree, x)
+    if tmp_max > min_value:
+        tree[x][TN_MAX_GRAD_ID] = tmp_max
+    else:
+        tree[x][TN_MAX_GRAD_ID] = min_value
+
+    # rotation
+    tree[y][TN_LEFT_ID] = tree[x][TN_RIGHT_ID]
+    x_right = int(tree[x][TN_RIGHT_ID])
+    tree[x_right][TN_PARENT_ID] = y
+
+    tree[x][TN_PARENT_ID] = tree[y][TN_PARENT_ID]
+
+    if tree[y][TN_PARENT_ID] == NIL_ID:
+        root = x
+    else:
+        y_parent = int(tree[y][TN_PARENT_ID])
+        if tree[y_parent][TN_LEFT_ID] == y:
+            tree[y_parent][TN_LEFT_ID] = x
+        else:
+            tree[y_parent][TN_RIGHT_ID] = x
+
+    tree[x][TN_RIGHT_ID] = y
+    tree[y][TN_PARENT_ID] = x
+    return root
+
+
+@jit(nb.i8(nb.f8[:, :], nb.i8, nb.i8), nopython=True)
+def _rb_insert_fixup(tree, root, z):
+    # Fix red-black tree after insertion. This may change the root pointer.
+
+    # see pseudocode on page 281 in CLRS
+    z_parent = int(tree[z][TN_PARENT_ID])
+    while tree[z_parent][TN_COLOR_ID] == RB_RED:
+        z_parent_parent = int(tree[z_parent][TN_PARENT_ID])
+        if tree[z][TN_PARENT_ID] == tree[z_parent_parent][TN_LEFT_ID]:
+            y = int(tree[z_parent_parent][TN_RIGHT_ID])
+            if tree[y][TN_COLOR_ID] == RB_RED:
+                # case 1
+                tree[z_parent][TN_COLOR_ID] = RB_BLACK
+                tree[y][TN_COLOR_ID] = RB_BLACK
+                tree[z_parent_parent][TN_COLOR_ID] = RB_RED
+                # re assignment for z
+                z = z_parent_parent
+            else:
+                if z == int(tree[z_parent][TN_RIGHT_ID]):
+                    # case 2
+                    z = z_parent
+                    # convert case 2 to case 3
+                    root = _left_rotate(tree, root, z)
+                # case 3
+                z_parent = int(tree[z][TN_PARENT_ID])
+                z_parent_parent = int(tree[z_parent][TN_PARENT_ID])
+                tree[z_parent][TN_COLOR_ID] = RB_BLACK
+                tree[z_parent_parent][TN_COLOR_ID] = RB_RED
+                root = _right_rotate(tree, root, z_parent_parent)
+
+        else:
+            # (z->parent == z->parent->parent->right)
+            y = int(tree[z_parent_parent][TN_LEFT_ID])
+            if tree[y][TN_COLOR_ID] == RB_RED:
+                # case 1
+                tree[z_parent][TN_COLOR_ID] = RB_BLACK
+                tree[y][TN_COLOR_ID] = RB_BLACK
+                tree[z_parent_parent][TN_COLOR_ID] = RB_RED
+                z = z_parent_parent
+            else:
+                if z == int(tree[z_parent][TN_LEFT_ID]):
+                    # case 2
+                    z = z_parent
+                    # convert case 2 to case 3
+                    root = _right_rotate(tree, root, z)
+                # case 3
+                z_parent = int(tree[z][TN_PARENT_ID])
+                z_parent_parent = int(tree[z_parent][TN_PARENT_ID])
+                tree[z_parent][TN_COLOR_ID] = RB_BLACK
+                tree[z_parent_parent][TN_COLOR_ID] = RB_RED
+                root = _left_rotate(tree, root, z_parent_parent)
+
+        z_parent = int(tree[z][TN_PARENT_ID])
+
+    tree[root][TN_COLOR_ID] = RB_BLACK
+    return root
+
+
+@jit(nb.i8(nb.f8[:, :], nb.i8, nb.i8, nb.f8[:]), nopython=True)
+def _insert_into_tree(tree, root, node_id, value):
+    # Create node and insert it into the tree
+    cur_node = root
+
+    if _compare(value[TN_KEY_ID], tree[cur_node][TN_KEY_ID]) == -1:
+        next_node = int(tree[cur_node][TN_LEFT_ID])
+    else:
+        next_node = int(tree[cur_node][TN_RIGHT_ID])
+
+    while next_node != NIL_ID:
+        cur_node = next_node
+        if _compare(value[TN_KEY_ID], tree[cur_node][TN_KEY_ID]) == -1:
+            next_node = int(tree[cur_node][TN_LEFT_ID])
+        else:
+            next_node = int(tree[cur_node][TN_RIGHT_ID])
+
+    # create a new node
+    #   //and place it at the right place
+    #   //created node is RED by default */
+    _create_tree_node(tree, node_id, value, color=RB_RED)
+    next_node = node_id
+
+    tree[next_node][TN_PARENT_ID] = cur_node
+
+    if _compare(value[TN_KEY_ID], tree[cur_node][TN_KEY_ID]) == -1:
+        tree[cur_node][TN_LEFT_ID] = next_node
+    else:
+        tree[cur_node][TN_RIGHT_ID] = next_node
+
+    inserted = next_node
+
+    # update augmented maxGradient
+    tree[next_node][TN_MAX_GRAD_ID] = _find_value_min_value(tree, next_node)
+    while tree[next_node][TN_PARENT_ID] != NIL_ID:
+        next_parent = int(tree[next_node][TN_PARENT_ID])
+        if tree[next_parent][TN_MAX_GRAD_ID] < tree[next_node][TN_MAX_GRAD_ID]:
+            tree[next_parent][TN_MAX_GRAD_ID] = tree[next_node][TN_MAX_GRAD_ID]
+
+        if tree[next_parent][TN_MAX_GRAD_ID] > tree[next_node][TN_MAX_GRAD_ID]:
+            break
+
+        next_node = next_parent
+
+    # fix rb tree after insertion
+    root = _rb_insert_fixup(tree, root, inserted)
+    return root
+
+
+@jit(nb.i8(nb.f8[:, :], nb.i8, nb.f8), nopython=True)
+def _search_for_node(tree, root, key):
+    # Search for a node with a given key.
+    cur_node = root
+    while cur_node != NIL_ID and \
+            _compare(key, tree[cur_node][TN_KEY_ID]) != 0:
+
+        if _compare(key, tree[cur_node][TN_KEY_ID]) == -1:
+            cur_node = int(tree[cur_node][TN_LEFT_ID])
+        else:
+            cur_node = int(tree[cur_node][TN_RIGHT_ID])
+
+    return cur_node
+
+
+# The following is designed for viewshed's algorithm
+@jit(nb.f8(nb.f8[:, :], nb.i8, nb.f8, nb.f8, nb.f8), nopython=True)
+def _find_max_value_within_key(tree, root, max_key, ang, gradient):
+    key_node = _search_for_node(tree, root, max_key)
+    if key_node == NIL_ID:
+        # there is no point in the structure with key < maxKey */
         return SMALLEST_GRAD
 
-    return node.val.max_grad
+    cur_node = key_node
+    max = SMALLEST_GRAD
+    while tree[cur_node][TN_PARENT_ID] != NIL_ID:
+        cur_parent = int(tree[cur_node][TN_PARENT_ID])
+        if cur_node == int(tree[cur_parent][TN_RIGHT_ID]):
+            # its the right node of its parent
+            cur_parent_left = int(tree[cur_parent][TN_LEFT_ID])
+            tmp_max = _find_max_value(tree[cur_parent_left])
+            if tmp_max > max:
+                max = tmp_max
 
+            min_value = _find_value_min_value(tree, cur_parent)
+            if min_value > max:
+                max = min_value
 
-class Tree:
-    # Implementation of red black tree.
-    # Attribute:
-    #     root: TreeNode, root of the tree.
+        cur_node = cur_parent
 
-    __slots__ = ('root')
-
-    def __init__(self, root=None):
-        self.root = root
-
-    # for debug purpose, traverse through the tree
-    def __iter__(self):
-
-        if not self.root:
-            yield list()
-
-        else:
-            for r in self.root.__iter__():
-                yield r
-
-    def _left_rotate(self, x):
-        # A utility function to left rotate subtree rooted with a node.
-
-        y = x.right
-
-        # fix x
-        if x.left.val.max_grad > y.left.val.max_grad:
-            tmp_max = x.left.val.max_grad
-        else:
-            tmp_max = y.left.val.max_grad
-
-        if tmp_max > x.val.find_value_min_value():
-            x.val.max_grad = tmp_max
-        else:
-            x.val.max_grad = x.val.find_value_min_value()
-
-        # fix y
-        if x.val.max_grad > y.right.val.max_grad:
-            tmp_max = x.val.max_grad
-        else:
-            tmp_max = y.right.val.max_grad
-
-        if tmp_max > y.val.find_value_min_value():
-            y.val.max_grad = tmp_max
-        else:
-            y.val.max_grad = y.val.find_value_min_value()
-
-        # left rotation
-        # see pseudo code on page 278 CLRS
-
-        # turn y's left subtree into x's right subtree
-        x.right = y.left
-        y.left.parent = x
-        # link x's parent to y
-        y.parent = x.parent
-
-        if x.parent == NIL:
-            self.root = y
-        else:
-            if x == x.parent.left:
-                x.parent.left = y
-            else:
-                x.parent.right = y
-
-        y.left = x
-        x.parent = y
-        return
-
-    def _right_rotate(self, y):
-        # A utility function to right rotate subtree rooted with a node.
-
-        x = y.left
-
-        # fix y
-        if x.right.val.max_grad > y.right.val.max_grad:
-            tmp_max = x.right.val.max_grad
-        else:
-            tmp_max = y.right.val.max_grad
-
-        if tmp_max > y.val.find_value_min_value():
-            y.val.max_grad = tmp_max
-        else:
-            y.val.max_grad = y.val.find_value_min_value()
-
-        # fix x
-        if x.left.val.max_grad > y.val.max_grad:
-            tmp_max = x.left.val.max_grad
-        else:
-            tmp_max = y.val.max_grad
-
-        if tmp_max > x.val.find_value_min_value():
-            x.val.max_grad = tmp_max
-        else:
-            x.val.max_grad = x.val.find_value_min_value()
-
-        # rotation
-        y.left = x.right
-        x.right.parent = y
-
-        x.parent = y.parent
-
-        if y.parent == NIL:
-            self.root = x
-        else:
-            if y.parent.left == y:
-                y.parent.left = x
-            else:
-                y.parent.right = x
-
-        x.right = y
-        y.parent = x
-        return
-
-    def _rb_insert_fixup(self, z):
-        # Fix red-black tree after insertion. This may change the root pointer.
-
-        # see pseudocode on page 281 in CLRS
-        while z.parent.color == RB_RED:
-            if z.parent == z.parent.parent.left:
-                y = z.parent.parent.right
-                if y.color == RB_RED:
-                    # case 1
-                    z.parent.color = RB_BLACK
-                    y.color = RB_BLACK
-                    z.parent.parent.color = RB_RED
-                    z = z.parent.parent
-                else:
-                    if z == z.parent.right:
-                        # case 2
-                        z = z.parent
-                        # convert case 2 to case 3
-                        self._left_rotate(z)
-                    # case 3
-                    z.parent.color = RB_BLACK
-                    z.parent.parent.color = RB_RED
-                    self._right_rotate(z.parent.parent)
-
-            else:
-                # (z->parent == z->parent->parent->right)
-                y = z.parent.parent.left
-                if y.color == RB_RED:
-                    # case 1
-                    z.parent.color = RB_BLACK
-                    y.color = RB_BLACK
-                    z.parent.parent.color = RB_RED
-                    z = z.parent.parent
-                else:
-                    if z == z.parent.left:
-                        # case 2
-                        z = z.parent
-                        # convert case 2 to case 3
-                        self._right_rotate(z)
-                    # case 3
-                    z.parent.color = RB_BLACK
-                    z.parent.parent.color = RB_RED
-                    self._left_rotate(z.parent.parent)
-
-        self.root.color = RB_BLACK
-        return
-
-    def insert_into_tree(self, value):
-        # Create node and insert it into the tree
-
-        cur_node = self.root
-
-        if _compare(value.key, cur_node.val.key) == -1:
-            next_node = cur_node.left
-        else:
-            next_node = cur_node.right
-
-        while next_node != NIL:
-            cur_node = next_node
-            if _compare(value.key, cur_node.val.key) == -1:
-                next_node = cur_node.left
-            else:
-                next_node = cur_node.right
-
-        # create a new node
-        #   //and place it at the right place
-        #   //created node is RED by default */
-        next_node = _create_tree_node(value)
-
-        next_node.parent = cur_node
-
-        if _compare(value.key, cur_node.val.key) == -1:
-            cur_node.left = next_node
-        else:
-            cur_node.right = next_node
-
-        inserted = next_node
-
-        # update augmented maxGradient
-        next_node.val.max_grad = next_node.val.find_value_min_value()
-        while next_node.parent != NIL:
-            if next_node.parent.val.max_grad < next_node.val.max_grad:
-                next_node.parent.val.max_grad = next_node.val.max_grad
-
-            if next_node.parent.val.max_grad > next_node.val.max_grad:
-                break
-
-            next_node = next_node.parent
-
-        # fix rb tree after insertion
-        self._rb_insert_fixup(inserted)
-        return
-
-    def _search_for_node(self, key):
-        # Search for a node with a given key.
-
-        cur_node = self.root
-        while cur_node != NIL and \
-                _compare(key, cur_node.val.key) != 0:
-            if _compare(key, cur_node.val.key) == -1:
-                cur_node = cur_node.left
-            else:
-                cur_node = cur_node.right
-
-        return cur_node
-
-    # The following is designed for viewshed's algorithm
-    def find_max_value_within_key(self, max_key, ang, gradient):
-        key_node = self._search_for_node(max_key)
-        if key_node == NIL:
-            # there is no point in the structure with key < maxKey */
-            return SMALLEST_GRAD
-
-        cur_node = key_node
-        max = SMALLEST_GRAD
-        while cur_node.parent != NIL:
-            if cur_node == cur_node.parent.right:
-                # its the right node of its parent
-                tmp_max = _find_max_value(cur_node.parent.left)
-                if tmp_max > max:
-                    max = tmp_max
-                if cur_node.parent.val.find_value_min_value() > max:
-                    max = cur_node.parent.val.find_value_min_value()
-            cur_node = cur_node.parent
-
-        if max > gradient:
-            return max
-
-        # traverse all nodes with smaller distance
-        max = SMALLEST_GRAD
-        cur_node = key_node
-        while cur_node != NIL:
-            check_me = False
-            if cur_node.val.ang[0] <= ang \
-                    <= cur_node.val.ang[2]:
-                check_me = True
-            if (not check_me) and cur_node.val.key > 0:
-                print('Angles outside angle')
-
-            if cur_node.val.key > max_key:
-                raise ValueError("current dist too large ")
-
-            if check_me and cur_node != key_node:
-
-                if ang < cur_node.val.ang[1]:
-                    cur_grad = cur_node.val.grad[1] \
-                        + (cur_node.val.grad[0] - cur_node.val.grad[1])\
-                        * (cur_node.val.ang[1] - ang) \
-                        / (cur_node.val.ang[1] - cur_node.val.ang[0])
-
-                elif ang > cur_node.val.ang[1]:
-                    cur_grad = cur_node.val.grad[1] \
-                        + (cur_node.val.grad[2] - cur_node.val.grad[1])\
-                        * (ang - cur_node.val.ang[1]) \
-                        / (cur_node.val.ang[2] - cur_node.val.ang[1])
-                else:
-                    cur_grad = cur_node.val.grad[1]
-
-                if cur_grad > max:
-                    max = cur_grad
-
-                if max > gradient:
-                    return max
-
-            # get next smaller key
-            if cur_node.left != NIL:
-                cur_node = cur_node.left
-                while cur_node.right != NIL:
-                    cur_node = cur_node.right
-            else:
-                # at smallest item in this branch, go back up
-                last_node = cur_node
-                cur_node = cur_node.parent
-                while cur_node != NIL and last_node == cur_node.left:
-                    last_node = cur_node
-                    cur_node = cur_node.parent
-
+    if max > gradient:
         return max
 
-    def _rb_delete_fixup(self, x):
-        # Fix the red-black tree after deletion.
-        # This may change the root pointer.
+    # traverse all nodes with smaller distance
+    max = SMALLEST_GRAD
+    cur_node = key_node
+    while cur_node != NIL_ID:
+        check_me = False
+        if tree[cur_node][TN_ANG_0] <= ang <= tree[cur_node][TN_ANG_2]:
+            check_me = True
+        if (not check_me) and tree[cur_node][TN_KEY_ID] > 0:
+            print('Angles outside angle')
 
-        while x != self.root and x.color == RB_BLACK:
-            if x == x.parent.left:
-                w = x.parent.right
-                if w.color == RB_RED:
-                    w.color = RB_BLACK
-                    x.parent.color = RB_RED
-                    self._left_rotate(x.parent)
-                    w = x.parent.right
+        if tree[cur_node][TN_KEY_ID] > max_key:
+            raise ValueError("current dist too large ")
 
-                if w == NIL:
-                    x = x.parent
-                    continue
+        if check_me and cur_node != key_node:
 
-                if w.left.color == RB_BLACK and w.right.color == RB_BLACK:
-                    w.color = RB_RED
-                    x = x.parent
-                else:
-                    if w.right.color == RB_BLACK:
-                        w.left.color = RB_BLACK
-                        w.color = RB_RED
-                        self._right_rotate(w)
-                        w = x.parent.right
-                    w.color = x.parent.color
-                    x.parent.color = RB_BLACK
-                    w.right.color = RB_BLACK
-                    self._left_rotate(x.parent)
-                    x = self.root
+            if ang < tree[cur_node][TN_ANG_1]:
+                cur_grad = tree[cur_node][TN_GRAD_1] \
+                           + (tree[cur_node][TN_GRAD_0] - tree[cur_node][
+                            TN_GRAD_1]) \
+                           * (tree[cur_node][TN_ANG_1] - ang) \
+                           / (tree[cur_node][TN_ANG_1] - tree[cur_node][
+                            TN_ANG_0])
+
+            elif ang > tree[cur_node][TN_ANG_1]:
+                cur_grad = tree[cur_node][TN_GRAD_1] \
+                           + (tree[cur_node][TN_GRAD_2] - tree[cur_node][
+                            TN_GRAD_1]) \
+                           * (ang - tree[cur_node][TN_ANG_1]) \
+                           / (tree[cur_node][TN_ANG_2] - tree[cur_node][
+                            TN_ANG_1])
             else:
-                # x == x.parent.right
-                w = x.parent.left
-                if w.color == RB_RED:
-                    w.color = RB_BLACK
-                    x.parent.color = RB_RED
-                    self._right_rotate(x.parent)
-                    w = x.parent.left
+                cur_grad = tree[cur_node][TN_GRAD_1]
 
-                if w == NIL:
-                    x = x.parent
-                    continue
+            if cur_grad > max:
+                max = cur_grad
 
-                if w.right.color == RB_BLACK and w.left.color == RB_BLACK:
-                    w.color = RB_RED
-                    x = x.parent
-                else:
-                    if w.left.color == RB_BLACK:
-                        w.right.color = RB_BLACK
-                        w.color = RB_RED
-                        self._left_rotate(w)
-                        w = x.parent.left
-                    w.color = x.parent.color
-                    x.parent.color = RB_BLACK
-                    w.left.color = RB_BLACK
-                    self._right_rotate(x.parent)
-                    x = self.root
+            if max > gradient:
+                return max
 
-        x.color = RB_BLACK
-        return
-
-    def _delete_from_tree(self, key):
-        # Delete the node out of the tree. This may change the root pointer.
-
-        z = self._search_for_node(key)
-
-        if z == NIL:
-            # node to delete is not found
-            raise ValueError("node not found")
-
-        # 1-3
-        if z.left == NIL or z.right == NIL:
-            y = z
+        # get next smaller key
+        if tree[cur_node][TN_LEFT_ID] != NIL_ID:
+            cur_node = int(tree[cur_node][TN_LEFT_ID])
+            while tree[cur_node][TN_RIGHT_ID] != NIL_ID:
+                cur_node = int(tree[cur_node][TN_RIGHT_ID])
         else:
-            y = _tree_successor(z)
+            # at smallest item in this branch, go back up
+            last_node = cur_node
+            cur_node = int(tree[cur_node][TN_PARENT_ID])
+            while cur_node != NIL_ID and \
+                    last_node == int(tree[cur_node][TN_LEFT_ID]):
+                last_node = cur_node
+                cur_node = int(tree[cur_node][TN_PARENT_ID])
 
-        if y == NIL:
-            raise ValueError("successor not found")
+    return max
 
-        # 4-6
-        if y.left != NIL:
-            x = y.left
-        else:
-            x = y.right
 
-        # 7
-        x.parent = y.parent
+@jit(nb.i8(nb.f8[:, :], nb.i8, nb.i8), nopython=True)
+def _rb_delete_fixup(tree, root, x):
+    # Fix the red-black tree after deletion.
+    # This may change the root pointer.
 
-        # 8-12
-        if y.parent == NIL:
-            self.root = x
-            # augmentation to be fixed
-            to_fix = self.root
-        else:
-            if y == y.parent.left:
-                y.parent.left = x
+    while x != root and tree[x][TN_COLOR_ID] == RB_BLACK:
+        x_parent = int(tree[x][TN_PARENT_ID])
+        if x == int(tree[x_parent][TN_LEFT_ID]):
+            w = int(tree[x_parent][TN_RIGHT_ID])
+            if tree[w][TN_COLOR_ID] == RB_RED:
+                tree[w][TN_COLOR_ID] = RB_BLACK
+                tree[x_parent][TN_COLOR_ID] = RB_RED
+                root = _left_rotate(tree, root, x_parent)
+                w = int(tree[x_parent][TN_RIGHT_ID])
+
+            if w == NIL_ID:
+                x = int(tree[x][TN_PARENT_ID])
+                continue
+
+            w_left = int(tree[w][TN_LEFT_ID])
+            w_right = int(tree[w][TN_RIGHT_ID])
+            if tree[w_left][TN_COLOR_ID] == RB_BLACK and \
+                    tree[w_right][TN_COLOR_ID] == RB_BLACK:
+                tree[w][TN_COLOR_ID] = RB_RED
+                x = int(tree[x][TN_PARENT_ID])
             else:
-                y.parent.right = x
-            # augmentation to be fixed
-            to_fix = y.parent
+                if tree[w_right][TN_COLOR_ID] == RB_BLACK:
+                    tree[w_left][TN_COLOR_ID] = RB_BLACK
+                    tree[w][TN_COLOR_ID] = RB_RED
+                    root = _right_rotate(tree, root, w)
+                    x_parent = int(tree[x][TN_PARENT_ID])
+                    w = int(tree[x_parent][TN_RIGHT_ID])
 
-        # fix augmentation for removing y
-        cur_node = y
+                x_parent = int(tree[x][TN_PARENT_ID])
+                w_right = int(tree[w][TN_RIGHT_ID])
+                tree[w][TN_COLOR_ID] = tree[x_parent][TN_COLOR_ID]
+                tree[x_parent][TN_COLOR_ID] = RB_BLACK
+                tree[w_right][TN_COLOR_ID] = RB_BLACK
+                root = _left_rotate(tree, root, x_parent)
+                x = root
+        else:
+            # x == x.parent.right
+            x_parent = int(tree[x][TN_PARENT_ID])
+            w = int(tree[x_parent][TN_LEFT_ID])
+            if tree[w][TN_COLOR_ID] == RB_RED:
+                tree[w][TN_COLOR_ID] = RB_BLACK
+                tree[x_parent][TN_COLOR_ID] = RB_RED
+                root = _right_rotate(tree, root, x_parent)
+                w = int(tree[x_parent][TN_LEFT_ID])
 
-        while cur_node.parent != NIL:
-            if cur_node.parent.val.max_grad == y.val.find_value_min_value():
-                left = _find_max_value(cur_node.parent.left)
-                right = _find_max_value(cur_node.parent.right)
+            if w == NIL_ID:
+                x = x_parent
+                continue
 
-                if left > right:
-                    cur_node.parent.val.max_grad = left
-                else:
-                    cur_node.parent.val.max_grad = right
+            w_left = int(tree[w][TN_LEFT_ID])
+            w_right = int(tree[w][TN_RIGHT_ID])
+            # do we need re-assignment here? No changes has been made for x?
+            x_parent = int(tree[x][TN_PARENT_ID])
+            if tree[w_right][TN_COLOR_ID] == RB_BLACK and \
+                    tree[w_left][TN_COLOR_ID] == RB_BLACK:
+                tree[w][TN_COLOR_ID] = RB_RED
+                x = x_parent
+            else:
+                if tree[w_left][TN_COLOR_ID] == RB_BLACK:
+                    tree[w_right][TN_COLOR_ID] = RB_BLACK
+                    tree[w][TN_COLOR_ID] = RB_RED
+                    root = _left_rotate(tree, root, w)
+                    w = int(tree[x_parent][TN_LEFT_ID])
+                tree[w][TN_COLOR_ID] = tree[x_parent][TN_COLOR_ID]
+                tree[x_parent][TN_COLOR_ID] = RB_BLACK
+                w_left = int(tree[w][TN_LEFT_ID])
+                tree[w_left][TN_COLOR_ID] = RB_BLACK
+                root = _right_rotate(tree, root, x_parent)
+                x = root
 
-                if cur_node.parent.val.find_value_min_value() > \
-                        cur_node.parent.val.max_grad:
-                    cur_node.parent.val.max_grad = \
-                        cur_node.parent.val.find_value_min_value()
+    tree[x][TN_COLOR_ID] = RB_BLACK
+    return root
+
+
+@jit(nb.types.Tuple((nb.i8, nb.i8))(nb.f8[:, :], nb.i8, nb.f8), nopython=True)
+def _delete_from_tree(tree, root, key):
+    # Delete the node out of the tree. This may change the root pointer.
+
+    z = _search_for_node(tree, root, key)
+
+    if z == NIL_ID:
+        # node to delete is not found
+        raise ValueError("node not found")
+
+    # 1-3
+    if tree[z][TN_LEFT_ID] == NIL_ID or tree[z][TN_RIGHT_ID] == NIL_ID:
+        y = z
+    else:
+        y = _tree_successor(tree, z)
+
+    if y == NIL_ID:
+        raise ValueError("successor not found")
+
+    deleted = y
+
+    # 4-6
+    if tree[y][TN_LEFT_ID] != NIL_ID:
+        x = int(tree[y][TN_LEFT_ID])
+    else:
+        x = int(tree[y][TN_RIGHT_ID])
+
+    # 7
+    tree[x][TN_PARENT_ID] = tree[y][TN_PARENT_ID]
+
+    # 8-12
+    if tree[y][TN_PARENT_ID] == NIL_ID:
+        root = x
+        # augmentation to be fixed
+        to_fix = root
+    else:
+        y_parent = int(tree[y][TN_PARENT_ID])
+        if y == int(tree[y_parent][TN_LEFT_ID]):
+            tree[y_parent][TN_LEFT_ID] = x
+        else:
+            tree[y_parent][TN_RIGHT_ID] = x
+        # augmentation to be fixed
+        to_fix = y_parent
+
+    # fix augmentation for removing y
+    cur_node = y
+
+    while tree[cur_node][TN_PARENT_ID] != NIL_ID:
+        cur_parent = int(tree[cur_node][TN_PARENT_ID])
+        if tree[cur_parent][TN_MAX_GRAD_ID] == \
+                _find_value_min_value(tree, y):
+            cur_parent_left = int(tree[cur_parent][TN_LEFT_ID])
+            cur_parent_right = int(tree[cur_parent][TN_RIGHT_ID])
+            left = _find_max_value(tree[cur_parent_left])
+            right = _find_max_value(tree[cur_parent_right])
+
+            if left > right:
+                tree[cur_parent][TN_MAX_GRAD_ID] = left
+            else:
+                tree[cur_parent][TN_MAX_GRAD_ID] = right
+
+            min_value = _find_value_min_value(tree, cur_parent)
+            if min_value > tree[cur_parent][TN_MAX_GRAD_ID]:
+                tree[cur_parent][TN_MAX_GRAD_ID] = min_value
+
+        else:
+            break
+
+        cur_node = cur_parent
+
+    # fix augmentation for x
+    to_fix_left = int(tree[to_fix][TN_LEFT_ID])
+    to_fix_right = int(tree[to_fix][TN_RIGHT_ID])
+    if tree[to_fix_left][TN_MAX_GRAD_ID] > tree[to_fix_right][TN_MAX_GRAD_ID]:
+        tmp_max = tree[to_fix_left][TN_MAX_GRAD_ID]
+    else:
+        tmp_max = tree[to_fix_right][TN_MAX_GRAD_ID]
+
+    min_value = _find_value_min_value(tree, to_fix)
+    if tmp_max > min_value:
+        tree[to_fix][TN_MAX_GRAD_ID] = tmp_max
+    else:
+        tree[to_fix][TN_MAX_GRAD_ID] = min_value
+
+    # 13-15
+    if y != NIL_ID and y != z:
+        z_gradient = _find_value_min_value(tree, z)
+        tree[z][TN_KEY_ID] = tree[y][TN_KEY_ID]
+        tree[z][TN_GRAD_0] = tree[y][TN_GRAD_0]
+        tree[z][TN_GRAD_1] = tree[y][TN_GRAD_1]
+        tree[z][TN_GRAD_2] = tree[y][TN_GRAD_2]
+        tree[z][TN_ANG_0] = tree[y][TN_ANG_0]
+        tree[z][TN_ANG_1] = tree[y][TN_ANG_1]
+        tree[z][TN_ANG_2] = tree[y][TN_ANG_2]
+
+        to_fix = z
+        # fix augmentation
+        to_fix_left = int(tree[to_fix][TN_LEFT_ID])
+        to_fix_right = int(tree[to_fix][TN_RIGHT_ID])
+        if tree[to_fix_left][TN_MAX_GRAD_ID] > \
+                tree[to_fix_right][TN_MAX_GRAD_ID]:
+            tmp_max = tree[to_fix_left][TN_MAX_GRAD_ID]
+        else:
+            tmp_max = tree[to_fix_right][TN_MAX_GRAD_ID]
+
+        min_value = _find_value_min_value(tree, to_fix)
+        if tmp_max > min_value:
+            tree[to_fix][TN_MAX_GRAD_ID] = tmp_max
+        else:
+            tree[to_fix][TN_MAX_GRAD_ID] = min_value
+
+        while tree[z][TN_PARENT_ID] != NIL_ID:
+            z_parent = int(tree[z][TN_PARENT_ID])
+            if tree[z_parent][TN_MAX_GRAD_ID] == z_gradient:
+                z_parent_left = int(tree[z_parent][TN_LEFT_ID])
+                z_parent_right = int(tree[z_parent][TN_RIGHT_ID])
+                x_parent = int(tree[x][TN_PARENT_ID])
+                x_parent_right = int(tree[x_parent][TN_RIGHT_ID])
+                if _find_value_min_value(tree, z_parent) != z_gradient and \
+                        not (tree[z_parent_left][TN_MAX_GRAD_ID] == z_gradient
+                             and tree[x_parent_right][
+                                 TN_MAX_GRAD_ID] == z_gradient):
+
+                    left = _find_max_value(tree[z_parent_left])
+                    right = _find_max_value(tree[z_parent_right])
+
+                    if left > right:
+                        tree[z_parent][TN_MAX_GRAD_ID] = left
+                    else:
+                        tree[z_parent][TN_MAX_GRAD_ID] = right
+
+                    min_value = _find_value_min_value(tree, z_parent)
+                    if min_value > tree[z_parent][TN_MAX_GRAD_ID]:
+                        tree[z_parent][TN_MAX_GRAD_ID] = min_value
 
             else:
-                break
+                if tree[z][TN_MAX_GRAD_ID] > tree[z_parent][TN_MAX_GRAD_ID]:
+                    tree[z_parent][TN_MAX_GRAD_ID] = tree[z][TN_MAX_GRAD_ID]
 
-            cur_node = cur_node.parent
+            z = z_parent
 
-        # fix augmentation for x
-        if to_fix.left.val.max_grad > to_fix.right.val.max_grad:
-            tmp_max = to_fix.left.val.max_grad
-        else:
-            tmp_max = to_fix.right.val.max_grad
+    # 16-17
+    if tree[y][TN_COLOR_ID] == RB_BLACK and x != NIL_ID:
+        root = _rb_delete_fixup(tree, root, x)
 
-        if tmp_max > to_fix.val.find_value_min_value():
-            to_fix.val.max_grad = tmp_max
-        else:
-            to_fix.val.max_grad = to_fix.val.find_value_min_value()
-
-        # 13-15
-        if y != NIL and y != z:
-            z_gradient = z.val.find_value_min_value()
-
-            z.val.key = y.val.key
-            z.val.grad[0] = y.val.grad[0]
-            z.val.grad[1] = y.val.grad[1]
-            z.val.grad[2] = y.val.grad[2]
-            z.val.ang[0] = y.val.ang[0]
-            z.val.ang[1] = y.val.ang[1]
-            z.val.ang[2] = y.val.ang[2]
-
-            to_fix = z
-            # fix augmentation
-            if to_fix.left.val.max_grad > to_fix.right.val.max_grad:
-                tmp_max = to_fix.left.val.max_grad
-            else:
-                tmp_max = to_fix.right.val.max_grad
-
-            if tmp_max > to_fix.val.find_value_min_value():
-                to_fix.val.max_grad = tmp_max
-            else:
-                to_fix.val.max_grad = to_fix.val.find_value_min_value()
-
-            while z.parent != NIL:
-                if z.parent.val.max_grad == z_gradient:
-                    if z.parent.val.find_value_min_value() != z_gradient and \
-                        not (z.parent.left.val.max_grad == z_gradient and
-                             x.parent.right.val.max_grad == z_gradient):
-
-                        left = _find_max_value(z.parent.left)
-                        right = _find_max_value(z.parent.right)
-
-                        if left > right:
-                            z.parent.val.max_grad = left
-                        else:
-                            z.parent.val.max_grad = right
-
-                        if z.parent.val.find_value_min_value() > \
-                                z.parent.val.max_grad:
-                            z.parent.val.max_grad = \
-                                z.parent.val.find_value_min_value()
-
-                else:
-                    if z.val.max_grad > z.parent.val.max_grad:
-                        z.parent.val.max_grad = z.val.max_grad
-
-                z = z.parent
-
-        # 16-17
-        if y.color == RB_BLACK and x != NIL:
-            self._rb_delete_fixup(x)
-
-        # 18
-        return
+    # 18
+    return root, deleted
 
 
-class StatusNode:
-    # Implementation of status of sweeping process.
-    # Attributes:
-    #      row, col: int, row and col to determine the position of the cell
-    #      distance_to_viewpoint: float, elevation of cell
-    #      gradient: 1d array of 3 float elements, ENTER, CENTER,
-    #                 EXIT gradients of the Line of Sight
-    #      ang:   1d array of 3 float elements, ENTER, CENTER, EXIT angles of
-    #                 the Line of Sight
-
-    __slots__ = ('row', 'col', 'dist_to_viewpoint', 'grad', 'ang')
-
-    def __init__(self, row, col, dist_to_vp=-1, gradient=[], angle=[]):
-        # row and col to determine the position of the cell
-        self.row = row
-        self.col = col
-
-        # elevation of cell
-        self.dist_to_viewpoint = dist_to_vp
-
-        # ENTER, CENTER, EXIT gradients of the Line of Sight
-        if not len(gradient):
-            gradient = np.empty(shape=(3,))
-            gradient.fill(NAN)
-            self.grad = gradient
-        else:
-            self.grad = np.array(gradient)
-
-        # ENTER, CENTER, EXIT angs of the Line of Sight
-        if not len(angle):
-            ang = np.empty(shape=(3,))
-            ang.fill(NAN)
-            self.ang = ang
-        else:
-            self.ang = np.array(angle)
-
-    def _print_status_node(self):
-        print("row=", self.row, "col=", self.col, "dist_to_viewpoint=",
-              self.dist_to_viewpoint,
-              "grad=", self.grad, "ang=", self.ang)
-
-
-def _insert_into_status_struct(status_node, tree):
-    # Create a TreeValue object that get information from the input status_node
-    # Insert the node with the created value into the tree
-
-    tv = TreeValue(key=status_node.dist_to_viewpoint,
-                   gradient=status_node.grad,
-                   ang=status_node.ang,
-                   max_grad=SMALLEST_GRAD)
-    tree.insert_into_tree(value=tv)
+def _print_status_node(sn):
+    print("row=", sn[S_ROW_ID], "col=", sn[S_COL_ID], "dist_to_viewpoint=",
+          sn[S_DIST2VP], "grad=", sn[S_GRAD_0], sn[S_GRAD_1], sn[S_GRAD_2],
+          "ang=", sn[S_ANG_0], sn[S_ANG_1], sn[S_ANG_2])
     return
 
 
-def _max_grad_in_status_struct(tree, distance, angle, gradient):
+@jit(nb.f8(nb.f8[:, :], nb.i8, nb.f8, nb.f8, nb.f8), nopython=True)
+def _max_grad_in_status_struct(tree, root, distance, angle, gradient):
     # Find the node with max Gradient within the distance (from vp)
     # Note: if there is nothing in the status structure,
     #         it means this cell is VISIBLE
 
-    if tree.root == NIL or tree.root is None:
+    if root == NIL_ID:
         return SMALLEST_GRAD
 
     # it is also possible that the status structure is not empty, but
@@ -728,170 +743,7 @@ def _max_grad_in_status_struct(tree, distance, angle, gradient):
 
     # find max within the max key
 
-    return tree.find_max_value_within_key(distance, angle, gradient)
-
-
-class GridHeader:
-    # Implementation of grid header for the visibility grid that
-    #     returned by _viewshed().
-    # Attributes:
-    #     proj: int, there can be no proj or
-    #                     lat-lon proj type applied.
-    #     cols: int, number of columns in the grid
-    #     rows: int, number of rows in the grid
-    #     ew_res: float, east-west resolution of the grid
-    #     ns_res: float, north-south resolution of the grid
-    #     north: float
-    #     south: float
-    #     east: float
-    #     west: float
-
-    __slots__ = ('proj', 'cols', 'rows', 'ew_res', 'ns_res',
-                 'north', 'south', 'east', 'west')
-
-    def __init__(self, width, height, x_range, y_range, proj=PROJ_NONE):
-
-        # int getgrdhead(FILE * fd, struct Cell_head *cellhd)
-
-        self.proj = proj
-
-        self.cols = width
-        self.rows = height
-
-        self.ew_res = (x_range[1] - x_range[0]) / (self.cols - 1)
-        self.ns_res = (y_range[1] - y_range[0]) / (self.rows - 1)
-
-        self.north = y_range[1] + self.ns_res / 2.0
-        self.south = y_range[0] - self.ns_res / 2.0
-        self.east = x_range[1] + self.ew_res / 2.0
-        self.west = x_range[0] - self.ew_res / 2.0
-
-
-class ViewPoint:
-    # Implementation of vp.
-    # Attributes:
-    #     row, col: int, coordinate of the vp
-    #     elevation: float, elevation of the observer at the vp
-    #     target_offset: float, target offset of the observer at the vp
-
-    __slots__ = ('row', 'col', 'elev', 'target_offset')
-
-    def __init__(self, row, col, elevation=0, target_offset=0):
-        self.row = row
-        self.col = col
-        self.elev = elevation
-        self.target_offset = target_offset
-
-
-class ViewOptions:
-    # Implementaion of view options.
-    # Attributes:
-    #     obs_elev: float, observer elevation above the terrain
-    #     tgt_elev: float, target elevation offset above the terrain
-    #     max_distance: float, points that are farther than this distance from
-    #                     the vp are not visible
-    #     do_curv: boolean, determines if the curvature of the earth should be
-    #                     considered when calculating
-    #     ellps_a: float, the parameter of the ellipsoid
-    #     do_refr: boolean, determines if atmospheric refraction should be
-    #                 considered when calculating
-    #     refr_coef: float, atmospheric refraction coefficient
-
-    __slots__ = ('obs_elev', 'tgt_elev', 'max_distance', 'do_curv', 'ellps_a',
-                 'do_refr', 'refr_coef')
-
-    def __init__(self, obs_elev=OBS_ELEV, tgt_elev=TARGET_ELEV, max_dist=INF,
-                 do_curv=DO_CURVE, ellps_a=ELLPS_A,
-                 do_refr=DO_REFR, refr_coef=REFR_COEF):
-
-        # observer elevation above the terrain
-        self.obs_elev = obs_elev
-
-        # target elevation offset above the terrain
-        self.tgt_elev = tgt_elev
-
-        # points that are farther than this distance from the vp
-        # are not visible
-        self.max_distance = max_dist
-
-        # determines if the curvature of the earth should be considered
-        # when calculating
-        self.do_curv = do_curv
-
-        # the parameter of the ellipsoid
-        self.ellps_a = ellps_a
-
-        # determines if atmospheric refraction should be considered
-        # when calculating
-        self.do_refr = do_refr
-        self.refr_coef = refr_coef
-
-
-class Event:
-
-    # Implementation of event.
-    # There are 3 events in a cell: ENTERING_EVENT, CENTER_EVENT, EXITING_EVENT
-    # Attributes:
-    #     row, col: int, coordinate of cell that the CENTER event occurs
-    #     elev: 1d array of 3 float elements, elevation of ENTERING_EVENT,
-    #                 CENTER_EVENT, EXITING_EVENT
-    #     ang: float
-    #     event: int, ENTERING_EVENT, CENTER_EVENT, EXITING_EVENT
-
-    __slots__ = ('row', 'col', 'elev', 'ang', 'type')
-
-    def __init__(self, row=-1, col=-1, elev=[], angle=None, event_type=None):
-        self.row = row
-        self.col = col
-
-        if not len(elev):
-            elev = np.empty(shape=(3,))
-            elev.fill(NAN)
-            self.elev = elev
-        else:
-            self.elev = np.array(elev)
-
-        self.ang = angle
-        self.type = event_type
-
-    def __lt__(self, other_event):
-        if self.row == other_event.row and self.col == other_event.col\
-                and self.type == other_event.type:
-            return False
-
-        assert self.ang >= 0 and other_event.ang >= 0
-
-        if self.ang > other_event.ang:
-            return False
-
-        if self.ang < other_event.ang:
-            return True
-
-        # self.ang == other_event.ang
-        if self.type == EXITING_EVENT:
-            return True
-        if other_event.type == EXITING_EVENT:
-            return False
-        if self.type == ENTERING_EVENT:
-            return False
-        if other_event.type == ENTERING_EVENT:
-            return True
-        return False
-
-    # for debug purpose
-    def _print_event(self):
-        if self.type == 1:
-            t = "ENTERING   "
-        elif self.type == -1:
-            t = "EXITING    "
-        else:
-            t = "CENTER     "
-
-        print('row = ', self.row,
-              'col = ', self.col,
-              'event_type = ', t,
-              'elevation = ', self.elev,
-              'ang = ', self.ang)
+    return _find_max_value_within_key(tree, root, distance, angle, gradient)
 
 
 @jit(nb.f8(nb.f8, nb.f8, nb.f8), nopython=True)
@@ -1061,7 +913,6 @@ def _adjust_curv(viewpoint_row, viewpoint_col, row, col, h, do_curv, ellps_a,
 
 @jit(nb.void(nb.f8[:, :], nb.i8, nb.i8, nb.f8), nopython=True)
 def _set_visibility(visibility_grid, i, j, value):
-
     visibility_grid[i][j] = value
     return
 
@@ -1091,7 +942,6 @@ def _outside_max_dist(viewpoint_row, viewpoint_col, west, ew_res, north,
                                     nb.i8, nb.i8), nopython=True)
 def _calculate_event_row_col(event_type, event_row, event_col,
                              viewpoint_row, viewpoint_col):
-
     # Calculate the neighbouring of the given event.
     x = 0
     y = 0
@@ -1356,7 +1206,6 @@ def _calc_event_pos(event_type, event_row, event_col,
 
 @jit(nb.f8(nb.f8, nb.f8, nb.i8, nb.i8), nopython=True)
 def _calculate_angle(event_x, event_y, viewpoint_x, viewpoint_y):
-
     if viewpoint_x == event_x and viewpoint_y > event_y:
         # between 1st and 2nd quadrant
         return PI / 2
@@ -1440,7 +1289,6 @@ def _calc_event_grad(row, col, elev, viewpoint_row, viewpoint_col,
 def _calc_dist_n_grad(status_node_row, status_node_col, elev,
                       viewpoint_row, viewpoint_col, viewpoint_elev,
                       west, ew_res, north, ns_res, proj):
-
     diff_elev = elev - viewpoint_elev
 
     if proj == PROJ_LL:
@@ -1471,7 +1319,8 @@ def _calc_dist_n_grad(status_node_row, status_node_col, elev,
 
 # ported https://github.com/OSGeo/grass/blob/master/raster/r.viewshed/grass.cpp
 # function _init_event_list_in_memory()
-
+@jit(nb.void(nb.f8[:, :], nb.f8[:, :], nb.f8[:], nb.f8[:], nb.f8[:],
+             nb.f8[:, :], nb.f8[:, :]), nopython=True)
 def _init_event_list(event_list, raster, vp, v_op, g_hd, data,
                      visibility_grid):
     # Initialize and fill all the events for the map into event_list
@@ -1484,9 +1333,17 @@ def _init_event_list(event_list, raster, vp, v_op, g_hd, data,
     # read first row
     inrast[2] = raster[0]
 
-    e = Event()
-    e.ang = -1
+    # index of the event array: row, col, elev_0, elev_1, elev_2, ang, type
+    e = np.zeros((7,), dtype=np.float64)
+    e[E_ROW_ID] = -1
+    e[E_COL_ID] = -1
+    e[E_ELVEV_0] = NAN
+    e[E_ELVEV_1] = NAN
+    e[E_ELVEV_2] = NAN
+    e[E_ANG_ID] = np.nan
+    e[E_TYPE_ID] = np.nan
 
+    count_event = 0
     for i in range(n_rows):
         # read in the raster row
         tmprast = inrast[0]
@@ -1503,42 +1360,47 @@ def _init_event_list(event_list, raster, vp, v_op, g_hd, data,
 
         # fill event list with events from this row
         for j in range(n_cols):
-            e.row = i
-            e.col = j
+            e[E_ROW_ID] = i
+            e[E_COL_ID] = j
 
             # read the elevation value into the event
-            e.elev[1] = inrast[1][j]
+            e[E_ELVEV_1] = inrast[1][j]
 
             # adjust for curvature
-            e.elev[1] = _adjust_curv(vp.row, vp.col, i, j, e.elev[1],
-                                     v_op.do_curv, v_op.ellps_a, v_op.do_refr,
-                                     v_op.refr_coef, g_hd.west, g_hd.ew_res,
-                                     g_hd.north, g_hd.ns_res, g_hd.proj)
+            e[E_ELVEV_1] = _adjust_curv(vp[VP_ROW_ID], vp[VP_COL_ID], i, j,
+                                        e[E_ELVEV_1], v_op[VO_CURVE_ID],
+                                        v_op[VO_ELLPS_A_ID], v_op[VO_REFR_ID],
+                                        v_op[VO_REFR_COEF_ID],
+                                        g_hd[GH_WEST_ID], g_hd[GH_EW_RES_ID],
+                                        g_hd[GH_NORTH_ID], g_hd[GH_NS_RES_ID],
+                                        g_hd[GH_PROJ_ID])
 
             # write it into the row of data going through the vp
-            if i == vp.row:
-                data[0][j] = e.elev[1]
-                data[1][j] = e.elev[1]
-                data[2][j] = e.elev[1]
+            if i == vp[VP_ROW_ID]:
+                data[0][j] = e[E_ELVEV_1]
+                data[1][j] = e[E_ELVEV_1]
+                data[2][j] = e[E_ELVEV_1]
 
             # set the vp, and don't insert it into eventlist
-            if i == vp.row and j == vp.col:
+            if i == vp[VP_ROW_ID] and j == vp[VP_COL_ID]:
 
                 # set_viewpoint_elev(vp, e.elev[1] + v_op.obsElev)
-                vp.elev = e.elev[1] + v_op.obs_elev
+                vp[VP_ELEV_ID] = e[E_ELVEV_1] + v_op[VO_OBS_ELEV_ID]
 
-                if v_op.tgt_elev > 0:
-                    vp.target_offset = v_op.tgt_elev
+                if v_op[VO_TARGET_ID] > 0:
+                    vp[VP_TARGET_ID] = v_op[VO_TARGET_ID]
                 else:
-                    vp.target_offset = 0.0
+                    vp[VP_TARGET_ID] = 0.0
 
                 _set_visibility(visibility_grid, i, j, 180)
                 continue
 
             # if point is outside maxDist, do NOT include it as an event
-            if _outside_max_dist(vp.row, vp.col, g_hd.west, g_hd.ew_res,
-                                 g_hd.north, g_hd.ns_res, g_hd.proj,
-                                 i, j, v_op.max_distance):
+            if _outside_max_dist(vp[VP_ROW_ID], vp[VP_COL_ID],
+                                 g_hd[GH_WEST_ID], g_hd[GH_EW_RES_ID],
+                                 g_hd[GH_NORTH_ID], g_hd[GH_NS_RES_ID],
+                                 g_hd[GH_PROJ_ID],
+                                 i, j, v_op[VO_MAX_DIST_ID]):
                 continue
 
             # if it got here it is not the vp, not NODATA, and
@@ -1546,98 +1408,112 @@ def _init_event_list(event_list, raster, vp, v_op, g_hd, data,
             # and insert them
 
             # get ENTER elevation
-            e.type = ENTERING_EVENT
-            e.elev[0] = _calc_event_elev(e.type, e.row, e.col, n_rows, n_cols,
-                                         vp.row, vp.col, inrast)
+            e[E_TYPE_ID] = ENTERING_EVENT
+            e[E_ELVEV_0] = _calc_event_elev(e[E_TYPE_ID], e[E_ROW_ID],
+                                            e[E_COL_ID], n_rows, n_cols,
+                                            vp[VP_ROW_ID], vp[VP_COL_ID],
+                                            inrast)
 
             # adjust for curvature
-            if v_op.do_curv:
-                ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-                e.elev[0] = _adjust_curv(vp.row, vp.col, ay, ax, e.elev[0],
-                                         v_op.do_curv, v_op.ellps_a,
-                                         v_op.do_refr, v_op.refr_coef,
-                                         g_hd.west, g_hd.ew_res,
-                                         g_hd.north, g_hd.ns_res, g_hd.proj)
+            if v_op[VO_CURVE_ID]:
+                ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID],
+                                         e[E_COL_ID], vp[VP_ROW_ID],
+                                         vp[VP_COL_ID])
+
+                e[E_ELVEV_0] = _adjust_curv(vp[VP_ROW_ID], vp[VP_COL_ID],
+                                            ay, ax, e[E_ELVEV_0],
+                                            v_op[VO_CURVE_ID],
+                                            v_op[VO_ELLPS_A_ID],
+                                            v_op[VO_REFR_ID],
+                                            v_op[VO_REFR_COEF_ID],
+                                            g_hd[GH_WEST_ID],
+                                            g_hd[GH_EW_RES_ID],
+                                            g_hd[GH_NORTH_ID],
+                                            g_hd[GH_NS_RES_ID],
+                                            g_hd[GH_PROJ_ID])
 
             # get EXIT event
-            e.type = EXITING_EVENT
-            e.elev[2] = _calc_event_elev(e.type, e.row, e.col, n_rows, n_cols,
-                                         vp.row, vp.col, inrast)
+            e[E_TYPE_ID] = EXITING_EVENT
+            e[E_ELVEV_2] = _calc_event_elev(e[E_TYPE_ID], e[E_ROW_ID],
+                                            e[E_COL_ID], n_rows, n_cols,
+                                            vp[VP_ROW_ID], vp[VP_COL_ID],
+                                            inrast)
 
             # adjust for curvature
-            if v_op.do_curv:
-                ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-                e.elev[2] = _adjust_curv(vp.row, vp.col, ay, ax, e.elev[2],
-                                         v_op.do_curv, v_op.ellps_a,
-                                         v_op.do_refr, v_op.refr_coef,
-                                         g_hd.west, g_hd.ew_res,
-                                         g_hd.north, g_hd.ns_res, g_hd.proj)
+            if v_op[VO_CURVE_ID]:
+                ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID],
+                                         e[E_COL_ID], vp[VP_ROW_ID],
+                                         vp[VP_COL_ID])
+
+                e[E_ELVEV_2] = _adjust_curv(vp[VP_ROW_ID], vp[VP_COL_ID],
+                                            ay, ax, e[E_ELVEV_2],
+                                            v_op[VO_CURVE_ID],
+                                            v_op[VO_ELLPS_A_ID],
+                                            v_op[VO_REFR_ID],
+                                            v_op[VO_REFR_COEF_ID],
+                                            g_hd[GH_WEST_ID],
+                                            g_hd[GH_EW_RES_ID],
+                                            g_hd[GH_NORTH_ID],
+                                            g_hd[GH_NS_RES_ID],
+                                            g_hd[GH_PROJ_ID])
 
             # write adjusted elevation into the row of data
             # going through the vp
-            if i == vp.row:
-                data[0][j] = e.elev[0]
-                data[1][j] = e.elev[1]
-                data[2][j] = e.elev[2]
+            if i == vp[VP_ROW_ID]:
+                data[0][j] = e[E_ELVEV_0]
+                data[1][j] = e[E_ELVEV_1]
+                data[2][j] = e[E_ELVEV_2]
 
             # put event into event list
-            e.type = ENTERING_EVENT
+            e[E_TYPE_ID] = ENTERING_EVENT
+            ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID],
+                                     e[E_COL_ID], vp[VP_ROW_ID], vp[VP_COL_ID])
+            e[E_ANG_ID] = _calculate_angle(ax, ay,
+                                           vp[VP_COL_ID], vp[VP_ROW_ID])
+            event_list[count_event] = e
+            count_event += 1
 
-            ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-            e.ang = _calculate_angle(ax, ay, vp.col, vp.row)
-            tmp_event = Event(e.row, e.col, e.elev, e.ang, e.type)
-            event_list.append(tmp_event)
+            e[E_TYPE_ID] = CENTER_EVENT
+            ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID],
+                                     e[E_COL_ID], vp[VP_ROW_ID], vp[VP_COL_ID])
+            e[E_ANG_ID] = _calculate_angle(ax, ay,
+                                           vp[VP_COL_ID], vp[VP_ROW_ID])
+            event_list[count_event] = e
+            count_event += 1
 
-            e.type = CENTER_EVENT
-            ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-            e.ang = _calculate_angle(ax, ay, vp.col, vp.row)
-            tmp_event = Event(e.row, e.col, e.elev, e.ang, e.type)
-            event_list.append(tmp_event)
-
-            e.type = EXITING_EVENT
-            ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-            e.ang = _calculate_angle(ax, ay, vp.col, vp.row)
-            tmp_event = Event(e.row, e.col, e.elev, e.ang, e.type)
-            event_list.append(tmp_event)
+            e[E_TYPE_ID] = EXITING_EVENT
+            ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID], e[E_COL_ID],
+                                     vp[VP_ROW_ID], vp[VP_COL_ID])
+            e[E_ANG_ID] = _calculate_angle(ax, ay,
+                                           vp[VP_COL_ID], vp[VP_ROW_ID])
+            event_list[count_event] = e
+            count_event += 1
 
     return
 
 
-@jit(nb.i8(nb.f8, nb.f8), nopython=True)
-def _compare(a, b):
-
-    if a < b:
-        return -1
-    if a > b:
-        return 1
-    return 0
-
-
-def _create_tree_node(val, color=RB_RED):
-    # Create a TreeNode using given TreeValue
-
-    # every node has null nodes as children initially, create one such object
-    # for easy management
-    val.max_grad = SMALLEST_GRAD
-    ret = TreeNode(tree_val=val, color=color, left=NIL, right=NIL, parent=NIL)
-    return ret
-
-
-def _create_status_struct():
+@jit(nb.i8(nb.f8[:, :]), nopython=True)
+def _create_status_struct(tree):
     # Create and initialize the status struct.
     # return a Tree object with a dummy root.
 
-    key = 0
-    gradient = [SMALLEST_GRAD, SMALLEST_GRAD, SMALLEST_GRAD]
-    ang = [0, 0, 0]
-    max_grad = SMALLEST_GRAD
-    tv = TreeValue(key=key, gradient=gradient, ang=ang, max_grad=max_grad)
+    # dummy status node
+    dummy_node_value = np.array([0.0, -1, -1, SMALLEST_GRAD, SMALLEST_GRAD,
+                                SMALLEST_GRAD, 0.0, 0.0, 0.0, SMALLEST_GRAD])
 
-    root = _create_tree_node(val=tv, color=RB_BLACK)
+    # node 0 is root
+    root = 0
+    _create_tree_node(tree, root, dummy_node_value, RB_BLACK)
 
-    status_struct = Tree(root=root)
+    # last row is NIL
+    _create_tree_node(tree, NIL_ID, dummy_node_value, RB_BLACK)
+    _create_tree_node(tree, root, dummy_node_value, RB_BLACK)
+    num_nodes = tree.shape[0]
+    tree[NIL_ID][TN_LEFT_ID] = num_nodes
+    tree[NIL_ID][TN_RIGHT_ID] = num_nodes
+    tree[NIL_ID][TN_PARENT_ID] = num_nodes
 
-    return status_struct
+    return root
 
 
 # /*find the vertical ang in degrees between the vp and the
@@ -1667,6 +1543,53 @@ def _get_vertical_ang(viewpoint_elev, distance_to_viewpoint, elev):
     return atan(abs(diff_elev) / sqrt(distance_to_viewpoint)) * 180 / PI + 90
 
 
+@jit(nb.void(nb.f8[:], nb.i8, nb.i8), nopython=True)
+def _init_status_node(status_node, row, col):
+    status_node[S_ROW_ID] = row
+    status_node[S_COL_ID] = col
+    status_node[S_DIST2VP] = -1
+
+    status_node[S_GRAD_0] = NAN
+    status_node[S_GRAD_1] = NAN
+    status_node[S_GRAD_2] = NAN
+
+    status_node[S_ANG_0] = NAN
+    status_node[S_ANG_1] = NAN
+    status_node[S_ANG_2] = NAN
+
+    return
+
+
+def _print_event(event):
+    if event[E_TYPE_ID] == 1:
+        t = "ENTERING   "
+    elif event[E_TYPE_ID] == -1:
+        t = "EXITING    "
+    else:
+        t = "CENTER     "
+
+    print('row = ', event[E_ROW_ID],
+          'col = ', event[E_COL_ID],
+          'event_type = ', t,
+          'elevation = ', event[E_ELVEV_0], event[E_ELVEV_1], event[E_ELVEV_2],
+          'ang = ', event[E_ANG_ID])
+    return
+
+
+@jit(nb.void(nb.i8[:], nb.i8), nopython=True)
+def _push(stack, item):
+    stack[0] += 1
+    stack[stack[0]] = item
+    return
+
+
+@jit(nb.i8(nb.i8[:]), nopython=True)
+def _pop(stack):
+    item = stack[stack[0]]
+    stack[0] -= 1
+    return item
+
+
 # Viewshed's sweep algorithm on the grid stored in the given file, and
 # with the given vp.  Create a visibility grid and return
 # it. The computation runs in memory, which means the input grid, the
@@ -1682,82 +1605,104 @@ def _get_vertical_ang(viewpoint_elev, distance_to_viewpoint, elev):
 # https://github.com/OSGeo/grass/blob/master/raster/r.viewshed/viewshed.cpp
 # function viewshed_in_memory()
 
-def _viewshed(raster, vp, v_op, g_hd):
-
-    # create the visibility grid of the sizes specified in the header
-    visibility_grid = np.empty(shape=(g_hd.rows, g_hd.cols), dtype=np.float64)
-    # set everything initially invisible
-    visibility_grid.fill(INVISIBLE)
-
+@jit(nb.f8[:, :](nb.f8[:, :], nb.f8[:], nb.f8[:], nb.f8[:], nb.f8[:, :],
+                 nb.f8[:, :], nb.f8[:, :]), nopython=True)
+def _viewshed(raster, vp, v_op, g_hd, event_list, data, visibility_grid):
     n_rows, n_cols = raster.shape
-    data = np.zeros(shape=(3, n_cols), dtype=np.float64)
 
-    # construct the event list corresponding to the given input file and vp;
-    # this creates an array of all the cells on the same row as the vp
-    event_list = []
-
-    _init_event_list(event_list=event_list, raster=raster, vp=vp, v_op=v_op,
-                     g_hd=g_hd, data=data, visibility_grid=visibility_grid)
-
-    # sort the events radially by ang
-    event_list.sort()
+    # for e in event_list:
+    #     _print_event(e)
 
     # create the status structure
-    status_struct = _create_status_struct()
+    # create 2d array of the RB-tree
+    num_nodes = n_cols - int(vp[VP_COL_ID]) + n_cols * n_rows + 10
+    status_struct = np.zeros((num_nodes, 12))
+    root = _create_status_struct(status_struct)
+
+    # idle row idx in the 2d data array of status_struct tree
+    idle = np.zeros((num_nodes,), dtype=np.int64)
+    for i in range(0, num_nodes - 1):
+        idle[i] = num_nodes - i
+    idle[0] = num_nodes - 2
 
     # Put cells that are initially on the sweepline into status structure
-    for i in range(vp.col + 1, g_hd.cols):
-        status_node = StatusNode(row=vp.row, col=i)
-        e = Event(row=vp.row, col=i)
-        e.elev[0] = data[0][i]
-        e.elev[1] = data[1][i]
-        e.elev[2] = data[2][i]
+    for i in range(int(vp[VP_COL_ID]) + 1, n_cols):
+        status_node = np.zeros((9,), dtype=np.float64)
+        _init_status_node(status_node, vp[VP_ROW_ID], i)
+
+        e = np.zeros((7,), dtype=np.float64)
+        e[E_ROW_ID] = vp[VP_ROW_ID]
+        e[E_COL_ID] = i
+        e[E_ANG_ID] = np.nan
+        e[E_TYPE_ID] = np.nan
+
+        e[E_ELVEV_0] = data[0][i]
+        e[E_ELVEV_1] = data[1][i]
+        e[E_ELVEV_2] = data[2][i]
 
         if (not _is_null(data[1][i])) and \
-                (not _outside_max_dist(vp.row, vp.col, g_hd.west, g_hd.ew_res,
-                                       g_hd.north, g_hd.ns_res, g_hd.proj,
-                                       status_node.row, status_node.col,
-                                       v_op.max_distance)):
+                (not _outside_max_dist(vp[VP_ROW_ID], vp[VP_COL_ID],
+                                       g_hd[GH_WEST_ID], g_hd[GH_EW_RES_ID],
+                                       g_hd[GH_NORTH_ID], g_hd[GH_NS_RES_ID],
+                                       g_hd[GH_PROJ_ID], status_node[S_ROW_ID],
+                                       status_node[S_COL_ID],
+                                       v_op[VO_MAX_DIST_ID])):
             # calculate Distance to VP and Gradient,
             # store them into status_node
             # need either 3 elevation values or
             # 3 gradients calculated from 3 elevation values
             # need also 3 angs
-            e.type = ENTERING_EVENT
-            ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-            status_node.ang[0] = _calculate_angle(ax, ay, vp.col, vp.row)
-            status_node.grad[0] = _calc_event_grad(ay, ax, e.elev[0],
-                                                   vp.row, vp.col, vp.elev,
-                                                   g_hd.west, g_hd.ew_res,
-                                                   g_hd.north, g_hd.ns_res,
-                                                   g_hd.proj)
 
-            e.type = CENTER_EVENT
-            ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-            status_node.ang[1] = _calculate_angle(ax, ay, vp.col, vp.row)
-            status_node.dist_to_viewpoint, status_node.grad[1] = \
-                _calc_dist_n_grad(status_node.row, status_node.col, e.elev[1],
-                                  vp.row, vp.col, vp.elev, g_hd.west,
-                                  g_hd.ew_res, g_hd.north, g_hd.ns_res,
-                                  g_hd.proj)
+            e[E_TYPE_ID] = ENTERING_EVENT
+            ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID], e[E_COL_ID],
+                                     vp[VP_ROW_ID], vp[VP_COL_ID])
+            status_node[S_ANG_0] = _calculate_angle(ax, ay, vp[VP_COL_ID],
+                                                    vp[VP_ROW_ID])
+            status_node[S_GRAD_0] = _calc_event_grad(ay, ax, e[E_ELVEV_0],
+                                                     vp[VP_ROW_ID],
+                                                     vp[VP_COL_ID],
+                                                     vp[VP_ELEV_ID],
+                                                     g_hd[GH_WEST_ID],
+                                                     g_hd[GH_EW_RES_ID],
+                                                     g_hd[GH_NORTH_ID],
+                                                     g_hd[GH_NS_RES_ID],
+                                                     g_hd[GH_PROJ_ID])
 
-            e.type = EXITING_EVENT
-            ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-            status_node.ang[2] = _calculate_angle(ax, ay, vp.col, vp.row)
-            # _calc_event_grad(status_node, 2, ay, ax, e.elev[2], vp, g_hd)
-            status_node.grad[2] = _calc_event_grad(ay, ax, e.elev[2],
-                                                   vp.row, vp.col, vp.elev,
-                                                   g_hd.west, g_hd.ew_res,
-                                                   g_hd.north, g_hd.ns_res,
-                                                   g_hd.proj)
+            e[E_TYPE_ID] = CENTER_EVENT
+            ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID], e[E_COL_ID],
+                                     vp[VP_ROW_ID], vp[VP_COL_ID])
+            status_node[S_ANG_1] = _calculate_angle(ax, ay, vp[VP_COL_ID],
+                                                    vp[VP_ROW_ID])
+            status_node[S_DIST2VP], status_node[S_GRAD_1] = \
+                _calc_dist_n_grad(status_node[S_ROW_ID], status_node[S_COL_ID],
+                                  e[E_ELVEV_1], vp[VP_ROW_ID], vp[VP_COL_ID],
+                                  vp[VP_ELEV_ID], g_hd[GH_WEST_ID],
+                                  g_hd[GH_EW_RES_ID], g_hd[GH_NORTH_ID],
+                                  g_hd[GH_NS_RES_ID], g_hd[GH_PROJ_ID])
 
-            assert status_node.ang[1] == 0
+            e[E_TYPE_ID] = EXITING_EVENT
+            ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID], e[E_COL_ID],
+                                     vp[VP_ROW_ID], vp[VP_COL_ID])
+            status_node[S_ANG_2] = _calculate_angle(ax, ay, vp[VP_COL_ID],
+                                                    vp[VP_ROW_ID])
+            status_node[S_GRAD_2] = _calc_event_grad(ay, ax, e[E_ELVEV_2],
+                                                     vp[VP_ROW_ID],
+                                                     vp[VP_COL_ID],
+                                                     vp[VP_ELEV_ID],
+                                                     g_hd[GH_WEST_ID],
+                                                     g_hd[GH_EW_RES_ID],
+                                                     g_hd[GH_NORTH_ID],
+                                                     g_hd[GH_NS_RES_ID],
+                                                     g_hd[GH_PROJ_ID])
 
-            if status_node.ang[0] > status_node.ang[1]:
-                status_node.ang[0] -= 2 * PI
+            assert status_node[S_ANG_1] == 0
+
+            if status_node[S_ANG_0] > status_node[S_ANG_1]:
+                status_node[S_ANG_0] -= 2 * PI
 
             # insert sn into the status structure
-            _insert_into_status_struct(status_node, status_struct)
+            id = _pop(idle)
+            root = _insert_into_tree(status_struct, root, id, status_node)
 
     # sweep the event_list
 
@@ -1768,82 +1713,102 @@ def _viewshed(raster, vp, v_op, g_hd):
     for i in range(nevents):
         # get out one event at a time and process it according to its type
         e = event_list[i]
-        status_node = StatusNode(row=e.row, col=e.col)
+
+        # status_node = StatusNode(row=e[E_ROW_ID], col=e[E_COL_ID])
+        status_node = np.zeros((9,), dtype=np.float64)
+        _init_status_node(status_node, e[E_ROW_ID], e[E_COL_ID])
 
         # calculate Distance to VP and Gradient
-        status_node.dist_to_viewpoint, status_node.grad[1] = \
-            _calc_dist_n_grad(status_node.row, status_node.col,
-                              e.elev[1] + vp.target_offset,
-                              vp.row, vp.col, vp.elev,
-                              g_hd.west, g_hd.ew_res, g_hd.north, g_hd.ns_res,
-                              g_hd.proj)
+        status_node[S_DIST2VP], status_node[S_GRAD_1] = \
+            _calc_dist_n_grad(status_node[S_ROW_ID], status_node[S_COL_ID],
+                              e[E_ELVEV_1] + vp[VP_TARGET_ID],
+                              vp[VP_ROW_ID], vp[VP_COL_ID], vp[VP_ELEV_ID],
+                              g_hd[GH_WEST_ID], g_hd[GH_EW_RES_ID],
+                              g_hd[GH_NORTH_ID], g_hd[GH_NS_RES_ID],
+                              g_hd[GH_PROJ_ID])
 
-        etype = e.type
+        etype = e[E_TYPE_ID]
         if etype == ENTERING_EVENT:
             # insert node into structure
 
             #  need either 3 elevation values or
             # 	     * 3 gradients calculated from 3 elevation values */
             # 	    /* need also 3 angs */
-            ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-            status_node.ang[0] = e.ang
-            # _calc_event_grad(status_node, 0, ay, ax, e.elev[0], vp, g_hd)
-            status_node.grad[0] = _calc_event_grad(ay, ax, e.elev[0],
-                                                   vp.row, vp.col, vp.elev,
-                                                   g_hd.west, g_hd.ew_res,
-                                                   g_hd.north, g_hd.ns_res,
-                                                   g_hd.proj)
+            ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID], e[E_COL_ID],
+                                     vp[VP_ROW_ID], vp[VP_COL_ID])
+            status_node[S_ANG_0] = e[E_ANG_ID]
+            status_node[S_GRAD_0] = _calc_event_grad(ay, ax, e[E_ELVEV_0],
+                                                     vp[VP_ROW_ID],
+                                                     vp[VP_COL_ID],
+                                                     vp[VP_ELEV_ID],
+                                                     g_hd[GH_WEST_ID],
+                                                     g_hd[GH_EW_RES_ID],
+                                                     g_hd[GH_NORTH_ID],
+                                                     g_hd[GH_NS_RES_ID],
+                                                     g_hd[GH_PROJ_ID])
 
-            e.type = CENTER_EVENT
-            ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-            status_node.ang[1] = _calculate_angle(ax, ay, vp.col, vp.row)
-            status_node.dist_to_viewpoint, status_node.grad[1] = \
-                _calc_dist_n_grad(status_node.row, status_node.col, e.elev[1],
-                                  vp.row, vp.col, vp.elev, g_hd.west,
-                                  g_hd.ew_res, g_hd.north, g_hd.ns_res,
-                                  g_hd.proj)
+            e[E_TYPE_ID] = CENTER_EVENT
+            ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID], e[E_COL_ID],
+                                     vp[VP_ROW_ID], vp[VP_COL_ID])
+            status_node[S_ANG_1] = _calculate_angle(ax, ay, vp[VP_COL_ID],
+                                                    vp[VP_ROW_ID])
+            status_node[S_DIST2VP], status_node[S_GRAD_1] = \
+                _calc_dist_n_grad(status_node[S_ROW_ID], status_node[S_COL_ID],
+                                  e[E_ELVEV_1], vp[VP_ROW_ID], vp[VP_COL_ID],
+                                  vp[VP_ELEV_ID], g_hd[GH_WEST_ID],
+                                  g_hd[GH_EW_RES_ID], g_hd[GH_NORTH_ID],
+                                  g_hd[GH_NS_RES_ID], g_hd[GH_PROJ_ID])
 
-            e.type = EXITING_EVENT
-            ay, ax = _calc_event_pos(e.type, e.row, e.col, vp.row, vp.col)
-            status_node.ang[2] = _calculate_angle(ax, ay, vp.col, vp.row)
-            # _calc_event_grad(status_node, 2, ay, ax, e.elev[2], vp, g_hd)
-            status_node.grad[2] = _calc_event_grad(ay, ax, e.elev[2],
-                                                   vp.row, vp.col, vp.elev,
-                                                   g_hd.west, g_hd.ew_res,
-                                                   g_hd.north, g_hd.ns_res,
-                                                   g_hd.proj)
+            e[E_TYPE_ID] = EXITING_EVENT
+            ay, ax = _calc_event_pos(e[E_TYPE_ID], e[E_ROW_ID], e[E_COL_ID],
+                                     vp[VP_ROW_ID], vp[VP_COL_ID])
+            status_node[S_ANG_2] = _calculate_angle(ax, ay, vp[VP_COL_ID],
+                                                    vp[VP_ROW_ID])
+            status_node[S_GRAD_2] = _calc_event_grad(ay, ax, e[E_ELVEV_2],
+                                                     vp[VP_ROW_ID],
+                                                     vp[VP_COL_ID],
+                                                     vp[VP_ELEV_ID],
+                                                     g_hd[GH_WEST_ID],
+                                                     g_hd[GH_EW_RES_ID],
+                                                     g_hd[GH_NORTH_ID],
+                                                     g_hd[GH_NS_RES_ID],
+                                                     g_hd[GH_PROJ_ID])
 
-            e.type = ENTERING_EVENT
+            e[E_TYPE_ID] = ENTERING_EVENT
 
-            if e.ang < PI:
-                if status_node.ang[0] > status_node.ang[1]:
-                    status_node.ang[0] -= 2 * PI
+            if e[E_ANG_ID] < PI:
+                if status_node[S_ANG_0] > status_node[S_ANG_1]:
+                    status_node[S_ANG_0] -= 2 * PI
             else:
-                if status_node.ang[0] > status_node.ang[1]:
-                    status_node.ang[1] += 2 * PI
-                    status_node.ang[2] += 2 * PI
+                if status_node[S_ANG_0] > status_node[S_ANG_1]:
+                    status_node[S_ANG_1] += 2 * PI
+                    status_node[S_ANG_2] += 2 * PI
 
-            _insert_into_status_struct(status_node, status_struct)
+            id = _pop(idle)
+            root = _insert_into_tree(status_struct, root, id, status_node)
 
         elif etype == EXITING_EVENT:
             # delete node out of status structure
-            status_struct._delete_from_tree(status_node.dist_to_viewpoint)
+            root, deleted = _delete_from_tree(status_struct, root,
+                                              status_node[S_DIST2VP])
+            _push(idle, deleted)
 
         elif etype == CENTER_EVENT:
             # calculate visibility
             # consider current ang and gradient
-            max = _max_grad_in_status_struct(status_struct,
-                                             status_node.dist_to_viewpoint,
-                                             e.ang, status_node.grad[1])
+            max = _max_grad_in_status_struct(status_struct, root,
+                                             status_node[S_DIST2VP],
+                                             e[E_ANG_ID],
+                                             status_node[S_GRAD_1])
 
             # the point is visible: store its vertical ang
-            if max <= status_node.grad[1]:
-                vert_ang = _get_vertical_ang(vp.elev,
-                                             status_node.dist_to_viewpoint,
-                                             e.elev[1] + vp.target_offset)
+            if max <= status_node[S_GRAD_1]:
+                vert_ang = _get_vertical_ang(vp[VP_ELEV_ID],
+                                             status_node[S_DIST2VP],
+                                             e[E_ELVEV_1] + vp[VP_TARGET_ID])
 
-                _set_visibility(visibility_grid, status_node.row,
-                                status_node.col, vert_ang)
+                _set_visibility(visibility_grid, status_node[S_ROW_ID],
+                                status_node[S_COL_ID], vert_ang)
 
                 assert vert_ang >= 0
                 # when you write the visibility grid you assume that
@@ -1914,17 +1879,58 @@ def viewshed(raster, x, y, observer_elev=OBS_ELEV, target_elev=TARGET_ELEV):
     proj = PROJ_NONE
     # ------------------------------------
 
-    viewpoint = ViewPoint(row=y_view, col=x_view)
+    # viewpoint = ViewPoint(row=y_view, col=x_view)
+    viewpoint = np.zeros((4,), dtype=np.float64)
+    viewpoint[VP_ROW_ID] = y_view
+    viewpoint[VP_COL_ID] = x_view
 
-    view_options = ViewOptions(obs_elev=observer_elev, tgt_elev=target_elev,
-                               max_dist=max_distance,
-                               do_curv=do_curve, do_refr=do_refr)
+    # view_options = ViewOptions(obs_elev=observer_elev, tgt_elev=target_elev,
+    #                            max_dist=max_distance,
+    #                            do_curv=do_curve, do_refr=do_refr)
+    view_options = np.zeros((7,), dtype=np.float64)
+    view_options[VO_OBS_ELEV_ID] = observer_elev
+    view_options[VO_TARGET_ID] = target_elev
+    view_options[VO_MAX_DIST_ID] = max_distance
+    view_options[VO_CURVE_ID] = do_curve
+    view_options[VO_REFR_ID] = do_refr
+    view_options[VO_ELLPS_A_ID] = ELLPS_A
+    view_options[VO_REFR_COEF_ID] = REFR_COEF
 
-    grid_header = GridHeader(width=width, height=height, x_range=x_range,
-                             y_range=y_range, proj=proj)
+    # int getgrdhead(FILE * fd, struct Cell_head *cellhd)
+    grid_header = np.zeros((7,), dtype=np.float64)
+    grid_header[GH_PROJ_ID] = proj
+    grid_header[GH_EW_RES_ID] = (x_range[1] - x_range[0]) / (width - 1)
+    grid_header[GH_NS_RES_ID] = (y_range[1] - y_range[0]) / (height - 1)
+    grid_header[GH_NORTH_ID] = y_range[1] + grid_header[GH_NS_RES_ID] / 2.0
+    grid_header[GH_SOUTH_ID] = y_range[0] - grid_header[GH_NS_RES_ID] / 2.0
+    grid_header[GH_EAST_ID] = x_range[1] + grid_header[GH_EW_RES_ID] / 2.0
+    grid_header[GH_WEST_ID] = x_range[0] - grid_header[GH_EW_RES_ID] / 2.0
+
+    # create the visibility grid of the sizes specified in the header
+    visibility_grid = np.empty(shape=raster.shape, dtype=np.float64)
+    # set everything initially invisible
+    visibility_grid.fill(INVISIBLE)
+    n_rows, n_cols = raster.shape
+
+    data = np.zeros(shape=(3, n_cols), dtype=np.float64)
+
+    # construct the event list corresponding to the given input file and vp;
+    # this creates an array of all the cells on the same row as the vp
+    num_events = 3 * (n_rows * n_cols - 1)
+    event_list = np.zeros((num_events, 7), dtype=np.float64)
+
+    raster.values = raster.values.astype(np.float64)
+
+    _init_event_list(event_list=event_list, raster=raster.values,
+                     vp=viewpoint, v_op=view_options, g_hd=grid_header,
+                     data=data, visibility_grid=visibility_grid)
+
+    # sort the events radially by ang
+    event_list = event_list[np.lexsort((event_list[:, E_TYPE_ID],
+                                        event_list[:, E_ANG_ID]))]
 
     viewshed_img = _viewshed(raster.values, viewpoint, view_options,
-                             grid_header)
+                             grid_header, event_list, data, visibility_grid)
 
     visibility = xarray.DataArray(viewshed_img,
                                   coords=raster.coords,
