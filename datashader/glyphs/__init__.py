@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from .points import Point   # noqa (API import)
+from .points import Point, MultiPoint2dGeometry   # noqa (API import)
 from .line import (  # noqa (API import)
     LineAxis0,
     LineAxis0Multi,
@@ -7,6 +7,7 @@ from .line import (  # noqa (API import)
     LinesAxis1XConstant,
     LinesAxis1YConstant,
     LinesAxis1Ragged,
+    LineAxis1Geometry,
 )
 from .area import (  # noqa (API import)
     AreaToZeroAxis0,
@@ -23,6 +24,7 @@ from .area import (  # noqa (API import)
     AreaToLineAxis1Ragged,
 )
 from .trimesh import Triangles  # noqa (API import)
+from .polygon import PolygonGeom  # noqa (API import)
 from .quadmesh import (  # noqa (API import)
     QuadMeshRectilinear, QuadMeshCurvialinear
 )
