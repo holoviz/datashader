@@ -881,12 +881,6 @@ def _calculate_event_row_col(event_type, event_row, event_col,
     return y, x
 
 
-@jit(nb.b1(nb.f8), nopython=True)
-def _is_null(value):
-    # Check if a value is null.
-    return np.isnan(value)
-
-
 @jit(nb.f8(nb.i8, nb.i8, nb.i8, nb.i8, nb.i8,
            nb.i8, nb.i8, nb.f8[:, :]), nopython=True)
 def _calc_event_elev(event_type, event_row, event_col, n_rows, n_cols,
@@ -903,8 +897,8 @@ def _calc_event_elev(event_type, event_row, event_col, n_rows, n_cols,
         elev2 = inrast[row1 - event_row + 1][event_col]
         elev3 = inrast[1][col1]
         elev4 = inrast[1][event_col]
-        if _is_null(elev1) or _is_null(elev2) or _is_null(elev3) \
-                or _is_null(elev4):
+        if np.isnan(elev1) or np.isnan(elev2) or np.isnan(elev3) \
+                or np.isnan(elev4):
             event_elev = inrast[1][event_col]
         else:
             event_elev = (elev1 + elev2 + elev3 + elev4) / 4.0
@@ -1371,8 +1365,6 @@ def _viewshed(raster, vp_row, vp_col, vp_elev, vp_target, ew_res, ns_res,
 
     # Put cells that are initially on the sweepline into status structure
     status_node = np.zeros((7,), dtype=np.float64)
-    status_row = -1
-    status_col = -1
     for i in range(vp_col + 1, n_cols):
         _init_status_node(status_node)
         status_row = vp_row
@@ -1385,7 +1377,7 @@ def _viewshed(raster, vp_row, vp_col, vp_elev, vp_target, ew_res, ns_res,
         e_elev_1 = data[1][i]
         e_elev_2 = data[2][i]
 
-        if (not _is_null(data[1][i])):
+        if (not np.isnan(data[1][i])):
             # calculate Distance to VP and Gradient,
             # store them into status_node
             # need either 3 elevation values or
