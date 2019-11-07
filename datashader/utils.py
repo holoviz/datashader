@@ -19,6 +19,11 @@ try:
 except ImportError:
     RaggedDtype = type(None)
 
+try:
+    import cudf
+except ImportError:
+    cudf = None
+
 ngjit = nb.jit(nopython=True, nogil=True)
 
 
@@ -382,7 +387,9 @@ def dshape_from_pandas_helper(col):
     """Return an object from datashape.coretypes given a column from a pandas
     dataframe.
     """
-    if isinstance(col.dtype, type(pd.Categorical.dtype)) or isinstance(col.dtype, pd.api.types.CategoricalDtype):
+    if (isinstance(col.dtype, type(pd.Categorical.dtype)) or
+            isinstance(col.dtype, pd.api.types.CategoricalDtype) or
+            cudf and isinstance(col.dtype, cudf.core.dtypes.CategoricalDtype)):
         # Compute category dtype
         categories = np.array(col.cat.categories)
         if categories.dtype.kind == 'U':
@@ -423,7 +430,7 @@ def dshape_from_dask(df):
         col for col in df.columns
         if (isinstance(df[col].dtype, type(pd.Categorical.dtype)) or
             isinstance(df[col].dtype, pd.api.types.CategoricalDtype))
-           and not getattr(df['cat'].cat, 'known', True)]
+           and not getattr(df[col].cat, 'known', True)]
     df = df.categorize(cat_columns, index=False)
     # get_partition(0) used below because categories are sometimes repeated
     # for dask-cudf DataFrames with multiple partitions
