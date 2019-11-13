@@ -28,22 +28,25 @@ install_requires = [
     'scipy',
 ]
 
+examples = [
+    'distributed', # dask
+    'holoviews >=1.10.0',
+    'matplotlib',
+    'pandas >=0.24.1',
+]
+
 extras_require = {
     'tests': [
         'pytest >=3.9.3',
         'pytest-benchmark >=3.0.0',
         'flake8',
-        'nbsmoke >=0.2.6',
+        'nbsmoke ==0.2.8',  # test pinning to allow hv.extension
         'fastparquet >=0.1.6',  # optional dependency
         'pandas >=0.24.1',  # optional ragged array support
     ],
-    'examples': [],
-    'examples_extra':[
-        'distributed', # dask
-        'holoviews >=1.10.0',
-        'matplotlib',
+    'examples': examples,
+    'examples_extra': examples + [
         'networkx >=2.0',
-        'pandas >=0.24.1',
         'streamz >=0.2.0',
         ### conda only below here
         'cartopy',
