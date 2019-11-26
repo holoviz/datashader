@@ -332,7 +332,7 @@ def test_points_geometry():
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((0., 2.), 3), 3)
 
-    df = pd.DataFrame({
+    df = sp.GeoDataFrame({
         'geom': pd.array(
             [[0, 0], [0, 1, 1, 1], [0, 2, 1, 2, 2, 2]], dtype='MultiPoint[float64]'),
         'v': [1, 2, 3]

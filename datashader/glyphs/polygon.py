@@ -16,12 +16,12 @@ class PolygonGeom(_GeometryLike):
     def _build_extend(self, x_mapper, y_mapper, info, append):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        draw_segment = _build_draw_polygon(
+        draw_polygon = _build_draw_polygon(
             append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_and_cols
         )
 
         perform_extend_cpu = _build_extend_polygon_geometry(
-            draw_segment, expand_aggs_and_cols
+            draw_polygon, expand_aggs_and_cols
         )
         geom_name = self.geometry
 
@@ -30,7 +30,7 @@ class PolygonGeom(_GeometryLike):
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
             geom_array = df[geom_name].array
-            # line may be clipped, then mapped to pixels
+
             perform_extend_cpu(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
@@ -198,6 +198,10 @@ def _build_extend_polygon_geometry(
         missing = geometry.isna()
         offsets = geometry.buffer_offsets
 
+        # Compute indices of potentially intersecting polygons using
+        # geometry's R-tree
+        eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+
         if len(offsets) == 3:
             # MultiPolygonArray
             offsets0, offsets1, offsets2 = offsets
@@ -208,14 +212,15 @@ def _build_extend_polygon_geometry(
 
         extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            values, missing, offsets0, offsets1, offsets2, *aggs_and_cols
+            values, missing, offsets0, offsets1, offsets2, eligible_inds, *aggs_and_cols
         )
 
     @ngjit
     @expand_aggs_and_cols
     def extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            values, missing, offsets0, offsets1, offsets2, *aggs_and_cols
+            values, missing, offsets0, offsets1, offsets2,
+            eligible_inds, *aggs_and_cols
     ):
         # Pre-allocate temp arrays
         if len(offsets0) > 1:
@@ -236,7 +241,7 @@ def _build_extend_polygon_geometry(
         # Initialize array indicating which edges are still eligible for processing
         eligible = np.ones(max_edges, dtype=np.int8)
 
-        for i in range(len(offsets0) - 1):
+        for i in eligible_inds:
             if missing[i]:
                 continue
 

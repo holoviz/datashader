@@ -230,10 +230,9 @@ class MultiPointGeometry(_GeometryLike):
         @self.expand_aggs_and_cols(append)
         def extend_cpu(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                values, missing, offsets, *aggs_and_cols
+                values, missing, offsets, eligible_inds, *aggs_and_cols
         ):
-            n = len(offsets) - 1
-            for i in range(n):
+            for i in eligible_inds:
                 if missing[i] is True:
                     continue
                 start = offsets[i]
@@ -255,9 +254,13 @@ class MultiPointGeometry(_GeometryLike):
             missing = geometry.isna()
             offsets = geometry.buffer_offsets[0]
 
+            # Compute indices of potentially intersecting polygons using
+            # geometry's R-tree
+            eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+
             extend_cpu(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                values, missing, offsets, *aggs_and_cols
+                values, missing, offsets, eligible_inds, *aggs_and_cols
             )
 
         return extend

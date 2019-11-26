@@ -979,18 +979,22 @@ def _build_extend_line_axis1_geometry(
             offsets1 = offsets[0]
             offsets0 = np.arange(len(offsets1))
 
+        # Compute indices of potentially intersecting polygons using
+        # geometry's R-tree
+        eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+
         extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            values, missing, offsets0, offsets1, *aggs_and_cols
+            values, missing, offsets0, offsets1, eligible_inds, *aggs_and_cols
         )
 
     @ngjit
     @expand_aggs_and_cols
     def extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            values, missing, offsets0, offsets1, *aggs_and_cols
+            values, missing, offsets0, offsets1, eligible_inds, *aggs_and_cols
     ):
-        for i in range(len(offsets0) - 1):
+        for i in eligible_inds:
             if missing[i]:
                 continue
 
