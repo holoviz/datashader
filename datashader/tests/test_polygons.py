@@ -10,15 +10,17 @@ import dask.dataframe as dd
 try:
     # Import to register extension arrays
     import spatialpandas  # noqa (register EAs)
+    from spatialpandas import GeoDataFrame
 except ImportError:
     spatialpandas = None
+    GeoDataFrame = None
 
 
-def dask_DataFrame(*args, **kwargs):
-    return dd.from_pandas(pd.DataFrame(*args, **kwargs), npartitions=3)
+def dask_GeoDataFrame(*args, **kwargs):
+    return dd.from_pandas(GeoDataFrame(*args, **kwargs), npartitions=3)
 
 
-DataFrames = [pd.DataFrame, dask_DataFrame]
+DataFrames = [GeoDataFrame, dask_GeoDataFrame]
 
 
 @pytest.mark.skipif(not spatialpandas, reason="spacialpandas not installed")
@@ -32,7 +34,7 @@ def test_multipolygon_manual_range(DataFrame):
             ], [
                 [2.5, 1, 4, 1, 4, 2, 2.5, 2, 2.5, 1]
             ],
-        ]], dtype='MultiPolygon2d[float64]'),
+        ]], dtype='MultiPolygon[float64]'),
         'v': [1]
     })
 
@@ -80,7 +82,7 @@ def test_multiple_polygons_auto_range(DataFrame):
             ], [
                 [2.5, 1, 4, 1, 4, 2, 2.5, 2, 2.5, 1]
             ],
-        ]], dtype='MultiPolygon2d[float64]'),
+        ]], dtype='MultiPolygon[float64]'),
         'v': [1]
     })
 
@@ -131,7 +133,7 @@ def test_no_overlap(DataFrame):
             ], [
                 [0, 1, 2, 1, 2, 3, 0, 3, 0, 1, 1, 1, 0, 2, 1, 3, 2, 2, 1, 1]
             ]
-        ], dtype='Polygon2d[float64]'),
+        ], dtype='Polygon[float64]'),
     })
 
     cvs = ds.Canvas(plot_width=16, plot_height=16)
@@ -176,7 +178,7 @@ def test_no_overlap_agg(DataFrame):
              [0.5, 1.5, 0.5, 2.5, 1.5, 2.5, 1.5, 1.5, 0.5, 1.5]],
             [[0.5, 1.5, 1.5, 1.5, 1.5, 2.5, 0.5, 2.5, 0.5, 1.5]],
             [[0, 1, 2, 1, 2, 3, 0, 3, 0, 1, 1, 1, 0, 2, 1, 3, 2, 2, 1, 1]]
-        ], dtype='Polygon2d[float64]'),
+        ], dtype='Polygon[float64]'),
         'v': range(3)
     })
 

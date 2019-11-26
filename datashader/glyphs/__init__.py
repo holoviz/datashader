@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from .points import Point, MultiPoint2dGeometry   # noqa (API import)
+from .points import Point, MultiPointGeometry   # noqa (API import)
 from .line import (  # noqa (API import)
     LineAxis0,
     LineAxis0Multi,

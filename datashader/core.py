@@ -185,7 +185,7 @@ class Canvas(object):
             Column name of a PointsArray of the coordinates of each point. If provided,
             the x and y arguments may not also be provided.
         """
-        from .glyphs import Point, MultiPoint2dGeometry
+        from .glyphs import Point, MultiPointGeometry
         from .reductions import count as count_rdn
 
         validate_xy_or_geometry('Point', x, y, geometry)
@@ -204,7 +204,7 @@ class Canvas(object):
                     x_range=self.x_range, y_range=self.y_range)
             glyph = Point(x, y)
         else:
-            glyph = MultiPoint2dGeometry(geometry)
+            glyph = MultiPointGeometry(geometry)
 
         return bypixel(source, self, glyph, agg)
 

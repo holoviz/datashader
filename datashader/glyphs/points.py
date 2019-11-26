@@ -59,21 +59,18 @@ class _GeometryLike(Glyph):
         return [self.geometry]
 
     def compute_x_bounds(self, df):
-        bounds = df[self.geometry].array.bounds_x
+        bounds = df[self.geometry].array.total_bounds_x
         return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, df):
-        bounds = df[self.geometry].array.bounds_y
+        bounds = df[self.geometry].array.total_bounds_y
         return self.maybe_expand_bounds(bounds)
 
     @memoize
     def compute_bounds_dask(self, ddf):
-        r = ddf.map_partitions(lambda df: np.array(
-            [list(df[self.geometry].array.bounds)]
-        )).compute()
-
-        x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 2])
-        y_extents = np.nanmin(r[:, 1]), np.nanmax(r[:, 3])
+        total_bounds = ddf[self.geometry].total_bounds
+        x_extents = (total_bounds[0], total_bounds[2])
+        y_extents = (total_bounds[1], total_bounds[3])
 
         return (self.maybe_expand_bounds(x_extents),
                 self.maybe_expand_bounds(y_extents))
@@ -201,12 +198,12 @@ class Point(_PointLike):
         return extend
 
 
-class MultiPoint2dGeometry(_GeometryLike):
+class MultiPointGeometry(_GeometryLike):
 
     @property
     def geom_dtypes(self):
-        from spatialpandas.geometry import MultiPoint2dDtype
-        return (MultiPoint2dDtype,)
+        from spatialpandas.geometry import MultiPointDtype
+        return (MultiPointDtype,)
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):

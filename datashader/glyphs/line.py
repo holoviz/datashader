@@ -463,16 +463,16 @@ class LineAxis1Geometry(_GeometryLike):
     @property
     def geom_dtypes(self):
         from spatialpandas.geometry import (
-            Line2dDtype, MultiLine2dDtype, Ring2dDtype, Polygon2dDtype,
-            MultiPolygon2dDtype
+            LineDtype, MultiLineDtype, RingDtype, PolygonDtype,
+            MultiPolygonDtype
         )
-        return (Line2dDtype, MultiLine2dDtype, Ring2dDtype,
-                Polygon2dDtype, MultiPolygon2dDtype)
+        return (LineDtype, MultiLineDtype, RingDtype,
+                PolygonDtype, MultiPolygonDtype)
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         from spatialpandas.geometry import (
-            Polygon2dArray, MultiPolygon2dArray
+            PolygonArray, MultiPolygonArray
         )
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
@@ -492,7 +492,7 @@ class LineAxis1Geometry(_GeometryLike):
             geom_array = df[geometry_name].array
             # line may be clipped, then mapped to pixels
 
-            if isinstance(geom_array, (Polygon2dArray, MultiPolygon2dArray)):
+            if isinstance(geom_array, (PolygonArray, MultiPolygonArray)):
                 # Convert polygon array to multi line of boundary
                 geom_array = geom_array.boundary
 

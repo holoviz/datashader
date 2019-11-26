@@ -9,8 +9,8 @@ from datashader.utils import ngjit
 class PolygonGeom(_GeometryLike):
     @property
     def geom_dtypes(self):
-        from spatialpandas.geometry import Polygon2dDtype, MultiPolygon2dDtype
-        return Polygon2dDtype, MultiPolygon2dDtype
+        from spatialpandas.geometry import PolygonDtype, MultiPolygonDtype
+        return PolygonDtype, MultiPolygonDtype
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
@@ -199,10 +199,10 @@ def _build_extend_polygon_geometry(
         offsets = geometry.buffer_offsets
 
         if len(offsets) == 3:
-            # MultiPolygon2dArray
+            # MultiPolygonArray
             offsets0, offsets1, offsets2 = offsets
         else:
-            # Polygon2dArray
+            # PolygonArray
             offsets1, offsets2 = offsets
             offsets0 = np.arange(len(offsets1))
 

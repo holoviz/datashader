@@ -14,9 +14,9 @@ import datashader.utils as du
 import pytest
 
 try:
-    import spatialpandas
+    import spatialpandas as sp
 except ImportError:
-    spatialpandas = None
+    sp = None
 
 from datashader.tests.test_pandas import (
     assert_eq_xr, assert_eq_ndarray, values
@@ -41,8 +41,12 @@ df_pd.f64[2] = np.nan
 _ddf = dd.from_pandas(df_pd, npartitions=2)
 
 
-def dask_DataFrame(*args, **kwargs):
-    return dd.from_pandas(pd.DataFrame(*args, **kwargs), npartitions=2)
+def dask_DataFrame(*args, geo=False, **kwargs):
+    if geo:
+        df = sp.GeoDataFrame(*args, **kwargs)
+    else:
+        df = pd.DataFrame(*args, **kwargs)
+    return dd.from_pandas(df, npartitions=2)
 
 
 try:
@@ -51,7 +55,8 @@ try:
     import dask_cudf
     ddfs = [_ddf, dask_cudf.from_dask_dataframe(_ddf)]
 
-    def dask_cudf_DataFrame(*args, **kwargs):
+    def dask_cudf_DataFrame(*args, geo=False, **kwargs):
+        assert not geo
         cdf = cudf.DataFrame.from_pandas(
             pd.DataFrame(*args, **kwargs), nan_as_null=False
         )
@@ -333,14 +338,14 @@ def test_log_axis_points(ddf):
     assert_eq_xr(c_logxy.points(ddf, 'log_x', 'log_y', ds.count('i32')), out)
 
 
-@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
+@pytest.mark.skipif(not sp, reason="spatialpandas not installed")
 def test_points_geometry():
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((0., 2.), 3), 3)
 
-    ddf = dd.from_pandas(pd.DataFrame({
+    ddf = dd.from_pandas(sp.GeoDataFrame({
         'geom': pd.array(
-            [[0, 0], [0, 1, 1, 1], [0, 2, 1, 2, 2, 2]], dtype='MultiPoint2d[float64]'),
+            [[0, 0], [0, 1, 1, 1], [0, 2, 1, 2, 2, 2]], dtype='MultiPoint[float64]'),
         'v': [1, 2, 3]
     }), npartitions=3)
 
@@ -425,26 +430,26 @@ line_manual_range_params = [
         'y': [[0, -4, 0], [0, 4, 0, 0, 0, 0]],
     }, dtype='Ragged[int64]'), dict(x='x', y='y', axis=1)),
 ]
-if spatialpandas:
+if sp:
     line_manual_range_params.append(
         # geometry
         (dict(data={
             'geom': [[4, 0, 0, -4, -4, 0],
                      [-4, 0, 0, 4, 4, 0, 4, 0, 0, 0, -4, 0]]
-        }, dtype='Line2d[int64]'), dict(geometry='geom'))
+        }, dtype='Line[int64]'), dict(geometry='geom'))
     )
 @pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_manual_range_params)
 def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
         dtype = df_kwargs.get('dtype', '')
-        if dtype.startswith('Ragged') or dtype.startswith('Line2d'):
+        if dtype.startswith('Ragged') or dtype.startswith('Line'):
             pytest.skip("Ragged array not supported with cudf")
 
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
 
-    ddf = DataFrame(**df_kwargs)
+    ddf = DataFrame(geo='geometry' in cvs_kwargs, **df_kwargs)
     cvs = ds.Canvas(plot_width=7, plot_height=7,
                     x_range=(-3, 3), y_range=(-3, 3))
 
@@ -511,28 +516,28 @@ line_autorange_params = [
         'y': [[-4, 0, 4], [4, 0, -4], [-4, 0, 4]],
     }, dtype='Ragged[int64]'), dict(x='x', y='y', axis=1)),
 ]
-if spatialpandas:
+if sp:
     line_autorange_params.append(
         # geometry
         (dict(data={
             'geom': [[0, -4, -4, 0, 0, 4],
                      [0, 4, 0, 0, 0, -4],
                      [0, -4, 4, 0, 0, 4]]
-        }, dtype='Line2d[int64]'), dict(geometry='geom'))
+        }, dtype='Line[int64]'), dict(geometry='geom'))
     )
 @pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_autorange_params)
 def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
         dtype = df_kwargs.get('dtype', '')
-        if dtype.startswith('Ragged') or dtype.startswith('Line2d'):
+        if dtype.startswith('Ragged') or dtype.startswith('Line'):
             pytest.skip("Ragged array not supported with cudf")
 
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(
         axis.compute_scale_and_translate((-4., 4.), 9), 9)
 
-    ddf = DataFrame(**df_kwargs)
+    ddf = DataFrame(geo='geometry' in cvs_kwargs, **df_kwargs)
 
     cvs = ds.Canvas(plot_width=9, plot_height=9)
 

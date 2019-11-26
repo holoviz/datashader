@@ -27,28 +27,37 @@ df_pd.f32[2] = np.nan
 df_pd.f64[2] = np.nan
 dfs_pd = [df_pd]
 
+
+try:
+    import spatialpandas as sp
+    from spatialpandas.geometry import LineDtype
+except ImportError:
+    LineDtype = None
+    sp = None
+
+
+def pd_DataFrame(*args, geo=False, **kwargs):
+    if geo:
+        return sp.GeoDataFrame(*args, **kwargs)
+    else:
+        return pd.DataFrame(*args, **kwargs)
+
+
 try:
     import cudf
     import cupy
-    def cudf_DataFrame(*args, **kwargs):
+    def cudf_DataFrame(*args, geo=False, **kwargs):
+        assert not geo
         return cudf.DataFrame.from_pandas(
             pd.DataFrame(*args, **kwargs), nan_as_null=False
         )
     df_cuda = cudf_DataFrame(df_pd)
     dfs = [df_pd, df_cuda]
-    DataFrames = [pd.DataFrame, cudf_DataFrame]
+    DataFrames = [pd_DataFrame, cudf_DataFrame]
 except ImportError:
     cudf = cupy = None
     dfs = [df_pd]
-    DataFrames = [pd.DataFrame]
-
-
-try:
-    import spatialpandas
-    from spatialpandas.geometry import Line2dDtype
-except ImportError:
-    Line2dDtype = None
-    spatialpandas = None
+    DataFrames = [pd_DataFrame]
 
 
 c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
@@ -318,14 +327,14 @@ def test_log_axis_points(df):
     assert_eq_xr(c_logxy.points(df, 'log_x', 'log_y', ds.count('i32')), out)
 
 
-@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
+@pytest.mark.skipif(not sp, reason="spatialpandas not installed")
 def test_points_geometry():
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((0., 2.), 3), 3)
 
     df = pd.DataFrame({
         'geom': pd.array(
-            [[0, 0], [0, 1, 1, 1], [0, 2, 1, 2, 2, 2]], dtype='MultiPoint2d[float64]'),
+            [[0, 0], [0, 1, 1, 1], [0, 2, 1, 2, 2, 2]], dtype='MultiPoint[float64]'),
         'v': [1, 2, 3]
     })
 
@@ -737,12 +746,12 @@ line_manual_range_params = [
         'y': pd.array([[0, -4], [-4, 0, 4, 0]], dtype='Ragged[float32]')
     }], dict(x='x', y='y', axis=1)),
 ]
-if spatialpandas:
+if sp:
     line_manual_range_params.append(
         # geometry
         ([{
             'geom': pd.array(
-                [[4, 0, 0, -4], [0, -4, -4, 0, 0, 4, 4, 0]], dtype='Line2d[float32]'
+                [[4, 0, 0, -4], [0, -4, -4, 0, 0, 4, 4, 0]], dtype='Line[float32]'
             ),
         }], dict(geometry='geom'))
     )
@@ -751,13 +760,13 @@ if spatialpandas:
 def test_line_manual_range(DataFrame, df_args, cvs_kwargs):
     if cudf and DataFrame is cudf_DataFrame:
         if (isinstance(getattr(df_args[0].get('x', []), 'dtype', ''), RaggedDtype) or
-                spatialpandas and isinstance(
-                    getattr(df_args[0].get('geom', []), 'dtype', ''), Line2dDtype
+                sp and isinstance(
+                    getattr(df_args[0].get('geom', []), 'dtype', ''), LineDtype
                 )
         ):
             pytest.skip("cudf DataFrames do not support extension types")
 
-    df = DataFrame(*df_args)
+    df = DataFrame(geo='geometry' in cvs_kwargs, *df_args)
 
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(
@@ -827,12 +836,12 @@ line_autorange_params = [
         'y': pd.array([[-4, 0, 4], [-4, 0, 4]], dtype='Ragged[float32]')
     }], dict(x='x', y='y', axis=1)),
 ]
-if spatialpandas:
+if sp:
     line_autorange_params.append(
         # geometry
         ([{
             'geom': pd.array(
-                [[0, -4, -4, 0, 0, 4], [0, -4,  4, 0, 0, 4]], dtype='Line2d[float32]'
+                [[0, -4, -4, 0, 0, 4], [0, -4,  4, 0, 0, 4]], dtype='Line[float32]'
             ),
         }], dict(geometry='geom'))
     )
@@ -841,13 +850,13 @@ if spatialpandas:
 def test_line_autorange(DataFrame, df_args, cvs_kwargs):
     if cudf and DataFrame is cudf_DataFrame:
         if (isinstance(getattr(df_args[0].get('x', []), 'dtype', ''), RaggedDtype) or
-                spatialpandas and isinstance(
-                    getattr(df_args[0].get('geom', []), 'dtype', ''), Line2dDtype
+                sp and isinstance(
+                    getattr(df_args[0].get('geom', []), 'dtype', ''), LineDtype
                 )
         ):
             pytest.skip("cudf DataFrames do not support extension types")
 
-    df = DataFrame(*df_args)
+    df = DataFrame(geo='geometry' in cvs_kwargs, *df_args)
 
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(
