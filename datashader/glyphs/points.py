@@ -202,8 +202,8 @@ class MultiPointGeometry(_GeometryLike):
 
     @property
     def geom_dtypes(self):
-        from spatialpandas.geometry import MultiPointDtype
-        return (MultiPointDtype,)
+        from spatialpandas.geometry import PointDtype, MultiPointDtype
+        return PointDtype, MultiPointDtype
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
@@ -228,7 +228,21 @@ class MultiPointGeometry(_GeometryLike):
 
         @ngjit
         @self.expand_aggs_and_cols(append)
-        def extend_cpu(
+        def extend_point_cpu(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                values, missing, eligible_inds, *aggs_and_cols
+        ):
+            for i in eligible_inds:
+                if missing[i] is True:
+                    continue
+                _perform_extend_points(
+                    i, 2 * i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                    values, *aggs_and_cols
+                )
+
+        @ngjit
+        @self.expand_aggs_and_cols(append)
+        def extend_multipoint_cpu(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                 values, missing, offsets, eligible_inds, *aggs_and_cols
         ):
@@ -244,23 +258,32 @@ class MultiPointGeometry(_GeometryLike):
                     )
 
         def extend(aggs, df, vt, bounds):
+            from spatialpandas.geometry import PointArray
+
             aggs_and_cols = aggs + info(df)
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
 
             geometry = df[geometry_name].array
 
-            values = geometry.buffer_values
-            missing = geometry.isna()
-            offsets = geometry.buffer_offsets[0]
-
             # Compute indices of potentially intersecting polygons using
             # geometry's R-tree
             eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+            missing = geometry.isna()
 
-            extend_cpu(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                values, missing, offsets, eligible_inds, *aggs_and_cols
-            )
+            if isinstance(geometry, PointArray):
+                values = geometry.flat_values
+                extend_point_cpu(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                    values, missing, eligible_inds, *aggs_and_cols
+                )
+            else:
+                values = geometry.buffer_values
+                offsets = geometry.buffer_offsets[0]
+
+                extend_multipoint_cpu(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                    values, missing, offsets, eligible_inds, *aggs_and_cols
+                )
 
         return extend
