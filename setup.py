@@ -39,6 +39,8 @@ extras_require = {
     'tests': [
         'pytest >=3.9.3',
         'pytest-benchmark >=3.0.0',
+        'pytest-cov',
+        'codecov',
         'flake8',
         'nbsmoke ==0.2.8',  # test pinning to allow hv.extension
         'fastparquet >=0.1.6',  # optional dependency
