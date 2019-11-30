@@ -11,7 +11,7 @@ dist: xenial
 env:
   global:
     - PYENV_VERSION=3.7
-    - CHANS_DEV="-c pyviz/label/dev"
+    - CHANS_DEV="-c pyviz/label/dev -c conda-forge"
     - CHANS_REL="-c pyviz"
     - LABELS_DEV="--label dev"
     - LABELS_REL="--label dev --label main"
