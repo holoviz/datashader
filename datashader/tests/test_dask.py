@@ -548,7 +548,7 @@ def test_log_axis_line(ddf):
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
 
-    sol = np.array([[5, 5], [5, 5]], dtype='i4')
+    sol = np.array([[4, 5], [5, 5]], dtype='i4')
     out = xr.DataArray(sol, coords=[lincoords, logcoords],
                        dims=['y', 'log_x'])
 
