@@ -11,7 +11,7 @@ dist: xenial
 env:
   global:
     - PYENV_VERSION=3.7
-    - CHANS_DEV="-c pyviz/label/dev -c conda-forge"
+    - CHANS_DEV="-c pyviz/label/dev"
     - CHANS_REL="-c pyviz"
     - LABELS_DEV="--label dev"
     - LABELS_REL="--label dev --label main"
@@ -60,6 +60,11 @@ jobs:
         - doit env_create $CHANS_DEV --python=$PYTHON_VERSION --name=$PYTHON_VERSION
         - source activate $PYTHON_VERSION
         - doit develop_install $CHANS_DEV $OPTS
+        # Install spatialpandas here because it's python 3 only and requires
+        # conda-forge for some dependencies
+        - if [[ "PYTHON_VERSION" != "2.7" ]]; then
+          conda install -c pyviz -c conda-forge spatialpandas;
+          fi
         - doit env_capture
       script:
         - doit test_all
