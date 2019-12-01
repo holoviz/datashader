@@ -41,8 +41,8 @@ df_pd.f64[2] = np.nan
 _ddf = dd.from_pandas(df_pd, npartitions=2)
 
 
-def dask_DataFrame(*args, geo=False, **kwargs):
-    if geo:
+def dask_DataFrame(*args, **kwargs):
+    if kwargs.pop("geo", False):
         df = sp.GeoDataFrame(*args, **kwargs)
     else:
         df = pd.DataFrame(*args, **kwargs)
@@ -55,8 +55,8 @@ try:
     import dask_cudf
     ddfs = [_ddf, dask_cudf.from_dask_dataframe(_ddf)]
 
-    def dask_cudf_DataFrame(*args, geo=False, **kwargs):
-        assert not geo
+    def dask_cudf_DataFrame(*args, **kwargs):
+        assert not kwargs.pop("geo", False)
         cdf = cudf.DataFrame.from_pandas(
             pd.DataFrame(*args, **kwargs), nan_as_null=False
         )

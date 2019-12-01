@@ -36,8 +36,8 @@ except ImportError:
     sp = None
 
 
-def pd_DataFrame(*args, geo=False, **kwargs):
-    if geo:
+def pd_DataFrame(*args, **kwargs):
+    if kwargs.pop("geo", False):
         return sp.GeoDataFrame(*args, **kwargs)
     else:
         return pd.DataFrame(*args, **kwargs)
@@ -46,8 +46,8 @@ def pd_DataFrame(*args, geo=False, **kwargs):
 try:
     import cudf
     import cupy
-    def cudf_DataFrame(*args, geo=False, **kwargs):
-        assert not geo
+    def cudf_DataFrame(*args, **kwargs):
+        assert not kwargs.pop("geo", False)
         return cudf.DataFrame.from_pandas(
             pd.DataFrame(*args, **kwargs), nan_as_null=False
         )
