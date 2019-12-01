@@ -63,7 +63,7 @@ jobs:
         # Install spatialpandas here because it's python 3 only and requires
         # conda-forge for some dependencies
         - if [[ "PYTHON_VERSION" != "2.7" ]]; then
-          conda install -c pyviz -c conda-forge spatialpandas;
+          conda install -c pyviz/label/dev -c conda-forge spatialpandas;
           fi
         - doit env_capture
       script:
