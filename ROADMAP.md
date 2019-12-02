@@ -1,8 +1,8 @@
 # Datashader Roadmap, as of 4/2018
 
-Datashader is an open-source project, with contributions from a variety of developers with different priorities, so it is not possible to lay out a fully detailed timeline of upcoming features.  That said, there are clear priorities that the current developers have agreed on, which will be described here and updated occasionally. 
+Datashader is an open-source project, with contributions from a variety of developers with different priorities, so it is not possible to lay out a fully detailed timeline of upcoming features.  That said, there are clear priorities that the current developers have agreed on, which will be described here and updated occasionally.
 
-If you need any of the functionality listed below and want to help make it a priority, please respond to the relevant issue listed (preferably with offers of coding, financial, or other assistance!). 
+If you need any of the functionality listed below and want to help make it a priority, please respond to the relevant issue listed (preferably with offers of coding, financial, or other assistance!).
 
 1. **Ongoing maintenance, improved documentation and examples**
   - As always, there are various bugs and usability issues reported on the issue tracker, and we will address these as time permits.
@@ -30,6 +30,3 @@ If you need any of the functionality listed below and want to help make it a pri
   -  [#92](../../issues/92)  Box select support
   -  [#61](../../issues/61)  Add information on requirements for osm example
   - [#242](../../issues/242) Spatiotemporal data animation
-
-
-Also see the [PyViz.org roadmap](http://pyviz.org/roadmap.html).

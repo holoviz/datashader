@@ -652,7 +652,7 @@ def test_trimesh_agg_api():
 
 
 def test_bug_570():
-    # See https://github.com/pyviz/datashader/issues/570
+    # See https://github.com/holoviz/datashader/issues/570
     df = pd.DataFrame({
         'Time': [1456353642.2053893, 1456353642.2917893],
         'data': [-59.4948743433377, 506.4847376716022],
