@@ -13,7 +13,7 @@ version = release  = __version__
 html_static_path += ['_static']
 html_theme = 'sphinx_holoviz_theme'
 html_theme_options = {
-    'logo': 'logo_horizontal.png',
+    'logo': 'logo_horizontal.svg',
     'include_logo_text': False,
     'favicon': 'favicon.ico',
     'primary_color': '#774c9a',
