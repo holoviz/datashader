@@ -88,7 +88,7 @@ jobs:
       env: HV_DOC_HTML="true" DESC="docs" OPTS="-o doc"
       script:
         - datashader fetch-data --path=examples --force
-        - nbsite generate-rst --org pyviz --project-name datashader --skip '.*tiling.*,.*streaming-aggregation.*'
+        - nbsite generate-rst --org holoviz --project-name datashader --skip '.*tiling.*,.*streaming-aggregation.*'
         - nbsite build --what=html --output=builtdocs
       deploy:
         provider: pages
