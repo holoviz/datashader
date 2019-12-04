@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from collections import OrderedDict
+import os
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -25,9 +26,19 @@ df_pd.f32[2] = np.nan
 df_pd.f64[2] = np.nan
 dfs_pd = [df_pd]
 
+if "DATASHADER_TEST_GPU" in os.environ:
+    test_gpu = bool(int(os.environ["DATASHADER_TEST_GPU"]))
+else:
+    test_gpu = None
+
 try:
     import cudf
     import cupy
+
+    if test_gpu is False:
+        # GPU testing disabled even though cudf/cupy are available
+        raise ImportError
+
     def cudf_DataFrame(*args, **kwargs):
         return cudf.DataFrame.from_pandas(
             pd.DataFrame(*args, **kwargs), nan_as_null=False
@@ -86,6 +97,11 @@ def values(s):
         return s.to_array(fillna=np.nan)
     else:
         return s.values
+
+
+def test_gpu_dependencies():
+    if test_gpu is True and cudf is None:
+        pytest.fail("cudf and/or cupy not available and DATASHADER_TEST_GPU=1")
 
 
 @pytest.mark.parametrize('df', dfs)

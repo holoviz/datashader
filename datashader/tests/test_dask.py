@@ -1,4 +1,5 @@
 from __future__ import division, absolute_import
+import os
 from dask.context import config
 import dask.dataframe as dd
 import numpy as np
@@ -16,6 +17,11 @@ from datashader.tests.test_pandas import (
 
 config.set(scheduler='synchronous')
 
+if "DATASHADER_TEST_GPU" in os.environ:
+    test_gpu = bool(int(os.environ["DATASHADER_TEST_GPU"]))
+else:
+    test_gpu = None
+
 df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
                       'log_x': np.array(([1.] * 10 + [10] * 10)),
@@ -32,7 +38,6 @@ df_pd.f64[2] = np.nan
 
 _ddf = dd.from_pandas(df_pd, npartitions=2)
 
-
 def dask_DataFrame(*args, **kwargs):
     return dd.from_pandas(pd.DataFrame(*args, **kwargs), npartitions=2)
 
@@ -41,6 +46,11 @@ try:
     import cudf
     import cupy
     import dask_cudf
+
+    if test_gpu is False:
+        # GPU testing disabled even though cudf/cupy are available
+        raise ImportError
+
     ddfs = [_ddf, dask_cudf.from_dask_dataframe(_ddf)]
 
     def dask_cudf_DataFrame(*args, **kwargs):
@@ -80,6 +90,13 @@ def floats(n):
     while True:
         yield n
         n = n + np.spacing(n)
+
+
+def test_gpu_dependencies():
+    if test_gpu is True and cudf is None:
+        pytest.fail(
+            "cudf, cupy, and/or dask_cudf not available and DATASHADER_TEST_GPU=1"
+        )
 
 
 @pytest.mark.parametrize('ddf', ddfs)
