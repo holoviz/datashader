@@ -653,33 +653,28 @@ The axis argument to Canvas.line must be 0 or 1
 
         Examples
         --------
-        >>> from math import inf  # doctest: +SKIP
-        ... import datashader as ds
+        >>> import datashader as ds  # doctest: +SKIP
         ... import datashader.transfer_functions as tf
-        ... from datashader.geom import PolygonsArray
+        ... from spatialpandas.geometry import PolygonArray
+        ... from spatialpandas import GeoDataFrame
         ... import pandas as pd
         ...
-        ... polygons = PolygonsArray([
-        ...     # ## First Element
-        ...     # Filled quadrilateral (CCW order)
-        ...     [0, 0, 1, 0, 2, 2, -1, 4, 0, 0,
-        ...     # Triangular hole (CW order)
-        ...      -inf, -inf, 0.5, 1,  1, 2,  1.5, 1.5,  0.5, 1,
-        ...     # Rectangular hole (CW order)
-        ...      -inf, -inf, 0, 2, 0, 2.5, 0.5, 2.5, 0.5, 2, 0, 2,
-        ...     # Filled triangle
-        ...      inf, inf, 2.5, 3, 3.5, 3, 3.5, 4, 2.5, 3,
+        ... polygons = PolygonArray([
+        ...     # First Element
+        ...     [[0, 0, 1, 0, 2, 2, -1, 4, 0, 0],  # Filled quadrilateral (CCW order)
+        ...      [0.5, 1,  1, 2,  1.5, 1.5,  0.5, 1],     # Triangular hole (CW order)
+        ...      [0, 2, 0, 2.5, 0.5, 2.5, 0.5, 2, 0, 2],  # Rectangular hole (CW order)
+        ...      [2.5, 3, 3.5, 3, 3.5, 4, 2.5, 3],  # Filled triangle
         ...     ],
         ...
-        ...     # ## Second Element
-        ...     # Filled rectangle (CCW order)
-        ...     [3, 0, 3, 2, 4, 2, 4, 0, 3, 0,
-        ...     # Rectangular hole (CW order)
-        ...      -inf, -inf, 3.25, 0.25, 3.75, 0.25, 3.75, 1.75, 3.25, 1.75, 3.25, 0.25,
+        ...     # Second Element
+        ...     [[3, 0, 3, 2, 4, 2, 4, 0, 3, 0],  # Filled rectangle (CCW order)
+        ...      # Rectangular hole (CW order)
+        ...      [3.25, 0.25, 3.75, 0.25, 3.75, 1.75, 3.25, 1.75, 3.25, 0.25],
         ...     ]
         ... ])
         ...
-        ... df = pd.DataFrame({'polygons': polygons, 'v': range(len(polygons))})
+        ... df = GeoDataFrame({'polygons': polygons, 'v': range(len(polygons))})
         ...
         ... cvs = ds.Canvas()
         ... agg = cvs.polygons(df, geometry='polygons', agg=ds.sum('v'))
