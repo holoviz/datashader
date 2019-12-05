@@ -619,15 +619,16 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols):
             iy = (dy > 0) - (dy < 0)
             dy = abs(dy) * 2
 
+            # If vertices weren't clipped and are concurrent in integer space,
+            # call append and return, so that the second vertex won't be hit below.
+            if not clipped and not (dx | dy):
+                append(i, x0i, y0i, *aggs_and_cols)
+                return
+
             if segment_start:
                 append(i, x0i, y0i, *aggs_and_cols)
 
             if dx >= dy:
-                # If vertices weren't clipped and are concurrent in integer space,
-                # call append and return, as the second vertex won't be hit below.
-                if not clipped and not (dx | dy):
-                    append(i, x0i, y0i, *aggs_and_cols)
-                    return
                 error = 2 * dy - dx
                 while x0i != x1i:
                     if error >= 0 and (error or ix > 0):

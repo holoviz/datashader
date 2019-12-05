@@ -28,23 +28,28 @@ install_requires = [
     'scipy',
 ]
 
+examples = [
+    'distributed', # dask
+    'holoviews >=1.10.0',
+    'matplotlib',
+    'pandas >=0.24.1',
+]
+
 extras_require = {
     'tests': [
         'pytest >=3.9.3',
         'pytest-benchmark >=3.0.0',
+        'pytest-cov',
+        'codecov',
         'flake8',
-        'nbsmoke >=0.2.6',
+        'nbsmoke ==0.2.8',  # test pinning to allow hv.extension
         'fastparquet >=0.1.6',  # optional dependency
         'pandas >=0.24.1',  # optional ragged array support
         'holoviews >=1.10.0',
     ],
-    'examples': [],
-    'examples_extra':[
-        'distributed', # dask
-        'holoviews >=1.10.0',
-        'matplotlib',
+    'examples': examples,
+    'examples_extra': examples + [
         'networkx >=2.0',
-        'pandas >=0.24.1',
         'streamz >=0.2.0',
         ### conda only below here
         'cartopy',
@@ -61,7 +66,7 @@ extras_require = {
 
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.5.2',
-    'sphinx_pyviz_theme',
+    'sphinx_holoviz_theme',
     'tornado <6.0',
     'numpydoc'
 ]

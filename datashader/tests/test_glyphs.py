@@ -145,8 +145,8 @@ def test_draw_line_same_point():
     x1, y1 = (4, 4)
     agg = new_agg()
     draw_segment(x0, y0, x1, y1, 0, True, agg)
-    assert agg.sum() == 2
-    assert agg[4, 4] == 2
+    assert agg.sum() == 1
+    assert agg[4, 4] == 1
     agg = new_agg()
     draw_segment(x0, y0, x1, y1, 0, False, agg)
     assert agg.sum() == 1
@@ -229,7 +229,7 @@ def test_extend_lines_nan():
     sx, tx, sy, ty = vt
     xmin, xmax, ymin, ymax = bounds
     extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
-    out = np.diag([1, 1, 0, 2, 0])
+    out = np.diag([1, 1, 0, 1, 0])
     np.testing.assert_equal(agg, out)
 
 

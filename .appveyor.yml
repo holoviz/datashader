@@ -10,7 +10,7 @@ install:
   - "conda install -y -c pyviz pyctdev && doit ecosystem_setup"
   - "doit env_create %CHANNELS% --name=test --python=%PY%"
   - "activate test"
-  - "doit develop_install %CHANNELS%"
+  - "doit develop_install %CHANNELS% -o tests -o examples"
   # Fix for https://github.com/conda-forge/pytest-benchmark-feedstock/issues/6
   - "pip install pytest-benchmark --ignore-installed"
   # Fixes Cannot open include file: 'sys/un.h': No such file or directory
