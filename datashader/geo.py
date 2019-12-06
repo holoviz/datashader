@@ -18,6 +18,7 @@ __all__ = ['mean', 'binary', 'slope', 'aspect', 'ndvi', 'hillshade', 'generate_t
            'lnglat_to_meters']
 
 
+# TODO: add optional name parameter `name='hillshade'`
 def hillshade(agg, azimuth=225, angle_altitude=25):
     """Illuminates 2D DataArray from specific azimuth and altitude.
 
@@ -58,7 +59,7 @@ def hillshade(agg, azimuth=225, angle_altitude=25):
     altituderad = angle_altitude*np.pi/180.
     shaded = np.sin(altituderad) * np.sin(slope) + np.cos(altituderad) * np.cos(slope)*np.cos((azimuthrad - np.pi/2.) - aspect)
     data = (shaded + 1) / 2
-    return DataArray(data, attrs=agg.attrs)
+    return DataArray(data, name='hillshade', dims=agg.dims, coords=agg.coords, attrs=agg.attrs)
 
 
 @ngjit
@@ -82,6 +83,7 @@ def _horn_slope(data, cellsize):
     return out
 
 
+# TODO: add optional name parameter `name='slope'`
 def slope(agg):
     """Returns slope of input aggregate in degrees.
 
@@ -131,6 +133,7 @@ def _ndvi(nir_data, red_data):
             out[y, x] = (nir - red) / soma
     return out
 
+# TODO: add optional name parameter `name='ndvi'`
 def ndvi(nir_agg, red_agg):
     """Returns Normalized Difference Vegetation Index (NDVI).
 
@@ -161,6 +164,9 @@ def ndvi(nir_agg, red_agg):
         raise ValueError("red_agg and nir_agg expected to have equal shapes")
 
     return DataArray(_ndvi(nir_agg.data, red_agg.data),
+                     name='ndvi',
+                     coords=nir_agg.coords,
+                     dims=nir_agg.dims,
                      attrs=nir_agg.attrs)
 
 @ngjit
@@ -194,6 +200,7 @@ def _horn_aspect(data):
     return out
 
 
+# TODO: add optional name parameter `name='aspect'`
 def aspect(agg):
     """Returns downward slope direction in compass degrees (0 - 360) with 0 at 12 o'clock.
 
@@ -216,7 +223,9 @@ def aspect(agg):
         raise TypeError("agg must be instance of DataArray")
 
     return DataArray(_horn_aspect(agg.data),
-                     dims=['y', 'x'],
+                     name='aspect',
+                     dims=agg.dims,
+                     coords=agg.coords,
                      attrs=agg.attrs)
 
 
@@ -243,9 +252,12 @@ def _binary(data, values):
                 out[y, x] = False
     return out
 
+# TODO: add optional name parameter `name='binary'`
 def binary(agg, values):
     return DataArray(_binary(agg.data, values),
-                     dims=['y', 'x'],
+                     name='binary',
+                     dims=agg.dims,
+                     coords=agg.coords,
                      attrs=agg.attrs)
 
 @ngjit
@@ -270,6 +282,7 @@ def _mean(data, excludes):
                 out[y, x] = data[y, x]
     return out
 
+# TODO: add optional name parameter `name='mean'`
 def mean(agg, passes=1, excludes=[np.nan]):
     """
     Returns Mean filtered array using a 3x3 window
@@ -290,9 +303,10 @@ def mean(agg, passes=1, excludes=[np.nan]):
         else:
             out = _mean(out, tuple(excludes))
 
-    return DataArray(out, dims=['y', 'x'], attrs=agg.attrs)
+    return DataArray(out, name='mean', dims=agg.dims, coords=agg.coords, attrs=agg.attrs)
 
 
+# TODO: add optional name parameter `name='terrain'`
 def generate_terrain(canvas, seed=10, zfactor=4000, full_extent=None):
     """
     Generates a pseudo-random terrain which can be helpful for testing raster functions
@@ -368,8 +382,9 @@ def generate_terrain(canvas, seed=10, zfactor=4000, full_extent=None):
     # DataArray coords were coming back different from cvs.points...
     hack_agg = canvas.points(pd.DataFrame({'x': [],'y': []}), 'x', 'y')
     agg = DataArray(data,
+                    name='terrain',
                     coords=hack_agg.coords,
-                    dims=['y', 'x'],
+                    dims=hack_agg.dims,
                     attrs={'res':1})
 
     return agg
@@ -402,6 +417,7 @@ def _gen_terrain(width, height, seed, x_range=None, y_range=None):
     return height_map
 
 
+# TODO: change parameters to take agg instead of height / width
 def bump(width, height, count=None, height_func=None, spread=1):
     """
     Generate a simple bump map
@@ -462,7 +478,7 @@ def _finish_bump(width, height, locs, heights, spread):
     return out
 
 
-
+# TODO: change parameters to take agg instead of height / width
 def perlin(width, height, freq=(1, 1), seed=5):
     """
     Generate perlin noise aggregate
