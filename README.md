@@ -100,7 +100,7 @@ Otherwise create a new environment:
 4.  Put the datashader directory into the Python path in this
     environment:
 
-        pip install -e .
+        pip install --no-deps -e .
 
 ## Learning more
 
