@@ -369,6 +369,7 @@ def proximity(raster, target_values=[], distance_metric='EUCLIDEAN'):
 
     result = xarray.DataArray(proximity_img,
                               coords=raster.coords,
-                              dims=raster.dims)
+                              dims=raster.dims,
+                              attrs=raster.attrs)
 
     return result

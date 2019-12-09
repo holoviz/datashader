@@ -295,8 +295,13 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
         rgba = np.dstack([r, g, b, a])
     elif callable(cmap):
         # Assume callable is matplotlib colormap
-        rgba = cmap((data - span[0])/(span[1] - span[0]), bytes=True)
-        rgba[:, :, 3] = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
+        scaled_data = (data - span[0])/(span[1] - span[0])
+        if cupy and isinstance(scaled_data, cupy.ndarray):
+            # Convert cupy array to numpy before passing to matplotlib colormap
+            scaled_data = cupy.asnumpy(scaled_data)
+
+        rgba = cmap(scaled_data, bytes=True)
+        rgba[:, :, 3] = np.where(np.isnan(scaled_data), 0, alpha).astype(np.uint8)
     else:
         raise TypeError("Expected `cmap` of `matplotlib.colors.Colormap`, "
                         "`list`, `str`, or `tuple`; got: '{0}'".format(type(cmap)))

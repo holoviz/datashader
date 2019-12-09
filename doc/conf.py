@@ -11,9 +11,10 @@ from datashader import __version__
 version = release  = __version__
 
 html_static_path += ['_static']
-html_theme = 'sphinx_pyviz_theme'
+html_theme = 'sphinx_holoviz_theme'
 html_theme_options = {
-    'logo': 'datashader-logo.png',
+    'logo': 'logo_horizontal.svg',
+    'include_logo_text': False,
     'favicon': 'favicon.ico',
     'primary_color': '#774c9a',
     'primary_color_dark': '#460f72',
@@ -34,15 +35,15 @@ html_context.update({
     'PROJECT': project,
     'DESCRIPTION': description,
     'AUTHOR': authors,
-    'WEBSITE_SERVER': 'http://datashader.org',
+    'WEBSITE_SERVER': 'https://datashader.org',
     'VERSION': version,
     'NAV': _NAV,
     'LINKS': _NAV,
     'SOCIAL': (
-        ('Github', 'https://github.com/bokeh/datashader/'),
+        ('Github', 'https://github.com/holoviz/datashader/'),
         ('Twitter', 'https://twitter.com/datashader/'),
         ('Gitter', 'https://gitter.im/pyviz/pyviz'),
-        ('PyViz', 'http://pyviz.org'),
+        ('HoloViz', 'https://holoviz.org'),
     )
 })
 

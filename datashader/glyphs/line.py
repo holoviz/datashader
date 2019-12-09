@@ -94,10 +94,10 @@ class LineAxis0Multi(_PointLike):
     def compute_bounds_dask(self, ddf):
 
         r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([np.nanmin(df[c].values) for c in self.x]),
-            np.nanmax([np.nanmax(df[c].values) for c in self.x]),
-            np.nanmin([np.nanmin(df[c].values) for c in self.y]),
-            np.nanmax([np.nanmax(df[c].values) for c in self.y])]]
+            np.nanmin([np.nanmin(df[c].values).item() for c in self.x]),
+            np.nanmax([np.nanmax(df[c].values).item() for c in self.x]),
+            np.nanmin([np.nanmin(df[c].values).item() for c in self.y]),
+            np.nanmax([np.nanmax(df[c].values).item() for c in self.y])]]
         )).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
@@ -202,10 +202,10 @@ class LinesAxis1(_PointLike):
     def compute_bounds_dask(self, ddf):
 
         r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([np.nanmin(df[c].values) for c in self.x]),
-            np.nanmax([np.nanmax(df[c].values) for c in self.x]),
-            np.nanmin([np.nanmin(df[c].values) for c in self.y]),
-            np.nanmax([np.nanmax(df[c].values) for c in self.y])]]
+            np.nanmin([np.nanmin(df[c].values).item() for c in self.x]),
+            np.nanmax([np.nanmax(df[c].values).item() for c in self.x]),
+            np.nanmin([np.nanmin(df[c].values).item() for c in self.y]),
+            np.nanmax([np.nanmax(df[c].values).item() for c in self.y])]]
         )).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
@@ -273,8 +273,8 @@ class LinesAxis1XConstant(LinesAxis1):
     def compute_bounds_dask(self, ddf):
 
         r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([np.nanmin(df[c].values) for c in self.y]),
-            np.nanmax([np.nanmax(df[c].values) for c in self.y])]]
+            np.nanmin([np.nanmin(df[c].values).item() for c in self.y]),
+            np.nanmax([np.nanmax(df[c].values).item() for c in self.y])]]
         )).compute()
 
         y_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
@@ -342,8 +342,8 @@ class LinesAxis1YConstant(LinesAxis1):
     def compute_bounds_dask(self, ddf):
 
         r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([np.nanmin(df[c].values) for c in self.x]),
-            np.nanmax([np.nanmax(df[c].values) for c in self.x])]]
+            np.nanmin([np.nanmin(df[c].values).item() for c in self.x]),
+            np.nanmax([np.nanmax(df[c].values).item() for c in self.x])]]
         )).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
@@ -414,10 +414,10 @@ class LinesAxis1Ragged(_PointLike):
     def compute_bounds_dask(self, ddf):
 
         r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin(df[self.x].array.flat_array),
-            np.nanmax(df[self.x].array.flat_array),
-            np.nanmin(df[self.y].array.flat_array),
-            np.nanmax(df[self.y].array.flat_array)]]
+            np.nanmin(df[self.x].array.flat_array).item(),
+            np.nanmax(df[self.x].array.flat_array).item(),
+            np.nanmin(df[self.y].array.flat_array).item(),
+            np.nanmax(df[self.y].array.flat_array).item()]]
         )).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
@@ -572,15 +572,16 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols):
             iy = (dy > 0) - (dy < 0)
             dy = abs(dy) * 2
 
+            # If vertices weren't clipped and are concurrent in integer space,
+            # call append and return, so that the second vertex won't be hit below.
+            if not clipped and not (dx | dy):
+                append(i, x0i, y0i, *aggs_and_cols)
+                return
+
             if segment_start:
                 append(i, x0i, y0i, *aggs_and_cols)
 
             if dx >= dy:
-                # If vertices weren't clipped and are concurrent in integer space,
-                # call append and return, as the second vertex won't be hit below.
-                if not clipped and not (dx | dy):
-                    append(i, x0i, y0i, *aggs_and_cols)
-                    return
                 error = 2 * dy - dx
                 while x0i != x1i:
                     if error >= 0 and (error or ix > 0):

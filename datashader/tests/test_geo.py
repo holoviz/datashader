@@ -73,6 +73,9 @@ def test_slope_transfer_function():
     """
     da = xr.DataArray(data_gaussian, attrs={'res':1})
     da_slope = geo.slope(da)
+    assert da_slope.dims == da.dims
+    assert da_slope.coords == da.coords
+    assert da_slope.attrs == da.attrs
     assert da.shape == da_slope.shape
 
     assert da_slope.sum() > 0
@@ -86,8 +89,11 @@ def test_aspect_transfer_function():
     """
     Assert aspect transfer function
     """
-    da = xr.DataArray(data_gaussian, attrs={'res':1})
+    da = xr.DataArray(data_gaussian, dims=['y', 'x'], attrs={'res':1})
     da_aspect = geo.aspect(da)
+    assert da_aspect.dims == da.dims
+    assert da_aspect.coords == da.coords
+    assert da_aspect.attrs == da.attrs
     assert da.shape == da_aspect.shape
     assert pytest.approx(da_aspect.data.max(), .1) == 360.
     assert pytest.approx(da_aspect.data.min(), .1) == 0.
@@ -98,7 +104,9 @@ def test_hillshade_simple_transfer_function():
     """
     da_gaussian = xr.DataArray(data_gaussian)
     da_gaussian_shade = geo.hillshade(da_gaussian)
-
+    assert da_gaussian_shade.dims == da_gaussian.dims
+    assert da_gaussian_shade.coords == da_gaussian.coords
+    assert da_gaussian_shade.attrs == da_gaussian.attrs
     assert da_gaussian_shade.mean() > 0
     assert da_gaussian_shade[60,60] > 0
 
@@ -111,9 +119,14 @@ def test_ndvi_transfer_function():
     red = a*b
     nir = (a*b)[::-1,::-1]
 
-    da_red = xr.DataArray(red)
-    da_nir = xr.DataArray(nir)
+    da_red = xr.DataArray(red, dims=['y','x'])
+    da_nir = xr.DataArray(nir, dims=['y','x'])
+
     da_ndvi = geo.ndvi(da_nir, da_red)
+
+    assert da_ndvi.dims == da_nir.dims
+    assert da_ndvi.coords == da_nir.coords
+    assert da_ndvi.attrs == da_nir.attrs
 
     assert da_ndvi[0,0] == -1
     assert da_ndvi[-1,-1] == 1

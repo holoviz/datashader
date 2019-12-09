@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from collections import OrderedDict
+import os
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -25,9 +26,19 @@ df_pd.f32[2] = np.nan
 df_pd.f64[2] = np.nan
 dfs_pd = [df_pd]
 
+if "DATASHADER_TEST_GPU" in os.environ:
+    test_gpu = bool(int(os.environ["DATASHADER_TEST_GPU"]))
+else:
+    test_gpu = None
+
 try:
     import cudf
     import cupy
+
+    if test_gpu is False:
+        # GPU testing disabled even though cudf/cupy are available
+        raise ImportError
+
     def cudf_DataFrame(*args, **kwargs):
         return cudf.DataFrame.from_pandas(
             pd.DataFrame(*args, **kwargs), nan_as_null=False
@@ -86,6 +97,11 @@ def values(s):
         return s.to_array(fillna=np.nan)
     else:
         return s.values
+
+
+def test_gpu_dependencies():
+    if test_gpu is True and cudf is None:
+        pytest.fail("cudf and/or cupy not available and DATASHADER_TEST_GPU=1")
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -376,7 +392,7 @@ def test_log_axis_line(df):
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
 
-    sol = np.array([[5, 5], [5, 5]], dtype='i4')
+    sol = np.array([[4, 5], [5, 5]], dtype='i4')
     out = xr.DataArray(sol, coords=[lincoords, logcoords],
                        dims=['y', 'log_x'])
     assert_eq_xr(c_logx.line(df, 'log_x', 'y', ds.count('i32')), out)
@@ -386,6 +402,26 @@ def test_log_axis_line(df):
     out = xr.DataArray(sol, coords=[logcoords, logcoords],
                        dims=['log_y', 'log_x'])
     assert_eq_xr(c_logxy.line(df, 'log_x', 'log_y', ds.count('i32')), out)
+
+
+def test_subpixel_line_start():
+    cvs = ds.Canvas(plot_width=5, plot_height=5, x_range=(1, 3), y_range=(0, 1))
+
+    df = pd.DataFrame(dict(x=[1, 2, 3], y0=[0.0, 0.0, 0.0], y1=[0.0, 0.08, 0.04]))
+    agg = cvs.line(df, 'x', ['y0', 'y1'], agg=ds.count(), axis=1)
+    xcoords = axis.compute_index(axis.compute_scale_and_translate((1., 3), 5), 5)
+    ycoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 5), 5)
+    sol = np.array([
+        [1, 0, 1, 0, 1],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0]
+    ], dtype='i4')
+    out = xr.DataArray(
+        sol, coords=[ycoords, xcoords], dims=['y', 'x']
+    )
+    assert_eq_xr(agg, out)
 
 
 def test_auto_range_line():
@@ -632,7 +668,7 @@ def test_trimesh_agg_api():
 
 
 def test_bug_570():
-    # See https://github.com/pyviz/datashader/issues/570
+    # See https://github.com/holoviz/datashader/issues/570
     df = pd.DataFrame({
         'Time': [1456353642.2053893, 1456353642.2917893],
         'data': [-59.4948743433377, 506.4847376716022],

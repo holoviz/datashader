@@ -20,7 +20,7 @@ env:
     - TMPDIR=$HOME/tmp
     - PYPI="https://upload.pypi.org/legacy/"
     - PYTHON_VERSION=3.6
-    - OPTS=""
+    - OPTS="-o tests -o examples"
 
 # quick hack to determine what tag is (improvements welcomed)
 #     release: ^v(\d+|\.)*[^a-z]\d*$
@@ -64,6 +64,7 @@ jobs:
       script:
         - doit test_all
         - export NUMBA_DISABLE_JIT=1; doit test_unit_nojit
+      after_success: codecov
 
     # python 2 flake checking typically catches python 2 syntax
     # errors where python 3's been assumed...
@@ -84,10 +85,10 @@ jobs:
     - &doc_build
       <<: *default
       stage: docs
-      env: HV_DOC_HTML="true" DESC="docs" OPTS="-o doc -o examples_extra"
+      env: HV_DOC_HTML="true" DESC="docs" OPTS="-o doc"
       script:
         - datashader fetch-data --path=examples --force
-        - nbsite generate-rst --org pyviz --project-name datashader --skip '.*tiling.*,.*streaming-aggregation.*'
+        - nbsite generate-rst --org holoviz --project-name datashader --skip '.*tiling.*,.*streaming-aggregation.*'
         - nbsite build --what=html --output=builtdocs
       deploy:
         provider: pages
