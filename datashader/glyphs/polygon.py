@@ -82,11 +82,17 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
         stopxi += 1
         stopyi += 1
 
-        # Handle subpixel polygons (pixel width or height of polygon is 1)
-        if (stopxi - startxi) == 1 or (stopyi - startyi) == 1:
-            for yi in range(startyi, stopyi):
-                for xi in range(startxi, stopxi):
-                    append(i, xi, yi, *aggs_and_cols)
+        # Handle subpixel polygons (pixel width and/or height of polygon is 1)
+        if (stopxi - startxi) == 1 and (stopyi - startyi) == 1:
+            append(i, startxi, startyi, *aggs_and_cols)
+            return
+        elif (stopxi - startxi) == 1:
+            for yi in range(min(startyi, stopyi) + 1, max(startyi, stopyi)):
+                append(i, startxi, yi, *aggs_and_cols)
+            return
+        elif (stopyi - startyi) == 1:
+            for xi in range(min(startxi, stopxi) + 1, max(startxi, stopxi)):
+                append(i, xi, startyi, *aggs_and_cols)
             return
 
         # Build arrays of edges in canvas coordinates
@@ -245,16 +251,13 @@ def _build_extend_polygon_geometry(
             if missing[i]:
                 continue
 
-            # i: row index
-            # start, stop: start and stop index into values for the multiple polygons
-            #              in row i.
-            # Note: the draw_polygon method handles the edges of all of the filled
-            # polygons and holes in one pass.
-            start = offsets1[offsets0[i]]
-            stop = offsets1[offsets0[i + 1]]
+            polygon_inds = offsets1[offsets0[i]:offsets0[i + 1] + 1]
+            for j in range(len(polygon_inds) - 1):
+                start = polygon_inds[j]
+                stop = polygon_inds[j + 1]
 
-            draw_polygon(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                         offsets2[start:stop + 1], values,
-                         xs, ys, yincreasing, eligible, *aggs_and_cols)
+                draw_polygon(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                             offsets2[start:stop + 1], values,
+                             xs, ys, yincreasing, eligible, *aggs_and_cols)
 
     return extend_cpu
