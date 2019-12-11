@@ -2,8 +2,8 @@ from __future__ import absolute_import, division
 import numpy as np
 from toolz import memoize
 
+from datashader.glyphs.points import _PointLike, _GeometryLike
 from datashader.glyphs.glyph import isnull
-from datashader.glyphs.points import _PointLike
 from datashader.utils import isreal, ngjit
 from numba import cuda
 
@@ -453,6 +453,53 @@ class LinesAxis1Ragged(_PointLike):
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
                 xs, ys, *aggs_and_cols
+            )
+
+        return extend
+
+
+class LineAxis1Geometry(_GeometryLike):
+
+    @property
+    def geom_dtypes(self):
+        from spatialpandas.geometry import (
+            LineDtype, MultiLineDtype, RingDtype, PolygonDtype,
+            MultiPolygonDtype
+        )
+        return (LineDtype, MultiLineDtype, RingDtype,
+                PolygonDtype, MultiPolygonDtype)
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        from spatialpandas.geometry import (
+            PolygonArray, MultiPolygonArray
+        )
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        draw_segment = _build_draw_segment(
+            append, map_onto_pixel, expand_aggs_and_cols
+        )
+
+        perform_extend_cpu = _build_extend_line_axis1_geometry(
+            draw_segment, expand_aggs_and_cols
+        )
+        geometry_name = self.geometry
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df)
+            geom_array = df[geometry_name].array
+            # line may be clipped, then mapped to pixels
+
+            if isinstance(geom_array, (PolygonArray, MultiPolygonArray)):
+                # Convert polygon array to multi line of boundary
+                geom_array = geom_array.boundary
+
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                geom_array, *aggs_and_cols
             )
 
         return extend
@@ -908,5 +955,81 @@ def _build_extend_line_axis1_ragged(
 
                 draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                              segment_start, x0, x1, y0, y1, *aggs_and_cols)
+
+    return extend_cpu
+
+
+def _build_extend_line_axis1_geometry(
+        draw_segment, expand_aggs_and_cols
+):
+    def extend_cpu(
+            sx, tx, sy, ty,
+            xmin, xmax, ymin, ymax,
+            geometry, *aggs_and_cols
+    ):
+
+        values = geometry.buffer_values
+        missing = geometry.isna()
+        offsets = geometry.buffer_offsets
+
+        if len(offsets) == 2:
+            # MultiLineArray
+            offsets0, offsets1 = offsets
+        else:
+            # LineArray
+            offsets1 = offsets[0]
+            offsets0 = np.arange(len(offsets1))
+
+        # Compute indices of potentially intersecting polygons using
+        # geometry's R-tree
+        eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+
+        extend_cpu_numba(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            values, missing, offsets0, offsets1, eligible_inds, *aggs_and_cols
+        )
+
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu_numba(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            values, missing, offsets0, offsets1, eligible_inds, *aggs_and_cols
+    ):
+        for i in eligible_inds:
+            if missing[i]:
+                continue
+
+            start0 = offsets0[i]
+            stop0 = offsets0[i + 1]
+
+            for j in range(start0, stop0):
+                start1 = offsets1[j]
+                stop1 = offsets1[j + 1]
+
+                for k in range(start1, stop1 - 2, 2):
+                    x0 = values[k]
+                    if not np.isfinite(x0):
+                        continue
+
+                    y0 = values[k + 1]
+                    if not np.isfinite(y0):
+                        continue
+
+                    x1 = values[k + 2]
+                    if not np.isfinite(x1):
+                        continue
+
+                    y1 = values[k + 3]
+                    if not np.isfinite(y1):
+                        continue
+
+                    segment_start = (
+                            (k == start1) or
+                            not np.isfinite(values[k - 2]) or
+                            not np.isfinite(values[k - 1])
+                    )
+
+                    draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                                 segment_start, x0, x1, y0, y1, *aggs_and_cols)
 
     return extend_cpu

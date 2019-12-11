@@ -45,6 +45,7 @@ extras_require = {
         'nbsmoke ==0.2.8',  # test pinning to allow hv.extension
         'fastparquet >=0.1.6',  # optional dependency
         'pandas >=0.24.1',  # optional ragged array support
+        'holoviews >=1.10.0',
     ],
     'examples': examples,
     'examples_extra': examples + [
