@@ -2,7 +2,7 @@ import xarray as xa
 import pytest
 
 import datashader as ds
-from datashader.spatial import viewshed
+from datashader.spatial.viewshed import viewshed
 
 import numpy as np
 import pandas as pd

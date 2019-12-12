@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import xarray as xa
 
-from datashader.spatial import zonal_stats
+from datashader.spatial.zonal import zonal_stats
 
 
 zones_val = np.array([[0, 1, 1, 2, 4, 0, 0],
