@@ -2,7 +2,6 @@ import pytest
 import pandas as pd
 import numpy as np
 import xarray as xr
-from numpy import nan
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_xr
 import dask.dataframe as dd
