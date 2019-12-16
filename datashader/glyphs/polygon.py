@@ -229,16 +229,17 @@ def _build_extend_polygon_geometry(
             eligible_inds, *aggs_and_cols
     ):
         # Pre-allocate temp arrays
+        max_edges = 0
         if len(offsets0) > 1:
-            max_edges = -1
-            for i in range(len(offsets0) - 1):
+            for i in eligible_inds:
                 if missing[i]:
                     continue
-                start = offsets2[offsets1[offsets0[i]]]
-                stop = offsets2[offsets1[offsets0[i + 1]]]
-                max_edges = max(max_edges, (stop - start) // 2)
-        else:
-            max_edges = 0
+
+                polygon_inds = offsets1[offsets0[i]:offsets0[i + 1] + 1]
+                for j in range(len(polygon_inds) - 1):
+                    start = offsets2[polygon_inds[j]]
+                    stop = offsets2[polygon_inds[j + 1]]
+                    max_edges = max(max_edges, (stop - start - 2) // 2)
 
         xs = np.full((max_edges, 2), np.nan, dtype=np.float32)
         ys = np.full((max_edges, 2), np.nan, dtype=np.float32)
