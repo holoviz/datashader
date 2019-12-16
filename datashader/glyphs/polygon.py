@@ -107,10 +107,10 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
                 y1 = values[k + 3]
 
                 # Map to canvas coordinates without rounding
-                x0c = x_mapper(x0) * sx + tx
-                y0c = y_mapper(y0) * sy + ty
-                x1c = x_mapper(x1) * sx + tx
-                y1c = y_mapper(y1) * sy + ty
+                x0c = x_mapper(x0) * sx + tx - 0.5
+                y0c = y_mapper(y0) * sy + ty - 0.5
+                x1c = x_mapper(x1) * sx + tx - 0.5
+                y1c = y_mapper(y1) * sy + ty - 0.5
 
                 if y1c > y0c:
                     xs[ei, 0] = x0c
