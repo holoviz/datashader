@@ -472,7 +472,7 @@ class LineAxis1Geometry(_GeometryLike):
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         from spatialpandas.geometry import (
-            PolygonArray, MultiPolygonArray
+            PolygonArray, MultiPolygonArray, RingArray
         )
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
@@ -490,16 +490,22 @@ class LineAxis1Geometry(_GeometryLike):
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
             geom_array = df[geometry_name].array
-            # line may be clipped, then mapped to pixels
 
+            # Use type to decide whether geometry represents a closed .
+            # We skip for closed geometries so as not to double count the first/last
+            # pixel
             if isinstance(geom_array, (PolygonArray, MultiPolygonArray)):
                 # Convert polygon array to multi line of boundary
                 geom_array = geom_array.boundary
+                closed_rings = True
+            elif isinstance(geom_array, RingArray):
+                closed_rings = True
+            else:
+                closed_rings = False
 
             perform_extend_cpu(
-                sx, tx, sy, ty,
-                xmin, xmax, ymin, ymax,
-                geom_array, *aggs_and_cols
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                geom_array, closed_rings, *aggs_and_cols
             )
 
         return extend
@@ -963,9 +969,8 @@ def _build_extend_line_axis1_geometry(
         draw_segment, expand_aggs_and_cols
 ):
     def extend_cpu(
-            sx, tx, sy, ty,
-            xmin, xmax, ymin, ymax,
-            geometry, *aggs_and_cols
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            geometry, closed_rings, *aggs_and_cols
     ):
 
         values = geometry.buffer_values
@@ -986,14 +991,16 @@ def _build_extend_line_axis1_geometry(
 
         extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            values, missing, offsets0, offsets1, eligible_inds, *aggs_and_cols
+            values, missing, offsets0, offsets1, eligible_inds,
+            closed_rings, *aggs_and_cols
         )
 
     @ngjit
     @expand_aggs_and_cols
     def extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            values, missing, offsets0, offsets1, eligible_inds, *aggs_and_cols
+            values, missing, offsets0, offsets1, eligible_inds,
+            closed_rings, *aggs_and_cols
     ):
         for i in eligible_inds:
             if missing[i]:
@@ -1024,9 +1031,10 @@ def _build_extend_line_axis1_geometry(
                         continue
 
                     segment_start = (
-                            (k == start1) or
-                            not np.isfinite(values[k - 2]) or
-                            not np.isfinite(values[k - 1])
+                            (k == start1 and not closed_rings) or
+                            (k > start1 and
+                             not np.isfinite(values[k - 2]) or
+                             not np.isfinite(values[k - 1]))
                     )
 
                     draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
