@@ -36,6 +36,8 @@ html_context.update({
     'DESCRIPTION': description,
     'AUTHOR': authors,
     'WEBSITE_SERVER': 'https://datashader.org',
+    'GOOGLE_SEARCH_ID': '017396756996884923145:fgzzciei5qk',
+    'GOOGLE_ANALYTICS_UA': 'UA-154795830-1',
     'VERSION': version,
     'NAV': _NAV,
     'LINKS': _NAV,
