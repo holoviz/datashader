@@ -42,7 +42,7 @@ extras_require = {
         'pytest-cov',
         'codecov',
         'flake8',
-        'nbsmoke ==0.2.8',  # test pinning to allow hv.extension
+        'nbsmoke[all] >=0.4.0',
         'fastparquet >=0.1.6',  # optional dependency
         'pandas >=0.24.1',  # optional ragged array support
         'holoviews >=1.10.0',
