@@ -15,7 +15,7 @@ import pytest
 
 try:
     import spatialpandas as sp
-    import spatialpandas.dask
+    import spatialpandas.dask  # noqa (API import)
 except ImportError:
     sp = None
 
