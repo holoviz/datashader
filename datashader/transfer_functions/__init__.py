@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
-from collections import Iterator, OrderedDict
+from collections.abc import Iterator
+from collections import OrderedDict
 from io import BytesIO
 
 import numpy as np
