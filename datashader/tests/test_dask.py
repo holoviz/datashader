@@ -15,6 +15,7 @@ import pytest
 
 try:
     import spatialpandas as sp
+    import spatialpandas.dask
 except ImportError:
     sp = None
 
