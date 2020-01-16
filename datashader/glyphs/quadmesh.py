@@ -3,15 +3,16 @@ import numpy as np
 
 from datashader.glyphs.glyph import Glyph
 from datashader.resampling import infer_interval_breaks
-from datashader.transfer_functions._cuda_utils import cuda_args
 from datashader.utils import isreal, ngjit
 import numba
 from numba import cuda
 
 try:
     import cupy
+    from datashader.transfer_functions._cuda_utils import cuda_args
 except ImportError:
     cupy = None
+    cuda_args = None
 
 
 def _cuda_mapper(mapper):
