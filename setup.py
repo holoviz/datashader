@@ -46,6 +46,7 @@ extras_require = {
         'fastparquet >=0.1.6',  # optional dependency
         'pandas >=0.24.1',  # optional ragged array support
         'holoviews >=1.10.0',
+        'rasterio',  # raster tests
     ],
     'examples': examples,
     'examples_extra': examples + [
