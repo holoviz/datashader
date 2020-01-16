@@ -40,6 +40,11 @@ from numba import prange
 from .utils import ngjit
 
 try:
+    import cupy
+except ImportError:
+    cupy = None
+
+try:
     # Try to create numba JIT with 'parallel' target
     ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
 except:
@@ -964,7 +969,11 @@ def infer_interval_breaks(coord, axis=0):
     array([[-0.5,  0.5,  1.5],
            [ 2.5,  3.5,  4.5]])
     """
-    coord = np.asarray(coord)
+    if cupy and isinstance(coord, cupy.ndarray):
+        # leave cupy array as-is
+        pass
+    else:
+        coord = np.asarray(coord)
     if sys.version_info.major == 2 and len(coord) and isinstance(coord[0], (dt.datetime, dt.date)):
         # np.diff does not work on datetimes in python 2
         coord = coord.astype('datetime64')
