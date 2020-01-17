@@ -16,6 +16,7 @@ install:
   # Fixes Cannot open include file: 'sys/un.h': No such file or directory
   - "pip uninstall -y pyzmq"
   - "pip install pyzmq"
+  - "pip install rasterio"
   - "doit env_capture"
 
 build: off

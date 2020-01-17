@@ -65,6 +65,8 @@ jobs:
         - if [[ "$PYTHON_VERSION" != "2.7" ]]; then
           conda install -c pyviz/label/dev -c conda-forge spatialpandas;
           fi
+        # Install rasterio using pip to avoid conda solver errors
+        - pip install rasterio
         - doit env_capture
       script:
         - doit test_all
