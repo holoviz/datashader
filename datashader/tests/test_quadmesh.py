@@ -162,7 +162,7 @@ def test_curve_quadmesh_rect_autorange():
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert res.equals(out)
 
-    res = c.quadmesh(da.transpose('X', 'Y'), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert res.equals(out)
 
 
@@ -206,7 +206,7 @@ def test_curve_quadmesh_autorange():
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert res.equals(out)
 
-    res = c.quadmesh(da.transpose('X', 'Y'), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert res.equals(out)
 
 
@@ -250,7 +250,7 @@ def test_curve_quadmesh_manual_range():
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert res.equals(out)
 
-    res = c.quadmesh(da.transpose('X', 'Y'), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert res.equals(out)
 
 
@@ -292,5 +292,5 @@ def test_curve_quadmesh_manual_range_subpixel():
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert res.equals(out)
 
-    res = c.quadmesh(da.transpose('X', 'Y'), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert res.equals(out)
