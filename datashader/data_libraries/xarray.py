@@ -5,13 +5,18 @@ from datashader.core import bypixel
 import xarray as xr
 from datashader.utils import Dispatcher
 
+try:
+    import cupy
+except ImportError:
+    cupy = None
 
 glyph_dispatch = Dispatcher()
 
 
 @bypixel.pipeline.register(xr.Dataset)
 def xarray_pipeline(df, schema, canvas, glyph, summary):
-    return glyph_dispatch(glyph, df, schema, canvas, summary)
+    cuda = cupy and isinstance(df[glyph.name].data, cupy.ndarray)
+    return glyph_dispatch(glyph, df, schema, canvas, summary, cuda)
 
 
 # Default to default pandas implementation
