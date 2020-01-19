@@ -11,7 +11,6 @@ from six import string_types
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
-from datashader.spatial.points import SpatialPointsFrame
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     compute_coords, dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
@@ -195,13 +194,16 @@ class Canvas(object):
 
         # Handle down-selecting of SpatialPointsFrame
         if geometry is None:
-            if (isinstance(source, SpatialPointsFrame) and
-                    source.spatial is not None and
-                    source.spatial.x == x and source.spatial.y == y and
-                    self.x_range is not None and self.y_range is not None):
-
-                source = source.spatial_query(
-                    x_range=self.x_range, y_range=self.y_range)
+            import sys
+            if 'datashader.spatial.points' in sys.modules:
+                from datashader.spatial.points import SpatialPointsFrame
+                if (isinstance(source, SpatialPointsFrame) and
+                        source.spatial is not None and
+                        source.spatial.x == x and source.spatial.y == y and
+                        self.x_range is not None and self.y_range is not None):
+            
+                    source = source.spatial_query(
+                        x_range=self.x_range, y_range=self.y_range)
             glyph = Point(x, y)
         else:
             from spatialpandas import GeoDataFrame

@@ -4,7 +4,7 @@ if __name__ == "__main__":
     from bokeh.io import curdoc
     from bokeh.plotting import Figure
     from bokeh.models import ColumnDataSource, CustomJS
-    from bokeh.tile_providers import STAMEN_TONER
+    from bokeh.tile_providers import get_provider
     
     import rasterio as rio
     import datashader as ds
@@ -85,7 +85,7 @@ if __name__ == "__main__":
                  plot_width=900,
                  tools='pan,wheel_zoom')
     fig.background_fill_color = 'black'
-    fig.add_tile(STAMEN_TONER, alpha=0) # used to set axis ranges
+    fig.add_tile(get_provider("STAMEN_TONER"), alpha=0) # used to set axis ranges
     fig.x_range.callback = CustomJS(code=dims_jscode, args=dict(plot=fig, dims=dims))
     fig.y_range.callback = CustomJS(code=dims_jscode, args=dict(plot=fig, dims=dims))
     fig.axis.visible = False

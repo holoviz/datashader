@@ -186,9 +186,8 @@ def test_curve_quadmesh_rect_autorange(array_module):
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
 
-    res = c.quadmesh(da.transpose('X', 'Y'), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
-
 
 @pytest.mark.parametrize('array_module', array_modules)
 def test_curve_quadmesh_autorange(array_module):
@@ -231,9 +230,8 @@ def test_curve_quadmesh_autorange(array_module):
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
 
-    res = c.quadmesh(da.transpose('X', 'Y'), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
-
 
 @pytest.mark.parametrize('array_module', array_modules)
 def test_curve_quadmesh_manual_range(array_module):
@@ -276,9 +274,8 @@ def test_curve_quadmesh_manual_range(array_module):
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
 
-    res = c.quadmesh(da.transpose('X', 'Y'), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
-
 
 @pytest.mark.parametrize('array_module', array_modules)
 def test_curve_quadmesh_manual_range_subpixel(array_module):
@@ -319,5 +316,6 @@ def test_curve_quadmesh_manual_range_subpixel(array_module):
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
 
-    res = c.quadmesh(da.transpose('X', 'Y'), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    
