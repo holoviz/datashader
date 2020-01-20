@@ -1061,10 +1061,14 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             bottom_pad = np.full(bshape, fill_value, source_window.dtype)
 
             concat = da.concatenate if isinstance(data, da.Array) else np.concatenate
-            if top_pad.shape[0] > 0:
-                data = concat((top_pad, data, bottom_pad), axis=0)
-            if left_pad.shape[1] > 0:
-                data = concat((left_pad, data, right_pad), axis=1)
+            arrays = (top_pad, data) if top_pad.shape[0] > 0 else (data,)
+            if bottom_pad.shape[0] > 0:
+                arrays += (bottom_pad,)
+            data = concat(arrays, axis=0) if len(arrays) > 1 else arrays[0]
+            arrays = (left_pad, data) if left_pad.shape[1] > 0 else (data,)
+            if right_pad.shape[1] > 0:
+                arrays += (right_pad,)
+            data = concat(arrays, axis=1) if len(arrays) > 1 else arrays[0]
 
         # Reorient array to original orientation
         if res[1] > 0: data = data[::-1]

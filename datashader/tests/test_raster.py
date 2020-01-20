@@ -1,6 +1,12 @@
 from __future__ import absolute_import
 import pytest
-rasterio = pytest.importorskip("rasterio")
+
+try:
+    import rasterio
+except:
+    rasterio = None
+
+rasterio_available = pytest.mark.skipif(rasterio is None, reason="requires rasterio")
 
 from os import path
 from itertools import product
@@ -16,42 +22,49 @@ BASE_PATH = path.split(__file__)[0]
 DATA_PATH = path.abspath(path.join(BASE_PATH, 'data'))
 TEST_RASTER_PATH = path.join(DATA_PATH, 'world.rgb.tif')
 
-with xr.open_rasterio(TEST_RASTER_PATH) as src:
-    res = ds.utils.calc_res(src)
-    left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
-    cvs = ds.Canvas(plot_width=2,
-                    plot_height=2,
-                    x_range=(left, right),
-                    y_range=(bottom, top))
+
+@pytest.fixture
+def cvs():
+    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+        res = ds.utils.calc_res(src)
+        left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
+        return ds.Canvas(plot_width=2,
+                         plot_height=2,
+                         x_range=(left, right),
+                         y_range=(bottom, top))
 
 
-def test_raster_aggregate_default():
+@rasterio_available
+def test_raster_aggregate_default(cvs):
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src)
         assert agg is not None
 
-
-def test_raster_aggregate_nearest():
+@rasterio_available
+def test_raster_aggregate_nearest(cvs):
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, upsample_method='nearest')
         assert agg is not None
 
 
 @pytest.mark.skip('use_overviews opt no longer supported; may be re-implemented in the future')
-def test_raster_aggregate_with_overviews():
+@rasterio_available
+def test_raster_aggregate_with_overviews(cvs):
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, use_overviews=True)
         assert agg is not None
 
 
 @pytest.mark.skip('use_overviews opt no longer supported; may be re-implemented in the future')
-def test_raster_aggregate_without_overviews():
+@rasterio_available
+def test_raster_aggregate_without_overviews(cvs):
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, use_overviews=False)
         assert agg is not None
 
 
-def test_out_of_bounds_return_correct_size():
+@rasterio_available
+def test_out_of_bounds_return_correct_size(cvs):
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         cvs = ds.Canvas(plot_width=2,
                         plot_height=2,
@@ -65,6 +78,7 @@ def test_out_of_bounds_return_correct_size():
             assert False
 
 
+@rasterio_available
 def test_partial_extent_returns_correct_size():
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         res = ds.utils.calc_res(src)
@@ -80,7 +94,8 @@ def test_partial_extent_returns_correct_size():
         assert agg is not None
 
 
-def test_partial_extent_with_layer_returns_correct_size():
+@rasterio_available
+def test_partial_extent_with_layer_returns_correct_size(cvs):
     with xr.open_rasterio(TEST_RASTER_PATH) as src:
         res = ds.utils.calc_res(src)
         left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
@@ -95,6 +110,7 @@ def test_partial_extent_with_layer_returns_correct_size():
         assert agg is not None
 
 
+@rasterio_available
 def test_calc_res():
     """Assert that resolution is calculated correctly when using the xarray
     rasterio backend.
@@ -106,6 +122,7 @@ def test_calc_res():
     assert np.allclose(xr_res, rio_res)
 
 
+@rasterio_available
 def test_calc_bbox():
     """Assert that bounding boxes are calculated correctly when using the xarray
     rasterio backend.
@@ -340,27 +357,39 @@ def test_raster_single_pixel_range():
     assert np.allclose(agg.y.values, np.array([1/60., 1/20., 1/12.]))
 
 
-
 def test_raster_single_pixel_range_with_padding():
     """
     Ensure that canvas range covering a single pixel and small area
     beyond the defined data ranges is handled correctly.
     """
 
-    cvs = ds.Canvas(plot_height=4, plot_width=4, x_range=(-0.5, 0.25), y_range=(-.5, 0.25))
+    # The .301 value ensures that one pixel covers the edge of the input extent 
+    cvs = ds.Canvas(plot_height=4, plot_width=6, x_range=(-0.5, 0.25), y_range=(-.5, 0.301))
+    cvs2 = ds.Canvas(plot_height=4, plot_width=6, x_range=(-0.5, 0.25), y_range=(-.5, 0.3))
     array = np.array([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]], dtype='f')
     xr_array = xr.DataArray(array, dims=['y', 'x'],
-                            coords={'x': np.linspace(0, 1, 4),
-                                    'y': np.linspace(0, 1, 3)})
-
+                            coords={'x': np.linspace(0.125, .875, 4),
+                                    'y': np.linspace(0.125, 0.625, 3)})
     agg = cvs.raster(xr_array, downsample_method='max', nan_value=np.NaN)
-    expected = np.array([[np.NaN, np.NaN, np.NaN, np.NaN], [np.NaN, 0, 0, 0],
-                         [np.NaN, 0, 0, 0], [np.NaN, 0, 0, 0]])
+    agg2 = cvs2.raster(xr_array, downsample_method='max', nan_value=np.NaN)
+    expected = np.array([
+        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
+        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
+        [np.NaN, np.NaN, np.NaN, np.NaN, 0, 0],
+        [np.NaN, np.NaN, np.NaN, np.NaN, 0, 0]
+    ])
+    expected2 = np.array([
+        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
+        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
+        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
+        [np.NaN, np.NaN, np.NaN, np.NaN, 0, 0]
+    ])
 
     assert np.allclose(agg.data, expected, equal_nan=True)
+    assert np.allclose(agg2.data, expected2, equal_nan=True)
     assert agg.data.dtype.kind == 'f'
-    assert np.allclose(agg.x.values, np.array([-0.40625, -0.21875, -0.03125,  0.15625]))
-    assert np.allclose(agg.y.values, np.array([-0.40625, -0.21875, -0.03125,  0.15625]))
+    assert np.allclose(agg.x.values, np.array([-0.4375, -0.3125, -0.1875, -0.0625,  0.0625,  0.1875]))
+    assert np.allclose(agg.y.values, np.array([-0.399875, -0.199625,  0.000625,  0.200875]))
 
 
 @pytest.mark.parametrize('in_size, out_size, agg', product(range(5, 8), range(2, 5), ['mean', 'min', 'max', 'first', 'last', 'var', 'std', 'mode']))
@@ -443,7 +472,8 @@ def test_resample_compute_chunksize():
     assert explicit_chunksize == (5, 4)
 
 
-def test_resample_methods():
+@rasterio_available
+def test_resample_methods(cvs):
     """Assert that an error is raised when incorrect upsample and/or downsample
     methods are provided to cvs.raster().
     """
