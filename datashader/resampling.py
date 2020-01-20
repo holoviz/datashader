@@ -757,14 +757,11 @@ def _downsample_2d_mode(src, mask, use_mask, method, fill_value,
     scale_x = (src_w - x0_off - x1_off) / out_w
     scale_y = (src_h - y0_off - y1_off) / out_h
 
-    max_value_count = int(scale_x + 1) * int(scale_y + 1)
+    max_value_count = ceil(scale_x + 1) * ceil(scale_y + 1)
     if mode_rank >= max_value_count:
         raise ValueError("requested mode_rank too large for max_value_count being collected")
 
     for out_y in prange(out_h):
-        values = np.zeros((max_value_count,), dtype=src.dtype)
-        frequencies = np.zeros((max_value_count,), dtype=np.uint32)
-
         src_yf0 = (scale_y * out_y) + y0_off
         src_yf1 = src_yf0 + scale_y
         src_y0 = int(src_yf0)
@@ -776,6 +773,9 @@ def _downsample_2d_mode(src, mask, use_mask, method, fill_value,
             if src_y1 > src_y0:
                 src_y1 -= 1
         for out_x in range(out_w):
+            values = np.zeros((max_value_count,), dtype=src.dtype)
+            frequencies = np.zeros((max_value_count,), dtype=np.uint32)
+
             src_xf0 = (scale_x * out_x) + x0_off
             src_xf1 = src_xf0 + scale_x
             src_x0 = int(src_xf0)
