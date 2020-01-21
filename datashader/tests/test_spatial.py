@@ -152,7 +152,7 @@ def test_validate_parquet_file(df, tmp_path):
 
 
 def test_filesystem_protocol(df, tmp_path):
-    # For now, hardcodes "tmp_path" to force the path to be POSIX; non-POSIX paths (from a real tmp_dir) not yet supported.
+    # For now, hardcodes "tmp_path" to force the path to be POSIX; non-POSIX paths (from a real tmp_path) not yet supported.
     p = 5
     # Use an in-memory filesystem protocol
     path = "memory://tmp_path/spatial_points_1.parquet")
