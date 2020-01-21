@@ -152,11 +152,10 @@ def test_validate_parquet_file(df, tmp_path):
 
 
 def test_filesystem_protocol(df, tmp_path):
-    # Work around https://bugs.python.org/issue33617
-    tmp_path = str(tmp_path)
+    # For now, hardcodes "tmp_path" to force the path to be POSIX; non-POSIX paths (from a real tmp_path) not yet supported.
     p = 5
-    # Use an filesystem protocol
-    path = "memory://" + os.path.join(tmp_path, 'spatial_points_1.parquet')
+    # Use an in-memory filesystem protocol
+    path = "memory://tmp_path/spatial_points_1.parquet"
 
     dsp.to_parquet(df, path, 'x', 'y', p=p, npartitions=2)
     spf = dsp.read_parquet(path)
