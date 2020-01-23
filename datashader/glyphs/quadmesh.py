@@ -1,11 +1,13 @@
+import math
+
 from toolz import memoize
 import numpy as np
 
 from datashader.glyphs.glyph import Glyph
 from datashader.resampling import infer_interval_breaks
-from datashader.utils import isreal, ngjit
+from datashader.utils import isreal, ngjit, ngjit_parallel
 import numba
-from numba import cuda
+from numba import cuda, prange
 
 try:
     import cupy
@@ -63,7 +65,9 @@ class _QuadMeshLike(Glyph):
 
 
 class QuadMeshRectilinear(_QuadMeshLike):
-    def _compute_bounds_from_1d_centers(self, xr_ds, dim):
+    def _compute_bounds_from_1d_centers(
+            self, xr_ds, dim, maybe_expand=False, orient=True
+    ):
         vals = xr_ds[dim].values
 
         # Assume dimension is sorted in ascending or descending order
@@ -73,16 +77,25 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
         # Check if we should swap order
         if v_n < v0:
+            descending = True
             v0, v1, v_nm1, v_n = v_n, v_nm1, v1, v0
+        else:
+            descending = False
 
         bounds = (v0 - 0.5 * (v1 - v0), v_n + 0.5 * (v_n - v_nm1))
-        return self.maybe_expand_bounds(bounds)
+        if not orient and descending:
+            # swap back to descending order
+            bounds = bounds[1], bounds[0]
+
+        if maybe_expand:
+            bounds = self.maybe_expand_bounds(bounds)
+        return bounds
 
     def compute_x_bounds(self, xr_ds):
-        return self._compute_bounds_from_1d_centers(xr_ds, self.x)
+        return self._compute_bounds_from_1d_centers(xr_ds, self.x, maybe_expand=True)
 
     def compute_y_bounds(self, xr_ds):
-        return self._compute_bounds_from_1d_centers(xr_ds, self.y)
+        return self._compute_bounds_from_1d_centers(xr_ds, self.y, maybe_expand=True)
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
@@ -188,6 +201,126 @@ class QuadMeshRectilinear(_QuadMeshLike):
             do_extend(xs, ys, *aggs_and_cols)
 
         return extend
+
+
+class QuadMeshRaster(QuadMeshRectilinear):
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        x_name = self.x
+        y_name = self.y
+        name = self.name
+
+        @ngjit
+        def build_scale_translate(out_size, out0, out1, src_size, src0, src1):
+            translate_y = src_size * (out0 - src0) / (src1 - src0)
+            scale_y = (src_size * (out1 - out0)) / (out_size * (src1 - src0))
+            return scale_y, translate_y
+
+        @ngjit_parallel
+        @self.expand_aggs_and_cols(append)
+        def upsample_cpu(
+                src_w, src_h, src_x0, src_y0, src_x1, src_y1,
+                out_w, out_h, out_x0, out_y0, out_x1, out_y1,
+                *aggs_and_cols
+        ):
+            scale_y, translate_y = build_scale_translate(
+                out_h, out_y0, out_y1, src_h, src_y0, src_y1
+            )
+
+            scale_x, translate_x = build_scale_translate(
+                out_w, out_x0, out_x1, src_w, src_x0, src_x1
+            )
+
+            for out_j in prange(out_h):
+                src_j = math.floor(scale_y * (out_j + 0.5) + translate_y)
+                if src_j < 0 or src_j >= src_h:
+                    continue
+                for out_i in range(out_w):
+                    src_i = math.floor(scale_x * (out_i + 0.5) + translate_x)
+                    if src_i < 0 or src_i >= src_w:
+                        continue
+                    append(src_j, src_i, out_i, out_j, *aggs_and_cols)
+
+        @ngjit_parallel
+        @self.expand_aggs_and_cols(append)
+        def downsample_cpu(
+                src_w, src_h, src_x0, src_y0, src_x1, src_y1,
+                out_w, out_h, out_x0, out_y0, out_x1, out_y1,
+                *aggs_and_cols
+        ):
+            scale_y, translate_y = build_scale_translate(
+                out_h, out_y0, out_y1, src_h, src_y0, src_y1
+            )
+
+            scale_x, translate_x = build_scale_translate(
+                out_w, out_x0, out_x1, src_w, src_x0, src_x1
+            )
+
+            for out_j in prange(out_h):
+                src_j0 = max(
+                    math.floor(scale_y * out_j + translate_y), 0
+                )
+                src_j1 = min(
+                    math.floor(scale_y * (out_j + 1.0) + translate_y), src_h
+                )
+                for out_i in range(out_w):
+                    src_i0 = max(
+                        math.floor(scale_x * out_i + translate_x), 0
+                    )
+                    src_i1 = min(
+                        math.floor(scale_x * (out_i + 1.0) + translate_x), src_w
+                    )
+                    for src_j in range(src_j0, src_j1):
+                        for src_i in range(src_i0, src_i1):
+                            append(src_j, src_i, out_i, out_j, *aggs_and_cols)
+
+        def extend(aggs, xr_ds, vt, bounds):
+            # Compute source constants
+            xr_ds = xr_ds.transpose(y_name, x_name)
+            src_h, src_w = xr_ds[name].shape
+            src_x0, src_x1 = self._compute_bounds_from_1d_centers(
+                xr_ds, x_name, maybe_expand=False, orient=False
+            )
+            src_y0, src_y1 = self._compute_bounds_from_1d_centers(
+                xr_ds, y_name, maybe_expand=False, orient=False
+            )
+            src_xbinsize = math.fabs((src_x1 - src_x0) / src_w)
+            src_ybinsize = math.fabs((src_y1 - src_y0) / src_h)
+
+            # Compute output constants
+            out_h, out_w = aggs[0].shape
+            out_x0, out_x1, out_y0, out_y1 = bounds
+            out_xbinsize = math.fabs((out_x1 - out_x0) / out_w)
+            out_ybinsize = math.fabs((out_y1 - out_y0) / out_h)
+
+            # Build aggs_and_cols tuple
+            cols = info(xr_ds)
+            aggs_and_cols = tuple(aggs) + tuple(cols)
+
+            if src_h == 0 or src_w == 0 or out_h == 0 or out_w == 0:
+                # Nothing to do
+                return
+            elif src_xbinsize < out_xbinsize and src_ybinsize < out_ybinsize:
+                # Downsample
+                return downsample_cpu(
+                    src_w, src_h, src_x0, src_y0, src_x1, src_y1,
+                    out_w, out_h, out_x0, out_y0, out_x1, out_y1,
+                    *aggs_and_cols
+                )
+            elif src_xbinsize >= out_xbinsize and src_ybinsize >= out_ybinsize:
+                # Upsample
+                return upsample_cpu(
+                    src_w, src_h, src_x0, src_y0, src_x1, src_y1,
+                    out_w, out_h, out_x0, out_y0, out_x1, out_y1,
+                    *aggs_and_cols
+                )
+            else:
+                raise NotImplementedError(
+                    "combination of upsampling and downsampling not supported"
+                )
+
+        return extend
+
 
 
 class QuadMeshCurvialinear(_QuadMeshLike):

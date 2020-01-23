@@ -201,7 +201,7 @@ class Canvas(object):
                         source.spatial is not None and
                         source.spatial.x == x and source.spatial.y == y and
                         self.x_range is not None and self.y_range is not None):
-            
+
                     source = source.spatial_query(
                         x_range=self.x_range, y_range=self.y_range)
             glyph = Point(x, y)
@@ -716,7 +716,7 @@ The axis argument to Canvas.line must be 0 or 1
         -------
         data : xarray.DataArray
         """
-        from .glyphs import QuadMeshRectilinear, QuadMeshCurvialinear
+        from .glyphs import QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvialinear
 
         # Determine reduction operation
         from .reductions import mean as mean_rnd
@@ -760,7 +760,21 @@ The axis argument to Canvas.line must be 0 or 1
                              (source.name, agg))
 
         if xarr.ndim == 1:
-            glyph = QuadMeshRectilinear(x, y, name)
+            xaxis_linear = self.x_axis is _axis_lookup["linear"]
+            yaxis_linear = self.y_axis is _axis_lookup["linear"]
+            even_yspacing = np.allclose(
+                yarr, np.linspace(yarr[0], yarr[-1], len(yarr))
+            )
+            even_xspacing = np.allclose(
+                xarr, np.linspace(xarr[0], xarr[-1], len(xarr))
+            )
+
+            if xaxis_linear and yaxis_linear and even_xspacing and even_yspacing:
+                # Source is a raster, where all x and y coordinates are evenly spaced
+                glyph = QuadMeshRaster(x, y, name)
+            else:
+                # Source is a general rectilinear quadmesh
+                glyph = QuadMeshRectilinear(x, y, name)
         elif xarr.ndim == 2:
             glyph = QuadMeshCurvialinear(x, y, name)
         else:

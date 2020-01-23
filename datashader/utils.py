@@ -31,6 +31,7 @@ except ImportError:
 
 
 ngjit = nb.jit(nopython=True, nogil=True)
+ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
 
 
 class Expr(object):

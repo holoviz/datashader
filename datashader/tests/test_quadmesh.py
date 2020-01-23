@@ -16,8 +16,41 @@ except ImportError:
     cupy = None
 
 
+# Raster
 @pytest.mark.parametrize('array_module', array_modules)
-def test_rect_quadmesh_autorange(array_module):
+def test_raster_quadmesh_autorange_upsample_nearest(array_module):
+    c = ds.Canvas(plot_width=4, plot_height=2)
+    da = xr.DataArray(
+        array_module.array(
+            [[1,   2,  3,  4,  5,  6,  7,  8],
+             [9,  10, 11, 12, 13, 14, 15, 16],
+             [17, 18, 19, 20, 21, 22, 23, 24],
+             [25, 26, 27, 28, 29, 30, 31, 32]]
+        ),
+        coords=[('b', [1, 2, 3, 4]),
+                ('a', [1, 2, 3, 4, 5, 6, 7, 8])],
+        name='Z')
+
+    y_coords = np.linspace(0.75, 2.25, 2)
+    x_coords = np.linspace(0.75, 4.25, 4)
+    out = xr.DataArray(array_module.array(
+        [[1+2+9+10, 3+4+11+12, 5+6+13+14, 7+8+15+16],
+         [17+18+25+26., 19+20+27+28, 21+22+29+30, 23+24+31+32]],
+        dtype='f8'),
+        coords=[('b', y_coords),
+                ('a', x_coords)]
+    )
+
+    res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+    # Check transpose gives same answer
+    res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_raseter_quadmesh_autorange(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4)
     da = xr.DataArray(
         array_module.array(
@@ -49,7 +82,7 @@ def test_rect_quadmesh_autorange(array_module):
 
 
 @pytest.mark.parametrize('array_module', array_modules)
-def test_rect_quadmesh_autorange_reversed(array_module):
+def test_raster_quadmesh_autorange_reversed(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4)
     da = xr.DataArray(
         array_module.array(
@@ -81,7 +114,7 @@ def test_rect_quadmesh_autorange_reversed(array_module):
 
 
 @pytest.mark.parametrize('array_module', array_modules)
-def test_rect_quadmesh_manual_range(array_module):
+def test_raster_quadmesh_manual_range(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4,
                   x_range=[1, 3],
                   y_range=[-1, 3])
@@ -116,7 +149,7 @@ def test_rect_quadmesh_manual_range(array_module):
 
 
 @pytest.mark.parametrize('array_module', array_modules)
-def test_subpixel_quads_represented(array_module):
+def test_raster_subpixel_quads_represented(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4,
                   x_range=[0, 16],
                   y_range=[0, 8])
@@ -150,6 +183,107 @@ def test_subpixel_quads_represented(array_module):
     assert_eq_xr(res, out)
 
 
+# Rectilinear
+@pytest.mark.parametrize('array_module', array_modules)
+def test_rectilinear_quadmesh_autorange(array_module):
+    c = ds.Canvas(plot_width=8, plot_height=4)
+    da = xr.DataArray(
+        array_module.array(
+            [[1, 2, 3, 4],
+             [5, 6, 7, 8]]
+        ),
+        coords=[('b', [1, 2]),
+                ('a', [1, 2, 3, 8])],
+        name='Z')
+
+    y_coords = np.linspace(0.75, 2.25, 4)
+    x_coords = np.linspace(1.125, 9.875, 8)
+    out = xr.DataArray(array_module.array(
+        [[3., 3., 3., 3., 4., 4., 4., 4.],
+         [3., 3., 3., 3., 4., 4., 4., 4.],
+         [11., 7., 7., 7., 8., 8., 8., 8.],
+         [11., 7., 7., 7., 8., 8., 8., 8.]],
+        dtype='f8'),
+        coords=[('b', y_coords),
+                ('a', x_coords)]
+    )
+
+    res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out, close=True)
+
+    # Check transpose gives same answer
+    res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out, close=True)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_rect_quadmesh_autorange_reversed(array_module):
+    c = ds.Canvas(plot_width=8, plot_height=4)
+    da = xr.DataArray(
+        array_module.array(
+            [[1, 2, 3, 4],
+             [5, 6, 7, 8]]
+        ),
+        coords=[('b', [-1, -2]),
+                ('a', [-1, -2, -3, -8])],
+        name='Z')
+
+    y_coords = np.linspace(-2.25, -0.75, 4)
+    x_coords = np.linspace(-9.875, -1.125, 8)
+    out = xr.DataArray(array_module.array(
+        [[8., 8., 8., 8., 7., 7., 6., 5.],
+         [8., 8., 8., 8., 7., 7., 6., 5.],
+         [4., 4., 4., 4., 3., 3., 2., 1.],
+         [4., 4., 4., 4., 3., 3., 2., 1.]],
+        dtype='f8'),
+        coords=[('b', y_coords),
+                ('a', x_coords)]
+    )
+
+    res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out, close=True)
+
+    # Check transpose gives same answer
+    res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out, close=True)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_rect_quadmesh_manual_range(array_module):
+    c = ds.Canvas(plot_width=8, plot_height=4,
+                  x_range=[1, 3],
+                  y_range=[-1, 3])
+
+    da = xr.DataArray(
+        array_module.array(
+            [[1, 2, 3, 4],
+             [5, 6, 7, 8]]
+        ),
+        coords=[('b', [1, 2]),
+                ('a', [1, 2, 3, 8])],
+        name='Z')
+
+    y_coords = np.linspace(-0.5, 2.5, 4)
+    x_coords = np.linspace(1.125, 2.875, 8)
+    out = xr.DataArray(array_module.array(
+        [[nan, nan, nan, nan, nan, nan, nan, nan],
+         [1., 1., 2., 2., 2., 2., 3., 3.],
+         [5., 5., 6., 6., 6., 6., 7., 7.],
+         [nan, nan, nan, nan, nan, nan, nan, nan]],
+        dtype='f8'),
+        coords=[('b', y_coords),
+                ('a', x_coords)]
+    )
+
+    res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out, close=True)
+
+    # Check transpose gives same answer
+    res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out, close=True)
+
+
+# Curvilinear
 @pytest.mark.parametrize('array_module', array_modules)
 def test_curve_quadmesh_rect_autorange(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4)
@@ -318,4 +452,3 @@ def test_curve_quadmesh_manual_range_subpixel(array_module):
 
     res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
-    
