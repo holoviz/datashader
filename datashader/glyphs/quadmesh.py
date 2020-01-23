@@ -190,7 +190,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
         return extend
 
 
-class QuadMeshCurvialinear(_QuadMeshLike):
+class QuadMeshCurvilinear(_QuadMeshLike):
     def compute_x_bounds(self, xr_ds):
         xs = xr_ds[self.x].values
         xs = infer_interval_breaks(xs, axis=1)

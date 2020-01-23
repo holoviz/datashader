@@ -716,7 +716,7 @@ The axis argument to Canvas.line must be 0 or 1
         -------
         data : xarray.DataArray
         """
-        from .glyphs import QuadMeshRectilinear, QuadMeshCurvialinear
+        from .glyphs import QuadMeshRectilinear, QuadMeshCurvilinear
 
         # Determine reduction operation
         from .reductions import mean as mean_rnd
@@ -762,7 +762,7 @@ The axis argument to Canvas.line must be 0 or 1
         if xarr.ndim == 1:
             glyph = QuadMeshRectilinear(x, y, name)
         elif xarr.ndim == 2:
-            glyph = QuadMeshCurvialinear(x, y, name)
+            glyph = QuadMeshCurvilinear(x, y, name)
         else:
             raise ValueError("""\
 x- and y-coordinate arrays must have 1 or 2 dimensions.
