@@ -10,15 +10,17 @@ from datashader.tests.test_pandas import assert_eq_xr
 
 array_modules = [np]
 try:
+    import cudf
     import cupy
     array_modules.append(cupy)
 except ImportError:
+    cudf = None
     cupy = None
 
 
 # Raster
 @pytest.mark.parametrize('array_module', array_modules)
-def test_raster_quadmesh_autorange_upsample_nearest(array_module):
+def test_raster_quadmesh_autorange_downsample(array_module):
     c = ds.Canvas(plot_width=4, plot_height=2)
     da = xr.DataArray(
         array_module.array(
@@ -31,8 +33,8 @@ def test_raster_quadmesh_autorange_upsample_nearest(array_module):
                 ('a', [1, 2, 3, 4, 5, 6, 7, 8])],
         name='Z')
 
-    y_coords = np.linspace(0.75, 2.25, 2)
-    x_coords = np.linspace(0.75, 4.25, 4)
+    y_coords = np.linspace(1.5, 3.5, 2)
+    x_coords = np.linspace(1.5, 7.5, 4)
     out = xr.DataArray(array_module.array(
         [[1+2+9+10, 3+4+11+12, 5+6+13+14, 7+8+15+16],
          [17+18+25+26., 19+20+27+28, 21+22+29+30, 23+24+31+32]],
@@ -50,7 +52,7 @@ def test_raster_quadmesh_autorange_upsample_nearest(array_module):
 
 
 @pytest.mark.parametrize('array_module', array_modules)
-def test_raseter_quadmesh_autorange(array_module):
+def test_raster_quadmesh_autorange(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4)
     da = xr.DataArray(
         array_module.array(
@@ -151,8 +153,8 @@ def test_raster_quadmesh_manual_range(array_module):
 @pytest.mark.parametrize('array_module', array_modules)
 def test_raster_subpixel_quads_represented(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4,
-                  x_range=[0, 16],
-                  y_range=[0, 8])
+                  x_range=[0.5, 16.5],
+                  y_range=[0.5, 8.5])
 
     da = xr.DataArray(
         array_module.array(
@@ -163,8 +165,8 @@ def test_raster_subpixel_quads_represented(array_module):
                 ('a', [1, 2, 3, 4])],
         name='Z')
 
-    y_coords = np.linspace(1, 7, 4)
-    x_coords = np.linspace(1, 15, 8)
+    y_coords = np.linspace(1.5, 7.5, 4)
+    x_coords = np.linspace(1.5, 15.5, 8)
     out = xr.DataArray(array_module.array(
         [[14., 22., nan, nan, nan, nan, nan, nan],
          [nan, nan, nan, nan, nan, nan, nan, nan],
@@ -281,6 +283,41 @@ def test_rect_quadmesh_manual_range(array_module):
     # Check transpose gives same answer
     res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out, close=True)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_rect_subpixel_quads_represented(array_module):
+    c = ds.Canvas(plot_width=8, plot_height=4,
+                  x_range=[0, 16],
+                  y_range=[0, 8])
+
+    da = xr.DataArray(
+        array_module.array(
+            [[1, 2, 3, 4],
+             [5, 6, 7, 8]]
+        ),
+        coords=[('b', [1, 2]),
+                ('a', [1, 2.5, 3, 4])],
+        name='Z')
+
+    y_coords = np.linspace(1, 7, 4)
+    x_coords = np.linspace(1, 15, 8)
+    out = xr.DataArray(array_module.array(
+        [[14., 22., nan, nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan, nan, nan, nan],
+         [nan, nan, nan, nan, nan, nan, nan, nan]],
+        dtype='f4'),
+        coords=[('b', y_coords),
+                ('a', x_coords)]
+    )
+
+    res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+    # Check transpose gives same answer
+    res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
 
 
 # Curvilinear

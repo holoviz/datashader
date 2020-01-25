@@ -219,18 +219,9 @@ class QuadMeshRaster(QuadMeshRectilinear):
         @ngjit_parallel
         @self.expand_aggs_and_cols(append)
         def upsample_cpu(
-                src_w, src_h, src_x0, src_y0, src_x1, src_y1,
-                out_w, out_h, out_x0, out_y0, out_x1, out_y1,
-                *aggs_and_cols
+                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                out_w, out_h, *aggs_and_cols
         ):
-            scale_y, translate_y = build_scale_translate(
-                out_h, out_y0, out_y1, src_h, src_y0, src_y1
-            )
-
-            scale_x, translate_x = build_scale_translate(
-                out_w, out_x0, out_x1, src_w, src_x0, src_x1
-            )
-
             for out_j in prange(out_h):
                 src_j = math.floor(scale_y * (out_j + 0.5) + translate_y)
                 if src_j < 0 or src_j >= src_h:
@@ -241,31 +232,38 @@ class QuadMeshRaster(QuadMeshRectilinear):
                         continue
                     append(src_j, src_i, out_i, out_j, *aggs_and_cols)
 
+        @cuda.jit
+        @self.expand_aggs_and_cols(append)
+        def upsample_cuda(
+                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                out_w, out_h, *aggs_and_cols
+        ):
+            out_i, out_j = cuda.grid(2)
+            if out_i < out_w and out_j < out_h:
+                src_j = int(math.floor(scale_y * (out_j + 0.5) + translate_y))
+                if src_j < 0 or src_j >= src_h:
+                    return
+                src_i = int(math.floor(scale_x * (out_i + 0.5) + translate_x))
+                if src_i < 0 or src_i >= src_w:
+                    return
+                append(src_j, src_i, out_i, out_j, *aggs_and_cols)
+
         @ngjit_parallel
         @self.expand_aggs_and_cols(append)
         def downsample_cpu(
-                src_w, src_h, src_x0, src_y0, src_x1, src_y1,
-                out_w, out_h, out_x0, out_y0, out_x1, out_y1,
-                *aggs_and_cols
+                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                out_w, out_h, *aggs_and_cols
         ):
-            scale_y, translate_y = build_scale_translate(
-                out_h, out_y0, out_y1, src_h, src_y0, src_y1
-            )
-
-            scale_x, translate_x = build_scale_translate(
-                out_w, out_x0, out_x1, src_w, src_x0, src_x1
-            )
-
             for out_j in prange(out_h):
                 src_j0 = max(
-                    math.floor(scale_y * out_j + translate_y), 0
+                    math.floor(scale_y * (out_j + 0.0) + translate_y), 0
                 )
                 src_j1 = min(
                     math.floor(scale_y * (out_j + 1.0) + translate_y), src_h
                 )
                 for out_i in range(out_w):
                     src_i0 = max(
-                        math.floor(scale_x * out_i + translate_x), 0
+                        math.floor(scale_x * (out_i + 0.0) + translate_x), 0
                     )
                     src_i1 = min(
                         math.floor(scale_x * (out_i + 1.0) + translate_x), src_w
@@ -274,7 +272,33 @@ class QuadMeshRaster(QuadMeshRectilinear):
                         for src_i in range(src_i0, src_i1):
                             append(src_j, src_i, out_i, out_j, *aggs_and_cols)
 
+        @cuda.jit
+        @self.expand_aggs_and_cols(append)
+        def downsample_cuda(
+                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                out_w, out_h, *aggs_and_cols
+        ):
+            out_i, out_j = cuda.grid(2)
+            if out_i < out_w and out_j < out_h:
+                src_j0 = max(
+                    math.floor(scale_y * (out_j + 0.0) + translate_y), 0
+                )
+                src_j1 = min(
+                    math.floor(scale_y * (out_j + 1.0) + translate_y), src_h
+                )
+                src_i0 = max(
+                    math.floor(scale_x * (out_i + 0.0) + translate_x), 0
+                )
+                src_i1 = min(
+                    math.floor(scale_x * (out_i + 1.0) + translate_x), src_w
+                )
+                for src_j in range(src_j0, src_j1):
+                    for src_i in range(src_i0, src_i1):
+                        append(src_j, src_i, out_i, out_j, *aggs_and_cols)
+
         def extend(aggs, xr_ds, vt, bounds):
+            use_cuda = cupy and isinstance(xr_ds[name].data, cupy.ndarray)
+
             # Compute source constants
             xr_ds = xr_ds.transpose(y_name, x_name)
             src_h, src_w = xr_ds[name].shape
@@ -297,30 +321,41 @@ class QuadMeshRaster(QuadMeshRectilinear):
             cols = info(xr_ds)
             aggs_and_cols = tuple(aggs) + tuple(cols)
 
+            # Compute scale/translate
+            scale_y, translate_y = build_scale_translate(
+                out_h, out_y0, out_y1, src_h, src_y0, src_y1
+            )
+
+            scale_x, translate_x = build_scale_translate(
+                out_w, out_x0, out_x1, src_w, src_x0, src_x1
+            )
+
             if src_h == 0 or src_w == 0 or out_h == 0 or out_w == 0:
                 # Nothing to do
                 return
             elif src_xbinsize < out_xbinsize and src_ybinsize < out_ybinsize:
                 # Downsample
-                return downsample_cpu(
-                    src_w, src_h, src_x0, src_y0, src_x1, src_y1,
-                    out_w, out_h, out_x0, out_y0, out_x1, out_y1,
-                    *aggs_and_cols
-                )
+                if use_cuda:
+                    do_sampling = downsample_cuda[cuda_args((out_w, out_h))]
+                else:
+                    do_sampling = downsample_cpu
             elif src_xbinsize >= out_xbinsize and src_ybinsize >= out_ybinsize:
                 # Upsample
-                return upsample_cpu(
-                    src_w, src_h, src_x0, src_y0, src_x1, src_y1,
-                    out_w, out_h, out_x0, out_y0, out_x1, out_y1,
-                    *aggs_and_cols
-                )
+                if use_cuda:
+                    do_sampling = upsample_cuda[cuda_args((out_w, out_h))]
+                else:
+                    do_sampling = upsample_cpu
             else:
                 raise NotImplementedError(
                     "combination of upsampling and downsampling not supported"
                 )
 
-        return extend
+            return do_sampling(
+                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                out_w, out_h, *aggs_and_cols
+            )
 
+        return extend
 
 
 class QuadMeshCurvialinear(_QuadMeshLike):
