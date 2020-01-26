@@ -711,7 +711,8 @@ The axis argument to Canvas.line must be 0 or 1
         x, y : str
             Column names for the x and y coordinates of each point.
         agg : Reduction, optional
-            Reduction to compute. Default is ``mean()``.
+            Reduction to compute. Default is ``mean()``. Note that agg is ignored when
+            upsampling.
         Returns
         -------
         data : xarray.DataArray
@@ -772,6 +773,13 @@ The axis argument to Canvas.line must be 0 or 1
             if xaxis_linear and yaxis_linear and even_xspacing and even_yspacing:
                 # Source is a raster, where all x and y coordinates are evenly spaced
                 glyph = QuadMeshRaster(x, y, name)
+
+                if glyph.is_upsample(
+                        source, x, y, name, self.x_range, self.y_range,
+                        self.plot_width, self.plot_height
+                ):
+                    # Override aggregate with more efficient one for upsampling
+                    agg = rd._upsample(name)
             else:
                 # Source is a general rectilinear quadmesh
                 glyph = QuadMeshRectilinear(x, y, name)

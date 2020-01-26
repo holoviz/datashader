@@ -204,6 +204,35 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
 
 class QuadMeshRaster(QuadMeshRectilinear):
+    def is_upsample(self, source, x, y, name, x_range, y_range, out_w, out_h):
+        # Check upsampling in x
+        src_w = len(source[x])
+        if x_range is None:
+            upsample_x = out_w >= src_w
+        else:
+            out_x0, out_x1 = x_range
+            src_x0, src_x1 = self._compute_bounds_from_1d_centers(
+                source, x, maybe_expand=False, orient=False
+            )
+            src_xbinsize = math.fabs((src_x1 - src_x0) / src_w)
+            out_xbinsize = math.fabs((out_x1 - out_x0) / out_w)
+            upsample_x = src_xbinsize >= out_xbinsize
+
+        # Check upsampling in y
+        src_h = len(source[y])
+        if y_range is None:
+            upsample_y = out_h >= src_h
+        else:
+            out_y0, out_y1 = y_range
+            src_y0, src_y1 = self._compute_bounds_from_1d_centers(
+                source, y, maybe_expand=False, orient=False
+            )
+            src_ybinsize = math.fabs((src_y1 - src_y0) / src_h)
+            out_ybinsize = math.fabs((out_y1 - out_y0) / out_h)
+            upsample_y = src_ybinsize >= out_ybinsize
+
+        return upsample_x and upsample_y
+
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         x_name = self.x
@@ -217,10 +246,9 @@ class QuadMeshRaster(QuadMeshRectilinear):
             return scale_y, translate_y
 
         @ngjit_parallel
-        @self.expand_aggs_and_cols(append)
         def upsample_cpu(
                 src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                out_w, out_h, *aggs_and_cols
+                out_w, out_h, agg, col
         ):
             for out_j in prange(out_h):
                 src_j = math.floor(scale_y * (out_j + 0.5) + translate_y)
@@ -228,25 +256,24 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     continue
                 for out_i in range(out_w):
                     src_i = math.floor(scale_x * (out_i + 0.5) + translate_x)
-                    if src_i < 0 or src_i >= src_w:
-                        continue
-                    append(src_j, src_i, out_i, out_j, *aggs_and_cols)
+                    if src_j < 0 or src_j >= src_h or src_i < 0 or src_i >= src_w:
+                        agg[out_j, out_i] = np.nan
+                    else:
+                        agg[out_j, out_i] = col[src_j, src_i]
 
         @cuda.jit
-        @self.expand_aggs_and_cols(append)
         def upsample_cuda(
                 src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                out_w, out_h, *aggs_and_cols
+                out_w, out_h, agg, col
         ):
             out_i, out_j = cuda.grid(2)
             if out_i < out_w and out_j < out_h:
                 src_j = int(math.floor(scale_y * (out_j + 0.5) + translate_y))
-                if src_j < 0 or src_j >= src_h:
-                    return
                 src_i = int(math.floor(scale_x * (out_i + 0.5) + translate_x))
-                if src_i < 0 or src_i >= src_w:
-                    return
-                append(src_j, src_i, out_i, out_j, *aggs_and_cols)
+                if src_j < 0 or src_j >= src_h or src_i < 0 or src_i >= src_w:
+                    agg[out_j, out_i] = np.nan
+                else:
+                    agg[out_j, out_i] = col[src_j, src_i]
 
         @ngjit_parallel
         @self.expand_aggs_and_cols(append)
@@ -339,21 +366,25 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     do_sampling = downsample_cuda[cuda_args((out_w, out_h))]
                 else:
                     do_sampling = downsample_cpu
+
+                return do_sampling(
+                    src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                    out_w, out_h, *aggs_and_cols
+                )
             elif src_xbinsize >= out_xbinsize and src_ybinsize >= out_ybinsize:
                 # Upsample
                 if use_cuda:
                     do_sampling = upsample_cuda[cuda_args((out_w, out_h))]
                 else:
                     do_sampling = upsample_cpu
+                return do_sampling(
+                    src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                    out_w, out_h, aggs[0], cols[0]
+                )
             else:
                 raise NotImplementedError(
                     "combination of upsampling and downsampling not supported"
                 )
-
-            return do_sampling(
-                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                out_w, out_h, *aggs_and_cols
-            )
 
         return extend
 

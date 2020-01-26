@@ -192,6 +192,41 @@ class any(OptionalFieldReduction):
         return aggs.sum(axis=0, dtype='bool')
 
 
+class _upsample(Reduction):
+    """"Special internal class used for upsampling"""
+    _dshape = dshape(Option(ct.float64))
+
+    @staticmethod
+    def _finalize(bases, cuda=False, **kwargs):
+        return xr.DataArray(bases[0], **kwargs)
+
+    @property
+    def inputs(self):
+        return (extract(self.column),)
+
+    @staticmethod
+    def _create(shape, array_module):
+        # Use uninitialized memory, the upsample function must explicitly set unused
+        # values to nan
+        return array_module.empty(shape, dtype='f8')
+
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        # not called, the upsample function must set agg directly
+        pass
+
+    @staticmethod
+    @ngjit
+    def _append_cuda(x, y, agg, field):
+        # not called, the upsample function must set agg directly
+        pass
+
+    @staticmethod
+    def _combine(aggs):
+        return np.nanmax(aggs, axis=0)
+
+
 class FloatingReduction(Reduction):
     """Base classes for reductions that always have floating-point dtype."""
     _dshape = dshape(Option(ct.float64))
@@ -217,7 +252,7 @@ class _sum_zero(FloatingReduction):
 
     @staticmethod
     def _create(shape, array_module):
-        return array_module.full(shape, 0.0, dtype='f8')
+        return array_module.zeros(shape, dtype='f8')
 
     @staticmethod
     @ngjit
