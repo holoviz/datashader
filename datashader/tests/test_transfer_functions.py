@@ -55,8 +55,8 @@ solution_lists = {
          [4280361215, 4278190335, 0]]
 }
 
-solutions = {how: xr.DataArray(np.array(v, dtype='u4'),
-                               coords=coords, dims=dims)
+solutions = {how: tf.Image(np.array(v, dtype='u4'),
+                           coords=coords, dims=dims)
              for how, v in solution_lists.items()}
 
 eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
@@ -139,7 +139,7 @@ def test_shade(agg, attr, span):
 
     # span option not supported with how='eq_hist'
     img = tf.shade(x, cmap=cmap, how='eq_hist')
-    sol = xr.DataArray(eq_hist_sol[attr], coords=coords, dims=dims)
+    sol = tf.Image(eq_hist_sol[attr], coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
     img = tf.shade(x, cmap=cmap,
@@ -147,7 +147,7 @@ def test_shade(agg, attr, span):
     sol = np.array([[0, 4291543295, 4291148543],
                     [4290030335, 0, 4285557503],
                     [4282268415, 4278190335, 0]], dtype='u4')
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
 
@@ -178,7 +178,7 @@ def test_span_cmap_single(agg, cmap):
     sol = np.array([[0, 671088640, 1946157056],
                     [2701131776, 0, 3640655872],
                     [3976200192, 4278190080, 0]])
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    sol = tf.Image(sol, coords=coords, dims=dims)
 
     # Check span
     check_span(x, cmap, 'log', sol)
@@ -197,7 +197,7 @@ def test_span_cmap_mpl(agg):
     sol = np.array([[5505348, 4283695428, 4287524142],
                     [4287143710, 5505348, 4282832267],
                     [4280213706, 4280608765, 5505348]])
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    sol = tf.Image(sol, coords=coords, dims=dims)
 
     # Check span
     check_span(x, cmap, 'log', sol)
@@ -205,8 +205,8 @@ def test_span_cmap_mpl(agg):
 
 def test_shade_bool():
     data = ~np.eye(3, dtype='bool')
-    x = xr.DataArray(data, coords=coords, dims=dims)
-    sol = xr.DataArray(np.where(data, 4278190335, 0).astype('uint32'),
+    x = tf.Image(data, coords=coords, dims=dims)
+    sol = tf.Image(np.where(data, 4278190335, 0).astype('uint32'),
                        coords=coords, dims=dims)
     img = tf.shade(x, cmap=['pink', 'red'], how='log')
     assert_eq_xr(img, sol)
@@ -225,7 +225,7 @@ def test_shade_cmap(agg):
     sol = np.array([[0, 4278190335, 4278236489],
                     [4280344064, 0, 4289091584],
                     [4292225024, 4294901760, 0]])
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
 
@@ -236,7 +236,7 @@ def test_shade_cmap_non_categorical_alpha(agg, cmap):
     sol = np.array([[         0,  671088640, 1946157056],
                     [2701131776,          0, 3640655872],
                     [3976200192, 4278190080,          0]])
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
 
@@ -256,14 +256,14 @@ def test_shade_mpl_cmap(agg):
     sol = np.array([[5505348, 4283695428, 4287524142],
                     [4287143710, 5505348, 4282832267],
                     [4280213706, 4280608765, 5505348]])
-    sol = xr.DataArray(sol, coords=coords, dims=dims)
+    sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
 
 @pytest.mark.parametrize('array', arrays)
 def test_shade_category(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
-    cat_agg = xr.DataArray(array([[(0, 12, 0), (3, 0, 3)],
+    cat_agg = tf.Image(array([[(0, 12, 0), (3, 0, 3)],
                                   [(12, 12, 12), (24, 0, 0)]]),
                            coords=(coords + [['a', 'b', 'c']]),
                            dims=(dims + ['cats']))
@@ -503,6 +503,6 @@ def test_shade_should_handle_zeros_array():
                      [0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0]], dtype='uint32')
-    arr = xr.DataArray(data, dims=['x', 'y'])
+    arr = tf.Image(data, dims=['x', 'y'])
     img = tf.shade(arr, cmap=['white', 'black'], how='linear')
     assert img is not None
