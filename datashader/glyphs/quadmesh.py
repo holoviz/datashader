@@ -208,7 +208,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
         # Check upsampling in x
         src_w = len(source[x])
         if x_range is None:
-            upsample_x = out_w >= src_w
+            upsample_width = out_w >= src_w
         else:
             out_x0, out_x1 = x_range
             src_x0, src_x1 = self._compute_bounds_from_1d_centers(
@@ -216,12 +216,12 @@ class QuadMeshRaster(QuadMeshRectilinear):
             )
             src_xbinsize = math.fabs((src_x1 - src_x0) / src_w)
             out_xbinsize = math.fabs((out_x1 - out_x0) / out_w)
-            upsample_x = src_xbinsize >= out_xbinsize
+            upsample_width = src_xbinsize >= out_xbinsize
 
         # Check upsampling in y
         src_h = len(source[y])
         if y_range is None:
-            upsample_y = out_h >= src_h
+            upsample_height = out_h >= src_h
         else:
             out_y0, out_y1 = y_range
             src_y0, src_y1 = self._compute_bounds_from_1d_centers(
@@ -229,9 +229,9 @@ class QuadMeshRaster(QuadMeshRectilinear):
             )
             src_ybinsize = math.fabs((src_y1 - src_y0) / src_h)
             out_ybinsize = math.fabs((out_y1 - out_y0) / out_h)
-            upsample_y = src_ybinsize >= out_ybinsize
+            upsample_height = src_ybinsize >= out_ybinsize
 
-        return upsample_x and upsample_y
+        return upsample_width, upsample_height
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
@@ -252,8 +252,6 @@ class QuadMeshRaster(QuadMeshRectilinear):
         ):
             for out_j in prange(out_h):
                 src_j = math.floor(scale_y * (out_j + 0.5) + translate_y)
-                if src_j < 0 or src_j >= src_h:
-                    continue
                 for out_i in range(out_w):
                     src_i = math.floor(scale_x * (out_i + 0.5) + translate_x)
                     if src_j < 0 or src_j >= src_h or src_i < 0 or src_i >= src_w:
@@ -360,17 +358,6 @@ class QuadMeshRaster(QuadMeshRectilinear):
             if src_h == 0 or src_w == 0 or out_h == 0 or out_w == 0:
                 # Nothing to do
                 return
-            elif src_xbinsize < out_xbinsize and src_ybinsize < out_ybinsize:
-                # Downsample
-                if use_cuda:
-                    do_sampling = downsample_cuda[cuda_args((out_w, out_h))]
-                else:
-                    do_sampling = downsample_cpu
-
-                return do_sampling(
-                    src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                    out_w, out_h, *aggs_and_cols
-                )
             elif src_xbinsize >= out_xbinsize and src_ybinsize >= out_ybinsize:
                 # Upsample
                 if use_cuda:
@@ -382,8 +369,16 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     out_w, out_h, aggs[0], cols[0]
                 )
             else:
-                raise NotImplementedError(
-                    "combination of upsampling and downsampling not supported"
+                # Downsample. Note that caller is responsible for making sure to not
+                # mix upsampling and downsampling.
+                if use_cuda:
+                    do_sampling = downsample_cuda[cuda_args((out_w, out_h))]
+                else:
+                    do_sampling = downsample_cpu
+
+                return do_sampling(
+                    src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                    out_w, out_h, *aggs_and_cols
                 )
 
         return extend

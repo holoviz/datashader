@@ -84,6 +84,70 @@ def test_raster_quadmesh_autorange(array_module):
 
 
 @pytest.mark.parametrize('array_module', array_modules)
+def test_raster_quadmesh_upsampley_and_downsamplex(array_module):
+    c = ds.Canvas(plot_width=2, plot_height=4)
+    da = xr.DataArray(
+        array_module.array(
+            [[1, 2, 3, 4],
+             [5, 6, 7, 8]]
+        ),
+        coords=[('b', [1, 2]),
+                ('a', [1, 2, 3, 4])],
+        name='Z')
+
+    y_coords = np.linspace(0.75, 2.25, 4)
+    x_coords = np.linspace(1.5, 3.5, 2)
+    out = xr.DataArray(array_module.array(
+        [[3., 7.],
+         [3., 7.],
+         [11., 15.],
+         [11., 15.]],
+        dtype='f8'),
+        coords=[('b', y_coords),
+                ('a', x_coords)]
+    )
+
+    res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+    # Check transpose gives same answer
+    res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_raster_quadmesh_upsamplex_and_downsampley(array_module):
+    c = ds.Canvas(plot_width=4, plot_height=2)
+    da = xr.DataArray(
+        array_module.array(
+            [[1, 2],
+             [3, 4],
+             [5, 6],
+             [7, 8]]
+        ),
+        coords=[('b', [1, 2, 3, 4]),
+                ('a', [1, 2])],
+        name='Z')
+
+    x_coords = np.linspace(0.75, 2.25, 4)
+    y_coords = np.linspace(1.5, 3.5, 2)
+    out = xr.DataArray(array_module.array(
+        [[4., 4., 6., 6.],
+         [12., 12., 14., 14.]],
+        dtype='f8'),
+        coords=[('b', y_coords),
+                ('a', x_coords)]
+    )
+
+    res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+    # Check transpose gives same answer
+    res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
 def test_raster_quadmesh_autorange_reversed(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4)
     da = xr.DataArray(
