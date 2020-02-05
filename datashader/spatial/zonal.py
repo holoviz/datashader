@@ -92,15 +92,16 @@ def stats(zones, values, stat_funcs=['mean', 'max', 'min', 'std', 'var']):
     unique_zones = np.unique(zones_val).astype(int)
 
     num_zones = len(unique_zones)
+
     # do not consider zone with 0s
     if 0 in unique_zones:
-        num_zones = len(unique_zones) - 1
+        num_zones = len(unique_zones) - 1  # noqa
 
     # mask out all invalid values_val such as: nan, inf
     masked_values = np.ma.masked_invalid(values_val)
 
     if isinstance(stat_funcs, dict):
-        stats_df = pd.DataFrame(columns=[*stat_funcs])
+        stats_df = pd.DataFrame(columns=[stat_funcs])
 
         for zone_id in unique_zones:
             # do not consider 0 pixels as a zone
