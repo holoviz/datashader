@@ -47,31 +47,6 @@ def stats(zones, values, stat_funcs=['mean', 'max', 'min', 'std', 'var']):
     stats_df: pandas.DataFrame
         A pandas DataFrame where each column is a statistic
         and each row is a zone with zone id.
-
-    Examples
-    --------
-    >>> zones_val = np.array([[1, 1, 0, 2],
-    >>>                      [0, 2, 1, 2]])
-    >>> zones = xarray.DataArray(zones_val)
-    >>> values_val = np.array([[2, -1, 5, 3],
-    >>>                       [3, np.nan, 20, 10]])
-    >>> values = xarray.DataArray(values_val)
-
-    # default setting
-    >>> df = stats(zones, values)
-    >>> df
-        mean	max 	min 	std     	var
-    1	7.0 	20.0	-1.0	9.273618	86.00
-    2	6.5	    10.0   	3.0	    3.500000	12.25
-
-    # custom stat
-    >>> custom_stats ={'sum': lambda val: val.sum()}
-    >>> df = stats(zones, values)
-    >>> df
-        sum
-    1	21.0
-    2	13.0
-
     """
 
     zones_val = zones.values
@@ -287,23 +262,6 @@ def apply(zones, values, func):
         agg.values is either a 2D or 3D array of integers or floats.
         The input value raster.
     func: callable function to apply.
-
-    Returns
-    -------
-
-    Examples
-    --------
-    >>> zones_val = np.array([[1, 1, 0, 2],
-    >>>                      [0, 2, 1, 2]])
-    >>> zones = xarray.DataArray(zones_val)
-    >>> values_val = np.array([[2, -1, 5, 3],
-    >>>                       [3, np.nan, 20, 10]])
-    >>> agg = xarray.DataArray(values_val)
-    >>> func = lambda x: 0
-    >>> apply(zones, agg, func)
-    >>> agg
-    >>> array([[0, 0, 5, 0],
-    >>>        [3, 0, 0, 0]])
     """
 
     if not isinstance(zones, xa.DataArray):
