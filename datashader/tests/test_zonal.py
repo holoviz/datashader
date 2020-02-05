@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import xarray as xa
 
-from datashader.spatial import stats, crosstab, apply
+from datashader.spatial.zonal import stats, crosstab, apply
 
 # create valid "zones" and "values" for testing stats()
 zones_val = np.array([[0, 1, 1, 2, 4, 0, 0],
@@ -92,15 +92,15 @@ def test_stats_invalid_custom_stat():
     custom_stats ={'sum': cal_sum}
 
     # custom stat only takes 1 argument. Thus, raise error
-    with pytest.raises(Exception) as e_info:
-        df = stats(zones=zones, values=values, stat_funcs=custom_stats)
+    with pytest.raises(Exception) as e_info:  # noqa
+        stats(zones=zones, values=values, stat_funcs=custom_stats)
 
 
 @pytest.mark.stats
 def test_stats_invalid_stat_list():
     custom_stats = ['some_stat']
-    with pytest.raises(Exception) as e_info:
-        df = stats(zones=zones, values=values, stat_funcs=custom_stats)
+    with pytest.raises(Exception) as e_info:  # noqa
+        stats(zones=zones, values=values, stat_funcs=custom_stats)
 
 
 @pytest.mark.stats
@@ -108,8 +108,8 @@ def test_stats_invalid_zones():
     zones = xa.DataArray(np.array([1, 2, 0.5]))
     values = xa.DataArray(np.array([1, 2, 0.5]))
 
-    with pytest.raises(Exception) as e_info:
-        df = stats(zones=zones, values=values)
+    with pytest.raises(Exception) as e_info:  # noqa
+        stats(zones=zones, values=values)
 
 
 @pytest.mark.stats
@@ -117,8 +117,8 @@ def test_stats_invalid_values():
     zones = xa.DataArray(np.array([1, 2, 0], dtype=np.int))
     values = xa.DataArray(np.array(['apples', 'foobar', 'cowboy']))
 
-    with pytest.raises(Exception) as e_info:
-        df = stats(zones=zones, values=values)
+    with pytest.raises(Exception) as e_info:  # noqa
+        stats(zones=zones, values=values)
 
 
 @pytest.mark.stats
@@ -126,8 +126,8 @@ def test_stats_mismatch_zones_values_shape():
     zones = xa.DataArray(np.array([1, 2, 0]))
     values = xa.DataArray(np.array([1, 2, 0, np.nan]))
 
-    with pytest.raises(Exception) as e_info:
-        df = stats(zones=zones, values=values)
+    with pytest.raises(Exception) as e_info:  # noqa
+        stats(zones=zones, values=values)
 
 
 # --------------------------- TEST crosstab() ---------------------------------
@@ -145,7 +145,7 @@ def test_crosstab_invalid_zones():
 
     # invalid values (must be int)
     zones = xa.DataArray(np.array([[1, 2, 0.5]]))
-    with pytest.raises(Exception) as e_info:
+    with pytest.raises(Exception) as e_info:  # noqa
         crosstab(zones_agg=zones, values_agg=values)
 
 
@@ -158,8 +158,8 @@ def test_crosstab_invalid_values():
                           dims=['lat', 'lon', 'race'])
     values['race'] = ['cat1', 'cat2', 'cat3']
 
-    with pytest.raises(Exception) as e_info:
-        df = crosstab(zones_agg=zones, values_agg=values)
+    with pytest.raises(Exception) as e_info:  # noqa
+        crosstab(zones_agg=zones, values_agg=values)
 
 
 @pytest.mark.crosstab
@@ -170,8 +170,8 @@ def test_crosstab_mismatch_zones_values_shape():
                           dims=['lat', 'lon', 'race'])
     values['race'] = ['cat1', 'cat2', 'cat3']
 
-    with pytest.raises(Exception) as e_info:
-        df = crosstab(zones_agg=zones, values_agg=values)
+    with pytest.raises(Exception) as e_info:  # noqa
+        crosstab(zones_agg=zones, values_agg=values)
 
 
 @pytest.mark.crosstab
@@ -183,8 +183,8 @@ def test_crosstab_invalid_layer():
     values['race'] = ['cat1', 'cat2', 'cat3']
 
     layer = 'cat'
-    with pytest.raises(Exception) as e_info:
-        df = crosstab(zones_agg=zones, values_agg=values, layer=layer)
+    with pytest.raises(Exception) as e_info:  # noqa
+        crosstab(zones_agg=zones, values_agg=values, layer=layer)
 
 
 # test case 1: no zones
@@ -307,7 +307,7 @@ def test_apply_invalid_agg():
     zones = xa.DataArray(np.array([[1, 2, 0], [1, 2, 3]]))
     values = xa.DataArray(np.array([[1, 2, 0.5]]))
     # mis-match zones.values.shape and values.values.shape
-    with pytest.raises(Exception) as e_info:
+    with pytest.raises(Exception) as e_info:  # noqa
         apply(zones, values, func)
 
 
