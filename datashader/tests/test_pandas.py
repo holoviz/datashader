@@ -24,8 +24,8 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
 df_pd.cat = df_pd.cat.astype('category')
-df_pd.f32[2] = np.nan
-df_pd.f64[2] = np.nan
+df_pd.at[2,'f32'] = np.nan
+df_pd.at[2,'f64'] = np.nan
 dfs_pd = [df_pd]
 
 if "DATASHADER_TEST_GPU" in os.environ:
@@ -275,8 +275,8 @@ def test_auto_range_points(DataFrame):
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
     sol = np.zeros((2*n, 2*n), int)
     np.fill_diagonal(sol, 1)
-    sol[[tuple(range(1, 4, 2))]] = 0
-    sol[[tuple(range(4, 8, 2))]] = 0
+    sol[np.array([tuple(range(1, 4, 2))])] = 0
+    sol[np.array([tuple(range(4, 8, 2))])] = 0
     assert_eq_ndarray(agg.data, sol)
 
     cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)

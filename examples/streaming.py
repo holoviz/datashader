@@ -7,7 +7,7 @@ from collections import OrderedDict
 from bokeh.io import curdoc
 from bokeh.plotting import Figure
 from bokeh.models import ColumnDataSource, CustomJS
-from bokeh.tile_providers import STAMEN_TONER
+from bokeh.tile_providers import get_provider
 from bokeh.models import VBox, HBox, Paragraph, Select
 from bokeh.palettes import BuGn9
 
@@ -142,7 +142,7 @@ fig = Figure(x_range=(xmin, xmax),
              plot_width=900,
              tools='pan,wheel_zoom')
 fig.background_fill_color = 'black'
-fig.add_tile(STAMEN_TONER, alpha=.3)
+fig.add_tile(get_provider("STAMEN_TONER"), alpha=.3)
 fig.x_range.callback = CustomJS(code=dims_jscode, args=dict(plot=fig, dims=dims))
 fig.y_range.callback = CustomJS(code=dims_jscode, args=dict(plot=fig, dims=dims))
 fig.axis.visible = False

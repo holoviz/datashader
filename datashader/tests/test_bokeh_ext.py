@@ -42,6 +42,9 @@ def test_interactive_image_initialize():
 
 
 def test_interactive_image_update():
+    # jbednar: This test uses 1x1 images that are not actually supported
+    # (as they have infinite resolution), but as InteractiveImage is deprecated
+    # anyway the tests have not been updated.
     p = figure(x_range=(0, 1), y_range=(0, 1), plot_width=2, plot_height=2)
     img = InteractiveImage(p, create_image)
 

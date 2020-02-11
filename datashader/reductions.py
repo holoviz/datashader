@@ -36,6 +36,9 @@ class extract(Preprocess):
             else:
                 nullval = 0
             return cupy.array(df[self.column].to_gpu_array(fillna=nullval))
+        elif isinstance(df, xr.Dataset):
+            # DataArray could be backed by numpy or cupy array
+            return df[self.column].data
         else:
             return df[self.column].values
 

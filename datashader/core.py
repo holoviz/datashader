@@ -11,7 +11,6 @@ from six import string_types
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
-from datashader.spatial.points import SpatialPointsFrame
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     compute_coords, dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
@@ -195,13 +194,16 @@ class Canvas(object):
 
         # Handle down-selecting of SpatialPointsFrame
         if geometry is None:
-            if (isinstance(source, SpatialPointsFrame) and
-                    source.spatial is not None and
-                    source.spatial.x == x and source.spatial.y == y and
-                    self.x_range is not None and self.y_range is not None):
-
-                source = source.spatial_query(
-                    x_range=self.x_range, y_range=self.y_range)
+            import sys
+            if 'datashader.spatial.points' in sys.modules:
+                from datashader.spatial.points import SpatialPointsFrame
+                if (isinstance(source, SpatialPointsFrame) and
+                        source.spatial is not None and
+                        source.spatial.x == x and source.spatial.y == y and
+                        self.x_range is not None and self.y_range is not None):
+            
+                    source = source.spatial_query(
+                        x_range=self.x_range, y_range=self.y_range)
             glyph = Point(x, y)
         else:
             from spatialpandas import GeoDataFrame
@@ -714,7 +716,7 @@ The axis argument to Canvas.line must be 0 or 1
         -------
         data : xarray.DataArray
         """
-        from .glyphs import QuadMeshRectilinear, QuadMeshCurvialinear
+        from .glyphs import QuadMeshRectilinear, QuadMeshCurvilinear
 
         # Determine reduction operation
         from .reductions import mean as mean_rnd
@@ -760,7 +762,7 @@ The axis argument to Canvas.line must be 0 or 1
         if xarr.ndim == 1:
             glyph = QuadMeshRectilinear(x, y, name)
         elif xarr.ndim == 2:
-            glyph = QuadMeshCurvialinear(x, y, name)
+            glyph = QuadMeshCurvilinear(x, y, name)
         else:
             raise ValueError("""\
 x- and y-coordinate arrays must have 1 or 2 dimensions.
@@ -1061,10 +1063,14 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             bottom_pad = np.full(bshape, fill_value, source_window.dtype)
 
             concat = da.concatenate if isinstance(data, da.Array) else np.concatenate
-            if top_pad.shape[0] > 0:
-                data = concat((top_pad, data, bottom_pad), axis=0)
-            if left_pad.shape[1] > 0:
-                data = concat((left_pad, data, right_pad), axis=1)
+            arrays = (top_pad, data) if top_pad.shape[0] > 0 else (data,)
+            if bottom_pad.shape[0] > 0:
+                arrays += (bottom_pad,)
+            data = concat(arrays, axis=0) if len(arrays) > 1 else arrays[0]
+            arrays = (left_pad, data) if left_pad.shape[1] > 0 else (data,)
+            if right_pad.shape[1] > 0:
+                arrays += (right_pad,)
+            data = concat(arrays, axis=1) if len(arrays) > 1 else arrays[0]
 
         # Reorient array to original orientation
         if res[1] > 0: data = data[::-1]
