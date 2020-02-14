@@ -1170,6 +1170,10 @@ def _cols_to_keep(columns, glyph, agg):
         for subagg in agg.values:
             if subagg.column is not None:
                 cols_to_keep[subagg.column] = True
+    elif hasattr(agg, 'columns'):
+        for column in agg.columns:
+            if column is not None:
+                cols_to_keep[column] = True
     elif agg.column is not None:
         cols_to_keep[agg.column] = True
     return [col for col, keepit in cols_to_keep.items() if keepit]
