@@ -293,6 +293,12 @@ def test_shade_category(array):
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(0, 100))
+    sol = np.array([[587137024, 335565567],
+                    [1515534250, 1040187647]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+
     img = tf.shade(cat_agg, color_key=colors,
                    how=lambda x, m: np.where(m, np.nan, x) ** 2,
                    min_alpha=20)
