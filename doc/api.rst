@@ -66,6 +66,7 @@ Reductions
    any
    count
    count_cat
+   sum_cat
    first
    last
    m2

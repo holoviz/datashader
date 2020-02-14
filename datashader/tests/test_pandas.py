@@ -230,6 +230,61 @@ def test_count_cat(df):
     agg = c.points(df, 'x', 'y', ds.count_cat('cat'))
     assert_eq_xr(agg, out)
 
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_count(df):
+    sol = np.array([[[5, 0, 0, 0],
+                     [0, 0, 5, 0]],
+                    [[0, 5, 0, 0],
+                     [0, 0, 0, 5]]])
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.count('i32')))
+    assert_eq_xr(agg, out)
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_sum(df):
+    sol = np.array([[[10, 0, 0, 0],
+                     [0, 0, 60, 0]],
+                    [[0, 35, 0, 0],
+                     [0, 0, 0, 85]]])
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.sum('i32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.sum('i64')))
+    assert_eq_xr(agg, out)
+
+    sol = np.array([[[8.0, 0, 0, 0],
+                     [0, 0, 60.0, 0]],
+                    [[0, 35.0, 0, 0],
+                     [0, 0, 0, 85.0]]])
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.sum('f32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.sum('f64')))
+    assert_eq_xr(agg, out)
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_max(df):
+    sol = np.array([[[4, 0, 0, 0],
+                     [0, 0, 14, 0]],
+                    [[0, 9, 0, 0],
+                     [0, 0, 0, 19]]])
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.max('i32')))
+    assert_eq_xr(agg, out)
 
 @pytest.mark.parametrize('df', dfs)
 def test_multiple_aggregates(df):
