@@ -17,7 +17,7 @@ install_requires = [
     'datashape >=0.5.1',
     'numba >=0.37.0',
     'numpy >=1.7',
-    'pandas <1.0',
+    'pandas >=0.24.1,<1.0',
     'pillow >=3.1.1',
     'xarray >=0.9.6',
     'colorcet >=0.9.0',
@@ -44,7 +44,7 @@ extras_require = {
         'flake8',
         'nbsmoke[all] >=0.4.0',
         'fastparquet >=0.1.6',  # optional dependency
-        'pandas <1.0',  # optional ragged array support
+        'pandas >=0.24.1,<1.0',  # optional ragged array support
         'holoviews >=1.10.0',
     ],
     'examples': examples,
