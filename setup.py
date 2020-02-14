@@ -32,7 +32,6 @@ examples = [
     'distributed', # dask
     'holoviews >=1.10.0',
     'matplotlib',
-    'pandas >=0.24.1',
 ]
 
 extras_require = {
@@ -44,7 +43,6 @@ extras_require = {
         'flake8',
         'nbsmoke[all] >=0.4.0',
         'fastparquet >=0.1.6',  # optional dependency
-        'pandas >=0.24.1,<1.0',  # optional ragged array support
         'holoviews >=1.10.0',
     ],
     'examples': examples,
