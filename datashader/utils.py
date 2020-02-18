@@ -21,7 +21,7 @@ except ImportError:
 
 try:
     import cudf
-except ImportError:
+except Exception:
     cudf = None
 
 try:

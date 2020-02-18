@@ -7,7 +7,7 @@ from datashader.utils import Dispatcher
 
 try:
     import cupy
-except ImportError:
+except Exception:
     cupy = None
 
 glyph_dispatch = Dispatcher()

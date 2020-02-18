@@ -20,12 +20,12 @@ from . import reductions as rd
 
 try:
     import cudf
-except ImportError:
+except Exception:
     cudf = None
 
 try:
     import dask_cudf
-except ImportError:
+except Exception:
     dask_cudf = None
 
 class Axis(object):
@@ -201,7 +201,7 @@ class Canvas(object):
                         source.spatial is not None and
                         source.spatial.x == x and source.spatial.y == y and
                         self.x_range is not None and self.y_range is not None):
-            
+
                     source = source.spatial_query(
                         x_range=self.x_range, y_range=self.y_range)
             glyph = Point(x, y)

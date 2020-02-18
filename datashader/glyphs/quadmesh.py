@@ -10,7 +10,7 @@ from numba import cuda
 try:
     import cupy
     from datashader.transfer_functions._cuda_utils import cuda_args
-except ImportError:
+except Exception:
     cupy = None
     cuda_args = None
 

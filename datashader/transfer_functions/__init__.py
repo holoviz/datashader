@@ -20,7 +20,7 @@ from datashader.utils import ngjit, orient_array
 
 try:
     import cupy
-except ImportError:
+except Exception:
     cupy = None
 
 __all__ = ['Image', 'stack', 'shade', 'set_background', 'spread', 'dynspread']

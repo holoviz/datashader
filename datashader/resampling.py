@@ -41,7 +41,7 @@ from .utils import ngjit
 
 try:
     import cupy
-except ImportError:
+except Exception:
     cupy = None
 
 try:
