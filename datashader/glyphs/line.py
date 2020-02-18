@@ -10,7 +10,7 @@ from numba import cuda
 try:
     import cudf
     from ..transfer_functions._cuda_utils import cuda_args
-except ImportError:
+except Exception:
     cudf = None
     cuda_args = None
 

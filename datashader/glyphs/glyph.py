@@ -12,7 +12,7 @@ from datashader.macros import expand_varargs
 
 try:
     import cudf
-except ImportError:
+except Exception:
     cudf = None
 
 
