@@ -611,7 +611,10 @@ def na_value():
 
 # Subclass BaseDtypeTests to run pandas-provided extension array test suite
 class TestRaggedConstructors(eb.BaseConstructorsTests):
-    pass
+
+    @pytest.mark.skip(reason="Constructing DataFrame from RaggedArray not supported")
+    def test_from_dtype(self, data):
+        pass
 
 
 class TestRaggedDtype(eb.BaseDtypeTests):
@@ -674,6 +677,18 @@ class TestRaggedGetitem(eb.BaseGetitemTests):
         with pytest.raises(IndexError, match="out of bounds"):
             data.take([len(data) + 1])
 
+    def test_item(self, data):
+        # https://github.com/pandas-dev/pandas/pull/30175
+        s = pd.Series(data)
+        result = s[:1].item()
+        np.testing.assert_array_equal(result, data[0])
+
+        msg = "can only convert an array of size 1 to a Python scalar"
+        with pytest.raises(ValueError, match=msg):
+            s[:0].item()
+
+        with pytest.raises(ValueError, match=msg):
+            s.item()
 
 class TestRaggedGroupby(eb.BaseGroupbyTests):
     @pytest.mark.parametrize('op', [
@@ -716,6 +731,11 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
     @pytest.mark.skip(reason="__setitem__ not supported")
     def test_copy(self):
         pass
+
+    @pytest.mark.skip(reason="__setitem__ not supported")
+    def test_view(self):
+        pass
+
 
 class TestRaggedMethods(eb.BaseMethodsTests):
 
@@ -761,6 +781,12 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     def test_combine_first(self):
         pass
 
+    @pytest.mark.skip(
+        reason="Searchsorted seems not implemented for custom extension arrays"
+    )
+    def test_searchsorted(self):
+        pass
+
 
 class TestRaggedPrinting(eb.BasePrintingTests):
     pass
@@ -782,4 +808,8 @@ class TestRaggedMissing(eb.BaseMissingTests):
 class TestRaggedReshaping(eb.BaseReshapingTests):
     @pytest.mark.skip(reason="__setitem__ not supported")
     def test_ravel(self):
+        pass
+
+    @pytest.mark.skip(reason="transpose with numpy array elements seems not supported")
+    def test_transpose(self):
         pass
