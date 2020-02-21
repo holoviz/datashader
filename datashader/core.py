@@ -20,12 +20,12 @@ from . import reductions as rd
 
 try:
     import cudf
-except ImportError:
+except Exception:
     cudf = None
 
 try:
     import dask_cudf
-except ImportError:
+except Exception:
     dask_cudf = None
 
 class Axis(object):

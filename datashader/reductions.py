@@ -12,7 +12,7 @@ from numba import cuda as nb_cuda
 
 try:
     import cudf
-except ImportError:
+except Exception:
     cudf = None
 
 

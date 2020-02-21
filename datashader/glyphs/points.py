@@ -10,7 +10,7 @@ from numba import cuda
 try:
     import cudf
     from ..transfer_functions._cuda_utils import cuda_args
-except ImportError:
+except Exception:
     cudf = None
     cuda_args = None
 
@@ -266,9 +266,14 @@ class MultiPointGeometry(_GeometryLike):
 
             geometry = df[geometry_name].array
 
-            # Compute indices of potentially intersecting polygons using
-            # geometry's R-tree
-            eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+            if geometry._sindex is not None:
+                # Compute indices of potentially intersecting polygons using
+                # geometry's R-tree if there is one
+                eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+            else:
+                # Otherwise, process all indices
+                eligible_inds = np.arange(0, len(geometry), dtype='uint32')
+
             missing = geometry.isna()
 
             if isinstance(geometry, PointArray):

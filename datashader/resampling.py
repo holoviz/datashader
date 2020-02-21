@@ -40,7 +40,7 @@ from .utils import ngjit, ngjit_parallel
 
 try:
     import cupy
-except ImportError:
+except Exception:
     cupy = None
 
 

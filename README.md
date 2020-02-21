@@ -8,9 +8,10 @@
 | --- | --- |
 | Build Status | [![Linux/MacOS Build Status](https://travis-ci.org/holoviz/datashader.svg?branch=master)](https://travis-ci.org/holoviz/datashader) [![Windows Build status](https://img.shields.io/appveyor/ci/holoviz-developers/datashader/master.svg?logo=appveyor)](https://ci.appveyor.com/project/holoviz-developers/datashader/branch/master) |
 | Coverage | [![codecov](https://codecov.io/gh/holoviz/datashader/branch/master/graph/badge.svg)](https://codecov.io/gh/holoviz/datashader) |
-| Latest dev release | [![Github tag](https://img.shields.io/github/tag/holoviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/holoviz/datashader/tags) |
+| Latest dev release | [![Github tag](https://img.shields.io/github/tag/holoviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/holoviz/datashader/tags) [![dev-site](https://img.shields.io/website-up-down-green-red/https/pyviz-dev.github.io/datashader.svg?label=dev%20website)](https://pyviz-dev.github.io/datashader/) |
 | Latest release | [![Github release](https://img.shields.io/github/release/holoviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/holoviz/datashader/releases) [![PyPI version](https://img.shields.io/pypi/v/datashader.svg?colorB=cc77dd)](https://pypi.python.org/pypi/datashader) [![datashader version](https://img.shields.io/conda/v/pyviz/datashader.svg?colorB=4488ff&style=flat)](https://anaconda.org/pyviz/datashader) [![conda-forge version](https://img.shields.io/conda/v/conda-forge/datashader.svg?label=conda%7Cconda-forge&colorB=4488ff)](https://anaconda.org/conda-forge/datashader) [![defaults version](https://img.shields.io/conda/v/anaconda/datashader.svg?label=conda%7Cdefaults&style=flat&colorB=4488ff)](https://anaconda.org/anaconda/datashader) |
 | Docs | [![gh-pages](https://img.shields.io/github/last-commit/holoviz/datashader/gh-pages.svg)](https://github.com/holoviz/datashader/tree/gh-pages) [![site](https://img.shields.io/website-up-down-green-red/http/datashader.org.svg)](http://datashader.org) |
+| Support | [![Discourse](https://img.shields.io/discourse/status?server=https%3A%2F%2Fdiscourse.holoviz.org)](https://discourse.holoviz.org/) |
 
 
 ## What is it?

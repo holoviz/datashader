@@ -370,6 +370,14 @@ def test_points_geometry_point():
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
 
+    # Aggregation should not have triggered calculation of spatial index
+    assert df.geom.array._sindex is None
+
+    # Generate spatial index and check that we get the same result
+    df.geom.array.sindex
+    agg = cvs.points(df, geometry='geom', agg=ds.sum('v'))
+    assert_eq_xr(agg, out)
+
 
 @pytest.mark.skipif(not sp, reason="spatialpandas not installed")
 def test_points_geometry_multipoint():
@@ -389,6 +397,14 @@ def test_points_geometry_multipoint():
                     [3, 3,   3]], dtype='float64')
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
+    assert_eq_xr(agg, out)
+
+    # Aggregation should not have triggered calculation of spatial index
+    assert df.geom.array._sindex is None
+
+    # Generate spatial index and check that we get the same result
+    df.geom.array.sindex
+    agg = cvs.points(df, geometry='geom', agg=ds.sum('v'))
     assert_eq_xr(agg, out)
 
 

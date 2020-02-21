@@ -8,8 +8,8 @@ from pandas.api.extensions import (
     ExtensionDtype, ExtensionArray, register_extension_dtype)
 from numbers import Integral
 
-from pandas.api.types import pandas_dtype
-from pandas.core.dtypes.common import is_extension_array_dtype
+from pandas.api.types import pandas_dtype, is_extension_array_dtype
+import pandas as pd
 
 try:
     # See if we can register extension type with dask >= 1.1.0
@@ -386,6 +386,8 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         return len(self._start_indices)
 
     def __getitem__(self, item):
+        err_msg = ("Only integers, slices and integer or boolean"
+                   "arrays are valid indices.")
         if isinstance(item, Integral):
             if item < -len(self) or item >= len(self):
                 raise IndexError("{item} is out of bounds".format(item=item))
@@ -412,18 +414,48 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
             return RaggedArray(data, dtype=self.flat_array.dtype)
 
-        elif isinstance(item, np.ndarray) and item.dtype == 'bool':
-            data = []
+        elif isinstance(item, (np.ndarray, ExtensionArray, list, tuple)):
+            if isinstance(item, (np.ndarray, ExtensionArray)):
+                # Leave numpy and pandas arrays alone
+                kind = item.dtype.kind
+            else:
+                # Convert others to pandas arrays
+                item = pd.array(item)
+                kind = item.dtype.kind
 
-            for i, m in enumerate(item):
-                if m:
-                    data.append(self[i])
+            if len(item) == 0:
+                return self.take([], allow_fill=False)
+            elif kind == 'b':
+                # Check mask length is compatible
+                if len(item) != len(self):
+                    raise IndexError(
+                        "boolean mask length ({}) doesn't match array length ({})"
+                        .format(len(item), len(self))
+                    )
 
-            return RaggedArray(data, dtype=self.flat_array.dtype)
-        elif isinstance(item, (list, np.ndarray)):
-            return self.take(item, allow_fill=False)
+                # check for NA values
+                if any(pd.isna(item)):
+                    raise ValueError(
+                        "Cannot mask with a boolean indexer containing NA values"
+                    )
+
+                data = []
+
+                for i, m in enumerate(item):
+                    if m:
+                        data.append(self[i])
+
+                return RaggedArray(data, dtype=self.flat_array.dtype)
+            elif kind in ('i', 'u'):
+                if any(pd.isna(item)):
+                    raise ValueError(
+                        "Cannot index with an integer indexer containing NA values"
+                    )
+                return self.take(item, allow_fill=False)
+            else:
+                raise IndexError(err_msg)
         else:
-            raise IndexError(item)
+            raise IndexError(err_msg)
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):

@@ -10,7 +10,7 @@ from numba import cuda
 try:
     import cudf
     from ..transfer_functions._cuda_utils import cuda_args
-except ImportError:
+except Exception:
     cudf = None
     cuda_args = None
 
@@ -985,9 +985,13 @@ def _build_extend_line_axis1_geometry(
             offsets1 = offsets[0]
             offsets0 = np.arange(len(offsets1))
 
-        # Compute indices of potentially intersecting polygons using
-        # geometry's R-tree
-        eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+        if geometry._sindex is not None:
+            # Compute indices of potentially intersecting polygons using
+            # geometry's R-tree if there is one
+            eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+        else:
+            # Otherwise, process all indices
+            eligible_inds = np.arange(0, len(geometry), dtype='uint32')
 
         extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
