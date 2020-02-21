@@ -204,9 +204,13 @@ def _build_extend_polygon_geometry(
         missing = geometry.isna()
         offsets = geometry.buffer_offsets
 
-        # Compute indices of potentially intersecting polygons using
-        # geometry's R-tree
-        eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+        if geometry._sindex is not None:
+            # Compute indices of potentially intersecting polygons using
+            # geometry's R-tree if there is one
+            eligible_inds = geometry.sindex.intersects((xmin, ymin, xmax, ymax))
+        else:
+            # Otherwise, process all indices
+            eligible_inds = np.arange(0, len(geometry), dtype='uint32')
 
         if len(offsets) == 3:
             # MultiPolygonArray
