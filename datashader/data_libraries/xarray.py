@@ -5,6 +5,7 @@ from datashader.core import bypixel
 import xarray as xr
 from datashader.utils import Dispatcher
 
+
 try:
     import cupy
 except Exception:
@@ -14,9 +15,13 @@ glyph_dispatch = Dispatcher()
 
 
 @bypixel.pipeline.register(xr.Dataset)
-def xarray_pipeline(df, schema, canvas, glyph, summary):
-    cuda = cupy and isinstance(df[glyph.name].data, cupy.ndarray)
-    return glyph_dispatch(glyph, df, schema, canvas, summary, cuda)
+def xarray_pipeline(xr_ds, schema, canvas, glyph, summary):
+    cuda = cupy and isinstance(xr_ds[glyph.name].data, cupy.ndarray)
+    if not xr_ds.chunks:
+        return glyph_dispatch(glyph, xr_ds, schema, canvas, summary, cuda)
+    else:
+        from datashader.data_libraries.dask_xarray import dask_xarray_pipeline
+        return dask_xarray_pipeline(glyph, xr_ds, schema, canvas, summary, cuda)
 
 
 # Default to default pandas implementation

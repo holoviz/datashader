@@ -97,6 +97,13 @@ class QuadMeshRectilinear(_QuadMeshLike):
     def compute_y_bounds(self, xr_ds):
         return self._compute_bounds_from_1d_centers(xr_ds, self.y, maybe_expand=True)
 
+    def compute_bounds_dask(self, xr_ds):
+        return self.compute_x_bounds(xr_ds), self.compute_y_bounds(xr_ds)
+
+    def infer_interval_breaks(self, centers):
+        # Infer breaks for 1D array of centers
+        return infer_interval_breaks(centers)
+
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
         x_name = self.x
@@ -142,16 +149,12 @@ class QuadMeshRectilinear(_QuadMeshLike):
                 for j in range(len(ys) - 1):
                     perform_extend(i, j, xs, ys, *aggs_and_cols)
 
-        def extend(aggs, xr_ds, vt, bounds):
+        def extend(aggs, xr_ds, vt, bounds, x_breaks=None, y_breaks=None):
             from datashader.core import LinearAxis
             use_cuda = cupy and isinstance(xr_ds[name].data, cupy.ndarray)
 
-            xs = xr_ds[x_name].values
-            ys = xr_ds[y_name].values
+            # Build axis transform (mapper) functions
             if use_cuda:
-                xs = cupy.array(xs)
-                ys = cupy.array(ys)
-
                 x_mapper2 = _cuda_mapper(x_mapper)
                 y_mapper2 = _cuda_mapper(y_mapper)
             else:
@@ -159,8 +162,17 @@ class QuadMeshRectilinear(_QuadMeshLike):
                 y_mapper2 = y_mapper
 
             # Convert from bin centers to interval edges
-            x_breaks = infer_interval_breaks(xs)
-            y_breaks = infer_interval_breaks(ys)
+            if x_breaks is None:
+                x_centers = xr_ds[x_name].values
+                if use_cuda:
+                    x_centers = cupy.array(x_centers)
+                x_breaks = self.infer_interval_breaks(x_centers)
+
+            if y_breaks is None:
+                y_centers = xr_ds[y_name].values
+                if use_cuda:
+                    y_centers = cupy.array(y_centers)
+                y_breaks = self.infer_interval_breaks(y_centers)
 
             x0, x1, y0, y1 = bounds
             xspan = x1 - x0
@@ -176,10 +188,14 @@ class QuadMeshRectilinear(_QuadMeshLike):
             else:
                 yscaled = (y_mapper2(y_breaks) - y0) / yspan
 
-            xmask = np.where((xscaled >= 0) & (xscaled <= 1))
-            ymask = np.where((yscaled >= 0) & (yscaled <= 1))
-            xm0, xm1 = max(xmask[0].min() - 1, 0), xmask[0].max() + 1
-            ym0, ym1 = max(ymask[0].min() - 1, 0), ymask[0].max() + 1
+            xinds = np.where((xscaled >= 0) & (xscaled <= 1))[0]
+            yinds = np.where((yscaled >= 0) & (yscaled <= 1))[0]
+            if len(xinds) == 0 or len(yinds) == 0:
+                # Nothing to do
+                return
+
+            xm0, xm1 = max(xinds.min() - 1, 0), xinds.max() + 1
+            ym0, ym1 = max(yinds.min() - 1, 0), yinds.max() + 1
 
             plot_height, plot_width = aggs[0].shape[:2]
 
@@ -201,6 +217,13 @@ class QuadMeshRectilinear(_QuadMeshLike):
             do_extend(xs, ys, *aggs_and_cols)
 
         return extend
+
+
+@ngjit
+def build_scale_translate(out_size, out0, out1, src_size, src0, src1):
+    translate_y = src_size * (out0 - src0) / (src1 - src0)
+    scale_y = (src_size * (out1 - out0)) / (out_size * (src1 - src0))
+    return scale_y, translate_y
 
 
 class QuadMeshRaster(QuadMeshRectilinear):
@@ -239,21 +262,15 @@ class QuadMeshRaster(QuadMeshRectilinear):
         y_name = self.y
         name = self.name
 
-        @ngjit
-        def build_scale_translate(out_size, out0, out1, src_size, src0, src1):
-            translate_y = src_size * (out0 - src0) / (src1 - src0)
-            scale_y = (src_size * (out1 - out0)) / (out_size * (src1 - src0))
-            return scale_y, translate_y
-
         @ngjit_parallel
         def upsample_cpu(
                 src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                out_w, out_h, agg, col
+                offset_x, offset_y, out_w, out_h, agg, col
         ):
             for out_j in prange(out_h):
-                src_j = math.floor(scale_y * (out_j + 0.5) + translate_y)
+                src_j = math.floor(scale_y * (out_j + 0.5) + translate_y - offset_y)
                 for out_i in range(out_w):
-                    src_i = math.floor(scale_x * (out_i + 0.5) + translate_x)
+                    src_i = math.floor(scale_x * (out_i + 0.5) + translate_x - offset_x)
                     if src_j < 0 or src_j >= src_h or src_i < 0 or src_i >= src_w:
                         agg[out_j, out_i] = np.nan
                     else:
@@ -262,12 +279,12 @@ class QuadMeshRaster(QuadMeshRectilinear):
         @cuda.jit
         def upsample_cuda(
                 src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                out_w, out_h, agg, col
+                offset_x, offset_y, out_w, out_h, agg, col
         ):
             out_i, out_j = cuda.grid(2)
             if out_i < out_w and out_j < out_h:
-                src_j = int(math.floor(scale_y * (out_j + 0.5) + translate_y))
-                src_i = int(math.floor(scale_x * (out_i + 0.5) + translate_x))
+                src_j = int(math.floor(scale_y * (out_j + 0.5) + translate_y - offset_y))
+                src_i = int(math.floor(scale_x * (out_i + 0.5) + translate_x - offset_x))
                 if src_j < 0 or src_j >= src_h or src_i < 0 or src_i >= src_w:
                     agg[out_j, out_i] = np.nan
                 else:
@@ -277,21 +294,21 @@ class QuadMeshRaster(QuadMeshRectilinear):
         @self.expand_aggs_and_cols(append)
         def downsample_cpu(
                 src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                out_w, out_h, *aggs_and_cols
+                offset_x, offset_y, out_w, out_h, *aggs_and_cols
         ):
             for out_j in prange(out_h):
                 src_j0 = max(
-                    math.floor(scale_y * (out_j + 0.0) + translate_y), 0
+                    math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y), 0
                 )
                 src_j1 = min(
-                    math.floor(scale_y * (out_j + 1.0) + translate_y), src_h
+                    math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
                 )
                 for out_i in range(out_w):
                     src_i0 = max(
-                        math.floor(scale_x * (out_i + 0.0) + translate_x), 0
+                        math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
                     )
                     src_i1 = min(
-                        math.floor(scale_x * (out_i + 1.0) + translate_x), src_w
+                        math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
                     )
                     for src_j in range(src_j0, src_j1):
                         for src_i in range(src_i0, src_i1):
@@ -301,40 +318,30 @@ class QuadMeshRaster(QuadMeshRectilinear):
         @self.expand_aggs_and_cols(append)
         def downsample_cuda(
                 src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                out_w, out_h, *aggs_and_cols
+                offset_x, offset_y, out_w, out_h, *aggs_and_cols
         ):
             out_i, out_j = cuda.grid(2)
             if out_i < out_w and out_j < out_h:
                 src_j0 = max(
-                    math.floor(scale_y * (out_j + 0.0) + translate_y), 0
+                    math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y), 0
                 )
                 src_j1 = min(
-                    math.floor(scale_y * (out_j + 1.0) + translate_y), src_h
+                    math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
                 )
                 src_i0 = max(
-                    math.floor(scale_x * (out_i + 0.0) + translate_x), 0
+                    math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
                 )
                 src_i1 = min(
-                    math.floor(scale_x * (out_i + 1.0) + translate_x), src_w
+                    math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
                 )
                 for src_j in range(src_j0, src_j1):
                     for src_i in range(src_i0, src_i1):
                         append(src_j, src_i, out_i, out_j, *aggs_and_cols)
 
-        def extend(aggs, xr_ds, vt, bounds):
+        def extend(aggs, xr_ds, vt, bounds,
+                   scale_x=None, scale_y=None, translate_x=None, translate_y=None,
+                   offset_x=None, offset_y=None, src_xbinsize=None, src_ybinsize=None):
             use_cuda = cupy and isinstance(xr_ds[name].data, cupy.ndarray)
-
-            # Compute source constants
-            xr_ds = xr_ds.transpose(y_name, x_name)
-            src_h, src_w = xr_ds[name].shape
-            src_x0, src_x1 = self._compute_bounds_from_1d_centers(
-                xr_ds, x_name, maybe_expand=False, orient=False
-            )
-            src_y0, src_y1 = self._compute_bounds_from_1d_centers(
-                xr_ds, y_name, maybe_expand=False, orient=False
-            )
-            src_xbinsize = math.fabs((src_x1 - src_x0) / src_w)
-            src_ybinsize = math.fabs((src_y1 - src_y0) / src_h)
 
             # Compute output constants
             out_h, out_w = aggs[0].shape
@@ -342,18 +349,46 @@ class QuadMeshRaster(QuadMeshRectilinear):
             out_xbinsize = math.fabs((out_x1 - out_x0) / out_w)
             out_ybinsize = math.fabs((out_y1 - out_y0) / out_h)
 
+            # Compute source constants
+            xr_ds = xr_ds.transpose(y_name, x_name)
+            src_h, src_w = xr_ds[name].shape
+            if (scale_x is None or scale_y is None or
+                    translate_x is None or translate_y is None or
+                    offset_x is None or offset_y is None or
+                    src_xbinsize is None or src_ybinsize is None ):
+                # Compute bin sizes from bounds
+                src_x0, src_x1 = self._compute_bounds_from_1d_centers(
+                    xr_ds, x_name, maybe_expand=False, orient=False
+                )
+                src_y0, src_y1 = self._compute_bounds_from_1d_centers(
+                    xr_ds, y_name, maybe_expand=False, orient=False
+                )
+                src_xbinsize = math.fabs((src_x1 - src_x0) / src_w)
+                src_ybinsize = math.fabs((src_y1 - src_y0) / src_h)
+
+                # Compute scale/translate
+                scale_y, translate_y = build_scale_translate(
+                    out_h, out_y0, out_y1, src_h, src_y0, src_y1
+                )
+
+                scale_x, translate_x = build_scale_translate(
+                    out_w, out_x0, out_x1, src_w, src_x0, src_x1
+                )
+
+                offset_x = offset_y = 0
+            # else:
+            #     # Compute bounds from bin size
+            #     # src_x0, src_x1, src_y0, src_y1 = src_bounds
+            #     src_xbinsize = math.fabs((src_x1 - src_x0) / src_w)
+            #     src_ybinsize = math.fabs((src_y1 - src_y0) / src_h)
+            #     # src_x0 = float(xr_ds[x_name][0] - (src_xbinsize / 2.0))
+            #     # src_x1 = float(xr_ds[x_name][-1] + (src_xbinsize / 2.0))
+            #     # src_y0 = float(xr_ds[y_name][0] - (src_ybinsize / 2.0))
+            #     # src_y1 = float(xr_ds[y_name][-1] + (src_ybinsize / 2.0))
+
             # Build aggs_and_cols tuple
             cols = info(xr_ds)
             aggs_and_cols = tuple(aggs) + tuple(cols)
-
-            # Compute scale/translate
-            scale_y, translate_y = build_scale_translate(
-                out_h, out_y0, out_y1, src_h, src_y0, src_y1
-            )
-
-            scale_x, translate_x = build_scale_translate(
-                out_w, out_x0, out_x1, src_w, src_x0, src_x1
-            )
 
             if src_h == 0 or src_w == 0 or out_h == 0 or out_w == 0:
                 # Nothing to do
@@ -366,7 +401,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     do_sampling = upsample_cpu
                 return do_sampling(
                     src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                    out_w, out_h, aggs[0], cols[0]
+                    offset_x, offset_y, out_w, out_h, aggs[0], cols[0]
                 )
             else:
                 # Downsample. Note that caller is responsible for making sure to not
@@ -378,7 +413,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
 
                 return do_sampling(
                     src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                    out_w, out_h, *aggs_and_cols
+                    offset_x, offset_y, out_w, out_h, *aggs_and_cols
                 )
 
         return extend
@@ -386,18 +421,23 @@ class QuadMeshRaster(QuadMeshRectilinear):
 
 class QuadMeshCurvilinear(_QuadMeshLike):
     def compute_x_bounds(self, xr_ds):
-        xs = xr_ds[self.x].values
-        xs = infer_interval_breaks(xs, axis=1)
-        xs = infer_interval_breaks(xs, axis=0)
-        bounds = Glyph._compute_bounds_2d(xs)
+        x_breaks = self.infer_interval_breaks(xr_ds[self.x].values)
+        bounds = Glyph._compute_bounds_2d(x_breaks)
         return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, xr_ds):
-        ys = xr_ds[self.y].values
-        ys = infer_interval_breaks(ys, axis=1)
-        ys = infer_interval_breaks(ys, axis=0)
-        bounds = Glyph._compute_bounds_2d(ys)
+        y_breaks = self.infer_interval_breaks(xr_ds[self.y].values)
+        bounds = Glyph._compute_bounds_2d(y_breaks)
         return self.maybe_expand_bounds(bounds)
+
+    def compute_bounds_dask(self, xr_ds):
+        return self.compute_x_bounds(xr_ds), self.compute_y_bounds(xr_ds)
+
+    def infer_interval_breaks(self, centers):
+        # Infer breaks for 1D array of centers
+        breaks = infer_interval_breaks(centers, axis=1)
+        breaks = infer_interval_breaks(breaks, axis=0)
+        return breaks
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append):
@@ -583,28 +623,30 @@ class QuadMeshCurvilinear(_QuadMeshLike):
                         xverts, yverts, yincreasing, eligible, intersect, *aggs_and_cols
                     )
 
-        def extend(aggs, xr_ds, vt, bounds):
+        def extend(aggs, xr_ds, vt, bounds, x_breaks=None, y_breaks=None):
             from datashader.core import LinearAxis
             use_cuda = cupy and isinstance(xr_ds[name].data, cupy.ndarray)
 
-            x_breaks = xr_ds[x_name].values
-            y_breaks = xr_ds[y_name].values
+            # Build axis transform (mapper) functions
             if use_cuda:
-                x_breaks = cupy.array(x_breaks)
-                y_breaks = cupy.array(y_breaks)
-
                 x_mapper2 = _cuda_mapper(x_mapper)
                 y_mapper2 = _cuda_mapper(y_mapper)
             else:
-                x_mapper2 = _cuda_mapper(x_mapper)
-                y_mapper2 = _cuda_mapper(y_mapper)
+                x_mapper2 = x_mapper
+                y_mapper2 = y_mapper
 
             # Convert from bin centers to interval edges
-            x_breaks = infer_interval_breaks(x_breaks, axis=1)
-            x_breaks = infer_interval_breaks(x_breaks, axis=0)
+            if x_breaks is None:
+                x_centers = xr_ds[x_name].values
+                if use_cuda:
+                    x_centers = cupy.array(x_centers)
+                x_breaks = self.infer_interval_breaks(x_centers)
 
-            y_breaks = infer_interval_breaks(y_breaks, axis=1)
-            y_breaks = infer_interval_breaks(y_breaks, axis=0)
+            if y_breaks is None:
+                y_centers = xr_ds[y_name].values
+                if use_cuda:
+                    y_centers = cupy.array(y_centers)
+                y_breaks = self.infer_interval_breaks(y_centers)
 
             # Scale x and y vertices into integer canvas coordinates
             x0, x1, y0, y1 = bounds
