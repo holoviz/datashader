@@ -67,7 +67,7 @@ examples are on https://examples.pyviz.org.
 .. _Gerrymandering: https://examples.pyviz.org/gerrymandering/gerrymandering.html
 .. _Landsat: https://examples.pyviz.org/landsat/landsat.html
 .. _Network Packets: https://examples.pyviz.org/network_packets/network_packets.html
-.. _NYC Taxi: https://examples.pyviz.org/nyc_taxi/nyc_taxi-nongeo.html
+.. _NYC Taxi: https://examples.pyviz.org/nyc_taxi/nyc_taxi.html
 .. _NYC Taxi dataset: http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml
 .. _OpenSky: https://examples.pyviz.org/opensky/opensky.html
 .. _OSM 1 Billion: https://examples.pyviz.org/osm/osm-1billion.html
