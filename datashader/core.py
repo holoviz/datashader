@@ -711,12 +711,13 @@ The axis argument to Canvas.line must be 0 or 1
         x, y : str
             Column names for the x and y coordinates of each point.
         agg : Reduction, optional
-            Reduction to compute. Default is ``mean()``.
+            Reduction to compute. Default is ``mean()``. Note that agg is ignored when
+            upsampling.
         Returns
         -------
         data : xarray.DataArray
         """
-        from .glyphs import QuadMeshRectilinear, QuadMeshCurvilinear
+        from .glyphs import QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvilinear
 
         # Determine reduction operation
         from .reductions import mean as mean_rnd
@@ -760,16 +761,72 @@ The axis argument to Canvas.line must be 0 or 1
                              (source.name, agg))
 
         if xarr.ndim == 1:
-            glyph = QuadMeshRectilinear(x, y, name)
+            xaxis_linear = self.x_axis is _axis_lookup["linear"]
+            yaxis_linear = self.y_axis is _axis_lookup["linear"]
+            even_yspacing = np.allclose(
+                yarr, np.linspace(yarr[0], yarr[-1], len(yarr))
+            )
+            even_xspacing = np.allclose(
+                xarr, np.linspace(xarr[0], xarr[-1], len(xarr))
+            )
+
+            if xaxis_linear and yaxis_linear and even_xspacing and even_yspacing:
+                # Source is a raster, where all x and y coordinates are evenly spaced
+                glyph = QuadMeshRaster(x, y, name)
+                upsample_width, upsample_height = glyph.is_upsample(
+                        source, x, y, name, self.x_range, self.y_range,
+                        self.plot_width, self.plot_height
+                )
+
+                if upsample_width and upsample_height:
+                    # Override aggregate with more efficient one for upsampling
+                    agg = rd._upsample(name)
+                    return bypixel(source, self, glyph, agg)
+                elif upsample_width:
+                    # Downsample height, holding width constant
+                    out_width = self.plot_width
+                    self.plot_width = len(xarr)
+                    tmp_result = bypixel(source, self, glyph, agg)
+
+                    # Then upsample width, holding height constant and overriding agg
+                    self.plot_width = out_width
+                    agg = rd._upsample(name)
+                    return bypixel(
+                        tmp_result.to_dataset(name=name),
+                        self,
+                        glyph,
+                        agg
+                    )
+                elif upsample_height:
+                    # Downsample width, holding height constant
+                    out_height = self.plot_height
+                    self.plot_height = len(yarr)
+                    tmp_result = bypixel(source, self, glyph, agg)
+
+                    # Then upsample width, holding height constant and overriding agg
+                    self.plot_height = out_height
+                    agg = rd._upsample(name)
+                    return bypixel(
+                        tmp_result.to_dataset(name=name),
+                        self,
+                        glyph,
+                        agg
+                    )
+                else:
+                    # Downsample both width and height
+                    return bypixel(source, self, glyph, agg)
+            else:
+                # Source is a general rectilinear quadmesh
+                glyph = QuadMeshRectilinear(x, y, name)
+                return bypixel(source, self, glyph, agg)
         elif xarr.ndim == 2:
             glyph = QuadMeshCurvilinear(x, y, name)
+            return bypixel(source, self, glyph, agg)
         else:
             raise ValueError("""\
 x- and y-coordinate arrays must have 1 or 2 dimensions.
     Received arrays with dimensions: {dims}""".format(
                 dims=list(xarr.dims)))
-
-        return bypixel(source, self, glyph, agg)
 
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then

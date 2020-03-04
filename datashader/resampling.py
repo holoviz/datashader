@@ -33,22 +33,15 @@ from math import floor, ceil
 
 import dask.array as da
 import numpy as np
-import numba as nb
 
 from dask.delayed import delayed
 from numba import prange
-from .utils import ngjit
+from .utils import ngjit, ngjit_parallel
 
 try:
     import cupy
 except Exception:
     cupy = None
-
-try:
-    # Try to create numba JIT with 'parallel' target
-    ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
-except:
-    ngjit_parallel, prange = ngjit, range # NOQA
 
 
 #: Interpolation method for upsampling: Take nearest source grid cell, even if it is invalid.
