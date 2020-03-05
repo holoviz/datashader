@@ -117,6 +117,9 @@ def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func
 
     return renderer.render(data_array, level=level)
 
+def invert_y_tile(y, z):
+    # Convert from TMS to Google tile y coordinate, and vice versa
+    return (2 ** z) - 1 - y 
 
 # TODO: change name from source to definition
 class MercatorTileDefinition(object):
@@ -240,11 +243,12 @@ class MercatorTileDefinition(object):
         return (px, py)
 
 
-    def pixels_to_tile(self, px, py):
+    def pixels_to_tile(self, px, py, level):
         tx = math.ceil(px / self.tile_size)
         tx = tx if tx == 0 else tx - 1
         ty = max(math.ceil(py / self.tile_size) - 1, 0)
-        return (int(tx), int(ty))
+        # convert from TMS y coordinate
+        return (int(tx), invert_y_tile(int(ty), level))
 
 
     def pixels_to_raster(self, px, py, level):
@@ -254,15 +258,16 @@ class MercatorTileDefinition(object):
 
     def meters_to_tile(self, mx, my, level):
         px, py = self.meters_to_pixels(mx, my, level)
-        return self.pixels_to_tile(px, py)
+        return self.pixels_to_tile(px, py, level)
 
 
     def get_tiles_by_extent(self, extent, level):
 
         # unpack extent and convert to tile coordinates
         xmin, ymin, xmax, ymax = extent
-        txmin, tymin = self.meters_to_tile(xmin, ymin, level)
-        txmax, tymax = self.meters_to_tile(xmax, ymax, level)
+        # note y coordinates are reversed since they are in opposite direction to meters
+        txmin, tymax = self.meters_to_tile(xmin, ymin, level)
+        txmax, tymin = self.meters_to_tile(xmax, ymax, level)
 
         # TODO: vectorize?
         tiles = []
@@ -276,6 +281,7 @@ class MercatorTileDefinition(object):
 
 
     def get_tile_meters(self, tx, ty, level):
+        ty = invert_y_tile(ty, level) # convert to TMS for conversion to meters
         xmin, ymin = self.pixels_to_meters(tx * self.tile_size, ty * self.tile_size, level)
         xmax, ymax = self.pixels_to_meters((tx + 1) * self.tile_size, (ty + 1) * self.tile_size, level)
         return (xmin, ymin, xmax, ymax)
@@ -309,7 +315,7 @@ class TileRenderer(object):
             if 0 in arr.shape:
                 continue
 
-            img = fromarray(arr.data, 'RGBA')
+            img = fromarray(np.flip(arr.data, 0), 'RGBA') # flip since y tiles go down (Google map tiles)
 
             if self.post_render_func:
                 extras = dict(x=x, y=y, z=z)

@@ -7,6 +7,7 @@ from datashader.colors import viridis
 from datashader.tiles import render_tiles
 from datashader.tiles import _get_super_tile_min_max
 from datashader.tiles import calculate_zoom_level_stats
+from datashader.tiles import MercatorTileDefinition
 
 import numpy as np
 import pandas as pd
@@ -117,3 +118,12 @@ def test_calculate_zoom_level_stats_with_fullscan_ranging_strategy():
     assert len(result) == 2
     assert_is_numeric(result[0])
     assert_is_numeric(result[1])
+
+def test_meters_to_tile():
+    # Part of NYC (used in taxi demo)
+    full_extent_of_data = (-8243206.93436, 4968192.04221, -8226510.539480001, 4982886.20438)
+    xmin, ymin, xmax, ymax = full_extent_of_data
+    zoom = 12
+    tile_def = MercatorTileDefinition((xmin, xmax), (ymin, ymax), tile_size=256)
+    tile = tile_def.meters_to_tile(xmin, ymin, zoom)
+    assert tile == (1205, 1540) # using Google tile coordinates, not TMS
