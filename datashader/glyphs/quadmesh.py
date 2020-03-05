@@ -376,15 +376,6 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 )
 
                 offset_x = offset_y = 0
-            # else:
-            #     # Compute bounds from bin size
-            #     # src_x0, src_x1, src_y0, src_y1 = src_bounds
-            #     src_xbinsize = math.fabs((src_x1 - src_x0) / src_w)
-            #     src_ybinsize = math.fabs((src_y1 - src_y0) / src_h)
-            #     # src_x0 = float(xr_ds[x_name][0] - (src_xbinsize / 2.0))
-            #     # src_x1 = float(xr_ds[x_name][-1] + (src_xbinsize / 2.0))
-            #     # src_y0 = float(xr_ds[y_name][0] - (src_ybinsize / 2.0))
-            #     # src_y1 = float(xr_ds[y_name][-1] + (src_ybinsize / 2.0))
 
             # Build aggs_and_cols tuple
             cols = info(xr_ds)
