@@ -777,43 +777,17 @@ The axis argument to Canvas.line must be 0 or 1
                         source, x, y, name, self.x_range, self.y_range,
                         self.plot_width, self.plot_height
                 )
-
                 if upsample_width and upsample_height:
                     # Override aggregate with more efficient one for upsampling
                     agg = rd._upsample(name)
                     return bypixel(source, self, glyph, agg)
-                elif upsample_width:
-                    # Downsample height, holding width constant
-                    out_width = self.plot_width
-                    self.plot_width = len(xarr)
-                    tmp_result = bypixel(source, self, glyph, agg)
-
-                    # Then upsample width, holding height constant and overriding agg
-                    self.plot_width = out_width
-                    agg = rd._upsample(name)
-                    return bypixel(
-                        tmp_result.to_dataset(name=name),
-                        self,
-                        glyph,
-                        agg
-                    )
-                elif upsample_height:
-                    # Downsample width, holding height constant
-                    out_height = self.plot_height
-                    self.plot_height = len(yarr)
-                    tmp_result = bypixel(source, self, glyph, agg)
-
-                    # Then upsample width, holding height constant and overriding agg
-                    self.plot_height = out_height
-                    agg = rd._upsample(name)
-                    return bypixel(
-                        tmp_result.to_dataset(name=name),
-                        self,
-                        glyph,
-                        agg
-                    )
-                else:
+                elif not upsample_width and not upsample_height:
                     # Downsample both width and height
+                    return bypixel(source, self, glyph, agg)
+                else:
+                    # Mix of upsampling and downsampling
+                    # Use general rectilinear quadmesh implementation
+                    glyph = QuadMeshRectilinear(x, y, name)
                     return bypixel(source, self, glyph, agg)
             else:
                 # Source is a general rectilinear quadmesh
