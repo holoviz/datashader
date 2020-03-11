@@ -114,13 +114,25 @@ def saturate(src, dst):
 
 
 def arr_operator(f):
-    """Define and register a new array composite operator"""
-    ## Should be using jit as for operator(f), but will need
-    ## to deal with different agg types (uint32, float32 at least)
-    f2 = np.vectorize(f)
+    """Define and register a new image composite operator"""
+
+    if jit_enabled:
+        f2 = nb.vectorize(f)
+        f2._compile_for_argtys(
+           (nb.types.int32, nb.types.int32))
+        f2._compile_for_argtys(
+           (nb.types.int64, nb.types.int64))
+        f2._compile_for_argtys(
+            (nb.types.float32, nb.types.float32))
+        f2._compile_for_argtys(
+            (nb.types.float64, nb.types.float64))
+        f2._frozen = True
+    else:
+        f2 = np.vectorize(f)
 
     composite_op_lookup[f.__name__] = f2
     return f2
+
 
 @arr_operator
 def source_arr(src, dst):

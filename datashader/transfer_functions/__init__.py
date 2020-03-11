@@ -600,7 +600,9 @@ def _build_spread_kernel(how, is_image):
             for x in range(N):
                 el = arr[y, x]
                 # Skip if data is transparent
-                if (not is_image) or ((el >> 24) & 255):
+                process_image = is_image and ((int(el) >> 24) & 255) # Transparent pixel
+                process_array = (not is_image) and (not np.isnan(el))
+                if process_image or process_array:
                     for i in range(w):
                         for j in range(w):
                             # Skip if mask is False at this value
