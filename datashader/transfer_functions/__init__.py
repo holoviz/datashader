@@ -652,6 +652,7 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=Non
     how : str, optional
         The name of the compositing operator to use when combining pixels.
     """
+    is_image = isinstance(img, Image)
     if not 0 <= threshold <= 1:
         raise ValueError("threshold must be in [0, 1]")
     if not isinstance(max_px, int) or max_px < 0:
@@ -659,13 +660,42 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=Non
     # Simple linear search. Not super efficient, but max_px is usually small.
     for px in range(max_px + 1):
         out = spread(img, px, shape=shape, how=how, name=name)
-        if _density(out.data) >= threshold:
+        if is_image:
+            density = _rgb_density(out.data)
+        elif out.data.dtype in [np.int32, np.int64]:
+            cast = out.data.astype(np.float64)
+            cast[out.data == 0] = np.nan
+            density = _array_density(cast)
+        else:
+            density = _array_density(out.data)
+        if density >= threshold:
             break
     return out
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
-def _density(arr):
+def _array_density(arr):
+    """Compute a density heuristic of an array.
+
+    The density is a number in [0, 1], and indicates the normalized mean number
+    of non-empty adjacent pixels for each non-empty pixel.
+    """
+    M, N = arr.shape
+    cnt = total = 0
+    for y in range(1, M - 1):
+        for x in range(1, N - 1):
+            el = arr[y, x]
+            if not np.isnan(el):
+                cnt += 1
+                for i in range(y - 1, y + 2):
+                    for j in range(x - 1, x + 2):
+                        if not np.isnan(arr[i, j]):
+                            total += 1
+        return (total - cnt)/(cnt * 8) if cnt else np.inf
+
+
+@nb.jit(nopython=True, nogil=True, cache=True)
+def _rgb_density(arr):
     """Compute a density heuristic of an image.
 
     The density is a number in [0, 1], and indicates the normalized mean number
