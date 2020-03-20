@@ -20,7 +20,7 @@ dependencies:
  - networkx>=2.0
  - numba
  - numpy
- - pandas
+ - pandas >=0.24.1
  - param
  - python-snappy
  - python

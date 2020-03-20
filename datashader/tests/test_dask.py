@@ -234,6 +234,33 @@ def test_count_cat(ddf):
     agg = c.points(ddf, 'x', 'y', ds.count_cat('cat'))
     assert_eq_xr(agg, out)
 
+@pytest.mark.parametrize('ddf', ddfs)
+def test_categorical_sum(ddf):
+    sol = np.array([[[10, 0, 0, 0],
+                     [0, 0, 60, 0]],
+                    [[0, 35, 0, 0],
+                     [0, 0, 0, 85]]])
+    out = xr.DataArray(
+        sol, coords=(coords + [['a', 'b', 'c', 'd']]), dims=(dims + ['cat'])
+    )
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.sum('i32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.sum('i64')))
+    assert_eq_xr(agg, out)
+
+    sol = np.array([[[8.0, 0, 0, 0],
+                     [0, 0, 60.0, 0]],
+                    [[0, 35.0, 0, 0],
+                     [0, 0, 0, 85.0]]])
+    out = xr.DataArray(
+        sol, coords=(coords + [['a', 'b', 'c', 'd']]), dims=(dims + ['cat'])
+    )
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.sum('f32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.sum('f64')))
+    assert_eq_xr(agg, out)
 
 @pytest.mark.parametrize('ddf', ddfs)
 def test_multiple_aggregates(ddf):

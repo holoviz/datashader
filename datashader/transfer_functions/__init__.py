@@ -320,7 +320,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
-def _colorize(agg, color_key, how, min_alpha, name):
+def _colorize(agg, color_key, how, span, min_alpha, name):
     if cupy and isinstance(agg.data, cupy.ndarray):
         from ._cuda_utils import interp
         array = cupy.array
@@ -352,13 +352,27 @@ def _colorize(agg, color_key, how, min_alpha, name):
         r = (data.dot(rs)/total).astype(np.uint8)
         g = (data.dot(gs)/total).astype(np.uint8)
         b = (data.dot(bs)/total).astype(np.uint8)
-    offset = total.min()
     mask = np.isnan(total)
+    # if span is provided, use it, otherwise produce it a span based off the
+    # min/max of the data
+    if span is None:
+        span = [np.nanmin(total).item(), np.nanmax(total).item()]
+        if how != 'eq_hist':
+            span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
+    else:
+        if how == 'eq_hist':
+            # For eq_hist to work with span, we'll need to store the histogram
+            # from the data and then apply it to the span argument.
+            raise ValueError("span is not (yet) valid to use with eq_hist")
+        span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
+
+    offset = np.array(span, dtype=data.dtype)[0]
     if offset == 0:
         mask = mask | (total <= 0)
         offset = total[total > 0].min()
     a = _normalize_interpolate_how(how)(total - offset, mask)
-    a = interp(a, array([np.nanmin(a).item(), np.nanmax(a).item()]),
+    # Interpolate the alpha values
+    a = interp(a, array(span),
                array([min_alpha, 255]), left=0, right=255).astype(np.uint8)
     r[mask] = g[mask] = b[mask] = 255
     values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
@@ -433,7 +447,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         undersaturation, i.e. poorly visible low-value datapoints, at
         the expense of the overall dynamic range.
     span : list of min-max range, optional
-        Min and max data values to use for colormap interpolation, when
+        Min and max data values to use for colormap/alpha interpolation, when
         wishing to override autoranging.
     name : string name, optional
         Optional string name to give to the Image object to return,
@@ -446,7 +460,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     if agg.ndim == 2:
         return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
     elif agg.ndim == 3:
-        return _colorize(agg, color_key, how, min_alpha, name)
+        return _colorize(agg, color_key, how, span, min_alpha, name)
     else:
         raise ValueError("agg must use 2D or 3D coordinates")
 
