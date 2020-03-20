@@ -143,7 +143,7 @@ class by(Reduction):
     ----------
     column : str
         Name of the column to aggregate over. Column data type must be
-        categorical. Resulting aggregate has a outer dimension axis along the
+        categorical. Resulting aggregate has an outer dimension axis along the
         categories present.
     reduction : Reduction
         Per-category reduction function.
@@ -502,6 +502,7 @@ class max(FloatingReduction):
 
 class count_cat(by):
     """Count of all elements in ``column``, grouped by category.
+    Alias for `by(...,count())`, for backwards compatibility.
 
     Parameters
     ----------
@@ -725,4 +726,3 @@ __all__ = list(set([_k for _k,_v in locals().items()
                     if isinstance(_v,type) and (issubclass(_v,Reduction) or _v is summary)
                     and _v not in [Reduction, OptionalFieldReduction,
                                    FloatingReduction, m2]]))
-
