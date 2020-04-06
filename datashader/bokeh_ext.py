@@ -4,10 +4,10 @@ from distutils.version import LooseVersion
 
 import uuid
 import json
+import warnings
 
 import numpy as np
 import bokeh
-
 
 from bokeh.document import Document
 from bokeh.models import (CustomJS, ColumnDataSource, Square, HoverTool,
@@ -22,13 +22,24 @@ bokeh_version = LooseVersion(bokeh.__version__)
 
 if bokeh_version > '0.12.9':
     from bokeh.protocol import Protocol
-    from bokeh.embed.notebook import encode_utf8, notebook_content
+    from bokeh.embed.notebook import notebook_content
+    try:
+        from bokeh.embed.notebook import encode_utf8
+    except:
+        encode_utf8 = lambda s: s
     from bokeh.io.notebook import CommsHandle, get_comms
 else:
     from bokeh.embed import notebook_div
     from bokeh.io import _CommsHandle as CommsHandle
     from bokeh.util.notebook import get_comms
 
+class VisibleDeprecationWarning(UserWarning):
+    """Visible deprecation warning.
+
+    By default, python will not show deprecation warnings, so this class
+    can be used when a very visible warning is helpful, for example because
+    the usage is most likely a user bug.
+    """
 
 NOTEBOOK_DIV = """
 {plot_div}
@@ -56,7 +67,7 @@ def bokeh_notebook_div(image):
         html = NOTEBOOK_DIV.format(plot_script=js, plot_div=div)
         div = encode_utf8(html)
         # Ensure events are held until an update is triggered
-        image.doc.hold() 
+        image.doc.hold()
     else:
         div = notebook_div(image.p, image.ref)
     return div
@@ -82,7 +93,11 @@ def patch_event(image):
         events = list(image.doc._held_events)
         if not events:
             return None
-        msg = Protocol("1.0").create("PATCH-DOC", events)
+        if bokeh_version > '2.0.0':
+            protocol = Protocol()
+        else:
+            protocol = Protocol("1.0")
+        msg = protocol.create("PATCH-DOC", events)
         image.doc._held_events = []
         return msg
     data = dict(image.ds.data)
@@ -172,10 +187,10 @@ class InteractiveImage(object):
             console.log("Python callback returned unexpected message:", msg)
           }}
         }}
-        callbacks = {{iopub: {{output: callback}}}};
+        var callbacks = {{iopub: {{output: callback}}}};
 
         function update_plot() {{
-            range = Bokeh._queued;
+            var range = Bokeh._queued;
             var cmd = "{cmd}(" + range + ")"
             // Execute the command on the Python kernel
             if (IPython.notebook.kernel !== undefined) {{
@@ -201,7 +216,7 @@ class InteractiveImage(object):
             Bokeh._timeout = Date.now();
         }}
 
-        timeout = Bokeh._timeout + {timeout};
+        var timeout = Bokeh._timeout + {timeout};
         if (typeof _ === "undefined") {{
         }} else if ((Bokeh._blocked && (Date.now() < timeout))) {{
             Bokeh._queued = [range_str];
@@ -219,6 +234,10 @@ class InteractiveImage(object):
 
     def __init__(self, bokeh_plot, callback, delay=200, timeout=2000, throttle=None,
                  **kwargs):
+        warnings.warn('InteractiveImage has been deprecated as of 0.11.0. '
+                      'It is not supported in JupyterLab and Bokeh server '
+                      'environments. Please use the HoloViews datashader '
+                      'integration instead.', VisibleDeprecationWarning)
         self.p = bokeh_plot
         self.callback = callback
         self.kwargs = kwargs
@@ -232,8 +251,8 @@ class InteractiveImage(object):
         # Initialize the image and callback
         self.ds, self.renderer = self._init_image()
         callback = self._init_callback()
-        self.p.x_range.callback = callback
-        self.p.y_range.callback = callback
+        self.p.x_range.js_on_change('start', callback)
+        self.p.y_range.js_on_change('start', callback)
 
     def _init_callback(self):
         """
@@ -275,7 +294,7 @@ class InteractiveImage(object):
                                      dw='dw', dh='dh', dilate=False)
         return ds, renderer
 
-    def update(self, ranges):
+    def update(self, ranges, new=None):
         """
         Update the image datasource based on the new ranges,
         serialize the data to JSON and send to notebook via
