@@ -116,12 +116,3 @@ including API documentation and papers and talks about the approach.
 ![NYC races](examples/assets/images/nyc_races.jpg)
 
 ![NYC taxi](examples/assets/images/nyc_pickups_vs_dropoffs.jpg)
-
-
-## About HoloViz
-
-Datashader is part of the [HoloViz](https://holoviz.org) ecosystem for making
-browser-based data visualization in Python easier to use, easier to learn, and more powerful. See [holoviz.org](http://holoviz.org) for related packages that you can use with Datashader and
-[status.holoviz.org](http://status.holoviz.org) for the current status of each HoloViz project.
-
-Datashader is supported and maintained by [Anaconda](https://anaconda.com).
