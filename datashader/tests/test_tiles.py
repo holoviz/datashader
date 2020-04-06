@@ -5,6 +5,7 @@ import datashader.transfer_functions as tf
 from datashader.colors import viridis
 
 from datashader.tiles import render_tiles
+from datashader.tiles import gen_super_tiles
 from datashader.tiles import _get_super_tile_min_max
 from datashader.tiles import calculate_zoom_level_stats
 from datashader.tiles import MercatorTileDefinition
@@ -97,7 +98,9 @@ def test_get_super_tile_min_max():
                 'tile_size': 256,
                 'span': (0, 1000)}
 
-    result = _get_super_tile_min_max(tile_info, mock_load_data_func, mock_rasterize_func)
+    agg = _get_super_tile_min_max(tile_info, mock_load_data_func, mock_rasterize_func)
+
+    result = [np.nanmin(agg.data), np.nanmax(agg.data)]
 
     assert isinstance(result, list)
     assert len(result) == 2
@@ -109,15 +112,15 @@ def test_calculate_zoom_level_stats_with_fullscan_ranging_strategy():
                    MERCATOR_CONST, MERCATOR_CONST)
     level = 0
     color_ranging_strategy = 'fullscan'
-    result = calculate_zoom_level_stats(full_extent, level,
+    super_tiles, span = calculate_zoom_level_stats(list(gen_super_tiles(full_extent, level)),
                                         mock_load_data_func,
                                         mock_rasterize_func,
                                         color_ranging_strategy=color_ranging_strategy)
 
-    assert isinstance(result, (list, tuple))
-    assert len(result) == 2
-    assert_is_numeric(result[0])
-    assert_is_numeric(result[1])
+    assert isinstance(span, (list, tuple))
+    assert len(span) == 2
+    assert_is_numeric(span[0])
+    assert_is_numeric(span[1])
 
 def test_meters_to_tile():
     # Part of NYC (used in taxi demo)
