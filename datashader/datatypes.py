@@ -1,15 +1,20 @@
 from __future__ import absolute_import
+
 import re
+
+from distutils.version import LooseVersion
 from functools import total_ordering
 
 import numpy as np
+import pandas as pd
+
 from numba import jit
 from pandas.api.extensions import (
     ExtensionDtype, ExtensionArray, register_extension_dtype)
 from numbers import Integral
 
 from pandas.api.types import pandas_dtype, is_extension_array_dtype
-import pandas as pd
+
 
 try:
     # See if we can register extension type with dask >= 1.1.0
@@ -434,10 +439,14 @@ Cannot check equality of RaggedArray of length {ra_len} with:
                     )
 
                 # check for NA values
-                if any(pd.isna(item)):
-                    raise ValueError(
-                        "Cannot mask with a boolean indexer containing NA values"
-                    )
+                isna = pd.isna(item)
+                if isna.any():
+                    if LooseVersion(pd.__version__) > '1.0.1':
+                        item[isna] = False
+                    else:
+                        raise ValueError(
+                            "Cannot mask with a boolean indexer containing NA values"
+                        )
 
                 data = []
 
