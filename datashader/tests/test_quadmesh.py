@@ -6,9 +6,10 @@ import datashader as ds
 import pytest
 from collections import OrderedDict
 
+import dask.array
 from datashader.tests.test_pandas import assert_eq_xr
 
-array_modules = [np]
+array_modules = [np, dask.array]
 try:
     import cudf
     import cupy
@@ -16,6 +17,9 @@ try:
 except ImportError:
     cudf = None
     cupy = None
+
+
+dask.config.set(scheduler='single-threaded')
 
 
 # Raster
@@ -70,6 +74,40 @@ def test_raster_quadmesh_autorange(array_module):
          [1., 1., 2., 2., 3., 3., 4., 4.],
          [5., 5., 6., 6., 7., 7., 8., 8.],
          [5., 5., 6., 6., 7., 7., 8., 8.]],
+        dtype='f8'),
+        coords=[('b', y_coords),
+                ('a', x_coords)]
+    )
+
+    res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+    # Check transpose gives same answer
+    res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+
+def test_raster_quadmesh_autorange_chunked():
+    c = ds.Canvas(plot_width=8, plot_height=6)
+    da = xr.DataArray(
+        np.array(
+            [[1, 2, 3, 4],
+             [5, 6, 7, 8],
+             [9, 10, 11, 12]]
+        ),
+        coords=[('b', [1, 2, 3]),
+                ('a', [1, 2, 3, 4])],
+        name='Z').chunk({'a': 2, 'b': 2})
+
+    y_coords = np.linspace(0.75, 3.25, 6)
+    x_coords = np.linspace(0.75, 4.25, 8)
+    out = xr.DataArray(np.array(
+        [[1., 1., 2., 2., 3., 3., 4., 4.],
+         [1., 1., 2., 2., 3., 3., 4., 4.],
+         [5., 5., 6., 6., 7., 7., 8., 8.],
+         [5., 5., 6., 6., 7., 7., 8., 8.],
+         [9., 9., 10., 10., 11., 11., 12., 12.],
+         [9., 9., 10., 10., 11., 11., 12., 12.]],
         dtype='f8'),
         coords=[('b', y_coords),
                 ('a', x_coords)]
@@ -282,6 +320,40 @@ def test_rectilinear_quadmesh_autorange(array_module):
     assert_eq_xr(res, out, close=True)
 
 
+def test_rectilinear_quadmesh_autorange_chunked():
+    c = ds.Canvas(plot_width=8, plot_height=6)
+    da = xr.DataArray(
+        np.array(
+            [[1, 2, 3, 4],
+             [5, 6, 7, 8],
+             [9, 10, 11, 12]]
+        ),
+        coords=[('b', [1, 2, 3]),
+                ('a', [1, 2, 3, 8])],
+        name='Z').chunk({'a': 2, 'b': 3})
+
+    y_coords = np.linspace(0.75, 3.25, 6)
+    x_coords = np.linspace(1.125, 9.875, 8)
+    out = xr.DataArray(np.array(
+        [[3., 3., 3., 3., 4., 4., 4., 4.],
+         [3., 3., 3., 3., 4., 4., 4., 4.],
+         [11., 7., 7., 7., 8., 8., 8., 8.],
+         [11., 7., 7., 7., 8., 8., 8., 8.],
+         [19., 11., 11., 11., 12., 12., 12., 12.],
+         [19., 11., 11., 11., 12., 12., 12., 12.]],
+        dtype='f8'),
+        coords=[('b', y_coords),
+                ('a', x_coords)]
+    )
+
+    res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out, close=True)
+
+    # Check transpose gives same answer
+    res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
+    assert_eq_xr(res, out, close=True)
+
+
 @pytest.mark.parametrize('array_module', array_modules)
 def test_rect_quadmesh_autorange_reversed(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4)
@@ -388,11 +460,13 @@ def test_rect_subpixel_quads_represented(array_module):
 @pytest.mark.parametrize('array_module', array_modules)
 def test_curve_quadmesh_rect_autorange(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4)
-    Qx = np.array(
+    coord_array = dask.array if array_module is dask.array else np
+
+    Qx = coord_array.array(
         [[1, 2],
          [1, 2]]
     )
-    Qy = np.array(
+    Qy = coord_array.array(
         [[1, 1],
          [2, 2]]
     )
@@ -421,17 +495,20 @@ def test_curve_quadmesh_rect_autorange(array_module):
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
 
-    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=True), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+
 
 @pytest.mark.parametrize('array_module', array_modules)
 def test_curve_quadmesh_autorange(array_module):
     c = ds.Canvas(plot_width=4, plot_height=8)
-    Qx = np.array(
+    coord_array = dask.array if array_module is dask.array else np
+
+    Qx = coord_array.array(
         [[1, 2],
          [1, 2]]
     )
-    Qy = np.array(
+    Qy = coord_array.array(
         [[1, 1],
          [4, 2]]
     )
@@ -465,17 +542,65 @@ def test_curve_quadmesh_autorange(array_module):
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
 
-    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=True), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
 
-@pytest.mark.parametrize('array_module', array_modules)
-def test_curve_quadmesh_manual_range(array_module):
-    c = ds.Canvas(plot_width=4, plot_height=8, x_range=[1, 2], y_range=[1, 3])
+
+def test_curve_quadmesh_autorange_chunked():
+    c = ds.Canvas(plot_width=4, plot_height=8)
+
     Qx = np.array(
         [[1, 2],
          [1, 2]]
     )
     Qy = np.array(
+        [[1, 1],
+         [4, 2]]
+    )
+    Z = np.arange(4, dtype='int32').reshape(2, 2)
+    da = xr.DataArray(
+        np.array(Z),
+        coords={'Qx': (['Y', 'X'], Qx),
+                'Qy': (['Y', 'X'], Qy)},
+        dims=['Y', 'X'],
+        name='Z',
+    ).chunk({'X': 2, 'Y': 1})
+
+    x_coords = np.linspace(0.75, 2.25, 4)
+    y_coords = np.linspace(-0.5, 6.5, 8)
+    out = xr.DataArray(np.array(
+        [[nan, nan, nan, nan],
+         [0.,  0.,  nan, nan],
+         [0.,  0.,  1.,  1.],
+         [0.,  0.,  3.,  3.],
+         [2.,  2.,  3.,  nan],
+         [2.,  2.,  nan, nan],
+         [2.,  2.,  nan, nan],
+         [2.,  nan, nan, nan]]
+        ),
+        coords=OrderedDict([
+            ('Qx', x_coords),
+            ('Qy', y_coords)]),
+        dims=['Qy', 'Qx']
+    )
+
+    res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=True), x='Qx', y='Qy', agg=ds.sum('Z'))
+    assert_eq_xr(res, out)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_curve_quadmesh_manual_range(array_module):
+    c = ds.Canvas(plot_width=4, plot_height=8, x_range=[1, 2], y_range=[1, 3])
+    coord_array = dask.array if array_module is dask.array else np
+
+    Qx = coord_array.array(
+        [[1, 2],
+         [1, 2]]
+    )
+    Qy = coord_array.array(
         [[1, 1],
          [4, 2]]
     )
@@ -509,18 +634,21 @@ def test_curve_quadmesh_manual_range(array_module):
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
 
-    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=True), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+
 
 @pytest.mark.parametrize('array_module', array_modules)
 def test_curve_quadmesh_manual_range_subpixel(array_module):
     c = ds.Canvas(plot_width=3, plot_height=5,
                   x_range=[-150, 150], y_range=[-250, 250])
-    Qx = np.array(
+    coord_array = dask.array if array_module is dask.array else np
+
+    Qx = coord_array.array(
         [[1, 2],
          [1, 2]]
     )
-    Qy = np.array(
+    Qy = coord_array.array(
         [[1, 1],
          [4, 2]]
     )
@@ -551,5 +679,5 @@ def test_curve_quadmesh_manual_range_subpixel(array_module):
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
 
-    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=False), x='Qx', y='Qy', agg=ds.sum('Z'))
+    res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=True), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
