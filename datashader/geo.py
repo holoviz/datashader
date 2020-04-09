@@ -5,17 +5,28 @@ This module contains geoscience-related transfer functions whose use is complete
 
 from __future__ import division, absolute_import
 
+import warnings
+
 import pandas as pd
 import numpy as np
 import datashader.transfer_functions as tf
 
 from datashader import Canvas
 from datashader.colors import rgb
-from datashader.utils import ngjit, lnglat_to_meters   # noqa (API import)
+from datashader.utils import (
+    VisibleDeprecationWarning, ngjit, lnglat_to_meters   # noqa (API import)
+)
 from xarray import DataArray
 
 __all__ = ['mean', 'binary', 'slope', 'aspect', 'ndvi', 'hillshade', 'generate_terrain',
            'lnglat_to_meters']
+
+
+warnings.warn(
+    "The datashader.geo module is deprecated as of version 0.11.0. "
+    "Its contents have migrated to the xarray_spatial library.",
+    VisibleDeprecationWarning
+)
 
 
 # TODO: add optional name parameter `name='hillshade'`

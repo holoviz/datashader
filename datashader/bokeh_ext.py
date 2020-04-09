@@ -16,7 +16,10 @@ from bokeh.models import Plot, Text, Circle, Range1d
 from bokeh.plotting import Figure
 
 from . import transfer_functions as tf
-from .utils import downsample_aggregate, summarize_aggregate_values
+from .utils import (
+    VisibleDeprecationWarning, downsample_aggregate,
+    summarize_aggregate_values
+)
 
 bokeh_version = LooseVersion(bokeh.__version__)
 
@@ -33,13 +36,6 @@ else:
     from bokeh.io import _CommsHandle as CommsHandle
     from bokeh.util.notebook import get_comms
 
-class VisibleDeprecationWarning(UserWarning):
-    """Visible deprecation warning.
-
-    By default, python will not show deprecation warnings, so this class
-    can be used when a very visible warning is helpful, for example because
-    the usage is most likely a user bug.
-    """
 
 NOTEBOOK_DIV = """
 {plot_div}
@@ -234,7 +230,7 @@ class InteractiveImage(object):
 
     def __init__(self, bokeh_plot, callback, delay=200, timeout=2000, throttle=None,
                  **kwargs):
-        warnings.warn('InteractiveImage has been deprecated as of 0.11.0. '
+        warnings.warn('InteractiveImage has been deprecated as of datashader 0.8.0. '
                       'It is not supported in JupyterLab and Bokeh server '
                       'environments. Please use the HoloViews datashader '
                       'integration instead.', VisibleDeprecationWarning)

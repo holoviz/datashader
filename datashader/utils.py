@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+import warnings
 
 from inspect import getmro
 
@@ -28,6 +29,15 @@ try:
     from spatialpandas.geometry import GeometryDtype
 except ImportError:
     GeometryDtype = type(None)
+
+
+class VisibleDeprecationWarning(UserWarning):
+    """Visible deprecation warning.
+
+    By default, python will not show deprecation warnings, so this class
+    can be used when a very visible warning is helpful, for example because
+    the usage is most likely a user bug.
+    """
 
 
 ngjit = nb.jit(nopython=True, nogil=True)
