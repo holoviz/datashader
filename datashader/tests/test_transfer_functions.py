@@ -307,6 +307,21 @@ def test_shade_category(array):
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
+@pytest.mark.parametrize('array', arrays)
+def test_shade_zeros(array):
+    coords = [np.array([0, 1]), np.array([2, 5])]
+    cat_agg = tf.Image(array([[(0, 0, 0), (0, 0, 0)],
+                                  [(0, 0, 0), (0, 0, 0)]]),
+                           coords=(coords + [['a', 'b', 'c']]),
+                           dims=(dims + ['cats']))
+
+    colors = [(255, 0, 0), '#0000FF', 'orange']
+
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=0)
+    sol = np.array([[16777215, 16777215],
+                    [16777215, 16777215]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
 
 coords2 = [np.array([0, 2]), np.array([3, 5])]
 img1 = tf.Image(np.array([[0xff00ffff, 0x00000000],
