@@ -369,7 +369,10 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     offset = np.array(span, dtype=data.dtype)[0]
     if offset == 0:
         mask = mask | (total <= 0)
-        offset = total[total > 0].min()
+        # If at least one element is not masked, use the minimum as the offset
+        # otherwise the offset remains at zero
+        if not np.all(mask):
+            offset = total[total > 0].min()
     a = _normalize_interpolate_how(how)(total - offset, mask)
     # Interpolate the alpha values
     a = interp(a, array(span),
