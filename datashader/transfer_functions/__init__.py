@@ -353,10 +353,21 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         g = (data.dot(gs)/total).astype(np.uint8)
         b = (data.dot(bs)/total).astype(np.uint8)
     mask = np.isnan(total)
+
+    # Handle offset / clip
+    if span is None:
+        mask = mask | (total <= 0)
+        offset = np.nanmin(total[~mask])
+    else:
+        offset = np.array(span, dtype=data.dtype)[0]
+        masked_clip_2d(total, mask, *span)
+
+    a = _normalize_interpolate_how(how)(total - offset, mask)
+
     # if span is provided, use it, otherwise produce it a span based off the
     # min/max of the data
     if span is None:
-        span = [np.nanmin(total).item(), np.nanmax(total).item()]
+        span = [np.nanmin(a).item(), np.nanmax(a).item()]
         if how != 'eq_hist':
             span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
     else:
@@ -366,11 +377,6 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
             raise ValueError("span is not (yet) valid to use with eq_hist")
         span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
 
-    offset = np.array(span, dtype=data.dtype)[0]
-    if offset == 0:
-        mask = mask | (total <= 0)
-        offset = total[total > 0].min()
-    a = _normalize_interpolate_how(how)(total - offset, mask)
     # Interpolate the alpha values
     a = interp(a, array(span),
                array([min_alpha, 255]), left=0, right=255).astype(np.uint8)
