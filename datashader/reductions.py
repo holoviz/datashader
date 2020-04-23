@@ -195,6 +195,8 @@ class by(Reduction):
             )
 
     def _build_append(self, dshape, schema, cuda=False):
+        ## problem is here: e.g. std does not have a _build_append method. Rather interrogate its _build_bases
+        ## as is done in the normal compile
         f = self.reduction._build_append(dshape, schema, cuda)
         # because we transposed, we also need to flip the
         # order of the x/y arguments

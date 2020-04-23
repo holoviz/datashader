@@ -1,9 +1,11 @@
 from __future__ import absolute_import, division
 
 import dask
+import dask.array as da
 import dask.dataframe as dd
 from collections import OrderedDict
 from dask.base import tokenize, compute
+import numpy as np
 
 from datashader.core import bypixel
 from datashader.compatibility import apply
@@ -21,12 +23,15 @@ def dask_pipeline(df, schema, canvas, glyph, summary, cuda=False):
     # Get user configured scheduler (if any), or fall back to default
     # scheduler for dask DataFrame
     scheduler = dask.base.get_scheduler() or df.__dask_scheduler__
+
+    if isinstance(dsk, da.Array):
+        return da.compute(dsk, scheduler=scheduler)[0]
+
     keys = df.__dask_keys__()
     optimize = df.__dask_optimize__
     graph = df.__dask_graph__()
 
     dsk.update(optimize(graph, keys))
-
     return scheduler(dsk, name)
 
 
@@ -70,18 +75,85 @@ def default(glyph, df, schema, canvas, summary, cuda=False):
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
 
-    def chunk(df):
+    # Here be dragons
+    # Get the dataframe graph
+    graph = df.__dask_graph__()
+    # Guess a reasonably output dtype from combination of dataframe dtypes
+    dtype = np.result_type(*df.dtypes)
+    # Create a meta object so that dask.array doesn't try to look
+    # too closely at the type of the chunks it's wrapping
+    # they're actually dataframes, tell dask they're ndarrays
+    meta = np.empty((0,), dtype=dtype)
+    # Create a chunks tuple, a singleton for each dataframe chunk
+    # The number of chunks + structure needs to match that of
+    # the dataframe, so that we can use the dataframe graph keys,
+    # but we don't have to be precise with the chunk size.
+    # We could use np.nan instead of 1 to indicate that we actually
+    # don't know how large the chunk is
+    chunks = (tuple(1 for _ in range(df.npartitions)),)
+
+    # Now create a dask array from the dataframe graph layer
+    # It's a dask array of dataframes, which is dodgy but useful
+    # for the following reasons:
+    #
+    # (1) The dataframes get converted to a single array by
+    #     the datashader reduction functions anyway
+    # (2) dask.array.reduction is handy for coding a tree
+    #     reduction of arrays
+    df_array = da.Array(graph, df._name, chunks, meta=meta)
+    # A sufficient condition for ensuring the chimera holds together
+    assert list(df_array.__dask_keys__()) == list(df.__dask_keys__())
+
+    def chunk(df, axis, keepdims):
+        """ used in the dask.array.reduction chunk step """
         aggs = create(shape)
         extend(aggs, df, st, bounds)
         return aggs
 
-    name = tokenize(df.__dask_tokenize__(), canvas, glyph, summary)
-    keys = df.__dask_keys__()
-    keys2 = [(name, i) for i in range(len(keys))]
-    dsk = dict((k2, (chunk, k)) for (k2, k) in zip(keys2, keys))
-    dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label]))
-    return dsk, name
+    def wrapped_combine(x, axis, keepdims):
+        """ wrap datashader combine in dask.array.reduction combine """
+        if isinstance(x, list):
+            # list of tuples of ndarrays
+            # assert all(isinstance(item, tuple) and
+            #            len(item) == 1 and
+            #            isinstance(item[0], np.ndarray)
+            #            for item in x)
+            return combine(x)
+        elif isinstance(x, tuple):
+            # tuple with single ndarray
+            # assert len(x) == 1 and isinstance(x[0], np.ndarray)
+            return x
+        else:
+            raise TypeError("Unknown type %s in wrapped_combine" % type(x))
+
+    local_axis = axis
+
+    def aggregate(x, axis, keepdims):
+        """ Wrap datashader finalize in dask.array.reduction aggregate """
+        return finalize(wrapped_combine(x, axis, keepdims),
+                        cuda=cuda, coords=local_axis,
+                        dims=[glyph.y_label, glyph.x_label])
+
+    R = da.reduction(df_array,
+                     aggregate=aggregate,
+                     chunk=chunk,
+                     combine=wrapped_combine,
+                     # Control granularity of tree branching
+                     # less is more
+                     split_every=2,
+                     # We don't want np.concatenate called
+                     # during combine and aggregate. It'll
+                     # fail because we're handling tuples of ndarrays
+                     # and lists of tuples of ndarrays
+                     concatenate=False,
+                     # Prevent dask from internally inspecting
+                     # chunk, combine and aggrregate
+                     meta=meta,
+                     # Provide some sort of dtype for the
+                     # resultant dask array
+                     dtype=meta.dtype)
+
+    return R, R.name
 
 
 @glyph_dispatch.register(LineAxis0)
