@@ -140,6 +140,9 @@ def default(glyph, df, schema, canvas, summary, cuda=False):
                      aggregate=aggregate,
                      chunk=chunk,
                      combine=wrapped_combine,
+                     # Control granularity of tree branching
+                     # less is more
+                     split_every=2,
                      # We don't want np.concatenate called
                      # during combine and aggregate. It'll
                      # fail because we're handling tuples of ndarrays
