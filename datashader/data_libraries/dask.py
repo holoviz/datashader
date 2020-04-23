@@ -78,8 +78,6 @@ def default(glyph, df, schema, canvas, summary, cuda=False):
     # Here be dragons
     # Get the dataframe graph
     graph = df.__dask_graph__()
-    # Get the topmost layer representing the creation of the dataframe
-    df_layer = graph.layers[df._name]
     # Guess a reasonably output dtype from combination of dataframe dtypes
     dtype = np.result_type(*df.dtypes)
     # Create a meta object so that dask.array doesn't try to look
@@ -92,7 +90,7 @@ def default(glyph, df, schema, canvas, summary, cuda=False):
     # but we don't have to be precise with the chunk size.
     # We could use np.nan instead of 1 to indicate that we actually
     # don't know how large the chunk is
-    chunks = (tuple(1 for _ in range(len(df_layer))),)
+    chunks = (tuple(1 for _ in range(df.npartitions)),)
 
     # Now create a dask array from the dataframe graph layer
     # It's a dask array of dataframes, which is dodgy but useful
