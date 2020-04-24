@@ -196,7 +196,7 @@ class by(Reduction):
 
     def _build_bases(self, cuda=False):
         bases = self.reduction._build_bases(cuda)
-        if bases[0] is self:
+        if len(bases) == 1 and bases[0] is self:
             return bases
         return tuple(by(self.cat_column, base) for base in bases)
 
@@ -204,7 +204,11 @@ class by(Reduction):
         f = self.reduction._build_append(dshape, schema, cuda)
         # because we transposed, we also need to flip the
         # order of the x/y arguments
-        if self.val_column is not None:
+        if isinstance(self.reduction, m2):
+            def _categorical_append(x, y, agg, field):
+                _agg = agg.transpose()
+                f(y, x, _agg[int(field[0])], field[1], field[2], field[3])
+        elif self.val_column is not None:
             def _categorical_append(x, y, agg, field):
                 _agg = agg.transpose()
                 f(y, x, _agg[int(field[0])], field[1])
@@ -234,11 +238,10 @@ class by(Reduction):
         cats = list(dshape[self.cat_column].categories)
 
         def finalize(bases, cuda=False, **kwargs):
-            dims = kwargs['dims'] + [self.cat_column]
+            kwargs['dims'] += [self.cat_column]
+            kwargs['coords'][self.cat_column] = cats
+            return self.reduction._finalize(bases, cuda=cuda, **kwargs)
 
-            coords = kwargs['coords']
-            coords[self.cat_column] = cats
-            return xr.DataArray(bases[0], dims=dims, coords=coords)
         return finalize
 
 class count(OptionalFieldReduction):
