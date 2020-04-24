@@ -194,6 +194,12 @@ class by(Reduction):
                 shape + (n_cats,), dtype='i4'
             )
 
+    def _build_bases(self, cuda=False):
+        bases = self.reduction._build_bases(cuda)
+        if bases[0] is self:
+            return bases
+        return tuple(by(self.cat_column, base) for base in bases)
+
     def _build_append(self, dshape, schema, cuda=False):
         f = self.reduction._build_append(dshape, schema, cuda)
         # because we transposed, we also need to flip the
