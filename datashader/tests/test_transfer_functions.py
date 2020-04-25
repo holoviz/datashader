@@ -382,6 +382,33 @@ def test_shade_category(array):
     assert ((img.data[1,0] >> 24) & 0xFF) != 0 # not fully transparent
     assert ((img.data[1,1] >> 24) & 0xFF) != 0 # not fully transparent
 
+    # Categorical aggregations with some reductions (such as sum) can result in negative
+    # values in the data
+    cat_agg = tf.Image(array([[(0, -30, 0), (-18, 0, -18)],
+                                [(-2, -2, -2), (-18, 0, 0)]]),
+                        coords=(coords + [['a', 'b', 'c']]),
+                        dims=(dims + ['cats']))
+
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
+    sol = np.array([[16777215, 16777215],
+                    [16777215, 16777215]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    assert ((img.data[0,0] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[0,1] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[1,0] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[1,1] >> 24) & 0xFF) == 0 # fully transparent
+
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(6, 36))
+    sol = np.array([[16777215, 16777215],
+                    [16777215, 16777215]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    assert ((img.data[0,0] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[0,1] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[1,0] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[1,1] >> 24) & 0xFF) == 0 # fully transparent
+
 @pytest.mark.parametrize('array', arrays)
 def test_shade_zeros(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
