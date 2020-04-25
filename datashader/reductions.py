@@ -155,6 +155,9 @@ class by(Reduction):
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.reduction))
 
+    def _build_temps(self, cuda=False):
+        return tuple(by(self.cat_column, tmp) for tmp in self.reduction._build_temps(cuda))
+
     @property
     def cat_column(self):
         return self.columns[0]
@@ -205,9 +208,10 @@ class by(Reduction):
         # because we transposed, we also need to flip the
         # order of the x/y arguments
         if isinstance(self.reduction, m2):
-            def _categorical_append(x, y, agg, field):
+            def _categorical_append(x, y, agg, cols, tmp1, tmp2):
                 _agg = agg.transpose()
-                f(y, x, _agg[int(field[0])], field[1], field[2], field[3])
+                _ind = int(cols[0])
+                f(y, x, _agg[_ind], cols[1], tmp1[_ind], tmp2[_ind])
         elif self.val_column is not None:
             def _categorical_append(x, y, agg, field):
                 _agg = agg.transpose()
@@ -218,7 +222,6 @@ class by(Reduction):
                 f(y, x, _agg[int(field)])
 
         return ngjit(_categorical_append)
-
 
     def _build_combine(self, dshape):
         if isinstance(self.reduction, FloatingReduction):
