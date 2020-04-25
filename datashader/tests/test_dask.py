@@ -1,12 +1,14 @@
 from __future__ import division, absolute_import
+
 import os
 
-from dask.context import config
 import dask.dataframe as dd
 import numpy as np
-from numpy import nan
 import pandas as pd
 import xarray as xr
+
+from dask.context import config
+from numpy import nan
 
 import datashader as ds
 import datashader.utils as du
@@ -261,6 +263,57 @@ def test_categorical_sum(ddf):
 
     agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.sum('f64')))
     assert_eq_xr(agg, out)
+
+@pytest.mark.parametrize('ddf', ddfs)
+def test_categorical_mean(ddf):
+    sol = np.array([[[  2, nan, nan, nan],
+                     [nan, nan,  12, nan]],
+                    [[nan,   7, nan, nan],
+                     [nan, nan, nan,  17]]])
+    out = xr.DataArray(
+        sol,
+        coords=(coords + [['a', 'b', 'c', 'd']]),
+        dims=(dims + ['cat']))
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.mean('f32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.mean('f64')))
+    assert_eq_xr(agg, out)
+
+@pytest.mark.parametrize('ddf', ddfs)
+def test_categorical_var(ddf):
+    sol = np.array([[[1.3625,  nan,  nan,  nan],
+                     [   nan,  nan, 1.21,  nan]],
+                    [[   nan, 1.21,  nan,  nan],
+                     [   nan,  nan,  nan, 1.21]]])
+    out = xr.DataArray(
+        sol,
+        coords=(coords + [['a', 'b', 'c', 'd']]),
+        dims=(dims + ['cat']))
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.var('f32')))
+    assert_eq_xr(agg, out, True)
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.var('f64')))
+    assert_eq_xr(agg, out, True)
+
+@pytest.mark.parametrize('ddf', ddfs)
+def test_categorical_std(ddf):
+    sol = np.array([[[1.16726175, nan, nan, nan],
+                     [       nan, nan, 1.1, nan]],
+                    [[       nan, 1.1, nan, nan],
+                     [       nan, nan, nan, 1.1]]])
+    out = xr.DataArray(
+        sol,
+        coords=(coords + [['a', 'b', 'c', 'd']]),
+        dims=(dims + ['cat']))
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.std('f32')))
+    assert_eq_xr(agg, out, True)
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.std('f64')))
+    assert_eq_xr(agg, out, True)
 
 @pytest.mark.parametrize('ddf', ddfs)
 def test_multiple_aggregates(ddf):

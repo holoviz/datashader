@@ -293,8 +293,6 @@ def test_categorical_max(df):
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.max('i32')))
     assert_eq_xr(agg, out)
 
-
-
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_mean(df):
     sol = np.array([[[  2, nan, nan, nan],
@@ -305,6 +303,10 @@ def test_categorical_mean(df):
         sol,
         coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
         dims=(dims + ['cat']))
+
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.mean('f32')))
+    assert_eq_xr(agg, out)
+
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.mean('f64')))
     assert_eq_xr(agg, out)
 
@@ -318,6 +320,10 @@ def test_categorical_var(df):
         sol,
         coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
         dims=(dims + ['cat']))
+
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.var('f32')))
+    assert_eq_xr(agg, out, True)
+
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.var('f64')))
     assert_eq_xr(agg, out, True)
 
@@ -331,6 +337,10 @@ def test_categorical_std(df):
         sol,
         coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
         dims=(dims + ['cat']))
+    
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.std('f32')))
+    assert_eq_xr(agg, out, True)
+
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.std('f64')))
     assert_eq_xr(agg, out, True)
 
