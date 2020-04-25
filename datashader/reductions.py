@@ -240,9 +240,9 @@ class by(Reduction):
         return aggs.sum(axis=0, dtype='i4')
 
     def _combine_m2(self, Ms, sums, ns):
-        Ms = Ms.sum(axis=0, dtype='f8')
-        sums = sums.sum(axis=0, dtype='f8')
-        ns = ns.sum(axis=0, dtype='i4')
+        Ms   = self._combine_float(Ms)
+        sums = self._combine_float(sums)
+        ns   = self._combine_int(ns)
         return self.reduction._combine(Ms, sums, ns)
 
     def _build_finalize(self, dshape):
