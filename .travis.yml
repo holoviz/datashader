@@ -31,11 +31,11 @@ stages:
   - name: docs
     if: tag =~ ^v(\d+|\.)*[^a-z]\d*$ OR tag = website
   - name: docs_dev
-    if: tag =~ ^v(\d+|\.)*[a-z]\d*$ OR tag = website_dev OR commit_message =~ /^.*(website_dev).*$/
+    if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$ OR tag = website_dev OR commit_message =~ /^.*(website_dev).*$/
   - name: conda_dev_package
-    if: tag =~ ^v(\d+|\.)+[a-z]\d+$
+    if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$
   - name: pip_dev_package
-    if: tag =~ ^v(\d+|\.)+[a-z]\d+$
+    if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$
   - name: conda_package
     if: tag =~ ^v(\d+|\.)+[^a-z]\d+$
   - name: pip_package

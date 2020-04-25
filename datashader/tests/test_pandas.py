@@ -24,8 +24,8 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
 df_pd.cat = df_pd.cat.astype('category')
-df_pd.at[2,'f32'] = np.nan
-df_pd.at[2,'f64'] = np.nan
+df_pd.at[2,'f32'] = nan
+df_pd.at[2,'f64'] = nan
 dfs_pd = [df_pd]
 
 if "DATASHADER_TEST_GPU" in os.environ:
@@ -292,6 +292,47 @@ def test_categorical_max(df):
         dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.max('i32')))
     assert_eq_xr(agg, out)
+
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_mean(df):
+    sol = np.array([[[  2, nan, nan, nan],
+                     [nan, nan,  12, nan]],
+                    [[nan,   7, nan, nan],
+                     [nan, nan, nan,  17]]])
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.mean('f64')))
+    assert_eq_xr(agg, out)
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_var(df):
+    sol = np.array([[[1.3625,  nan,  nan,  nan],
+                     [   nan,  nan, 1.21,  nan]],
+                    [[   nan, 1.21,  nan,  nan],
+                     [   nan,  nan,  nan, 1.21]]])
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.var('f64')))
+    assert_eq_xr(agg, out, True)
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_std(df):
+    sol = np.array([[[1.16726175, nan, nan, nan],
+                     [       nan, nan, 1.1, nan]],
+                    [[       nan, 1.1, nan, nan],
+                     [       nan, nan, nan, 1.1]]])
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.std('f64')))
+    assert_eq_xr(agg, out, True)
 
 @pytest.mark.parametrize('df', dfs)
 def test_multiple_aggregates(df):
