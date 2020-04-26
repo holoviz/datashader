@@ -224,26 +224,7 @@ class by(Reduction):
         return ngjit(_categorical_append)
 
     def _build_combine(self, dshape):
-        if isinstance(self.reduction, m2):
-            return self._combine_m2
-        elif isinstance(self.reduction, FloatingReduction):
-            return self._combine_float
-        else:
-            return self._combine_int
-
-    @staticmethod
-    def _combine_float(aggs):
-        return aggs.sum(axis=0, dtype='f8')
-
-    @staticmethod
-    def _combine_int(aggs):
-        return aggs.sum(axis=0, dtype='i4')
-
-    def _combine_m2(self, Ms, sums, ns):
-        Ms   = self._combine_float(Ms)
-        sums = self._combine_float(sums)
-        ns   = self._combine_int(ns)
-        return self.reduction._combine(Ms, sums, ns)
+        return self.reduction._combine
 
     def _build_finalize(self, dshape):
         cats = list(dshape[self.cat_column].categories)
