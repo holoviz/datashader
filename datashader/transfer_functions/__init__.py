@@ -357,19 +357,31 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     # min/max of the data
     if span is None:
         span = [np.nanmin(total).item(), np.nanmax(total).item()]
+        offset = span[0]
         if how != 'eq_hist':
             span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
+        # If there are elements that are zero or lower, they should be fully
+        # transparent and masked out
+        if offset <= 0:
+            mask = mask | (total <= 0)
+            # If at least one element is not masked, use the minimum as the offset
+            # otherwise the offset remains at zero
+            if not np.all(mask):
+                offset = total[total > 0].min()
     else:
         if how == 'eq_hist':
             # For eq_hist to work with span, we'll need to store the histogram
             # from the data and then apply it to the span argument.
             raise ValueError("span is not (yet) valid to use with eq_hist")
+        # even in fixed-span mode cells with 0 should remain fully transparent
+        # i.e. a 0 will be fully transparent, but any non-zero number will
+        # be clipped to the span range and have min-alpha applied
+        mask = mask | (total <= 0)
+        # clip all other values to the fixed span
+        masked_clip_2d(total, mask, *span)
+        offset = span[0]
         span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
 
-    offset = np.array(span, dtype=data.dtype)[0]
-    if offset == 0:
-        mask = mask | (total <= 0)
-        offset = total[total > 0].min()
     a = _normalize_interpolate_how(how)(total - offset, mask)
     # Interpolate the alpha values
     a = interp(a, array(span),

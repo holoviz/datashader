@@ -293,12 +293,6 @@ def test_shade_category(array):
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
-    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(0, 100))
-    sol = np.array([[587137024, 335565567],
-                    [1515534250, 1040187647]], dtype='u4')
-    sol = tf.Image(sol, coords=coords, dims=dims)
-    assert_eq_xr(img, sol)
-
     img = tf.shade(cat_agg, color_key=colors,
                    how=lambda x, m: np.where(m, np.nan, x) ** 2,
                    min_alpha=20)
@@ -307,6 +301,129 @@ def test_shade_category(array):
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
+    # all pixels should be at min_alpha
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=0, span=(50, 100))
+    sol = np.array([[16711680, 21247],
+                    [5584810, 255]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    # redundant verification that alpha channel is all 0x00
+    assert ((img.data[0,0] >> 24) & 0xFF) == 0
+    assert ((img.data[0,1] >> 24) & 0xFF) == 0
+    assert ((img.data[1,0] >> 24) & 0xFF) == 0
+    assert ((img.data[1,1] >> 24) & 0xFF) == 0
+
+    # all pixels should be at max_alpha
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=0, span=(0, 2))
+    sol = np.array([[4294901760, 4278211327],
+                    [4283774890, 4278190335]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    # redundant verification that alpha channel is all 0xFF
+    assert ((img.data[0,0] >> 24) & 0xFF) == 255
+    assert ((img.data[0,1] >> 24) & 0xFF) == 255
+    assert ((img.data[1,0] >> 24) & 0xFF) == 255
+    assert ((img.data[1,1] >> 24) & 0xFF) == 255
+
+    # One pixel should be min-alpha, the other max-alpha
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=0, span=(6, 36))
+    sol = np.array([[872349696, 21247],
+                    [4283774890, 2566914303]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    # redundant verification that alpha channel is correct
+    assert ((img.data[0,0] >> 24) & 0xFF) == 51 # (6 / 30) * 255
+    assert ((img.data[0,1] >> 24) & 0xFF) == 0
+    assert ((img.data[1,0] >> 24) & 0xFF) == 255
+    assert ((img.data[1,1] >> 24) & 0xFF) == 153 # ( 18 /30) * 255
+
+    # One pixel should be min-alpha, the other max-alpha
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=0, span=(0, 72))
+    sol = np.array([[721354752, 352342783],
+                    [2136291242, 1426063615]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    # redundant verification that alpha channel is correct
+    assert ((img.data[0,0] >> 24) & 0xFF) == 42 # (12 / 72) * 255
+    assert ((img.data[0,1] >> 24) & 0xFF) == 21 # (6 / 72) * 255
+    assert ((img.data[1,0] >> 24) & 0xFF) == 127 # ( 36 / 72) * 255
+    assert ((img.data[1,1] >> 24) & 0xFF) == 85 # ( 24 /72 ) * 255
+
+    # test that empty coordinates are always fully transparent, even when
+    # min_alpha is non-zero
+    cat_agg = tf.Image(array([[(0, 0, 0), (3, 0, 3)],
+                                [(12, 12, 12), (24, 0, 0)]]),
+                           coords=(coords + [['a', 'b', 'c']]),
+                           dims=(dims + ['cats']))
+    
+    # First test auto-span
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
+    sol = np.array([[16777215, 335565567],
+                    [3612686250, 2298478847]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+
+    # redundant verification that alpha channel is correct
+    assert ((img.data[0,0] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[0,1] >> 24) & 0xFF) != 0 # not fully transparent
+    assert ((img.data[1,0] >> 24) & 0xFF) != 0 # not fully transparent
+    assert ((img.data[1,1] >> 24) & 0xFF) != 0 # not fully transparent
+
+    # Next test manual-span
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(6, 36))
+    sol = np.array([[16777215, 335565567],
+                    [4283774890, 2701132031]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+
+    # redundant verification that alpha channel is correct
+    assert ((img.data[0,0] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[0,1] >> 24) & 0xFF) != 0 # not fully transparent
+    assert ((img.data[1,0] >> 24) & 0xFF) != 0 # not fully transparent
+    assert ((img.data[1,1] >> 24) & 0xFF) != 0 # not fully transparent
+
+    # Categorical aggregations with some reductions (such as sum) can result in negative
+    # values in the data
+    cat_agg = tf.Image(array([[(0, -30, 0), (-18, 0, -18)],
+                                [(-2, -2, -2), (-18, 0, 0)]]),
+                        coords=(coords + [['a', 'b', 'c']]),
+                        dims=(dims + ['cats']))
+
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
+    sol = np.array([[16777215, 16777215],
+                    [16777215, 16777215]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    assert ((img.data[0,0] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[0,1] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[1,0] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[1,1] >> 24) & 0xFF) == 0 # fully transparent
+
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(6, 36))
+    sol = np.array([[16777215, 16777215],
+                    [16777215, 16777215]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    assert ((img.data[0,0] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[0,1] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[1,0] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[1,1] >> 24) & 0xFF) == 0 # fully transparent
+
+@pytest.mark.parametrize('array', arrays)
+def test_shade_zeros(array):
+    coords = [np.array([0, 1]), np.array([2, 5])]
+    cat_agg = tf.Image(array([[(0, 0, 0), (0, 0, 0)],
+                                  [(0, 0, 0), (0, 0, 0)]]),
+                           coords=(coords + [['a', 'b', 'c']]),
+                           dims=(dims + ['cats']))
+
+    colors = [(255, 0, 0), '#0000FF', 'orange']
+
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=0)
+    sol = np.array([[16777215, 16777215],
+                    [16777215, 16777215]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
 
 coords2 = [np.array([0, 2]), np.array([3, 5])]
 img1 = tf.Image(np.array([[0xff00ffff, 0x00000000],
