@@ -289,9 +289,10 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
 
 def _colorize(agg, color_key, how, span, min_alpha, name):
     if cupy and isinstance(agg.data, cupy.ndarray):
-        from ._cuda_utils import interp
+        from ._cuda_utils import interp, masked_clip_2d 
         array = cupy.array
     else:
+        from ._cpu_utils import masked_clip_2delse:
         interp = np.interp
         array = np.array
 
@@ -344,6 +345,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         offset = np.array(span, dtype=data.dtype)[0]
         if offset <= 0  and total.dtype.kind == 'u':
             mask = mask | (total <= 0)
+        masked_clip_2d(data, mask, *span)
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
         norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
 
