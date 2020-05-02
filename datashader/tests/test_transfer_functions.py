@@ -359,7 +359,7 @@ def test_shade_category(array):
     # First test auto-span
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
     sol = np.array([[16777215, 335565567],
-                    [3612686250, 2298478847]], dtype='u4')
+                    [4283774890, 2701132031]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
@@ -371,7 +371,7 @@ def test_shade_category(array):
 
     # Next test manual-span
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(6, 36))
-    sol = np.array([[16777215, 335565567],
+    sol = np.array([[0, 335565567],
                     [4283774890, 2701132031]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
@@ -400,8 +400,8 @@ def test_shade_category(array):
     assert ((img.data[1,1] >> 24) & 0xFF) == 0 # fully transparent
 
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(6, 36))
-    sol = np.array([[16777215, 16777215],
-                    [16777215, 16777215]], dtype='u4')
+    sol = np.array([[16711680, 21247],
+                    [5584810, 255]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
     assert ((img.data[0,0] >> 24) & 0xFF) == 0 # fully transparent
