@@ -357,7 +357,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     # min/max of the data
     if span is None:
         # Currently masks out zero or negative values, but will need fixing         
-        offset = total.min()
+        offset = np.nanmin(total)
         if offset <= 0:
             mask = mask | (total <= 0)
             # If at least one element is not masked, use the minimum as the offset
@@ -377,9 +377,8 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         offset = np.array(span, dtype=data.dtype)[0]
         if offset <= 0:
             mask = mask | (total <= 0)
-            offset = total[total > 0].min()
-        a_ = _normalize_interpolate_how(how)(total - offset, mask)
         span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
+        a_ = _normalize_interpolate_how(how)(total - offset, mask)
 
     # Interpolate the alpha values
     a = interp(a_, array(span),
