@@ -163,7 +163,7 @@ def eq_hist(data, mask=None, nbins=256*256):
 
     data2 = data if mask is None else data[~mask]
     if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
-        hist = np.bincount(data2.ravel())
+        hist = np.bincount(data2.astype('i8').ravel())
         bin_centers = np.arange(len(hist))
         idx = int(np.nonzero(hist)[0][0])
         hist, bin_centers = hist[idx:], bin_centers[idx:]
@@ -332,7 +332,8 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
             # otherwise the offset remains at zero
             if not np.all(mask):
                 offset = total[total > 0].min()
-        a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
+        masked_total = np.where(~mask, total, np.nan)
+        a_scaled = _normalize_interpolate_how(how)(masked_total - offset, mask)
         norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
     else:
         if how == 'eq_hist':
