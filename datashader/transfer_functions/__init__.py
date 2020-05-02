@@ -364,8 +364,8 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
             # otherwise the offset remains at zero
             if not np.all(mask):
                 offset = total[total > 0].min()
-        a_ = _normalize_interpolate_how(how)(total - offset, mask)
-        span = [np.nanmin(a_).item(), np.nanmax(a_).item()]
+        a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
+        norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
     else:
         if how == 'eq_hist':
             # For eq_hist to work with span, we'll need to store the histogram
@@ -377,11 +377,11 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         offset = np.array(span, dtype=data.dtype)[0]
         if offset <= 0:
             mask = mask | (total <= 0)
-        span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
-        a_ = _normalize_interpolate_how(how)(total - offset, mask)
+        a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
+        norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
 
     # Interpolate the alpha values
-    a = interp(a_, array(span),
+    a = interp(a_scaled, array(norm_span),
                array([min_alpha, 255]), left=0, right=255).astype(np.uint8)
     r[mask] = g[mask] = b[mask] = 255
     values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
