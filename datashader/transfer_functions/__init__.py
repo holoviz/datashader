@@ -358,7 +358,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     if span is None:
         # Currently masks out zero or negative values, but will need fixing         
         offset = np.nanmin(total)
-        if offset <= 0:
+        if offset <= 0 and total.dtype.kind == 'u':
             mask = mask | (total <= 0)
             # If at least one element is not masked, use the minimum as the offset
             # otherwise the offset remains at zero
@@ -375,7 +375,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         # i.e. a 0 will be fully transparent, but any non-zero number will
         # be clipped to the span range and have min-alpha applied
         offset = np.array(span, dtype=data.dtype)[0]
-        if offset <= 0:
+        if offset <= 0  and total.dtype.kind == 'u':
             mask = mask | (total <= 0)
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
         norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
