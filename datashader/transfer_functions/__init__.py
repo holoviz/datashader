@@ -292,7 +292,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         from ._cuda_utils import interp, masked_clip_2d 
         array = cupy.array
     else:
-        from ._cpu_utils import masked_clip_2delse:
+        from ._cpu_utils import masked_clip_2d
         interp = np.interp
         array = np.array
 
@@ -326,7 +326,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     if span is None:
         # Currently masks out zero or negative values, but will need fixing         
         offset = np.nanmin(total)
-        if offset <= 0 and total.dtype.kind == 'u':
+        if offset == 0 and total.dtype.kind == 'u':
             mask = mask | (total <= 0)
             # If at least one element is not masked, use the minimum as the offset
             # otherwise the offset remains at zero
@@ -343,7 +343,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         # i.e. a 0 will be fully transparent, but any non-zero number will
         # be clipped to the span range and have min-alpha applied
         offset = np.array(span, dtype=data.dtype)[0]
-        if offset <= 0  and total.dtype.kind == 'u':
+        if offset == 0  and total.dtype.kind == 'u':
             mask = mask | (total <= 0)
         masked_clip_2d(data, mask, *span)
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
