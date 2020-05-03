@@ -204,24 +204,7 @@ class by(Reduction):
         return tuple(by(self.cat_column, base) for base in bases)
 
     def _build_append(self, dshape, schema, cuda=False):
-        f = self.reduction._build_append(dshape, schema, cuda)
-        # because we transposed, we also need to flip the
-        # order of the x/y arguments
-        if isinstance(self.reduction, m2):
-            def _categorical_append(x, y, agg, cols, tmp1, tmp2):
-                _agg = agg.transpose()
-                _ind = int(cols[0])
-                f(y, x, _agg[_ind], cols[1], tmp1[_ind], tmp2[_ind])
-        elif self.val_column is not None:
-            def _categorical_append(x, y, agg, field):
-                _agg = agg.transpose()
-                f(y, x, _agg[int(field[0])], field[1])
-        else:
-            def _categorical_append(x, y, agg, field):
-                _agg = agg.transpose()
-                f(y, x, _agg[int(field)])
-
-        return ngjit(_categorical_append)
+        return self.reduction._build_append(dshape, schema, cuda)
 
     def _build_combine(self, dshape):
         return self.reduction._combine
