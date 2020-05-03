@@ -334,8 +334,8 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
             # otherwise the offset remains at zero
             if not np.all(mask):
                 offset = total[total > 0].min()
-        masked_total = np.where(~mask, total, np.nan)
-        a_scaled = _normalize_interpolate_how(how)(masked_total - offset, mask)
+            total = np.where(~mask, total, np.nan)
+        a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
         norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
     else:
         if how == 'eq_hist':
@@ -346,9 +346,10 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         # i.e. a 0 will be fully transparent, but any non-zero number will
         # be clipped to the span range and have min-alpha applied
         offset = np.array(span, dtype=data.dtype)[0]
-        if offset == 0  and total.dtype.kind == 'u':
+        if np.nanmin(total) == 0 and total.dtype.kind == 'u':
             mask = mask | (total <= 0)
-        masked_clip_2d(data, mask, *span)
+            total = np.where(~mask, total, np.nan)
+        masked_clip_2d(total, mask, *span)
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
         norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
 
