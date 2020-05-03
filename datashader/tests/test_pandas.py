@@ -312,10 +312,10 @@ def test_categorical_mean(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_var(df):
-    sol = np.array([[[1.3625,  nan,  nan,  nan],
-                     [   nan,  nan, 1.21,  nan]],
-                    [[   nan, 1.21,  nan,  nan],
-                     [   nan,  nan,  nan, 1.21]]])
+    sol = np.array([[[ 2.5,  nan,  nan,  nan],
+                     [ nan,  nan,   2.,  nan]],
+                    [[ nan,   2.,  nan,  nan],
+                     [ nan,  nan,  nan,   2.]]])
     out = xr.DataArray(
         sol,
         coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
@@ -329,10 +329,12 @@ def test_categorical_var(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_std(df):
-    sol = np.array([[[1.16726175, nan, nan, nan],
-                     [       nan, nan, 1.1, nan]],
-                    [[       nan, 1.1, nan, nan],
-                     [       nan, nan, nan, 1.1]]])
+    sol = np.sqrt(np.array([
+        [[ 2.5,  nan,  nan,  nan],
+         [ nan,  nan,   2.,  nan]],
+        [[ nan,   2.,  nan,  nan],
+         [ nan,  nan,  nan,   2.]]])
+    )
     out = xr.DataArray(
         sol,
         coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),

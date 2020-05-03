@@ -283,10 +283,10 @@ def test_categorical_mean(ddf):
 
 @pytest.mark.parametrize('ddf', ddfs)
 def test_categorical_var(ddf):
-    sol = np.array([[[1.3625,  nan,  nan,  nan],
-                     [   nan,  nan, 1.21,  nan]],
-                    [[   nan, 1.21,  nan,  nan],
-                     [   nan,  nan,  nan, 1.21]]])
+    sol = np.array([[[ 2.5,  nan,  nan,  nan],
+                     [ nan,  nan,   2.,  nan]],
+                    [[ nan,   2.,  nan,  nan],
+                     [ nan,  nan,  nan,   2.]]])
     out = xr.DataArray(
         sol,
         coords=(coords + [['a', 'b', 'c', 'd']]),
@@ -300,10 +300,12 @@ def test_categorical_var(ddf):
 
 @pytest.mark.parametrize('ddf', ddfs)
 def test_categorical_std(ddf):
-    sol = np.array([[[1.16726175, nan, nan, nan],
-                     [       nan, nan, 1.1, nan]],
-                    [[       nan, 1.1, nan, nan],
-                     [       nan, nan, nan, 1.1]]])
+    sol = np.sqrt(np.array([
+        [[ 2.5,  nan,  nan,  nan],
+         [ nan,  nan,   2.,  nan]],
+        [[ nan,   2.,  nan,  nan],
+         [ nan,  nan,  nan,   2.]]])
+    )
     out = xr.DataArray(
         sol,
         coords=(coords + [['a', 'b', 'c', 'd']]),
