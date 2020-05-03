@@ -163,7 +163,9 @@ def eq_hist(data, mask=None, nbins=256*256):
 
     data2 = data if mask is None else data[~mask]
     if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
-        hist = np.bincount(data2.astype('i8').ravel())
+        if data2.dtype.kind == 'u':
+             data2 = data2.astype('i8')
+        hist = np.bincount(data2.ravel())
         bin_centers = np.arange(len(hist))
         idx = int(np.nonzero(hist)[0][0])
         hist, bin_centers = hist[idx:], bin_centers[idx:]
