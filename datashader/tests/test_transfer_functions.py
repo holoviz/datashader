@@ -264,9 +264,9 @@ def test_shade_mpl_cmap(agg):
 def test_shade_category(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
     cat_agg = tf.Image(array([[(0, 12, 0), (3, 0, 3)],
-                                  [(12, 12, 12), (24, 0, 0)]]),
-                           coords=(coords + [['a', 'b', 'c']]),
-                           dims=(dims + ['cats']))
+                              [(12, 12, 12), (24, 0, 0)]], dtype='u4'),
+                       coords=(coords + [['a', 'b', 'c']]),
+                       dims=(dims + ['cats']))
 
     colors = [(255, 0, 0), '#0000FF', 'orange']
 
@@ -352,7 +352,7 @@ def test_shade_category(array):
     # test that empty coordinates are always fully transparent, even when
     # min_alpha is non-zero
     cat_agg = tf.Image(array([[(0, 0, 0), (3, 0, 3)],
-                                [(12, 12, 12), (24, 0, 0)]]),
+                              [(12, 12, 12), (24, 0, 0)]], dtype='u4'),
                            coords=(coords + [['a', 'b', 'c']]),
                            dims=(dims + ['cats']))
     
@@ -371,7 +371,7 @@ def test_shade_category(array):
 
     # Next test manual-span
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(6, 36))
-    sol = np.array([[0, 335565567],
+    sol = np.array([[16777215, 335565567],
                     [4283774890, 2701132031]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
@@ -385,35 +385,35 @@ def test_shade_category(array):
     # Categorical aggregations with some reductions (such as sum) can result in negative
     # values in the data
     cat_agg = tf.Image(array([[(0, -30, 0), (-18, 0, -18)],
-                                [(-2, -2, -2), (-18, 0, 0)]]),
-                        coords=(coords + [['a', 'b', 'c']]),
-                        dims=(dims + ['cats']))
+                              [(-2, -2, -2), (-18, 0, 0)]], dtype='i4'),
+                       coords=(coords + [['a', 'b', 'c']]),
+                       dims=(dims + ['cats']))
 
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
-    sol = np.array([[16777215, 16777215],
-                    [16777215, 16777215]], dtype='u4')
+    sol = np.array([[1140785152, 335565567],
+                    [4283774890, 2701132031]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
-    assert ((img.data[0,0] >> 24) & 0xFF) == 0 # fully transparent
-    assert ((img.data[0,1] >> 24) & 0xFF) == 0 # fully transparent
-    assert ((img.data[1,0] >> 24) & 0xFF) == 0 # fully transparent
-    assert ((img.data[1,1] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[0,0] >> 24) & 0xFF) == 67
+    assert ((img.data[0,1] >> 24) & 0xFF) == 20
+    assert ((img.data[1,0] >> 24) & 0xFF) == 255
+    assert ((img.data[1,1] >> 24) & 0xFF) == 161
 
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(6, 36))
-    sol = np.array([[16711680, 21247],
-                    [5584810, 255]], dtype='u4')
+    sol = np.array([[352256000, 335565567],
+                    [341129130, 335544575]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
-    assert ((img.data[0,0] >> 24) & 0xFF) == 0 # fully transparent
-    assert ((img.data[0,1] >> 24) & 0xFF) == 0 # fully transparent
-    assert ((img.data[1,0] >> 24) & 0xFF) == 0 # fully transparent
-    assert ((img.data[1,1] >> 24) & 0xFF) == 0 # fully transparent
+    assert ((img.data[0,0] >> 24) & 0xFF) == 20 # min alpha
+    assert ((img.data[0,1] >> 24) & 0xFF) == 20 # min alpha
+    assert ((img.data[1,0] >> 24) & 0xFF) == 20 # min alpha
+    assert ((img.data[1,1] >> 24) & 0xFF) == 20 # min alpha
 
 @pytest.mark.parametrize('array', arrays)
 def test_shade_zeros(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
     cat_agg = tf.Image(array([[(0, 0, 0), (0, 0, 0)],
-                                  [(0, 0, 0), (0, 0, 0)]]),
+                              [(0, 0, 0), (0, 0, 0)]], dtype='u4'),
                            coords=(coords + [['a', 'b', 'c']]),
                            dims=(dims + ['cats']))
 
@@ -424,6 +424,7 @@ def test_shade_zeros(array):
                     [16777215, 16777215]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
+
 
 coords2 = [np.array([0, 2]), np.array([3, 5])]
 img1 = tf.Image(np.array([[0xff00ffff, 0x00000000],

@@ -163,6 +163,8 @@ def eq_hist(data, mask=None, nbins=256*256):
 
     data2 = data if mask is None else data[~mask]
     if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
+        if data2.dtype.kind == 'u':
+             data2 = data2.astype('i8')
         hist = np.bincount(data2.ravel())
         bin_centers = np.arange(len(hist))
         idx = int(np.nonzero(hist)[0][0])
@@ -189,39 +191,6 @@ def _normalize_interpolate_how(how):
         return _interpolate_lookup[how]
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
-
-@ngjit
-def masked_clip_2d(data, mask, lower, upper):
-    """
-    Clip the elements of an input array between lower and upper bounds,
-    skipping over elements that are masked out.
-
-    Parameters
-    ----------
-    data: np.ndarray
-        Numeric ndarray that will be clipped in-place
-    mask: np.ndarray
-        Boolean ndarray where True values indicate elements that should be
-        skipped
-    lower: int or float
-        Lower bound to clip to
-    upper: int or float
-        Upper bound to clip to
-
-    Returns
-    -------
-    None
-        data array is modified in-place
-    """
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            if mask[i, j]:
-                continue
-            val = data[i, j]
-            if val < lower:
-                data[i, j] = lower
-            elif val > upper:
-                data[i, j] = upper
 
 def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     if cupy and isinstance(agg.data, cupy.ndarray):
@@ -322,9 +291,10 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
 
 def _colorize(agg, color_key, how, span, min_alpha, name):
     if cupy and isinstance(agg.data, cupy.ndarray):
-        from ._cuda_utils import interp
+        from ._cuda_utils import interp, masked_clip_2d 
         array = cupy.array
     else:
+        from ._cpu_utils import masked_clip_2d
         interp = np.interp
         array = np.array
 
@@ -358,12 +328,13 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     if span is None:
         # Currently masks out zero or negative values, but will need fixing         
         offset = np.nanmin(total)
-        if offset <= 0:
+        if offset == 0 and total.dtype.kind == 'u':
             mask = mask | (total <= 0)
             # If at least one element is not masked, use the minimum as the offset
             # otherwise the offset remains at zero
             if not np.all(mask):
                 offset = total[total > 0].min()
+            total = np.where(~mask, total, np.nan)
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
         norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
     else:
@@ -375,8 +346,10 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         # i.e. a 0 will be fully transparent, but any non-zero number will
         # be clipped to the span range and have min-alpha applied
         offset = np.array(span, dtype=data.dtype)[0]
-        if offset <= 0:
+        if np.nanmin(total) == 0 and total.dtype.kind == 'u':
             mask = mask | (total <= 0)
+            total = np.where(~mask, total, np.nan)
+        masked_clip_2d(total, mask, *span)
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
         norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
 

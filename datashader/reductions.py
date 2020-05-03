@@ -192,6 +192,10 @@ class by(Reduction):
             return lambda shape, array_module: array_module.zeros(
                 shape + (n_cats,), dtype='f8'
             )
+        elif isinstance(self.reduction, count):
+            return lambda shape, array_module: array_module.zeros(
+                shape + (n_cats,), dtype='u4'
+            )
         else:
             return lambda shape, array_module: array_module.zeros(
                 shape + (n_cats,), dtype='i4'
@@ -264,7 +268,7 @@ class count(OptionalFieldReduction):
         If provided, only counts elements in ``column`` that are not ``NaN``.
         Otherwise, counts every element.
     """
-    _dshape = dshape(ct.int32)
+    _dshape = dshape(ct.uint32)
 
     # CPU append functions
     @staticmethod
@@ -293,11 +297,11 @@ class count(OptionalFieldReduction):
 
     @staticmethod
     def _create(shape, array_module):
-        return array_module.zeros(shape, dtype='i4')
+        return array_module.zeros(shape, dtype='u4')
 
     @staticmethod
     def _combine(aggs):
-        return aggs.sum(axis=0, dtype='i4')
+        return aggs.sum(axis=0, dtype='u4')
 
 
 class any(OptionalFieldReduction):
