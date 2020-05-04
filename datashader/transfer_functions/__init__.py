@@ -242,8 +242,8 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
             span = np.nanmin(masked_data), np.nanmax(masked_data)
         else:
             if how == 'eq_hist':
-                # For eq_hist to work with span, we'll need to store the histogram
-                # from the data and then apply it to the span argument.
+                # For eq_hist to work with span, we'll need to compute the histogram
+                # only on the specified span's range.
                 raise ValueError("span is not (yet) valid to use with eq_hist")
 
             span = interpolater([0, span[1] - span[0]], 0)
@@ -326,7 +326,6 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     # if span is provided, use it, otherwise produce it a span based off the
     # min/max of the data
     if span is None:
-        # Currently masks out zero or negative values, but will need fixing         
         offset = np.nanmin(total)
         if offset == 0 and total.dtype.kind == 'u':
             mask = mask | (total <= 0)
@@ -339,8 +338,8 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
     else:
         if how == 'eq_hist':
-            # For eq_hist to work with span, we'll need to store the histogram
-            # from the data and then apply it to the span argument.
+            # For eq_hist to work with span, we'll need to compute the histogram
+            # only on the specified span's range.
             raise ValueError("span is not (yet) valid to use with eq_hist")
         # even in fixed-span mode cells with 0 should remain fully transparent
         # i.e. a 0 will be fully transparent, but any non-zero number will
