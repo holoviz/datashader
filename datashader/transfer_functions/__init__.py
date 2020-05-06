@@ -362,7 +362,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     # Interpolate the alpha values
     a = interp(a_scaled, array(norm_span),
                array([min_alpha, 255]), left=0, right=255).astype(np.uint8)
-    r[mask] = g[mask] = b[mask] = 255
+
     values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
 
     if cupy and isinstance(values, cupy.ndarray):
