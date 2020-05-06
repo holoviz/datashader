@@ -300,7 +300,14 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
 
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
+    
     cats = agg.indexes[agg.dims[-1]]
+    if not len(cats): # No categories and therefore no data; return an empty image
+        return Image(np.zeros(agg.shape[0:2], dtype=np.uint32), dims=agg.dims[:-1],
+                     coords=OrderedDict([
+                         (agg.dims[1], agg.coords[agg.dims[1]]),
+                         (agg.dims[0], agg.coords[agg.dims[0]]) ]), name=name)
+    
     if color_key is None:
         raise ValueError("Color key must be provided, with at least as many " +
                          "colors as there are categorical fields")
