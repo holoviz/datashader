@@ -24,7 +24,8 @@ __all__ = ['mean', 'binary', 'slope', 'aspect', 'ndvi', 'hillshade', 'generate_t
 
 warnings.warn(
     "The datashader.geo module is deprecated as of version 0.11.0. "
-    "Its contents have migrated to the xarray_spatial library.",
+    "Its contents have migrated to the xarray_spatial library, ",
+    "github.com/makepath/xarray-spatial.",
     VisibleDeprecationWarning
 )
 
