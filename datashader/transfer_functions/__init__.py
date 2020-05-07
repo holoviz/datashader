@@ -334,7 +334,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     # min/max of the data
     if span is None:
         offset = np.nanmin(total)
-        if offset == 0 and total.dtype.kind == 'u':
+        if total.dtype.kind == 'u' and offset == 0:
             mask = mask | (total <= 0)
             # If at least one element is not masked, use the minimum as the offset
             # otherwise the offset remains at zero
@@ -352,7 +352,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         # i.e. a 0 will be fully transparent, but any non-zero number will
         # be clipped to the span range and have min-alpha applied
         offset = np.array(span, dtype=data.dtype)[0]
-        if np.nanmin(total) == 0 and total.dtype.kind == 'u':
+        if total.dtype.kind == 'u' and np.nanmin(total) == 0:
             mask = mask | (total <= 0)
             total = np.where(~mask, total, np.nan)
         masked_clip_2d(total, mask, *span)
