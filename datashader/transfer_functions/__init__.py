@@ -324,11 +324,15 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name):
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
     data = orient_array(agg_t).transpose([1, 2, 0])
     total = nansum_missing(data, axis=2)
+
+    # dot does not handle nans, so replace with zeros
+    color_data = data.copy()
+    color_data[np.isnan(data)] = 0
     # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
     with np.errstate(divide='ignore', invalid='ignore'):
-        r = (data.dot(rs)/total).astype(np.uint8)
-        g = (data.dot(gs)/total).astype(np.uint8)
-        b = (data.dot(bs)/total).astype(np.uint8)
+        r = (color_data.dot(rs)/total).astype(np.uint8)
+        g = (color_data.dot(gs)/total).astype(np.uint8)
+        b = (color_data.dot(bs)/total).astype(np.uint8)
     mask = np.isnan(total)
     # if span is provided, use it, otherwise produce it a span based off the
     # min/max of the data
