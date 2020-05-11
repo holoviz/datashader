@@ -188,18 +188,8 @@ class by(Reduction):
 
     def _build_create(self, out_dshape):
         n_cats = len(out_dshape.measure.fields)
-        if isinstance(self.reduction, FloatingReduction):
-            return lambda shape, array_module: array_module.zeros(
-                shape + (n_cats,), dtype='f8'
-            )
-        elif isinstance(self.reduction, count):
-            return lambda shape, array_module: array_module.zeros(
-                shape + (n_cats,), dtype='u4'
-            )
-        else:
-            return lambda shape, array_module: array_module.zeros(
-                shape + (n_cats,), dtype='i4'
-            )
+        return lambda shape, array_module: self.reduction._build_create(
+            out_dshape)(shape + (n_cats,), array_module)
 
     def _build_bases(self, cuda=False):
         bases = self.reduction._build_bases(cuda)
