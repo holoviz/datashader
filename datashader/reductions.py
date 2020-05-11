@@ -410,10 +410,7 @@ class sum(FloatingReduction):
 
     @staticmethod
     def _combine(aggs):
-        missing_vals = np.isnan(aggs)
-        all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
-        set_to_zero = missing_vals & ~all_empty
-        return np.where(set_to_zero, 0, aggs).sum(axis=0)
+        return np.nansum(aggs, axis=0)
 
 class m2(FloatingReduction):
     """Sum of square differences from the mean of all elements in ``column``.
