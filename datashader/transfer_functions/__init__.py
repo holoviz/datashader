@@ -210,7 +210,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
         mask = ~data
         data = data.astype(np.int8)
     else:
-        if np.issubdtype(data.dtype, np.integer):
+        if data.dtype.kind == 'u':
             mask = data == 0
         else:
             mask = np.isnan(data)
@@ -289,7 +289,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
-def _colorize(agg, color_key, how, span, min_alpha, name):
+def _colorize(agg, color_key, how, alpha, span, min_alpha, name):
     if cupy and isinstance(agg.data, cupy.ndarray):
         from ._cuda_utils import interp, masked_clip_2d 
         array = cupy.array
@@ -323,7 +323,7 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
     data = orient_array(agg_t).transpose([1, 2, 0])
-    total = data.sum(axis=2)
+    total = np.nansum(data, axis=2)
     # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
     with np.errstate(divide='ignore', invalid='ignore'):
         r = (data.dot(rs)/total).astype(np.uint8)
@@ -358,10 +358,9 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
         masked_clip_2d(total, mask, *span)
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
         norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
-
     # Interpolate the alpha values
-    a = interp(a_scaled, array(norm_span),
-               array([min_alpha, 255]), left=0, right=255).astype(np.uint8)
+    a = interp(a_scaled, array(norm_span), array([min_alpha, alpha]),
+               left=0, right=255).astype(np.uint8)
 
     values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
 
@@ -448,7 +447,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     if agg.ndim == 2:
         return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
     elif agg.ndim == 3:
-        return _colorize(agg, color_key, how, span, min_alpha, name)
+        return _colorize(agg, color_key, how, alpha, span, min_alpha, name)
     else:
         raise ValueError("agg must use 2D or 3D coordinates")
 
