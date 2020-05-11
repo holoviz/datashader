@@ -143,6 +143,27 @@ def isreal(dt):
     return isinstance(dt, datashape.Unit) and dt in datashape.typesets.real
 
 
+def nansum_missing(array, axis):
+    """nansum where all NaN values remain NaNs.
+
+    Note: In NumPy >=1.9 0 NaN is returned for slices that are
+    all-NaN. This function emulates this old behavior.
+
+    Parameters
+    ----------
+    array: Array to sum over
+    axis:  Axis to sum over
+    """
+    T = list(range(array.ndim))
+    T.remove(axis)
+    T.insert(0, axis)
+    array = np.asarray(array).transpose(T)
+    missing_vals = np.isnan(array)
+    all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
+    set_to_zero = missing_vals & ~all_empty
+    return np.where(set_to_zero, 0, array).sum(axis=0)
+
+
 def calc_res(raster):
     """Calculate the resolution of xarray.DataArray raster and return it as the
     two-tuple (xres, yres).

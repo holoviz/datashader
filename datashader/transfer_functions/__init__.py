@@ -16,7 +16,7 @@ from PIL.Image import fromarray
 
 from datashader.colors import rgb, Sets1to3
 from datashader.composite import composite_op_lookup, over
-from datashader.utils import ngjit, orient_array
+from datashader.utils import nansum_missing, ngjit, orient_array
 
 try:
     import cupy
@@ -323,7 +323,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name):
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
     data = orient_array(agg_t).transpose([1, 2, 0])
-    total = np.nansum(data, axis=2)
+    total = nansum_missing(data, axis=2)
     # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
     with np.errstate(divide='ignore', invalid='ignore'):
         r = (data.dot(rs)/total).astype(np.uint8)

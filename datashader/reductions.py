@@ -7,13 +7,14 @@ from toolz import concat, unique
 import xarray as xr
 
 from datashader.glyphs.glyph import isnull
-from .utils import Expr, ngjit
 from numba import cuda as nb_cuda
 
 try:
     import cudf
 except Exception:
     cudf = None
+
+from .utils import Expr, ngjit, nansum_missing
 
 
 class Preprocess(Expr):
@@ -410,7 +411,8 @@ class sum(FloatingReduction):
 
     @staticmethod
     def _combine(aggs):
-        return np.nansum(aggs, axis=0)
+        return nansum_missing(aggs, axis=0)
+
 
 class m2(FloatingReduction):
     """Sum of square differences from the mean of all elements in ``column``.
