@@ -160,6 +160,10 @@ class by(Reduction):
         return tuple(by(self.cat_column, tmp) for tmp in self.reduction._build_temps(cuda))
 
     @property
+    def column(self):
+        return self.columns[0]
+
+    @property
     def cat_column(self):
         return self.columns[0]
 
