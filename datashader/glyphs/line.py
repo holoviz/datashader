@@ -548,6 +548,29 @@ def _build_map_onto_pixel_for_line(x_mapper, y_mapper):
 
     return map_onto_pixel
 
+@ngjit
+def _xiaolinwu(x0, x1, y0, y1, agg):
+    """ Implementation of Xiaolin Wu's anti-aliasing algorithm for lines.
+    Loosely based on: https://rosettacode.org/wiki/Xiaolin_Wu%27s_line_algorithm#Python
+    """
+    p1, p2 = (x0, y0), (x1, y1)
+    x1, y1, x2, y2 = x0, y0, x1, y1
+    dx, dy = x2-x1, y2-y1
+    steep = abs(dx) < abs(dy)
+    if steep:
+        x1, y1, x2, y2, dx, dy = y1, x1, y2, x2, dy, dx
+    if x2 < x1:
+        x1, x2, y1, y2 = x2, x1, y2, y1
+
+    grad = dy/dx
+    intery = y1 + myrfpart(x1) * grad
+    xstart = draw_endpoint(agg, steep, (x1, y1), grad) + 1
+    xend = draw_endpoint(agg, steep,   (x2, y2), grad)
+    for x in range(xstart, xend):
+        y = int(intery)
+        putpixel(agg, p(x, y, steep), myrfpart(intery))
+        putpixel(agg, p(x, y+1, steep), myfpart(intery))
+        intery += grad
 
 @ngjit
 def putpixel(agg, px, value):
@@ -590,6 +613,57 @@ def p(px, py, steep):
         return px,py
 
 
+@ngjit
+def _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
+              x0, x1, y0, y1, map_onto_pixel, clipped, append, *aggs_and_cols
+             ):
+    """Draw a line segment using Bresenham's algorithm
+    This method plots a line segment with integer coordinates onto a pixel
+    grid.
+    """
+    x0i, y0i = map_onto_pixel(
+        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+    )
+    x1i, y1i = map_onto_pixel(
+        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+    )
+
+    dx = x1i - x0i
+    ix = (dx > 0) - (dx < 0)
+    dx = abs(dx) * 2
+
+    dy = y1i - y0i
+    iy = (dy > 0) - (dy < 0)
+    dy = abs(dy) * 2
+
+    # If vertices weren't clipped and are concurrent in integer space,
+    # call append and return, so that the second vertex won't be hit below.
+    if not clipped and not (dx | dy):
+        append(i, x0i, y0i, *aggs_and_cols)
+        return
+
+    if segment_start:
+        append(i, x0i, y0i, *aggs_and_cols)
+
+    if dx >= dy:
+        error = 2 * dy - dx
+        while x0i != x1i:
+            if error >= 0 and (error or ix > 0):
+                error -= 2 * dx
+                y0i += iy
+            error += 2 * dy
+            x0i += ix
+            append(i, x0i, y0i, *aggs_and_cols)
+    else:
+        error = 2 * dx - dy
+        while y0i != y1i:
+            if error >= 0 and (error or iy > 0):
+                error -= 2 * dy
+                x0i += ix
+            error += 2 * dx
+            y0i += iy
+            append(i, x0i, y0i, *aggs_and_cols)
+
 def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols):
     """Specialize a line plotting kernel for a given append/axis combination"""
     @ngjit
@@ -600,10 +674,6 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols):
             x0, x1, y0, y1, *aggs_and_cols
     ):
         # TODO: update docstring when implementation is ready
-        """Draw a line segment using Bresenham's algorithm
-        This method plots a line segment with integer coordinates onto a pixel
-        grid.
-        """
         skip = False
 
         # If any of the coordinates are NaN, there's a discontinuity.
@@ -651,81 +721,19 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols):
         else:
             clipped_start = False
 
-        # TODO: respect this variable
+        # TODO: respect this variable in xiaolin wu
         segment_start = segment_start or clipped_start
 
         if not skip:
-            # Implementation of Xiaolin Wu loosely bases on:
-            # https://rosettacode.org/wiki/Xiaolin_Wu%27s_line_algorithm#Python
+            # TODO: this is where the switch between xiaolinwu and bresenham
+            # is implemented
+            #agg = aggs_and_cols[0]
+            #_xiaolinwu(x0, x1, y0, y1, agg)
 
-            agg = aggs_and_cols[0]
-
-            p1, p2 = (x0, y0), (x1, y1)
-            x1, y1, x2, y2 = x0, y0, x1, y1
-            dx, dy = x2-x1, y2-y1
-            steep = abs(dx) < abs(dy)
-            if steep:
-                x1, y1, x2, y2, dx, dy = y1, x1, y2, x2, dy, dx
-            if x2 < x1:
-                x1, x2, y1, y2 = x2, x1, y2, y1
-
-            grad = dy/dx
-            intery = y1 + myrfpart(x1) * grad
-            xstart = draw_endpoint(agg, steep, (x1, y1), grad) + 1
-            xend = draw_endpoint(agg, steep,   (x2, y2), grad)
-            for x in range(xstart, xend):
-                y = int(intery)
-                putpixel(agg, p(x, y, steep), myrfpart(intery))
-                putpixel(agg, p(x, y+1, steep), myfpart(intery))
-                intery += grad
-
-            # TODO: this is the 'old'  Bresenham implementation
-            # need to move it elsewhere and add a switch to be able to activate
-            # it.
-
-            #x0i, y0i = map_onto_pixel(
-            #    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
-            #)
-            #x1i, y1i = map_onto_pixel(
-            #    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
-            #)
-            #clipped = clipped_start or clipped_end
-
-            #dx = x1i - x0i
-            #ix = (dx > 0) - (dx < 0)
-            #dx = abs(dx) * 2
-
-            #dy = y1i - y0i
-            #iy = (dy > 0) - (dy < 0)
-            #dy = abs(dy) * 2
-
-            ## If vertices weren't clipped and are concurrent in integer space,
-            ## call append and return, so that the second vertex won't be hit below.
-            #if not clipped and not (dx | dy):
-            #    append(i, x0i, y0i, *aggs_and_cols)
-            #    return
-
-            #if segment_start:
-            #    append(i, x0i, y0i, *aggs_and_cols)
-
-            #if dx >= dy:
-            #    error = 2 * dy - dx
-            #    while x0i != x1i:
-            #        if error >= 0 and (error or ix > 0):
-            #            error -= 2 * dx
-            #            y0i += iy
-            #        error += 2 * dy
-            #        x0i += ix
-            #        append(i, x0i, y0i, *aggs_and_cols)
-            #else:
-            #    error = 2 * dx - dy
-            #    while y0i != y1i:
-            #        if error >= 0 and (error or iy > 0):
-            #            error -= 2 * dy
-            #            x0i += ix
-            #        error += 2 * dx
-            #        y0i += iy
-            #        append(i, x0i, y0i, *aggs_and_cols)
+            clipped = clipped_start or clipped_end
+            _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
+                      x0, x1, y0, y1, map_onto_pixel, clipped, append,
+                      *aggs_and_cols)
 
     return draw_segment
 
