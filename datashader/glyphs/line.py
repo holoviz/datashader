@@ -606,7 +606,7 @@ def _myrfpart(x):
 def _draw_endpoint(agg, steep, pt, grad):
     """ Xiaolin Wu utility. """
     x, y = pt
-    xend, = round(x)
+    xend = round(x)
     yend = y + grad * (xend - x)
     xgap = _myrfpart(x + 0.5)
     px, py = int(xend), int(yend)
