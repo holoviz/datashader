@@ -152,16 +152,13 @@ class by(Reduction):
     def __init__(self, cat_column, reduction):
         self.columns = (cat_column, getattr(reduction, 'column', None))
         self.reduction = reduction
-
+        self.column = cat_column # for backwards compatibility with count_cat
+        
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.reduction))
 
     def _build_temps(self, cuda=False):
         return tuple(by(self.cat_column, tmp) for tmp in self.reduction._build_temps(cuda))
-
-    @property
-    def column(self):
-        return self.columns[0]
 
     @property
     def cat_column(self):
@@ -529,7 +526,7 @@ class count_cat(by):
     """
     def __init__(self, column):
         super(count_cat, self).__init__(column, count())
-        self.column = column
+
 
 class mean(Reduction):
     """Mean of all elements in ``column``.
