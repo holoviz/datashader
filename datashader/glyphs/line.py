@@ -16,7 +16,18 @@ except Exception:
     cuda_args = None
 
 
-class LineAxis0(_PointLike):
+class _AntiAliasedLine(object):
+    """ Methods common to all lines. """
+    antialias = False
+
+    def enable_antialias(self):
+        self.antialias = True
+
+    def disable_antialias(self):
+        self.antialias = False
+
+
+class LineAxis0(_PointLike, _AntiAliasedLine):
     """A line, with vertices defined by ``x`` and ``y``.
 
     Parameters
@@ -28,7 +39,9 @@ class LineAxis0(_PointLike):
     def _build_extend(self, x_mapper, y_mapper, info, append):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        draw_segment = _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols)
+        draw_segment = _build_draw_segment(
+            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
+        )
         extend_cpu, extend_cuda = _build_extend_line_axis0(
             draw_segment, expand_aggs_and_cols
         )
@@ -58,7 +71,7 @@ class LineAxis0(_PointLike):
         return extend
 
 
-class LineAxis0Multi(_PointLike):
+class LineAxis0Multi(_PointLike, _AntiAliasedLine):
     """
     """
 
@@ -112,7 +125,7 @@ class LineAxis0Multi(_PointLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
         )
         extend_cpu, extend_cuda = _build_extend_line_axis0_multi(
             draw_segment, expand_aggs_and_cols
@@ -144,7 +157,7 @@ class LineAxis0Multi(_PointLike):
         return extend
 
 
-class LinesAxis1(_PointLike):
+class LinesAxis1(_PointLike, _AntiAliasedLine):
     """A collection of lines (on line per row) with vertices defined
     by the lists of columns in ``x`` and ``y``
 
@@ -220,7 +233,7 @@ class LinesAxis1(_PointLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_none_constant(
             draw_segment, expand_aggs_and_cols
@@ -288,7 +301,7 @@ class LinesAxis1XConstant(LinesAxis1):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
         )
 
         extend_cpu, extend_cuda = _build_extend_line_axis1_x_constant(
@@ -358,7 +371,7 @@ class LinesAxis1YConstant(LinesAxis1):
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
 
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_y_constant(
             draw_segment, expand_aggs_and_cols
@@ -388,7 +401,7 @@ class LinesAxis1YConstant(LinesAxis1):
         return extend
 
 
-class LinesAxis1Ragged(_PointLike):
+class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
     def validate(self, in_dshape):
         try:
             from datashader.datatypes import RaggedDtype
@@ -432,7 +445,7 @@ class LinesAxis1Ragged(_PointLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
         )
 
         extend_cpu = _build_extend_line_axis1_ragged(
@@ -459,7 +472,7 @@ class LinesAxis1Ragged(_PointLike):
         return extend
 
 
-class LineAxis1Geometry(_GeometryLike):
+class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
 
     @property
     def geom_dtypes(self):
@@ -478,7 +491,7 @@ class LineAxis1Geometry(_GeometryLike):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
         )
 
         perform_extend_cpu = _build_extend_line_axis1_geometry(
@@ -664,7 +677,8 @@ def _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
             y0i += iy
             append(i, x0i, y0i, *aggs_and_cols)
 
-def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols):
+def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
+                        antialias):
     """Specialize a line plotting kernel for a given append/axis combination"""
     @ngjit
     # TODO: comment back in when the implementation uses append again
@@ -725,15 +739,14 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols):
         segment_start = segment_start or clipped_start
 
         if not skip:
-            # TODO: this is where the switch between xiaolinwu and bresenham
-            # is implemented
-            #agg = aggs_and_cols[0]
-            #_xiaolinwu(x0, x1, y0, y1, agg)
-
-            clipped = clipped_start or clipped_end
-            _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
-                      x0, x1, y0, y1, map_onto_pixel, clipped, append,
-                      *aggs_and_cols)
+            if antialias:
+                agg = aggs_and_cols[0]
+                _xiaolinwu(x0, x1, y0, y1, agg)
+            else:
+                clipped = clipped_start or clipped_end
+                _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                           segment_start, x0, x1, y0, y1, map_onto_pixel,
+                           clipped, append, *aggs_and_cols)
 
     return draw_segment
 

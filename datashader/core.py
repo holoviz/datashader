@@ -212,7 +212,8 @@ class Canvas(object):
 
         return bypixel(source, self, glyph, agg)
 
-    def line(self, source, x=None, y=None, agg=None, axis=0, geometry=None):
+    def line(self, source, x=None, y=None, agg=None, axis=0, geometry=None,
+             antialias=False):
         """Compute a reduction by pixel, mapping data to pixels as one or
         more lines.
 
@@ -246,6 +247,8 @@ class Canvas(object):
         geometry : str
             Column name of a LinesArray of the coordinates of each line. If provided,
             the x and y arguments may not also be provided.
+        antialias : bool
+            If True, do anti-aliasing.
 
         Examples
         --------
@@ -386,6 +389,8 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
+        if antialias:
+            glyph.enable_antialias()
         return bypixel(source, self, glyph, agg)
 
     def area(self, source, x, y, agg=None, axis=0, y_stack=None):
