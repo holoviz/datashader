@@ -566,59 +566,57 @@ def _xiaolinwu(x0, x1, y0, y1, agg):
     """ Implementation of Xiaolin Wu's anti-aliasing algorithm for lines.
     Loosely based on: https://rosettacode.org/wiki/Xiaolin_Wu%27s_line_algorithm#Python
     """
-    p1, p2 = (x0, y0), (x1, y1)
-    x1, y1, x2, y2 = x0, y0, x1, y1
-    dx, dy = x2-x1, y2-y1
+    dx, dy = x1-x0, y1-y0
     steep = abs(dx) < abs(dy)
     if steep:
-        x1, y1, x2, y2, dx, dy = y1, x1, y2, x2, dy, dx
-    if x2 < x1:
-        x1, x2, y1, y2 = x2, x1, y2, y1
+        x0, y0, x1, y1, dx, dy = y0, x0, y1, x1, dy, dx
+    if x1 < x0:
+        x0, x1, y0, y1 = x1, x0, y1, y0
 
     grad = dy/dx
-    intery = y1 + myrfpart(x1) * grad
-    xstart = draw_endpoint(agg, steep, (x1, y1), grad) + 1
-    xend = draw_endpoint(agg, steep,   (x2, y2), grad)
+    intery = y0 + _myrfpart(x0) * grad
+    xstart = _draw_endpoint(agg, steep, (x0, y0), grad) + 1
+    xend = _draw_endpoint(agg, steep,   (x1, y1), grad)
     for x in range(xstart, xend):
         y = int(intery)
-        putpixel(agg, p(x, y, steep), myrfpart(intery))
-        putpixel(agg, p(x, y+1, steep), myfpart(intery))
+        _draw_pixel(agg, _flipxy(x, y, steep), _myrfpart(intery))
+        _draw_pixel(agg, _flipxy(x, y+1, steep), _myfpart(intery))
         intery += grad
 
 @ngjit
-def putpixel(agg, px, value):
+def _draw_pixel(agg, px, value):
     """ Xiaolin Wu utility. """
     x, y = px
     agg[y, x] = value
 
 
 @ngjit
-def myfpart(x):
+def _myfpart(x):
     """ Xiaolin Wu utility. """
     return x - int(x)
 
 
 @ngjit
-def myrfpart(x):
+def _myrfpart(x):
     """ Xiaolin Wu utility. """
-    return 1 - myfpart(x)
+    return 1 - _myfpart(x)
 
 
 @ngjit
-def draw_endpoint(agg, steep, pt, grad):
+def _draw_endpoint(agg, steep, pt, grad):
     """ Xiaolin Wu utility. """
     x, y = pt
-    xend = round(x)
+    xend, = round(x)
     yend = y + grad * (xend - x)
-    xgap = myrfpart(x + 0.5)
+    xgap = _myrfpart(x + 0.5)
     px, py = int(xend), int(yend)
-    putpixel(agg, p(px, py, steep), myrfpart(yend) * xgap)
-    putpixel(agg, p(px, py+1, steep), myfpart(yend) * xgap)
+    _draw_pixel(agg, _flipxy(px, py, steep), _myrfpart(yend) * xgap)
+    _draw_pixel(agg, _flipxy(px, py+1, steep), _myfpart(yend) * xgap)
     return px
 
 
 @ngjit
-def p(px, py, steep):
+def _flipxy(px, py, steep):
     """ Xiaolin Wu utility. """
     if steep:
         return py,px
