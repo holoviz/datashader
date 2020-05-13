@@ -7,7 +7,6 @@ from datashader.glyphs.glyph import isnull
 from datashader.utils import isreal, ngjit
 from numba import cuda
 
-import math
 
 try:
     import cudf
@@ -560,7 +559,7 @@ def putpixel(agg, px, value):
 @ngjit
 def myfpart(x):
     """ Xiaolin Wu utility. """
-    return x - math.floor(x)
+    return x - int(x)
 
 
 @ngjit
