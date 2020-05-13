@@ -553,7 +553,7 @@ def _build_map_onto_pixel_for_line(x_mapper, y_mapper):
 def putpixel(agg, px, value):
     """ Xiaolin Wu utility. """
     x, y = px
-    agg[x, y] = value
+    agg[y, x] = value
 
 
 @ngjit
@@ -587,7 +587,7 @@ def p(px, py, steep):
     if steep:
         return py,px
     else:
-        return px, py
+        return px,py
 
 
 def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols):
@@ -671,8 +671,8 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols):
 
             grad = dy/dx
             intery = y1 + myrfpart(x1) * grad
-            xstart = draw_endpoint(agg, steep, p(*(p1), steep), grad) + 1
-            xend = draw_endpoint(agg, steep, p(*(p2), steep), grad)
+            xstart = draw_endpoint(agg, steep, (x1, y1), grad) + 1
+            xend = draw_endpoint(agg, steep,   (x2, y2), grad)
             for x in range(xstart, xend):
                 y = int(intery)
                 putpixel(agg, p(x, y, steep), myrfpart(intery))
