@@ -685,7 +685,6 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
             x0, x1, y0, y1, *aggs_and_cols
     ):
-        # TODO: update docstring when implementation is ready
         skip = False
 
         # If any of the coordinates are NaN, there's a discontinuity.
