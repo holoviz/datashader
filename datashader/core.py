@@ -248,7 +248,7 @@ class Canvas(object):
             Column name of a LinesArray of the coordinates of each line. If provided,
             the x and y arguments may not also be provided.
         antialias : bool
-            If True, do anti-aliasing.
+            If True, draw anti-aliased lines, distributing the aggregate value across neighboring pixels to more closely approximate the line shape. If False, each position on the line affects only a single pixel, resulting in line shapes that are blocky but easier to reason about.
 
         Examples
         --------
