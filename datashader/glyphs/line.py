@@ -561,6 +561,76 @@ def _build_map_onto_pixel_for_line(x_mapper, y_mapper):
 
     return map_onto_pixel
 
+
+@ngjit
+def _liang_barsky(xmin, xmax, ymin, ymax, x0, x1, y0, y1, skip):
+    """ An implementation of the Liang-Barsky line clipping algorithm.
+
+    https://en.wikipedia.org/wiki/Liang%E2%80%93Barsky_algorithm
+
+    """
+    # Check if line is fully outside viewport
+    if x0 < xmin and x1 < xmin:
+        skip = True
+    elif x0 > xmax and x1 > xmax:
+        skip = True
+    elif y0 < ymin and y1 < ymin:
+        skip = True
+    elif y0 > ymax and y1 > ymax:
+        skip = True
+
+    t0, t1 = 0, 1
+    dx1 = x1 - x0
+    t0, t1, accept = _clipt(-dx1, x0 - xmin, t0, t1)
+    if not accept:
+        skip = True
+    t0, t1, accept = _clipt(dx1, xmax - x0, t0, t1)
+    if not accept:
+        skip = True
+    dy1 = y1 - y0
+    t0, t1, accept = _clipt(-dy1, y0 - ymin, t0, t1)
+    if not accept:
+        skip = True
+    t0, t1, accept = _clipt(dy1, ymax - y0, t0, t1)
+    if not accept:
+        skip = True
+    if t1 < 1:
+        clipped_end = True
+        x1 = x0 + t1 * dx1
+        y1 = y0 + t1 * dy1
+    else:
+        clipped_end = False
+    if t0 > 0:
+        # If x0 is clipped, we need to plot the new start
+        clipped_start = True
+        x0 = x0 + t0 * dx1
+        y0 = y0 + t0 * dy1
+    else:
+        clipped_start = False
+
+    return x0, x1, y0, y1, skip, clipped_start, clipped_end
+
+
+@ngjit
+def _clipt(p, q, t0, t1):
+    accept = True
+    if p < 0 and q < 0:
+        r = q / p
+        if r > t1:
+            accept = False
+        elif r > t0:
+            t0 = r
+    elif p > 0 and q < p:
+        r = q / p
+        if r < t0:
+            accept = False
+        elif r < t1:
+            t1 = r
+    elif q < 0:
+        accept = False
+    return t0, t1, accept
+
+
 @ngjit
 def _xiaolinwu(x0, x1, y0, y1, agg):
     """ Implementation of Xiaolin Wu's anti-aliasing algorithm for lines.
@@ -692,45 +762,10 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
         if isnull(x0) or isnull(y0) or isnull(x1) or isnull(y1):
             skip = True
 
-        # Use Liang-Barsky (1992) to clip the segment to a bounding box
-        # Check if line is fully outside viewport
-        if x0 < xmin and x1 < xmin:
-            skip = True
-        elif x0 > xmax and x1 > xmax:
-            skip = True
-        elif y0 < ymin and y1 < ymin:
-            skip = True
-        elif y0 > ymax and y1 > ymax:
-            skip = True
-
-        t0, t1 = 0, 1
-        dx1 = x1 - x0
-        t0, t1, accept = _clipt(-dx1, x0 - xmin, t0, t1)
-        if not accept:
-            skip = True
-        t0, t1, accept = _clipt(dx1, xmax - x0, t0, t1)
-        if not accept:
-            skip = True
-        dy1 = y1 - y0
-        t0, t1, accept = _clipt(-dy1, y0 - ymin, t0, t1)
-        if not accept:
-            skip = True
-        t0, t1, accept = _clipt(dy1, ymax - y0, t0, t1)
-        if not accept:
-            skip = True
-        if t1 < 1:
-            clipped_end = True
-            x1 = x0 + t1 * dx1
-            y1 = y0 + t1 * dy1
-        else:
-            clipped_end = False
-        if t0 > 0:
-            # If x0 is clipped, we need to plot the new start
-            clipped_start = True
-            x0 = x0 + t0 * dx1
-            y0 = y0 + t0 * dy1
-        else:
-            clipped_start = False
+        # Use Liang-Barsky to clip the segment to a bounding box
+        x0, x1, y0, y1, skip, clipped_start, clipped_end = _liang_barsky(
+            xmin, xmax, ymin, ymax, x0, x1, y0, y1, skip
+        )
 
         # TODO: respect this variable in xiaolin wu
         segment_start = segment_start or clipped_start
@@ -746,26 +781,6 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
                            clipped, append, *aggs_and_cols)
 
     return draw_segment
-
-
-@ngjit
-def _clipt(p, q, t0, t1):
-    accept = True
-    if p < 0 and q < 0:
-        r = q / p
-        if r > t1:
-            accept = False
-        elif r > t0:
-            t0 = r
-    elif p > 0 and q < p:
-        r = q / p
-        if r < t0:
-            accept = False
-        elif r < t1:
-            t1 = r
-    elif q < 0:
-        accept = False
-    return t0, t1, accept
 
 
 def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols):
