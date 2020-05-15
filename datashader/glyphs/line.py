@@ -642,22 +642,35 @@ def _xiaolinwu(x0, x1, y0, y1, agg):
         x0, y0, x1, y1, dx, dy = y0, x0, y1, x1, dy, dx
     if x1 < x0:
         x0, x1, y0, y1 = x1, x0, y1, y0
-
     grad = dy/dx
     intery = y0 + _myrfpart(x0) * grad
     xstart = _draw_endpoint(agg, steep, (x0, y0), grad) + 1
     xend = _draw_endpoint(agg, steep,   (x1, y1), grad)
     for x in range(xstart, xend):
         y = int(intery)
-        _draw_pixel(agg, _flipxy(x, y, steep), _myrfpart(intery))
-        _draw_pixel(agg, _flipxy(x, y+1, steep), _myfpart(intery))
+        _unsafe_draw_pixel(agg, _flipxy(x, y, steep), _myrfpart(intery))
+        _unsafe_draw_pixel(agg, _flipxy(x, y+1, steep), _myfpart(intery))
         intery += grad
 
 @ngjit
-def _draw_pixel(agg, px, value):
+def _safe_draw_pixel(agg, px, value):
     """ Xiaolin Wu utility. """
     x, y = px
-    agg[y, x] = value
+    if not y < agg.shape[0] or not x < agg.shape[1]:
+        return
+    if np.isnan(agg[y, x]):
+        agg[y, x] = value
+    else:
+        agg[y, x] += value
+
+@ngjit
+def _unsafe_draw_pixel(agg, px, value):
+    """ Xiaolin Wu utility. """
+    x, y = px
+    if np.isnan(agg[y, x]):
+        agg[y, x] = value
+    else:
+        agg[y, x] += value
 
 
 @ngjit
@@ -680,8 +693,8 @@ def _draw_endpoint(agg, steep, pt, grad):
     yend = y + grad * (xend - x)
     xgap = _myrfpart(x + 0.5)
     px, py = int(xend), int(yend)
-    _draw_pixel(agg, _flipxy(px, py, steep), _myrfpart(yend) * xgap)
-    _draw_pixel(agg, _flipxy(px, py+1, steep), _myfpart(yend) * xgap)
+    _safe_draw_pixel(agg, _flipxy(px, py, steep), _myrfpart(yend) * xgap)
+    _safe_draw_pixel(agg, _flipxy(px, py+1, steep), _myfpart(yend) * xgap)
     return px
 
 
