@@ -773,23 +773,22 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
             xmin, xmax, ymin, ymax, x0, x1, y0, y1, skip
         )
 
-        # TODO: respect this variable in xiaolin wu
-        segment_start = segment_start or clipped_start
-
         if not skip:
-            x0i, y0i = map_onto_pixel(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
-            )
-            x1i, y1i = map_onto_pixel(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
-            )
+            clipped = clipped_start or clipped_end
+            segment_start = segment_start or clipped_start
+            if clipped:
+                x0, y0 = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+                )
+                x1, y1 = map_onto_pixel(
+                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+                )
             if antialias:
                 agg = aggs_and_cols[0]
-                _xiaolinwu(x0i, x1i, y0i, y1i, agg)
+                _xiaolinwu(x0, x1, y0, y1, agg)
             else:
-                clipped = clipped_start or clipped_end
                 _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                           segment_start, x0i, x1i, y0i, y1i,
+                           segment_start, x0, x1, y0, y1,
                            clipped, append, *aggs_and_cols)
 
     return draw_segment
