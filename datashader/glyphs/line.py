@@ -715,48 +715,42 @@ def _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
     This method plots a line segment with integer coordinates onto a pixel
     grid.
     """
-    x0i, y0i = map_onto_pixel(
-        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
-    )
-    x1i, y1i = map_onto_pixel(
-        sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
-    )
 
-    dx = x1i - x0i
+    dx = x1 - x0
     ix = (dx > 0) - (dx < 0)
     dx = abs(dx) * 2
 
-    dy = y1i - y0i
+    dy = y1 - y0
     iy = (dy > 0) - (dy < 0)
     dy = abs(dy) * 2
 
     # If vertices weren't clipped and are concurrent in integer space,
     # call append and return, so that the second vertex won't be hit below.
     if not clipped and not (dx | dy):
-        append(i, x0i, y0i, *aggs_and_cols)
+        append(i, x0, y0, *aggs_and_cols)
         return
 
     if segment_start:
-        append(i, x0i, y0i, *aggs_and_cols)
+        append(i, x0, y0, *aggs_and_cols)
 
     if dx >= dy:
         error = 2 * dy - dx
-        while x0i != x1i:
+        while x0 != x1:
             if error >= 0 and (error or ix > 0):
                 error -= 2 * dx
-                y0i += iy
+                y0 += iy
             error += 2 * dy
-            x0i += ix
-            append(i, x0i, y0i, *aggs_and_cols)
+            x0 += ix
+            append(i, x0, y0, *aggs_and_cols)
     else:
         error = 2 * dx - dy
-        while y0i != y1i:
+        while y0 != y1:
             if error >= 0 and (error or iy > 0):
                 error -= 2 * dy
-                x0i += ix
+                x0 += ix
             error += 2 * dx
-            y0i += iy
-            append(i, x0i, y0i, *aggs_and_cols)
+            y0 += iy
+            append(i, x0, y0, *aggs_and_cols)
 
 def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
                         antialias):
@@ -774,7 +768,6 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
         # Skip the entire segment.
         if isnull(x0) or isnull(y0) or isnull(x1) or isnull(y1):
             skip = True
-
         # Use Liang-Barsky to clip the segment to a bounding box
         x0, x1, y0, y1, skip, clipped_start, clipped_end = _liang_barsky(
             xmin, xmax, ymin, ymax, x0, x1, y0, y1, skip
@@ -784,13 +777,19 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
         segment_start = segment_start or clipped_start
 
         if not skip:
+            x0i, y0i = map_onto_pixel(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+            )
+            x1i, y1i = map_onto_pixel(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+            )
             if antialias:
                 agg = aggs_and_cols[0]
-                _xiaolinwu(x0, x1, y0, y1, agg)
+                _xiaolinwu(x0i, x1i, y0i, y1i, agg)
             else:
                 clipped = clipped_start or clipped_end
                 _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                           segment_start, x0, x1, y0, y1, map_onto_pixel,
+                           segment_start, x0i, x1i, y0i, y1i,
                            clipped, append, *aggs_and_cols)
 
     return draw_segment
