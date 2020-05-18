@@ -18,13 +18,19 @@ except Exception:
 
 class _AntiAliasedLine(object):
     """ Methods common to all lines. """
-    antialias = False
+    _antialias = False
+    _antialias_build_extend = None
+    _plain_build_extend = None
 
     def enable_antialias(self):
-        self.antialias = True
+        self._antialias = True
 
     def disable_antialias(self):
-        self.antialias = False
+        self._antialias = False
+
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        return self._internal_build_extend(
+                x_mapper, y_mapper, info, append, self._antialias)
 
 
 class LineAxis0(_PointLike, _AntiAliasedLine):
@@ -36,11 +42,12 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
         Column names for the x and y coordinates of each vertex.
     """
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
         extend_cpu, extend_cuda = _build_extend_line_axis0(
             draw_segment, expand_aggs_and_cols
@@ -121,11 +128,12 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
         extend_cpu, extend_cuda = _build_extend_line_axis0_multi(
             draw_segment, expand_aggs_and_cols
@@ -229,11 +237,12 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_none_constant(
             draw_segment, expand_aggs_and_cols
@@ -297,11 +306,12 @@ class LinesAxis1XConstant(LinesAxis1):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
 
         extend_cpu, extend_cuda = _build_extend_line_axis1_x_constant(
@@ -366,12 +376,13 @@ class LinesAxis1YConstant(LinesAxis1):
                 self.compute_y_bounds())
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_internal_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
 
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_y_constant(
             draw_segment, expand_aggs_and_cols
@@ -441,11 +452,12 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_internal_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
 
         extend_cpu = _build_extend_line_axis1_ragged(
@@ -484,14 +496,15 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
                 PolygonDtype, MultiPolygonDtype)
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         from spatialpandas.geometry import (
             PolygonArray, MultiPolygonArray, RingArray
         )
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, self.antialias
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
 
         perform_extend_cpu = _build_extend_line_axis1_geometry(
