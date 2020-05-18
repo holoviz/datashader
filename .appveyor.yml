@@ -16,6 +16,10 @@ install:
   # Fixes Cannot open include file: 'sys/un.h': No such file or directory
   - "pip uninstall -y pyzmq"
   - "pip install pyzmq"
+  # Fixes pkg_resources.DistributionNotFound: The 'imagecodecs>=2020.2.18'
+  # distribution was not found and is required by tifffile
+  - "pip uninstall -y imagecodecs"
+  - "pip install imagecodecs"
   - "doit env_capture"
 
 build: off
