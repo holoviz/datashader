@@ -19,8 +19,6 @@ except Exception:
 class _AntiAliasedLine(object):
     """ Methods common to all lines. """
     _antialias = False
-    _antialias_build_extend = None
-    _plain_build_extend = None
 
     def enable_antialias(self):
         self._antialias = True
