@@ -709,7 +709,7 @@ def _flipxy(px, py, steep):
 
 @ngjit
 def _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
-              x0, x1, y0, y1, map_onto_pixel, clipped, append, *aggs_and_cols
+              x0, x1, y0, y1, clipped, append, *aggs_and_cols
              ):
     """Draw a line segment using Bresenham's algorithm
     This method plots a line segment with integer coordinates onto a pixel
@@ -776,7 +776,7 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
         if not skip:
             clipped = clipped_start or clipped_end
             segment_start = segment_start or clipped_start
-            if clipped:
+            if clipped or not antialias:
                 x0, y0 = map_onto_pixel(
                     sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
                 )
