@@ -44,7 +44,6 @@ extras_require = {
         'nbsmoke[all] >=0.4.0',
         'fastparquet >=0.1.6',  # optional dependency
         'holoviews >=1.10.0',
-        'numba <0.49.0',
     ],
     'examples': examples,
     'examples_extra': examples + [
