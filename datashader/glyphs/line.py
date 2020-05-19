@@ -647,75 +647,61 @@ def _xiaolinwu(x0, x1, y0, y1, agg):
     """ Implementation of Xiaolin Wu's anti-aliasing algorithm for lines.
     Loosely based on: https://rosettacode.org/wiki/Xiaolin_Wu%27s_line_algorithm#Python
     """
+
     dx, dy = x1-x0, y1-y0
     steep = abs(dx) < abs(dy)
+
+    def _myfpart(x):
+        return x - int(x)
+
+    def _myrfpart(x):
+        return 1 - _myfpart(x)
+
+    def _unsafe_draw_pixel(px, value):
+        x, y = px
+        if np.isnan(agg[y, x]):
+            agg[y, x] = value
+        else:
+            agg[y, x] += value
+
+    def _safe_draw_pixel(px, value):
+        x, y = px
+        if not y < agg.shape[0] or not x < agg.shape[1]:
+            return
+        if np.isnan(agg[y, x]):
+            agg[y, x] = value
+        else:
+            agg[y, x] += value
+
+    def _flipxy(px, py):
+        if steep:
+            return py,px
+        else:
+            return px,py
+
+    def _draw_endpoint(pt, grad):
+        x, y = pt
+        xend = round(x)
+        yend = y + grad * (xend - x)
+        xgap = _myrfpart(x + 0.5)
+        px, py = int(xend), int(yend)
+        _safe_draw_pixel(_flipxy(px, py), _myrfpart(yend) * xgap)
+        _safe_draw_pixel(_flipxy(px, py+1), _myfpart(yend) * xgap)
+        return px
+
     if steep:
         x0, y0, x1, y1, dx, dy = y0, x0, y1, x1, dy, dx
     if x1 < x0:
         x0, x1, y0, y1 = x1, x0, y1, y0
     grad = dy/dx
     intery = y0 + _myrfpart(x0) * grad
-    xstart = _draw_endpoint(agg, steep, (x0, y0), grad) + 1
-    xend = _draw_endpoint(agg, steep,   (x1, y1), grad)
+    xstart = _draw_endpoint((x0, y0), grad) + 1
+    xend = _draw_endpoint((x1, y1), grad)
     for x in range(xstart, xend):
         y = int(intery)
-        _unsafe_draw_pixel(agg, _flipxy(x, y, steep), _myrfpart(intery))
-        _unsafe_draw_pixel(agg, _flipxy(x, y+1, steep), _myfpart(intery))
+        _unsafe_draw_pixel(_flipxy(x, y), _myrfpart(intery))
+        _unsafe_draw_pixel(_flipxy(x, y+1), _myfpart(intery))
         intery += grad
-
-@ngjit
-def _safe_draw_pixel(agg, px, value):
-    """ Xiaolin Wu utility. """
-    x, y = px
-    if not y < agg.shape[0] or not x < agg.shape[1]:
-        return
-    if np.isnan(agg[y, x]):
-        agg[y, x] = value
-    else:
-        agg[y, x] += value
-
-@ngjit
-def _unsafe_draw_pixel(agg, px, value):
-    """ Xiaolin Wu utility. """
-    x, y = px
-    if np.isnan(agg[y, x]):
-        agg[y, x] = value
-    else:
-        agg[y, x] += value
-
-
-@ngjit
-def _myfpart(x):
-    """ Xiaolin Wu utility. """
-    return x - int(x)
-
-
-@ngjit
-def _myrfpart(x):
-    """ Xiaolin Wu utility. """
-    return 1 - _myfpart(x)
-
-
-@ngjit
-def _draw_endpoint(agg, steep, pt, grad):
-    """ Xiaolin Wu utility. """
-    x, y = pt
-    xend = round(x)
-    yend = y + grad * (xend - x)
-    xgap = _myrfpart(x + 0.5)
-    px, py = int(xend), int(yend)
-    _safe_draw_pixel(agg, _flipxy(px, py, steep), _myrfpart(yend) * xgap)
-    _safe_draw_pixel(agg, _flipxy(px, py+1, steep), _myfpart(yend) * xgap)
-    return px
-
-
-@ngjit
-def _flipxy(px, py, steep):
-    """ Xiaolin Wu utility. """
-    if steep:
-        return py,px
-    else:
-        return px,py
 
 
 @ngjit
