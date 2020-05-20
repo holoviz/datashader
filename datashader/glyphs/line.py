@@ -643,13 +643,15 @@ def _clipt(p, q, t0, t1):
 
 
 @ngjit
-def _xiaolinwu(x0, x1, y0, y1, agg):
+def _xiaolinwu(i, x0, x1, y0, y1, append, *aggs_and_cols):
     """ Implementation of Xiaolin Wu's anti-aliasing algorithm for lines.
     Loosely based on: https://rosettacode.org/wiki/Xiaolin_Wu%27s_line_algorithm#Python
     """
 
     dx, dy = x1-x0, y1-y0
     steep = abs(dx) < abs(dy)
+    agg = aggs_and_cols[0]
+    cols = aggs_and_cols[1]
 
     def _myfpart(x):
         return x - int(x)
@@ -659,19 +661,17 @@ def _xiaolinwu(x0, x1, y0, y1, agg):
 
     def _unsafe_draw_pixel(px, value):
         x, y = px
-        if np.isnan(agg[y, x]):
-            agg[y, x] = value
-        else:
-            agg[y, x] += value
+        c = cols.copy()
+        c[i] *= value
+        append(i, x, y, agg, c)
 
     def _safe_draw_pixel(px, value):
         x, y = px
         if not y < agg.shape[0] or not x < agg.shape[1]:
             return
-        if np.isnan(agg[y, x]):
-            agg[y, x] = value
-        else:
-            agg[y, x] += value
+        c = cols.copy()
+        c[i] *= value
+        append(i, x, y, agg, c)
 
     def _flipxy(px, py):
         if steep:
@@ -780,8 +780,7 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
             )
             if antialias:
-                agg = aggs_and_cols[0]
-                _xiaolinwu(x0, x1, y0, y1, agg)
+                _xiaolinwu(i, x0, x1, y0, y1, append, *aggs_and_cols)
             else:
                 _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                            segment_start, x0, x1, y0, y1,
