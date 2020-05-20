@@ -773,13 +773,12 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
         if not skip:
             clipped = clipped_start or clipped_end
             segment_start = segment_start or clipped_start
-            if clipped or not antialias:
-                x0, y0 = map_onto_pixel(
-                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
-                )
-                x1, y1 = map_onto_pixel(
-                    sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
-                )
+            x0, y0 = map_onto_pixel(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+            )
+            x1, y1 = map_onto_pixel(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+            )
             if antialias:
                 agg = aggs_and_cols[0]
                 _xiaolinwu(x0, x1, y0, y1, agg)
