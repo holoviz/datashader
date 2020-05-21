@@ -334,6 +334,20 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name):
         g = (color_data.dot(gs)/total).astype(np.uint8)
         b = (color_data.dot(bs)/total).astype(np.uint8)
 
+    # special case -- to give an appropriate color when min_alpha != 0 and data=0,
+    # take avg color of all non-nan categories
+    color_mask = ~np.isnan(data)
+    cmask_sum = np.sum(color_mask, axis=2)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        r2 = (color_mask.dot(rs)/cmask_sum).astype(np.uint8)
+        g2 = (color_mask.dot(gs)/cmask_sum).astype(np.uint8)
+        b2 = (color_mask.dot(bs)/cmask_sum).astype(np.uint8)
+
+    missing_colors = np.sum(color_data, axis=2) == 0
+    r = np.where(missing_colors, r2, r)
+    g = np.where(missing_colors, g2, g)
+    b = np.where(missing_colors, b2, b)
+        
     mask = np.isnan(total)
     # if span is provided, use it, otherwise produce a span based off the
     # min/max of the data
