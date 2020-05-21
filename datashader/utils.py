@@ -144,10 +144,12 @@ def isreal(dt):
 
 
 def nansum_missing(array, axis):
-    """nansum where all NaN values remain NaNs.
+    """nansum where all-NaN values remain NaNs.
 
-    Note: In NumPy >=1.9 0 NaN is returned for slices that are
-    all-NaN. This function emulates this old behavior.
+    Note: In NumPy <=1.9 NaN is returned for slices that are
+    all NaN, while later versions return 0. This function emulates
+    the older behavior, which allows using NaN as a missing value
+    indicator.
 
     Parameters
     ----------

@@ -316,13 +316,13 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name):
     if len(color_key) < len(cats):
         raise ValueError("Insufficient colors provided ({}) for the categorical fields available ({})"
                          .format(len(color_key), len(cats)))
-    if not (0 <= min_alpha <= 255):
-        raise ValueError("min_alpha ({}) must be between 0 and 255".format(min_alpha))
+
     colors = [rgb(color_key[c]) for c in cats]
     rs, gs, bs = map(array, zip(*colors))
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
     data = orient_array(agg_t).transpose([1, 2, 0])
+
     total = nansum_missing(data, axis=2)
 
     # dot does not handle nans, so replace with zeros
@@ -333,13 +333,14 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name):
         r = (color_data.dot(rs)/total).astype(np.uint8)
         g = (color_data.dot(gs)/total).astype(np.uint8)
         b = (color_data.dot(bs)/total).astype(np.uint8)
+
     mask = np.isnan(total)
-    # if span is provided, use it, otherwise produce it a span based off the
+    # if span is provided, use it, otherwise produce a span based off the
     # min/max of the data
     if span is None:
         offset = np.nanmin(total)
         if total.dtype.kind == 'u' and offset == 0:
-            mask = mask | (total <= 0)
+            mask = mask | (total == 0)
             # If at least one element is not masked, use the minimum as the offset
             # otherwise the offset remains at zero
             if not np.all(mask):
@@ -430,13 +431,15 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     alpha : int, optional
         Value between 0 - 255 representing the alpha value to use for
         colormapped pixels that contain data (i.e. non-NaN values).
+        Also used as the maximum alpha value when alpha is indicating
+        data value, such as for single colors or categorical plots.
         Regardless of this value, ``NaN`` values are set to be fully
         transparent when doing colormapping.
     min_alpha : float, optional
-        The minimum alpha value to use for non-empty pixels when doing
-        colormapping, in [0, 255].  Use a higher value to avoid
-        undersaturation, i.e. poorly visible low-value datapoints, at
-        the expense of the overall dynamic range.
+        The minimum alpha value to use for non-empty pixels when 
+        alpha is indicating data value, in [0, 255].  Use a higher value
+        to avoid undersaturation, i.e. poorly visible low-value datapoints,
+        at the expense of the overall dynamic range.
     span : list of min-max range, optional
         Min and max data values to use for colormap/alpha interpolation, when
         wishing to override autoranging.
@@ -447,6 +450,9 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
     name = agg.name if name is None else name
+
+    if not ((0 <= min_alpha <= 255) and (0 <= alpha <= 255)):
+        raise ValueError("min_alpha ({}) and alpha ({}) must be between 0 and 255".format(min_alpha,alpha))
 
     if agg.ndim == 2:
         return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
