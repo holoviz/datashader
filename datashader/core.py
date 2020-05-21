@@ -319,12 +319,11 @@ class Canvas(object):
         from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
                              LinesAxis1YConstant, LineAxis0Multi,
                              LinesAxis1Ragged, LineAxis1Geometry)
-        from .reductions import any as any_rdn
 
         validate_xy_or_geometry('Line', x, y, geometry)
 
         if agg is None:
-            agg = any_rdn()
+            agg = rd.any()
 
         if geometry is not None:
             from spatialpandas import GeoDataFrame
@@ -389,7 +388,8 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
-        if antialias:
+        # Enable antialias if requested and if the reduction will allow it.
+        if antialias and isinstance(agg, rd.sum, rd.max):
             glyph.enable_antialias()
         return bypixel(source, self, glyph, agg)
 
