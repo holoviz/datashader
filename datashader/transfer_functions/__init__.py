@@ -289,7 +289,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
-def _colorize(agg, color_key, how, alpha, span, min_alpha, name):
+def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline):
     if cupy and isinstance(agg.data, cupy.ndarray):
         from ._cuda_utils import interp, masked_clip_2d 
         array = cupy.array
@@ -322,17 +322,27 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name):
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
     data = orient_array(agg_t).transpose([1, 2, 0])
+    color_data = data.copy()
 
-    total = nansum_missing(data, axis=2)
+    # subtract color_baseline if needed
+    baseline = np.nanmin(color_data) if color_baseline is None else color_baseline
+    with np.errstate(invalid='ignore'):
+        if baseline > 0:
+            color_data -= baseline
+        elif baseline < 0:
+            color_data += -baseline
+        if color_data.dtype.kind != 'u' and color_baseline is not None:
+            color_data[color_data<0]=0
+
+    color_total = nansum_missing(color_data, axis=2)
 
     # dot does not handle nans, so replace with zeros
-    color_data = data.copy()
     color_data[np.isnan(data)] = 0
     # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
     with np.errstate(divide='ignore', invalid='ignore'):
-        r = (color_data.dot(rs)/total).astype(np.uint8)
-        g = (color_data.dot(gs)/total).astype(np.uint8)
-        b = (color_data.dot(bs)/total).astype(np.uint8)
+        r = (color_data.dot(rs)/color_total).astype(np.uint8)
+        g = (color_data.dot(gs)/color_total).astype(np.uint8)
+        b = (color_data.dot(bs)/color_total).astype(np.uint8)
 
     # special case -- to give an appropriate color when min_alpha != 0 and data=0,
     # take avg color of all non-nan categories
@@ -348,6 +358,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name):
     g = np.where(missing_colors, g2, g)
     b = np.where(missing_colors, b2, b)
         
+    total = nansum_missing(data, axis=2)
     mask = np.isnan(total)
     # if span is provided, use it, otherwise produce a span based off the
     # min/max of the data
@@ -397,7 +408,8 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name):
 
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
-          how='eq_hist', alpha=255, min_alpha=40, span=None, name=None):
+          how='eq_hist', alpha=255, min_alpha=40, span=None, name=None,
+          color_baseline=None):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
 
     Requires a DataArray with a single data dimension, here called the
@@ -460,6 +472,28 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     name : string name, optional
         Optional string name to give to the Image object to return,
         to label results for display.
+    color_baseline : float or None
+        Baseline for calculating how categorical data mixes to
+        determine the color of a pixel. The color for each category is
+        weighted by how far that category's value is above this
+        baseline value, out of the total sum across all categories'
+        values. A value of zero is appropriate for counts and for
+        other physical quantities for which zero is a meaningful
+        reference; each category then contributes to the final color
+        in proportion to how much each category contributes to the
+        final sum.  However, if values can be negative or if they are
+        on an interval scale where values e.g. twice as far from zero
+        are not twice as high (such as temperature in Farenheit), then
+        you will need to provide a suitable baseline value for use in
+        calculating color mixing.  A value of None (the default) means
+        to take the minimum across the entire aggregate array, which
+        is safe but may not weight the colors as you expect; any
+        categories with values near this baseline will contribute
+        almost nothing to the final color. As a special case, if the
+        only data present in a pixel is at the baseline level, the
+        color will be an evenly weighted average of all such
+        categories with data (to avoid the color being undefined in
+        this case).
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
@@ -471,7 +505,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     if agg.ndim == 2:
         return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
     elif agg.ndim == 3:
-        return _colorize(agg, color_key, how, alpha, span, min_alpha, name)
+        return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     else:
         raise ValueError("agg must use 2D or 3D coordinates")
 
