@@ -326,6 +326,7 @@ def main(argv):
 
     if DEBUG:
         print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem()), flush=True)
+
     img,aggtime1 = timed_agg(df,filepath,5,5,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
         mem_usage = df.memory_usage(deep=True)

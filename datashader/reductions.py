@@ -7,13 +7,14 @@ from toolz import concat, unique
 import xarray as xr
 
 from datashader.glyphs.glyph import isnull
-from .utils import Expr, ngjit
 from numba import cuda as nb_cuda
 
 try:
     import cudf
 except Exception:
     cudf = None
+
+from .utils import Expr, ngjit, nansum_missing
 
 
 class Preprocess(Expr):
@@ -151,7 +152,8 @@ class by(Reduction):
     def __init__(self, cat_column, reduction):
         self.columns = (cat_column, getattr(reduction, 'column', None))
         self.reduction = reduction
-
+        self.column = cat_column # for backwards compatibility with count_cat
+        
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.reduction))
 
@@ -188,18 +190,8 @@ class by(Reduction):
 
     def _build_create(self, out_dshape):
         n_cats = len(out_dshape.measure.fields)
-        if isinstance(self.reduction, FloatingReduction):
-            return lambda shape, array_module: array_module.zeros(
-                shape + (n_cats,), dtype='f8'
-            )
-        elif isinstance(self.reduction, count):
-            return lambda shape, array_module: array_module.zeros(
-                shape + (n_cats,), dtype='u4'
-            )
-        else:
-            return lambda shape, array_module: array_module.zeros(
-                shape + (n_cats,), dtype='i4'
-            )
+        return lambda shape, array_module: self.reduction._build_create(
+            out_dshape)(shape + (n_cats,), array_module)
 
     def _build_bases(self, cuda=False):
         bases = self.reduction._build_bases(cuda)
@@ -420,10 +412,8 @@ class sum(FloatingReduction):
 
     @staticmethod
     def _combine(aggs):
-        missing_vals = np.isnan(aggs)
-        all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
-        set_to_zero = missing_vals & ~all_empty
-        return np.where(set_to_zero, 0, aggs).sum(axis=0)
+        return nansum_missing(aggs, axis=0)
+
 
 class m2(FloatingReduction):
     """Sum of square differences from the mean of all elements in ``column``.
@@ -536,7 +526,7 @@ class count_cat(by):
     """
     def __init__(self, column):
         super(count_cat, self).__init__(column, count())
-        self.column = column
+
 
 class mean(Reduction):
     """Mean of all elements in ``column``.

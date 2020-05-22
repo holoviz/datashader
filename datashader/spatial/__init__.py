@@ -16,8 +16,8 @@ from ..utils import VisibleDeprecationWarning
 
 warnings.warn(
     "The datashader.spatial module is deprecated as of version 0.11.0. "
-    "Its contents or more mature implementations of the functionality "
-    "provided by this module have migrated to the spatialpandas "
-    "and xarray-spatial libraries.",
+    "The functionality it provided has migrated to the spatialpandas "
+    "(github.com/holoviz/spatialpandas) and xarray-spatial "
+    "(github.com/makepath/xarray-spatial) libraries.",
     VisibleDeprecationWarning
 )
