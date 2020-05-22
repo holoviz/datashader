@@ -238,10 +238,10 @@ def test_count_cat(ddf):
 
 @pytest.mark.parametrize('ddf', ddfs)
 def test_categorical_sum(ddf):
-    sol = np.array([[[10, 0, 0, 0],
-                     [0, 0, 60, 0]],
-                    [[0, 35, 0, 0],
-                     [0, 0, 0, 85]]])
+    sol = np.array([[[ 10, nan, nan, nan],
+                     [nan, nan,  60, nan]],
+                    [[nan,  35, nan, nan],
+                     [nan, nan, nan,  85]]])
     out = xr.DataArray(
         sol, coords=(coords + [['a', 'b', 'c', 'd']]), dims=(dims + ['cat'])
     )
@@ -251,10 +251,10 @@ def test_categorical_sum(ddf):
     agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.sum('i64')))
     assert_eq_xr(agg, out)
 
-    sol = np.array([[[8.0, 0, 0, 0],
-                     [0, 0, 60.0, 0]],
-                    [[0, 35.0, 0, 0],
-                     [0, 0, 0, 85.0]]])
+    sol = np.array([[[8.0,  nan,  nan,  nan],
+                     [nan,  nan, 60.0,  nan]],
+                    [[nan, 35.0,  nan,  nan],
+                     [nan,  nan,  nan, 85.0]]])
     out = xr.DataArray(
         sol, coords=(coords + [['a', 'b', 'c', 'd']]), dims=(dims + ['cat'])
     )

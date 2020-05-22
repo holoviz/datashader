@@ -15,7 +15,7 @@ dims = ['y_axis', 'x_axis']
 
 # CPU
 def build_agg(array_module=np):
-    a = array_module.arange(10, 19, dtype='i4').reshape((3, 3))
+    a = array_module.arange(10, 19, dtype='u4').reshape((3, 3))
     a[[0, 1, 2], [0, 1, 2]] = 0
     s_a = xr.DataArray(a, coords=coords, dims=dims)
     b = array_module.arange(10, 19, dtype='f4').reshape((3, 3))
