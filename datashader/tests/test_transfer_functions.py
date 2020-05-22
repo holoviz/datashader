@@ -358,7 +358,7 @@ def test_shade_category(array):
     
     # First test auto-span
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
-    sol = np.array([[16777215, 335565567],
+    sol = np.array([[5584810, 335565567],
                     [4283774890, 2701132031]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
@@ -371,7 +371,7 @@ def test_shade_category(array):
 
     # Next test manual-span
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(6, 36))
-    sol = np.array([[16777215, 335565567],
+    sol = np.array([[5584810, 335565567],
                     [4283774890, 2701132031]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
@@ -382,16 +382,54 @@ def test_shade_category(array):
     assert ((img.data[1,0] >> 24) & 0xFF) != 0 # not fully transparent
     assert ((img.data[1,1] >> 24) & 0xFF) != 0 # not fully transparent
 
+
     # Categorical aggregations with some reductions (such as sum) can result in negative
-    # values in the data
+    # values in the data here we test positive and negative values
+    cat_agg = tf.Image(array([[(0, -30, 0), (18, 0, -18)],
+                              [(-2, 2, -2), (-18, 9, 12)]], dtype='i4'),
+                       coords=(coords + [['a', 'b', 'c']]),
+                       dims=(dims + ['cats']))
+
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
+    sol = np.array([[335565567, 3914667690],
+                    [3680253090, 4285155988]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    assert ((img.data[0,0] >> 24) & 0xFF) == 20
+    assert ((img.data[0,1] >> 24) & 0xFF) == 233
+    assert ((img.data[1,0] >> 24) & 0xFF) == 219
+    assert ((img.data[1,1] >> 24) & 0xFF) == 255
+
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(0, 3))
+    sol = np.array([[335565567, 341120682],
+                    [341587106, 4285155988]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    assert ((img.data[0,0] >> 24) & 0xFF) == 20 # min alpha
+    assert ((img.data[0,1] >> 24) & 0xFF) == 20 # min alpha
+    assert ((img.data[1,0] >> 24) & 0xFF) == 20 # min alpha
+    assert ((img.data[1,1] >> 24) & 0xFF) == 255
+
+    img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, color_baseline=9)
+    sol = np.array([[341129130, 3909091583],
+                    [3679795114, 4278232575]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+    assert ((img.data[0,0] >> 24) & 0xFF) == 20
+    assert ((img.data[0,1] >> 24) & 0xFF) == 233
+    assert ((img.data[1,0] >> 24) & 0xFF) == 219
+    assert ((img.data[1,1] >> 24) & 0xFF) == 255
+
+    # Categorical aggregations with some reductions (such as sum) can result in negative
+    # values in the data, here we test all negative values
     cat_agg = tf.Image(array([[(0, -30, 0), (-18, 0, -18)],
                               [(-2, -2, -2), (-18, 0, 0)]], dtype='i4'),
                        coords=(coords + [['a', 'b', 'c']]),
                        dims=(dims + ['cats']))
 
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
-    sol = np.array([[1140785152, 335565567],
-                    [4283774890, 2701132031]], dtype='u4')
+    sol = np.array([[1124094719, 344794225],
+                    [4283774890, 2708096148]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
     assert ((img.data[0,0] >> 24) & 0xFF) == 67
@@ -400,8 +438,8 @@ def test_shade_category(array):
     assert ((img.data[1,1] >> 24) & 0xFF) == 161
 
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20, span=(6, 36))
-    sol = np.array([[352256000, 335565567],
-                    [341129130, 335544575]], dtype='u4')
+    sol = np.array([[335565567, 344794225],
+                    [341129130, 342508692]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
     assert ((img.data[0,0] >> 24) & 0xFF) == 20 # min alpha
@@ -420,8 +458,8 @@ def test_shade_zeros(array):
     colors = [(255, 0, 0), '#0000FF', 'orange']
 
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=0)
-    sol = np.array([[16777215, 16777215],
-                    [16777215, 16777215]], dtype='u4')
+    sol = np.array([[5584810, 5584810],
+                    [5584810, 5584810]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
