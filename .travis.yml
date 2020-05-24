@@ -31,7 +31,7 @@ stages:
   - name: docs
     if: tag =~ ^v(\d+|\.)*[^a-z]\d*$ OR tag = website
   - name: docs_dev
-    if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$ OR tag = website_dev OR commit_message =~ /^.*(website_dev).*$/
+    if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$ OR tag = website_dev OR commit_message =~ /\[doc-build\]/
   - name: conda_dev_package
     if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$
   - name: pip_dev_package
@@ -63,7 +63,7 @@ jobs:
         # Install spatialpandas here because it's python 3 only and requires
         # conda-forge for some dependencies
         - if [[ "$PYTHON_VERSION" != "2.7" ]]; then
-          conda install -c pyviz/label/dev -c conda-forge matplotlib=3.2.1 spatialpandas;
+          conda install -c pyviz/label/dev -c conda-forge matplotlib=3.2.1 spatialpandas --no-deps;
           fi
         # Install rasterio using pip to avoid conda solver errors
         - pip install rasterio
