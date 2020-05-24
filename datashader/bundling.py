@@ -17,7 +17,12 @@ from math import ceil
 
 from dask import compute, delayed
 from pandas import DataFrame
-from skimage.filters import gaussian, sobel_h, sobel_v
+
+try:
+    import skimage
+    from skimage.filters import gaussian, sobel_h, sobel_v
+except Exception:
+    skimage = None
 
 import numba as nb
 import numpy as np
@@ -440,6 +445,11 @@ class hammer_bundle(connect_edges):
         Column name for each edge weight. If None, weights are ignored.""")
 
     def __call__(self, nodes, edges, **params):
+        if skimage is None:
+            raise ImportError("hammer_bundle operation requires scikit-image. "
+                              "Ensure you install the dependency before applying "
+                              "bundling.")
+
         p = param.ParamOverrides(self, params)
 
         # Calculate min/max for coordinates

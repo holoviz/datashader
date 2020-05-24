@@ -23,7 +23,6 @@ install_requires = [
     'colorcet >=0.9.0',
     'param >=1.6.0',
     'pyct[cmd]',
-    'scikit-image',
     'bokeh',
     'scipy',
 ]
@@ -31,6 +30,7 @@ install_requires = [
 examples = [
     'distributed', # dask
     'holoviews >=1.10.0',
+    'scikit-image',
     'matplotlib',
 ]
 
