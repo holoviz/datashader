@@ -31,7 +31,7 @@ stages:
   - name: docs
     if: tag =~ ^v(\d+|\.)*[^a-z]\d*$ OR tag = website
   - name: docs_dev
-    if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$ OR tag = website_dev OR commit_message =~ /^.*(website_dev).*$/
+    if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$ OR tag = website_dev OR commit_message =~ /\[doc-build\]/
   - name: conda_dev_package
     if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$
   - name: pip_dev_package
