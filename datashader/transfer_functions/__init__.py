@@ -16,7 +16,7 @@ from PIL.Image import fromarray
 
 from datashader.colors import rgb, Sets1to3
 from datashader.composite import composite_op_lookup, over
-from datashader.utils import ngjit, orient_array
+from datashader.utils import nansum_missing, ngjit, orient_array
 
 try:
     import cupy
@@ -118,9 +118,14 @@ def stack(*imgs, **kwargs):
     """
     if not imgs:
         raise ValueError("No images passed in")
+    shapes = []
     for i in imgs:
         if not isinstance(i, Image):
             raise TypeError("Expected `Image`, got: `{0}`".format(type(i)))
+        elif not shapes:
+            shapes.append(i.shape)
+        elif shapes and i.shape not in shapes:
+            raise ValueError("The stacked images must have the same shape.")
 
     name = kwargs.get('name', None)
     op = composite_op_lookup[kwargs.get('how', 'over')]
@@ -163,6 +168,8 @@ def eq_hist(data, mask=None, nbins=256*256):
 
     data2 = data if mask is None else data[~mask]
     if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
+        if data2.dtype.kind == 'u':
+             data2 = data2.astype('i8')
         hist = np.bincount(data2.ravel())
         bin_centers = np.arange(len(hist))
         idx = int(np.nonzero(hist)[0][0])
@@ -190,39 +197,6 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-@ngjit
-def masked_clip_2d(data, mask, lower, upper):
-    """
-    Clip the elements of an input array between lower and upper bounds,
-    skipping over elements that are masked out.
-
-    Parameters
-    ----------
-    data: np.ndarray
-        Numeric ndarray that will be clipped in-place
-    mask: np.ndarray
-        Boolean ndarray where True values indicate elements that should be
-        skipped
-    lower: int or float
-        Lower bound to clip to
-    upper: int or float
-        Upper bound to clip to
-
-    Returns
-    -------
-    None
-        data array is modified in-place
-    """
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            if mask[i, j]:
-                continue
-            val = data[i, j]
-            if val < lower:
-                data[i, j] = lower
-            elif val > upper:
-                data[i, j] = upper
-
 def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     if cupy and isinstance(agg.data, cupy.ndarray):
         from ._cuda_utils import masked_clip_2d, interp
@@ -241,7 +215,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
         mask = ~data
         data = data.astype(np.int8)
     else:
-        if np.issubdtype(data.dtype, np.integer):
+        if data.dtype.kind == 'u':
             mask = data == 0
         else:
             mask = np.isnan(data)
@@ -273,8 +247,8 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
             span = np.nanmin(masked_data), np.nanmax(masked_data)
         else:
             if how == 'eq_hist':
-                # For eq_hist to work with span, we'll need to store the histogram
-                # from the data and then apply it to the span argument.
+                # For eq_hist to work with span, we'll need to compute the histogram
+                # only on the specified span's range.
                 raise ValueError("span is not (yet) valid to use with eq_hist")
 
             span = interpolater([0, span[1] - span[0]], 0)
@@ -320,17 +294,25 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
-def _colorize(agg, color_key, how, span, min_alpha, name):
+def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline):
     if cupy and isinstance(agg.data, cupy.ndarray):
-        from ._cuda_utils import interp
+        from ._cuda_utils import interp, masked_clip_2d 
         array = cupy.array
     else:
+        from ._cpu_utils import masked_clip_2d
         interp = np.interp
         array = np.array
 
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
+    
     cats = agg.indexes[agg.dims[-1]]
+    if not len(cats): # No categories and therefore no data; return an empty image
+        return Image(np.zeros(agg.shape[0:2], dtype=np.uint32), dims=agg.dims[:-1],
+                     coords=OrderedDict([
+                         (agg.dims[1], agg.coords[agg.dims[1]]),
+                         (agg.dims[0], agg.coords[agg.dims[0]]) ]), name=name)
+    
     if color_key is None:
         raise ValueError("Color key must be provided, with at least as many " +
                          "colors as there are categorical fields")
@@ -339,48 +321,85 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
     if len(color_key) < len(cats):
         raise ValueError("Insufficient colors provided ({}) for the categorical fields available ({})"
                          .format(len(color_key), len(cats)))
-    if not (0 <= min_alpha <= 255):
-        raise ValueError("min_alpha ({}) must be between 0 and 255".format(min_alpha))
+
     colors = [rgb(color_key[c]) for c in cats]
     rs, gs, bs = map(array, zip(*colors))
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
     data = orient_array(agg_t).transpose([1, 2, 0])
-    total = data.sum(axis=2)
+    color_data = data.copy()
+
+    # subtract color_baseline if needed
+    baseline = np.nanmin(color_data) if color_baseline is None else color_baseline
+    with np.errstate(invalid='ignore'):
+        if baseline > 0:
+            color_data -= baseline
+        elif baseline < 0:
+            color_data += -baseline
+        if color_data.dtype.kind != 'u' and color_baseline is not None:
+            color_data[color_data<0]=0
+
+    color_total = nansum_missing(color_data, axis=2)
+
+    # dot does not handle nans, so replace with zeros
+    color_data[np.isnan(data)] = 0
     # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
     with np.errstate(divide='ignore', invalid='ignore'):
-        r = (data.dot(rs)/total).astype(np.uint8)
-        g = (data.dot(gs)/total).astype(np.uint8)
-        b = (data.dot(bs)/total).astype(np.uint8)
+        r = (color_data.dot(rs)/color_total).astype(np.uint8)
+        g = (color_data.dot(gs)/color_total).astype(np.uint8)
+        b = (color_data.dot(bs)/color_total).astype(np.uint8)
+
+    # special case -- to give an appropriate color when min_alpha != 0 and data=0,
+    # take avg color of all non-nan categories
+    color_mask = ~np.isnan(data)
+    cmask_sum = np.sum(color_mask, axis=2)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        r2 = (color_mask.dot(rs)/cmask_sum).astype(np.uint8)
+        g2 = (color_mask.dot(gs)/cmask_sum).astype(np.uint8)
+        b2 = (color_mask.dot(bs)/cmask_sum).astype(np.uint8)
+
+    missing_colors = np.sum(color_data, axis=2) == 0
+    r = np.where(missing_colors, r2, r)
+    g = np.where(missing_colors, g2, g)
+    b = np.where(missing_colors, b2, b)
+        
+    total = nansum_missing(data, axis=2)
     mask = np.isnan(total)
 
-    # Handle offset / clip
-    if span is None:
-        mask = mask | (total <= 0)
-        offset = np.nanmin(total[~mask])
-    else:
-        offset = np.array(span, dtype=data.dtype)[0]
-        masked_clip_2d(total, mask, *span)
-
-    a = _normalize_interpolate_how(how)(total - offset, mask)
-
-    # if span is provided, use it, otherwise produce it a span based off the
+    # if span is provided, use it, otherwise produce a span based off the
     # min/max of the data
     if span is None:
-        span = [np.nanmin(a).item(), np.nanmax(a).item()]
-        if how != 'eq_hist':
-            span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
+        offset = np.nanmin(total)
+        if total.dtype.kind == 'u' and offset == 0:
+            mask = mask | (total == 0)
+            # If at least one element is not masked, use the minimum as the offset
+            # otherwise the offset remains at zero
+            if not np.all(mask):
+                offset = total[total > 0].min()
+            total = np.where(~mask, total, np.nan)
+        a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
+        norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
     else:
         if how == 'eq_hist':
-            # For eq_hist to work with span, we'll need to store the histogram
-            # from the data and then apply it to the span argument.
+            # For eq_hist to work with span, we'll need to compute the histogram
+            # only on the specified span's range.
             raise ValueError("span is not (yet) valid to use with eq_hist")
-        span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
+
+        # even in fixed-span mode cells with 0 should remain fully transparent
+        # i.e. a 0 will be fully transparent, but any non-zero number will
+        # be clipped to the span range and have min-alpha applied
+        offset = np.array(span, dtype=data.dtype)[0]
+        if total.dtype.kind == 'u' and np.nanmin(total) == 0:
+            mask = mask | (total <= 0)
+            total = np.where(~mask, total, np.nan)
+        masked_clip_2d(total, mask, *span)
+        a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
+        norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
 
     # Interpolate the alpha values
-    a = interp(a, array(span),
-               array([min_alpha, 255]), left=0, right=255).astype(np.uint8)
-    r[mask] = g[mask] = b[mask] = 255
+    a = interp(a_scaled, array(norm_span), array([min_alpha, alpha]),
+               left=0, right=255).astype(np.uint8)
+
     values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
 
     if cupy and isinstance(values, cupy.ndarray):
@@ -397,7 +416,8 @@ def _colorize(agg, color_key, how, span, min_alpha, name):
 
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
-          how='eq_hist', alpha=255, min_alpha=40, span=None, name=None):
+          how='eq_hist', alpha=255, min_alpha=40, span=None, name=None,
+          color_baseline=None):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
 
     Requires a DataArray with a single data dimension, here called the
@@ -445,28 +465,55 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     alpha : int, optional
         Value between 0 - 255 representing the alpha value to use for
         colormapped pixels that contain data (i.e. non-NaN values).
+        Also used as the maximum alpha value when alpha is indicating
+        data value, such as for single colors or categorical plots.
         Regardless of this value, ``NaN`` values are set to be fully
         transparent when doing colormapping.
     min_alpha : float, optional
-        The minimum alpha value to use for non-empty pixels when doing
-        colormapping, in [0, 255].  Use a higher value to avoid
-        undersaturation, i.e. poorly visible low-value datapoints, at
-        the expense of the overall dynamic range.
+        The minimum alpha value to use for non-empty pixels when 
+        alpha is indicating data value, in [0, 255].  Use a higher value
+        to avoid undersaturation, i.e. poorly visible low-value datapoints,
+        at the expense of the overall dynamic range.
     span : list of min-max range, optional
         Min and max data values to use for colormap/alpha interpolation, when
         wishing to override autoranging.
     name : string name, optional
         Optional string name to give to the Image object to return,
         to label results for display.
+    color_baseline : float or None
+        Baseline for calculating how categorical data mixes to
+        determine the color of a pixel. The color for each category is
+        weighted by how far that category's value is above this
+        baseline value, out of the total sum across all categories'
+        values. A value of zero is appropriate for counts and for
+        other physical quantities for which zero is a meaningful
+        reference; each category then contributes to the final color
+        in proportion to how much each category contributes to the
+        final sum.  However, if values can be negative or if they are
+        on an interval scale where values e.g. twice as far from zero
+        are not twice as high (such as temperature in Farenheit), then
+        you will need to provide a suitable baseline value for use in
+        calculating color mixing.  A value of None (the default) means
+        to take the minimum across the entire aggregate array, which
+        is safe but may not weight the colors as you expect; any
+        categories with values near this baseline will contribute
+        almost nothing to the final color. As a special case, if the
+        only data present in a pixel is at the baseline level, the
+        color will be an evenly weighted average of all such
+        categories with data (to avoid the color being undefined in
+        this case).
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
     name = agg.name if name is None else name
 
+    if not ((0 <= min_alpha <= 255) and (0 <= alpha <= 255)):
+        raise ValueError("min_alpha ({}) and alpha ({}) must be between 0 and 255".format(min_alpha,alpha))
+
     if agg.ndim == 2:
         return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
     elif agg.ndim == 3:
-        return _colorize(agg, color_key, how, span, min_alpha, name)
+        return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     else:
         raise ValueError("agg must use 2D or 3D coordinates")
 

@@ -7,13 +7,14 @@ from toolz import concat, unique
 import xarray as xr
 
 from datashader.glyphs.glyph import isnull
-from .utils import Expr, ngjit
 from numba import cuda as nb_cuda
 
 try:
     import cudf
 except Exception:
     cudf = None
+
+from .utils import Expr, ngjit, nansum_missing
 
 
 class Preprocess(Expr):
@@ -151,9 +152,13 @@ class by(Reduction):
     def __init__(self, cat_column, reduction):
         self.columns = (cat_column, getattr(reduction, 'column', None))
         self.reduction = reduction
-
+        self.column = cat_column # for backwards compatibility with count_cat
+        
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.reduction))
+
+    def _build_temps(self, cuda=False):
+        return tuple(by(self.cat_column, tmp) for tmp in self.reduction._build_temps(cuda))
 
     @property
     def cat_column(self):
@@ -185,56 +190,29 @@ class by(Reduction):
 
     def _build_create(self, out_dshape):
         n_cats = len(out_dshape.measure.fields)
-        if isinstance(self.reduction, FloatingReduction):
-            return lambda shape, array_module: array_module.zeros(
-                shape + (n_cats,), dtype='f8'
-            )
-        else:
-            return lambda shape, array_module: array_module.zeros(
-                shape + (n_cats,), dtype='i4'
-            )
+        return lambda shape, array_module: self.reduction._build_create(
+            out_dshape)(shape + (n_cats,), array_module)
+
+    def _build_bases(self, cuda=False):
+        bases = self.reduction._build_bases(cuda)
+        if len(bases) == 1 and bases[0] is self:
+            return bases
+        return tuple(by(self.cat_column, base) for base in bases)
 
     def _build_append(self, dshape, schema, cuda=False):
-        ## problem is here: e.g. std does not have a _build_append method. Rather interrogate its _build_bases
-        ## as is done in the normal compile
-        f = self.reduction._build_append(dshape, schema, cuda)
-        # because we transposed, we also need to flip the
-        # order of the x/y arguments
-        if self.val_column is not None:
-            def _categorical_append(x, y, agg, field):
-                _agg = agg.transpose()
-                f(y, x, _agg[int(field[0])], field[1])
-        else:
-            def _categorical_append(x, y, agg, field):
-                _agg = agg.transpose()
-                f(y, x, _agg[int(field)])
-
-        return ngjit(_categorical_append)
-
+        return self.reduction._build_append(dshape, schema, cuda)
 
     def _build_combine(self, dshape):
-        if isinstance(self.reduction, FloatingReduction):
-            return self._combine_float
-        else:
-            return self._combine_int
-
-    @staticmethod
-    def _combine_float(aggs):
-        return aggs.sum(axis=0, dtype='f8')
-
-    @staticmethod
-    def _combine_int(aggs):
-        return aggs.sum(axis=0, dtype='i4')
+        return self.reduction._combine
 
     def _build_finalize(self, dshape):
         cats = list(dshape[self.cat_column].categories)
 
         def finalize(bases, cuda=False, **kwargs):
-            dims = kwargs['dims'] + [self.cat_column]
+            kwargs['dims'] += [self.cat_column]
+            kwargs['coords'][self.cat_column] = cats
+            return self.reduction._finalize(bases, cuda=cuda, **kwargs)
 
-            coords = kwargs['coords']
-            coords[self.cat_column] = cats
-            return xr.DataArray(bases[0], dims=dims, coords=coords)
         return finalize
 
 class count(OptionalFieldReduction):
@@ -246,7 +224,7 @@ class count(OptionalFieldReduction):
         If provided, only counts elements in ``column`` that are not ``NaN``.
         Otherwise, counts every element.
     """
-    _dshape = dshape(ct.int32)
+    _dshape = dshape(ct.uint32)
 
     # CPU append functions
     @staticmethod
@@ -275,11 +253,11 @@ class count(OptionalFieldReduction):
 
     @staticmethod
     def _create(shape, array_module):
-        return array_module.zeros(shape, dtype='i4')
+        return array_module.zeros(shape, dtype='u4')
 
     @staticmethod
     def _combine(aggs):
-        return aggs.sum(axis=0, dtype='i4')
+        return aggs.sum(axis=0, dtype='u4')
 
 
 class any(OptionalFieldReduction):
@@ -434,10 +412,8 @@ class sum(FloatingReduction):
 
     @staticmethod
     def _combine(aggs):
-        missing_vals = np.isnan(aggs)
-        all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
-        set_to_zero = missing_vals & ~all_empty
-        return np.where(set_to_zero, 0, aggs).sum(axis=0)
+        return nansum_missing(aggs, axis=0)
+
 
 class m2(FloatingReduction):
     """Sum of square differences from the mean of all elements in ``column``.
@@ -550,7 +526,7 @@ class count_cat(by):
     """
     def __init__(self, column):
         super(count_cat, self).__init__(column, count())
-        self.column = column
+
 
 class mean(Reduction):
     """Mean of all elements in ``column``.

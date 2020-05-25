@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 
 from .compatibility import _exec
-from .reductions import summary
+from .reductions import by, category_codes, summary
 from .utils import ngjit
 
 
@@ -62,7 +62,7 @@ def compile_components(agg, schema, glyph, cuda=False):
 
     create = make_create(bases, dshapes, cuda)
     info = make_info(cols)
-    append = make_append(bases, cols, calls, glyph)
+    append = make_append(bases, cols, calls, glyph, isinstance(agg, by))
     combine = make_combine(bases, dshapes, temps)
     finalize = make_finalize(bases, agg, schema, cuda)
 
@@ -98,7 +98,7 @@ def make_info(cols):
     return lambda df: tuple(c.apply(df) for c in cols)
 
 
-def make_append(bases, cols, calls, glyph):
+def make_append(bases, cols, calls, glyph, categorical):
     names = ('_{0}'.format(i) for i in count())
     inputs = list(bases) + list(cols)
     signature = [next(names) for i in inputs]
@@ -117,16 +117,30 @@ def make_append(bases, cols, calls, glyph):
         func_name = next(names)
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
-        if ndims is None:
+        if categorical and isinstance(cols[0], category_codes):
+            pass
+        elif ndims is None:
             args.extend('{0}'.format(arg_lk[i]) for i in cols)
+        elif categorical:
+            args.extend('{0}[{1}][1]'.format(arg_lk[i], subscript)
+                        for i in cols)
         else:
             args.extend('{0}[{1}]'.format(arg_lk[i], subscript)
                         for i in cols)
 
         args.extend([local_lk[i] for i in temps])
         body.append('{0}(x, y, {1})'.format(func_name, ', '.join(args)))
+
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body
+
+    # Categorical aggregate arrays need to be unpacked
+    if categorical:
+        col_index = '' if isinstance(cols[0], category_codes) else '[0]'
+        cat_var = 'cat = int({0}[{1}]{2})'.format(signature[-1], subscript, col_index)
+        aggs = ['{0} = {0}[:, :, cat]'.format(s) for s in signature[:len(calls)]]
+        body = [cat_var] + aggs + body
+
     if ndims is None:
         code = ('def append(x, y, {0}):\n'
                 '    {1}').format(', '.join(signature), '\n    '.join(body))

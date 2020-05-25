@@ -23,7 +23,6 @@ install_requires = [
     'colorcet >=0.9.0',
     'param >=1.6.0',
     'pyct[cmd]',
-    'scikit-image',
     'bokeh',
     'scipy',
 ]
@@ -31,6 +30,7 @@ install_requires = [
 examples = [
     'distributed', # dask
     'holoviews >=1.10.0',
+    'scikit-image',
     'matplotlib',
 ]
 
@@ -50,11 +50,9 @@ extras_require = {
         'networkx >=2.0',
         'streamz >=0.2.0',
         ### conda only below here
-        'cartopy',
         'graphviz',
         'python-graphviz',
         'fastparquet',
-        'geoviews',
         'python-snappy',
         'rasterio',
         'snappy',
@@ -65,7 +63,7 @@ extras_require = {
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.5.2',
     'sphinx_holoviz_theme',
-    'tornado <6.0',
+    'tornado',
     'numpydoc'
 ]
 

@@ -24,8 +24,8 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
 df_pd.cat = df_pd.cat.astype('category')
-df_pd.at[2,'f32'] = np.nan
-df_pd.at[2,'f64'] = np.nan
+df_pd.at[2,'f32'] = nan
+df_pd.at[2,'f64'] = nan
 dfs_pd = [df_pd]
 
 if "DATASHADER_TEST_GPU" in os.environ:
@@ -252,10 +252,10 @@ def test_categorical_count(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_sum(df):
-    sol = np.array([[[10, 0, 0, 0],
-                     [0, 0, 60, 0]],
-                    [[0, 35, 0, 0],
-                     [0, 0, 0, 85]]])
+    sol = np.array([[[ 10, nan, nan, nan],
+                     [nan, nan,  60, nan]],
+                    [[nan,  35, nan, nan],
+                     [nan, nan, nan,  85]]])
     out = xr.DataArray(
         sol,
         coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
@@ -266,10 +266,10 @@ def test_categorical_sum(df):
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.sum('i64')))
     assert_eq_xr(agg, out)
 
-    sol = np.array([[[8.0, 0, 0, 0],
-                     [0, 0, 60.0, 0]],
-                    [[0, 35.0, 0, 0],
-                     [0, 0, 0, 85.0]]])
+    sol = np.array([[[8.0,  nan,  nan,  nan],
+                     [nan,  nan, 60.0,  nan]],
+                    [[nan, 35.0,  nan,  nan],
+                     [nan,  nan,  nan, 85.0]]])
     out = xr.DataArray(
         sol,
         coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
@@ -282,16 +282,69 @@ def test_categorical_sum(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_max(df):
-    sol = np.array([[[4, 0, 0, 0],
-                     [0, 0, 14, 0]],
-                    [[0, 9, 0, 0],
-                     [0, 0, 0, 19]]])
+    sol = np.array([[[  4, nan, nan, nan],
+                     [nan, nan,  14, nan]],
+                    [[nan,   9, nan, nan],
+                     [nan, nan, nan,  19]]])
     out = xr.DataArray(
         sol,
         coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
         dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.max('i32')))
     assert_eq_xr(agg, out)
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_mean(df):
+    sol = np.array([[[  2, nan, nan, nan],
+                     [nan, nan,  12, nan]],
+                    [[nan,   7, nan, nan],
+                     [nan, nan, nan,  17]]])
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
+
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.mean('f32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.mean('f64')))
+    assert_eq_xr(agg, out)
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_var(df):
+    sol = np.array([[[ 2.5,  nan,  nan,  nan],
+                     [ nan,  nan,   2.,  nan]],
+                    [[ nan,   2.,  nan,  nan],
+                     [ nan,  nan,  nan,   2.]]])
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
+
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.var('f32')))
+    assert_eq_xr(agg, out, True)
+
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.var('f64')))
+    assert_eq_xr(agg, out, True)
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_std(df):
+    sol = np.sqrt(np.array([
+        [[ 2.5,  nan,  nan,  nan],
+         [ nan,  nan,   2.,  nan]],
+        [[ nan,   2.,  nan,  nan],
+         [ nan,  nan,  nan,   2.]]])
+    )
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
+        dims=(dims + ['cat']))
+    
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.std('f32')))
+    assert_eq_xr(agg, out, True)
+
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.std('f64')))
+    assert_eq_xr(agg, out, True)
 
 @pytest.mark.parametrize('df', dfs)
 def test_multiple_aggregates(df):
