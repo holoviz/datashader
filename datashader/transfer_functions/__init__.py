@@ -365,7 +365,6 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
         
     total = nansum_missing(data, axis=2)
     mask = np.isnan(total)
-
     # if span is provided, use it, otherwise produce a span based off the
     # min/max of the data
     if span is None:
@@ -384,7 +383,6 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
             # For eq_hist to work with span, we'll need to compute the histogram
             # only on the specified span's range.
             raise ValueError("span is not (yet) valid to use with eq_hist")
-
         # even in fixed-span mode cells with 0 should remain fully transparent
         # i.e. a 0 will be fully transparent, but any non-zero number will
         # be clipped to the span range and have min-alpha applied
@@ -395,7 +393,6 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
         masked_clip_2d(total, mask, *span)
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
         norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
-
     # Interpolate the alpha values
     a = interp(a_scaled, array(norm_span), array([min_alpha, alpha]),
                left=0, right=255).astype(np.uint8)
