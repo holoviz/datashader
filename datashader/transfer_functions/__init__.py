@@ -118,9 +118,14 @@ def stack(*imgs, **kwargs):
     """
     if not imgs:
         raise ValueError("No images passed in")
+    shapes = ()
     for i in imgs:
         if not isinstance(i, Image):
             raise TypeError("Expected `Image`, got: `{0}`".format(type(i)))
+        elif not shapes:
+            shapes.append(i.shape)
+        elif shapes and i.shape not in shapes:
+            raise ValueError("The stacked images must have the same shape.")
 
     name = kwargs.get('name', None)
     op = composite_op_lookup[kwargs.get('how', 'over')]
