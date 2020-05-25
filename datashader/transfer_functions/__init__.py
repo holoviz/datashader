@@ -118,7 +118,7 @@ def stack(*imgs, **kwargs):
     """
     if not imgs:
         raise ValueError("No images passed in")
-    shapes = ()
+    shapes = []
     for i in imgs:
         if not isinstance(i, Image):
             raise TypeError("Expected `Image`, got: `{0}`".format(type(i)))
