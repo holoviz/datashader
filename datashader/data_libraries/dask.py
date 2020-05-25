@@ -6,6 +6,7 @@ import dask.dataframe as dd
 from collections import OrderedDict
 from dask.base import tokenize, compute
 import numpy as np
+import pandas as pd
 
 from datashader.core import bypixel
 from datashader.compatibility import apply
@@ -79,7 +80,8 @@ def default(glyph, df, schema, canvas, summary, cuda=False):
     # Get the dataframe graph
     graph = df.__dask_graph__()
     # Guess a reasonably output dtype from combination of dataframe dtypes
-    dtype = np.result_type(*df.dtypes)
+    dtypes = (dt for dt in df.dtypes if not isinstance(dt, pd.CategoricalDtype))
+    dtype = np.result_type(*dtypes)
     # Create a meta object so that dask.array doesn't try to look
     # too closely at the type of the chunks it's wrapping
     # they're actually dataframes, tell dask they're ndarrays
