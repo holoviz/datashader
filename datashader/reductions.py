@@ -216,7 +216,7 @@ class by(Reduction):
         return finalize
 
 class count(OptionalFieldReduction):
-    """Count elements in each bin, returning the result as a unint32.
+    """Count elements in each bin, returning the result as a uint32.
 
     Parameters
     ----------
