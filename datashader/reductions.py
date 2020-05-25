@@ -123,7 +123,7 @@ class Reduction(Expr):
 
 
 class OptionalFieldReduction(Reduction):
-    """Base class for things like ``count`` or ``any``"""
+    """Base class for things like ``count`` or ``any`` for which the field is optional"""
     def __init__(self, column=None):
         self.column = column
 
@@ -216,7 +216,7 @@ class by(Reduction):
         return finalize
 
 class count(OptionalFieldReduction):
-    """Count elements in each bin.
+    """Count elements in each bin, returning the result as a uint32.
 
     Parameters
     ----------
