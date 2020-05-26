@@ -389,7 +389,7 @@ The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
         # Enable antialias if requested and if the reduction will allow it.
-        if antialias and isinstance(agg, rd.sum, rd.max):
+        if antialias and isinstance(agg, (rd.sum, rd.max)):
             glyph.enable_antialias()
         return bypixel(source, self, glyph, agg)
 
