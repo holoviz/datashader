@@ -79,8 +79,25 @@ def default(glyph, df, schema, canvas, summary, cuda=False):
     # Here be dragons
     # Get the dataframe graph
     graph = df.__dask_graph__()
-    # Guess a reasonably output dtype from combination of dataframe dtypes
-    dtypes = (dt for dt in df.dtypes if not isinstance(dt, pd.CategoricalDtype))
+
+    # Guess a reasonable output dtype from combination of dataframe dtypes
+    dtypes = []
+
+    for dt in df.dtypes:
+        if isinstance(dt, pd.CategoricalDtype):
+            continue
+        elif isinstance(dt, pd.api.extensions.ExtensionDtype):
+            # RaggedArray implementation and
+            # https://github.com/pandas-dev/pandas/issues/22224
+            try:
+                subdtype = dt.subtype
+            except AttributeError:
+                continue
+            else:
+                dtypes.append(subdtype)
+        else:
+            dtypes.append(dt)
+
     dtype = np.result_type(*dtypes)
     # Create a meta object so that dask.array doesn't try to look
     # too closely at the type of the chunks it's wrapping
