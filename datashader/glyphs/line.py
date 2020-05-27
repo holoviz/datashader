@@ -374,7 +374,7 @@ class LinesAxis1YConstant(LinesAxis1):
                 self.compute_y_bounds())
 
     @memoize
-    def _build_internal_extend(
+    def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
