@@ -669,7 +669,7 @@ def _xiaolinwu(i, x0, x1, y0, y1, append, *aggs_and_cols):
         x, y = px
         if not y < agg.shape[0] or not x < agg.shape[1]:
             return
-        _unsafe_draw_pixel(py, c)
+        _unsafe_draw_pixel(px, value)
 
     def _flipxy(px, py):
         if steep:
