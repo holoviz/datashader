@@ -751,8 +751,7 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
                         antialias):
     """Specialize a line plotting kernel for a given append/axis combination"""
     @ngjit
-    # TODO: comment back in when the implementation uses append again
-    # @expand_aggs_and_cols
+    @expand_aggs_and_cols
     def draw_segment(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
             x0, x1, y0, y1, *aggs_and_cols
