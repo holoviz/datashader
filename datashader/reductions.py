@@ -103,12 +103,11 @@ class category_modulo(category_codes):
             raise ValueError("input must be an integer column")
 
     def apply(self, df):
+        result = (df[self.column] - self.bin0) % self.modulo
         if cudf and isinstance(df, cudf.DataFrame):
-            ## dunno how to do this in CUDA, is it as simple as this?
-            # return ((df[column] - offset) % modulo).to_gpu_array()
-            raise NotImplementedError("this feature is not implemented in cudf")
+            return result.to_gpu_array()
         else:
-            return (df[self.column].values - self.bin0) % self.modulo
+            return result.values
 
 class category_binning(category_modulo):
     """
@@ -140,15 +139,12 @@ class category_binning(category_modulo):
             raise ValueError("specified column not found")
 
     def apply(self, df):
-        """
-        Helper function. Takes a DataFrame column, modulo integer value
-        """
         if cudf and isinstance(df, cudf.DataFrame):
             ## dunno how to do this in CUDA
-            raise NotImplementedError("this feature is not implemented in cudf")
+            raise NotImplementedError("this feature is not implemented in cuda")
         else:
             value = df[self.column].values
-            index = ((value - self.bin0) / self.binsize).astype(np.uint32)
+            index = ((value - self.bin0) / self.binsize).astype(int)
             index[index < 0] = self.bin_under
             index[index >= self.nbins] = self.bin_over
             index[np.isnan(value)] = self.nbins
@@ -326,7 +322,7 @@ class by(Reduction):
         return self.reduction._combine
 
     def _build_finalize(self, dshape):
-        cats = self.categorizer.categories(dshape)
+        cats = list(self.categorizer.categories(dshape))
 
         def finalize(bases, cuda=False, **kwargs):
             kwargs['dims'] += [self.cat_column]
