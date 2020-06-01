@@ -403,7 +403,7 @@ def lnglat_to_meters(longitude, latitude):
     or tuples will be converted to Numpy arrays.
 
     Examples:
-       easting, northing = lnglat_to_meters(-40.71,74)
+       easting, northing = lnglat_to_meters(-74,40.71)
 
        easting, northing = lnglat_to_meters(np.array([-74]),np.array([40.71]))
 
