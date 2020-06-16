@@ -28,10 +28,10 @@ env:
 
 stages:
   - test
-  - name: docs
-    if: tag =~ ^v(\d+|\.)*[^a-z]\d*$ OR tag = website
-  - name: docs_dev
-    if: tag =~ ^v(\d+|\.)*[a-z]\d*$ OR tag = website_dev OR commit_message =~ /^.*(website_dev).*$/
+  - name: website_dev
+    if: tag =~ ^v(\d+|\.)+[a-z]\d+$ OR tag = website_dev
+  - name: website_release
+    if: tag =~ ^v(\d+|\.)+[^a-z]\d+$ OR tag = website
   - name: conda_dev_package
     if: tag =~ ^v(\d+|\.)+[a-z]\d+$
   - name: pip_dev_package
@@ -91,7 +91,7 @@ jobs:
 
     - &doc_build
       <<: *default
-      stage: docs
+      stage: website_release
       env: HV_DOC_HTML="true" DESC="docs" OPTS="-o doc"
       script:
         - datashader fetch-data --path=examples --force
@@ -108,7 +108,7 @@ jobs:
           all_branches: true
 
     - <<: *doc_build
-      stage: docs_dev
+      stage: website_dev
       deploy:
         provider: pages
         skip_cleanup: true
