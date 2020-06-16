@@ -90,8 +90,11 @@ class category_modulo(category_codes):
 
     def __init__(self, column, modulo, offset=0):
         super().__init__(column)
-        self.bin0 = offset
+        self.offset = offset
         self.modulo = modulo
+
+    def _hashable_inputs(self):
+        return super()._hashable_inputs() + (self.offset, self.modulo)
 
     def categories(self, in_dshape):
         return list(range(self.modulo))
@@ -103,7 +106,7 @@ class category_modulo(category_codes):
             raise ValueError("input must be an integer column")
 
     def apply(self, df):
-        result = (df[self.column] - self.bin0) % self.modulo
+        result = (df[self.column] - self.offset) % self.modulo
         if cudf and isinstance(df, cudf.DataFrame):
             return result.to_gpu_array()
         else:
@@ -133,6 +136,9 @@ class category_binning(category_modulo):
         self.nbins = nbins
         self.bin_under = 0 if include_under else nbins
         self.bin_over  = nbins-1 if include_over else nbins
+
+    def _hashable_inputs(self):
+        return super()._hashable_inputs() + (self.bin0, self.binsize, self.bin_under, self.bin_over)
 
     def validate(self, in_dshape):
         if not self.column in in_dshape.dict:
@@ -278,7 +284,7 @@ class by(Reduction):
             self.preprocess = self.categorizer
 
     def __hash__(self):
-        return hash((type(self), self._hashable_inputs(), self.reduction))
+        return hash((type(self), self._hashable_inputs(), self.categorizer._hashable_inputs(), self.reduction))
 
     def _build_temps(self, cuda=False):
         return tuple(by(self.categorizer, tmp) for tmp in self.reduction._build_temps(cuda))
