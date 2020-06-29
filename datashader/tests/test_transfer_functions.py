@@ -103,13 +103,13 @@ def check_span(x, cmap, how, sol):
 
     # zero out smallest. If span is working properly the zeroed out pixel
     # will be masked out and all other pixels will remain unchanged
-    x[0, 1] = 0 if x.dtype.kind == 'i' else np.nan
+    x[0, 1] = 0 if x.dtype.kind in ('i', 'u') else np.nan
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
     sol[0, 1] = sol[0, 0]
     assert_eq_xr(img, sol)
 
     # zero out the largest value
-    x[2, 1] = 0 if x.dtype.kind == 'i' else np.nan
+    x[2, 1] = 0 if x.dtype.kind in ('i', 'u') else np.nan
     img = tf.shade(x, cmap=cmap, how=how, span=float_span)
     sol[2, 1] = sol[0, 0]
     assert_eq_xr(img, sol)
@@ -355,7 +355,7 @@ def test_shade_category(array):
                               [(12, 12, 12), (24, 0, 0)]], dtype='u4'),
                            coords=(coords + [['a', 'b', 'c']]),
                            dims=(dims + ['cats']))
-    
+
     # First test auto-span
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=20)
     sol = np.array([[5584810, 335565567],
