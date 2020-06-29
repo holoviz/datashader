@@ -159,9 +159,9 @@ def nansum_missing(array, axis):
     T = list(range(array.ndim))
     T.remove(axis)
     T.insert(0, axis)
-    array = np.asarray(array).transpose(T)
+    array = array.transpose(T)
     missing_vals = np.isnan(array)
-    all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
+    all_empty = np.all(missing_vals, axis=0)
     set_to_zero = missing_vals & ~all_empty
     return np.where(set_to_zero, 0, array).sum(axis=0)
 
