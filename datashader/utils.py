@@ -430,7 +430,12 @@ def dshape_from_pandas_helper(col):
             isinstance(col.dtype, pd.api.types.CategoricalDtype) or
             cudf and isinstance(col.dtype, cudf.core.dtypes.CategoricalDtype)):
         # Compute category dtype
-        categories = np.array(col.cat.categories)
+        pd_categories = col.cat.categories
+        if cudf and not isinstance(pd_categories, pd.Index):
+            pd_categories = pd_categories.to_pandas()
+
+        categories = np.array(pd_categories)
+
         if categories.dtype.kind == 'U':
             categories = categories.astype('object')
 
