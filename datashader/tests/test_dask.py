@@ -283,7 +283,7 @@ def test_categorical_mean(ddf):
 
 @pytest.mark.parametrize('ddf', ddfs)
 def test_categorical_var(ddf):
-    if cudf and isinstance(ddf.meta, cudf.DataFrame):
+    if cudf and isinstance(ddf._meta, cudf.DataFrame):
         pytest.skip(
             "The 'var' reduction is yet supported on the GPU"
         )
@@ -305,7 +305,7 @@ def test_categorical_var(ddf):
 
 @pytest.mark.parametrize('ddf', ddfs)
 def test_categorical_std(ddf):
-    if cudf and isinstance(ddf.meta, cudf.DataFrame):
+    if cudf and isinstance(ddf._meta, cudf.DataFrame):
         pytest.skip(
             "The 'std' reduction is yet supported on the GPU"
         )
