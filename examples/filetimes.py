@@ -74,7 +74,7 @@ def benchmark(fn, args, filetype=None):
     if DEBUG:
         printable_posargs = ', '.join([str(posarg.head()) if hasattr(posarg, 'head') else str(posarg) for posarg in posargs])
         printable_kwargs = ', '.join(['{}={}'.format(k, v) for k,v in kwargs.items()])
-        print('DEBUG: {}({}{})'.format(fn.__name__, printable_posargs, ', '+printable_kwargs if printable_kwargs else '', flush=True))
+        print('DEBUG: {}({}{})'.format(fn.__name__, printable_posargs, ', '+printable_kwargs if printable_kwargs else ''), flush=True)
 
     # Benchmark fn when run on posargs and kwargs
     start = time.time()
@@ -105,7 +105,7 @@ def benchmark(fn, args, filetype=None):
     end = time.time()
 
     return end-start, res
-    
+
 
 
 read = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","h5","csv"]])
@@ -211,7 +211,7 @@ def timed_write(filepath,dftype,fsize='double',output_directory="times"):
                 for c in p.categories:
                     df[c]=df[c].astype('category')
 
-        
+
 def timed_read(filepath,dftype):
     basename, extension = os.path.splitext(filepath)
     extension = extension[1:]
@@ -222,9 +222,9 @@ def timed_read(filepath,dftype):
         return (None, -1)
 
     p.columns=[p.x]+[p.y]+p.categories
-    
+
     duration, df = code(filepath,p,filetype)
-    
+
     return df, duration
 
 
@@ -316,7 +316,7 @@ def main(argv):
     DEBUG = args.debug
 
     if DEBUG:
-        print('DEBUG: Memory usage (before read):\t{} MB'.format(get_proc_mem(), flush=True))
+        print('DEBUG: Memory usage (before read):\t{} MB'.format(get_proc_mem()), flush=True)
     df,loadtime = timed_read(filepath, p.dftype)
 
     if df is None:
@@ -325,7 +325,7 @@ def main(argv):
         return 1
 
     if DEBUG:
-        print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem(), flush=True))
+        print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem()), flush=True)
 
     img,aggtime1 = timed_agg(df,filepath,5,5,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
@@ -334,18 +334,18 @@ def main(argv):
             mem_usage = mem_usage.compute()
         print('DEBUG:', mem_usage, flush=True)
         mem_usage_total = mem_usage.sum()
-        print('DEBUG: DataFrame size:\t\t\t{} MB'.format(mem_usage_total / 1e6, flush=True))
+        print('DEBUG: DataFrame size:\t\t\t{} MB'.format(mem_usage_total / 1e6), flush=True)
         for colname in df.columns:
             print('DEBUG: column "{}" dtype: {}'.format(colname, df[colname].dtype))
-        print('DEBUG: Memory usage (after agg1):\t{} MB'.format(get_proc_mem(), flush=True))
+        print('DEBUG: Memory usage (after agg1):\t{} MB'.format(get_proc_mem()), flush=True)
 
     img,aggtime2 = timed_agg(df,filepath,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
-        print('DEBUG: Memory usage (after agg2):\t{} MB'.format(get_proc_mem(), flush=True))
-    
+        print('DEBUG: Memory usage (after agg2):\t{} MB'.format(get_proc_mem()), flush=True)
+
     in_size  = get_size(filepath)
     out_size = get_size(filepath+".png")
-    
+
     global_end = time.time()
     print("{:28} {:6}  Aggregate1:{:06.2f} ({:06.2f}+{:06.2f})  Aggregate2:{:06.2f}  In:{:011d}  Out:{:011d}  Total:{:06.2f}"\
           .format(filepath, p.dftype, loadtime+aggtime1, loadtime, aggtime1, aggtime2, in_size, out_size, global_end-global_start), flush=True)

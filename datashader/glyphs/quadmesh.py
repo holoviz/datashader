@@ -268,9 +268,9 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 offset_x, offset_y, out_w, out_h, agg, col
         ):
             for out_j in prange(out_h):
-                src_j = math.floor(scale_y * (out_j + 0.5) + translate_y - offset_y)
+                src_j = int(math.floor(scale_y * (out_j + 0.5) + translate_y - offset_y))
                 for out_i in range(out_w):
-                    src_i = math.floor(scale_x * (out_i + 0.5) + translate_x - offset_x)
+                    src_i = int(math.floor(scale_x * (out_i + 0.5) + translate_x - offset_x))
                     if src_j < 0 or src_j >= src_h or src_i < 0 or src_i >= src_w:
                         agg[out_j, out_i] = np.nan
                     else:
@@ -297,19 +297,19 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 offset_x, offset_y, out_w, out_h, *aggs_and_cols
         ):
             for out_j in prange(out_h):
-                src_j0 = max(
+                src_j0 = int(max(
                     math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y), 0
-                )
-                src_j1 = min(
+                ))
+                src_j1 = int(min(
                     math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
-                )
+                ))
                 for out_i in range(out_w):
-                    src_i0 = max(
+                    src_i0 = int(max(
                         math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
-                    )
-                    src_i1 = min(
+                    ))
+                    src_i1 = int(min(
                         math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
-                    )
+                    ))
                     for src_j in range(src_j0, src_j1):
                         for src_i in range(src_i0, src_i1):
                             append(src_j, src_i, out_i, out_j, *aggs_and_cols)
