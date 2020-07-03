@@ -30,6 +30,15 @@ except ImportError:
     GeometryDtype = type(None)
 
 
+class VisibleDeprecationWarning(UserWarning):
+    """Visible deprecation warning.
+
+    By default, python will not show deprecation warnings, so this class
+    can be used when a very visible warning is helpful, for example because
+    the usage is most likely a user bug.
+    """
+
+
 ngjit = nb.jit(nopython=True, nogil=True)
 ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
 
@@ -132,6 +141,29 @@ def isreal(dt):
     """
     dt = datashape.predicates.launder(dt)
     return isinstance(dt, datashape.Unit) and dt in datashape.typesets.real
+
+
+def nansum_missing(array, axis):
+    """nansum where all-NaN values remain NaNs.
+
+    Note: In NumPy <=1.9 NaN is returned for slices that are
+    all NaN, while later versions return 0. This function emulates
+    the older behavior, which allows using NaN as a missing value
+    indicator.
+
+    Parameters
+    ----------
+    array: Array to sum over
+    axis:  Axis to sum over
+    """
+    T = list(range(array.ndim))
+    T.remove(axis)
+    T.insert(0, axis)
+    array = array.transpose(T)
+    missing_vals = np.isnan(array)
+    all_empty = np.all(missing_vals, axis=0)
+    set_to_zero = missing_vals & ~all_empty
+    return np.where(set_to_zero, 0, array).sum(axis=0)
 
 
 def calc_res(raster):
@@ -371,7 +403,7 @@ def lnglat_to_meters(longitude, latitude):
     or tuples will be converted to Numpy arrays.
 
     Examples:
-       easting, northing = lnglat_to_meters(-40.71,74)
+       easting, northing = lnglat_to_meters(-74,40.71)
 
        easting, northing = lnglat_to_meters(np.array([-74]),np.array([40.71]))
 
@@ -398,7 +430,14 @@ def dshape_from_pandas_helper(col):
             isinstance(col.dtype, pd.api.types.CategoricalDtype) or
             cudf and isinstance(col.dtype, cudf.core.dtypes.CategoricalDtype)):
         # Compute category dtype
-        categories = np.array(col.cat.categories)
+        pd_categories = col.cat.categories
+        if isinstance(pd_categories, dd.Index):
+            pd_categories = pd_categories.compute()
+        if cudf and isinstance(pd_categories, cudf.Index):
+            pd_categories = pd_categories.to_pandas()
+
+        categories = np.array(pd_categories)
+
         if categories.dtype.kind == 'U':
             categories = categories.astype('object')
 

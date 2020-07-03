@@ -1,12 +1,14 @@
 from __future__ import division, absolute_import
+
 import os
 
-from dask.context import config
 import dask.dataframe as dd
 import numpy as np
-from numpy import nan
 import pandas as pd
 import xarray as xr
+
+from dask.context import config
+from numpy import nan
 
 import datashader as ds
 import datashader.utils as du
@@ -236,10 +238,10 @@ def test_count_cat(ddf):
 
 @pytest.mark.parametrize('ddf', ddfs)
 def test_categorical_sum(ddf):
-    sol = np.array([[[10, 0, 0, 0],
-                     [0, 0, 60, 0]],
-                    [[0, 35, 0, 0],
-                     [0, 0, 0, 85]]])
+    sol = np.array([[[ 10, nan, nan, nan],
+                     [nan, nan,  60, nan]],
+                    [[nan,  35, nan, nan],
+                     [nan, nan, nan,  85]]])
     out = xr.DataArray(
         sol, coords=(coords + [['a', 'b', 'c', 'd']]), dims=(dims + ['cat'])
     )
@@ -249,10 +251,10 @@ def test_categorical_sum(ddf):
     agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.sum('i64')))
     assert_eq_xr(agg, out)
 
-    sol = np.array([[[8.0, 0, 0, 0],
-                     [0, 0, 60.0, 0]],
-                    [[0, 35.0, 0, 0],
-                     [0, 0, 0, 85.0]]])
+    sol = np.array([[[8.0,  nan,  nan,  nan],
+                     [nan,  nan, 60.0,  nan]],
+                    [[nan, 35.0,  nan,  nan],
+                     [nan,  nan,  nan, 85.0]]])
     out = xr.DataArray(
         sol, coords=(coords + [['a', 'b', 'c', 'd']]), dims=(dims + ['cat'])
     )
@@ -261,6 +263,69 @@ def test_categorical_sum(ddf):
 
     agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.sum('f64')))
     assert_eq_xr(agg, out)
+
+@pytest.mark.parametrize('ddf', ddfs)
+def test_categorical_mean(ddf):
+    sol = np.array([[[  2, nan, nan, nan],
+                     [nan, nan,  12, nan]],
+                    [[nan,   7, nan, nan],
+                     [nan, nan, nan,  17]]])
+    out = xr.DataArray(
+        sol,
+        coords=(coords + [['a', 'b', 'c', 'd']]),
+        dims=(dims + ['cat']))
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.mean('f32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.mean('f64')))
+    assert_eq_xr(agg, out)
+
+@pytest.mark.parametrize('ddf', ddfs)
+def test_categorical_var(ddf):
+    if cudf and isinstance(ddf._meta, cudf.DataFrame):
+        pytest.skip(
+            "The 'var' reduction is yet supported on the GPU"
+        )
+
+    sol = np.array([[[ 2.5,  nan,  nan,  nan],
+                     [ nan,  nan,   2.,  nan]],
+                    [[ nan,   2.,  nan,  nan],
+                     [ nan,  nan,  nan,   2.]]])
+    out = xr.DataArray(
+        sol,
+        coords=(coords + [['a', 'b', 'c', 'd']]),
+        dims=(dims + ['cat']))
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.var('f32')))
+    assert_eq_xr(agg, out, True)
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.var('f64')))
+    assert_eq_xr(agg, out, True)
+
+@pytest.mark.parametrize('ddf', ddfs)
+def test_categorical_std(ddf):
+    if cudf and isinstance(ddf._meta, cudf.DataFrame):
+        pytest.skip(
+            "The 'std' reduction is yet supported on the GPU"
+        )
+
+    sol = np.sqrt(np.array([
+        [[ 2.5,  nan,  nan,  nan],
+         [ nan,  nan,   2.,  nan]],
+        [[ nan,   2.,  nan,  nan],
+         [ nan,  nan,  nan,   2.]]])
+    )
+    out = xr.DataArray(
+        sol,
+        coords=(coords + [['a', 'b', 'c', 'd']]),
+        dims=(dims + ['cat']))
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.std('f32')))
+    assert_eq_xr(agg, out, True)
+
+    agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.std('f64')))
+    assert_eq_xr(agg, out, True)
 
 @pytest.mark.parametrize('ddf', ddfs)
 def test_multiple_aggregates(ddf):

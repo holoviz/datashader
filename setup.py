@@ -15,15 +15,14 @@ install_requires = [
     'dask[complete] >=0.18.0',
     'toolz >=0.7.4',  # ? for some dask issue (dasks does only >=0.7.3)
     'datashape >=0.5.1',
-    'numba >=0.37.0',
+    'numba >=0.37.0,<0.49',
     'numpy >=1.7',
     'pandas >=0.24.1',
     'pillow >=3.1.1',
     'xarray >=0.9.6',
     'colorcet >=0.9.0',
     'param >=1.6.0',
-    'pyct[cmd]',
-    'scikit-image',
+    'pyct[cmd] ==0.4.6',
     'bokeh',
     'scipy',
 ]
@@ -31,6 +30,7 @@ install_requires = [
 examples = [
     'distributed', # dask
     'holoviews >=1.10.0',
+    'scikit-image',
     'matplotlib',
 ]
 
@@ -50,11 +50,9 @@ extras_require = {
         'networkx >=2.0',
         'streamz >=0.2.0',
         ### conda only below here
-        'cartopy',
         'graphviz',
         'python-graphviz',
         'fastparquet',
-        'geoviews',
         'python-snappy',
         'rasterio',
         'snappy',
@@ -65,7 +63,7 @@ extras_require = {
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.5.2',
     'sphinx_holoviz_theme',
-    'tornado <6.0',
+    'tornado',
     'numpydoc'
 ]
 
