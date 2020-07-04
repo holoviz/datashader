@@ -186,7 +186,8 @@ class category_values(CategoryPreprocess):
                 nullval = np.nan
             else:
                 nullval = 0
-            b = df[self.column].to_gpu_array(fillna=nullval)
+            a = cupy.asarray(a)
+            b = cupy.asarray(df[self.column].to_gpu_array(fillna=nullval))
             return cupy.stack((a, b), axis=-1)
         else:
             b = df[self.column].values

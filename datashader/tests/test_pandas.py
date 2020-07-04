@@ -312,6 +312,11 @@ def test_categorical_mean(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_var(df):
+    if cudf and isinstance(df, cudf.DataFrame):
+        pytest.skip(
+            "The 'var' reduction is yet supported on the GPU"
+        )
+
     sol = np.array([[[ 2.5,  nan,  nan,  nan],
                      [ nan,  nan,   2.,  nan]],
                     [[ nan,   2.,  nan,  nan],
@@ -329,6 +334,11 @@ def test_categorical_var(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_std(df):
+    if cudf and isinstance(df, cudf.DataFrame):
+        pytest.skip(
+            "The 'std' reduction is yet supported on the GPU"
+        )
+
     sol = np.sqrt(np.array([
         [[ 2.5,  nan,  nan,  nan],
          [ nan,  nan,   2.,  nan]],
@@ -339,7 +349,7 @@ def test_categorical_std(df):
         sol,
         coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
         dims=(dims + ['cat']))
-    
+
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.std('f32')))
     assert_eq_xr(agg, out, True)
 
