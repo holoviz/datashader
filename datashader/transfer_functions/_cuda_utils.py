@@ -76,18 +76,18 @@ def masked_clip_2d(data, mask, lower, upper):
 # np.nanmax/np.nanmin
 if LooseVersion(numba.__version__) >= LooseVersion("0.51.0"):
     @cuda.jit
-    def cuda_atomic_nanmin(ary, idx, val)
+    def cuda_atomic_nanmin(ary, idx, val):
         return cuda.atomic.nanmin(ary, idx, val)
     @cuda.jit
-    def cuda_atomic_nanmax(ary, idx, val)
+    def cuda_atomic_nanmax(ary, idx, val):
         return cuda.atomic.nanmax(ary, idx, val)
 elif LooseVersion(numba.__version__) <= LooseVersion("0.49.0"):
     @cuda.jit
-    def cuda_atomic_nanmin(ary, idx, val)
+    def cuda_atomic_nanmin(ary, idx, val):
         return cuda.atomic.min(ary, idx, val)
 
     @cuda.jit
-    def cuda_atomic_nanmax(ary, idx, val)
+    def cuda_atomic_nanmax(ary, idx, val):
         return cuda.atomic.max(ary, idx, val)
 else:
     # WHAT DO YOU WANT TO DO HERE?
@@ -99,8 +99,8 @@ def masked_clip_2d_kernel(data, mask, lower, upper):
     i, j = cuda.grid(2)
     maxi, maxj = data.shape
     if i >= 0 and i < maxi and j >= 0 and j < maxj and not mask[i, j]:
-        cuda_atomic_max(data, (i, j), lower)
-        cuda_atomic_min(data, (i, j), upper)
+        cuda_atomic_nanmax(data, (i, j), lower)
+        cuda_atomic_nanmin(data, (i, j), upper)
 
 
 # interp
