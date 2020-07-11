@@ -67,6 +67,7 @@ jobs:
           fi
         # Install rasterio using pip to avoid conda solver errors
         - pip install rasterio
+        - pip install git+https://github.com/stuartarchibald/numba.git@fix/cuda_atomic_nanminmax
         - doit env_capture
       script:
         - doit test_all
