@@ -508,7 +508,7 @@ class max(FloatingReduction):
     @staticmethod
     @ngjit
     def _append_cuda(x, y, agg, field):
-        nb_cuda.nanmax(agg, (y, x), field)
+        nb_cuda.atomic.nanmax(agg, (y, x), field)
 
     @staticmethod
     def _combine(aggs):
