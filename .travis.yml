@@ -69,6 +69,8 @@ jobs:
         - pip install rasterio
         - doit env_capture
       script:
+        - conda list --full-name cupy --json
+        - python -c "import cupy; print(cupy.__version__)"
         - doit test_all
         - export NUMBA_DISABLE_JIT=1; doit test_unit_nojit
       after_success: codecov
