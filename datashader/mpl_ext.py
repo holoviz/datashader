@@ -24,14 +24,14 @@ class DSArtist(mimage._ImageBase):
         self.pipeline = pipeline
 
         if extent is not None:
-            ax.set_ylim(extent[0], extent[1])
-            ax.set_xlim(extent[2], extent[3])
+            ax.set_xlim(extent[0], extent[1])
+            ax.set_ylim(extent[2], extent[3])
         else:
             x_col = self.pipeline.glyph.x_label
             y_col = self.pipeline.glyph.y_label
             df = self.pipeline.df
-            ax.set_ylim((df[y_col].min(), df[y_col].max()))
             ax.set_xlim((df[x_col].min(), df[x_col].max()))
+            ax.set_ylim((df[y_col].min(), df[y_col].max()))
 
         self.axes = ax
         self.set_array([[1, 1], [1, 1]])
@@ -99,7 +99,8 @@ class DSArtist(mimage._ImageBase):
         )
 
     def get_extent(self):
-        return (*self.axes.get_xlim(), *self.axes.get_ylim())
+        (x1, x2), (y1, y2) = self.axes.get_xlim(), self.axes.get_ylim()
+        return x1, x2, y1, y2
 
     def get_cursor_data(self, event):
         """Get the cursor data for a given event"""
