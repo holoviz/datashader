@@ -56,16 +56,29 @@ class DSArtist(mimage._ImageBase):
         bins = bypixel(self.pipeline.df, canvas, self.pipeline.glyph, self.pipeline.agg)
         bins = self.pipeline.transform_fn(bins)
 
-        # infer the colormap
-        vmin = bins.min()
-        vmax = bins.max()
-        vramp = np.linspace(vmin, vmax, 256)
-        cramp = self.pipeline.color_fn(tf.Image(vramp[:, np.newaxis])).data.ravel()
-        colors = uint32_to_uint8(cramp)
-        cmap = mpl.colors.ListedColormap(colors / 256, name="from_datashader")
-        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-        self.set_norm(norm)
-        self.set_cmap(cmap)
+        # infer the colormap or legend depending on aggregation
+        if len(bins.shape) == 3:
+            cdata = np.eye(bins.shape[-1])[:, np.newaxis]
+            agg_name, agg_index = list(bins.indexes.items())[-1]
+            cpalette = self.pipeline.color_fn(
+                tf.Image(cdata, dims=bins.dims).reindex({agg_name: agg_index})
+            )
+            colors = uint32_to_uint8(cpalette.data.ravel())
+            colors[:, -1] = 255  # set alpha to max
+            for lab, col in zip(agg_index.values, colors):
+                # TODO: remove colormap and use categorical legend
+                pass
+
+        else:
+            vmin = bins.min()
+            vmax = bins.max()
+            vramp = np.linspace(vmin, vmax, 256)
+            cramp = da.pipeline.color_fn(tf.Image(vramp[:, np.newaxis])).data.ravel()
+            colors = uint32_to_uint8(cramp)
+            cmap = mpl.colors.ListedColormap(colors / 256, name="from_datashader")
+            norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+            da.set_norm(norm)
+            da.set_cmap(cmap)
 
         # shading part of pipeline
         img = self.pipeline.color_fn(bins)
