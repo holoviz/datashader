@@ -8,8 +8,8 @@ import xarray as xr
 
 from datashader.glyphs.glyph import isnull
 from numba import cuda as nb_cuda
-from datashader.transfer_functions._cuda_utils import (cuda_atomic_nanmin,
-                                                       cuda_atomic_nanmax)
+#from datashader.transfer_functions._cuda_utils import (cuda_atomic_nanmin,
+#                                                       cuda_atomic_nanmax)
 
 try:
     import cudf
@@ -481,7 +481,7 @@ class min(FloatingReduction):
     @staticmethod
     @ngjit
     def _append_cuda(x, y, agg, field):
-        cuda_atomic_nanmin(agg, (y, x), field)
+        nb_cuda.atomic.nanmax(agg, (y, x), field)
 
     @staticmethod
     def _combine(aggs):
@@ -508,7 +508,7 @@ class max(FloatingReduction):
     @staticmethod
     @ngjit
     def _append_cuda(x, y, agg, field):
-        cuda_atomic_nanmax(agg, (y, x), field)
+        nb_cuda.nanmax(agg, (y, x), field)
 
     @staticmethod
     def _combine(aggs):
