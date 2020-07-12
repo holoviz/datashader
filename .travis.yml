@@ -73,12 +73,6 @@ jobs:
         - export NUMBA_DISABLE_JIT=1; doit test_unit_nojit
       after_success: codecov
 
-    # python 2 flake checking typically catches python 2 syntax
-    # errors where python 3's been assumed...
-    - <<: *default
-      env: DESC="py2 flakes" PYTHON_VERSION=2.7 OPTS=""
-      script: doit test_lint
-
     # test using python 3.7
     - <<: *default
       env: PYTHON_VERSION=3.7
