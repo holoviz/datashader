@@ -60,6 +60,8 @@ jobs:
         - doit env_create $CHANS_DEV --python=$PYTHON_VERSION --name=$PYTHON_VERSION
         - source activate $PYTHON_VERSION
         - doit develop_install $CHANS_DEV $OPTS
+        - conda list --full-name cupy --json
+        - python -c "import cupy; print(cupy.__version__)"
         # https://numba.pydata.org/numba-doc/latest/user/installing.html#installing-from-source
         - pip install git+https://github.com/stuartarchibald/numba.git@fix/cuda_atomic_nanminmax
         # - git clone git://github.com/numba/numba.git
