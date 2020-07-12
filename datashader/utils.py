@@ -159,9 +159,9 @@ def nansum_missing(array, axis):
     T = list(range(array.ndim))
     T.remove(axis)
     T.insert(0, axis)
-    array = np.asarray(array).transpose(T)
+    array = array.transpose(T)
     missing_vals = np.isnan(array)
-    all_empty = np.bitwise_and.reduce(missing_vals, axis=0)
+    all_empty = np.all(missing_vals, axis=0)
     set_to_zero = missing_vals & ~all_empty
     return np.where(set_to_zero, 0, array).sum(axis=0)
 
@@ -430,7 +430,14 @@ def dshape_from_pandas_helper(col):
             isinstance(col.dtype, pd.api.types.CategoricalDtype) or
             cudf and isinstance(col.dtype, cudf.core.dtypes.CategoricalDtype)):
         # Compute category dtype
-        categories = np.array(col.cat.categories)
+        pd_categories = col.cat.categories
+        if isinstance(pd_categories, dd.Index):
+            pd_categories = pd_categories.compute()
+        if cudf and isinstance(pd_categories, cudf.Index):
+            pd_categories = pd_categories.to_pandas()
+
+        categories = np.array(pd_categories)
+
         if categories.dtype.kind == 'U':
             categories = categories.astype('object')
 

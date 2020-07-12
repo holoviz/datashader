@@ -70,8 +70,8 @@ class category_values(Preprocess):
                 nullval = np.nan
             else:
                 nullval = 0
-            a = df[self.columns[0]].cat.codes.to_gpu_array()
-            b = df[self.columns[1]].to_gpu_array(fillna=nullval)
+            a = cupy.asarray(df[self.columns[0]].cat.codes.to_gpu_array())
+            b = cupy.asarray(df[self.columns[1]].to_gpu_array(fillna=nullval))
             return cupy.stack((a, b), axis=-1)
         else:
             a = df[self.columns[0]].cat.codes.values
@@ -155,7 +155,7 @@ class by(Reduction):
         self.columns = (cat_column, getattr(reduction, 'column', None))
         self.reduction = reduction
         self.column = cat_column # for backwards compatibility with count_cat
-        
+
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.reduction))
 
