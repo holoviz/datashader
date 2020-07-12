@@ -60,12 +60,6 @@ jobs:
         - doit env_create $CHANS_DEV --python=$PYTHON_VERSION --name=$PYTHON_VERSION
         - source activate $PYTHON_VERSION
         - doit develop_install $CHANS_DEV $OPTS
-        - conda list --full-name cupy --json
-        - python -c "import cupy; print(cupy.__version__)"
-        # https://numba.pydata.org/numba-doc/latest/user/installing.html#installing-from-source
-        - pip install git+https://github.com/stuartarchibald/numba.git@fix/cuda_atomic_nanminmax
-        # - git clone git://github.com/numba/numba.git
-        # - cd numba && python setup.py install && cd ..
         # Install spatialpandas here because it's python 3 only and requires
         # conda-forge for some dependencies
         - if [[ "$PYTHON_VERSION" != "2.7" ]]; then
@@ -75,6 +69,12 @@ jobs:
         - pip install rasterio
         - doit env_capture
       script:
+        - conda list --full-name cupy --json
+        - python -c "import cupy; print(cupy.__version__)"
+        # https://numba.pydata.org/numba-doc/latest/user/installing.html#installing-from-source
+        - pip install git+https://github.com/stuartarchibald/numba.git@fix/cuda_atomic_nanminmax
+        # - git clone git://github.com/numba/numba.git
+        # - cd numba && python setup.py install && cd ..
         - doit test_all
         - export NUMBA_DISABLE_JIT=1; doit test_unit_nojit
       after_success: codecov
