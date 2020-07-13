@@ -15,9 +15,15 @@ def uint32_to_uint8(img):
 
 class DSArtist(mimage._ImageBase):
     def __init__(
-        self, ax, pipeline, initial_x_range=None, initial_y_range=None, **kwargs
+        self,
+        ax,
+        pipeline,
+        initial_x_range=None,
+        initial_y_range=None,
+        origin="lower",
+        **kwargs
     ):
-        super().__init__(ax, **kwargs)
+        super().__init__(ax, origin=origin, **kwargs)
         self.pipeline = pipeline
         df = self.pipeline.df
 
@@ -59,7 +65,7 @@ class DSArtist(mimage._ImageBase):
         binned = self.pipeline.transform_fn(binned)
 
         # save the binned data for cursor events
-        self._ds_data = np.flipud(binned.data)
+        self._ds_data = binned.data
 
         # infer the colormap or legend depending on aggregation
         if len(bins.shape) == 3:
@@ -92,7 +98,7 @@ class DSArtist(mimage._ImageBase):
         # save the uint32 image DataArray for inspection
         self._ds_image = img
 
-        rgba = np.flipud(uint32_to_uint8(img.data))
+        rgba = uint32_to_uint8(img.data)
         rgba = np.ma.masked_array(rgba)
         # self.set_clim(vmin, vmax)
         self.set_array(rgba)
