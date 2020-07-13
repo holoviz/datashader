@@ -14,18 +14,23 @@ def uint32_to_uint8(img):
 
 
 class DSArtist(mimage._ImageBase):
-    def __init__(self, ax, pipeline, extent=None, **kwargs):
+    def __init__(
+        self, ax, pipeline, initial_x_range=None, initial_y_range=None, **kwargs
+    ):
         super().__init__(ax, **kwargs)
         self.pipeline = pipeline
+        df = self.pipeline.df
 
-        if extent is not None:
-            ax.set_xlim(extent[0], extent[1])
-            ax.set_ylim(extent[2], extent[3])
+        if initial_x_range is not None:
+            ax.set_xlim(initial_x_range)
         else:
             x_col = self.pipeline.glyph.x_label
-            y_col = self.pipeline.glyph.y_label
-            df = self.pipeline.df
             ax.set_xlim((df[x_col].min(), df[x_col].max()))
+
+        if initial_y_range is not None:
+            ax.set_ylim(initial_y_range)
+        else:
+            y_col = self.pipeline.glyph.y_label
             ax.set_ylim((df[y_col].min(), df[y_col].max()))
 
         self.axes = ax
@@ -48,7 +53,9 @@ class DSArtist(mimage._ImageBase):
             x_range=(x1, x2),
             y_range=(y1, y2),
         )
-        binned = bypixel(self.pipeline.df, canvas, self.pipeline.glyph, self.pipeline.agg)
+        binned = bypixel(
+            self.pipeline.df, canvas, self.pipeline.glyph, self.pipeline.agg
+        )
         binned = self.pipeline.transform_fn(binned)
 
         # save the binned data for cursor events
