@@ -220,8 +220,8 @@ def calc_bbox(xs, ys, res):
 
 
 def calc_res3d(volume):
-    """Calculate the resolution of xarray.DataArray raster and return
-    it as the two-tuple (xres, yres, zres).
+    """Calculate the resolution of xarray.DataArray volume and return
+    it as the three-tuple (xres, yres, zres).
     """
     d, h, w = volume.shape[-3:]
     zdim, ydim, xdim = volume.dims[-3:]
@@ -321,6 +321,37 @@ def orient_array(raster, res=None, layer=None):
     return array
 
 
+def orient_array3d(volume, res=None):
+    """
+    Reorients the array to a canonical orientation depending on
+    whether the x, y and z-resolution values are positive or negative.
+
+    Parameters
+    ----------
+    volume : DataArray
+        xarray DataArray to be reoriented
+    res : tuple
+        Three-tuple (int, int, int) which includes x, y and z resolutions
+        (aka "grid/cell sizes"), respectively.
+
+    Returns
+    -------
+    array : numpy.ndarray
+        Reoriented 3d NumPy ndarray
+    """
+    if res is None:
+        res = calc_res3d(volume)
+    array = volume.data
+    if layer is not None: array = array[layer-1]
+    r0zero = np.timedelta64(0, 'ns') if isinstance(res[0], np.timedelta64) else 0
+    r1zero = np.timedelta64(0, 'ns') if isinstance(res[1], np.timedelta64) else 0
+    r2zero = np.timedelta64(0, 'ns') if isinstance(res[2], np.timedelta64) else 0
+    if res[0] < r0zero: array = array[:, :, ::-1]
+    if res[1] < r1zero: array = array[:, ::-1]
+    if res[2] < r2zero: array = array[::-1]
+    return array
+
+
 def compute_coords(width, height, x_range, y_range, res):
     """
     Computes DataArray coordinates at bin centers
@@ -393,7 +424,7 @@ def compute_coords3d(width, height, depth, x_range, y_range, z_range, res):
     (x0, x1), (y0, y1), (z0, z1) = x_range, y_range, z_range
     xd = (x1-x0)/float(width)
     yd = (y1-y0)/float(height)
-    zd = (z1-z0)/float(height)
+    zd = (z1-z0)/float(depth)
     xpad, ypad, zpad = abs(xd/2.), abs(yd/2.), abs(zd/2.)
     x0, x1 = x0+xpad, x1-xpad
     y0, y1 = y0+ypad, y1-ypad

@@ -14,7 +14,7 @@ from collections import OrderedDict
 from .utils import (
     Dispatcher, ngjit, calc_res, calc_bbox, orient_array,
     compute_coords, calc_res3d, calc_bbox3d, compute_coords3d,
-    dshape_from_xarray_dataset,
+    dshape_from_xarray_dataset, orient_array3d
 )
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
@@ -1190,12 +1190,11 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         if self.plot_depth is None:
             raise ValueError("Supply plot_depth to Canvas to aggregate in 3D.")
 
-        array = source.data
-
         res = calc_res3d(source)
         zdim, ydim, xdim = source.dims[-3:]
         xvals, yvals, zvals = (source[dim].values for dim in (xdim, ydim, zdim))
         left, bottom, back, right, top, front = calc_bbox3d(xvals, yvals, zvals, res)
+        array = orient_array3d(source, res)
         dtype = array.dtype
 
         if nan_value is not None:
