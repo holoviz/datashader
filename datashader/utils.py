@@ -167,8 +167,8 @@ def nansum_missing(array, axis):
 
 
 def calc_res(raster):
-    """Calculate the resolution of xarray.DataArray raster and return it as the
-    two-tuple (xres, yres).
+    """Calculate the resolution of xarray.DataArray raster and return
+    it as the two-tuple (xres, yres).
     """
     h, w = raster.shape[-2:]
     ydim, xdim = raster.dims[-2:]
@@ -217,6 +217,47 @@ def calc_bbox(xs, ys, res):
         if y > ymax: ymax = y
     xpad, ypad = res[0]/2., res[1]/2.
     return xmin-xpad, ymin+ypad, xmax-xpad, ymax+ypad
+
+
+def calc_res3d(volume):
+    """Calculate the resolution of xarray.DataArray raster and return
+    it as the two-tuple (xres, yres, zres).
+    """
+    d, h, w = volume.shape[-3:]
+    zdim, ydim, xdim = volume.dims[-3:]
+    xcoords = volume[xdim].values
+    ycoords = volume[ydim].values
+    zcoords = volume[ydim].values
+    xres = (xcoords[-1] - xcoords[0]) / (w - 1)
+    yres = (ycoords[-1] - ycoords[0]) / (h - 1)
+    zres = (zcoords[-1] - zcoords[0]) / (d - 1)
+    return xres, yres, zres
+
+
+def calc_bbox3d(xs, ys, zs, res):
+    """
+    Extends calc_bbox to 3D.
+    """
+    xbound = xs.max() if res[0] < 0 else xs.min()
+    ybound = ys.max() if res[1] < 0 else ys.min()
+    zbound = zs.max() if res[2] < 0 else zs.min()
+
+    xmin = ymin = zmin = np.inf
+    xmax = ymax = zmax = -np.inf
+    Ab = np.array([[res[0],      0.,     0., xbound],
+                   [0.,      res[1],     0., ybound],
+                   [0.,          0., res[2], zbound],
+                   [0.,          0.,     0.,     1.]])
+    for x_, y_, z_ in [(0, 0, 0), (0, 0, len(zs)), (0, len(ys), 0), (len(xs), 0, 0), (len(xs), len(ys), len(zs))]:
+        x, y, z, _ = np.dot(Ab, np.array([x_, y_, z_, 1.]))
+        if x < xmin: xmin = x
+        if x > xmax: xmax = x
+        if y < ymin: ymin = y
+        if y > ymax: ymax = y
+        if z < zmin: zmin = z
+        if z > zmax: zmax = z
+    xpad, ypad, zpad = res[0]/2., res[1]/2., res[2]/2.
+    return xmin-xpad, ymin-ypad, zmin-zpad, xmax-xpad, ymax-ypad, zmax-zpad
 
 
 def get_indices(start, end, coords, res):
@@ -316,6 +357,54 @@ def compute_coords(width, height, x_range, y_range, res):
     if res[0] < 0: xs = xs[::-1]
     if res[1] > 0: ys = ys[::-1]
     return xs, ys
+
+
+def compute_coords3d(width, height, depth, x_range, y_range, z_range, res):
+    """
+    Computes DataArray coordinates at bin centers
+
+    Parameters
+    ----------
+    width : int
+        Number of coordinates along the x-axis
+    height : int
+        Number of coordinates along the y-axis
+    depth : int
+        Number of coordinates along the z-axis
+    x_range : tuple
+        Left and right edge of the coordinates
+    y_range : tuple
+        Bottom and top edges of the coordinates
+    z_range : tuple
+        Bottom and top edges of the coordinates
+    res : tuple
+        Three-tuple (int, int, int) which includes x and y resolutions (aka "grid/cell
+        sizes"), respectively. Used to determine coordinate orientation.
+
+    Returns
+    -------
+    xs : numpy.ndarray
+        1D array of x-coordinates
+    ys : numpy.ndarray
+        1D array of y-coordinates
+    zs : numpy.ndarray
+        1D array of y-coordinates
+    """
+    (x0, x1), (y0, y1), (z0, z1) = x_range, y_range, z_range
+    xd = (x1-x0)/float(width)
+    yd = (y1-y0)/float(height)
+    zd = (z1-z0)/float(height)
+    xpad, ypad, zpad = abs(xd/2.), abs(yd/2.), abs(zd/2.)
+    x0, x1 = x0+xpad, x1-xpad
+    y0, y1 = y0+ypad, y1-ypad
+    z0, z1 = z0+zpad, z1-zpad
+    xs = np.linspace(x0, x1, width)
+    ys = np.linspace(y0, y1, height)
+    zs = np.linspace(z0, z1, depth)
+    if res[0] < 0: xs = xs[::-1]
+    if res[1] < 0: ys = ys[::-1]
+    if res[2] < 0: zs = zs[::-1]
+    return xs, ys, zs
 
 
 def downsample_aggregate(aggregate, factor, how='mean'):
