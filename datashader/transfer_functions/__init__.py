@@ -535,7 +535,7 @@ def set_background(img, color=None, name=None):
     return Image(data, coords=img.coords, dims=img.dims, name=name)
 
 
-def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
+def spread(img, px=1, shape='circle', how='over', mask=None, name=None, stencil=True):
     """Spread pixels in an image.
 
     Spreading expands each pixel a certain number of pixels on all sides
@@ -575,15 +575,47 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
         raise ValueError("mask must be a square 2 dimensional ndarray with "
                          "odd dimensions.")
         mask = mask if mask.dtype == 'bool' else mask.astype('bool')
-    kernel = _build_spread_kernel(how, is_image)
+
     w = mask.shape[0]
-    extra = w // 2
     M, N = img.shape
-    buf = np.zeros((M + 2*extra, N + 2*extra),
-                   dtype='uint32' if is_image else img.dtype)
-    kernel(img.data, mask, buf)
-    out = buf[extra:-extra, extra:-extra].copy()
+    if (not is_image) and stencil:
+        extra = w // 2
+        kernel = _build_stencil_kernel(how,  w)
+        out = np.zeros((M + 2*extra, N + 2*extra)).astype(img.dtype)
+        padded_img = np.zeros((M + 2*extra, N + 2*extra), dtype=img.dtype)
+        padded_img[extra:extra+M, extra:extra+N] = img
+        kernel(padded_img, mask, out=out)
+        out = out[extra:extra+M, extra:extra+N]
+    else:
+        extra = w // 2
+        buf = np.zeros((M + 2*extra, N + 2*extra),
+                       dtype='uint32' if is_image else img.dtype)
+        kernel = _build_spread_kernel(how, is_image)
+        kernel(img.data, mask, buf)
+        out = buf[extra:-extra, extra:-extra].copy()
+
     return Image(out, dims=img.dims, coords=img.coords, name=name)
+
+
+@tz.memoize
+def _build_stencil_kernel(how, mask_size):
+    """Build a spreading kernel for a given composite operator"""
+    op_name = how + "_arr"
+    op = composite_op_lookup[op_name]
+
+    @nb.stencil(standard_indexing=("mask",),
+                neighborhood =((0, mask_size), (0, mask_size)))
+    def stencilled(arr, mask):
+        accumulator = 0
+        dim, _ = mask.shape
+        for i in range(mask_size):
+            for j in range(mask_size):
+                el = arr[i - (dim//2), j - (dim//2)]
+                if mask[i][j] and not np.isnan(el):
+                    accumulator = op(accumulator, el)
+        return accumulator
+
+    return stencilled
 
 
 @tz.memoize
