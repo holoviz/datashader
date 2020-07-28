@@ -11,7 +11,8 @@ import numpy as np
 import os
 
 __all__ = ('composite_op_lookup', 'over', 'add', 'saturate', 'source',
-           'over_arr', 'add_arr', 'saturate_arr', 'source_arr')
+           'over_arr', 'add_arr', 'saturate_arr', 'source_arr',
+           'max_arr', 'min_arr', 'maxabs_arr')
 
 
 @nb.jit('(uint32,)', nopython=True, nogil=True, cache=True)
@@ -152,3 +153,20 @@ def add_arr(src, dst):
 @arr_operator
 def saturate_arr(src, dst):
     return src + dst
+
+@arr_operator
+def max_arr(src, dst):
+    return max([src,  dst])
+
+@arr_operator
+def maxabs_arr(src, dst):
+    if abs(src) > abs(dst):
+        return src
+    else:
+        return dst
+
+@arr_operator
+def min_arr(src, dst):
+    return min([src,  dst])
+
+
