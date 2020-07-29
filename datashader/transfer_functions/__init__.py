@@ -582,7 +582,12 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None, stencil=
         extra = w // 2
         kernel = _build_stencil_kernel(how,  w)
         out = np.zeros((M + 2*extra, N + 2*extra)).astype(img.dtype)
-        padded_img = np.zeros((M + 2*extra, N + 2*extra), dtype=img.dtype)
+        if img.dtype in [np.float32, np.float64]:
+            out = np.full((M + 2*extra, N + 2*extra), np.nan).astype(img.dtype)
+            padded_img = np.full((M + 2*extra, N + 2*extra), np.nan, dtype=img.dtype)
+        else:
+            out = np.zeros((M + 2*extra, N + 2*extra)).astype(img.dtype)
+            padded_img = np.zeros((M + 2*extra, N + 2*extra), dtype=img.dtype)
         padded_img[extra:extra+M, extra:extra+N] = img
         kernel(padded_img, mask, out=out)
         out = out[extra:extra+M, extra:extra+N]
@@ -606,12 +611,12 @@ def _build_stencil_kernel(how, mask_size):
     @nb.stencil(standard_indexing=("mask",),
                 neighborhood =((0, mask_size), (0, mask_size)))
     def stencilled(arr, mask):
-        accumulator = 0
+        accumulator = np.nan
         dim, _ = mask.shape
         for i in range(mask_size):
             for j in range(mask_size):
                 el = arr[i - (dim//2), j - (dim//2)]
-                if mask[i][j] and not np.isnan(el):
+                if mask[i][j]:
                     accumulator = op(accumulator, el)
         return accumulator
 
@@ -658,6 +663,34 @@ def _circle_mask(r):
 
 _mask_lookup = {'square': _square_mask,
                 'circle': _circle_mask}
+
+
+
+# Option to normalize accumulator?
+
+ # img.data.astype('uint32')
+ 
+# @tz.memoize
+# def _build_stencil_kernel(how, is_image, mask_size):
+#     """Build a spreading kernel for a given composite operator"""
+#     op_name = how + ("" if is_image else "_arr")
+#     op = composite_op_lookup[op_name]
+
+#     @nb.stencil(standard_indexing=("mask",),
+#                 neighborhood =((0, mask_size), (0, mask_size)))
+#     def stencilled(arr, mask):
+#         el = arr[0,0]
+#         process_image = is_image and ((int(el) >> 24) & 255) # Transparent pixel
+#         process_array = (not is_image) and (not np.isnan(el))
+#         weight = 0
+#         for i in range(mask_size):
+#             for j in range(mask_size):
+#                 if mask[i][j] and (process_image or process_array):
+#                     weight += mask[i][j]
+#         normalized_weight = weight / len(mask)
+#         return el * normalized_weight
+
+#     return stencilled
 
 
 def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=None):
