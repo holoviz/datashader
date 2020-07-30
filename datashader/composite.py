@@ -137,40 +137,27 @@ def arr_operator(f):
 
 @arr_operator
 def source_arr(src, dst):
-    if np.isnan(src): return dst
-    if np.isnan(dst): return src
-
     if src:  return src
     else:    return dst
 
 @arr_operator
 def add_arr(src, dst):
-    if np.isnan(src): return dst
-    if np.isnan(dst): return src
     return src + dst
 
 @arr_operator
 def saturate_arr(src, dst):
-    if np.isnan(src): return dst
-    if np.isnan(dst): return src
     return src + dst
 
 @arr_operator
 def max_arr(src, dst):
-    if np.isnan(src): return dst
-    if np.isnan(dst): return src
     return max([src,  dst])
 
 @arr_operator
 def over_arr(src, dst):
-    if np.isnan(src): return dst
-    if np.isnan(dst): return src
     return src + dst
 
 @arr_operator
 def min_arr(src, dst):
-    if np.isnan(src): return dst
-    if np.isnan(dst): return src
     return min([src,  dst])
 
 

@@ -578,11 +578,12 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None, stencil=
 
     w = mask.shape[0]
     M, N = img.shape
+    float_type = img.dtype in [np.float32, np.float64]
     if (not is_image) and stencil:
         extra = w // 2
-        kernel = _build_stencil_kernel(how,  w)
+        kernel = _build_stencil_kernel(how,  w, float_type, img.dtype == np.uint32)
         out = np.zeros((M + 2*extra, N + 2*extra)).astype(img.dtype)
-        if img.dtype in [np.float32, np.float64]:
+        if float_type:
             out = np.full((M + 2*extra, N + 2*extra), np.nan).astype(img.dtype)
             padded_img = np.full((M + 2*extra, N + 2*extra), np.nan, dtype=img.dtype)
         else:
@@ -603,7 +604,7 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None, stencil=
 
 
 @tz.memoize
-def _build_stencil_kernel(how, mask_size):
+def _build_stencil_kernel(how, mask_size, float_type, ignore_zeros):
     """Build a spreading kernel for a given composite operator"""
     op_name = how + "_arr"
     op = composite_op_lookup[op_name]
@@ -611,13 +612,18 @@ def _build_stencil_kernel(how, mask_size):
     @nb.stencil(standard_indexing=("mask",),
                 neighborhood =((0, mask_size), (0, mask_size)))
     def stencilled(arr, mask):
-        accumulator = np.nan
+        accumulator = np.nan if float_type else 0
         dim, _ = mask.shape
         for i in range(mask_size):
             for j in range(mask_size):
                 el = arr[i - (dim//2), j - (dim//2)]
                 if mask[i][j]:
-                    accumulator = op(accumulator, el)
+                    if ignore_zeros and (el==0 or accumulator==0):
+                        accumulator = accumulator or el
+                    elif np.isnan(el) or np.isnan(accumulator):
+                        accumulator = el if np.isnan(accumulator) else accumulator
+                    else:
+                        accumulator = op(accumulator, el)
         return accumulator
 
     return stencilled
