@@ -580,18 +580,17 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None, stencil=
     M, N = img.shape
     float_type = img.dtype in [np.float32, np.float64]
     if (not is_image) and stencil:
-        extra = w // 2
         kernel = _build_stencil_kernel(how,  w, float_type, img.dtype == np.uint32)
-        out = np.zeros((M + 2*extra, N + 2*extra)).astype(img.dtype)
+        out = np.zeros((M + 2*w, N + 2*w)).astype(img.dtype)
         if float_type:
-            out = np.full((M + 2*extra, N + 2*extra), np.nan).astype(img.dtype)
-            padded_img = np.full((M + 2*extra, N + 2*extra), np.nan, dtype=img.dtype)
+            out = np.full((M + 2*w, N + 2*w), np.nan).astype(img.dtype)
+            padded_img = np.full((M + 2*w, N + 2*w), np.nan, dtype=img.dtype)
         else:
-            out = np.zeros((M + 2*extra, N + 2*extra)).astype(img.dtype)
-            padded_img = np.zeros((M + 2*extra, N + 2*extra), dtype=img.dtype)
-        padded_img[extra:extra+M, extra:extra+N] = img
+            out = np.zeros((M + 2*w, N + 2*w)).astype(img.dtype)
+            padded_img = np.zeros((M + 2*w, N + 2*w), dtype=img.dtype)
+        padded_img[w:w+M, w:w+N] = img
         kernel(padded_img, mask, out=out)
-        out = out[extra:extra+M, extra:extra+N]
+        out = out[w:w+M, w:w+N]
     else:
         extra = w // 2
         buf = np.zeros((M + 2*extra, N + 2*extra),
