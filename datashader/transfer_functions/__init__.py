@@ -670,34 +670,6 @@ _mask_lookup = {'square': _square_mask,
                 'circle': _circle_mask}
 
 
-
-# Option to normalize accumulator?
-
- # img.data.astype('uint32')
- 
-# @tz.memoize
-# def _build_stencil_kernel(how, is_image, mask_size):
-#     """Build a spreading kernel for a given composite operator"""
-#     op_name = how + ("" if is_image else "_arr")
-#     op = composite_op_lookup[op_name]
-
-#     @nb.stencil(standard_indexing=("mask",),
-#                 neighborhood =((0, mask_size), (0, mask_size)))
-#     def stencilled(arr, mask):
-#         el = arr[0,0]
-#         process_image = is_image and ((int(el) >> 24) & 255) # Transparent pixel
-#         process_array = (not is_image) and (not np.isnan(el))
-#         weight = 0
-#         for i in range(mask_size):
-#             for j in range(mask_size):
-#                 if mask[i][j] and (process_image or process_array):
-#                     weight += mask[i][j]
-#         normalized_weight = weight / len(mask)
-#         return el * normalized_weight
-
-#     return stencilled
-
-
 def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=None):
     """Spread pixels in an image dynamically based on the image density.
 
