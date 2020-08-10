@@ -76,22 +76,21 @@ def masked_clip_2d(data, mask, lower, upper):
 # np.nanmax/np.nanmin
 if LooseVersion(numba.__version__) >= LooseVersion("0.51.0"):
     @numba.jit
-    def cuda_atomic_nanmin(ary, idx, val)
+    def cuda_atomic_nanmin(ary, idx, val):
         return cuda.atomic.nanmin(ary, idx, val)
     @numba.jit
-    def cuda_atomic_nanmax(ary, idx, val)
+    def cuda_atomic_nanmax(ary, idx, val):
         return cuda.atomic.nanmax(ary, idx, val)
 elif LooseVersion(numba.__version__) <= LooseVersion("0.49.1"):
     @numba.jit
-    def cuda_atomic_nanmin(ary, idx, val)
+    def cuda_atomic_nanmin(ary, idx, val):
         return cuda.atomic.min(ary, idx, val)
 
     @numba.jit
-    def cuda_atomic_nanmax(ary, idx, val)
+    def cuda_atomic_nanmax(ary, idx, val):
         return cuda.atomic.max(ary, idx, val)
 else:
-    # WHAT DO YOU WANT TO DO HERE?
-    pass
+    raise ImportError("Datashader's CUDA support requires numba!=0.50.0")
 
 
 @cuda.jit
