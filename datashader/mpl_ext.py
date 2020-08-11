@@ -5,7 +5,6 @@ import matplotlib as mpl
 import numpy as np
 import xarray as xr
 
-from . import transfer_functions as tf
 from . import Canvas
 from .core import bypixel
 
@@ -109,10 +108,6 @@ class DSArtist(_ImageBase):
         bbox = Bbox(np.array([[x1, y1], [x2, y2]]))
         trans = self.get_transform()
         transformed_bbox = TransformedBbox(bbox, trans)
-
-        dims = self.axes.patch.get_window_extent().bounds
-        plot_width = int(dims[3] + 0.5)
-        plot_height = int(dims[2] + 0.5)
 
         # binning part of pipeline
         binned = self._aggregate([x1, x2], [y1, y2])
