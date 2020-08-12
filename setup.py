@@ -36,7 +36,7 @@ examples = [
 
 extras_require = {
     'tests': [
-        'pytest >=3.9.3',
+        'pytest >=3.9.3,>6.0',
         'pytest-benchmark >=3.0.0',
         'pytest-cov',
         'codecov',
