@@ -1,7 +1,8 @@
 # TODO:
 #
 #  * restore previous sections
-language: generic
+language: python
+
 sudo: false
 os:
   - linux
@@ -10,7 +11,6 @@ dist: xenial
 
 env:
   global:
-    - PYENV_VERSION=3.7
     - CHANS_DEV="-c pyviz/label/dev"
     - CHANS_REL="-c pyviz"
     - LABELS_DEV="--label dev"
