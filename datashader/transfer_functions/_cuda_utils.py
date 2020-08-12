@@ -1,7 +1,12 @@
 from __future__ import division
 
 from distutils.version import LooseVersion
-from math import ceil, isnan, nan
+from math import ceil, isnan
+
+try:
+    from math import nan
+except:
+    nan = float('nan')
 
 import numba
 import numpy as np
