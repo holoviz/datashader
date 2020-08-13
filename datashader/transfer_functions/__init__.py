@@ -759,7 +759,7 @@ def _array_density(arr):
                     for j in range(x - 1, x + 2):
                         if not np.isnan(arr[i, j]):
                             total += 1
-        return (total - cnt)/(cnt * 8) if cnt else np.inf
+    return (total - cnt)/(cnt * 8) if cnt else np.inf
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
