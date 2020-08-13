@@ -535,7 +535,7 @@ def set_background(img, color=None, name=None):
     return Image(data, coords=img.coords, dims=img.dims, name=name)
 
 
-def spread(img, px=1, shape='circle', how='over', mask=None, name=None, stencil=True):
+def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
     """Spread pixels in an image.
 
     Spreading expands each pixel a certain number of pixels on all sides
@@ -578,21 +578,19 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None, stencil=
 
     w = mask.shape[0]
     M, N = img.shape
+    extra = w // 2
     float_type = img.dtype in [np.float32, np.float64]
-    if (not is_image) and stencil:
-        kernel = _build_stencil_kernel(how,  w, float_type, img.dtype == np.uint32)
-        out = np.zeros((M + 2*w, N + 2*w)).astype(img.dtype)
+    if not is_image:
         if float_type:
-            out = np.full((M + 2*w, N + 2*w), np.nan).astype(img.dtype)
-            padded_img = np.full((M + 2*w, N + 2*w), np.nan, dtype=img.dtype)
+            kernel = _build_float_kernel(how, w)
+            buf = np.full((M + 2*extra, N + 2*extra), np.nan, dtype=img.dtype)
+
         else:
-            out = np.zeros((M + 2*w, N + 2*w)).astype(img.dtype)
-            padded_img = np.zeros((M + 2*w, N + 2*w), dtype=img.dtype)
-        padded_img[w:w+M, w:w+N] = img
-        kernel(padded_img, mask, out=out)
-        out = out[w:w+M, w:w+N]
+            buf = np.zeros((M + 2*extra, N + 2*extra), dtype=img.dtype)
+            kernel = _build_int_kernel(how, w, img.dtype == np.uint32)
+        kernel(img.data, mask, buf)
+        out = buf[extra:-extra, extra:-extra].copy()
     else:
-        extra = w // 2
         buf = np.zeros((M + 2*extra, N + 2*extra),
                        dtype='uint32' if is_image else img.dtype)
         kernel = _build_spread_kernel(how, is_image)
@@ -603,28 +601,50 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None, stencil=
 
 
 @tz.memoize
-def _build_stencil_kernel(how, mask_size, float_type, ignore_zeros):
+def _build_int_kernel(how, mask_size, ignore_zeros):
     """Build a spreading kernel for a given composite operator"""
     op_name = how + "_arr"
     op = composite_op_lookup[op_name]
+    @ngjit
+    def stencilled(arr, mask, out):
+        M, N = arr.shape
+        for y in range(M):
+            for x in range(N):
+                el = arr[y, x]
+                for i in range(mask_size):
+                    for j in range(mask_size):
+                        if mask[i, j]:
+                            if ignore_zeros and el==0:
+                                result = out[i + y, j + x]
+                            elif ignore_zeros  and out[i + y, j + x]==0:
+                                result = el
+                            else:
+                                result = op(el, out[i + y, j + x])
+                            out[i + y, j + x] = result
+    return stencilled
 
-    @nb.stencil(standard_indexing=("mask",),
-                neighborhood =((0, mask_size), (0, mask_size)))
-    def stencilled(arr, mask):
-        accumulator = np.nan if float_type else 0
-        dim, _ = mask.shape
-        for i in range(mask_size):
-            for j in range(mask_size):
-                el = arr[i - (dim//2), j - (dim//2)]
-                if mask[i][j]:
-                    if ignore_zeros and (el==0 or accumulator==0):
-                        accumulator = accumulator or el
-                    elif np.isnan(el) or np.isnan(accumulator):
-                        accumulator = el if np.isnan(accumulator) else accumulator
-                    else:
-                        accumulator = op(accumulator, el)
-        return accumulator
 
+@tz.memoize
+def _build_float_kernel(how, mask_size):
+    """Build a spreading kernel for a given composite operator"""
+    op_name = how + "_arr"
+    op = composite_op_lookup[op_name]
+    @ngjit
+    def stencilled(arr, mask, out):
+        M, N = arr.shape
+        for y in range(M):
+            for x in range(N):
+                el = arr[y, x]
+                for i in range(mask_size):
+                    for j in range(mask_size):
+                        if mask[i, j]:
+                            if np.isnan(el):
+                                result = out[i + y, j + x]
+                            elif np.isnan(out[i + y, j + x]):
+                                result = el
+                            else:
+                                result = op(el, out[i + y, j + x])
+                            out[i + y, j + x] = result
     return stencilled
 
 
@@ -649,7 +669,13 @@ def _build_spread_kernel(how, is_image):
                         for j in range(w):
                             # Skip if mask is False at this value
                             if mask[i, j]:
-                                out[i + y, j + x] = op(el, out[i + y, j + x])
+                                if el==0:
+                                    result = out[i + y, j + x]
+                                if out[i + y, j + x]==0:
+                                    result = el
+                                else:
+                                    result = op(el, out[i + y, j + x])
+                                out[i + y, j + x] = result
     return kernel
 
 
