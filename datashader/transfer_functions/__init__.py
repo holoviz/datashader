@@ -730,19 +730,17 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=Non
         out = spread(img, px, shape=shape, how=how, name=name)
         if is_image:
             density = _rgb_density(out.data)
-        elif out.data.dtype in [np.int32, np.int64]:
-            cast = out.data.astype(np.float64)
-            cast[out.data == 0] = np.nan
-            density = _array_density(cast)
         else:
-            density = _array_density(out.data)
+            float_type = out.dtype in [np.float32, np.float64]
+            density = _array_density(out.data, float_type)
         if density >= threshold:
             break
+
     return out
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
-def _array_density(arr):
+def _array_density(arr, float_type):
     """Compute a density heuristic of an array.
 
     The density is a number in [0, 1], and indicates the normalized mean number
@@ -753,11 +751,13 @@ def _array_density(arr):
     for y in range(1, M - 1):
         for x in range(1, N - 1):
             el = arr[y, x]
-            if not np.isnan(el):
+            if (float_type and not np.isnan(el)) or (not float_type and el!=0):
                 cnt += 1
                 for i in range(y - 1, y + 2):
                     for j in range(x - 1, x + 2):
-                        if not np.isnan(arr[i, j]):
+                        if float_type and not np.isnan(arr[i, j]):
+                            total += 1
+                        elif not float_type and arr[i, j] != 0:
                             total += 1
     return (total - cnt)/(cnt * 8) if cnt else np.inf
 
