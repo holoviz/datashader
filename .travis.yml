@@ -1,7 +1,8 @@
 # TODO:
 #
 #  * restore previous sections
-language: generic
+language: python
+
 sudo: false
 os:
   - linux
@@ -10,7 +11,6 @@ dist: xenial
 
 env:
   global:
-    - PYENV_VERSION=3.7
     - CHANS_DEV="-c pyviz/label/dev"
     - CHANS_REL="-c pyviz"
     - LABELS_DEV="--label dev"
@@ -63,7 +63,7 @@ jobs:
         # Install spatialpandas here because it's python 3 only and requires
         # conda-forge for some dependencies
         - if [[ "$PYTHON_VERSION" != "2.7" ]]; then
-          conda install -c pyviz/label/dev -c conda-forge matplotlib=3.2.1 matplotlib-base=3.2.1 spatialpandas --no-deps;
+          conda install -c pyviz/label/dev -c conda-forge matplotlib=3.2.1 matplotlib-base=3.2.1 spatialpandas retrying --no-deps;
           fi
         # Install rasterio using pip to avoid conda solver errors
         - pip install rasterio
