@@ -11,8 +11,7 @@ import numpy as np
 import os
 
 __all__ = ('composite_op_lookup', 'over', 'add', 'saturate', 'source',
-           'over_arr', 'add_arr', 'saturate_arr', 'source_arr',
-           'max_arr', 'min_arr', 'maxabs_arr')
+           'over_arr', 'add_arr', 'saturate_arr', 'source_arr', 'max_arr', 'min_arr')
 
 
 @nb.jit('(uint32,)', nopython=True, nogil=True, cache=True)
