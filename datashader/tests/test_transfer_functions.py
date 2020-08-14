@@ -593,16 +593,16 @@ def test_spread():
     pytest.raises(ValueError, lambda: tf.spread(img, mask=np.ones((2, 2))))
 
 
-def test_density():
+def test_rgb_density():
     b = 0xffff0000
     data = np.full((4, 4), b, dtype='uint32')
-    assert tf._density(data) == 1.0
+    assert tf._rgb_density(data) == 1.0
     data = np.zeros((4, 4), dtype='uint32')
-    assert tf._density(data) == np.inf
+    assert tf._rgb_density(data) == np.inf
     data[2, 2] = b
-    assert tf._density(data) == 0
+    assert tf._rgb_density(data) == 0
     data[2, 1] = data[1, 2] = data[1, 1] = b
-    assert np.allclose(tf._density(data), 3./8.)
+    assert np.allclose(tf._rgb_density(data), 3./8.)
 
 
 def test_dynspread():
