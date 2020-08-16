@@ -932,9 +932,14 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             Optional nan_value which will be masked out when applying
             the resampling.
         agg : Reduction, optional default=mean()
-            Resampling mode when downsampling raster.
-            options include: first, last, mean, mode, var, std, min, max
-            Accepts an executable function, function object, or string name.
+            Resampling mode when downsampling raster. The supported
+            options include: first, last, mean, mode, var, std, min,
+            The agg can be specified as either a string name or as a
+            reduction function, but note that the function object will
+            be used only to extract the agg type (mean, max, etc.) and
+            the optional column name; the hardcoded raster code
+            supports only a fixed set of reductions and ignores the
+            actual code of the provided agg.
         interpolate : str, optional  default=linear
             Resampling mode when upsampling raster.
             options include: nearest, linear.
