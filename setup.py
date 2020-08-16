@@ -44,7 +44,7 @@ extras_require = {
         'nbsmoke[all] >=0.4.0',
         'fastparquet >=0.1.6',  # optional dependency
         'holoviews >=1.10.0',
-        'pyarrow <1.0' # unpin after new spatialpandas release
+        'pyarrow'
     ],
     'examples': examples,
     'examples_extra': examples + [
