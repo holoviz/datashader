@@ -587,17 +587,23 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
     else:
         kernel = _build_int_kernel(how, w, img.dtype == np.uint32)
 
-    if not is_image and float_type:
+    if is_image:
+        M, N = img.shape
+        buf = np.zeros((M + 2*extra, N + 2*extra),
+                       dtype='uint32' if is_image else img.dtype)
+        kernel(img.data, mask, buf)
+        out = buf[extra:-extra, extra:-extra].copy()
+    elif float_type:
         M, N = img.shape
         buf = np.full((M + 2*extra, N + 2*extra), np.nan, dtype=img.dtype)
         kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
-    elif not is_image and len(img.shape)==2:
+    elif len(img.shape)==2:
         M, N = img.shape
         buf = np.zeros((M + 2*extra, N + 2*extra), dtype=img.dtype)
         kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
-    elif len(img.shape)==3:
+    else:
         M, N, O = img.shape
         layers = []
         for category in range(O):
@@ -609,12 +615,6 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
             kernel(layer.data, mask, buf)
             layers.append(buf[extra:-extra, extra:-extra].copy())
             out = np.dstack(layers)
-    else:
-        M, N = img.shape
-        buf = np.zeros((M + 2*extra, N + 2*extra),
-                       dtype='uint32' if is_image else img.dtype)
-        kernel(img.data, mask, buf)
-        out = buf[extra:-extra, extra:-extra].copy()
 
     return Image(out, dims=img.dims, coords=img.coords, name=name)
 
