@@ -616,7 +616,10 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
             layers.append(buf[extra:-extra, extra:-extra].copy())
             out = np.dstack(layers)
 
-    return Image(out, dims=img.dims, coords=img.coords, name=name)
+    if is_image:
+        return Image(out, dims=img.dims, coords=img.coords, name=name)
+    else:
+        return xr.DataArray(out, dims=img.dims, coords=img.coords, name=name)
 
 
 @tz.memoize
