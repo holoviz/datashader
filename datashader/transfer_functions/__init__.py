@@ -579,30 +579,41 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
     w = mask.shape[0]
     extra = w // 2
     float_type = img.dtype in [np.float32, np.float64]
+
+    if is_image:
+        kernel = _build_spread_kernel(how, is_image)
+    elif float_type:
+        kernel = _build_float_kernel(how, w)
+    else:
+        kernel = _build_int_kernel(how, w, img.dtype == np.uint32)
+
     if not is_image and float_type:
         M, N = img.shape
         buf = np.full((M + 2*extra, N + 2*extra), np.nan, dtype=img.dtype)
-        _build_float_kernel(how, w)(img.data, mask, buf)
+        kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
     elif not is_image and len(img.shape)==2:
         M, N = img.shape
         buf = np.zeros((M + 2*extra, N + 2*extra), dtype=img.dtype)
-        _build_int_kernel(how, w, img.dtype == np.uint32)(img.data, mask, buf)
+        kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
     elif len(img.shape)==3:
         M, N, O = img.shape
         layers = []
         for category in range(O):
             layer = img[:,:,category]
-            buf = np.zeros((M + 2*extra, N + 2*extra), dtype=layer.dtype)
-            _build_int_kernel(how, w, layer.dtype == np.uint32)(layer.data, mask, buf)
+            if float_type:
+                buf = np.full((M + 2*extra, N + 2*extra), np.nan, dtype=img.dtype)
+            else:
+                buf = np.zeros((M + 2*extra, N + 2*extra), dtype=layer.dtype)
+            kernel(layer.data, mask, buf)
             layers.append(buf[extra:-extra, extra:-extra].copy())
             out = np.dstack(layers)
     else:
         M, N = img.shape
         buf = np.zeros((M + 2*extra, N + 2*extra),
                        dtype='uint32' if is_image else img.dtype)
-        _build_spread_kernel(how, is_image)(img.data, mask, buf)
+        kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
 
     return Image(out, dims=img.dims, coords=img.coords, name=name)
