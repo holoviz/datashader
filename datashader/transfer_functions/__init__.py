@@ -745,13 +745,17 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=Non
     if not isinstance(max_px, int) or max_px < 0:
         raise ValueError("max_px must be >= 0")
     # Simple linear search. Not super efficient, but max_px is usually small.
+    float_type = img.dtype in [np.float32, np.float64]
     for px in range(max_px + 1):
         out = spread(img, px, shape=shape, how=how, name=name)
         if is_image:
             density = _rgb_density(out.data)
-        else:
-            float_type = out.dtype in [np.float32, np.float64]
+        elif len(img.shape) == 2:
             density = _array_density(out.data, float_type)
+        else:
+            masked = np.isnan(out) if float_type else (out == 0)
+            flat_mask = np.sum(masked, axis=2, dtype=img.dtype)
+            density = _array_density(flat_mask.data, False)
         if density >= threshold:
             break
 
