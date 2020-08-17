@@ -527,7 +527,7 @@ def test_masks():
     np.testing.assert_equal(tf._circle_mask(3), out)
 
 
-def test_spread():
+def test_rgb_spread():
     p = 0x7d00007d
     g = 0x7d00FF00
     b = 0x7dFF0000
@@ -593,6 +593,258 @@ def test_spread():
     pytest.raises(ValueError, lambda: tf.spread(img, mask=np.ones((2, 2))))
 
 
+def test_uint32_spread():
+    data = np.array([[1, 1, 0, 0, 0],
+                     [1, 2, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, 3, 0],
+                     [0, 0, 0, 0, 0]], dtype='uint32')
+    coords = [np.arange(5), np.arange(5)]
+    arr = xr.DataArray(data, coords=coords, dims=dims)
+
+    s = tf.spread(arr)
+    o = np.array([[5, 5, 3, 0, 0],
+                  [5, 5, 3, 0, 0],
+                  [3, 3, 5, 3, 3],
+                  [0, 0, 3, 3, 3],
+                  [0, 0, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+    assert (s.x_axis == arr.x_axis).all()
+    assert (s.y_axis == arr.y_axis).all()
+    assert s.dims == arr.dims
+
+    s = tf.spread(arr, px=2)
+    o = np.array([[5, 5, 5, 3, 0],
+                  [5, 5, 8, 6, 3],
+                  [5, 8, 7, 5, 3],
+                  [3, 6, 5, 3, 3],
+                  [0, 3, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, shape='square')
+    o = np.array([[5, 5, 3, 0, 0],
+                  [5, 5, 3, 0, 0],
+                  [3, 3, 5, 3, 3],
+                  [0, 0, 3, 3, 3],
+                  [0, 0, 3, 3, 3]])
+
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, how='min')
+    o = np.array([[1, 1, 1, 0, 0],
+                  [1, 1, 1, 0, 0],
+                  [1, 1, 2, 3, 3],
+                  [0, 0, 3, 3, 3],
+                  [0, 0, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, how='max')
+
+    o = np.array([[2, 2, 2, 0, 0],
+                  [2, 2, 2, 0, 0],
+                  [2, 2, 3, 3, 3],
+                  [0, 0, 3, 3, 3],
+                  [0, 0, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+
+
+    mask = np.array([[1, 0, 1],
+                     [0, 1, 0],
+                     [1, 0, 1]])
+
+    data = np.array([[0, 0, 0, 1, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 1, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0]], dtype='uint32')
+    arr = xr.DataArray(data, coords=coords, dims=dims)
+    s = tf.spread(arr, mask=mask)
+
+    o = np.array([[0, 0, 0, 1, 0],
+                  [1, 0, 2, 0, 1],
+                  [0, 1, 0, 0, 0],
+                  [1, 0, 1, 0, 0],
+                  [0, 0, 0, 0, 0]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, px=0)
+    np.testing.assert_equal(s.data, arr.data)
+
+    pytest.raises(ValueError, lambda: tf.spread(arr, px=-1))
+    pytest.raises(ValueError, lambda: tf.spread(arr, mask=np.ones(2)))
+    pytest.raises(ValueError, lambda: tf.spread(arr, mask=np.ones((2, 2))))
+
+
+def test_int32_spread():
+    data = np.array([[1, 1, 0, 0, 0],
+                     [1, 2, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, 3, 0],
+                     [0, 0, 0, 0, 0]], dtype='int32')
+    coords = [np.arange(5), np.arange(5)]
+    arr = xr.DataArray(data, coords=coords, dims=dims)
+
+    s = tf.spread(arr)
+    o = np.array([[5, 5, 3, 0, 0],
+                  [5, 5, 3, 0, 0],
+                  [3, 3, 5, 3, 3],
+                  [0, 0, 3, 3, 3],
+                  [0, 0, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+    assert (s.x_axis == arr.x_axis).all()
+    assert (s.y_axis == arr.y_axis).all()
+    assert s.dims == arr.dims
+
+    s = tf.spread(arr, px=2)
+    o = np.array([[5, 5, 5, 3, 0],
+                  [5, 5, 8, 6, 3],
+                  [5, 8, 7, 5, 3],
+                  [3, 6, 5, 3, 3],
+                  [0, 3, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, shape='square')
+    o = np.array([[5, 5, 3, 0, 0],
+                  [5, 5, 3, 0, 0],
+                  [3, 3, 5, 3, 3],
+                  [0, 0, 3, 3, 3],
+                  [0, 0, 3, 3, 3]])
+
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, how='min')
+    o = np.array([[0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, how='max')
+
+    o = np.array([[2, 2, 2, 0, 0],
+                  [2, 2, 2, 0, 0],
+                  [2, 2, 3, 3, 3],
+                  [0, 0, 3, 3, 3],
+                  [0, 0, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+
+
+    mask = np.array([[1, 0, 1],
+                     [0, 1, 0],
+                     [1, 0, 1]])
+
+    data = np.array([[0, 0, 0, 1, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 1, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0]], dtype='int32')
+    arr = xr.DataArray(data, coords=coords, dims=dims)
+    s = tf.spread(arr, mask=mask)
+
+    o = np.array([[0, 0, 0, 1, 0],
+                  [1, 0, 2, 0, 1],
+                  [0, 1, 0, 0, 0],
+                  [1, 0, 1, 0, 0],
+                  [0, 0, 0, 0, 0]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, px=0)
+    np.testing.assert_equal(s.data, arr.data)
+
+    pytest.raises(ValueError, lambda: tf.spread(arr, px=-1))
+    pytest.raises(ValueError, lambda: tf.spread(arr, mask=np.ones(2)))
+    pytest.raises(ValueError, lambda: tf.spread(arr, mask=np.ones((2, 2))))
+
+
+def test_float32_spread():
+    data = np.array([[1, 1, np.nan, np.nan, np.nan],
+                     [1, 2, np.nan, np.nan, np.nan],
+                     [np.nan, np.nan, np.nan, np.nan, np.nan],
+                     [np.nan, np.nan, np.nan, 3, np.nan],
+                     [np.nan, np.nan, np.nan, np.nan, np.nan]], dtype='float32')
+    coords = [np.arange(5), np.arange(5)]
+    arr = xr.DataArray(data, coords=coords, dims=dims)
+
+    s = tf.spread(arr)
+    o = np.array([[5, 5, 3, np.nan, np.nan],
+                  [5, 5, 3, np.nan, np.nan],
+                  [3, 3, 5, 3, 3],
+                  [np.nan, np.nan, 3, 3, 3],
+                  [np.nan, np.nan, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+    assert (s.x_axis == arr.x_axis).all()
+    assert (s.y_axis == arr.y_axis).all()
+    assert s.dims == arr.dims
+
+    s = tf.spread(arr, px=2)
+    o = np.array([[5, 5, 5, 3, np.nan],
+                  [5, 5, 8, 6, 3],
+                  [5, 8, 7, 5, 3],
+                  [3, 6, 5, 3, 3],
+                  [np.nan, 3, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, shape='square')
+    o = np.array([[5, 5, 3, np.nan, np.nan],
+                  [5, 5, 3, np.nan, np.nan],
+                  [3, 3, 5, 3, 3],
+                  [np.nan, np.nan, 3, 3, 3],
+                  [np.nan, np.nan, 3, 3, 3]])
+
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, how='min')
+    o = np.array([[1, 1, 1, np.nan, np.nan],
+                  [1, 1, 1, np.nan, np.nan],
+                  [1, 1, 2, 3, 3],
+                  [np.nan, np.nan, 3, 3, 3],
+                  [np.nan, np.nan, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, how='max')
+
+    o = np.array([[2, 2, 2, np.nan, np.nan],
+                  [2, 2, 2, np.nan, np.nan],
+                  [2, 2, 3, 3, 3],
+                  [np.nan, np.nan, 3, 3, 3],
+                  [np.nan, np.nan, 3, 3, 3]])
+    np.testing.assert_equal(s.data, o)
+
+
+    mask = np.array([[1, 0, 1],
+                     [0, 1, 0],
+                     [1, 0, 1]])
+    data = np.array([[np.nan, np.nan, np.nan, 1, np.nan],
+                     [np.nan, np.nan, np.nan, np.nan, np.nan],
+                     [np.nan, 1, np.nan, np.nan, np.nan],
+                     [np.nan, np.nan, np.nan, np.nan, np.nan],
+                     [np.nan, np.nan, np.nan, np.nan, np.nan]], dtype='float32')
+    arr = xr.DataArray(data, coords=coords, dims=dims)
+    s = tf.spread(arr, mask=mask)
+
+
+    o = np.array([[0, 0, 0, 1, 0],
+                  [1, 0, 2, 0, 1],
+                  [0, 1, 0, 0, 0],
+                  [1, 0, 1, 0, 0],
+                  [0, 0, 0, 0, 0]])
+
+    o = np.array([[np.nan, np.nan, np.nan, 1, np.nan],
+                  [1, np.nan, 2, np.nan, 1],
+                  [np.nan, 1, np.nan, np.nan, np.nan],
+                  [1, np.nan, 1, np.nan, np.nan],
+                  [np.nan, np.nan, np.nan, np.nan, np.nan]])
+    np.testing.assert_equal(s.data, o)
+
+    s = tf.spread(arr, px=0)
+    np.testing.assert_equal(s.data, arr.data)
+
+    pytest.raises(ValueError, lambda: tf.spread(arr, px=-1))
+    pytest.raises(ValueError, lambda: tf.spread(arr, mask=np.ones(2)))
+    pytest.raises(ValueError, lambda: tf.spread(arr, mask=np.ones((2, 2))))
+
+
 def test_rgb_density():
     b = 0xffff0000
     data = np.full((4, 4), b, dtype='uint32')
@@ -603,6 +855,26 @@ def test_rgb_density():
     assert tf._rgb_density(data) == 0
     data[2, 1] = data[1, 2] = data[1, 1] = b
     assert np.allclose(tf._rgb_density(data), 3./8.)
+
+def test_int_array_density():
+    data = np.ones((4, 4), dtype='uint32')
+    assert tf._array_density(data, float_type=False) == 1.0
+    data = np.zeros((4, 4), dtype='uint32')
+    assert tf._array_density(data, float_type=False) == np.inf
+    data[2, 2] = 1
+    assert tf._array_density(data, float_type=False) == 0
+    data[2, 1] = data[1, 2] = data[1, 1] = 1
+    assert np.allclose(tf._array_density(data, float_type=False), 3./8.)
+
+def test_float_array_density():
+    data = np.ones((4, 4), dtype='float32')
+    assert tf._array_density(data, float_type=True) == 1.0
+    data = np.full((4, 4), np.nan, dtype='float32')
+    assert tf._array_density(data, float_type=True) == np.inf
+    data[2, 2] = 1
+    assert tf._array_density(data, float_type=True) == 0
+    data[2, 1] = data[1, 2] = data[1, 1] = 1
+    assert np.allclose(tf._array_density(data, float_type=True), 3./8.)
 
 
 def test_dynspread():
