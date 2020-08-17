@@ -877,7 +877,7 @@ def test_float_array_density():
     assert np.allclose(tf._array_density(data, float_type=True), 3./8.)
 
 
-def test_dynspread():
+def test_rgb_dynspread():
     b = 0xffff0000
     data = np.array([[b, b, 0, 0, 0],
                      [b, b, 0, 0, 0],
@@ -893,6 +893,22 @@ def test_dynspread():
 
     pytest.raises(ValueError, lambda: tf.dynspread(img, threshold=1.1))
     pytest.raises(ValueError, lambda: tf.dynspread(img, max_px=-1))
+
+def test_array_dynspread():
+    data = np.array([[1, 1, 0, 0, 0],
+                     [1, 1, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, 1, 0],
+                     [0, 0, 0, 0, 0]], dtype='uint32')
+    coords = [np.arange(5), np.arange(5)]
+    arr = xr.DataArray(data, coords=coords, dims=dims)
+    assert tf.dynspread(arr).equals(tf.spread(arr, 1))
+    assert tf.dynspread(arr, threshold=0.9).equals(tf.spread(arr, 2))
+    assert tf.dynspread(arr, threshold=0).equals(arr)
+    assert tf.dynspread(arr, max_px=0).equals(arr)
+
+    pytest.raises(ValueError, lambda: tf.dynspread(arr, threshold=1.1))
+    pytest.raises(ValueError, lambda: tf.dynspread(arr, max_px=-1))
 
 
 def check_eq_hist_cdf_slope(eq):
