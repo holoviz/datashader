@@ -22,7 +22,7 @@ class DSArtist(_ImageBase):
     Matplotlib artist for a datashading pipeline.
 
     Unlike the AxesImage artist, by default the ``origin`` for this artist
-    is *lower* and interpolation is disabled.
+    is "lower" and interpolation is disabled.
 
     Parameters
     ----------
@@ -38,6 +38,7 @@ class DSArtist(_ImageBase):
         Additional Artist properties.
 
     """
+
     def __init__(
         self,
         ax,
@@ -48,9 +49,7 @@ class DSArtist(_ImageBase):
         interpolation="none",
         **kwargs
     ):
-        super().__init__(
-            ax, origin=origin, interpolation=interpolation, **kwargs
-        )
+        super().__init__(ax, origin=origin, interpolation=interpolation, **kwargs)
         self.pipeline = pipeline
         self.axes = ax
 
@@ -129,9 +128,7 @@ class DSArtist(_ImageBase):
         onehot = np.concatenate([onehot, onehot], axis=0)
 
         # Convert to xarray so tf.shade knows what to do.
-        onehot = xr.DataArray(
-            onehot, dims=binned.dims
-        ).reindex({name: categories})
+        onehot = xr.DataArray(onehot, dims=binned.dims).reindex({name: categories})
 
         # Extract categorical colors from the raster.
         raster = self.pipeline.color_fn(onehot)
@@ -220,7 +217,7 @@ class DSArtist(_ImageBase):
             return None
         color_dict = self._infer_color_dict(binned)
         return [
-            Patch(facecolor=color, edgecolor='none', label=name)
+            Patch(facecolor=color, edgecolor="none", label=name)
             for name, color in color_dict.items()
         ]
 
@@ -374,20 +371,13 @@ def dsshow(
         ax = fig.add_axes([0.15, 0.09, 0.775, 0.775])
 
     pipeline = Pipeline(
-        df,
-        glyph,
-        agg,
-        transform_fn,
-        color_fn,
-        spread_fn,
-        width_scale,
-        height_scale,
+        df, glyph, agg, transform_fn, color_fn, spread_fn, width_scale, height_scale,
     )
     artist = DSArtist(ax, pipeline, **kwargs)
     ax.add_artist(artist)
 
     if aspect is None:
-        aspect = plt.rcParams['image.aspect']
+        aspect = plt.rcParams["image.aspect"]
     ax.set_aspect(aspect)
 
     return artist
