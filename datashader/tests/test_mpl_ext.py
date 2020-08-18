@@ -10,10 +10,6 @@ import pandas as pd
 import datashader as ds
 from datashader.mpl_ext import dsshow
 
-axis = ds.core.LinearAxis()
-lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
-coords = [lincoords, lincoords]
-dims = ["y", "x"]
 
 df = pd.DataFrame(
     {
