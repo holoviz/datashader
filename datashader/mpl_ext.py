@@ -339,7 +339,7 @@ def dsshow(
     ...     'x': np.r_[np.random.randn(n) - 1, np.random.randn(n) + 1],
     ...     'y': np.r_[np.random.randn(n), np.random.randn(n)],
     ...     'c': pd.Categorical(np.r_[['cloud 1'] * n, ['cloud 2'] * n])
-    ... })
+    ... })  # doctest: +SKIP
 
     Plot the point density as a quantitative map.
 
@@ -348,7 +348,7 @@ def dsshow(
     ...     ds.Point('x', 'y'),
     ...     aspect='equal'
     ... )
-    >>> plt.colorbar(da)
+    >>> plt.colorbar(da);  # doctest: +SKIP
 
     Color the points by category.
 
@@ -358,7 +358,7 @@ def dsshow(
     ...     agg=ds.count_cat('c'),
     ...     aspect='equal'
     ... )
-    >>> plt.legend(handles=da2.get_legend_elements())
+    >>> plt.legend(handles=da2.get_legend_elements());  # doctest: +SKIP
 
     """
     import matplotlib.pyplot as plt
