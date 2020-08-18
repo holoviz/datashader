@@ -544,7 +544,7 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
 
     Parameters
     ----------
-    img : Image
+    img : Image or DataArray
     px : int, optional
         Number of pixels to spread on all sides
     shape : str, optional
