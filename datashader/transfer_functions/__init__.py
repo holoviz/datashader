@@ -616,10 +616,7 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
             layers.append(buf[extra:-extra, extra:-extra].copy())
             out = np.dstack(layers)
 
-    if is_image:
-        return Image(out, dims=img.dims, coords=img.coords, name=name)
-    else:
-        return xr.DataArray(out, dims=img.dims, coords=img.coords, name=name)
+   return img.__class__(out, dims=img.dims, coords=img.coords, name=name)
 
 
 @tz.memoize
@@ -638,7 +635,7 @@ def _build_int_kernel(how, mask_size, ignore_zeros):
                         if mask[i, j]:
                             if ignore_zeros and el==0:
                                 result = out[i + y, j + x]
-                            elif ignore_zeros  and out[i + y, j + x]==0:
+                            elif ignore_zeros and out[i + y, j + x]==0:
                                 result = el
                             else:
                                 result = op(el, out[i + y, j + x])
