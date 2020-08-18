@@ -578,6 +578,7 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
 
     w = mask.shape[0]
     extra = w // 2
+    padded_shape = (M + 2*extra, N + 2*extra)
     float_type = img.dtype in [np.float32, np.float64]
 
     if is_image:
@@ -589,18 +590,17 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
 
     if is_image:
         M, N = img.shape
-        buf = np.zeros((M + 2*extra, N + 2*extra),
-                       dtype='uint32' if is_image else img.dtype)
+        buf = np.zeros(padded_shape, dtype=img.dtype)
         kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
     elif float_type:
         M, N = img.shape
-        buf = np.full((M + 2*extra, N + 2*extra), np.nan, dtype=img.dtype)
+        buf = np.full(padded_shape, np.nan, dtype=img.dtype)
         kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
     elif len(img.shape)==2:
         M, N = img.shape
-        buf = np.zeros((M + 2*extra, N + 2*extra), dtype=img.dtype)
+        buf = np.zeros(padded_shape, dtype=img.dtype)
         kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
     else:
@@ -609,9 +609,9 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
         for category in range(O):
             layer = img[:,:,category]
             if float_type:
-                buf = np.full((M + 2*extra, N + 2*extra), np.nan, dtype=img.dtype)
+                buf = np.full(padded_shape, np.nan, dtype=img.dtype)
             else:
-                buf = np.zeros((M + 2*extra, N + 2*extra), dtype=layer.dtype)
+                buf = np.zeros(padded_shape, dtype=layer.dtype)
             kernel(layer.data, mask, buf)
             layers.append(buf[extra:-extra, extra:-extra].copy())
             out = np.dstack(layers)
