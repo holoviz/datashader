@@ -271,14 +271,6 @@ def dsshow(
     data coordinates), such as pan/zoom events. Both quantitative and
     categorical datashading pipelines are supported.
 
-    If the datashading pipeline is categorical (i.e. generates a composited
-    image from several categorical components), you can use the
-    ``get_legend_elements`` method to obtain patch handles that can be
-    passed to ``ax.legend`` to make a legend.
-
-    If the pipeline is quantitative (i.e. generates a scalar mappable), the
-    artist can be used to make a colorbar with ``fig.colorbar``.
-
     Parameters
     ----------
     df : pandas.DataFrame, dask.DataFrame
@@ -318,47 +310,54 @@ def dsshow(
     Other Parameters
     ----------------
     **kwargs
-        All other kwargs are passed to the ``DSArtist``.
+        All other kwargs are passed to the `DSArtist`.
 
     Returns
     -------
     `datashader.mpl_ext.DSArtist`
 
+    Notes
+    -----
+    If the datashading pipeline is categorical (i.e. generates a composited
+    image from several categorical components), you can use the
+    ``get_legend_elements`` method to obtain patch handles that can be
+    passed to ``ax.legend`` to make a legend.
+
+    If the pipeline is quantitative (i.e. generates a scalar mappable), the
+    artist can be used to make a colorbar with ``fig.colorbar``.
+
     Examples
     --------
-    >>> import numpy as np
-    >>> import pandas as pd
-    >>> import datashader as ds
-    >>> import matplotlib.pyplot as plt
-    >>> from datashader.mpl_ext import dsshow
+    Generate two gaussian point clouds and plot (1) the density as a
+    quantitative map and (2) color the points by category.
 
-    Generate two gaussian point clouds.
+    .. plot::
+        :context: close-figs
 
-    >>> n = 100000
-    >>> df = pd.DataFrame({
-    ...     'x': np.r_[np.random.randn(n) - 1, np.random.randn(n) + 1],
-    ...     'y': np.r_[np.random.randn(n), np.random.randn(n)],
-    ...     'c': pd.Categorical(np.r_[['cloud 1'] * n, ['cloud 2'] * n])
-    ... })  # doctest: +SKIP
-
-    Plot the point density as a quantitative map.
-
-    >>> da = dsshow(
-    ...     df,
-    ...     ds.Point('x', 'y'),
-    ...     aspect='equal'
-    ... )
-    >>> plt.colorbar(da);  # doctest: +SKIP
-
-    Color the points by category.
-
-    >>> da2 = dsshow(
-    ...     df,
-    ...     ds.Point('x', 'y'),
-    ...     agg=ds.count_cat('c'),
-    ...     aspect='equal'
-    ... )
-    >>> plt.legend(handles=da2.get_legend_elements());  # doctest: +SKIP
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> import datashader as ds
+        >>> import matplotlib.pyplot as plt
+        >>> from datashader.mpl_ext import dsshow
+        >>> n = 10000
+        >>> df = pd.DataFrame({
+        ...     'x': np.r_[np.random.randn(n) - 1, np.random.randn(n) + 1],
+        ...     'y': np.r_[np.random.randn(n), np.random.randn(n)],
+        ...     'c': pd.Categorical(np.r_[['cloud 1'] * n, ['cloud 2'] * n])
+        ... })
+        >>> da1 = dsshow(
+        ...     df,
+        ...     ds.Point('x', 'y'),
+        ...     aspect='equal'
+        ... )
+        >>> plt.colorbar(da1);  # doctest: +SKIP
+        >>> da2 = dsshow(
+        ...     df,
+        ...     ds.Point('x', 'y'),
+        ...     agg=ds.count_cat('c'),
+        ...     aspect='equal'
+        ... )
+        >>> plt.legend(handles=da2.get_legend_elements());  # doctest: +SKIP
 
     """
     import matplotlib.pyplot as plt
