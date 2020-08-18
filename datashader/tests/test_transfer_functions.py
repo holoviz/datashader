@@ -845,6 +845,53 @@ def test_float32_spread():
     pytest.raises(ValueError, lambda: tf.spread(arr, mask=np.ones((2, 2))))
 
 
+def test_categorical_spread():
+    a_data = np.array([[0, 1, 0, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0]], dtype='int32')
+
+    b_data = np.array([[0, 0, 0, 0, 0],
+                       [0, 2, 0, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0]], dtype='int32')
+
+    c_data = np.array([[0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [0, 0, 0, 3, 0],
+                       [0, 0, 0, 0, 0]], dtype='int32')
+
+    data = np.dstack([a_data, b_data, c_data])
+    coords = [np.arange(5), np.arange(5)]
+    arr = xr.DataArray(data, coords=coords + [['a', 'b', 'c']],
+                       dims=dims + ['cat'])
+
+    s = tf.spread(arr)
+    o = np.array([[1, 1, 1, 0, 0],
+                  [1, 1, 1, 0, 0],
+                  [0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0]])
+    np.testing.assert_equal(s.sel(cat='a').data, o)
+
+    o = np.array([[2, 2, 2, 0, 0],
+                  [2, 2, 2, 0, 0],
+                  [2, 2, 2, 0, 0],
+                  [0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0]])
+    np.testing.assert_equal(s.sel(cat='b').data, o)
+
+    o = np.array([[0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0],
+                  [0, 0, 3, 3, 3],
+                  [0, 0, 3, 3, 3],
+                  [0, 0, 3, 3, 3]])
+    np.testing.assert_equal(s.sel(cat='c').data, o)
+
+
 def test_rgb_density():
     b = 0xffff0000
     data = np.full((4, 4), b, dtype='uint32')
