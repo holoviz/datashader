@@ -616,7 +616,7 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
             layers.append(buf[extra:-extra, extra:-extra].copy())
             out = np.dstack(layers)
 
-   return img.__class__(out, dims=img.dims, coords=img.coords, name=name)
+    return img.__class__(out, dims=img.dims, coords=img.coords, name=name)
 
 
 @tz.memoize
