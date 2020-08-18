@@ -114,7 +114,7 @@ def saturate(src, dst):
 
 
 def arr_operator(f):
-    """Define and register a new image composite operator"""
+    """Define and register a new array composite operator"""
 
     if jit_enabled:
         f2 = nb.vectorize(f)
@@ -158,5 +158,4 @@ def over_arr(src, dst):
 @arr_operator
 def min_arr(src, dst):
     return min([src,  dst])
-
 
