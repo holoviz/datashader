@@ -718,7 +718,7 @@ _mask_lookup = {'square': _square_mask,
                 'circle': _circle_mask}
 
 
-def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=None):
+def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None):
     """Spread pixels in an image dynamically based on the image density.
 
     Spreading expands each pixel a certain number of pixels on all sides
@@ -740,7 +740,9 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=Non
     shape : str, optional
         The shape to spread by. Options are 'circle' [default] or 'square'.
     how : str, optional
-        The name of the compositing operator to use when combining pixels.
+        The name of the compositing operator to use when combining
+        pixels. Default of None uses 'over' operator for Image objects
+        and 'add' operator otherwise.
     """
     is_image = isinstance(img, Image)
     if not 0 <= threshold <= 1:
