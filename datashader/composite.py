@@ -10,8 +10,20 @@ import numba as nb
 import numpy as np
 import os
 
-__all__ = ('composite_op_lookup', 'over', 'add', 'saturate', 'source',
-           'over_arr', 'add_arr', 'saturate_arr', 'source_arr', 'max_arr', 'min_arr')
+image_operators = ('over', 'add', 'saturate', 'source')
+array_operators = ('add_arr', 'max_arr', 'min_arr', 'source_arr')
+__all__ = ('composite_op_lookup', 'validate_operator') + image_operators + array_operators
+
+
+def validate_operator(how, is_image):
+    name = how if is_image else how + '_arr'
+    if is_image:
+        if name not in image_operators:
+            raise ValueError('Operator %r not one of the supported image operators: %s'
+                            % (how, ', '.join(repr(el) for el in image_operators)))
+    elif name not in array_operators:
+        raise ValueError('Operator %r not one of the supported array operators: %s'
+                        % (how, ', '.join(repr(el[:-4]) for el in array_operators)))
 
 
 @nb.jit('(uint32,)', nopython=True, nogil=True, cache=True)
@@ -144,16 +156,8 @@ def add_arr(src, dst):
     return src + dst
 
 @arr_operator
-def saturate_arr(src, dst):
-    return src + dst
-
-@arr_operator
 def max_arr(src, dst):
     return max([src,  dst])
-
-@arr_operator
-def over_arr(src, dst):
-    return src + dst
 
 @arr_operator
 def min_arr(src, dst):

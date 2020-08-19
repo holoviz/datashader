@@ -15,7 +15,7 @@ import xarray as xr
 from PIL.Image import fromarray
 
 from datashader.colors import rgb, Sets1to3
-from datashader.composite import composite_op_lookup, over
+from datashader.composite import composite_op_lookup, over, validate_operator
 from datashader.utils import nansum_missing, ngjit, orient_array
 
 try:
@@ -625,8 +625,8 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
 @tz.memoize
 def _build_int_kernel(how, mask_size, ignore_zeros):
     """Build a spreading kernel for a given composite operator"""
-    op_name = how + "_arr"
-    op = composite_op_lookup[op_name]
+    validate_operator(how, is_image=False)
+    op = composite_op_lookup[how + "_arr"]
     @ngjit
     def stencilled(arr, mask, out):
         M, N = arr.shape
@@ -649,8 +649,8 @@ def _build_int_kernel(how, mask_size, ignore_zeros):
 @tz.memoize
 def _build_float_kernel(how, mask_size):
     """Build a spreading kernel for a given composite operator"""
-    op_name = how + "_arr"
-    op = composite_op_lookup[op_name]
+    validate_operator(how, is_image=False)
+    op = composite_op_lookup[how + "_arr"]
     @ngjit
     def stencilled(arr, mask, out):
         M, N = arr.shape
@@ -673,8 +673,8 @@ def _build_float_kernel(how, mask_size):
 @tz.memoize
 def _build_spread_kernel(how, is_image):
     """Build a spreading kernel for a given composite operator"""
-    op_name = how + ("" if is_image else "_arr")
-    op = composite_op_lookup[op_name]
+    validate_operator(how, is_image=True)
+    op = composite_op_lookup[how + ("" if is_image else "_arr")]
 
     @ngjit
     def kernel(arr, mask, out):
