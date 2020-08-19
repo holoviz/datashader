@@ -585,6 +585,7 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
     M, N = img.shape[:2]
     padded_shape = (M + 2*extra, N + 2*extra)
     float_type = img.dtype in [np.float32, np.float64]
+    fill_value = np.nan if float_type else 0
 
     if is_image:
         kernel = _build_spread_kernel(how, is_image)
@@ -593,29 +594,16 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
     else:
         kernel = _build_int_kernel(how, w, img.dtype == np.uint32)
 
-    if is_image:
-        buf = np.zeros(padded_shape, dtype=img.dtype)
-        kernel(img.data, mask, buf)
-        out = buf[extra:-extra, extra:-extra].copy()
-    elif float_type:
-        buf = np.full(padded_shape, np.nan, dtype=img.dtype)
-        kernel(img.data, mask, buf)
-        out = buf[extra:-extra, extra:-extra].copy()
-    elif len(img.shape)==2:
-        buf = np.zeros(padded_shape, dtype=img.dtype)
-        kernel(img.data, mask, buf)
-        out = buf[extra:-extra, extra:-extra].copy()
+    def apply_kernel(layer):
+        buf = np.full(padded_shape, fill_value, dtype=layer.dtype)
+        kernel(layer.data, mask, buf)
+        return buf[extra:-extra, extra:-extra].copy()
+
+    if len(img.shape)==2:
+        out = apply_kernel(img)
     else:
-        layers = []
-        for category in range(img.shape[2]):
-            layer = img[:,:,category]
-            if float_type:
-                buf = np.full(padded_shape, np.nan, dtype=img.dtype)
-            else:
-                buf = np.zeros(padded_shape, dtype=layer.dtype)
-            kernel(layer.data, mask, buf)
-            layers.append(buf[extra:-extra, extra:-extra].copy())
-        out = np.dstack(layers)
+        out = np.dstack([apply_kernel(img[:,:,category])
+                        for category in range(img.shape[2])])
 
     return img.__class__(out, dims=img.dims, coords=img.coords, name=name)
 
