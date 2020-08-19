@@ -535,7 +535,7 @@ def set_background(img, color=None, name=None):
     return Image(data, coords=img.coords, dims=img.dims, name=name)
 
 
-def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
+def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
     """Spread pixels in an image.
 
     Spreading expands each pixel a certain number of pixels on all sides
@@ -550,7 +550,9 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
     shape : str, optional
         The shape to spread by. Options are 'circle' [default] or 'square'.
     how : str, optional
-        The name of the compositing operator to use when combining pixels.
+        The name of the compositing operator to use when combining
+        pixels. Default of None uses 'over' operator for Image objects
+        and 'add' operator otherwise.
     mask : ndarray, shape (M, M), optional
         The mask to spread over. If provided, this mask is used instead of
         generating one based on `px` and `shape`. Must be a square array
@@ -575,6 +577,8 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
         raise ValueError("mask must be a square 2 dimensional ndarray with "
                          "odd dimensions.")
         mask = mask if mask.dtype == 'bool' else mask.astype('bool')
+    if how is None:
+        how = 'over' if is_image else 'add'
 
     w = mask.shape[0]
     extra = w // 2
