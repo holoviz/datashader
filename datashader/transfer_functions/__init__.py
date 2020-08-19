@@ -615,7 +615,7 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
                 buf = np.zeros(padded_shape, dtype=layer.dtype)
             kernel(layer.data, mask, buf)
             layers.append(buf[extra:-extra, extra:-extra].copy())
-            out = np.dstack(layers)
+        out = np.dstack(layers)
 
     return img.__class__(out, dims=img.dims, coords=img.coords, name=name)
 
