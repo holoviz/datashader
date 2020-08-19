@@ -598,12 +598,10 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
         kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
     elif float_type:
-        M, N = img.shape
         buf = np.full(padded_shape, np.nan, dtype=img.dtype)
         kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
     elif len(img.shape)==2:
-        M, N = img.shape
         buf = np.zeros(padded_shape, dtype=img.dtype)
         kernel(img.data, mask, buf)
         out = buf[extra:-extra, extra:-extra].copy()
