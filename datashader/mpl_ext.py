@@ -79,8 +79,8 @@ class DSArtist(_ImageBase):
 
     def _aggregate(self, x_range, y_range):
         dims = self.axes.patch.get_window_extent().bounds
-        plot_width = int(dims[3] + 0.5)
-        plot_height = int(dims[2] + 0.5)
+        plot_width = int(dims[2] + 0.5)
+        plot_height = int(dims[3] + 0.5)
 
         canvas = Canvas(
             plot_width=int(plot_width * self.pipeline.width_scale),
