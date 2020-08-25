@@ -13,6 +13,8 @@ from . import transfer_functions as tf
 from .core import bypixel, Canvas
 from .pipeline import Pipeline
 
+__all__ = ['DSArtist', 'dsshow']
+
 
 def uint32_to_uint8(img):
     """Cast a uint32 RGBA image to a 4-channel uint8 image array."""
@@ -28,9 +30,9 @@ class DSArtist(_ImageBase):
 
     Parameters
     ----------
-    ax : `matplotlib.axes.Axes`
+    ax : :class:`matplotlib.axes.Axes`
         The axes the raster image will belong to.
-    pipeline : `datashader.Pipeline`
+    pipeline : :class:`datashader.Pipeline`
         A datashading pipeline callback.
     initial_x_range : tuple, optional
         A pair representing the initial data bounds for display on the x axis.
@@ -38,7 +40,6 @@ class DSArtist(_ImageBase):
         A pair representing the initial data bounds for display on the y axis.
     **kwargs
         Additional Artist properties.
-
     """
 
     def __init__(
@@ -98,7 +99,7 @@ class DSArtist(_ImageBase):
         return binned
 
     def _run_pipeline(self, x_range, y_range):
-        # Binning part of pipeline
+        # Binning part of the pipeline
         binned = self._aggregate(x_range, y_range)
         if binned.ndim not in (2, 3):
             raise ValueError(
@@ -106,7 +107,7 @@ class DSArtist(_ImageBase):
                 "got array with shape {}".format(binned.shape)
             )
 
-        # Shading part of pipeline
+        # Shading part of the pipeline
         raster = self.pipeline.color_fn(binned)
         raster = self.pipeline.spread_fn(raster)
 
@@ -192,7 +193,7 @@ class DSArtist(_ImageBase):
 
     def get_ds_data(self):
         """
-        Return the aggregated, pre-shaded ``xarray.DataArray`` backing the
+        Return the aggregated, pre-shaded :class:`xarray.DataArray` backing the
         bounding box currently displayed.
         """
         return self._ds_data
@@ -202,7 +203,7 @@ class DSArtist(_ImageBase):
         Return the uint32 raster image corresponding to the image currently
         displayed.
 
-        Use `~.get_array` to get the equivalent matplotlib-style (M, N, 4)
+        Use :meth:`get_array` to get the equivalent matplotlib-style (M, N, 4)
         RGBA array.
         """
         return self._ds_image
@@ -210,7 +211,6 @@ class DSArtist(_ImageBase):
     def get_legend_elements(self):
         """
         Return legend elements to display the color code for each category.
-
         If the datashading pipeline is quantitative, returns *None*.
         """
         x_range, y_range = self.axes.get_xlim(), self.axes.get_ylim()
@@ -230,14 +230,14 @@ class DSArtist(_ImageBase):
 
     def get_cursor_data(self, event):
         """
-        Return the aggregated data at the event position or *None* is the
+        Return the aggregated data at the event position or *None* if the
         event is outside the bounds of the current view.
         """
         xmin, xmax, ymin, ymax = self.get_extent()
         if self.origin == "upper":
             ymin, ymax = ymax, ymin
 
-        arr = self._ds_data.data
+        arr = self.get_ds_data().data
         data_extent = Bbox([[ymin, xmin], [ymax, xmax]])
         array_extent = Bbox([[0, 0], arr.shape[:2]])
         trans = BboxTransform(boxin=data_extent, boxout=array_extent)
@@ -306,24 +306,24 @@ def dsshow(
         If a nonzero integer and ``ax`` is *None*, draw into the figure with
         the given number (create it if it does not exist).
         If 0, use the current axes (or create one if it does not exist).
-    aspect : {'equal', 'auto'} or float, default: :rc:`image.aspect`
+    aspect : {'equal', 'auto'} or float, default: ``rcParams["image.aspect"]``
         The aspect ratio of the axes.
 
     Other Parameters
     ----------------
     **kwargs
-        All other kwargs are passed to the `DSArtist`.
+        All other kwargs are passed to the :class:`DSArtist`.
 
     Returns
     -------
-    `datashader.mpl_ext.DSArtist`
+    :class:`DSArtist`
 
     Notes
     -----
     If the datashading pipeline is categorical (i.e. generates a composited
     image from several categorical components), you can use the
-    ``get_legend_elements`` method to obtain patch handles that can be
-    passed to ``ax.legend`` to make a legend.
+    :meth:`DSArtist.get_legend_elements` method to obtain patch handles that
+    can be passed to ``ax.legend`` to make a legend.
 
     If the pipeline is quantitative (i.e. generates a scalar mappable), the
     artist can be used to make a colorbar with ``fig.colorbar``.
@@ -372,7 +372,7 @@ def dsshow(
         ax = fig.add_axes([0.15, 0.09, 0.775, 0.775])
 
     pipeline = Pipeline(
-        df, glyph, agg, transform_fn, color_fn, spread_fn, width_scale, height_scale,
+        df, glyph, agg, transform_fn, color_fn, spread_fn, width_scale, height_scale
     )
     artist = DSArtist(ax, pipeline, **kwargs)
     ax.add_artist(artist)
