@@ -297,10 +297,10 @@ def dsshow(
     width_scale: float, optional
         Factor by which to scale the image width relative to the axes
         bounding box in display space.
-    ax : `matplotlib.Axes`
+    ax : `matplotlib.Axes`, optional
         Axes to draw into. If *None*, create a new figure or use ``fignum`` to
         draw into an existing figure.
-    fignum : None or int or False
+    fignum : None or int or False, optional
         If *None* and ``ax`` is *None*, create a new figure window with
         automatic numbering.
         If a nonzero integer and ``ax`` is *None*, draw into the figure with
