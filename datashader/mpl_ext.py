@@ -1,3 +1,5 @@
+import warnings
+
 from matplotlib.image import _ImageBase
 from matplotlib.patches import Patch
 from matplotlib.transforms import Bbox, TransformedBbox, BboxTransform
@@ -122,16 +124,16 @@ class DSArtist(_ImageBase):
         n_categories = len(categories)
 
         # Make a row of one-hot vectors for each category (1, n, n).
-        # tf.shade generates a warning if there are singleton dims, so we pad
-        # with an extra row (2, n, n).
         onehot = np.expand_dims(np.eye(n_categories), 0)
-        onehot = np.concatenate([onehot, onehot], axis=0)
 
-        # Convert to xarray so tf.shade knows what to do.
+        # Convert to a 3D xarray so tf.shade knows what to do.
+        # tf.shade generates a warning if there are singleton dims.
         onehot = xr.DataArray(onehot, dims=binned.dims).reindex({name: categories})
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            raster = self.pipeline.color_fn(onehot)
 
         # Extract categorical colors from the raster.
-        raster = self.pipeline.color_fn(onehot)
         rgb = uint32_to_uint8(raster.data)[0]
         color_key = [mpl.colors.to_hex(c) for c in rgb / 255.0]
 
@@ -146,11 +148,11 @@ class DSArtist(_ImageBase):
         vramp = np.linspace(vmin, vmax, 256)
 
         # Convert to a 2D xarray to tf.shade can use it.
-        # tf.shade generates a warning if there are singleton dims, so we pad
-        # with an extra row (2, n).
-        vramp = np.vstack((vramp, vramp))
-        vramp = xr.DataArray(vramp, dims=binned.dims)
-        cramp = self.pipeline.color_fn(vramp)
+        # tf.shade generates a warning if there are singleton dims.
+        vramp = xr.DataArray(vramp[np.newaxis, :], dims=binned.dims)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            cramp = self.pipeline.color_fn(vramp)
 
         # Extract the colors from the raster.
         colors = uint32_to_uint8(cramp.data)[0]
