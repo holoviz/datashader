@@ -75,10 +75,10 @@
 # line whereas for 006 it is a multi-segment line, and each vertex is listed
 # only a single time. Datasahder then "connects the dots" as it were.
 #
-# So for each of these 6 patterns, we test the a regular and a clipped version
-# (the canvas is clipped to region in the center) in both the normal and the
-# anti-aliased drawing mode. This enures that lines can be drawn in all
-# directions and that clipping a canvas works. Tests 005 and 006 enusre that
+# So for each of these 6 patterns, we test a regular and a clipped version
+# (the canvas is clipped to a region in the center) in both the normal and the
+# anti-aliased drawing mode. This ensures that lines can be drawn in all
+# directions and that clipping a canvas works. Tests 005 and 006 ensure that
 # multi-line segments can be drawn correctly too.
 #
 # Each tests case comes with an image and a saved xarray file (serialized in
