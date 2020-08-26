@@ -13,7 +13,7 @@ from . import transfer_functions as tf
 from .core import bypixel, Canvas
 from .pipeline import Pipeline
 
-__all__ = ['DSArtist', 'dsshow']
+__all__ = ["DSArtist", "dsshow"]
 
 
 def uint32_to_uint8(img):
@@ -256,9 +256,9 @@ def dsshow(
     df,
     glyph,
     agg=reductions.count(),
-    transform_fn=identity,
+    transform_fn=None,
     color_fn=tf.shade,
-    spread_fn=tf.dynspread,
+    spread_fn=None,
     width_scale=1.0,
     height_scale=1.0,
     ax=None,
@@ -279,24 +279,25 @@ def dsshow(
         Dataframe to apply the datashading pipeline to.
     glyph : Glyph
         The glyph to bin by.
-    agg : Reduction, optional
-        The reduction to compute per-pixel. Default is ``count()``.
+    agg : Reduction, optional, default: :class:`~.count`
+        The reduction to compute per-pixel.
     transform_fn : callable, optional
         A callable that takes the computed aggregate as an argument, and
         returns another aggregate. This can be used to do preprocessing before
         passing to the ``color_fn`` function.
-    color_fn : callable, optional
+    color_fn : callable, optional, default: :func:`~.shade`
         A callable that takes the output of ``tranform_fn``, and returns an
-        ``Image`` object. Default is ``shade``.
+        :class:`~.Image` object.
     spread_fn : callable, optional
         A callable that takes the output of ``color_fn``, and returns another
-        ``Image`` object. Default is ``dynspread``.
+        :class:`~.Image` object. See :func:`~.dynspread` and :func:`~.spread`
+        for examples.
     height_scale: float, optional
-        Factor by which to scale the image height relative to the axes
-        bounding box in display space.
+        Factor by which to scale the height of the image in pixels relative to
+        the height of the display space in pixels.
     width_scale: float, optional
-        Factor by which to scale the image width relative to the axes
-        bounding box in display space.
+        Factor by which to scale the width of the image in pixels relative to
+        the width of the display space in pixels.
     ax : `matplotlib.Axes`, optional
         Axes to draw into. If *None*, create a new figure or use ``fignum`` to
         draw into an existing figure.
@@ -370,6 +371,12 @@ def dsshow(
         # Make appropriately sized figure.
         fig = plt.figure(fignum)
         ax = fig.add_axes([0.15, 0.09, 0.775, 0.775])
+
+    if transform_fn is None:
+        transform_fn = identity
+
+    if spread_fn is None:
+        spread_fn = identity
 
     pipeline = Pipeline(
         df, glyph, agg, transform_fn, color_fn, spread_fn, width_scale, height_scale
