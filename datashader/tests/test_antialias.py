@@ -84,7 +84,8 @@
 # Each tests case comes with an image and a saved xarray file (serialized in
 # the NetCDF format). The image is to aid visual inspection of the algorithm
 # and the quality of the anti-aliasing. The serialized xarray is for automated
-# testing. The __name__ == '__main__'  section 
+# testing. The __name__ == '__main__'  section can be used to re-generate both
+# the NetCDF files and the PNG files.
 
 
 import os
