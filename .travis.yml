@@ -63,7 +63,7 @@ jobs:
         # Install spatialpandas here because it's python 3 only and requires
         # conda-forge for some dependencies
         - if [[ "$PYTHON_VERSION" != "2.7" ]]; then
-          conda install -c pyviz/label/dev -c conda-forge matplotlib=3.2.1 matplotlib-base=3.2.1 spatialpandas retrying --no-deps;
+          conda install -c pyviz/label/dev -c conda-forge matplotlib=3.2.1 matplotlib-base=3.2.1 spatialpandas retrying numba llvmlite --no-deps;
           fi
         # Install rasterio using pip to avoid conda solver errors
         - pip install rasterio
