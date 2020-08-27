@@ -651,7 +651,9 @@ def _xiaolinwu(i, x0, x1, y0, y1, append, *aggs_and_cols):
     dx, dy = x1-x0, y1-y0
     steep = abs(dx) < abs(dy)
     agg = aggs_and_cols[0]
-    cols = aggs_and_cols[1]
+    cols = None
+    if len(aggs_and_cols) == 2:
+        cols = aggs_and_cols[1]
 
     def _myfpart(x):
         return x - int(x)
