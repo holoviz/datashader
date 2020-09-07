@@ -695,11 +695,19 @@ def _xiaolinwu(i, x0, x1, y0, y1, append, *aggs_and_cols):
     intery = y0 + _myrfpart(x0) * grad
     xstart = _draw_endpoint((x0, y0), grad) + 1
     xend = _draw_endpoint((x1, y1), grad)
-    for x in range(xstart, xend):
+    if grad != 0.0:
+        for x in range(xstart, xend):
+            y = int(intery)
+            _unsafe_draw_pixel(_flipxy(x, y), _myrfpart(intery))
+            _unsafe_draw_pixel(_flipxy(x, y+1), _myfpart(intery))
+            intery += grad
+    else:
+        # Special case for horizontal line (grad == 0.0). Only a single pixel
+        # needs drawing.  The second pixel (at y+1) may not be on the canvas
+        # anymore and will not have any color anyway, we don't need to draw it.
         y = int(intery)
-        _unsafe_draw_pixel(_flipxy(x, y), _myrfpart(intery))
-        _unsafe_draw_pixel(_flipxy(x, y+1), _myfpart(intery))
-        intery += grad
+        for x in range(xstart, xend):
+            _unsafe_draw_pixel(_flipxy(x, y), _myrfpart(intery))
 
 
 @ngjit
