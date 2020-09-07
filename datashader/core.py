@@ -192,18 +192,7 @@ class Canvas(object):
         if agg is None:
             agg = count_rdn()
 
-        # Handle down-selecting of SpatialPointsFrame
         if geometry is None:
-            import sys
-            if 'datashader.spatial.points' in sys.modules:
-                from datashader.spatial.points import SpatialPointsFrame
-                if (isinstance(source, SpatialPointsFrame) and
-                        source.spatial is not None and
-                        source.spatial.x == x and source.spatial.y == y and
-                        self.x_range is not None and self.y_range is not None):
-
-                    source = source.spatial_query(
-                        x_range=self.x_range, y_range=self.y_range)
             glyph = Point(x, y)
         else:
             from spatialpandas import GeoDataFrame
