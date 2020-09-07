@@ -393,8 +393,18 @@ The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
         # Enable antialias if requested and if the reduction will allow it.
-        if antialias and isinstance(agg, (rd.sum, rd.max)):
-            glyph.enable_antialias()
+        if antialias:
+            import numba
+            numba_version = tuple(int(x)
+                                  for x in numba.__version__.split('.')[:2])
+            if numba_version < (0, 51):
+                message = "'antialias' needs at least Numba version 0.51.2"
+                raise NotImplementedError(message)
+            if isinstance(agg, (rd.sum, rd.max)):
+                glyph.enable_antialias()
+            else:
+                #TODO: issue warning
+                pass
         return bypixel(source, self, glyph, agg)
 
     def area(self, source, x, y, agg=None, axis=0, y_stack=None):
