@@ -89,6 +89,7 @@
 
 
 import os
+import pytest
 import xarray as xr
 import datashader as ds
 import pandas as pd
@@ -381,7 +382,8 @@ def load_test_images(images):
         loaded[description] = load_from_netcdf(description)
     return loaded
 
-
+@pytest.mark.skipif(ds.core.numba_version < (0, 51, 2),
+                    reason="Need at least Numba 0.51.2 for 'antialias'")
 def test_antialiasing():
     """Test case for all images.
 

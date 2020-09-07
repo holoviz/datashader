@@ -29,6 +29,12 @@ try:
 except Exception:
     dask_cudf = None
 
+# Get and save the Numba version, will be used to limit functionality
+from numba import __version__ as numba_version
+numba_version = tuple([int(x) for x in re.match(
+                            "([0-9]+)\.([0-9]+)\.([0-9]+)",
+                            numba_version).groups()])
+
 class Axis(object):
     """Interface for implementing axis transformations.
 
@@ -395,11 +401,6 @@ The axis argument to Canvas.line must be 0 or 1
 
         # Enable antialias if requested and if the reduction will allow it.
         if antialias:
-            import numba
-            numba_version = tuple([int(x) for x in
-                                   re.match(
-                                       "([0-9]+)\.([0-9]+)\.([0-9]+)",
-                                       numba.__version__).groups()])
             if numba_version < (0, 51, 2):
                 message = "'antialias' needs at least Numba version 0.51.2"
                 raise NotImplementedError(message)
