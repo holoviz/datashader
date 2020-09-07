@@ -104,7 +104,7 @@ cmap01 =([tuple(v*255. for v in tuple(rgb)[:3])
           for rgb in binary(np.linspace(0, 1))])
 
 # The normal sized canvas
-regaular_cvs = ds.Canvas(plot_width=50, plot_height=50,
+regular_cvs = ds.Canvas(plot_width=50, plot_height=50,
                         x_range=(0, 49), y_range=(0, 49))
 
 # The reduced or clipped canvas
@@ -113,7 +113,7 @@ reduced_cvs = ds.Canvas(plot_width=20, plot_height=20,
 
 # Datashader options for anti-alias and canvas size
 antialias_options = ((True, "antialias"), (False, "noaa"))
-canvas_options = ((regaular_cvs, "normal"), (reduced_cvs, "clipped"))
+canvas_options = ((regular_cvs, "normal"), (reduced_cvs, "clipped"))
 
 
 def draw_line(cvs, p1, p2, antialias):
@@ -402,7 +402,7 @@ def test_antialiasing_not_supported_on_older_Numba():
     ds.core.numba_version = (0, 50, 0)
     message = "'antialias' needs at least Numba version 0.51.2"
     with pytest.raises(NotImplementedError) as excinfo:
-        draw_lines(regaular_cvs, generate_test_001()[0], True)
+        draw_lines(regular_cvs, generate_test_001()[0], True)
     assert message in str(excinfo.value)
     ds.core.numba_version = old
 
