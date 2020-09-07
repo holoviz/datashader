@@ -259,7 +259,7 @@ class Canvas(object):
             across neighboring pixels to more closely approximate the line
             shape. If False, each position on the line affects only a single
             pixel, resulting in line shapes that are blocky but easier to
-            reason about.
+            reason about. Needs at least Numba 0.51.2.
 
         Examples
         --------
