@@ -2,6 +2,7 @@ from __future__ import absolute_import, division, print_function
 
 from numbers import Number
 from math import log10
+import re
 
 import numpy as np
 import pandas as pd
@@ -395,9 +396,11 @@ The axis argument to Canvas.line must be 0 or 1
         # Enable antialias if requested and if the reduction will allow it.
         if antialias:
             import numba
-            numba_version = tuple(int(x)
-                                  for x in numba.__version__.split('.')[:2])
-            if numba_version < (0, 51):
+            numba_version = tuple([int(x) for x in
+                                   re.match(
+                                       "([0-9]+)\.([0-9]+)\.([0-9]+)",
+                                       numba.__version__).groups()])
+            if numba_version < (0, 51, 2):
                 message = "'antialias' needs at least Numba version 0.51.2"
                 raise NotImplementedError(message)
             if isinstance(agg, (rd.sum, rd.max)):
