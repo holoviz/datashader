@@ -397,6 +397,14 @@ def test_antialiasing():
     for description in images.keys():
         assert images[description] == loaded[description]
 
+def test_antialiasing_not_supported_on_older_Numba():
+    old = ds.core.numba_version
+    ds.core.numba_version = (0, 50, 0)
+    message = "'antialias' needs at least Numba version 0.51.2"
+    with pytest.raises(NotImplementedError) as excinfo:
+        draw_lines(regaular_cvs, generate_test_001()[0], True)
+    assert message in str(excinfo.value)
+    ds.core.numba_version = old
 
 if __name__ == '__main__':
     # Run this to generate the PNG and NetCDF files.
