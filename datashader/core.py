@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 from numbers import Number
 from math import log10
 import re
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -407,8 +408,9 @@ The axis argument to Canvas.line must be 0 or 1
             if isinstance(agg, (rd.sum, rd.max)):
                 glyph.enable_antialias()
             else:
-                #TODO: issue warning
-                pass
+                message = ("Aggresgation: '{}' is not supported by antialias".
+                           format(agg))
+                warnings.warn(message)
         return bypixel(source, self, glyph, agg)
 
     def area(self, source, x, y, agg=None, axis=0, y_stack=None):
