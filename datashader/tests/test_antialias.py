@@ -75,7 +75,39 @@
 # line whereas for 006 it is a multi-segment line, and each vertex is listed
 # only a single time. Datasahder then "connects the dots" as it were.
 #
-# So for each of these 6 patterns, we test a regular and a clipped version
+# Test 007 tests the edge case, where we draw an almost staright line between
+# corners with only a single pixel offset. This is to ensure that anti-aliasing
+# does not try to draw pixels that  are out of bounds. Importantly, this needs
+# to be run with Numba disabled, since Numba does not do  OOB checking by
+# default.
+#
+# +---------------------------------------------+
+# | *                     **********************|
+# |***********************                     *|
+# | *                                          *|
+# | *                                          *|
+# | *                                          *|
+# | *                                          *|
+# | *                                          *|
+# | *                                          *|
+# | *                                          *|
+# | *                                          *|
+# | *                                          *|
+# |*                                          * |
+# |*                                          * |
+# |*                                          * |
+# |*                                          * |
+# |*                                          * |
+# |*                                          * |
+# |*                                          * |
+# |*                                          * |
+# |*                                          * |
+# |*                       *********************|
+# |************************                   * |
+# +---------------------------------------------+
+#
+#
+# So for each of these 7 patterns, we test a regular and a clipped version
 # (the canvas is clipped to a region in the center) in both the normal and the
 # anti-aliased drawing mode. This ensures that lines can be drawn in all
 # directions and that clipping a canvas works. Tests 005 and 006 ensure that
@@ -324,6 +356,15 @@ def generate_test_006():
     ]
     return points, "test_006"
 
+def generate_test_007():
+    points = [
+        ((0,0),  (1, 49)),
+        ((0,0),  (49, 1)),
+        ((49,49),  (48, 0)),
+        ((49,49),  (0, 48)),
+    ]
+    return points, "test_007"
+
 def generate_test_images():
     """Generate all test images.
 
@@ -340,6 +381,7 @@ def generate_test_images():
                          generate_test_003,
                          generate_test_004,
                          generate_test_005,
+                         generate_test_007,
                         ):
                 points, name = func()
                 aggregators = draw_lines(canvas, points, antialias)
