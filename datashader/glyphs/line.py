@@ -4,8 +4,7 @@ from toolz import memoize
 
 from datashader.glyphs.points import _PointLike, _GeometryLike
 from datashader.glyphs.glyph import isnull
-from datashader.utils import isreal, ngjit
-from datashader.core import numba_version
+from datashader.utils import isreal, ngjit, numba_version
 from numba import cuda
 
 

@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+import re
 
 from inspect import getmro
 
@@ -41,6 +42,11 @@ class VisibleDeprecationWarning(UserWarning):
 
 ngjit = nb.jit(nopython=True, nogil=True)
 ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
+
+# Get and save the Numba version, will be used to limit functionality
+numba_version = tuple([int(x) for x in re.match(
+                            r"([0-9]+)\.([0-9]+)\.([0-9]+)",
+                            nb.__version__).groups()])
 
 
 class Expr(object):

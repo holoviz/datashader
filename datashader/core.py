@@ -2,7 +2,6 @@ from __future__ import absolute_import, division, print_function
 
 from numbers import Number
 from math import log10
-import re
 import warnings
 
 import numpy as np
@@ -15,7 +14,8 @@ from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     compute_coords, dshape_from_xarray_dataset
-from .utils import get_indices, dshape_from_pandas, dshape_from_dask
+from .utils import get_indices, dshape_from_pandas, dshape_from_dask, \
+    numba_version
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
@@ -29,12 +29,6 @@ try:
     import dask_cudf
 except Exception:
     dask_cudf = None
-
-# Get and save the Numba version, will be used to limit functionality
-from numba import __version__ as numba_version
-numba_version = tuple([int(x) for x in re.match(
-                            r"([0-9]+)\.([0-9]+)\.([0-9]+)",
-                            numba_version).groups()])
 
 class Axis(object):
     """Interface for implementing axis transformations.
