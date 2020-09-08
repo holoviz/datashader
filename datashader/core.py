@@ -33,7 +33,7 @@ except Exception:
 # Get and save the Numba version, will be used to limit functionality
 from numba import __version__ as numba_version
 numba_version = tuple([int(x) for x in re.match(
-                            "([0-9]+)\.([0-9]+)\.([0-9]+)",
+                            r"([0-9]+)\.([0-9]+)\.([0-9]+)",
                             numba_version).groups()])
 
 class Axis(object):
