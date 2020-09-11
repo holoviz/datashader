@@ -397,9 +397,6 @@ The axis argument to Canvas.line must be 0 or 1
 
         # Enable antialias if requested and if the reduction will allow it.
         if antialias:
-            if numba_version < (0, 51, 2):
-                message = "'antialias' needs at least Numba version 0.51.2"
-                raise NotImplementedError(message)
             if isinstance(agg, (rd.sum, rd.max)):
                 glyph.enable_antialias()
             else:

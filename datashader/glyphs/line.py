@@ -764,6 +764,12 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
             x0, x1, y0, y1, *aggs_and_cols
     ):
+        # NOTE: The slightly bizarre variable versioning herein for variables
+        # x0, y0, y0, y1 is to deal with Numba not having SSA form prior to
+        # version 0.49.0. The result of lack of SSA is that the type inference
+        # algorithms would widen types that are multiply defined as would be the
+        # case in code such as `x, y = function(x, y)` if the function returned
+        # a wider type for x, y then the input x, y.
         skip = False
 
         # If any of the coordinates are NaN, there's a discontinuity.
@@ -771,136 +777,26 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
         if isnull(x0) or isnull(y0) or isnull(x1) or isnull(y1):
             skip = True
         # Use Liang-Barsky to clip the segment to a bounding box
-        x0, x1, y0, y1, skip, clipped_start, clipped_end = _liang_barsky(
-            xmin, xmax, ymin, ymax, x0, x1, y0, y1, skip
-        )
+        x0_1, x1_1, y0_1, y1_1, skip, clipped_start, clipped_end = \
+            _liang_barsky(xmin, xmax, ymin, ymax, x0, x1, y0, y1, skip)
 
         if not skip:
             clipped = clipped_start or clipped_end
             segment_start = segment_start or clipped_start
-            x0, y0 = map_onto_pixel(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
+            x0_2, y0_2 = map_onto_pixel(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0_1, y0_1
             )
-            x1, y1 = map_onto_pixel(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
+            x1_2, y1_2 = map_onto_pixel(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1_1, y1_1
             )
             if antialias:
-                _xiaolinwu(i, x0, x1, y0, y1, append, *aggs_and_cols)
+                _xiaolinwu(i, x0_2, x1_2, y0_2, y1_2, append, *aggs_and_cols)
             else:
                 _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                           segment_start, x0, x1, y0, y1,
+                           segment_start, x0_2, x1_2, y0_2, y1_2,
                            clipped, append, *aggs_and_cols)
 
-    # This is a verbatim copy of the original draw_segment function that does not
-    # support antialias but can be compiled by Numba < 0.51.2.
-    @ngjit
-    @expand_aggs_and_cols
-    def draw_segment_no_anti_alias(
-            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
-            x0, x1, y0, y1, *aggs_and_cols
-    ):
-        """Draw a line segment using Bresenham's algorithm
-        This method plots a line segment with integer coordinates onto a pixel
-        grid.
-        """
-        skip = False
-
-        # If any of the coordinates are NaN, there's a discontinuity.
-        # Skip the entire segment.
-        if isnull(x0) or isnull(y0) or isnull(x1) or isnull(y1):
-            skip = True
-
-        # Use Liang-Barsky (1992) to clip the segment to a bounding box
-        # Check if line is fully outside viewport
-        if x0 < xmin and x1 < xmin:
-            skip = True
-        elif x0 > xmax and x1 > xmax:
-            skip = True
-        elif y0 < ymin and y1 < ymin:
-            skip = True
-        elif y0 > ymax and y1 > ymax:
-            skip = True
-
-        t0, t1 = 0, 1
-        dx1 = x1 - x0
-        t0, t1, accept = _clipt(-dx1, x0 - xmin, t0, t1)
-        if not accept:
-            skip = True
-        t0, t1, accept = _clipt(dx1, xmax - x0, t0, t1)
-        if not accept:
-            skip = True
-        dy1 = y1 - y0
-        t0, t1, accept = _clipt(-dy1, y0 - ymin, t0, t1)
-        if not accept:
-            skip = True
-        t0, t1, accept = _clipt(dy1, ymax - y0, t0, t1)
-        if not accept:
-            skip = True
-        if t1 < 1:
-            clipped_end = True
-            x1 = x0 + t1 * dx1
-            y1 = y0 + t1 * dy1
-        else:
-            clipped_end = False
-        if t0 > 0:
-            # If x0 is clipped, we need to plot the new start
-            clipped_start = True
-            x0 = x0 + t0 * dx1
-            y0 = y0 + t0 * dy1
-        else:
-            clipped_start = False
-
-        segment_start = segment_start or clipped_start
-        if not skip:
-            x0i, y0i = map_onto_pixel(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
-            )
-            x1i, y1i = map_onto_pixel(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
-            )
-            clipped = clipped_start or clipped_end
-            dx = x1i - x0i
-            ix = (dx > 0) - (dx < 0)
-            dx = abs(dx) * 2
-
-            dy = y1i - y0i
-            iy = (dy > 0) - (dy < 0)
-            dy = abs(dy) * 2
-
-            # If vertices weren't clipped and are concurrent in integer space,
-            # call append and return, so that the second vertex won't be hit below.
-            if not clipped and not (dx | dy):
-                append(i, x0i, y0i, *aggs_and_cols)
-                return
-
-            if segment_start:
-                append(i, x0i, y0i, *aggs_and_cols)
-
-            if dx >= dy:
-                error = 2 * dy - dx
-                while x0i != x1i:
-                    if error >= 0 and (error or ix > 0):
-                        error -= 2 * dx
-                        y0i += iy
-                    error += 2 * dy
-                    x0i += ix
-                    append(i, x0i, y0i, *aggs_and_cols)
-            else:
-                error = 2 * dx - dy
-                while y0i != y1i:
-                    if error >= 0 and (error or iy > 0):
-                        error -= 2 * dy
-                        x0i += ix
-                    error += 2 * dx
-                    y0i += iy
-                    append(i, x0i, y0i, *aggs_and_cols)
-
-    # Return the correct implementation based on the Numba version
-    if numba_version >= (0, 51, 2):
-        return draw_segment
-    else:
-        return draw_segment_no_anti_alias
-
+    return draw_segment
 
 def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols):
 
