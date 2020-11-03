@@ -11,13 +11,15 @@ install:
   - "doit env_create %CHANNELS% --name=test --python=%PY%"
   - "activate test"
   - "doit develop_install %CHANNELS% -o tests -o examples"
+  # Fix issue excluding versions on windows
+  - "conda install numba=0.48 --yes"
   # Fix for https://github.com/conda-forge/pytest-benchmark-feedstock/issues/6
-  - "pip install pytest-benchmark --ignore-installed"
+  - "pip install pytest-benchmark pytest<6.0 --ignore-installed"
   # Fixes Cannot open include file: 'sys/un.h': No such file or directory
   - "pip uninstall -y pyzmq"
   - "pip install pyzmq"
   # Fixes pkg_resources.DistributionNotFound: The 'imagecodecs>=2020.2.18'
-  # distribution was not found and is required by tifffile
+  # distributiopn was not found and is required by tifffile
   - "pip uninstall -y imagecodecs"
   - "pip install imagecodecs"
   - "doit env_capture"

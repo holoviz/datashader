@@ -555,6 +555,15 @@ def data_repeated(data):
     return gen
 
 
+@pytest.fixture(params=[None, lambda x: x])
+def sort_by_key(request):
+    """
+    Simple fixture for testing keys in sorting methods.
+    Tests None (no key) and the identity key.
+    """
+    return request.param
+
+
 @pytest.fixture
 def data_missing():
     """Length-2 array with [NA, Valid]"""
@@ -614,6 +623,10 @@ class TestRaggedConstructors(eb.BaseConstructorsTests):
 
     @pytest.mark.skip(reason="Constructing DataFrame from RaggedArray not supported")
     def test_from_dtype(self, data):
+        pass
+
+    @pytest.mark.skip(reason="passing scalar with index not supported")
+    def test_series_constructor_scalar_with_index(self, data, dtype):
         pass
 
 
@@ -742,6 +755,14 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     # # AttributeError: 'RaggedArray' object has no attribute 'value_counts'
     @pytest.mark.skip(reason="value_counts not supported")
     def test_value_counts(self):
+        pass
+
+    @pytest.mark.skip(reason="value_counts not supported")
+    def test_value_counts_with_normalize(self):
+        pass
+
+    @pytest.mark.skip(reason="shift not supported")
+    def test_shift_0_periods(self):
         pass
 
     # Add array equality

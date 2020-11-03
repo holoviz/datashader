@@ -15,7 +15,7 @@ import xarray as xr
 from PIL.Image import fromarray
 
 from datashader.colors import rgb, Sets1to3
-from datashader.composite import composite_op_lookup, over
+from datashader.composite import composite_op_lookup, over, validate_operator
 from datashader.utils import nansum_missing, ngjit, orient_array
 
 try:
@@ -535,7 +535,7 @@ def set_background(img, color=None, name=None):
     return Image(data, coords=img.coords, dims=img.dims, name=name)
 
 
-def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
+def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
     """Spread pixels in an image.
 
     Spreading expands each pixel a certain number of pixels on all sides
@@ -544,13 +544,15 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
 
     Parameters
     ----------
-    img : Image
+    img : Image or other DataArray
     px : int, optional
         Number of pixels to spread on all sides
     shape : str, optional
         The shape to spread by. Options are 'circle' [default] or 'square'.
     how : str, optional
-        The name of the compositing operator to use when combining pixels.
+        The name of the compositing operator to use when combining
+        pixels. Default of None uses 'over' operator for Image objects
+        and 'add' operator otherwise.
     mask : ndarray, shape (M, M), optional
         The mask to spread over. If provided, this mask is used instead of
         generating one based on `px` and `shape`. Must be a square array
@@ -560,8 +562,9 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
         Optional string name to give to the Image object to return,
         to label results for display.
     """
-    if not isinstance(img, Image):
-        raise TypeError("Expected `Image`, got: `{0}`".format(type(img)))
+    if not isinstance(img, xr.DataArray):
+        raise TypeError("Expected `xr.DataArray`, got: `{0}`".format(type(img)))
+    is_image = isinstance(img, Image)
     name = img.name if name is None else name
     if mask is None:
         if not isinstance(px, int) or px < 0:
@@ -574,20 +577,90 @@ def spread(img, px=1, shape='circle', how='over', mask=None, name=None):
         raise ValueError("mask must be a square 2 dimensional ndarray with "
                          "odd dimensions.")
         mask = mask if mask.dtype == 'bool' else mask.astype('bool')
-    kernel = _build_spread_kernel(how)
+    if how is None:
+        how = 'over' if is_image else 'add'
+
     w = mask.shape[0]
     extra = w // 2
-    M, N = img.shape
-    buf = np.zeros((M + 2*extra, N + 2*extra), dtype='uint32')
-    kernel(img.data, mask, buf)
-    out = buf[extra:-extra, extra:-extra].copy()
-    return Image(out, dims=img.dims, coords=img.coords, name=name)
+    M, N = img.shape[:2]
+    padded_shape = (M + 2*extra, N + 2*extra)
+    float_type = img.dtype in [np.float32, np.float64]
+    fill_value = np.nan if float_type else 0
+
+    if is_image:
+        kernel = _build_spread_kernel(how, is_image)
+    elif float_type:
+        kernel = _build_float_kernel(how, w)
+    else:
+        kernel = _build_int_kernel(how, w, img.dtype == np.uint32)
+
+    def apply_kernel(layer):
+        buf = np.full(padded_shape, fill_value, dtype=layer.dtype)
+        kernel(layer.data, mask, buf)
+        return buf[extra:-extra, extra:-extra].copy()
+
+    if len(img.shape)==2:
+        out = apply_kernel(img)
+    else:
+        out = np.dstack([apply_kernel(img[:,:,category])
+                        for category in range(img.shape[2])])
+
+    return img.__class__(out, dims=img.dims, coords=img.coords, name=name)
 
 
 @tz.memoize
-def _build_spread_kernel(how):
+def _build_int_kernel(how, mask_size, ignore_zeros):
     """Build a spreading kernel for a given composite operator"""
-    op = composite_op_lookup[how]
+    validate_operator(how, is_image=False)
+    op = composite_op_lookup[how + "_arr"]
+    @ngjit
+    def stencilled(arr, mask, out):
+        M, N = arr.shape
+        for y in range(M):
+            for x in range(N):
+                el = arr[y, x]
+                for i in range(mask_size):
+                    for j in range(mask_size):
+                        if mask[i, j]:
+                            if ignore_zeros and el==0:
+                                result = out[i + y, j + x]
+                            elif ignore_zeros and out[i + y, j + x]==0:
+                                result = el
+                            else:
+                                result = op(el, out[i + y, j + x])
+                            out[i + y, j + x] = result
+    return stencilled
+
+
+@tz.memoize
+def _build_float_kernel(how, mask_size):
+    """Build a spreading kernel for a given composite operator"""
+    validate_operator(how, is_image=False)
+    op = composite_op_lookup[how + "_arr"]
+    @ngjit
+    def stencilled(arr, mask, out):
+        M, N = arr.shape
+        for y in range(M):
+            for x in range(N):
+                el = arr[y, x]
+                for i in range(mask_size):
+                    for j in range(mask_size):
+                        if mask[i, j]:
+                            if np.isnan(el):
+                                result = out[i + y, j + x]
+                            elif np.isnan(out[i + y, j + x]):
+                                result = el
+                            else:
+                                result = op(el, out[i + y, j + x])
+                            out[i + y, j + x] = result
+    return stencilled
+
+
+@tz.memoize
+def _build_spread_kernel(how, is_image):
+    """Build a spreading kernel for a given composite operator"""
+    validate_operator(how, is_image=True)
+    op = composite_op_lookup[how + ("" if is_image else "_arr")]
 
     @ngjit
     def kernel(arr, mask, out):
@@ -597,12 +670,20 @@ def _build_spread_kernel(how):
             for x in range(N):
                 el = arr[y, x]
                 # Skip if data is transparent
-                if (el >> 24) & 255:
+                process_image = is_image and ((int(el) >> 24) & 255) # Transparent pixel
+                process_array = (not is_image) and (not np.isnan(el))
+                if process_image or process_array:
                     for i in range(w):
                         for j in range(w):
                             # Skip if mask is False at this value
                             if mask[i, j]:
-                                out[i + y, j + x] = op(el, out[i + y, j + x])
+                                if el==0:
+                                    result = out[i + y, j + x]
+                                if out[i + y, j + x]==0:
+                                    result = el
+                                else:
+                                    result = op(el, out[i + y, j + x])
+                                out[i + y, j + x] = result
     return kernel
 
 
@@ -623,7 +704,7 @@ _mask_lookup = {'square': _square_mask,
                 'circle': _circle_mask}
 
 
-def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=None):
+def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None):
     """Spread pixels in an image dynamically based on the image density.
 
     Spreading expands each pixel a certain number of pixels on all sides
@@ -645,22 +726,58 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how='over', name=Non
     shape : str, optional
         The shape to spread by. Options are 'circle' [default] or 'square'.
     how : str, optional
-        The name of the compositing operator to use when combining pixels.
+        The name of the compositing operator to use when combining
+        pixels. Default of None uses 'over' operator for Image objects
+        and 'add' operator otherwise.
     """
+    is_image = isinstance(img, Image)
     if not 0 <= threshold <= 1:
         raise ValueError("threshold must be in [0, 1]")
     if not isinstance(max_px, int) or max_px < 0:
         raise ValueError("max_px must be >= 0")
     # Simple linear search. Not super efficient, but max_px is usually small.
+    float_type = img.dtype in [np.float32, np.float64]
     for px in range(max_px + 1):
         out = spread(img, px, shape=shape, how=how, name=name)
-        if _density(out.data) >= threshold:
+        if is_image:
+            density = _rgb_density(out.data)
+        elif len(img.shape) == 2:
+            density = _array_density(out.data, float_type)
+        else:
+            masked = np.logical_not(np.isnan(out)) if float_type else (out != 0)
+            flat_mask = np.sum(masked, axis=2, dtype='uint32')
+            density = _array_density(flat_mask.data, False)
+        if density >= threshold:
             break
+
     return out
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
-def _density(arr):
+def _array_density(arr, float_type):
+    """Compute a density heuristic of an array.
+
+    The density is a number in [0, 1], and indicates the normalized mean number
+    of non-empty adjacent pixels for each non-empty pixel.
+    """
+    M, N = arr.shape
+    cnt = total = 0
+    for y in range(1, M - 1):
+        for x in range(1, N - 1):
+            el = arr[y, x]
+            if (float_type and not np.isnan(el)) or (not float_type and el!=0):
+                cnt += 1
+                for i in range(y - 1, y + 2):
+                    for j in range(x - 1, x + 2):
+                        if float_type and not np.isnan(arr[i, j]):
+                            total += 1
+                        elif not float_type and arr[i, j] != 0:
+                            total += 1
+    return (total - cnt)/(cnt * 8) if cnt else np.inf
+
+
+@nb.jit(nopython=True, nogil=True, cache=True)
+def _rgb_density(arr):
     """Compute a density heuristic of an image.
 
     The density is a number in [0, 1], and indicates the normalized mean number

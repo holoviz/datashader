@@ -15,14 +15,14 @@ install_requires = [
     'dask[complete] >=0.18.0',
     'toolz >=0.7.4',  # ? for some dask issue (dasks does only >=0.7.3)
     'datashape >=0.5.1',
-    'numba >=0.37.0,<0.49',
+    'numba >=0.37.0,!=0.49.*,!=0.50.*',
     'numpy >=1.7',
     'pandas >=0.24.1',
     'pillow >=3.1.1',
     'xarray >=0.9.6',
     'colorcet >=0.9.0',
     'param >=1.6.0',
-    'pyct[cmd] ==0.4.6',
+    'pyct[cmd]',
     'bokeh',
     'scipy',
 ]
@@ -36,7 +36,7 @@ examples = [
 
 extras_require = {
     'tests': [
-        'pytest >=3.9.3',
+        'pytest >=3.9.3,<6.0',
         'pytest-benchmark >=3.0.0',
         'pytest-cov',
         'codecov',
@@ -44,6 +44,7 @@ extras_require = {
         'nbsmoke[all] >=0.4.0',
         'fastparquet >=0.1.6',  # optional dependency
         'holoviews >=1.10.0',
+        'pyarrow'
     ],
     'examples': examples,
     'examples_extra': examples + [

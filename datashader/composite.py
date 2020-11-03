@@ -10,7 +10,20 @@ import numba as nb
 import numpy as np
 import os
 
-__all__ = ('composite_op_lookup', 'over', 'add', 'saturate', 'source')
+image_operators = ('over', 'add', 'saturate', 'source')
+array_operators = ('add_arr', 'max_arr', 'min_arr', 'source_arr')
+__all__ = ('composite_op_lookup', 'validate_operator') + image_operators + array_operators
+
+
+def validate_operator(how, is_image):
+    name = how if is_image else how + '_arr'
+    if is_image:
+        if name not in image_operators:
+            raise ValueError('Operator %r not one of the supported image operators: %s'
+                            % (how, ', '.join(repr(el) for el in image_operators)))
+    elif name not in array_operators:
+        raise ValueError('Operator %r not one of the supported array operators: %s'
+                        % (how, ', '.join(repr(el[:-4]) for el in array_operators)))
 
 
 @nb.jit('(uint32,)', nopython=True, nogil=True, cache=True)
@@ -46,7 +59,7 @@ composite_op_lookup = {}
 
 
 def operator(f):
-    """Define and register a new composite operator"""
+    """Define and register a new image composite operator"""
 
     if jit_enabled:
         f2 = nb.vectorize(f)
@@ -109,3 +122,44 @@ def saturate(src, dst):
     g = (factor * sg + dg * da)/a
     b = (factor * sb + db * da)/a
     return combine_scaled(r, g, b, a)
+
+
+
+def arr_operator(f):
+    """Define and register a new array composite operator"""
+
+    if jit_enabled:
+        f2 = nb.vectorize(f)
+        f2._compile_for_argtys(
+           (nb.types.int32, nb.types.int32))
+        f2._compile_for_argtys(
+           (nb.types.int64, nb.types.int64))
+        f2._compile_for_argtys(
+            (nb.types.float32, nb.types.float32))
+        f2._compile_for_argtys(
+            (nb.types.float64, nb.types.float64))
+        f2._frozen = True
+    else:
+        f2 = np.vectorize(f)
+
+    composite_op_lookup[f.__name__] = f2
+    return f2
+
+
+@arr_operator
+def source_arr(src, dst):
+    if src:  return src
+    else:    return dst
+
+@arr_operator
+def add_arr(src, dst):
+    return src + dst
+
+@arr_operator
+def max_arr(src, dst):
+    return max([src,  dst])
+
+@arr_operator
+def min_arr(src, dst):
+    return min([src,  dst])
+
