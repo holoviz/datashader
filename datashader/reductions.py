@@ -114,7 +114,7 @@ class category_modulo(category_codes):
 
 class category_binning(category_modulo):
     """
-    A variation on category_codes that assigns categories by binning a continuously-valued column.
+    A variation on category_codes that assigns categories by binning a continuous-valued column.
     The number of categories returned is always nbins+1.
     The last category (nbin) is for NaNs in the data column, as well as for values under/over the binned
     interval (when include_under or include_over is False).
