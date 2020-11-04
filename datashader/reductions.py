@@ -124,17 +124,17 @@ class category_binning(category_modulo):
     Parameters
     ----------
     column:   column to use
-    bin0:     lower bound of first bin
-    binsize:  bin size
+    lower:    lower bound of first bin
+    upper:    upper bound of last bin
     nbins:     number of bins
     include_under: if True, values below bin 0 are assigned to category 0
     include_over:  if True, values above the last bin (nbins-1) are assigned to category nbin-1
     """
 
-    def __init__(self, column, bin0, binsize, nbins, include_under=True, include_over=True):
+    def __init__(self, column, lower, upper, nbins, include_under=True, include_over=True):
         super().__init__(column, nbins + 1)  # +1 category for NaNs and clipped values
-        self.bin0 = bin0
-        self.binsize = binsize
+        self.bin0 = lower
+        self.binsize = (upper - lower) / float(nbins)
         self.nbins = nbins
         self.bin_under = 0 if include_under else nbins
         self.bin_over  = nbins-1 if include_over else nbins
@@ -269,12 +269,12 @@ class by(Reduction):
     reduction : Reduction
         Per-category reduction function.
     """
-    def __init__(self, cats, reduction):
+    def __init__(self, cat_column, reduction):
         # set basic categorizer
-        if isinstance(cats, CategoryPreprocess):
-            self.categorizer = cats
-        elif isinstance(cats, str):
-            self.categorizer = category_codes(cats)
+        if isinstance(cat_column, CategoryPreprocess):
+            self.categorizer = cat_column
+        elif isinstance(cat_column, str):
+            self.categorizer = category_codes(cat_column)
         else:
             raise TypeError("first argument must be a column name or a CategoryPreprocess instance")
         self.column = self.categorizer.column # for backwards compatibility with count_cat
@@ -863,4 +863,5 @@ class summary(Expr):
 __all__ = list(set([_k for _k,_v in locals().items()
                     if isinstance(_v,type) and (issubclass(_v,Reduction) or _v is summary)
                     and _v not in [Reduction, OptionalFieldReduction,
-                                   FloatingReduction, m2]]))
+                                   FloatingReduction, m2]])) + \
+                    ['category_modulo', 'category_binning']
