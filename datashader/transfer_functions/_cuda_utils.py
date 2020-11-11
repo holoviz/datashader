@@ -1,18 +1,30 @@
 from __future__ import division
-from math import ceil, isnan, nan
-from numba import cuda
-import cupy
+
+from distutils.version import LooseVersion
+from math import ceil, isnan
+
+try:
+    from math import nan
+except:
+    nan = float('nan')
+
+import numba
 import numpy as np
 
+from numba import cuda
 
-if cupy.result_type is np.result_type:
-    # Workaround until cupy release of https://github.com/cupy/cupy/pull/2249
-    # Without this, cupy.histogram raises an error that cupy.result_type
-    # is not defined.
-    cupy.result_type = lambda *args: np.result_type(
-        *[arg.dtype if isinstance(arg, cupy.ndarray) else arg
-          for arg in args]
-    )
+try:
+    import cupy
+    if cupy.result_type is np.result_type:
+        # Workaround until cupy release of https://github.com/cupy/cupy/pull/2249
+        # Without this, cupy.histogram raises an error that cupy.result_type
+        # is not defined.
+        cupy.result_type = lambda *args: np.result_type(
+            *[arg.dtype if isinstance(arg, cupy.ndarray) else arg
+              for arg in args]
+        )
+except:
+    cupy = None
 
 
 def cuda_args(shape):
@@ -70,13 +82,33 @@ def masked_clip_2d(data, mask, lower, upper):
     masked_clip_2d_kernel[cuda_args(data.shape)](data, mask, lower, upper)
 
 
+# Behaviour of numba.cuda.atomic.max/min changed in 0.50 so as to behave as per
+# np.nanmax/np.nanmin
+if LooseVersion(numba.__version__) >= LooseVersion("0.51.0"):
+    @cuda.jit(device=True)
+    def cuda_atomic_nanmin(ary, idx, val):
+        return cuda.atomic.nanmin(ary, idx, val)
+    @cuda.jit(device=True)
+    def cuda_atomic_nanmax(ary, idx, val):
+        return cuda.atomic.nanmax(ary, idx, val)
+elif LooseVersion(numba.__version__) <= LooseVersion("0.49.1"):
+    @cuda.jit(device=True)
+    def cuda_atomic_nanmin(ary, idx, val):
+        return cuda.atomic.min(ary, idx, val)
+    @cuda.jit(device=True)
+    def cuda_atomic_nanmax(ary, idx, val):
+        return cuda.atomic.max(ary, idx, val)
+else:
+    raise ImportError("Datashader's CUDA support requires numba!=0.50.0")
+
+
 @cuda.jit
 def masked_clip_2d_kernel(data, mask, lower, upper):
     i, j = cuda.grid(2)
     maxi, maxj = data.shape
     if i >= 0 and i < maxi and j >= 0 and j < maxj and not mask[i, j]:
-        cuda.atomic.max(data, (i, j), lower)
-        cuda.atomic.min(data, (i, j), upper)
+        cuda_atomic_nanmax(data, (i, j), lower)
+        cuda_atomic_nanmin(data, (i, j), upper)
 
 
 # interp

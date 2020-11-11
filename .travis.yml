@@ -1,7 +1,8 @@
 # TODO:
 #
 #  * restore previous sections
-language: generic
+language: python
+
 sudo: false
 os:
   - linux
@@ -10,7 +11,6 @@ dist: xenial
 
 env:
   global:
-    - PYENV_VERSION=3.7
     - CHANS_DEV="-c pyviz/label/dev"
     - CHANS_REL="-c pyviz"
     - LABELS_DEV="--label dev"
@@ -28,10 +28,10 @@ env:
 
 stages:
   - test
-  - name: docs
-    if: tag =~ ^v(\d+|\.)*[^a-z]\d*$ OR tag = website
-  - name: docs_dev
-    if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$ OR tag = website_dev OR commit_message =~ /\[doc-build\]/
+  - name: website_dev
+    if: (tag =~ ^v(\d+|\.)+[a|b|rc]\d+$) OR (tag = website_dev) OR (commit_message =~ /^.*(website_dev).*$/)
+  - name: website_release
+    if: (tag =~ ^v(\d+|\.)+\d+$) OR (tag = website_release) OR (commit_message =~ /^.*(website_release).*$/)
   - name: conda_dev_package
     if: tag =~ ^v(\d+|\.)+([a-z]|rc)\d+$
   - name: pip_dev_package
@@ -63,7 +63,7 @@ jobs:
         # Install spatialpandas here because it's python 3 only and requires
         # conda-forge for some dependencies
         - if [[ "$PYTHON_VERSION" != "2.7" ]]; then
-          conda install -c pyviz/label/dev -c conda-forge matplotlib=3.2.1 matplotlib-base=3.2.1 spatialpandas --no-deps;
+          conda install -c pyviz/label/dev -c conda-forge matplotlib=3.2.1 matplotlib-base=3.2.1 spatialpandas retrying --no-deps;
           fi
         # Install rasterio using pip to avoid conda solver errors
         - pip install rasterio
@@ -91,7 +91,7 @@ jobs:
 
     - &doc_build
       <<: *default
-      stage: docs
+      stage: website_release
       env: HV_DOC_HTML="true" DESC="docs" OPTS="-o doc"
       script:
         - datashader fetch-data --path=examples --force
@@ -108,7 +108,7 @@ jobs:
           all_branches: true
 
     - <<: *doc_build
-      stage: docs_dev
+      stage: website_dev
       deploy:
         provider: pages
         skip_cleanup: true

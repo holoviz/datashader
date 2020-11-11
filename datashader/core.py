@@ -192,18 +192,7 @@ class Canvas(object):
         if agg is None:
             agg = count_rdn()
 
-        # Handle down-selecting of SpatialPointsFrame
         if geometry is None:
-            import sys
-            if 'datashader.spatial.points' in sys.modules:
-                from datashader.spatial.points import SpatialPointsFrame
-                if (isinstance(source, SpatialPointsFrame) and
-                        source.spatial is not None and
-                        source.spatial.x == x and source.spatial.y == y and
-                        self.x_range is not None and self.y_range is not None):
-
-                    source = source.spatial_query(
-                        x_range=self.x_range, y_range=self.y_range)
             glyph = Point(x, y)
         else:
             from spatialpandas import GeoDataFrame
@@ -932,9 +921,14 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             Optional nan_value which will be masked out when applying
             the resampling.
         agg : Reduction, optional default=mean()
-            Resampling mode when downsampling raster.
-            options include: first, last, mean, mode, var, std, min, max
-            Accepts an executable function, function object, or string name.
+            Resampling mode when downsampling raster. The supported
+            options include: first, last, mean, mode, var, std, min,
+            The agg can be specified as either a string name or as a
+            reduction function, but note that the function object will
+            be used only to extract the agg type (mean, max, etc.) and
+            the optional column name; the hardcoded raster code
+            supports only a fixed set of reductions and ignores the
+            actual code of the provided agg.
         interpolate : str, optional  default=linear
             Resampling mode when upsampling raster.
             options include: nearest, linear.

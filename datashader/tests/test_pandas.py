@@ -53,7 +53,7 @@ try:
     import cudf
     import cupy
 
-    if test_gpu is False:
+    if not test_gpu:
         # GPU testing disabled even though cudf/cupy are available
         raise ImportError
 
