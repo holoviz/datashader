@@ -22,7 +22,8 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'f32': np.arange(20, dtype='f4'),
                       'f64': np.arange(20, dtype='f8'),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
-                      'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5})
+                      'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
+                      'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
 df_pd.cat = df_pd.cat.astype('category')
 df_pd.at[2,'f32'] = nan
 df_pd.at[2,'f64'] = nan
@@ -250,6 +251,36 @@ def test_categorical_count(df):
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.count('i32')))
     assert_eq_xr(agg, out)
 
+    # categorizing by (cat_int-10)%4 ought to give the same result
+    out = xr.DataArray(
+        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
+    )
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.count()))
+    assert_eq_xr(agg, out)
+
+    # add an extra category (this will count nans and out of bounds)
+    sol = np.append(sol, [[[0], [0]],[[0], [0]]], axis=2)
+
+    # categorizing by binning the integer arange columns using [0,20] into 4 bins. Same result as for count_cat
+    for col in 'i32', 'i64':
+        out = xr.DataArray(
+            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
+        )
+        agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
+        assert_eq_xr(agg, out)
+
+    # as above, but for the float arange columns. Element 2 has a nan, so the first bin is one short, and the nan bin is +1
+    sol[0, 0, 0] = 4
+    sol[0, 0, 4] = 1
+
+    for col in 'f32', 'f64':
+        out = xr.DataArray(
+            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
+        )
+        agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
+        assert_eq_xr(agg, out)
+
+
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_sum(df):
     sol = np.array([[[ 10, nan, nan, nan],
@@ -266,6 +297,17 @@ def test_categorical_sum(df):
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.sum('i64')))
     assert_eq_xr(agg, out)
 
+    # categorizing by (cat_int-10)%4 ought to give the same result
+    out = xr.DataArray(
+        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
+    )
+
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.sum('i32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.sum('i64')))
+    assert_eq_xr(agg, out)
+
     sol = np.array([[[8.0,  nan,  nan,  nan],
                      [nan,  nan, 60.0,  nan]],
                     [[nan, 35.0,  nan,  nan],
@@ -280,6 +322,16 @@ def test_categorical_sum(df):
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.sum('f64')))
     assert_eq_xr(agg, out)
 
+    sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
+
+    for col in 'f32', 'f64':
+        out = xr.DataArray(
+            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
+        )
+        agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.sum(col)))
+        assert_eq_xr(agg, out)
+
+
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_max(df):
     sol = np.array([[[  4, nan, nan, nan],
@@ -292,6 +344,27 @@ def test_categorical_max(df):
         dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.max('i32')))
     assert_eq_xr(agg, out)
+
+    # categorizing by (cat_int-10)%4 ought to give the same result
+    out = xr.DataArray(
+        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
+    )
+
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.max('i32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.max('i64')))
+    assert_eq_xr(agg, out)
+
+    sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
+
+    for col in 'f32', 'f64':
+        out = xr.DataArray(
+            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
+        )
+        agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.max(col)))
+        assert_eq_xr(agg, out)
+
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_mean(df):
@@ -309,6 +382,27 @@ def test_categorical_mean(df):
 
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.mean('f64')))
     assert_eq_xr(agg, out)
+
+    # categorizing by (cat_int-10)%4 ought to give the same result
+    out = xr.DataArray(
+        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
+    )
+
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('i32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('i64')))
+    assert_eq_xr(agg, out)
+
+    sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
+
+    for col in 'f32', 'f64':
+        out = xr.DataArray(
+            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
+        )
+        agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.mean(col)))
+        assert_eq_xr(agg, out)
+
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_var(df):
@@ -331,6 +425,27 @@ def test_categorical_var(df):
 
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.var('f64')))
     assert_eq_xr(agg, out, True)
+
+        # categorizing by (cat_int-10)%4 ought to give the same result
+    out = xr.DataArray(
+        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
+    )
+
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.var('f32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.var('f64')))
+    assert_eq_xr(agg, out)
+
+    sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
+
+    for col in 'f32', 'f64':
+        out = xr.DataArray(
+            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
+        )
+        agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.var(col)))
+        assert_eq_xr(agg, out)
+
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_std(df):
@@ -355,6 +470,27 @@ def test_categorical_std(df):
 
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.std('f64')))
     assert_eq_xr(agg, out, True)
+
+        # categorizing by (cat_int-10)%4 ought to give the same result
+    out = xr.DataArray(
+        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
+    )
+
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.std('f32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.std('f64')))
+    assert_eq_xr(agg, out)
+
+    sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
+
+    for col in 'f32', 'f64':
+        out = xr.DataArray(
+            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
+        )
+        agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.std(col)))
+        assert_eq_xr(agg, out)
+
 
 @pytest.mark.parametrize('df', dfs)
 def test_multiple_aggregates(df):
