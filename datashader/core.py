@@ -14,8 +14,7 @@ from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     compute_coords, dshape_from_xarray_dataset
-from .utils import get_indices, dshape_from_pandas, dshape_from_dask, \
-    numba_version
+from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd

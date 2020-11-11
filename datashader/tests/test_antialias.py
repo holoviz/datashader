@@ -121,7 +121,6 @@
 
 
 import os
-import pytest
 import xarray as xr
 import datashader as ds
 import pandas as pd
