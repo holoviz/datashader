@@ -34,6 +34,12 @@ examples = [
     'matplotlib',
 ]
 
+packaging = [
+    'twine',
+    'rfc3986', # required by twine, but undeclared
+    'keyring'  # required by twine, but undeclared
+]
+
 extras_require = {
     'tests': [
         'pytest >=3.9.3,<6.0',
@@ -48,6 +54,7 @@ extras_require = {
         'pyarrow',
         'netcdf4'
     ],
+    'packaging': packaging,
     'examples': examples,
     'examples_extra': examples + [
         'networkx >=2.0',
