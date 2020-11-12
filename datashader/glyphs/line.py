@@ -7,6 +7,7 @@ from datashader.glyphs.glyph import isnull
 from datashader.utils import isreal, ngjit
 from numba import cuda
 
+
 try:
     import cudf
     from ..transfer_functions._cuda_utils import cuda_args
@@ -15,7 +16,22 @@ except Exception:
     cuda_args = None
 
 
-class LineAxis0(_PointLike):
+class _AntiAliasedLine(object):
+    """ Methods common to all lines. """
+    _antialias = False
+
+    def enable_antialias(self):
+        self._antialias = True
+
+    def disable_antialias(self):
+        self._antialias = False
+
+    def _build_extend(self, x_mapper, y_mapper, info, append):
+        return self._internal_build_extend(
+                x_mapper, y_mapper, info, append, self._antialias)
+
+
+class LineAxis0(_PointLike, _AntiAliasedLine):
     """A line, with vertices defined by ``x`` and ``y``.
 
     Parameters
@@ -24,10 +40,13 @@ class LineAxis0(_PointLike):
         Column names for the x and y coordinates of each vertex.
     """
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
-        draw_segment = _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols)
+        draw_segment = _build_draw_segment(
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
+        )
         extend_cpu, extend_cuda = _build_extend_line_axis0(
             draw_segment, expand_aggs_and_cols
         )
@@ -57,7 +76,7 @@ class LineAxis0(_PointLike):
         return extend
 
 
-class LineAxis0Multi(_PointLike):
+class LineAxis0Multi(_PointLike, _AntiAliasedLine):
     """
     """
 
@@ -107,11 +126,12 @@ class LineAxis0Multi(_PointLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
         extend_cpu, extend_cuda = _build_extend_line_axis0_multi(
             draw_segment, expand_aggs_and_cols
@@ -143,7 +163,7 @@ class LineAxis0Multi(_PointLike):
         return extend
 
 
-class LinesAxis1(_PointLike):
+class LinesAxis1(_PointLike, _AntiAliasedLine):
     """A collection of lines (on line per row) with vertices defined
     by the lists of columns in ``x`` and ``y``
 
@@ -215,11 +235,12 @@ class LinesAxis1(_PointLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_none_constant(
             draw_segment, expand_aggs_and_cols
@@ -283,11 +304,12 @@ class LinesAxis1XConstant(LinesAxis1):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
 
         extend_cpu, extend_cuda = _build_extend_line_axis1_x_constant(
@@ -352,12 +374,13 @@ class LinesAxis1YConstant(LinesAxis1):
                 self.compute_y_bounds())
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
 
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_y_constant(
             draw_segment, expand_aggs_and_cols
@@ -387,7 +410,7 @@ class LinesAxis1YConstant(LinesAxis1):
         return extend
 
 
-class LinesAxis1Ragged(_PointLike):
+class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
     def validate(self, in_dshape):
         try:
             from datashader.datatypes import RaggedDtype
@@ -427,11 +450,12 @@ class LinesAxis1Ragged(_PointLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
 
         extend_cpu = _build_extend_line_axis1_ragged(
@@ -458,7 +482,7 @@ class LinesAxis1Ragged(_PointLike):
         return extend
 
 
-class LineAxis1Geometry(_GeometryLike):
+class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
 
     @property
     def geom_dtypes(self):
@@ -470,14 +494,15 @@ class LineAxis1Geometry(_GeometryLike):
                 PolygonDtype, MultiPolygonDtype)
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _internal_build_extend(
+            self, x_mapper, y_mapper, info, append, antialias):
         from spatialpandas.geometry import (
             PolygonArray, MultiPolygonArray, RingArray
         )
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols
+            append, map_onto_pixel, expand_aggs_and_cols, antialias
         )
 
         perform_extend_cpu = _build_extend_line_axis1_geometry(
@@ -548,112 +573,53 @@ def _build_map_onto_pixel_for_line(x_mapper, y_mapper):
     return map_onto_pixel
 
 
-def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols):
-    """Specialize a line plotting kernel for a given append/axis combination"""
-    @ngjit
-    @expand_aggs_and_cols
-    def draw_segment(
-            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
-            x0, x1, y0, y1, *aggs_and_cols
-    ):
-        """Draw a line segment using Bresenham's algorithm
-        This method plots a line segment with integer coordinates onto a pixel
-        grid.
-        """
-        skip = False
+@ngjit
+def _liang_barsky(xmin, xmax, ymin, ymax, x0, x1, y0, y1, skip):
+    """ An implementation of the Liang-Barsky line clipping algorithm.
 
-        # If any of the coordinates are NaN, there's a discontinuity.
-        # Skip the entire segment.
-        if isnull(x0) or isnull(y0) or isnull(x1) or isnull(y1):
-            skip = True
+    https://en.wikipedia.org/wiki/Liang%E2%80%93Barsky_algorithm
 
-        # Use Liang-Barsky (1992) to clip the segment to a bounding box
-        # Check if line is fully outside viewport
-        if x0 < xmin and x1 < xmin:
-            skip = True
-        elif x0 > xmax and x1 > xmax:
-            skip = True
-        elif y0 < ymin and y1 < ymin:
-            skip = True
-        elif y0 > ymax and y1 > ymax:
-            skip = True
+    """
+    # Check if line is fully outside viewport
+    if x0 < xmin and x1 < xmin:
+        skip = True
+    elif x0 > xmax and x1 > xmax:
+        skip = True
+    elif y0 < ymin and y1 < ymin:
+        skip = True
+    elif y0 > ymax and y1 > ymax:
+        skip = True
 
-        t0, t1 = 0, 1
-        dx1 = x1 - x0
-        t0, t1, accept = _clipt(-dx1, x0 - xmin, t0, t1)
-        if not accept:
-            skip = True
-        t0, t1, accept = _clipt(dx1, xmax - x0, t0, t1)
-        if not accept:
-            skip = True
-        dy1 = y1 - y0
-        t0, t1, accept = _clipt(-dy1, y0 - ymin, t0, t1)
-        if not accept:
-            skip = True
-        t0, t1, accept = _clipt(dy1, ymax - y0, t0, t1)
-        if not accept:
-            skip = True
-        if t1 < 1:
-            clipped_end = True
-            x1 = x0 + t1 * dx1
-            y1 = y0 + t1 * dy1
-        else:
-            clipped_end = False
-        if t0 > 0:
-            # If x0 is clipped, we need to plot the new start
-            clipped_start = True
-            x0 = x0 + t0 * dx1
-            y0 = y0 + t0 * dy1
-        else:
-            clipped_start = False
+    t0, t1 = 0, 1
+    dx1 = x1 - x0
+    t0, t1, accept = _clipt(-dx1, x0 - xmin, t0, t1)
+    if not accept:
+        skip = True
+    t0, t1, accept = _clipt(dx1, xmax - x0, t0, t1)
+    if not accept:
+        skip = True
+    dy1 = y1 - y0
+    t0, t1, accept = _clipt(-dy1, y0 - ymin, t0, t1)
+    if not accept:
+        skip = True
+    t0, t1, accept = _clipt(dy1, ymax - y0, t0, t1)
+    if not accept:
+        skip = True
+    if t1 < 1:
+        clipped_end = True
+        x1 = x0 + t1 * dx1
+        y1 = y0 + t1 * dy1
+    else:
+        clipped_end = False
+    if t0 > 0:
+        # If x0 is clipped, we need to plot the new start
+        clipped_start = True
+        x0 = x0 + t0 * dx1
+        y0 = y0 + t0 * dy1
+    else:
+        clipped_start = False
 
-        segment_start = segment_start or clipped_start
-        if not skip:
-            x0i, y0i = map_onto_pixel(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0, y0
-            )
-            x1i, y1i = map_onto_pixel(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1, y1
-            )
-            clipped = clipped_start or clipped_end
-
-            dx = x1i - x0i
-            ix = (dx > 0) - (dx < 0)
-            dx = abs(dx) * 2
-
-            dy = y1i - y0i
-            iy = (dy > 0) - (dy < 0)
-            dy = abs(dy) * 2
-
-            # If vertices weren't clipped and are concurrent in integer space,
-            # call append and return, so that the second vertex won't be hit below.
-            if not clipped and not (dx | dy):
-                append(i, x0i, y0i, *aggs_and_cols)
-                return
-
-            if segment_start:
-                append(i, x0i, y0i, *aggs_and_cols)
-
-            if dx >= dy:
-                error = 2 * dy - dx
-                while x0i != x1i:
-                    if error >= 0 and (error or ix > 0):
-                        error -= 2 * dx
-                        y0i += iy
-                    error += 2 * dy
-                    x0i += ix
-                    append(i, x0i, y0i, *aggs_and_cols)
-            else:
-                error = 2 * dx - dy
-                while y0i != y1i:
-                    if error >= 0 and (error or iy > 0):
-                        error -= 2 * dy
-                        x0i += ix
-                    error += 2 * dx
-                    y0i += iy
-                    append(i, x0i, y0i, *aggs_and_cols)
-
-    return draw_segment
+    return x0, x1, y0, y1, skip, clipped_start, clipped_end
 
 
 @ngjit
@@ -675,6 +641,162 @@ def _clipt(p, q, t0, t1):
         accept = False
     return t0, t1, accept
 
+
+@ngjit
+def _xiaolinwu(i, x0, x1, y0, y1, append, *aggs_and_cols):
+    """ Implementation of Xiaolin Wu's anti-aliasing algorithm for lines.
+    Loosely based on: https://rosettacode.org/wiki/Xiaolin_Wu%27s_line_algorithm#Python
+    """
+
+    dx, dy = x1-x0, y1-y0
+    steep = abs(dx) < abs(dy)
+    agg = aggs_and_cols[0]
+    cols = aggs_and_cols[1]
+
+    def _myfpart(x):
+        return x - int(x)
+
+    def _myrfpart(x):
+        return 1 - _myfpart(x)
+
+    def _unsafe_draw_pixel(px, value):
+        x, y = px
+        c = cols.copy()
+        c[i] *= value
+        append(i, x, y, agg, c)
+
+    def _safe_draw_pixel(px, value):
+        x, y = px
+        if not y < agg.shape[0] or not x < agg.shape[1]:
+            return
+        _unsafe_draw_pixel(px, value)
+
+    def _flipxy(px, py):
+        if steep:
+            return py,px
+        else:
+            return px,py
+
+    def _draw_endpoint(pt, grad):
+        x, y = pt
+        xend = round(x)
+        yend = y + grad * (xend - x)
+        xgap = _myrfpart(x + 0.5)
+        px, py = int(xend), int(yend)
+        _safe_draw_pixel(_flipxy(px, py), _myrfpart(yend) * xgap)
+        _safe_draw_pixel(_flipxy(px, py+1), _myfpart(yend) * xgap)
+        return px
+
+    if steep:
+        x0, y0, x1, y1, dx, dy = y0, x0, y1, x1, dy, dx
+    if x1 < x0:
+        x0, x1, y0, y1 = x1, x0, y1, y0
+    grad = dy/dx
+    intery = y0 + _myrfpart(x0) * grad
+    xstart = _draw_endpoint((x0, y0), grad) + 1
+    xend = _draw_endpoint((x1, y1), grad)
+    if grad != 0.0:
+        for x in range(xstart, xend):
+            y = int(intery)
+            _unsafe_draw_pixel(_flipxy(x, y), _myrfpart(intery))
+            _unsafe_draw_pixel(_flipxy(x, y+1), _myfpart(intery))
+            intery += grad
+    else:
+        # Special case for horizontal line (grad == 0.0). Only a single pixel
+        # needs drawing.  The second pixel (at y+1) may not be on the canvas
+        # anymore and will not have any color anyway, we don't need to draw it.
+        y = int(intery)
+        for x in range(xstart, xend):
+            _unsafe_draw_pixel(_flipxy(x, y), _myrfpart(intery))
+
+
+@ngjit
+def _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
+              x0, x1, y0, y1, clipped, append, *aggs_and_cols
+             ):
+    """Draw a line segment using Bresenham's algorithm
+    This method plots a line segment with integer coordinates onto a pixel
+    grid.
+    """
+
+    dx = x1 - x0
+    ix = (dx > 0) - (dx < 0)
+    dx = abs(dx) * 2
+
+    dy = y1 - y0
+    iy = (dy > 0) - (dy < 0)
+    dy = abs(dy) * 2
+
+    # If vertices weren't clipped and are concurrent in integer space,
+    # call append and return, so that the second vertex won't be hit below.
+    if not clipped and not (dx | dy):
+        append(i, x0, y0, *aggs_and_cols)
+        return
+
+    if segment_start:
+        append(i, x0, y0, *aggs_and_cols)
+
+    if dx >= dy:
+        error = 2 * dy - dx
+        while x0 != x1:
+            if error >= 0 and (error or ix > 0):
+                error -= 2 * dx
+                y0 += iy
+            error += 2 * dy
+            x0 += ix
+            append(i, x0, y0, *aggs_and_cols)
+    else:
+        error = 2 * dx - dy
+        while y0 != y1:
+            if error >= 0 and (error or iy > 0):
+                error -= 2 * dy
+                x0 += ix
+            error += 2 * dx
+            y0 += iy
+            append(i, x0, y0, *aggs_and_cols)
+
+def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
+                        antialias):
+    """Specialize a line plotting kernel for a given append/axis combination"""
+    @ngjit
+    @expand_aggs_and_cols
+    def draw_segment(
+            i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
+            x0, x1, y0, y1, *aggs_and_cols
+    ):
+        # NOTE: The slightly bizarre variable versioning herein for variables
+        # x0, y0, y0, y1 is to deal with Numba not having SSA form prior to
+        # version 0.49.0. The result of lack of SSA is that the type inference
+        # algorithms would widen types that are multiply defined as would be the
+        # case in code such as `x, y = function(x, y)` if the function returned
+        # a wider type for x, y then the input x, y.
+        skip = False
+
+        # If any of the coordinates are NaN, there's a discontinuity.
+        # Skip the entire segment.
+        if isnull(x0) or isnull(y0) or isnull(x1) or isnull(y1):
+            skip = True
+        # Use Liang-Barsky to clip the segment to a bounding box
+        x0_1, x1_1, y0_1, y1_1, skip, clipped_start, clipped_end = \
+            _liang_barsky(xmin, xmax, ymin, ymax, x0, x1, y0, y1, skip)
+
+        if not skip:
+            clipped = clipped_start or clipped_end
+            segment_start = segment_start or clipped_start
+            x0_2, y0_2 = map_onto_pixel(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x0_1, y0_1
+            )
+            x1_2, y1_2 = map_onto_pixel(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1_1, y1_1
+            )
+            if antialias:
+                _xiaolinwu(i, x0_2, x1_2, y0_2, y1_2, append, *aggs_and_cols)
+            else:
+                _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                           segment_start, x0_2, x1_2, y0_2, y1_2,
+                           clipped, append, *aggs_and_cols)
+
+    return draw_segment
 
 def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols):
 

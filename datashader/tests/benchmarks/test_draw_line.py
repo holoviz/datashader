@@ -23,7 +23,8 @@ def draw_line():
         agg[y, x] += 1
 
     expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
-    return _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols)
+    return _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
+                               False)
 
 
 @pytest.mark.benchmark(group="draw_line")

@@ -2,6 +2,7 @@ from __future__ import absolute_import, division, print_function
 
 from numbers import Number
 from math import log10
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -212,7 +213,8 @@ class Canvas(object):
 
         return bypixel(source, self, glyph, agg)
 
-    def line(self, source, x=None, y=None, agg=None, axis=0, geometry=None):
+    def line(self, source, x=None, y=None, agg=None, axis=0, geometry=None,
+             antialias=False):
         """Compute a reduction by pixel, mapping data to pixels as one or
         more lines.
 
@@ -246,6 +248,13 @@ class Canvas(object):
         geometry : str
             Column name of a LinesArray of the coordinates of each line. If provided,
             the x and y arguments may not also be provided.
+        antialias : bool
+            If True, draw anti-aliased lines, distributing the aggregate value
+            across neighboring pixels to more closely approximate the line
+            shape. If False, each position on the line affects only a single
+            pixel, resulting in line shapes that are blocky but easier to
+            reason about. Needs at least Numba 0.51.2 to work and can only
+            operate on the 'sum' or 'max' aggregators.
 
         Examples
         --------
@@ -316,12 +325,11 @@ class Canvas(object):
         from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
                              LinesAxis1YConstant, LineAxis0Multi,
                              LinesAxis1Ragged, LineAxis1Geometry)
-        from .reductions import any as any_rdn
 
         validate_xy_or_geometry('Line', x, y, geometry)
 
         if agg is None:
-            agg = any_rdn()
+            agg = rd.any()
 
         if geometry is not None:
             from spatialpandas import GeoDataFrame
@@ -386,6 +394,14 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
+        # Enable antialias if requested and if the reduction will allow it.
+        if antialias:
+            if isinstance(agg, (rd.sum, rd.max)):
+                glyph.enable_antialias()
+            else:
+                message = ("Aggresgation: '{}' is not supported by antialias".
+                           format(agg))
+                warnings.warn(message)
         return bypixel(source, self, glyph, agg)
 
     def area(self, source, x, y, agg=None, axis=0, y_stack=None):
