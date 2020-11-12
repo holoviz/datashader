@@ -36,8 +36,8 @@ examples = [
 
 packaging = [
     'twine',
-    'rfc3986', # required by twine, but undeclared
-    'keyring'  # required by twine, but undeclared
+    'rfc3986', # required by twine, but undeclared (see #964)
+    'keyring'  # required by twine, but undeclared (see #964)
 ]
 
 extras_require = {
