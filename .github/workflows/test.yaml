@@ -50,6 +50,7 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit develop_install ${{ env.CHANS_DEV}} -o tests -o examples
+          conda install -c pyviz/label/dev -c conda-forge matplotlib=3.2.1 matplotlib-base=3.2.1 spatialpandas retrying numba llvmlite libllvm10 --no-deps
           git describe
       - name: doit env_capture
         run: |
