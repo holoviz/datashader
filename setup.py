@@ -22,7 +22,7 @@ install_requires = [
     'xarray >=0.9.6',
     'colorcet >=0.9.0',
     'param >=1.6.0',
-    'pyct[cmd]',
+    'pyct >=0.4.4',
     'bokeh',
     'scipy',
 ]
