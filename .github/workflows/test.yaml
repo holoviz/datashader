@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [2.7, 3.6, 3.7, 3.8]
     timeout-minutes: 40
     defaults:
       run:
@@ -50,8 +50,12 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit develop_install ${{ env.CHANS_DEV}} -o tests -o examples
+      - name: install spatialpandas
+        if: startsWith(matrix.python-version, 3.)
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
           conda install -c pyviz/label/dev -c conda-forge matplotlib=3.2.1 matplotlib-base=3.2.1 spatialpandas retrying numba llvmlite libllvm10 --no-deps
-          git describe
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
