@@ -42,6 +42,7 @@ jobs:
       - name: conda setup
         run: |
           conda config --set always_yes True
+          conda update -n base -c defaults conda
           conda install -c pyviz "pyctdev>=0.5"
           doit ecosystem_setup
           doit env_create ${{ env.CHANS_DEV}} --python=${{ matrix.python-version }}
