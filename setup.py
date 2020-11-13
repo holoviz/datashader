@@ -34,12 +34,6 @@ examples = [
     'matplotlib',
 ]
 
-packaging = [
-    'twine',
-    'rfc3986', # required by twine, but undeclared (see #964)
-    'keyring'  # required by twine, but undeclared (see #964)
-]
-
 extras_require = {
     'tests': [
         'pytest >=3.9.3,<6.0',
@@ -52,9 +46,11 @@ extras_require = {
         'fastparquet >=0.1.6',  # optional dependency
         'holoviews >=1.10.0',
         'pyarrow',
-        'netcdf4'
+        'netcdf4',
+        'twine',   # required for pip packaging
+        'rfc3986', # required by twine
+        'keyring'  # required by twine
     ],
-    'packaging': packaging,
     'examples': examples,
     'examples_extra': examples + [
         'networkx >=2.0',
