@@ -125,6 +125,8 @@ import xarray as xr
 import datashader as ds
 import pandas as pd
 import numpy as np
+import pytest
+
 
 cm = pytest.importorskip('matplotlib.cm')
 binary = cm.binary
