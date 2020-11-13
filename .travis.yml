@@ -27,7 +27,8 @@ env:
 # dev release: ^v(\d+|\.)*[a-z]\d*$
 
 stages:
-  - test
+  - name: test
+    if: tag =~ ^v(\d+|\.)+([a-z]|rc)?\d?$
   - name: website_dev
     if: (tag =~ ^v(\d+|\.)+[a|b|rc]\d+$) OR (tag = website_dev) OR (commit_message =~ /^.*(website_dev).*$/)
   - name: website_release

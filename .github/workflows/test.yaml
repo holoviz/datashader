@@ -1,0 +1,85 @@
+name: tests
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+    - '*'
+
+jobs:
+  test_suite:
+    name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+        python-version: [3.6, 3.7, 3.8]
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash -l {0} 
+    env:
+      DESC: "Python ${{ matrix.python-version }} tests"
+      HV_REQUIREMENTS: "unit_tests"
+      PYTHON_VERSION: ${{ matrix.python-version }}
+      CHANS_DEV: "-c pyviz/label/dev -c bokeh -c conda-forge"
+      CHANS: "-c pyviz -c bokeh -c conda-forge"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: "100"
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: goanpeca/setup-miniconda@v1
+        with:
+          miniconda-version: "latest"
+      - name: Fetch unshallow
+        run: git fetch --prune --tags --unshallow
+      - name: conda setup
+        run: |
+          conda config --set always_yes True
+          conda install -c pyviz "pyctdev>=0.5"
+          doit ecosystem_setup
+          doit env_create ${{ env.CHANS_DEV}} --python=${{ matrix.python-version }}
+      - name: doit develop_install
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit develop_install ${{ env.CHANS_DEV}} -o tests -o examples
+          git describe
+      - name: doit env_capture
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit env_capture
+      - name: doit test_lint
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit test_lint
+      - name: doit test_unit_deploy
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit test_unit_deploy
+      - name: doit test_unit_nojit
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit test_unit_nojit
+        env:
+          NUMBA_DISABLE_JIT: 1
+      - name: doit test_examples
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit test_examples
+      - name: codecov
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          codecov
