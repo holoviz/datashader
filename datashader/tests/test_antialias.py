@@ -125,7 +125,9 @@ import xarray as xr
 import datashader as ds
 import pandas as pd
 import numpy as np
-from matplotlib.cm import binary
+
+cm = pytest.importorskip('matplotlib.cm')
+binary = cm.binary
 
 # Data directory for saving and loading test data
 datadir = os.path.join(os.path.dirname(__file__), 'data')
