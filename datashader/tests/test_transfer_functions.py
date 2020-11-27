@@ -4,6 +4,7 @@ from io import BytesIO
 
 import numpy as np
 import xarray as xr
+import dask.array as da
 import PIL
 import pytest
 from collections import OrderedDict
@@ -28,14 +29,25 @@ def build_agg(array_module=np):
     return agg
 
 
+def build_agg_dask():
+    # Dask arrays are immutable `build_agg(da)` won't work.
+    # Create numpy based DataArray and convert to Dask by forcing chunking.
+    return build_agg(np).chunk({d: 1 for d in dims})
+
+
+def create_dask_array_np(*args, **kwargs):
+    """Create a dask array wrapping around a numpy array."""
+    return da.from_array(np.array(*args, **kwargs))
+
+
 try:
     import cupy
-    aggs = [build_agg(np), build_agg(cupy)]
-    arrays = [np.array, cupy.array]
+    aggs = [build_agg(np), build_agg(cupy), build_agg_dask()]
+    arrays = [np.array, cupy.array, create_dask_array_np]
 except ImportError:
     cupy = None
-    aggs = [build_agg(np)]
-    arrays = [np.array]
+    aggs = [build_agg(np), build_agg_dask()]
+    arrays = [np.array, create_dask_array_np]
 
 int_span = [11, 17]
 float_span = [11.0, 17.0]
@@ -71,7 +83,10 @@ eq_hist_sol['c'] = eq_hist_sol['b']
 def check_span(x, cmap, how, sol):
     # Copy inputs that will be modified
     sol = sol.copy()
-    x = x.copy()
+    if isinstance(x, xr.DataArray) and isinstance(x.data, da.Array):
+        x = x.compute()
+    else:
+        x = x.copy()
 
     # All data no span
     img = tf.shade(x, cmap=cmap, how=how, span=None)
@@ -263,8 +278,7 @@ def test_shade_mpl_cmap(agg):
 @pytest.mark.parametrize('array', arrays)
 def test_shade_category(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
-    cat_agg = tf.Image(array([[(0, 12, 0), (3, 0, 3)],
-                              [(12, 12, 12), (24, 0, 0)]], dtype='u4'),
+    cat_agg = tf.Image(array([[(0, 12, 0), (3, 0, 3)], [(12, 12, 12), (24, 0, 0)]], dtype='u4'),
                        coords=(coords + [['a', 'b', 'c']]),
                        dims=(dims + ['cats']))
 
