@@ -12,6 +12,7 @@ import numpy as np
 import numba as nb
 import toolz as tz
 import xarray as xr
+import dask.array as da
 from PIL.Image import fromarray
 
 from datashader.colors import rgb, Sets1to3
@@ -208,7 +209,11 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
         raise ValueError("agg must be 2D")
     interpolater = _normalize_interpolate_how(how)
 
-    data = orient_array(agg).copy()
+    data = orient_array(agg)
+    if isinstance(data, da.Array):
+        data = data.compute()
+    else:
+        data = data.copy()
 
     # Compute mask
     if np.issubdtype(data.dtype, np.bool_):
@@ -327,6 +332,8 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
     data = orient_array(agg_t).transpose([1, 2, 0])
+    if isinstance(data, da.Array):
+        data = data.compute()
     color_data = data.copy()
 
     # subtract color_baseline if needed
