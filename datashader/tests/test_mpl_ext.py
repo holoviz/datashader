@@ -30,11 +30,6 @@ def test_image_initialize():
     assert data[-1, 0] == 5
     assert data[-1, -1] == 5
 
-    img = da.get_ds_image()
-    rgba = da.get_array()
-    out = rgba.view(dtype=np.uint32).reshape(rgba.shape[:-1])
-    assert np.array_equal(img, out)
-
 
 def test_image_update():
     fig = plt.figure(dpi=100)
@@ -49,8 +44,3 @@ def test_image_update():
     assert data[0, -1] == 0
     assert data[-1, 0] == 0
     assert data[-1, -1] == 0
-
-    img = da.get_ds_image()
-    rgba = da.get_array()
-    out = rgba.view(dtype=np.uint32).reshape(rgba.shape[:-1])
-    assert np.array_equal(img, out)
