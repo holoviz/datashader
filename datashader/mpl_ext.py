@@ -524,7 +524,7 @@ def dsshow(
 
     Examples
     --------
-    Generate two gaussian point clouds and plot (1) the density as a
+    Generate two Gaussian point clouds and plot (1) the density as a
     quantitative map and (2) color the points by category.
 
     .. plot::
