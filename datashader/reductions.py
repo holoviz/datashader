@@ -8,8 +8,12 @@ import xarray as xr
 
 from datashader.glyphs.glyph import isnull
 from numba import cuda as nb_cuda
-from datashader.transfer_functions._cuda_utils import (cuda_atomic_nanmin,
-                                                       cuda_atomic_nanmax)
+
+try:
+    from datashader.transfer_functions._cuda_utils import (cuda_atomic_nanmin,
+                                                           cuda_atomic_nanmax)
+except ImportError:
+    cuda_atomic_nanmin, cuda_atomic_nanmmax = None, None
 
 try:
     import cudf
