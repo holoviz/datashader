@@ -257,7 +257,6 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
                 xs = self.to_gpu_matrix(df, x_names)
                 ys = self.to_gpu_matrix(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
-
             else:
                 xs = df[list(x_names)].values
                 ys = df[list(y_names)].values
@@ -710,54 +709,61 @@ def _xiaolinwu(i, x0, x1, y0, y1, append, *aggs_and_cols):
             _unsafe_draw_pixel(_flipxy(x, y), _myrfpart(intery))
 
 
-@ngjit
-def _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
-              x0, x1, y0, y1, clipped, append, *aggs_and_cols
-             ):
-    """Draw a line segment using Bresenham's algorithm
-    This method plots a line segment with integer coordinates onto a pixel
-    grid.
-    """
+def _build_bresenham(expand_aggs_and_cols):
+    """Specialize a bresenham kernel for a given append/axis combination"""
+    @ngjit
+    @expand_aggs_and_cols
+    def _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
+                  x0, x1, y0, y1, clipped, append, *aggs_and_cols
+                 ):
+        """Draw a line segment using Bresenham's algorithm
+        This method plots a line segment with integer coordinates onto a pixel
+        grid.
+        """
 
-    dx = x1 - x0
-    ix = (dx > 0) - (dx < 0)
-    dx = abs(dx) * 2
+        dx = x1 - x0
+        ix = (dx > 0) - (dx < 0)
+        dx = abs(dx) * 2
 
-    dy = y1 - y0
-    iy = (dy > 0) - (dy < 0)
-    dy = abs(dy) * 2
+        dy = y1 - y0
+        iy = (dy > 0) - (dy < 0)
+        dy = abs(dy) * 2
 
-    # If vertices weren't clipped and are concurrent in integer space,
-    # call append and return, so that the second vertex won't be hit below.
-    if not clipped and not (dx | dy):
-        append(i, x0, y0, *aggs_and_cols)
-        return
-
-    if segment_start:
-        append(i, x0, y0, *aggs_and_cols)
-
-    if dx >= dy:
-        error = 2 * dy - dx
-        while x0 != x1:
-            if error >= 0 and (error or ix > 0):
-                error -= 2 * dx
-                y0 += iy
-            error += 2 * dy
-            x0 += ix
+        # If vertices weren't clipped and are concurrent in integer space,
+        # call append and return, so that the second vertex won't be hit below.
+        if not clipped and not (dx | dy):
             append(i, x0, y0, *aggs_and_cols)
-    else:
-        error = 2 * dx - dy
-        while y0 != y1:
-            if error >= 0 and (error or iy > 0):
-                error -= 2 * dy
+            return
+
+        if segment_start:
+            append(i, x0, y0, *aggs_and_cols)
+
+        if dx >= dy:
+            error = 2 * dy - dx
+            while x0 != x1:
+                if error >= 0 and (error or ix > 0):
+                    error -= 2 * dx
+                    y0 += iy
+                error += 2 * dy
                 x0 += ix
-            error += 2 * dx
-            y0 += iy
-            append(i, x0, y0, *aggs_and_cols)
+                append(i, x0, y0, *aggs_and_cols)
+        else:
+            error = 2 * dx - dy
+            while y0 != y1:
+                if error >= 0 and (error or iy > 0):
+                    error -= 2 * dy
+                    x0 += ix
+                error += 2 * dx
+                y0 += iy
+                append(i, x0, y0, *aggs_and_cols)
+    return _bresenham
 
 def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
                         antialias):
     """Specialize a line plotting kernel for a given append/axis combination"""
+
+    _bresenham = _build_bresenham(expand_aggs_and_cols)
+
     @ngjit
     @expand_aggs_and_cols
     def draw_segment(
