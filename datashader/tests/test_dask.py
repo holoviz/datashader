@@ -269,8 +269,6 @@ def test_count_cat(ddf):
         assert_eq_xr(agg, out)
 
 
-
-
 @pytest.mark.parametrize('ddf', ddfs)
 def test_categorical_sum(ddf):
     sol = np.array([[[ 10, nan, nan, nan],
@@ -308,6 +306,18 @@ def test_categorical_sum(ddf):
     agg = c.points(ddf, 'x', 'y', ds.by('cat', ds.sum('f64')))
     assert_eq_xr(agg, out)
 
+
+@pytest.mark.parametrize('ddf', ddfs)
+def test_categorical_sum_binning(ddf):
+    if cudf and isinstance(ddf._meta, cudf.DataFrame):
+        pytest.skip(
+            "The categorical binning of 'sum' reduction is yet supported on the GPU"
+        )
+    sol = np.array([[[8.0,  nan,  nan,  nan],
+                     [nan,  nan, 60.0,  nan]],
+                    [[nan, 35.0,  nan,  nan],
+                     [nan,  nan,  nan, 85.0]]])
+    
     # add an extra category (this will count nans and out of bounds)
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
@@ -345,6 +355,18 @@ def test_categorical_mean(ddf):
     agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('f64')))
     assert_eq_xr(agg, out)
 
+
+@pytest.mark.parametrize('ddf', ddfs)
+def test_categorical_mean_binning(ddf):
+    if cudf and isinstance(ddf._meta, cudf.DataFrame):
+        pytest.skip(
+            "The categorical binning of 'mean' reduction is yet supported on the GPU"
+        )
+    sol = np.array([[[  2, nan, nan, nan],
+                     [nan, nan,  12, nan]],
+                    [[nan,   7, nan, nan],
+                     [nan, nan, nan,  17]]])
+
     # add an extra category (this will count nans and out of bounds)
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
@@ -354,7 +376,6 @@ def test_categorical_mean(ddf):
         )
         agg = c.points(ddf, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.mean(col)))
         assert_eq_xr(agg, out)
-
 
 
 @pytest.mark.parametrize('ddf', ddfs)

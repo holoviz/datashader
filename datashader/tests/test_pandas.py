@@ -258,6 +258,18 @@ def test_categorical_count(df):
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.count()))
     assert_eq_xr(agg, out)
 
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_count_binning(df):
+    if cudf and isinstance(df, cudf.DataFrame):
+        pytest.skip(
+            "The categorical binning of 'count' reduction is yet supported on the GPU"
+        )
+    sol = np.array([[[5, 0, 0, 0],
+                     [0, 0, 5, 0]],
+                    [[0, 5, 0, 0],
+                     [0, 0, 0, 5]]])
+
     # add an extra category (this will count nans and out of bounds)
     sol = np.append(sol, [[[0], [0]],[[0], [0]]], axis=2)
 
@@ -322,6 +334,18 @@ def test_categorical_sum(df):
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.sum('f64')))
     assert_eq_xr(agg, out)
 
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_sum_binning(df):
+    if cudf and isinstance(df, cudf.DataFrame):
+        pytest.skip(
+            "The categorical binning of 'sum' reduction is yet supported on the GPU"
+        )
+    sol = np.array([[[8.0,  nan,  nan,  nan],
+                     [nan,  nan, 60.0,  nan]],
+                    [[nan, 35.0,  nan,  nan],
+                     [nan,  nan,  nan, 85.0]]])
+
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
     for col in 'f32', 'f64':
@@ -355,6 +379,18 @@ def test_categorical_max(df):
 
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.max('i64')))
     assert_eq_xr(agg, out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_max_binning(df):
+    if cudf and isinstance(df, cudf.DataFrame):
+        pytest.skip(
+            "The categorical binning of 'max' reduction is yet supported on the GPU"
+        )
+    sol = np.array([[[  4, nan, nan, nan],
+                     [nan, nan,  14, nan]],
+                    [[nan,   9, nan, nan],
+                     [nan, nan, nan,  19]]])
 
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
@@ -393,6 +429,18 @@ def test_categorical_mean(df):
 
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('i64')))
     assert_eq_xr(agg, out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_mean_binning(df):
+    if cudf and isinstance(df, cudf.DataFrame):
+        pytest.skip(
+            "The categorical binning of 'mean' reduction is yet supported on the GPU"
+        )
+    sol = np.array([[[  2, nan, nan, nan],
+                     [nan, nan,  12, nan]],
+                    [[nan,   7, nan, nan],
+                     [nan, nan, nan,  17]]])
 
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
