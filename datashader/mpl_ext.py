@@ -182,7 +182,7 @@ class DSArtist(_ImageBase):
         glyph,
         reduction,
         on_agg,
-        on_color,
+        on_image,
         width_scale,
         height_scale,
         initial_x_range,
@@ -197,7 +197,7 @@ class DSArtist(_ImageBase):
         self.glyph = glyph
         self.reduction = reduction
         self.on_agg = on_agg
-        self.on_color = on_color
+        self.on_image = on_image
         self.width_scale = width_scale
         self.height_scale = height_scale
         if initial_x_range is None:
@@ -265,9 +265,9 @@ class DSArtist(_ImageBase):
         rgba = self.colorize(binned)
 
         # Post-colorization callback
-        if self.on_color is not None:
+        if self.on_image is not None:
             img = to_ds_image(binned, rgba)
-            img = self.on_color(img)
+            img = self.on_image(img)
             rgba = uint32_to_uint8(img.data)
 
         self.set_array(rgba)
@@ -332,7 +332,7 @@ class ScalarDSArtist(DSArtist):
         glyph,
         reduction,
         on_agg=None,
-        on_color=None,
+        on_image=None,
         width_scale=1.0,
         height_scale=1.0,
         initial_x_range=None,
@@ -348,7 +348,7 @@ class ScalarDSArtist(DSArtist):
             glyph,
             reduction,
             on_agg,
-            on_color,
+            on_image,
             width_scale,
             height_scale,
             initial_x_range,
@@ -399,7 +399,7 @@ class CategoricalDSArtist(DSArtist):
         glyph,
         reduction,
         on_agg=None,
-        on_color=None,
+        on_image=None,
         width_scale=1.0,
         height_scale=1.0,
         initial_x_range=None,
@@ -415,7 +415,7 @@ class CategoricalDSArtist(DSArtist):
             glyph,
             reduction,
             on_agg,
-            on_color,
+            on_image,
             width_scale,
             height_scale,
             initial_x_range,
@@ -469,7 +469,7 @@ def dsshow(
     glyph,
     reduction=reductions.count(),
     on_agg=None,
-    on_color=None,
+    on_image=None,
     width_scale=1.0,
     height_scale=1.0,
     *,
@@ -505,7 +505,7 @@ def dsshow(
         A callable that takes the computed aggregate as an argument, and
         returns another aggregate. This can be used to do preprocessing before
         the aggregate is converted to an image.
-    on_color : callable, optional
+    on_image : callable, optional
         A callable that takes the image output of the shading pipeline, and
         returns another :class:`~.Image` object. See :func:`~.dynspread` and
         :func:`~.spread` for examples.
@@ -624,7 +624,7 @@ def dsshow(
             glyph,
             reduction,
             on_agg,
-            on_color,
+            on_image,
             color_key=color_key,
             alpha_range=alpha_range,
             color_baseline=color_baseline,
@@ -664,7 +664,7 @@ def dsshow(
             glyph,
             reduction,
             on_agg,
-            on_color,
+            on_image,
             norm=norm,
             cmap=cmap,
             alpha=alpha,
