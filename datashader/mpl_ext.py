@@ -1,9 +1,9 @@
+from collections import OrderedDict
 import warnings
 
 from matplotlib.image import _ImageBase
 from matplotlib.patches import Patch
 from matplotlib.transforms import Bbox, TransformedBbox, BboxTransform
-from toolz import identity
 import matplotlib as mpl
 import numpy as np
 
@@ -12,7 +12,7 @@ from . import transfer_functions as tf
 from .colors import Sets1to3
 from .core import bypixel, Canvas
 
-__all__ = ["QuantitativeDSArtist", "CategoricalDSArtist", "alpha_colormap", "dsshow"]
+__all__ = ["ScalarDSArtist", "CategoricalDSArtist", "alpha_colormap", "dsshow"]
 
 
 def uint32_to_uint8(img):
@@ -23,6 +23,24 @@ def uint32_to_uint8(img):
 def uint8_to_uint32(img):
     """Cast a 4-channel uint8 RGBA array to uint32 raster"""
     return img.view(dtype=np.uint32).reshape(img.shape[:-1])
+
+
+def to_ds_image(binned, rgba):
+    if binned.ndim == 2:
+        return tf.Image(uint8_to_uint32(rgba), coords=binned.coords, dims=binned.dims)
+    elif binned.ndim == 3:
+        return tf.Image(
+            uint8_to_uint32(rgba),
+            dims=binned.dims[:-1],
+            coords=OrderedDict(
+                [
+                    (binned.dims[1], binned.coords[binned.dims[1]]),
+                    (binned.dims[0], binned.coords[binned.dims[0]]),
+                ]
+            ),
+        )
+    else:
+        raise ValueError("Aggregate must be 2D or 3D.")
 
 
 def compute_mask(binned):
@@ -59,7 +77,7 @@ def alpha_colormap(color, min_alpha=40, max_alpha=255, N=256):
             raise ValueError("Alpha values must be integers between 0 and 255")
     r, g, b = mpl.colors.to_rgb(color)
     return mpl.colors.LinearSegmentedColormap(
-        "alpha-map",
+        "_datashader_alpha",
         {
             "red": [(0.0, r, r), (1.0, r, r)],
             "green": [(0.0, g, g), (1.0, g, g)],
@@ -81,7 +99,10 @@ class EqHistNormalize(mpl.colors.Normalize):
         self._ncolors = ncolors
         self._color_bins = np.linspace(0, 1, ncolors)
 
-    def binning(self, data, n=256):
+    def _binning(self, data, n=256):
+        if np.ma.is_masked(data):
+            data = data[~data.mask]
+
         low = data.min() if self.vmin is None else self.vmin
         high = data.max() if self.vmax is None else self.vmax
         nbins = self._nbins
@@ -125,14 +146,12 @@ class EqHistNormalize(mpl.colors.Normalize):
         return binning
 
     def __call__(self, data, clip=None):
-        # Preserve the mask after normalization
         mask = np.ma.getmask(data)
         result = self.process_value(data)[0]
+        # Preserve the mask after normalization if there is one
         return np.ma.masked_array(result, mask)
 
     def process_value(self, data):
-        if isinstance(data, np.ndarray):
-            self._bin_edges = self.binning(data, self._ncolors)
         isscalar = np.isscalar(data)
         data = np.array([data]) if isscalar else data
         interped = np.interp(data, self._bin_edges, self._color_bins)
@@ -143,6 +162,17 @@ class EqHistNormalize(mpl.colors.Normalize):
             raise ValueError("Not invertible until eq_hist has been computed")
         return np.interp([value], self._color_bins, self._bin_edges)[0]
 
+    def autoscale(self, A):
+        super(EqHistNormalize, self).autoscale(A)
+        self._bin_edges = self._binning(A, self._ncolors)
+
+    def autoscale_None(self, A):
+        super(EqHistNormalize, self).autoscale_None(A)
+        self._bin_edges = self._binning(A, self._ncolors)
+
+    def scaled(self):
+        return super(EqHistNormalize, self).scaled() and self._bin_edges is not None
+
 
 class DSArtist(_ImageBase):
     def __init__(
@@ -151,8 +181,8 @@ class DSArtist(_ImageBase):
         df,
         glyph,
         reduction,
-        transform_fn,
-        spread_fn,
+        on_agg,
+        on_color,
         width_scale,
         height_scale,
         initial_x_range,
@@ -166,8 +196,8 @@ class DSArtist(_ImageBase):
         self.df = df
         self.glyph = glyph
         self.reduction = reduction
-        self.transform_fn = transform_fn
-        self.spread_fn = spread_fn
+        self.on_agg = on_agg
+        self.on_color = on_color
         self.width_scale = width_scale
         self.height_scale = height_scale
         if initial_x_range is None:
@@ -180,10 +210,12 @@ class DSArtist(_ImageBase):
         ax.set_ylim(initial_y_range)
 
     def aggregate(self, x_range, y_range):
+        """Aggregate data in the given bounding box to the window dimensions."""
         dims = self.axes.patch.get_window_extent().bounds
         plot_width = int(dims[2] + 0.5)
         plot_height = int(dims[3] + 0.5)
 
+        # Aggregate
         canvas = Canvas(
             plot_width=int(plot_width * self.width_scale),
             plot_height=int(plot_height * self.height_scale),
@@ -191,12 +223,63 @@ class DSArtist(_ImageBase):
             y_range=y_range,
         )
         binned = bypixel(self.df, canvas, self.glyph, self.reduction)
-        binned = self.transform_fn(binned)
-        binned = self.spread_fn(binned)
+
+        # Post-aggregation callback
+        if self.on_agg is not None:
+            binned = self.on_agg(binned)
+
         return binned
 
-    def run_pipeline(self, x_range, y_range):
+    def colorize(self, binned):
+        """Convert an aggregate into an RGBA array."""
         raise NotImplementedError
+
+    def make_image(self, renderer, magnification=1.0, unsampled=True):
+        """
+        Normalize, rescale, and colormap this image's data for rendering using
+        *renderer*, with the given *magnification*.
+
+        If *unsampled* is True, the image will not be scaled, but an
+        appropriate affine transformation will be returned instead.
+
+        Returns
+        -------
+        image : (M, N, 4) uint8 array
+            The RGBA image, resampled unless *unsampled* is True.
+        x, y : float
+            The upper left corner where the image should be drawn, in pixel
+            space.
+        trans : Affine2D
+            The affine transformation from image to pixel space.
+        """
+        x1, x2, y1, y2 = self.get_extent()
+        bbox = Bbox(np.array([[x1, y1], [x2, y2]]))
+        trans = self.get_transform()
+        transformed_bbox = TransformedBbox(bbox, trans)
+
+        # Generate and save the aggregate
+        binned = self.aggregate([x1, x2], [y1, y2])
+        self.set_ds_data(binned)
+
+        # Normalize and color to make an RGBA array
+        rgba = self.colorize(binned)
+
+        # Post-colorization callback
+        if self.on_color is not None:
+            img = to_ds_image(binned, rgba)
+            img = self.on_color(img)
+            rgba = uint32_to_uint8(img.data)
+
+        self.set_array(rgba)
+
+        return self._make_image(
+            rgba,
+            bbox,
+            transformed_bbox,
+            self.axes.bbox,
+            magnification=magnification,
+            unsampled=unsampled,
+        )
 
     def set_ds_data(self, binned):
         """
@@ -211,16 +294,6 @@ class DSArtist(_ImageBase):
         bounding box currently displayed.
         """
         return self._ds_data
-
-    def get_ds_image(self):
-        """
-        Return the uint32 raster image corresponding to the image currently
-        displayed.
-
-        Use :meth:`get_array` to get the equivalent matplotlib-style (M, N, 4)
-        RGBA array.
-        """
-        return tf.Image(uint8_to_uint32(self.get_array()))
 
     def get_extent(self):
         """Return the image extent as tuple (left, right, bottom, top)"""
@@ -251,15 +324,15 @@ class DSArtist(_ImageBase):
             return arr[i, j]
 
 
-class QuantitativeDSArtist(DSArtist):
+class ScalarDSArtist(DSArtist):
     def __init__(
         self,
         ax,
         df,
         glyph,
         reduction,
-        transform_fn,
-        spread_fn,
+        on_agg=None,
+        on_color=None,
         width_scale=1.0,
         height_scale=1.0,
         initial_x_range=None,
@@ -274,8 +347,8 @@ class QuantitativeDSArtist(DSArtist):
             df,
             glyph,
             reduction,
-            transform_fn,
-            spread_fn,
+            on_agg,
+            on_color,
             width_scale,
             height_scale,
             initial_x_range,
@@ -287,42 +360,35 @@ class QuantitativeDSArtist(DSArtist):
         self.set_norm(norm)
         self.set_cmap(cmap)
         self.set_alpha(alpha)
-        A = self.run_pipeline(initial_x_range, initial_y_range)
-        self.norm(A)  # To initialize eq_hist
 
-    def run_pipeline(self, x_range, y_range):
-        # Generate and save the aggregate
-        binned = self.aggregate(x_range, y_range)
+        # Aggregate the current view
+        binned = self.aggregate(self.axes.get_xlim(), self.axes.get_ylim())
         self.set_ds_data(binned)
 
-        # Make the image, masking missing data.
+        # Placeholder until self.make_image
+        self.set_array(np.eye(2))
+
+    def colorize(self, binned):
+        # Mask missing data in the greyscale array
         mask = compute_mask(binned.data)
         A = np.ma.masked_array(binned.data, mask)
-        self.set_array(A)
 
-        # Reset the norm scales
+        # Rescale the norm to the current array
+        self.set_array(A)
         self.norm.vmin = self._vmin
         self.norm.vmax = self._vmax
         self.autoscale_None()
 
-        return A
+        # Make the image with matplotlib
+        return self.to_rgba(A, bytes=True, norm=True)
 
-    def make_image(self, renderer, magnification=1.0, unsampled=False):
-        x1, x2, y1, y2 = self.get_extent()
-        bbox = Bbox(np.array([[x1, y1], [x2, y2]]))
-        trans = self.get_transform()
-        transformed_bbox = TransformedBbox(bbox, trans)
+    def get_ds_image(self):
+        binned = self.get_ds_data()
+        rgba = self.to_rgba(self.get_array(), bytes=True)
+        return to_ds_image(binned, rgba)
 
-        A = self.run_pipeline([x1, x2], [y1, y2])
-
-        return self._make_image(
-            A,
-            bbox,
-            transformed_bbox,
-            self.axes.bbox,
-            magnification,
-            unsampled=unsampled,
-        )
+    def get_legend_elements(self):
+        return None
 
 
 class CategoricalDSArtist(DSArtist):
@@ -332,8 +398,8 @@ class CategoricalDSArtist(DSArtist):
         df,
         glyph,
         reduction,
-        transform_fn,
-        spread_fn,
+        on_agg=None,
+        on_color=None,
         width_scale=1.0,
         height_scale=1.0,
         initial_x_range=None,
@@ -348,65 +414,47 @@ class CategoricalDSArtist(DSArtist):
             df,
             glyph,
             reduction,
-            transform_fn,
-            spread_fn,
-            initial_x_range,
-            initial_y_range,
+            on_agg,
+            on_color,
             width_scale,
             height_scale,
+            initial_x_range,
+            initial_y_range,
             **kwargs
         )
-
-        # Set up the colorization function
         self._color_key = color_key
         self._alpha_range = alpha_range
         self._color_baseline = color_baseline
 
-        # Run the aggregation pipeline on the initial bounds
-        self.run_pipeline(initial_x_range, initial_y_range)
+        # Aggregate the current view
+        binned = self.aggregate(self.axes.get_xlim(), self.axes.get_ylim())
+        self.set_ds_data(binned)
 
-    def run_pipeline(self, x_range, y_range):
-        binned = self.aggregate(x_range, y_range)
-        raster = tf.shade(
+        # Placeholder until self.make_image
+        self.set_array(np.eye(2))
+
+    def colorize(self, binned):
+        # Make the blended image with datashader
+        img = tf.shade(
             binned,
             color_key=self._color_key,
             min_alpha=self._alpha_range[0],
             alpha=self._alpha_range[1],
             color_baseline=self._color_baseline,
         )
-        rgba = uint32_to_uint8(raster.data)
-
-        self.set_ds_data(binned)
-        self.set_array(rgba)
-
+        rgba = uint32_to_uint8(img.data)
         return rgba
 
-    def make_image(self, renderer, magnification=1.0, unsampled=False):
-        x1, x2, y1, y2 = self.get_extent()
-        bbox = Bbox(np.array([[x1, y1], [x2, y2]]))
-        trans = self.get_transform()
-        transformed_bbox = TransformedBbox(bbox, trans)
-
-        rgba = self.run_pipeline([x1, x2], [y1, y2])
-
-        return self._make_image(
-            rgba,
-            bbox,
-            transformed_bbox,
-            self.axes.bbox,
-            magnification,
-            unsampled=unsampled,
-        )
+    def get_ds_image(self):
+        binned = self.get_ds_data()
+        rgba = self.get_array()
+        return to_ds_image(binned, rgba)
 
     def get_legend_elements(self):
         """
         Return legend elements to display the color code for each category.
-        If the datashading pipeline is quantitative, returns *None*.
         """
-        x_range, y_range = self.axes.get_xlim(), self.axes.get_ylim()
-        binned = self.aggregate(x_range, y_range)
-        if binned.ndim != 3:
-            return None
+        binned = self.get_ds_data()
         name = binned.dims[2]
         categories = binned.coords[name].data
         color_dict = dict(zip(categories, self._color_key))
@@ -420,8 +468,8 @@ def dsshow(
     df,
     glyph,
     reduction=reductions.count(),
-    transform_fn=None,
-    spread_fn=None,
+    on_agg=None,
+    on_color=None,
     width_scale=1.0,
     height_scale=1.0,
     *,
@@ -442,8 +490,8 @@ def dsshow(
     Display the output of a datashading pipeline applied to a dataframe.
 
     The plot will respond to changes in the bounding box being displayed (in
-    data coordinates), such as pan/zoom events. Both quantitative and
-    categorical datashading pipelines are supported.
+    data coordinates), such as pan/zoom events. Both scalar and categorical
+    datashading pipelines are supported.
 
     Parameters
     ----------
@@ -453,12 +501,14 @@ def dsshow(
         The glyph to bin by.
     reduction : Reduction, optional, default: :class:`~.count`
         The reduction to compute per-pixel.
-    transform_fn : callable, optional
+    on_agg : callable, optional
         A callable that takes the computed aggregate as an argument, and
         returns another aggregate. This can be used to do preprocessing before
-        passing to the ``color_fn`` function.
-    spread_fn : callable, optional
-        ???
+        the aggregate is converted to an image.
+    on_color : callable, optional
+        A callable that takes the image output of the shading pipeline, and
+        returns another :class:`~.Image` object. See :func:`~.dynspread` and
+        :func:`~.spread` for examples.
     height_scale: float, optional
         Factor by which to scale the height of the image in pixels relative to
         the height of the display space in pixels.
@@ -466,17 +516,20 @@ def dsshow(
         Factor by which to scale the width of the image in pixels relative to
         the width of the display space in pixels.
     norm : str or :class:`matplotlib.colors.Normalize`, optional
-        For quantitative aggregates, a matplotlib norm to normalize the
+        For scalar aggregates, a matplotlib norm to normalize the
         aggregate data to [0, 1] before colormapping. The datashader arguments
         'linear', 'log', 'cbrt' and 'eq_hist' are also supported and correspond
         to equivalent matplotlib norms. Default is the linear norm.
     cmap : str or list or :class:`matplotlib.cm.Colormap`, optional
-        For quantitative aggregates, a matplotlib colormap name or instance.
+        For scalar aggregates, a matplotlib colormap name or instance.
         Alternatively, an iterable of colors can be passed and will be converted
         to a colormap. For a single-color, transparency-based colormap, see
         :func:`alpha_colormap`.
+    alpha : float
+        For scalar aggregates, the alpha blending value, between 0
+        (transparent) and 1 (opaque).
     vmin, vmax : float, optional
-        For quantitative aggregates, the data range that the colormap covers.
+        For scalar aggregates, the data range that the colormap covers.
         If vmin or vmax is None (default), the colormap autoscales to the
         range of data in the area displayed, unless the corresponding value is
         already set in the norm.
@@ -510,21 +563,21 @@ def dsshow(
 
     Returns
     -------
-    :class:`QuantitativeDSArtist` or :class:`CategoricalDSArtist`
+    :class:`ScalarDSArtist` or :class:`CategoricalDSArtist`
 
     Notes
     -----
-    If the aggregation is 2D quantitative (i.e. generates a scalar mappable),
-    the artist can be used to make a colorbar with ``fig.colorbar``.
+    If the aggregation is scalar/single-category (i.e. generates a 2D scalar
+    mappable), the artist can be used to make a colorbar with ``fig.colorbar``.
 
-    If the aggregation is 3D categorical (i.e. generates a composited
-    image from several categorical components), you can use the
-    :meth:`CategoricalDSArtist.get_legend_elements` method to obtain patch
+    If the aggregation is multi-category (i.e. generates a 3D array with
+    two or more components that get composited to form an image), you can use
+    the :meth:`CategoricalDSArtist.get_legend_elements` method to obtain patch
     handles that can be passed to ``ax.legend`` to make a legend.
 
     Examples
     --------
-    Generate two Gaussian point clouds and plot (1) the density as a
+    Generate two Gaussian point clouds and (1) plot the density as a
     quantitative map and (2) color the points by category.
 
     .. plot::
@@ -564,20 +617,14 @@ def dsshow(
         fig = plt.figure(fignum)
         ax = fig.add_axes([0.15, 0.09, 0.775, 0.775])
 
-    if transform_fn is None:
-        transform_fn = identity
-
-    if spread_fn is None:
-        spread_fn = identity
-
     if isinstance(reduction, reductions.by):
         artist = CategoricalDSArtist(
             ax,
             df,
             glyph,
             reduction,
-            transform_fn,
-            spread_fn,
+            on_agg,
+            on_color,
             color_key=color_key,
             alpha_range=alpha_range,
             color_baseline=color_baseline,
@@ -611,13 +658,13 @@ def dsshow(
         if vmax is not None:
             norm.vmax = vmax
 
-        artist = QuantitativeDSArtist(
+        artist = ScalarDSArtist(
             ax,
             df,
             glyph,
             reduction,
-            transform_fn,
-            spread_fn,
+            on_agg,
+            on_color,
             norm=norm,
             cmap=cmap,
             alpha=alpha,
