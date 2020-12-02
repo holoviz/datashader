@@ -15,7 +15,7 @@ env:
     - CHANS_REL="-c pyviz"
     - LABELS_DEV="--label dev"
     - LABELS_REL="--label dev --label main"
-    - PKG_TEST_PYTHON="--test-python=py27 --test-python=py36"
+    - PKG_TEST_PYTHON="--test-python=py36"
     # conda build fills up travis /tmp (tmpfs)
     - TMPDIR=$HOME/tmp
     - PYPI="https://upload.pypi.org/legacy/"
@@ -28,7 +28,7 @@ env:
 
 stages:
   - name: test
-    if: tag =~ ^v(\d+|\.)+([a-z]|rc)?\d?$
+    if: tag =~ ^v(\d+|\.)+(([a-z]|rc)(\d)+)?$
   - name: website_dev
     if: (tag =~ ^v(\d+|\.)+[a|b|rc]\d+$) OR (tag = website_dev) OR (commit_message =~ /^.*(website_dev).*$/)
   - name: website_release
@@ -73,12 +73,6 @@ jobs:
         - doit test_all
         - export NUMBA_DISABLE_JIT=1; doit test_unit_nojit
       after_success: codecov
-
-    # python 2 flake checking typically catches python 2 syntax
-    # errors where python 3's been assumed...
-    - <<: *default
-      env: DESC="py2 flakes" PYTHON_VERSION=2.7 OPTS=""
-      script: doit test_lint
 
     # test using python 3.7
     - <<: *default
