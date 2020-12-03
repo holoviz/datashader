@@ -1,0 +1,79 @@
+name: docs
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+a[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+b[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+
+jobs:
+  build_docs:
+    name: Documentation
+    runs-on: 'ubuntu-latest'
+    strategy:
+      fail-fast: false
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      DESC: "Documentation build"
+      CHANS_DEV: "-c pyviz/label/dev -c bokeh -c conda-forge"
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: "100"
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniconda-version: "latest"
+      - name: Fetch unshallow
+        run: git fetch --prune --tags --unshallow -f
+      - name: conda setup
+        run: |
+          conda config --set always_yes True
+          conda install -c pyviz "pyctdev>=0.5"
+          doit ecosystem_setup
+          doit env_create ${{ env.CHANS_DEV}} --python=3.7
+      - name: doit develop_install
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit develop_install ${{ env.CHANS_DEV}} -o doc
+      - name: fetch dat
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          datashader fetch-data --path=examples --force
+      - name: generate rst
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          nbsite generate-rst --org holoviz --project-name panel
+      - name: build docs
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          nbsite build --what=html --output=builtdocs
+          touch ./builtdocs/.nojekyll
+      - name: Deploy dev
+        uses: JamesIves/github-pages-deploy-action@3.7.1
+        if: (contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc'))
+        with:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: builtdocs
+          CLEAN: true
+          REPOSITORY_NAME: pyviz-dev/datashader
+      - name: Deploy main
+        if: (!(contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc')))
+        uses: JamesIves/github-pages-deploy-action@3.7.1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: builtdocs
+          CLEAN: true
