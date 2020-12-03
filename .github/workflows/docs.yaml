@@ -43,7 +43,7 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit develop_install ${{ env.CHANS_DEV}} -o doc
-      - name: fetch dat
+      - name: fetch data
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
