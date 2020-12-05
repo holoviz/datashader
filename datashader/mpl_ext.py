@@ -180,13 +180,13 @@ class DSArtist(_ImageBase):
         ax,
         df,
         glyph,
-        reduction,
-        on_agg,
-        on_image,
-        width_scale,
-        height_scale,
+        aggregator,
+        agg_hook,
+        shade_hook,
         initial_x_range,
         initial_y_range,
+        width_scale,
+        height_scale,
         origin="lower",
         interpolation="none",
         **kwargs
@@ -195,9 +195,9 @@ class DSArtist(_ImageBase):
         self.axes = ax
         self.df = df
         self.glyph = glyph
-        self.reduction = reduction
-        self.on_agg = on_agg
-        self.on_image = on_image
+        self.aggregator = aggregator
+        self.agg_hook = agg_hook
+        self.shade_hook = shade_hook
         self.width_scale = width_scale
         self.height_scale = height_scale
         if initial_x_range is None:
@@ -222,11 +222,11 @@ class DSArtist(_ImageBase):
             x_range=x_range,
             y_range=y_range,
         )
-        binned = bypixel(self.df, canvas, self.glyph, self.reduction)
+        binned = bypixel(self.df, canvas, self.glyph, self.aggregator)
 
         # Post-aggregation callback
-        if self.on_agg is not None:
-            binned = self.on_agg(binned)
+        if self.agg_hook is not None:
+            binned = self.agg_hook(binned)
 
         return binned
 
@@ -265,9 +265,9 @@ class DSArtist(_ImageBase):
         rgba = self.colorize(binned)
 
         # Post-colorization callback
-        if self.on_image is not None:
+        if self.shade_hook is not None:
             img = to_ds_image(binned, rgba)
-            img = self.on_image(img)
+            img = self.shade_hook(img)
             rgba = uint32_to_uint8(img.data)
 
         self.set_array(rgba)
@@ -330,13 +330,13 @@ class ScalarDSArtist(DSArtist):
         ax,
         df,
         glyph,
-        reduction,
-        on_agg=None,
-        on_image=None,
-        width_scale=1.0,
-        height_scale=1.0,
+        aggregator,
+        agg_hook=None,
+        shade_hook=None,
         initial_x_range=None,
         initial_y_range=None,
+        width_scale=1.0,
+        height_scale=1.0,
         norm=None,
         cmap=None,
         alpha=None,
@@ -346,13 +346,13 @@ class ScalarDSArtist(DSArtist):
             ax,
             df,
             glyph,
-            reduction,
-            on_agg,
-            on_image,
-            width_scale,
-            height_scale,
+            aggregator,
+            agg_hook,
+            shade_hook,
             initial_x_range,
             initial_y_range,
+            width_scale,
+            height_scale,
             **kwargs
         )
         self._vmin = norm.vmin
@@ -397,13 +397,13 @@ class CategoricalDSArtist(DSArtist):
         ax,
         df,
         glyph,
-        reduction,
-        on_agg=None,
-        on_image=None,
-        width_scale=1.0,
-        height_scale=1.0,
+        aggregator,
+        agg_hook=None,
+        shade_hook=None,
         initial_x_range=None,
         initial_y_range=None,
+        width_scale=1.0,
+        height_scale=1.0,
         color_key=None,
         alpha_range=(40, 255),
         color_baseline=None,
@@ -413,13 +413,13 @@ class CategoricalDSArtist(DSArtist):
             ax,
             df,
             glyph,
-            reduction,
-            on_agg,
-            on_image,
-            width_scale,
-            height_scale,
+            aggregator,
+            agg_hook,
+            shade_hook,
             initial_x_range,
             initial_y_range,
+            width_scale,
+            height_scale,
             **kwargs
         )
         self._color_key = color_key
@@ -467,9 +467,11 @@ class CategoricalDSArtist(DSArtist):
 def dsshow(
     df,
     glyph,
-    reduction=reductions.count(),
-    on_agg=None,
-    on_image=None,
+    aggregator=reductions.count(),
+    agg_hook=None,
+    shade_hook=None,
+    initial_x_range=None,
+    initial_y_range=None,
     width_scale=1.0,
     height_scale=1.0,
     *,
@@ -499,16 +501,19 @@ def dsshow(
         Dataframe to apply the datashading pipeline to.
     glyph : Glyph
         The glyph to bin by.
-    reduction : Reduction, optional, default: :class:`~.count`
+    aggregator : Reduction, optional, default: :class:`~.count`
         The reduction to compute per-pixel.
-    on_agg : callable, optional
+    agg_hook : callable, optional
         A callable that takes the computed aggregate as an argument, and
         returns another aggregate. This can be used to do preprocessing before
         the aggregate is converted to an image.
-    on_image : callable, optional
+    shade_hook : callable, optional
         A callable that takes the image output of the shading pipeline, and
         returns another :class:`~.Image` object. See :func:`~.dynspread` and
         :func:`~.spread` for examples.
+    initial_x_range, initial_y_range : pair of float, optional
+        A tuple representing the initial bounds inclusive space ``[min, max]``
+        along the axis. If None, the bounds will fit the entire data extent.
     height_scale: float, optional
         Factor by which to scale the height of the image in pixels relative to
         the height of the display space in pixels.
@@ -617,14 +622,18 @@ def dsshow(
         fig = plt.figure(fignum)
         ax = fig.add_axes([0.15, 0.09, 0.775, 0.775])
 
-    if isinstance(reduction, reductions.by):
+    if isinstance(aggregator, reductions.by):
         artist = CategoricalDSArtist(
             ax,
             df,
             glyph,
-            reduction,
-            on_agg,
-            on_image,
+            aggregator,
+            agg_hook,
+            shade_hook,
+            initial_x_range=initial_x_range,
+            initial_y_range=initial_y_range,
+            width_scale=width_scale,
+            height_scale=height_scale,
             color_key=color_key,
             alpha_range=alpha_range,
             color_baseline=color_baseline,
@@ -662,9 +671,13 @@ def dsshow(
             ax,
             df,
             glyph,
-            reduction,
-            on_agg,
-            on_image,
+            aggregator,
+            agg_hook,
+            shade_hook,
+            initial_x_range=initial_x_range,
+            initial_y_range=initial_y_range,
+            width_scale=width_scale,
+            height_scale=height_scale,
             norm=norm,
             cmap=cmap,
             alpha=alpha,
