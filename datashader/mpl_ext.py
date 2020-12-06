@@ -229,7 +229,6 @@ class DSArtist(_ImageBase):
         else:
             plot_height = self.plot_height
 
-        # Aggregate
         canvas = Canvas(
             plot_width=plot_width,
             plot_height=plot_height,
@@ -274,9 +273,8 @@ class DSArtist(_ImageBase):
         ):
             unsampled = False
 
+        # Aggregate
         binned = self.aggregate([x1, x2], [y1, y2])
-
-        # Apply post-aggregation hook
         if self.agg_hook is not None:
             binned = self.agg_hook(binned)
 
@@ -284,8 +282,6 @@ class DSArtist(_ImageBase):
 
         # Normalize and color to make an RGBA array
         rgba = self.shade(binned)
-
-        # Apply post-shading hook
         if self.shade_hook is not None:
             img = to_ds_image(binned, rgba)
             img = self.shade_hook(img)
@@ -524,11 +520,10 @@ def dsshow(
     **kwargs
 ):
     """
-    Display the output of a datashading pipeline applied to a dataframe.
+    Display the output of a data shading pipeline applied to a dataframe.
 
-    The plot will respond to changes in the bounding box being displayed (in
-    data coordinates), such as pan/zoom events. Both scalar and categorical
-    datashading pipelines are supported.
+    The plot will respond to changes in the data space bounds displayed, such
+    as pan/zoom events. Both scalar and categorical pipelines are supported.
 
     Parameters
     ----------
@@ -613,12 +608,12 @@ def dsshow(
     Notes
     -----
     If the aggregation is scalar/single-category (i.e. generates a 2D scalar
-    mappable), the artist can be used to make a colorbar with ``fig.colorbar``.
+    mappable), the artist can be used to make a colorbar. See example.
 
     If the aggregation is multi-category (i.e. generates a 3D array with
     two or more components that get composited to form an image), you can use
     the :meth:`CategoricalDSArtist.get_legend_elements` method to obtain patch
-    handles that can be passed to ``ax.legend`` to make a legend.
+    handles that can be used to make a legend. See example.
 
     Examples
     --------
