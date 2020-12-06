@@ -3,6 +3,9 @@ import pytest
 
 pytest.importorskip("matplotlib")
 
+import matplotlib
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -22,7 +25,7 @@ df = pd.DataFrame(
 def test_image_initialize():
     plt.figure(dpi=100)
     ax = plt.subplot(111)
-    da = dsshow(df, ds.Point("x", "y"), ax=ax, height_scale=1, width_scale=1,)
+    da = dsshow(df, ds.Point("x", "y"), ax=ax)
 
     data = da.get_ds_data()
     assert data[0, 0] == 5
@@ -34,7 +37,7 @@ def test_image_initialize():
 def test_image_update():
     fig = plt.figure(dpi=100)
     ax = plt.subplot(111)
-    da = dsshow(df, ds.Point("x", "y"), ax=ax, height_scale=1, width_scale=1,)
+    da = dsshow(df, ds.Point("x", "y"), ax=ax)
     ax.set_xlim(0, 0.5)
     ax.set_ylim(0, 0.5)
     fig.canvas.draw()
