@@ -152,6 +152,8 @@ class EqHistNormalize(mpl.colors.Normalize):
         return np.ma.masked_array(result, mask)
 
     def process_value(self, data):
+        if self._bin_edges is None:
+            raise ValueError("Not usable until eq_hist has been computed")
         isscalar = np.isscalar(data)
         data = np.array([data]) if isscalar else data
         interped = np.interp(data, self._bin_edges, self._color_bins)
@@ -183,8 +185,10 @@ class DSArtist(_ImageBase):
         aggregator,
         agg_hook,
         shade_hook,
-        initial_x_range,
-        initial_y_range,
+        plot_width,
+        plot_height,
+        x_range,
+        y_range,
         width_scale,
         height_scale,
         origin="lower",
@@ -198,39 +202,45 @@ class DSArtist(_ImageBase):
         self.aggregator = aggregator
         self.agg_hook = agg_hook
         self.shade_hook = shade_hook
+        self.plot_width = plot_width
+        self.plot_height = plot_height
         self.width_scale = width_scale
         self.height_scale = height_scale
-        if initial_x_range is None:
+        if x_range is None:
             x_col = glyph.x_label
-            initial_x_range = (df[x_col].min(), df[x_col].max())
-        if initial_y_range is None:
+            x_range = (df[x_col].min(), df[x_col].max())
+        if y_range is None:
             y_col = glyph.y_label
-            initial_y_range = (df[y_col].min(), df[y_col].max())
-        ax.set_xlim(initial_x_range)
-        ax.set_ylim(initial_y_range)
+            y_range = (df[y_col].min(), df[y_col].max())
+        ax.set_xlim(x_range)
+        ax.set_ylim(y_range)
 
     def aggregate(self, x_range, y_range):
-        """Aggregate data in the given bounding box to the window dimensions."""
+        """Aggregate data in given range to the window dimensions."""
         dims = self.axes.patch.get_window_extent().bounds
-        plot_width = int(dims[2] + 0.5)
-        plot_height = int(dims[3] + 0.5)
+
+        if self.plot_width is None:
+            plot_width = int(int(dims[2] + 0.5) * self.width_scale)
+        else:
+            plot_width = self.plot_width
+
+        if self.plot_height is None:
+            plot_height = int(int(dims[3] + 0.5) * self.height_scale)
+        else:
+            plot_height = self.plot_height
 
         # Aggregate
         canvas = Canvas(
-            plot_width=int(plot_width * self.width_scale),
-            plot_height=int(plot_height * self.height_scale),
+            plot_width=plot_width,
+            plot_height=plot_height,
             x_range=x_range,
             y_range=y_range,
         )
         binned = bypixel(self.df, canvas, self.glyph, self.aggregator)
 
-        # Post-aggregation callback
-        if self.agg_hook is not None:
-            binned = self.agg_hook(binned)
-
         return binned
 
-    def colorize(self, binned):
+    def shade(self, binned):
         """Convert an aggregate into an RGBA array."""
         raise NotImplementedError
 
@@ -256,15 +266,26 @@ class DSArtist(_ImageBase):
         bbox = Bbox(np.array([[x1, y1], [x2, y2]]))
         trans = self.get_transform()
         transformed_bbox = TransformedBbox(bbox, trans)
+        if (
+            self.plot_width is not None
+            or self.plot_height is not None
+            or self.width_scale != 1.0
+            or self.height_scale != 1.0
+        ):
+            unsampled = False
 
-        # Generate and save the aggregate
         binned = self.aggregate([x1, x2], [y1, y2])
+
+        # Apply post-aggregation hook
+        if self.agg_hook is not None:
+            binned = self.agg_hook(binned)
+
         self.set_ds_data(binned)
 
         # Normalize and color to make an RGBA array
-        rgba = self.colorize(binned)
+        rgba = self.shade(binned)
 
-        # Post-colorization callback
+        # Apply post-shading hook
         if self.shade_hook is not None:
             img = to_ds_image(binned, rgba)
             img = self.shade_hook(img)
@@ -333,8 +354,10 @@ class ScalarDSArtist(DSArtist):
         aggregator,
         agg_hook=None,
         shade_hook=None,
-        initial_x_range=None,
-        initial_y_range=None,
+        plot_width=None,
+        plot_height=None,
+        x_range=None,
+        y_range=None,
         width_scale=1.0,
         height_scale=1.0,
         norm=None,
@@ -349,8 +372,10 @@ class ScalarDSArtist(DSArtist):
             aggregator,
             agg_hook,
             shade_hook,
-            initial_x_range,
-            initial_y_range,
+            plot_width,
+            plot_height,
+            x_range,
+            y_range,
             width_scale,
             height_scale,
             **kwargs
@@ -363,12 +388,14 @@ class ScalarDSArtist(DSArtist):
 
         # Aggregate the current view
         binned = self.aggregate(self.axes.get_xlim(), self.axes.get_ylim())
+        if self.agg_hook is not None:
+            binned = self.agg_hook(binned)
         self.set_ds_data(binned)
 
         # Placeholder until self.make_image
         self.set_array(np.eye(2))
 
-    def colorize(self, binned):
+    def shade(self, binned):
         # Mask missing data in the greyscale array
         mask = compute_mask(binned.data)
         A = np.ma.masked_array(binned.data, mask)
@@ -384,7 +411,7 @@ class ScalarDSArtist(DSArtist):
 
     def get_ds_image(self):
         binned = self.get_ds_data()
-        rgba = self.to_rgba(self.get_array(), bytes=True)
+        rgba = self.to_rgba(self.get_array(), bytes=True, norm=True)
         return to_ds_image(binned, rgba)
 
     def get_legend_elements(self):
@@ -400,8 +427,10 @@ class CategoricalDSArtist(DSArtist):
         aggregator,
         agg_hook=None,
         shade_hook=None,
-        initial_x_range=None,
-        initial_y_range=None,
+        plot_width=None,
+        plot_height=None,
+        x_range=None,
+        y_range=None,
         width_scale=1.0,
         height_scale=1.0,
         color_key=None,
@@ -416,8 +445,10 @@ class CategoricalDSArtist(DSArtist):
             aggregator,
             agg_hook,
             shade_hook,
-            initial_x_range,
-            initial_y_range,
+            plot_width,
+            plot_height,
+            x_range,
+            y_range,
             width_scale,
             height_scale,
             **kwargs
@@ -428,12 +459,14 @@ class CategoricalDSArtist(DSArtist):
 
         # Aggregate the current view
         binned = self.aggregate(self.axes.get_xlim(), self.axes.get_ylim())
+        if self.agg_hook is not None:
+            binned = self.agg_hook(binned)
         self.set_ds_data(binned)
 
         # Placeholder until self.make_image
         self.set_array(np.eye(2))
 
-    def colorize(self, binned):
+    def shade(self, binned):
         # Make the blended image with datashader
         img = tf.shade(
             binned,
@@ -451,7 +484,7 @@ class CategoricalDSArtist(DSArtist):
         return to_ds_image(binned, rgba)
 
     def get_legend_elements(self):
-        """
+        """)
         Return legend elements to display the color code for each category.
         """
         binned = self.get_ds_data()
@@ -470,8 +503,10 @@ def dsshow(
     aggregator=reductions.count(),
     agg_hook=None,
     shade_hook=None,
-    initial_x_range=None,
-    initial_y_range=None,
+    plot_width=None,
+    plot_height=None,
+    x_range=None,
+    y_range=None,
     width_scale=1.0,
     height_scale=1.0,
     *,
@@ -511,13 +546,18 @@ def dsshow(
         A callable that takes the image output of the shading pipeline, and
         returns another :class:`~.Image` object. See :func:`~.dynspread` and
         :func:`~.spread` for examples.
-    initial_x_range, initial_y_range : pair of float, optional
+    plot_width, plot_height : int, optional
+        Grid dimensions, i.e. the width and height of the output aggregates in
+        pixels. Default is to use the native width and height dimensions of
+        the axes bounding box.
+    x_range, y_range : pair of float, optional
         A tuple representing the initial bounds inclusive space ``[min, max]``
-        along the axis. If None, the bounds will fit the entire data extent.
-    height_scale: float, optional
+        along the axis. If None, the initial bounds will encompass all of the
+        data along the axis.
+    height_scale : float, optional
         Factor by which to scale the height of the image in pixels relative to
         the height of the display space in pixels.
-    width_scale: float, optional
+    width_scale : float, optional
         Factor by which to scale the width of the image in pixels relative to
         the width of the display space in pixels.
     norm : str or :class:`matplotlib.colors.Normalize`, optional
@@ -630,8 +670,10 @@ def dsshow(
             aggregator,
             agg_hook,
             shade_hook,
-            initial_x_range=initial_x_range,
-            initial_y_range=initial_y_range,
+            plot_width=plot_width,
+            plot_height=plot_height,
+            x_range=x_range,
+            y_range=y_range,
             width_scale=width_scale,
             height_scale=height_scale,
             color_key=color_key,
@@ -674,8 +716,10 @@ def dsshow(
             aggregator,
             agg_hook,
             shade_hook,
-            initial_x_range=initial_x_range,
-            initial_y_range=initial_y_range,
+            plot_width=plot_width,
+            plot_height=plot_height,
+            x_range=x_range,
+            y_range=y_range,
             width_scale=width_scale,
             height_scale=height_scale,
             norm=norm,
