@@ -15,7 +15,7 @@
 
 -------
 
-[![History of OS GIS Timeline](img/featured-badge-gh.svg)](https://makepath.com/history-of-open-source-gis/)
+[![History of OS GIS Timeline](examples/assets/images/featured-badge-gh.svg)](https://makepath.com/history-of-open-source-gis/)
 
 -------
 
