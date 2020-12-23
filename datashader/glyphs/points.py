@@ -159,9 +159,9 @@ class Point(_PointLike):
             if (xmin <= x <= xmax) and (ymin <= y <= ymax):
                 xx = int(x_mapper(x) * sx + tx)
                 yy = int(y_mapper(y) * sy + ty)
-                xi, yi = (xx - 1 if x == xmax else xx,
-                          yy - 1 if y == ymax else yy)
 
+                xi, yi = (xx - 1 if x >= (xmax-1e-15) else xx,
+                          yy - 1 if y >= (ymax-1e-15) else yy)
                 append(i, xi, yi, *aggs_and_cols)
 
         @ngjit
