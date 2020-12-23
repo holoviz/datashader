@@ -12,7 +12,6 @@ dependencies:
  - datashader
  - distributed
  - fastparquet
- - geoviews
  - holoviews
  - ipython
  - jupyter
@@ -33,3 +32,4 @@ dependencies:
  - statsmodels
  - streamz
  - xarray
+ - ipympl
