@@ -5,7 +5,7 @@ Getting Started
 Installation
 ------------
 
-Datashader supports Python 2.7, 3.5, 3.6 and 3.7 on Linux, Windows, or Mac
+Datashader supports Python 2.7, 3.5, 3.6, and 3.7 on Linux, Windows, or Mac
 and can be installed with conda::
 
     conda install datashader
@@ -56,8 +56,9 @@ Usage
     3 Interactivity <Interactivity>
 
 If you have any questions, please refer to `FAQ <../FAQ>`_
-and if that doesn't help, feel free to post an issue on GitHub, question on
-stackoverflow, or discuss on Gitter.
+and if that doesn't help, feel free to post an
+`issue on GitHub <https://github.com/holoviz/datashader/issues>`_ or a
+`question on discourse <https://discourse.holoviz.org/c/datashader/>`_.
 
 Developer Instructions
 ----------------------
@@ -76,4 +77,4 @@ Developer Instructions
 
 4. Put the datashader directory into the Python path in this environment::
 
-    pip install -e .
+    pip install --no-deps -e .
