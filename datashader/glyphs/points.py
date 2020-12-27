@@ -163,8 +163,8 @@ class Point(_PointLike):
                 xx = int(x_mapper(x) * sx + tx)
                 yy = int(y_mapper(y) * sy + ty)
 
-                xi, yi = (xx-1 if xx == xxmax else xx,
-                          yy-1 if yy == yymax else yy)
+                xi, yi = (xxmax-1 if xx >= xxmax else xx,
+                          yymax-1 if yy >= yymax else yy)
                 append(i, xi, yi, *aggs_and_cols)
 
         @ngjit
