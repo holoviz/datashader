@@ -151,33 +151,40 @@ class Point(_PointLike):
 
         @ngjit
         @self.expand_aggs_and_cols(append)
-        def _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols):
+        def _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax,
+                                   ymin, ymax, xs, ys, xxmax, yymax,
+                                   *aggs_and_cols):
             x = xs[i]
             y = ys[i]
+
             # points outside bounds are dropped; remainder
             # are mapped onto pixels
             if (xmin <= x <= xmax) and (ymin <= y <= ymax):
                 xx = int(x_mapper(x) * sx + tx)
                 yy = int(y_mapper(y) * sy + ty)
 
-                xi, yi = (xx - 1 if x >= (xmax-1e-15) else xx,
-                          yy - 1 if y >= (ymax-1e-15) else yy)
+                xi, yi = min(xx, xxmax-1), min(yy, yymax-1)
                 append(i, xi, yi, *aggs_and_cols)
 
         @ngjit
         @self.expand_aggs_and_cols(append)
-        def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols):
+        def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
+                       xxmax, yymax, *aggs_and_cols):
             for i in range(xs.shape[0]):
-                _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols)
+                _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                                       xs, ys, xxmax, yymax, *aggs_and_cols)
 
         @cuda.jit
         @self.expand_aggs_and_cols(append)
-        def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols):
+        def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
+                        xxmax, yymax, *aggs_and_cols):
             i = cuda.grid(1)
             if i < xs.shape[0]:
-                _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols)
+                _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                                       xs, ys, xxmax, yymax, *aggs_and_cols)
 
         def extend(aggs, df, vt, bounds):
+            yymax, xxmax = aggs[0].shape[:2]
             aggs_and_cols = aggs + info(df)
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
@@ -192,7 +199,7 @@ class Point(_PointLike):
                 do_extend = extend_cpu
 
             do_extend(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, *aggs_and_cols
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, xxmax, yymax, *aggs_and_cols
             )
 
         return extend
