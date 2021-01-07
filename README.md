@@ -6,7 +6,7 @@
 
 |    |    |
 | --- | --- |
-| Build Status | [![Build Status](https://github.com/holoviz/datashader/workflows/tests/badge.svg](https://github.com/holoviz/datashader/actions?query=workflow%3Atests) |
+| Build Status | [![Build Status](https://github.com/holoviz/datashader/workflows/tests/badge.svg)](https://github.com/holoviz/datashader/actions?query=workflow%3Atests) |
 | Coverage | [![codecov](https://codecov.io/gh/holoviz/datashader/branch/master/graph/badge.svg)](https://codecov.io/gh/holoviz/datashader) |
 | Latest dev release | [![Github tag](https://img.shields.io/github/tag/holoviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/holoviz/datashader/tags) [![dev-site](https://img.shields.io/website-up-down-green-red/https/pyviz-dev.github.io/datashader.svg?label=dev%20website)](https://pyviz-dev.github.io/datashader/) |
 | Latest release | [![Github release](https://img.shields.io/github/release/holoviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/holoviz/datashader/releases) [![PyPI version](https://img.shields.io/pypi/v/datashader.svg?colorB=cc77dd)](https://pypi.python.org/pypi/datashader) [![datashader version](https://img.shields.io/conda/v/pyviz/datashader.svg?colorB=4488ff&style=flat)](https://anaconda.org/pyviz/datashader) [![conda-forge version](https://img.shields.io/conda/v/conda-forge/datashader.svg?label=conda%7Cconda-forge&colorB=4488ff)](https://anaconda.org/conda-forge/datashader) [![defaults version](https://img.shields.io/conda/v/anaconda/datashader.svg?label=conda%7Cdefaults&style=flat&colorB=4488ff)](https://anaconda.org/anaconda/datashader) |
