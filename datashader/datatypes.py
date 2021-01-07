@@ -500,7 +500,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
     def fillna(self, value=None, method=None, limit=None):
         # Override in RaggedArray to handle ndarray fill values
         from pandas.util._validators import validate_fillna_kwargs
-        from pandas.core.missing import pad_1d, backfill_1d
+        from pandas.core.missing import get_fill_func
 
         value, method = validate_fillna_kwargs(value, method)
 
@@ -514,7 +514,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
         if mask.any():
             if method is not None:
-                func = pad_1d if method == 'pad' else backfill_1d
+                func = get_fill_func(method)
                 new_values = func(self.astype(object), limit=limit,
                                   mask=mask)
                 new_values = self._from_sequence(new_values, dtype=self.dtype)
