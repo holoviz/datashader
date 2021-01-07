@@ -834,3 +834,8 @@ class TestRaggedReshaping(eb.BaseReshapingTests):
     @pytest.mark.skip(reason="transpose with numpy array elements seems not supported")
     def test_transpose(self):
         pass
+
+    @pytest.mark.skip(reason="transpose with numpy array elements seems not supported")
+    def test_transpose_frame(self):
+        pass
+    
