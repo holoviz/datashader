@@ -419,6 +419,46 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
                  name=name)
 
 
+def _apply_discrete_colorkey(agg, color_key, alpha=255, nodata=0):
+
+    if cupy and isinstance(agg.data, cupy.ndarray):
+        array = cupy.array
+    else:
+        array = np.array
+
+    if not agg.ndim == 2:
+        raise ValueError("agg must be 2D")
+
+    data = orient_array(agg)
+    if isinstance(data, da.Array):
+        data = data.compute()
+    else:
+        data = data.copy()
+
+    cats = color_key.keys()
+    colors = [rgb(color_key[c]) for c in cats]
+    rs, gs, bs = map(array, zip(*colors))
+    h, w = agg.shape
+
+    r = np.zeros((h, w), dtype=np.uint8)
+    g = np.zeros((h, w), dtype=np.uint8)
+    b = np.zeros((h, w), dtype=np.uint8)
+
+    for i, c in enumerate(cats):
+        value_mask = data == c
+        r[value_mask] = rs[i]
+        g[value_mask] = gs[i]
+        b[value_mask] = bs[i]
+
+    data = np.zeros((h, w, 4), dtype=np.uint8)
+    data[:, :, 0] = (r).astype(np.uint8)
+    data[:, :, 1] = (g).astype(np.uint8)
+    data[:, :, 2] = (b).astype(np.uint8)
+    a = np.where(np.logical_or(np.isnan(r), r <= nodata), 0, alpha)
+    data[:, :, 3] = a.astype(np.uint8)
+    return fromarray(data, 'RGBA')
+
+
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
           how='eq_hist', alpha=255, min_alpha=40, span=None, name=None,
           color_baseline=None):
@@ -515,7 +555,10 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         raise ValueError("min_alpha ({}) and alpha ({}) must be between 0 and 255".format(min_alpha,alpha))
 
     if agg.ndim == 2:
-        return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
+        if color_key is not None:
+            return _apply_discrete_colorkey(agg, color_key, alpha)
+        else:
+            return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
     elif agg.ndim == 3:
         return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     else:

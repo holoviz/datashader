@@ -1047,3 +1047,26 @@ def test_shade_should_handle_zeros_array():
     arr = tf.Image(data, dims=['x', 'y'])
     img = tf.shade(arr, cmap=['white', 'black'], how='linear')
     assert img is not None
+
+
+def test_shade_with_discrete_color_key_numpy():
+    data = np.array([[0, 0, 0, 0, 0],
+                     [0, 1, 1, 1, 0],
+                     [0, 2, 2, 2, 0],
+                     [0, 3, 3, 3, 0],
+                     [0, 0, 0, 0, 0]], dtype='uint32')
+    arr = tf.Image(data, dims=['x', 'y'])
+    img = tf.shade(arr, color_key={1: 'aqua', 2:'purple', 3:'yellow'})
+    assert img is not None
+
+
+def test_shade_with_discrete_color_key_dask():
+    data = np.array([[0, 0, 0, 0, 0],
+                     [0, 1, 1, 1, 0],
+                     [0, 2, 2, 2, 0],
+                     [0, 3, 3, 3, 0],
+                     [0, 0, 0, 0, 0]], dtype='uint32')
+    data = da.from_array(data)
+    arr = tf.Image(data, dims=['x', 'y'])
+    img = tf.shade(arr, color_key={1: 'aqua', 2:'purple', 3:'yellow'})
+    assert img is not None
