@@ -419,7 +419,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
                  name=name)
 
 
-def _apply_discrete_colorkey(agg, color_key, alpha=255, nodata=0):
+def _apply_discrete_colorkey(agg, color_key, name, alpha=255, nodata=0):
 
     if cupy and isinstance(agg.data, cupy.ndarray):
         array = cupy.array
@@ -450,13 +450,9 @@ def _apply_discrete_colorkey(agg, color_key, alpha=255, nodata=0):
         g[value_mask] = gs[i]
         b[value_mask] = bs[i]
 
-    data = np.zeros((h, w, 4), dtype=np.uint8)
-    data[:, :, 0] = (r).astype(np.uint8)
-    data[:, :, 1] = (g).astype(np.uint8)
-    data[:, :, 2] = (b).astype(np.uint8)
     a = np.where(np.logical_or(np.isnan(r), r <= nodata), 0, alpha)
-    data[:, :, 3] = a.astype(np.uint8)
-    return fromarray(data, 'RGBA')
+    img = np.dstack((r, g, b, a)).astype('uint8').view(dtype=np.uint32).reshape(a.shape)
+    return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
@@ -556,7 +552,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
 
     if agg.ndim == 2:
         if color_key is not None:
-            return _apply_discrete_colorkey(agg, color_key, alpha)
+            return _apply_discrete_colorkey(agg, color_key, name, alpha)
         else:
             return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
     elif agg.ndim == 3:
