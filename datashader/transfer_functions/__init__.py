@@ -551,7 +551,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         raise ValueError("min_alpha ({}) and alpha ({}) must be between 0 and 255".format(min_alpha,alpha))
 
     if agg.ndim == 2:
-        if color_key is not None:
+        if color_key is not None and isinstance(color_key, dict):
             return _apply_discrete_colorkey(agg, color_key, name, alpha)
         else:
             return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
