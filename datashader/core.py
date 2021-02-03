@@ -1130,17 +1130,23 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         # Compute DataArray metadata
         if np.isclose(left, self.x_range[0]) and \
                 np.isclose(right, self.x_range[1]) and \
-                np.isclose(bottom, self.y_range[0]) and \
-                np.isclose(top, self.y_range[1]) and \
-                np.size(xvals) == self.plot_width and \
-                np.size(yvals) == self.plot_height:
-            # do not recalculate coords if resampling on same x range, y range,
-            #    and same canvas size as of source input
-            #    to avoid floating point representation error.
-            xs, ys = xvals, yvals
+                np.size(xvals) == self.plot_width:
+            # To avoid floating point representation error,
+            # do not recompute x coords if same x_range and same plot_width
+            xs = xvals
         else:
-            xs, ys = compute_coords(self.plot_width, self.plot_height,
-                                    self.x_range, self.y_range, res)
+            xs, _ = compute_coords(self.plot_width, self.plot_height,
+                                   self.x_range, self.y_range, res)
+
+        if np.isclose(bottom, self.y_range[0]) and \
+                np.isclose(top, self.y_range[1]) and \
+                np.size(yvals) == self.plot_height:
+            # To avoid floating point representation error,
+            # do not recompute y coords if same y_range and same plot_height
+            ys = yvals
+        else:
+            _, ys = compute_coords(self.plot_width, self.plot_height,
+                                   self.x_range, self.y_range, res)
 
         coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
