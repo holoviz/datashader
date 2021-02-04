@@ -480,16 +480,18 @@ class CategoricalDSArtist(DSArtist):
         return to_ds_image(binned, rgba)
 
     def get_legend_elements(self):
-        """)
+        """
         Return legend elements to display the color code for each category.
         """
-        binned = self.get_ds_data()
-        name = binned.dims[2]
-        categories = binned.coords[name].data
-        color_dict = dict(zip(categories, self._color_key))
+        if not isinstance(self._color_key, dict):
+            binned = self.get_ds_data()
+            categories = binned.coords[binned.dims[2]].data
+            color_dict = dict(zip(categories, self._color_key))
+        else:
+            color_dict = self._color_key
         return [
-            Patch(facecolor=color, edgecolor="none", label=name)
-            for name, color in color_dict.items()
+            Patch(facecolor=color, edgecolor="none", label=category)
+            for category, color in color_dict.items()
         ]
 
 
