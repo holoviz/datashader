@@ -1128,25 +1128,19 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             data = data.astype(dtype)
 
         # Compute DataArray metadata
-        if np.isclose(left, self.x_range[0]) and \
-                np.isclose(right, self.x_range[1]) and \
-                np.size(xvals) == self.plot_width:
-            # To avoid floating point representation error,
-            # do not recompute x coords if same x_range and same plot_width
-            xs = xvals
-        else:
-            xs, _ = compute_coords(self.plot_width, self.plot_height,
-                                   self.x_range, self.y_range, res)
 
-        if np.isclose(bottom, self.y_range[0]) and \
-                np.isclose(top, self.y_range[1]) and \
-                np.size(yvals) == self.plot_height:
-            # To avoid floating point representation error,
-            # do not recompute y coords if same y_range and same plot_height
-            ys = yvals
+        # To avoid floating point representation error,
+        # do not recompute x coords if same x_range and same plot_width,
+        # do not recompute y coords if same y_range and same plot_height
+        close_x = np.isclose([left, right], self.x_range).all() and np.size(xvals) == self.plot_width
+        close_y = np.isclose([bottom, top], self.y_range).all() and np.size(yvals) == self.plot_height
+        if close_x and close_y:
+            xs, ys = xvals, yvals
         else:
-            _, ys = compute_coords(self.plot_width, self.plot_height,
-                                   self.x_range, self.y_range, res)
+            xs, ys = compute_coords(self.plot_width, self.plot_height,
+                                    self.x_range, self.y_range, res)
+            xs = xvals if close_x else xs
+            ys = yvals if close_y else ys
 
         coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
