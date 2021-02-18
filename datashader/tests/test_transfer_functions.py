@@ -1049,57 +1049,35 @@ def test_shade_should_handle_zeros_array():
     assert img is not None
 
 
-def test_shade_with_discrete_color_key_numpy():
+def test_shade_with_discrete_color_key():
     data = np.array([[0, 0, 0, 0, 0],
                      [0, 1, 1, 1, 0],
                      [0, 2, 2, 2, 0],
                      [0, 3, 3, 3, 0],
                      [0, 0, 0, 0, 0]], dtype='uint32')
-    arr = tf.Image(data, dims=['x', 'y'])
-    img = tf.shade(arr, color_key={1: 'aqua', 2:'purple', 3:'yellow'})
-    assert img is not None
+    color_key = {1: 'white', 2: 'purple', 3: 'yellow', 4.4: 'pink'}
+    result = np.array([[0, 0, 0, 0, 0],
+                       [0, 4294967295, 4294967295, 4294967295, 0],
+                       [0, 4286578816, 4286578816, 4286578816, 0],
+                       [0, 4278255615, 4278255615, 4278255615, 0],
+                       [0, 0, 0, 0, 0]],
+                      dtype='uint32')
 
+    # numpy case
+    arr_numpy = tf.Image(data, dims=['x', 'y'])
+    result_numpy = tf.shade(arr_numpy, color_key=color_key)
+    assert (result_numpy.data == result).all()
 
-def test_shade_with_discrete_color_key_dask():
-    data = np.array([[0, 0, 0, 0, 0],
-                     [0, 1, 1, 1, 0],
-                     [0, 2, 2, 2, 0],
-                     [0, 3, 3, 3, 0],
-                     [0, 0, 0, 0, 0]], dtype='uint32')
-    data = da.from_array(data)
-    arr = tf.Image(data, dims=['x', 'y'])
-    img = tf.shade(arr, color_key={1: 'aqua', 2:'purple', 3:'yellow'})
-    assert img is not None
+    # dask with numpy backed case
+    arr_dask = tf.Image(da.from_array(data, chunks=(2, 2)), dims=['x', 'y'])
+    result_dask = tf.shade(arr_dask, color_key=color_key)
+    assert (result_dask.data == result).all()
 
-
-def test_shade_with_discrete_color_key_with_missing_values():
-    data = np.array([[0, 0, 0, 0, 0],
-                     [0, 1, 1, 1, 0],
-                     [0, 2, 2, 2, 0],
-                     [0, 3, 3, 3, 0],
-                     [0, 0, 0, 0, 0]], dtype='uint32')
-    arr = tf.Image(data, dims=['x', 'y'])
-    img = tf.shade(arr, color_key={1: 'aqua', 2:'purple', 3:'yellow', 4:'black'})
-    assert img is not None
-
-
-def test_shade_with_discrete_color_key_with_wrong_types():
-    data = np.array([[0, 0, 0, 0, 0],
-                     [0, 1, 1, 1, 0],
-                     [0, 2, 2, 2, 0],
-                     [0, 3, 3, 3, 0],
-                     [0, 0, 0, 0, 0]], dtype='uint32')
-    arr = tf.Image(data, dims=['x', 'y'])
-    img = tf.shade(arr, color_key={1: 'aqua', 2:'purple', 3:'yellow', 4.4:'black'})
-    assert img is not None
-
-
-def test_shade_with_discrete_color_key_with_float_arr():
-    data = np.array([[0, 0, 0, 0, 0],
-                     [0, 1, 1, 1, 0],
-                     [0, 2, 2, 2, 0],
-                     [0, 3, 3, 3, 0],
-                     [0, 0, 0, 0, 0]], dtype='f8')
-    arr = tf.Image(data, dims=['x', 'y'])
-    img = tf.shade(arr, color_key={1: 'aqua', 2:'purple', 3:'yellow'})
-    assert img is not None
+    # cupy case
+    try:
+        import cupy
+        arr_cupy = tf.Image(cupy.asarray(data), dims=['x', 'y'])
+        result_cupy = tf.shade(arr_cupy, color_key=color_key)
+        assert (result_cupy.data.get() == result).all()
+    except ImportError:
+        cupy = None
