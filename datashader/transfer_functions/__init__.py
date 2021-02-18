@@ -421,13 +421,13 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
 
 def _apply_discrete_colorkey(agg, color_key, name, alpha=255, nodata=0):
 
+    if not agg.ndim == 2:
+        raise ValueError("agg must be 2D")
+
     if cupy and isinstance(agg.data, cupy.ndarray):
         array = cupy.array
     else:
         array = np.array
-
-    if not agg.ndim == 2:
-        raise ValueError("agg must be 2D")
 
     data = orient_array(agg)
     if isinstance(data, da.Array):
@@ -440,9 +440,14 @@ def _apply_discrete_colorkey(agg, color_key, name, alpha=255, nodata=0):
     rs, gs, bs = map(array, zip(*colors))
     h, w = agg.shape
 
-    r = np.zeros((h, w), dtype=np.uint8)
-    g = np.zeros((h, w), dtype=np.uint8)
-    b = np.zeros((h, w), dtype=np.uint8)
+    if cupy and isinstance(agg.data, cupy.ndarray):
+        r = cupy.zeros((h, w), dtype=cupy.uint8)
+        g = cupy.zeros((h, w), dtype=cupy.uint8)
+        b = cupy.zeros((h, w), dtype=cupy.uint8)
+    else:
+        r = np.zeros((h, w), dtype=np.uint8)
+        g = np.zeros((h, w), dtype=np.uint8)
+        b = np.zeros((h, w), dtype=np.uint8)
 
     for i, c in enumerate(cats):
         value_mask = data == c
@@ -450,8 +455,13 @@ def _apply_discrete_colorkey(agg, color_key, name, alpha=255, nodata=0):
         g[value_mask] = gs[i]
         b[value_mask] = bs[i]
 
-    a = np.where(np.logical_or(np.isnan(r), r <= nodata), 0, alpha)
-    img = np.dstack((r, g, b, a)).astype('uint8').view(dtype=np.uint32).reshape(a.shape)
+    if cupy and isinstance(agg.data, cupy.ndarray):
+        a = cupy.where(cupy.logical_or(cupy.isnan(r), r <= nodata), 0, alpha)
+        img = cupy.dstack((r, g, b, a)).astype('uint8').view(dtype=cupy.uint32).reshape(a.shape)
+    else:
+        a = np.where(np.logical_or(np.isnan(r), r <= nodata), 0, alpha)
+        img = np.dstack((r, g, b, a)).astype('uint8').view(dtype=np.uint32).reshape(a.shape)
+
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
