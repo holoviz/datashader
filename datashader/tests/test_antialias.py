@@ -1,4 +1,4 @@
-"""Tests for antialiased line drawing in Datasahder"""
+"""Tests for antialiased line drawing in Datashader"""
 
 # The single-pixel width tests consist of 6 test cases, each drawing a
 # different set of lines on a square canvas. Tests 1 to 4 are all sets of lines

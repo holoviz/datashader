@@ -1130,8 +1130,19 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
         attrs = dict(res=res[0])
-        if source._file_obj is not None and hasattr(source._file_obj, 'nodata'):
-            attrs['nodata'] = source._file_obj.nodata
+
+        # Find nodata value if available in any of the common conventional locations
+        # See https://corteva.github.io/rioxarray/stable/getting_started/nodata_management.html
+        # and https://github.com/holoviz/datashader/issues/990
+        for a in ['_FillValue', 'missing_value', 'fill_value', 'nodata', 'NODATA']:
+            if a in source.attrs:
+                attrs['nodata'] = source.attrs[a]
+                break
+        if 'nodata' not in attrs:
+            try:
+                attrs['nodata'] = source.attrs['nodatavals'][0]
+            except:
+                pass
 
         # Handle DataArray with layers
         if data.ndim == 3:
