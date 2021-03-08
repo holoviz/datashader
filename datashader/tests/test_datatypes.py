@@ -724,6 +724,11 @@ class TestRaggedGroupby(eb.BaseGroupbyTests):
         df.groupby("A").apply(op)
         df.groupby("A").B.apply(op)
 
+    @pytest.mark.skip(reason="agg not supported")
+    def test_groupby_agg_extension(self):
+        pass
+        
+
 
 class TestRaggedInterface(eb.BaseInterfaceTests):
     # Add array equality
