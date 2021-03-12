@@ -57,10 +57,9 @@ jobs:
       run:
         shell: bash -l {0}
     env:
-      CHANS_DEV: "-c pyviz/label/dev -c bokeh -c conda-forge"
-      PKG_TEST_PYTHON: "--test-python=py37 --test-python=py27"
+      CHANS: "-c pyviz/label/dev -c conda-forge"
+      PKG_TEST_PYTHON: "--test-python=py37"
       PYTHON_VERSION: "3.7"
-      CHANS: "-c pyviz"
       MPLBACKEND: "Agg"
       PPU: ${{ secrets.PPU }}
       PPP: ${{ secrets.PPP }}
@@ -82,12 +81,12 @@ jobs:
           conda config --set always_yes True
           conda install -c pyviz "pyctdev>=0.5"
           doit ecosystem_setup
-          doit env_create $CHANS_DEV --python=$PYTHON_VERSION
+          doit env_create $CHANS --python=$PYTHON_VERSION
       - name: env setup
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit develop_install $CHANS_DEV -o tests
+          doit develop_install $CHANS -o tests
           pip uninstall -y datashader
           doit pip_on_conda
       - name: pip build
