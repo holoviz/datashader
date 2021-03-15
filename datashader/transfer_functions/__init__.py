@@ -424,6 +424,16 @@ def _apply_discrete_colorkey(agg, color_key, name, alpha=255, nodata=0):
     if not agg.ndim == 2:
         raise ValueError("agg must be 2D")
 
+    # validate color_key
+    datatype = agg.data.dtype.type
+    try:
+        converted_keys = [datatype(key) for key in color_key.keys()]
+    except ValueError:
+        raise TypeError("Invalid color_key. Keys should be in the same type (or be convertible to be the same) as of input agg")
+
+    if not converted_keys == list(color_key.keys()):
+        raise TypeError("Invalid color_key. Keys should be in the same type (or be convertible to be the same) as of input agg")
+
     if cupy and isinstance(agg.data, cupy.ndarray):
         array = cupy.array
     else:
@@ -520,7 +530,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         Regardless of this value, ``NaN`` values are set to be fully
         transparent when doing colormapping.
     min_alpha : float, optional
-        The minimum alpha value to use for non-empty pixels when 
+        The minimum alpha value to use for non-empty pixels when
         alpha is indicating data value, in [0, 255].  Use a higher value
         to avoid undersaturation, i.e. poorly visible low-value datapoints,
         at the expense of the overall dynamic range.

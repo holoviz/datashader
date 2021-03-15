@@ -1055,7 +1055,7 @@ def test_shade_with_discrete_color_key():
                      [0, 2, 2, 2, 0],
                      [0, 3, 3, 3, 0],
                      [0, 0, 0, 0, 0]], dtype='uint32')
-    color_key = {1: 'white', 2: 'purple', 3: 'yellow', 4.4: 'pink'}
+    color_key = {1: 'white', 2: 'purple', 3: 'yellow'}
     result = np.array([[0, 0, 0, 0, 0],
                        [0, 4294967295, 4294967295, 4294967295, 0],
                        [0, 4286578816, 4286578816, 4286578816, 0],
