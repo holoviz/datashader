@@ -303,17 +303,18 @@ class RaggedArray(ExtensionArray):
             # Populate arrays
             next_start_ind = 0
             for i, array_el in enumerate(data):
-                # Compute element length
-                n = len(array_el) if not missing(array_el) else 0
-
                 # Update start indices
                 self._start_indices[i] = next_start_ind
 
-                # Update flat array
-                self._flat_array[next_start_ind:next_start_ind+n] = array_el
+                if not missing(array_el):
+                    # Compute element length
+                    n = len(array_el)
 
-                # increment next start index
-                next_start_ind += n
+                    # Update flat array
+                    self._flat_array[next_start_ind:next_start_ind+n] = array_el
+
+                    # increment next start index
+                    next_start_ind += n
 
         self._dtype = RaggedDtype(dtype=dtype)
 
