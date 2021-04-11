@@ -948,7 +948,7 @@ def test_rgb_dynspread():
     coords = [np.arange(5), np.arange(5)]
     img = tf.Image(data, coords=coords, dims=dims)
     assert tf.dynspread(img).equals(tf.spread(img, 1))
-    assert tf.dynspread(img, threshold=0.9).equals(tf.spread(img, 2))
+    assert tf.dynspread(img, threshold=0.9).equals(tf.spread(img, 3))
     assert tf.dynspread(img, threshold=0).equals(img)
     assert tf.dynspread(img, max_px=0).equals(img)
 
@@ -964,7 +964,7 @@ def test_array_dynspread():
     coords = [np.arange(5), np.arange(5)]
     arr = xr.DataArray(data, coords=coords, dims=dims)
     assert tf.dynspread(arr).equals(tf.spread(arr, 1))
-    assert tf.dynspread(arr, threshold=0.9).equals(tf.spread(arr, 2))
+    assert tf.dynspread(arr, threshold=0.9).equals(tf.spread(arr, 3))
     assert tf.dynspread(arr, threshold=0).equals(arr)
     assert tf.dynspread(arr, max_px=0).equals(arr)
 
@@ -996,7 +996,7 @@ def test_categorical_dynspread():
     arr = xr.DataArray(data, coords=coords + [['a', 'b', 'c']],
                        dims=dims + ['cat'])
     assert tf.dynspread(arr).equals(tf.spread(arr, 1))
-    assert tf.dynspread(arr, threshold=0.9).equals(tf.spread(arr, 2))
+    assert tf.dynspread(arr, threshold=0.9).equals(tf.spread(arr, 3))
     assert tf.dynspread(arr, threshold=0).equals(arr)
     assert tf.dynspread(arr, max_px=0).equals(arr)
 
