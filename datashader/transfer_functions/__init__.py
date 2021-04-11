@@ -751,7 +751,7 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         elif len(img.shape) == 2:
             density = _array_density(img.data, float_type, px*2)
         else:
-            masked = np.logical_not(np.isnan(out)) if float_type else (out != 0)
+            masked = np.logical_not(np.isnan(img)) if float_type else (img != 0)
             flat_mask = np.sum(masked, axis=2, dtype='uint32')
             density = _array_density(flat_mask.data, False, px*2)
         if density >= threshold:
