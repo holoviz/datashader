@@ -21,8 +21,8 @@ install_requires = [
     'pillow >=3.1.1',
     'xarray >=0.9.6',
     'colorcet >=0.9.0',
-    'param >=1.6.0',
-    'pyct >=0.4.4',
+    'param >=1.6.1',
+    'pyct >=0.4.5',
     'bokeh',
     'scipy',
 ]
