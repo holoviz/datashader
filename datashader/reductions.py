@@ -263,6 +263,51 @@ class OptionalFieldReduction(Reduction):
     def _finalize(bases, cuda=False, **kwargs):
         return xr.DataArray(bases[0], **kwargs)
 
+class count(OptionalFieldReduction):
+    """Count elements in each bin, returning the result as a uint32.
+
+    Parameters
+    ----------
+    column : str, optional
+        If provided, only counts elements in ``column`` that are not ``NaN``.
+        Otherwise, counts every element.
+    """
+    _dshape = dshape(ct.uint32)
+
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append_no_field(x, y, agg):
+        agg[y, x] += 1
+
+
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            agg[y, x] += 1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_no_field_cuda(x, y, agg):
+        nb_cuda.atomic.add(agg, (y, x), 1)
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field):
+        if not isnull(field):
+            nb_cuda.atomic.add(agg, (y, x), 1)
+
+    @staticmethod
+    def _create(shape, array_module):
+        return array_module.zeros(shape, dtype='u4')
+
+    @staticmethod
+    def _combine(aggs):
+        return aggs.sum(axis=0, dtype='u4')
+
+
 class by(Reduction):
     """Apply the provided reduction separately per category.
     Parameters
@@ -273,7 +318,7 @@ class by(Reduction):
     reduction : Reduction
         Per-category reduction function.
     """
-    def __init__(self, cat_column, reduction):
+    def __init__(self, cat_column, reduction=count()):
         # set basic categorizer
         if isinstance(cat_column, CategoryPreprocess):
             self.categorizer = cat_column
@@ -343,51 +388,6 @@ class by(Reduction):
             return self.reduction._finalize(bases, cuda=cuda, **kwargs)
 
         return finalize
-
-class count(OptionalFieldReduction):
-    """Count elements in each bin, returning the result as a uint32.
-
-    Parameters
-    ----------
-    column : str, optional
-        If provided, only counts elements in ``column`` that are not ``NaN``.
-        Otherwise, counts every element.
-    """
-    _dshape = dshape(ct.uint32)
-
-    # CPU append functions
-    @staticmethod
-    @ngjit
-    def _append_no_field(x, y, agg):
-        agg[y, x] += 1
-
-
-    @staticmethod
-    @ngjit
-    def _append(x, y, agg, field):
-        if not isnull(field):
-            agg[y, x] += 1
-
-    # GPU append functions
-    @staticmethod
-    @nb_cuda.jit(device=True)
-    def _append_no_field_cuda(x, y, agg):
-        nb_cuda.atomic.add(agg, (y, x), 1)
-
-    @staticmethod
-    @nb_cuda.jit(device=True)
-    def _append_cuda(x, y, agg, field):
-        if not isnull(field):
-            nb_cuda.atomic.add(agg, (y, x), 1)
-
-    @staticmethod
-    def _create(shape, array_module):
-        return array_module.zeros(shape, dtype='u4')
-
-    @staticmethod
-    def _combine(aggs):
-        return aggs.sum(axis=0, dtype='u4')
-
 
 class any(OptionalFieldReduction):
     """Whether any elements in ``column`` map to each bin.
