@@ -73,13 +73,6 @@ jobs:
           doit test_unit_nojit
         env:
           NUMBA_DISABLE_JIT: 1
-      - name: windows fix
-        if: contains(matrix.os, 'windows')
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          conda install "numba>=0.51.2"
-          pip install --no-build-isolation -e .
       - name: doit test_examples
         run: |
           eval "$(conda shell.bash hook)"
