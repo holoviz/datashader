@@ -13,9 +13,8 @@ install_requires = [
     # happily like pip's dask[complete]. (conda's dask-core is more
     # like pip's dask.)
     'dask[complete] >=0.18.0',
-    'toolz >=0.7.4',  # ? for some dask issue (dasks does only >=0.7.3)
     'datashape >=0.5.1',
-    'numba >=0.37.0,!=0.49.*,!=0.50.*',
+    'numba >=0.51',
     'numpy >=1.7',
     'pandas >=0.24.1',
     'pillow >=3.1.1',
@@ -23,14 +22,13 @@ install_requires = [
     'colorcet >=0.9.0',
     'param >=1.6.1',
     'pyct >=0.4.5',
-    'bokeh',
     'scipy',
 ]
 
 examples = [
-    'distributed', # dask
     'holoviews >=1.10.0',
     'scikit-image',
+    'bokeh',
     'matplotlib',
 ]
 
@@ -45,13 +43,13 @@ extras_require = {
         'nbsmoke[all] >=0.4.0',
         'fastparquet >=0.1.6',  # optional dependency
         'holoviews >=1.10.0',
+        'bokeh',
         'pyarrow',
         'netcdf4',
         'twine',   # required for pip packaging
         'rfc3986', # required by twine
         'keyring', # required by twine
-        'spatialpandas',
-        'ipympl'
+        'spatialpandas'
     ],
     'examples': examples,
     'examples_extra': examples + [
@@ -64,14 +62,12 @@ extras_require = {
         'python-snappy',
         'rasterio',
         'snappy',
-        'statsmodels'
     ]
 }
 
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.5.2',
     'sphinx_holoviz_theme',
-    'tornado',
     'numpydoc'
 ]
 
@@ -87,7 +83,7 @@ setup_args = dict(
     description='Data visualization toolchain based on aggregating into a grid',
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    url='http://datashader.org',
+    url='https://datashader.org',
     maintainer='Datashader developers',
     maintainer_email='dev@datashader.org',
     python_requires=">=2.7",
