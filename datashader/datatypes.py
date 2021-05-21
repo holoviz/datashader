@@ -309,6 +309,11 @@ class RaggedArray(ExtensionArray):
                 # Update start indices
                 self._start_indices[i] = next_start_ind
 
+                # Do not assign when slice is empty avoiding possible
+                # nan assignment to integer array
+                if not n:
+                    continue
+
                 # Update flat array
                 self._flat_array[next_start_ind:next_start_ind+n] = array_el
 
