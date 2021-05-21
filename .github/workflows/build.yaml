@@ -30,6 +30,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v2
         with:
           miniconda-version: "latest"
+          python-version: 3.8
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow -f
       - name: Set output
