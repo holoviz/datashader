@@ -26,7 +26,6 @@ install_requires = [
 ]
 
 examples = [
-    'distributed',
     'holoviews >=1.10.0',
     'scikit-image',
     'bokeh',
@@ -63,7 +62,6 @@ extras_require = {
         'python-snappy',
         'rasterio',
         'snappy',
-        'statsmodels'
     ]
 }
 
