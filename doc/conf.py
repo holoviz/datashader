@@ -4,7 +4,7 @@ from nbsite.shared_conf import *
 
 project = u'Datashader'
 authors = u'Datashader contributors'
-copyright = u'2016-2019, Anaconda, Inc.'
+copyright = u'2016-2021, Anaconda, Inc.'
 description = 'Turns even the largest data into images, accurately.'
 
 from datashader import __version__
@@ -44,7 +44,7 @@ html_context.update({
     'SOCIAL': (
         ('Github', 'https://github.com/holoviz/datashader/'),
         ('Twitter', 'https://twitter.com/datashader/'),
-        ('Gitter', 'https://gitter.im/pyviz/pyviz'),
+        ('Discourse', 'https://discourse.holoviz.org/'),
         ('HoloViz', 'https://holoviz.org'),
     )
 })
