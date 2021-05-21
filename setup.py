@@ -14,7 +14,7 @@ install_requires = [
     # like pip's dask.)
     'dask[complete] >=0.18.0',
     'datashape >=0.5.1',
-    'numba >=0.37.0,!=0.49.*,!=0.50.*',
+    'numba >=0.51',
     'numpy >=1.7',
     'pandas >=0.24.1',
     'pillow >=3.1.1',
