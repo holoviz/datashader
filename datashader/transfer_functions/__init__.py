@@ -745,7 +745,7 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
     # Simple linear search. Not super efficient, but max_px is usually small.
     float_type = img.dtype in [np.float32, np.float64]
     px_=0
-    for px in range(max_px + 1):
+    for px in range(1, max_px + 1):
         px_=px
         if is_image:
             density = _rgb_density(img.data, px*2)
