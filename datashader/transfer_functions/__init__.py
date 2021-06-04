@@ -755,7 +755,7 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
             masked = np.logical_not(np.isnan(img)) if float_type else (img != 0)
             flat_mask = np.sum(masked, axis=2, dtype='uint32')
             density = _array_density(flat_mask.data, False, px*2)
-        if density >= threshold:
+        if density > threshold:
             px_=px_-1
             break
         
