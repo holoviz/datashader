@@ -12,7 +12,7 @@ install_requires = [
     # `conda install dask[complete]` happily gives you dask...which is
     # happily like pip's dask[complete]. (conda's dask-core is more
     # like pip's dask.)
-    'dask[complete] >=0.18.0',
+    'dask[complete] >=0.18.0, <2021.05',
     'datashape >=0.5.1',
     'numba >=0.51',
     'numpy >=1.7',
