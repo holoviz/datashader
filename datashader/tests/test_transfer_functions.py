@@ -912,60 +912,78 @@ def test_rgb_density():
     assert tf._rgb_density(data) == 1.0
     data = np.zeros((4, 4), dtype='uint32')
     assert tf._rgb_density(data) == np.inf
-    data[2, 2] = b
+    data[3, 3] = b
     assert tf._rgb_density(data) == 0
-    data[2, 1] = data[1, 2] = data[1, 1] = b
-    assert np.allclose(tf._rgb_density(data), 3./8.)
+    data[2, 0] = data[0, 2] = data[1, 1] = b
+    assert np.allclose(tf._rgb_density(data), 0.75)
+    assert np.allclose(tf._rgb_density(data, 3), 1)
 
 def test_int_array_density():
     data = np.ones((4, 4), dtype='uint32')
     assert tf._array_density(data, float_type=False) == 1.0
     data = np.zeros((4, 4), dtype='uint32')
     assert tf._array_density(data, float_type=False) == np.inf
-    data[2, 2] = 1
+    data[3, 3] = 1
     assert tf._array_density(data, float_type=False) == 0
-    data[2, 1] = data[1, 2] = data[1, 1] = 1
-    assert np.allclose(tf._array_density(data, float_type=False), 3./8.)
+    data[2, 0] = data[0, 2] = data[1, 1] = 1
+    assert np.allclose(tf._array_density(data, float_type=False), 0.75)
+    assert np.allclose(tf._array_density(data, float_type=False, px=3), 1)
 
+    
 def test_float_array_density():
     data = np.ones((4, 4), dtype='float32')
     assert tf._array_density(data, float_type=True) == 1.0
     data = np.full((4, 4), np.nan, dtype='float32')
     assert tf._array_density(data, float_type=True) == np.inf
-    data[2, 2] = 1
+    data[3, 3] = 1
     assert tf._array_density(data, float_type=True) == 0
-    data[2, 1] = data[1, 2] = data[1, 1] = 1
-    assert np.allclose(tf._array_density(data, float_type=True), 3./8.)
-
+    data[2, 0] = data[0, 2] = data[1, 1] = 1
+    assert np.allclose(tf._array_density(data, float_type=True), 0.75)
+    assert np.allclose(tf._array_density(data, float_type=True, px=3), 1)
+    
 
 def test_rgb_dynspread():
     b = 0xffff0000
+    coords = [np.arange(5), np.arange(5)]
     data = np.array([[b, b, 0, 0, 0],
                      [b, b, 0, 0, 0],
                      [0, 0, 0, 0, 0],
                      [0, 0, 0, b, 0],
                      [0, 0, 0, 0, 0]], dtype='uint32')
-    coords = [np.arange(5), np.arange(5)]
     img = tf.Image(data, coords=coords, dims=dims)
-    assert tf.dynspread(img).equals(tf.spread(img, 1))
-    assert tf.dynspread(img, threshold=0.9).equals(tf.spread(img, 2))
-    assert tf.dynspread(img, threshold=0).equals(img)
+    assert tf.dynspread(img).equals(img)
+    data = np.array([[b, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [b, 0, 0, 0, b],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0]], dtype='uint32')
+    img = tf.Image(data, coords=coords, dims=dims)
+    assert tf.dynspread(img, threshold=0.4).equals(tf.spread(img, 0))
+    assert tf.dynspread(img, threshold=0.7).equals(tf.spread(img, 1))
+    assert tf.dynspread(img, threshold=1.0).equals(tf.spread(img, 3))
     assert tf.dynspread(img, max_px=0).equals(img)
 
     pytest.raises(ValueError, lambda: tf.dynspread(img, threshold=1.1))
     pytest.raises(ValueError, lambda: tf.dynspread(img, max_px=-1))
 
 def test_array_dynspread():
+    coords = [np.arange(5), np.arange(5)]
     data = np.array([[1, 1, 0, 0, 0],
                      [1, 1, 0, 0, 0],
                      [0, 0, 0, 0, 0],
                      [0, 0, 0, 1, 0],
                      [0, 0, 0, 0, 0]], dtype='uint32')
-    coords = [np.arange(5), np.arange(5)]
     arr = xr.DataArray(data, coords=coords, dims=dims)
-    assert tf.dynspread(arr).equals(tf.spread(arr, 1))
-    assert tf.dynspread(arr, threshold=0.9).equals(tf.spread(arr, 2))
-    assert tf.dynspread(arr, threshold=0).equals(arr)
+    assert tf.dynspread(arr).equals(arr)
+    data = np.array([[1, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0],
+                     [1, 0, 0, 0, 1],
+                     [0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0]], dtype='uint32')
+    arr = xr.DataArray(data, coords=coords, dims=dims)
+    assert tf.dynspread(arr, threshold=0.4).equals(tf.spread(arr, 0))
+    assert tf.dynspread(arr, threshold=0.7).equals(tf.spread(arr, 1))
+    assert tf.dynspread(arr, threshold=1.0).equals(tf.spread(arr, 3))
     assert tf.dynspread(arr, max_px=0).equals(arr)
 
     pytest.raises(ValueError, lambda: tf.dynspread(arr, threshold=1.1))
@@ -973,33 +991,32 @@ def test_array_dynspread():
 
 
 def test_categorical_dynspread():
-    a_data = np.array([[0, 1, 0, 0, 0],
+    a_data = np.array([[1, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0]], dtype='int32')
 
     b_data = np.array([[0, 0, 0, 0, 0],
-                       [0, 1, 0, 0, 0],
                        [0, 0, 0, 0, 0],
+                       [1, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0]], dtype='int32')
 
-    c_data = np.array([[1, 0, 0, 0, 0],
-                       [1, 0, 0, 0, 0],
+    c_data = np.array([[0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0],
-                       [0, 0, 0, 1, 0],
+                       [0, 0, 0, 0, 1],
+                       [0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0]], dtype='int32')
 
     data = np.dstack([a_data, b_data, c_data])
     coords = [np.arange(5), np.arange(5)]
     arr = xr.DataArray(data, coords=coords + [['a', 'b', 'c']],
                        dims=dims + ['cat'])
-    assert tf.dynspread(arr).equals(tf.spread(arr, 1))
-    assert tf.dynspread(arr, threshold=0.9).equals(tf.spread(arr, 2))
-    assert tf.dynspread(arr, threshold=0).equals(arr)
+    assert tf.dynspread(arr, threshold=0.4).equals(tf.spread(arr, 0))
+    assert tf.dynspread(arr, threshold=0.7).equals(tf.spread(arr, 1))
+    assert tf.dynspread(arr, threshold=1.0).equals(tf.spread(arr, 3))
     assert tf.dynspread(arr, max_px=0).equals(arr)
-
 
 
 def check_eq_hist_cdf_slope(eq):

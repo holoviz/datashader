@@ -744,60 +744,70 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         raise ValueError("max_px must be >= 0")
     # Simple linear search. Not super efficient, but max_px is usually small.
     float_type = img.dtype in [np.float32, np.float64]
-    for px in range(max_px + 1):
-        out = spread(img, px, shape=shape, how=how, name=name)
+    px_=0
+    for px in range(1, max_px + 1):
+        px_=px
         if is_image:
-            density = _rgb_density(out.data)
+            density = _rgb_density(img.data, px*2)
         elif len(img.shape) == 2:
-            density = _array_density(out.data, float_type)
+            density = _array_density(img.data, float_type, px*2)
         else:
-            masked = np.logical_not(np.isnan(out)) if float_type else (out != 0)
+            masked = np.logical_not(np.isnan(img)) if float_type else (img != 0)
             flat_mask = np.sum(masked, axis=2, dtype='uint32')
-            density = _array_density(flat_mask.data, False)
-        if density >= threshold:
+            density = _array_density(flat_mask.data, False, px*2)
+        if density > threshold:
+            px_=px_-1
             break
-
-    return out
+        
+    if px_>=1:
+        return spread(img, px_, shape=shape, how=how, name=name)
+    else:
+        return img
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
-def _array_density(arr, float_type):
+def _array_density(arr, float_type, px=1):
     """Compute a density heuristic of an array.
 
     The density is a number in [0, 1], and indicates the normalized mean number
-    of non-empty adjacent pixels for each non-empty pixel.
+    of non-empty pixels that have neighbors in the given px radius.
     """
     M, N = arr.shape
-    cnt = total = 0
-    for y in range(1, M - 1):
-        for x in range(1, N - 1):
+    cnt = has_neighbors = 0
+    for y in range(0, M):
+        for x in range(0, N):
             el = arr[y, x]
             if (float_type and not np.isnan(el)) or (not float_type and el!=0):
                 cnt += 1
-                for i in range(y - 1, y + 2):
-                    for j in range(x - 1, x + 2):
-                        if float_type and not np.isnan(arr[i, j]):
-                            total += 1
-                        elif not float_type and arr[i, j] != 0:
-                            total += 1
-    return (total - cnt)/(cnt * 8) if cnt else np.inf
+                neighbors = 0
+                for i in     range(max(0, y - px), min(y + px + 1, M)):
+                    for j in range(max(0, x - px), min(x + px + 1, N)):
+                        if ((float_type and not np.isnan(arr[i, j])) or
+                            (not float_type and arr[i, j] != 0)):
+                            neighbors += 1
+                if neighbors>1: # (excludes self)
+                    has_neighbors += 1
+    return has_neighbors/cnt if cnt else np.inf
 
 
 @nb.jit(nopython=True, nogil=True, cache=True)
-def _rgb_density(arr):
+def _rgb_density(arr, px=1):
     """Compute a density heuristic of an image.
 
     The density is a number in [0, 1], and indicates the normalized mean number
-    of non-empty adjacent pixels for each non-empty pixel.
+    of non-empty pixels that have neighbors in the given px radius.
     """
     M, N = arr.shape
-    cnt = total = 0
-    for y in range(1, M - 1):
-        for x in range(1, N - 1):
+    cnt = has_neighbors = 0
+    for y in range(0, M):
+        for x in range(0, N):
             if (arr[y, x] >> 24) & 255:
                 cnt += 1
-                for i in range(y - 1, y + 2):
-                    for j in range(x - 1, x + 2):
+                neighbors = 0
+                for i in     range(max(0, y - px), min(y + px + 1, M)):
+                    for j in range(max(0, x - px), min(x + px + 1, N)):
                         if (arr[i, j] >> 24) & 255:
-                            total += 1
-    return (total - cnt)/(cnt * 8) if cnt else np.inf
+                            neighbors += 1
+                if neighbors>1: # (excludes self)
+                    has_neighbors += 1
+    return has_neighbors/cnt if cnt else np.inf
