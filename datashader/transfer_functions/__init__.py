@@ -707,8 +707,8 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
     padded_shape = (M + 2*extra, N + 2*extra)
     float_type = img.dtype in [np.float32, np.float64]
     fill_value = np.nan if float_type else 0
-    # convert img.data to a numpy array to pass it to nb.jit kernels
     if cupy and isinstance(img.data, cupy.ndarray):
+        # Convert img.data to numpy array before passing to nb.jit kernels
         img.data = cupy.asnumpy(img.data)
 
     if is_image:
@@ -861,8 +861,8 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         raise ValueError("max_px must be >= 0")
     # Simple linear search. Not super efficient, but max_px is usually small.
     float_type = img.dtype in [np.float32, np.float64]
-    # convert img.data to a numpy array to pass it to nb.jit kernels
     if cupy and isinstance(img.data, cupy.ndarray):
+        # Convert img.data to numpy array before passing to nb.jit kernels
         img.data = cupy.asnumpy(img.data)
 
     px_=0
