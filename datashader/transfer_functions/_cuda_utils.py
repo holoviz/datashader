@@ -111,14 +111,16 @@ def masked_clip_2d_kernel(data, mask, lower, upper):
         cuda_atomic_nanmin(data, (i, j), upper)
 
 
-# interp
-# ------
-# When cupy adds cupy.interp support, this function can be removed
 def interp(x, xp, fp, left=None, right=None):
     """
-    cupy implementation of np.interp.  This function can be removed when an
-    official cupy.interp function is added to the cupy library.
+    cupy implementation of np.interp, falls back to cupy implementation
+    if available.
     """
+    x = cupy.asarray(x)
+    xp = cupy.asarray(xp)
+    fp = cupy.asarray(fp)
+    if hasattr(cupy, 'interp'):
+        return cupy.interp(x, xp, fp, left, right)
     output_y = cupy.zeros(x.shape, dtype=cupy.float64)
     assert len(x.shape) == 2
     if left is None:
