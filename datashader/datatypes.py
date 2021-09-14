@@ -442,7 +442,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
                 # Check mask length is compatible
                 if len(item) != len(self):
                     raise IndexError(
-                        "boolean mask length ({}) doesn't match array length ({})"
+                        "Boolean index has wrong length: {} instead of {}"
                         .format(len(item), len(self))
                     )
 
@@ -584,7 +584,9 @@ Invalid indices for take with allow_fill True: {inds}""".format(
                         for i in indices]
         else:
             if len(self) == 0 and len(indices) > 0:
-                raise IndexError("cannot do a non-empty take")
+                raise IndexError(
+                    "cannot do a non-empty take from an empty axes"
+                )
 
             sequence = [self[i] for i in indices]
 

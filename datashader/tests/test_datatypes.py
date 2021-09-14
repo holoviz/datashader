@@ -3,7 +3,6 @@ import pytest
 import numpy as np
 import pandas as pd
 import pandas.tests.extension.base as eb
-import pandas.util.testing as tm
 
 from datashader.datatypes import RaggedDtype, RaggedArray
 
@@ -703,6 +702,13 @@ class TestRaggedGetitem(eb.BaseGetitemTests):
         with pytest.raises(ValueError, match=msg):
             s.item()
 
+    @pytest.mark.skip(
+        reason="Ellipsis not supported in RaggedArray.__getitem__"
+    )
+    def test_getitem_ellipsis_and_slice(self, data):
+        pass
+
+
 class TestRaggedGroupby(eb.BaseGroupbyTests):
     @pytest.mark.parametrize('op', [
         lambda x: 1,
@@ -727,7 +733,18 @@ class TestRaggedGroupby(eb.BaseGroupbyTests):
     @pytest.mark.skip(reason="agg not supported")
     def test_groupby_agg_extension(self):
         pass
-        
+
+    @pytest.mark.skip(reason="numpy.ndarray unhashable")
+    def test_groupby_extension_transform(self):
+        pass
+
+    @pytest.mark.skip(reason="agg not supported")
+    def test_groupby_extension_agg(self):
+        pass
+
+    @pytest.mark.skip(reason="not supported")
+    def test_groupby_extension_apply(self):
+        pass
 
 
 class TestRaggedInterface(eb.BaseInterfaceTests):
@@ -743,7 +760,7 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
             if np.isscalar(a1):
                 assert np.isnan(a1) and np.isnan(a2)
             else:
-                tm.assert_numpy_array_equal(a2, a1)
+                np.testing.assert_array_equal(a1, a2)
 
     # # NotImplementedError: 'RaggedArray' does not support __setitem__
     @pytest.mark.skip(reason="__setitem__ not supported")
@@ -813,6 +830,10 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     def test_searchsorted(self):
         pass
 
+    @pytest.mark.skip(reason="ragged cannot be used as categorical")
+    def test_sort_values_frame(self):
+        pass
+
 
 class TestRaggedPrinting(eb.BasePrintingTests):
     pass
@@ -830,6 +851,18 @@ class TestRaggedMissing(eb.BaseMissingTests):
     def test_fillna_frame(self):
         pass
 
+    @pytest.mark.skip(reason="Can't fill with nested sequences")
+    def test_fillna_limit_pad(self):
+        pass
+
+    @pytest.mark.skip(reason="Can't fill with nested sequences")
+    def test_fillna_limit_backfill(self):
+        pass
+
+    @pytest.mark.skip(reason="Can't fill with nested sequences")
+    def test_fillna_series_method(self):
+        pass
+
 
 class TestRaggedReshaping(eb.BaseReshapingTests):
     @pytest.mark.skip(reason="__setitem__ not supported")
@@ -843,4 +876,4 @@ class TestRaggedReshaping(eb.BaseReshapingTests):
     @pytest.mark.skip(reason="transpose with numpy array elements seems not supported")
     def test_transpose_frame(self):
         pass
-    
+
