@@ -710,26 +710,6 @@ class TestRaggedGetitem(eb.BaseGetitemTests):
 
 
 class TestRaggedGroupby(eb.BaseGroupbyTests):
-    @pytest.mark.parametrize('op', [
-        lambda x: 1,
-        lambda x: [1] * len(x),
-        # # Op below causes a:
-        # # ValueError: Names should be list-like for a MultiIndex
-        # lambda x: pd.Series([1] * len(x)),
-        lambda x: x,
-    ], ids=[
-        'scalar',
-        'list',
-        # 'series',
-        'object'])
-    def test_groupby_extension_apply(self, data_for_grouping, op):
-        df = pd.DataFrame({"A": [1, 1, 2, 2, 3, 3, 1, 4],
-                           "B": data_for_grouping})
-        df.groupby("B").apply(op)
-        df.groupby("B").A.apply(op)
-        df.groupby("A").apply(op)
-        df.groupby("A").B.apply(op)
-
     @pytest.mark.skip(reason="agg not supported")
     def test_groupby_agg_extension(self):
         pass
@@ -742,7 +722,8 @@ class TestRaggedGroupby(eb.BaseGroupbyTests):
     def test_groupby_extension_agg(self):
         pass
 
-    @pytest.mark.skip(reason="not supported")
+    @pytest.mark.skip(
+        reason="numpy.ndarray unhashable and buffer wrong number of dims")
     def test_groupby_extension_apply(self):
         pass
 
