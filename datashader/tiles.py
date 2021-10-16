@@ -107,6 +107,8 @@ def validate_output_path(output_path, full_extent, levels):
     if os.path.isdir(output_path):
         _create_dir(output_path)
     elif output_path.endswith("mbtiles"):
+        _create_dir(os.path.dirname(output_path))
+        # Create mbtiles file and setup sqlite tables.
         MapboxTileRenderer.setup(output_path, full_extent, levels[0], levels[len(levels) - 1])
 
 
