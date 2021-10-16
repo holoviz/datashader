@@ -466,7 +466,7 @@ class MapboxTileRenderer(TileRenderer):
 
         # Setup MBTiles metadata table.
         cur.execute("""insert into metadata (name, value) values (?, ?) """,
-                    ("name", "tiles"))
+                    ("name", os.path.splitext(os.path.basename(output_location))[0]))
         cur.execute("""insert into metadata (name, value) values (?, ?) """,
                     ("format", tile_format.lower()))
         cur.execute("""insert into metadata (name, value) values (?, ?) """,
