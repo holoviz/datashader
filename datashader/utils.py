@@ -45,8 +45,8 @@ ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
 
 # Get and save the Numba version, will be used to limit functionality
 numba_version = tuple([int(x) for x in re.match(
-    r"([0-9]+)\.([0-9]+)\.([0-9]+)",
-    nb.__version__).groups()])
+                            r"([0-9]+)\.([0-9]+)\.([0-9]+)",
+                            nb.__version__).groups()])
 
 
 class Expr(object):
@@ -56,7 +56,6 @@ class Expr(object):
     ``inputs`` attribute/property, containing a tuple of everything that fully
     defines that expression.
     """
-
     def __hash__(self):
         return hash((type(self), self._hashable_inputs()))
 
@@ -86,7 +85,6 @@ class Expr(object):
 
 class Dispatcher(object):
     """Simple single dispatch."""
-
     def __init__(self):
         self._lookup = {}
 
@@ -214,17 +212,17 @@ def calc_bbox(xs, ys, res):
 
     xmin = ymin = np.inf
     xmax = ymax = -np.inf
-    Ab = np.array([[res[0], 0., xbound],
-                   [0., -res[1], ybound],
-                   [0., 0., 1.]])
+    Ab = np.array([[res[0],  0.,      xbound],
+                   [0.,      -res[1], ybound],
+                   [0.,      0.,      1.]])
     for x_, y_ in [(0, 0), (0, len(ys)), (len(xs), 0), (len(xs), len(ys))]:
         x, y, _ = np.dot(Ab, np.array([x_, y_, 1.]))
         if x < xmin: xmin = x
         if x > xmax: xmax = x
         if y < ymin: ymin = y
         if y > ymax: ymax = y
-    xpad, ypad = res[0] / 2., res[1] / 2.
-    return xmin - xpad, ymin + ypad, xmax - xpad, ymax + ypad
+    xpad, ypad = res[0]/2., res[1]/2.
+    return xmin-xpad, ymin+ypad, xmax-xpad, ymax+ypad
 
 
 def get_indices(start, end, coords, res):
@@ -243,11 +241,11 @@ def get_indices(start, end, coords, res):
         Resolution along an axis (aka "grid/cell sizes")
     """
     size = len(coords)
-    half = abs(res) / 2.
+    half = abs(res)/2.
     vmin, vmax = coords.min(), coords.max()
-    span = vmax - vmin
-    start, end = start + half - vmin, end - half - vmin
-    sidx, eidx = int((start / span) * size), int((end / span) * size)
+    span = vmax-vmin
+    start, end = start+half-vmin, end-half-vmin
+    sidx, eidx = int((start/span)*size), int((end/span)*size)
     if eidx < sidx:
         return sidx, sidx
     return sidx, eidx
@@ -276,7 +274,7 @@ def orient_array(raster, res=None, layer=None):
     if res is None:
         res = calc_res(raster)
     array = raster.data
-    if layer is not None: array = array[layer - 1]
+    if layer is not None: array = array[layer-1]
     r0zero = np.timedelta64(0, 'ns') if isinstance(res[0], np.timedelta64) else 0
     r1zero = np.timedelta64(0, 'ns') if isinstance(res[1], np.timedelta64) else 0
     if array.ndim == 2:
@@ -314,11 +312,11 @@ def compute_coords(width, height, x_range, y_range, res):
         1D array of y-coordinates
     """
     (x0, x1), (y0, y1) = x_range, y_range
-    xd = (x1 - x0) / float(width)
-    yd = (y1 - y0) / float(height)
-    xpad, ypad = abs(xd / 2.), abs(yd / 2.)
-    x0, x1 = x0 + xpad, x1 - xpad
-    y0, y1 = y0 + ypad, y1 - ypad
+    xd = (x1-x0)/float(width)
+    yd = (y1-y0)/float(height)
+    xpad, ypad = abs(xd/2.), abs(yd/2.)
+    x0, x1 = x0+xpad, x1-xpad
+    y0, y1 = y0+ypad, y1-ypad
     xs = np.linspace(x0, x1, width)
     ys = np.linspace(y0, y1, height)
     if res[0] < 0: xs = xs[::-1]
@@ -329,10 +327,10 @@ def compute_coords(width, height, x_range, y_range, res):
 def downsample_aggregate(aggregate, factor, how='mean'):
     """Create downsampled aggregate factor in pixels units"""
     ys, xs = aggregate.shape[:2]
-    crarr = aggregate[:ys - (ys % int(factor)), :xs - (xs % int(factor))]
+    crarr = aggregate[:ys-(ys % int(factor)), :xs-(xs % int(factor))]
     concat = np.concatenate([[crarr[i::factor, j::factor]
-                              for i in range(factor)]
-                             for j in range(factor)])
+                            for i in range(factor)]
+                            for j in range(factor)])
 
     if how == 'mean':
         return np.nanmean(concat, axis=0)
@@ -383,7 +381,6 @@ def hold(f):
         if not last or last[0] != args:
             last[:] = args, f(*args)
         return last[1]
-
     return _
 
 
@@ -529,33 +526,33 @@ def dshape_from_xarray_dataset(xr_ds):
 
 
 def dataframe_from_multiple_sequences(x_values, y_values):
-    """
-    Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional
-    numpy array into a pandas dataframe that can be plotted by datashader.
-    The pandas dataframe eventually contains two columns ('x' and 'y') with the data.
-    Each time series is separated by a row of NaNs.
-    Discussion at: https://github.com/bokeh/datashader/issues/286#issuecomment-334619499
+   """
+   Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional
+   numpy array into a pandas dataframe that can be plotted by datashader.
+   The pandas dataframe eventually contains two columns ('x' and 'y') with the data.
+   Each time series is separated by a row of NaNs.
+   Discussion at: https://github.com/bokeh/datashader/issues/286#issuecomment-334619499
 
-    x_values: 1D numpy array with the values to be plotted on the x axis (eg: time)
-    y_values: 2D numpy array with the sequences to be plotted of shape (num sequences X length of each sequence)
+   x_values: 1D numpy array with the values to be plotted on the x axis (eg: time)
+   y_values: 2D numpy array with the sequences to be plotted of shape (num sequences X length of each sequence)
 
-    """
+   """
 
-    # Add a NaN at the end of the array of x values
-    x = np.zeros(x_values.shape[0] + 1)
-    x[-1] = np.nan
-    x[:-1] = x_values
+   # Add a NaN at the end of the array of x values
+   x = np.zeros(x_values.shape[0] + 1)
+   x[-1] = np.nan
+   x[:-1] = x_values
 
-    # Tile this array of x values: number of repeats = number of sequences/time series in the data
-    x = np.tile(x, y_values.shape[0])
+   # Tile this array of x values: number of repeats = number of sequences/time series in the data
+   x = np.tile(x, y_values.shape[0])
 
-    # Add a NaN at the end of every sequence in y_values
-    y = np.zeros((y_values.shape[0], y_values.shape[1] + 1))
-    y[:, -1] = np.nan
-    y[:, :-1] = y_values
+   # Add a NaN at the end of every sequence in y_values
+   y = np.zeros((y_values.shape[0], y_values.shape[1] + 1))
+   y[:, -1] = np.nan
+   y[:, :-1] = y_values
 
-    # Return a dataframe with this new set of x and y values
-    return pd.DataFrame({'x': x, 'y': y.flatten()})
+   # Return a dataframe with this new set of x and y values
+   return pd.DataFrame({'x': x, 'y': y.flatten()})
 
 
 def _pd_mesh(vertices, simplices):
@@ -566,7 +563,7 @@ def _pd_mesh(vertices, simplices):
     winding = [0, 1, 2]
     first_tri = vertices.values[simplices.values[0, winding].astype(np.int64), :2]
     a, b, c = first_tri
-    if np.cross(b - a, c - a).item() >= 0:
+    if np.cross(b-a, c-a).item() >= 0:
         winding = [0, 2, 1]
 
     # Construct mesh by indexing into vertices with simplex indices
@@ -597,7 +594,7 @@ def _dd_mesh(vertices, simplices):
     # Compute a chunksize that will not split the vertices of a single
     # triangle across partitions
     approx_npartitions = max(vertices.npartitions, simplices.npartitions)
-    chunksize = int(np.ceil(len(res) / (3 * approx_npartitions)) * 3)
+    chunksize = int(np.ceil(len(res) / (3*approx_npartitions)) * 3)
 
     # Create dask dataframe
     res = dd.from_pandas(res, chunksize=chunksize)
@@ -621,8 +618,8 @@ def mesh(vertices, simplices):
                                 'consider casting simplices to integers '
                                 'with ".astype(int)"')
 
-    assert len(vertices.columns) > 2 or simplices.values.shape[
-        1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+    assert len(vertices.columns) > 2 or simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+
 
     if isinstance(vertices, dd.DataFrame) and isinstance(simplices, dd.DataFrame):
         return _dd_mesh(vertices, simplices)
