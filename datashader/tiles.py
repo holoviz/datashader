@@ -1,15 +1,16 @@
 from __future__ import absolute_import, division, print_function
-from io import BytesIO
 
 import math
 import os
+import sqlite3
+from io import BytesIO
 
 import dask
 import dask.bag as db
-
 import numpy as np
-
 from PIL.Image import fromarray
+
+from .utils import meters_to_lnglat
 
 __all__ = ['render_tiles', 'MercatorTileDefinition']
 
@@ -60,8 +61,11 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
 
 def render_tiles(full_extent, levels, load_data_func,
                  rasterize_func, shader_func,
-                 post_render_func, output_path, color_ranging_strategy='fullscan'):
+                 post_render_func, output_path, color_ranging_strategy='fullscan', num_workers=4):
     results = dict()
+
+    validate_output_path(output_path, full_extent, levels)
+
     for level in levels:
         print('calculating statistics for level {}'.format(level))
         super_tiles, span = calculate_zoom_level_stats(list(gen_super_tiles(full_extent, level)),
@@ -69,7 +73,7 @@ def render_tiles(full_extent, levels, load_data_func,
                                                        color_ranging_strategy=color_ranging_strategy)
         print('rendering {} supertiles for zoom level {} with span={}'.format(len(super_tiles), level, span))
         b = db.from_sequence(super_tiles)
-        b.map(render_super_tile, span, output_path, shader_func, post_render_func).compute()
+        b.map(render_super_tile, span, output_path, shader_func, post_render_func).compute(num_workers=num_workers)
         results[level] = dict(success=True, stats=span, supertile_count=len(super_tiles))
 
     return results
@@ -98,17 +102,25 @@ def render_super_tile(tile_info, span, output_path, shader_func, post_render_fun
     return create_sub_tiles(ds_img, level, tile_info, output_path, post_render_func)
 
 
-def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func=None):
+def validate_output_path(output_path, full_extent, levels):
     # validate / createoutput_dir
-    _create_dir(output_path)
+    if os.path.isdir(output_path):
+        _create_dir(output_path)
+    elif output_path.endswith("mbtiles"):
+        MapboxTileRenderer.setup(output_path, full_extent, levels[0], levels[len(levels) - 1])
 
+
+def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func=None):
     # create tile source
     tile_def = MercatorTileDefinition(x_range=tile_info['x_range'],
                                       y_range=tile_info['y_range'],
                                       tile_size=256)
 
     # create Tile Renderer
-    if output_path.startswith('s3:'):
+    if output_path.endswith("mbtiles"):
+        renderer = MapboxTileRenderer(tile_def, output_location=output_path,
+                                      post_render_func=post_render_func)
+    elif output_path.startswith('s3:'):
         renderer = S3TileRenderer(tile_def, output_location=output_path,
                                   post_render_func=post_render_func)
     else:
@@ -407,3 +419,83 @@ class S3TileRenderer(TileRenderer):
             client.put_object(Body=output_buf, Bucket=bucket, Key=key, ACL='public-read')
 
         return 'https://{}.s3.amazonaws.com/{}'.format(bucket, s3_info.path)
+
+
+class MapboxTileRenderer(TileRenderer):
+
+    @staticmethod
+    def setup(output_location, full_extent, min_zoom, max_zoom, tile_format="PNG"):
+        con = sqlite3.connect(output_location)
+        cur = con.cursor()
+
+        # Create MBTiles tables.
+        cur.execute("""
+            create table tiles (
+                zoom_level integer,
+                tile_column integer,
+                tile_row integer,
+                tile_data blob);
+                """)
+        cur.execute("""create table metadata
+            (name text, value text);""")
+        cur.execute("""create unique index name on metadata (name);""")
+        cur.execute("""create unique index tile_index on tiles
+            (zoom_level, tile_column, tile_row);""")
+
+        # Compute Extents in WGS84
+        min_lon, min_lat = meters_to_lnglat(full_extent[0], full_extent[1])
+        max_lon, max_lat = meters_to_lnglat(full_extent[2], full_extent[3])
+
+        # Compute the Center & Zoom Level
+        lat_diff = max_lat - min_lat
+        lon_diff = max_lon - min_lon
+
+        lat_center = min_lat + (lat_diff / 2)
+        lon_center = min_lon + (lon_diff / 2)
+
+        max_diff = max(lon_diff, lat_diff)
+        zoom_level = None
+        if max_diff < (360.0 / math.pow(2, 20)):
+            zoom_level = 21
+        else:
+            zoom_level = int(-1 * ((math.log(max_diff) / math.log(2.0)) - (math.log(360.0) / math.log(2))))
+            if zoom_level < 1:
+                zoom_level = 1
+
+        # Setup MBTiles metadata table.
+        cur.execute("""insert into metadata (name, value) values (?, ?) """,
+                    ("name", "tiles"))
+        cur.execute("""insert into metadata (name, value) values (?, ?) """,
+                    ("format", tile_format.lower()))
+        cur.execute("""insert into metadata (name, value) values (?, ?) """,
+                    ("bounds ", "{},{},{},{}".format(min_lon, min_lat, max_lon, max_lat)))
+        cur.execute("""insert into metadata (name, value) values (?, ?) """,
+                    ("center ", "{},{},{}".format(lon_center, lat_center, zoom_level)))
+        cur.execute("""insert into metadata (name, value) values (?, ?) """,
+                    ("minzoom ", min_zoom))
+        cur.execute("""insert into metadata (name, value) values (?, ?) """,
+                    ("maxzoom ", max_zoom))
+
+        cur.close()
+        con.commit()
+        con.close()
+
+    def render(self, da, level):
+        con = sqlite3.connect(self.output_location, isolation_level=None)
+        cur = con.cursor()
+
+        for img, x, y, z in super(MapboxTileRenderer, self).render(da, level):
+            image_bytes = BytesIO()
+            img.save(image_bytes, self.tile_format)
+            image_bytes.seek(0)
+
+            tile_row = (2 ** z) - 1 - y
+
+            cur.execute("""insert into tiles (zoom_level,
+                tile_column, tile_row, tile_data) values
+                (?, ?, ?, ?);""",
+                        (z, x, tile_row, sqlite3.Binary(image_bytes.getvalue())))
+
+        cur.close()
+        con.commit()
+        con.close()
