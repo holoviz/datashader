@@ -39,7 +39,8 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
                                rasterize_func,
                                color_ranging_strategy='fullscan'):
     if color_ranging_strategy == 'fullscan':
-        stats = []
+        span_min = None
+        span_max = None
         is_bool = False
         for super_tile in super_tiles:
             agg = _get_super_tile_min_max(super_tile, load_data_func, rasterize_func)
@@ -47,13 +48,19 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
             if agg.dtype.kind == 'b':
                 is_bool = True
             else:
-                stats.append(np.nanmin(agg.data))
-                stats.append(np.nanmax(agg.data))
+                if span_min is None:
+                    span_min = np.nanmin(agg.data)
+                else:
+                    span_min = min(span_min, np.nanmin(agg.data))
+
+                if span_max is None:
+                    span_max = np.nanmax(agg.data)
+                else:
+                    span_max = max(span_max, np.nanmax(agg.data))
         if is_bool:
             span = (0, 1)
         else:
-            b = db.from_sequence(stats)
-            span = dask.compute(b.min(), b.max())
+            span = (span_min, span_max)
         return super_tiles, span
     else:
         raise ValueError('Invalid color_ranging_strategy option')
@@ -314,7 +321,8 @@ class TileRenderer(object):
         for t in tiles:
             x, y, z, data_extent = t
             dxmin, dymin, dxmax, dymax = data_extent
-            arr = da.loc[{'x': slice(dxmin, dxmax), 'y': slice(dymin, dymax)}]
+
+            arr = da.loc[{da.dims[1]: slice(dxmin, dxmax), da.dims[0]: slice(dymin, dymax)}]
 
             if 0 in arr.shape:
                 continue
