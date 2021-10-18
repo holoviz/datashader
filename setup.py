@@ -39,7 +39,7 @@ extras_require = {
         'pytest-cov',
         'codecov',
         'flake8',
-        'nbconvert <6',
+        'nbconvert',
         'nbsmoke[all] >=0.4.0',
         'fastparquet >=0.1.6',  # optional dependency
         'holoviews >=1.10.0',
