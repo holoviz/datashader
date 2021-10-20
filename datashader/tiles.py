@@ -5,9 +5,9 @@ import os
 import sqlite3
 from io import BytesIO
 
-import dask
 import dask.bag as db
 import numpy as np
+import xarray
 from PIL.Image import fromarray
 
 from .utils import meters_to_lnglat
@@ -37,14 +37,22 @@ def _get_super_tile_min_max(tile_info, load_data_func, rasterize_func):
 
 def calculate_zoom_level_stats(super_tiles, load_data_func,
                                rasterize_func,
-                               color_ranging_strategy='fullscan'):
+                               color_ranging_strategy='fullscan', local_cache_path=None):
     if color_ranging_strategy == 'fullscan':
         span_min = None
         span_max = None
         is_bool = False
+        index = 0
         for super_tile in super_tiles:
             agg = _get_super_tile_min_max(super_tile, load_data_func, rasterize_func)
-            super_tile['agg'] = agg
+
+            if local_cache_path:
+                cache_file_path = os.path.join(local_cache_path, 'super_tile_' + str(index) + '.nc')
+                agg.to_netcdf(cache_file_path)
+                super_tile['agg'] = cache_file_path
+            else:
+                super_tile['agg'] = agg
+
             if agg.dtype.kind == 'b':
                 is_bool = True
             else:
@@ -57,6 +65,8 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
                     span_max = np.nanmax(agg.data)
                 else:
                     span_max = max(span_max, np.nanmax(agg.data))
+            index = index + 1
+
         if is_bool:
             span = (0, 1)
         else:
@@ -68,19 +78,22 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
 
 def render_tiles(full_extent, levels, load_data_func,
                  rasterize_func, shader_func,
-                 post_render_func, output_path, color_ranging_strategy='fullscan', num_workers=4):
+                 post_render_func, output_path, color_ranging_strategy='fullscan', num_workers=4,
+                 local_cache_path=None):
     results = dict()
 
-    validate_output_path(output_path, full_extent, levels)
+    validate_output_path(output_path, full_extent, levels, local_cache_path)
 
     for level in levels:
         print('calculating statistics for level {}'.format(level))
         super_tiles, span = calculate_zoom_level_stats(list(gen_super_tiles(full_extent, level)),
                                                        load_data_func, rasterize_func,
-                                                       color_ranging_strategy=color_ranging_strategy)
+                                                       color_ranging_strategy=color_ranging_strategy,
+                                                       local_cache_path=local_cache_path)
         print('rendering {} supertiles for zoom level {} with span={}'.format(len(super_tiles), level, span))
         b = db.from_sequence(super_tiles)
-        b.map(render_super_tile, span, output_path, shader_func, post_render_func).compute(num_workers=num_workers)
+        b.map(render_super_tile, span, output_path, shader_func, post_render_func, local_cache_path).compute(
+            num_workers=num_workers)
         results[level] = dict(success=True, stats=span, supertile_count=len(super_tiles))
 
     return results
@@ -91,8 +104,8 @@ def gen_super_tiles(extent, zoom_level, span=None):
     super_tile_size = min(2 ** 4 * 256,
                           (2 ** zoom_level) * 256)
     super_tile_def = MercatorTileDefinition(x_range=(xmin, xmax), y_range=(ymin, ymax), tile_size=super_tile_size)
-    super_tiles = super_tile_def.get_tiles_by_extent(extent, zoom_level)
-    for s in super_tiles:
+
+    for s in super_tile_def.get_tiles_by_extent(extent, zoom_level):
         st_extent = s[3]
         x_range = (st_extent[0], st_extent[2])
         y_range = (st_extent[1], st_extent[3])
@@ -103,13 +116,23 @@ def gen_super_tiles(extent, zoom_level, span=None):
                'span': span}
 
 
-def render_super_tile(tile_info, span, output_path, shader_func, post_render_func):
+def render_super_tile(tile_info, span, output_path, shader_func, post_render_func, local_cache_path):
     level = tile_info['level']
-    ds_img = shader_func(tile_info['agg'], span=span)
+
+    agg = None
+
+    if local_cache_path is not None:
+        agg = xarray.open_dataarray(tile_info['agg']).astype('uint32')
+        os.remove(tile_info['agg'])
+    else:
+        agg = tile_info['agg']
+
+    ds_img = shader_func(agg, span=span)
+
     return create_sub_tiles(ds_img, level, tile_info, output_path, post_render_func)
 
 
-def validate_output_path(output_path, full_extent, levels):
+def validate_output_path(output_path, full_extent, levels, local_cache_path):
     # validate / createoutput_dir
     if os.path.isdir(output_path):
         _create_dir(output_path)
@@ -117,6 +140,9 @@ def validate_output_path(output_path, full_extent, levels):
         _create_dir(os.path.dirname(output_path))
         # Create mbtiles file and setup sqlite tables.
         MapboxTileRenderer.setup(output_path, full_extent, levels[0], levels[len(levels) - 1])
+
+    if local_cache_path:
+        _create_dir(local_cache_path)
 
 
 def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func=None):
@@ -281,15 +307,11 @@ class MercatorTileDefinition(object):
         txmin, tymax = self.meters_to_tile(xmin, ymin, level)
         txmax, tymin = self.meters_to_tile(xmax, ymax, level)
 
-        # TODO: vectorize?
-        tiles = []
         for ty in range(tymin, tymax + 1):
             for tx in range(txmin, txmax + 1):
                 if self.is_valid_tile(tx, ty, level):
                     t = (tx, ty, level, self.get_tile_meters(tx, ty, level))
-                    tiles.append(t)
-
-        return tiles
+                    yield t
 
     def get_tile_meters(self, tx, ty, level):
         ty = invert_y_tile(ty, level)  # convert to TMS for conversion to meters
@@ -317,8 +339,7 @@ class TileRenderer(object):
         ymin, ymax = self.tile_def.y_range
         extent = xmin, ymin, xmax, ymax
 
-        tiles = self.tile_def.get_tiles_by_extent(extent, level)
-        for t in tiles:
+        for t in self.tile_def.get_tiles_by_extent(extent, level):
             x, y, z, data_extent = t
             dxmin, dymin, dxmax, dymax = data_extent
 
