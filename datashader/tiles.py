@@ -12,6 +12,11 @@ from PIL.Image import fromarray
 
 from .utils import meters_to_lnglat
 
+try:
+    import netCDF4
+except Exception:
+    netCDF4 = None
+
 __all__ = ['render_tiles', 'MercatorTileDefinition']
 
 
@@ -48,7 +53,7 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
 
             if local_cache_path:
                 cache_file_path = os.path.join(local_cache_path, 'super_tile_' + str(index) + '.nc')
-                agg.to_netcdf(cache_file_path)
+                agg.to_netcdf(cache_file_path, engine='netcdf4', format='NETCDF4')
                 super_tile['agg'] = cache_file_path
             else:
                 super_tile['agg'] = agg
@@ -122,7 +127,7 @@ def render_super_tile(tile_info, span, output_path, shader_func, post_render_fun
     agg = None
 
     if local_cache_path is not None:
-        agg = xarray.open_dataarray(tile_info['agg']).astype('uint32')
+        agg = xarray.load_dataarray(tile_info['agg'], engine='netcdf4')
         os.remove(tile_info['agg'])
     else:
         agg = tile_info['agg']
@@ -142,6 +147,7 @@ def validate_output_path(output_path, full_extent, levels, local_cache_path):
         MapboxTileRenderer.setup(output_path, full_extent, levels[0], levels[len(levels) - 1])
 
     if local_cache_path:
+        assert netCDF4, 'netcdf4 library must be installed for use with local_cache.'
         _create_dir(local_cache_path)
 
 
