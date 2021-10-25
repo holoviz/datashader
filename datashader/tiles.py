@@ -25,7 +25,8 @@ def _create_dir(path):
     import os, errno
 
     try:
-        os.makedirs(path)
+        if os.path.isdir(path):
+            os.makedirs(path)
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
@@ -139,9 +140,9 @@ def render_super_tile(tile_info, span, output_path, shader_func, post_render_fun
 
 def validate_output_path(output_path, full_extent, levels, local_cache_path):
     # validate / createoutput_dir
-    if os.path.isdir(output_path):
-        _create_dir(output_path)
-    elif output_path.endswith("mbtiles"):
+    _create_dir(output_path)
+
+    if output_path.endswith("mbtiles"):
         _create_dir(os.path.dirname(output_path))
         # Create mbtiles file and setup sqlite tables.
         MapboxTileRenderer.setup(output_path, full_extent, levels[0], levels[len(levels) - 1])
