@@ -88,7 +88,7 @@ def render_tiles(full_extent, levels, load_data_func,
                  local_cache_path=None):
     results = dict()
 
-    validate_output_path(output_path, full_extent, levels, local_cache_path)
+    _setup(full_extent, levels, output_path, local_cache_path)
 
     for level in levels:
         print('calculating statistics for level {}'.format(level))
@@ -138,7 +138,7 @@ def render_super_tile(tile_info, span, output_path, shader_func, post_render_fun
     return create_sub_tiles(ds_img, level, tile_info, output_path, post_render_func)
 
 
-def validate_output_path(output_path, full_extent, levels, local_cache_path):
+def _setup(full_extent, levels, output_path, local_cache_path):
     # validate / createoutput_dir
     _create_dir(output_path)
 
@@ -468,16 +468,16 @@ class MapboxTileRenderer(TileRenderer):
 
         # Create MBTiles tables.
         cur.execute("""
-            create table tiles (
+            create table if not exists tiles (
                 zoom_level integer,
                 tile_column integer,
                 tile_row integer,
                 tile_data blob);
                 """)
-        cur.execute("""create table metadata
+        cur.execute("""create table if not exists metadata
             (name text, value text);""")
-        cur.execute("""create unique index name on metadata (name);""")
-        cur.execute("""create unique index tile_index on tiles
+        cur.execute("""create unique index if not exists name on metadata (name);""")
+        cur.execute("""create unique index if not exists tile_index on tiles
             (zoom_level, tile_column, tile_row);""")
 
         # Compute Extents in WGS84
@@ -501,18 +501,18 @@ class MapboxTileRenderer(TileRenderer):
                 zoom_level = 1
 
         # Setup MBTiles metadata table.
-        cur.execute("""insert into metadata (name, value) values (?, ?) """,
+        cur.execute("""insert or replace into metadata (name, value) values (?, ?);""",
                     ("name", os.path.splitext(os.path.basename(output_location))[0]))
-        cur.execute("""insert into metadata (name, value) values (?, ?) """,
+        cur.execute("""insert or replace into metadata (name, value) values (?, ?);""",
                     ("format", tile_format.lower()))
-        cur.execute("""insert into metadata (name, value) values (?, ?) """,
-                    ("bounds ", "{},{},{},{}".format(min_lon, min_lat, max_lon, max_lat)))
-        cur.execute("""insert into metadata (name, value) values (?, ?) """,
-                    ("center ", "{},{},{}".format(lon_center, lat_center, zoom_level)))
-        cur.execute("""insert into metadata (name, value) values (?, ?) """,
-                    ("minzoom ", min_zoom))
-        cur.execute("""insert into metadata (name, value) values (?, ?) """,
-                    ("maxzoom ", max_zoom))
+        cur.execute("""insert or replace into metadata (name, value) values (?, ?);""",
+                    ("bounds", "{},{},{},{}".format(min_lon, min_lat, max_lon, max_lat)))
+        cur.execute("""insert or replace into metadata (name, value) values (?, ?);""",
+                    ("center", "{},{},{}".format(lon_center, lat_center, zoom_level)))
+        cur.execute("""insert or replace into metadata (name, value) values (?, ?);""",
+                    ("minzoom", min_zoom))
+        cur.execute("""insert or replace into metadata (name, value) values (?, ?);""",
+                    ("maxzoom", max_zoom))
 
         cur.close()
         con.commit()
@@ -529,7 +529,7 @@ class MapboxTileRenderer(TileRenderer):
 
             tile_row = (2 ** z) - 1 - y
 
-            cur.execute("""insert into tiles (zoom_level,
+            cur.execute("""insert or replace into tiles (zoom_level,
                 tile_column, tile_row, tile_data) values
                 (?, ?, ?, ?);""",
                         (z, x, tile_row, sqlite3.Binary(image_bytes.getvalue())))
