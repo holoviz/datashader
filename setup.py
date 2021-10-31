@@ -40,7 +40,7 @@ extras_require = {
         'codecov',
         'flake8',
         'nbconvert',
-        'nbsmoke[all] >=0.6.0',
+        'nbsmoke[all] >0.5',
         'fastparquet >=0.1.6',  # optional dependency
         'holoviews >=1.10.0',
         'bokeh',
