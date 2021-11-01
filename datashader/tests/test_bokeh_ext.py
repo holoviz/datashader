@@ -77,5 +77,5 @@ def test_interactive_image_update():
     assert image['shape'] == [1, 1]
 
     # Ensure events are cleared after update
-    event_obj = image.doc.callbacks if bokeh_version >= '2.4' else image.doc
+    event_obj = img.doc.callbacks if bokeh_version >= '2.4' else img.doc
     assert event_obj._held_events == []
