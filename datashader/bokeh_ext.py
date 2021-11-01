@@ -86,7 +86,8 @@ def patch_event(image):
         JSON message containing patch events to update the plot
     """
     if bokeh_version > '0.12.9':
-        events = list(image.doc._held_events)
+        event_obj = image.doc.callbacks if bokeh_version >= '2.4' else image.doc
+        events = list(event_obj._held_events)
         if not events:
             return None
         if bokeh_version > '2.0.0':
@@ -94,7 +95,7 @@ def patch_event(image):
         else:
             protocol = Protocol("1.0")
         msg = protocol.create("PATCH-DOC", events)
-        image.doc._held_events = []
+        event_obj._held_events = []
         return msg
     data = dict(image.ds.data)
     data['image'] = [data['image'][0].tolist()]
