@@ -67,7 +67,7 @@ jobs:
         if: (matrix.os == 'windows-latest')
         run: |
           eval "$(conda shell.bash hook)"
-          conda activate ${{ env.ENV_NAME }}
+          conda activate test-environment
           conda install ${{ env.CHANS_DEV}} "freetype=2.10.4"
       - name: doit env_capture
         run: |
