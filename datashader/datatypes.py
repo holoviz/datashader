@@ -585,7 +585,7 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         else:
             if len(self) == 0 and len(indices) > 0:
                 raise IndexError(
-                    "Cannot do a non-empty take from an empty axis"
+                    "cannot do a non-empty take from an empty axis|out of bounds"
                 )
 
             sequence = [self[i] for i in indices]

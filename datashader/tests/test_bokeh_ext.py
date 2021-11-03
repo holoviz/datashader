@@ -5,7 +5,7 @@ import datashader as ds
 import datashader.transfer_functions as tf
 
 from bokeh.plotting import figure, Document
-from datashader.bokeh_ext import InteractiveImage
+from datashader.bokeh_ext import InteractiveImage, bokeh_version
 
 axis = ds.core.LinearAxis()
 lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
@@ -77,4 +77,5 @@ def test_interactive_image_update():
     assert image['shape'] == [1, 1]
 
     # Ensure events are cleared after update
-    assert img.doc._held_events == []
+    event_obj = img.doc.callbacks if bokeh_version >= '2.4' else img.doc
+    assert event_obj._held_events == []
