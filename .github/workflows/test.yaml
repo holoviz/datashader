@@ -63,12 +63,6 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           conda install -c conda-forge "dask>=2021.05.0"
-      - name: Patch with an older version of freetype since 2.11.0 is broken with Matplotlib on Windows
-        if: (matrix.os == 'windows-latest')
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          conda install ${{ env.CHANS_DEV}} "freetype=2.10.4"
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
