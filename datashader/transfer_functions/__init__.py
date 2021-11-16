@@ -431,7 +431,7 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha):
     return a
 
 
-def _apply_discrete_colorkey(agg, color_key, how, alpha, span, min_alpha, name, color_baseline):
+def _apply_discrete_colorkey(agg, color_key, alpha, name, color_baseline):
     # use the same approach as 3D case
 
     if cupy and isinstance(agg.data, cupy.ndarray):
@@ -496,11 +496,8 @@ def _apply_discrete_colorkey(agg, color_key, how, alpha, span, min_alpha, name, 
     g = module.where(missing_colors, g2, g)
     b = module.where(missing_colors, b2, b)
 
-    total = data
-    mask = module.isnan(total)
-
-    # Interpolate the alpha values
-    a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha)
+    # alpha channel
+    a = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
 
     values = module.dstack([r, g, b, a]).view(module.uint32).reshape(a.shape)
 
@@ -529,16 +526,18 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     value for all non-zero values, and to zero for all zero values.
     A dictionary ``color_key`` that specifies categories (values in ``agg``)
     and corresponding colors can be provided to support discrete coloring
-    2D aggregates.
+    2D aggregates, i.e aggregates with a single category per pixel,
+    with no mixing.
 
     DataArrays with 3D coordinates are expected to contain values
     distributed over different categories that are indexed by the
-    additional coordinate.  Such an array would reduce to the
+    additional coordinate. Such an array would reduce to the
     2D-coordinate case if collapsed across the categories (e.g. if one
     did ``aggc.sum(dim='cat')`` for a categorical dimension ``cat``).
-    The RGB channels for the uncollapsed, 3D case are computed by
-    averaging the colors in the provided ``color_key`` (with one color
-    per category), weighted by the array's value for that category.
+    The RGB channels for the uncollapsed, 3D case are mixed from separate
+    values over all categories. They are computed by averaging the colors
+    in the provided ``color_key`` (with one color per category),
+    weighted by the array's value for that category.
     The A channel is then computed from the array's total value
     collapsed across all categories at that location, ranging from the
     specified ``min_alpha`` to the maximum alpha value (255).
@@ -579,10 +578,13 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         The minimum alpha value to use for non-empty pixels when
         alpha is indicating data value, in [0, 255].  Use a higher value
         to avoid undersaturation, i.e. poorly visible low-value datapoints,
-        at the expense of the overall dynamic range.
+        at the expense of the overall dynamic range. Note that ``min_alpha``
+        will not take any effect when doing discrete categorical coloring
+        for 2D case as the aggregate can have only a single value to denote
+        the category.
     span : list of min-max range, optional
-        Min and max data values to use for colormap/alpha interpolation, when
-        wishing to override autoranging.
+        Min and max data values to use for 2D colormapping,
+        and 3D alpha interpolation, when wishing to override autoranging.
     name : string name, optional
         Optional string name to give to the Image object to return,
         to label results for display.
@@ -619,7 +621,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     if agg.ndim == 2:
         if color_key is not None and isinstance(color_key, dict):
             return _apply_discrete_colorkey(
-                agg, color_key, how, alpha, span, min_alpha, name, color_baseline
+                agg, color_key, alpha, name, color_baseline
             )
         else:
             return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
