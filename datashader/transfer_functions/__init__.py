@@ -527,7 +527,8 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     A dictionary ``color_key`` that specifies categories (values in ``agg``)
     and corresponding colors can be provided to support discrete coloring
     2D aggregates, i.e aggregates with a single category per pixel,
-    with no mixing.
+    with no mixing. The A channel is set the given ``alpha`` value for all
+    pixels in the categories specified in ``color_key``, and to zero otherwise.
 
     DataArrays with 3D coordinates are expected to contain values
     distributed over different categories that are indexed by the
