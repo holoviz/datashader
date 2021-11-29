@@ -75,6 +75,7 @@ DS_STD = 58
 
 #: Constant indicating an empty 2-D mask
 _NOMASK2D = np.ma.getmaskarray(np.ma.array([[0]], mask=[[0]]))
+_NOMASK3D = np.ma.getmaskarray(np.ma.array([[[0]]], mask=[[[0]]]))
 
 _EPS = 1e-10
 
@@ -334,6 +335,44 @@ def resample_2d(src, w, h, ds_method='mean', us_method='linear',
     return _mask_or_not(resampled, src, fill_value)
 
 
+def resample_3d(src, w, h, d, fill_value=None, out=None):
+    """
+    Resample a 3-D grid to a new resolution.
+
+    Parameters
+    ----------
+    src : np.ndarray
+        The source array to resample
+    w : int
+        New grid width_u
+    h : int
+        New grid height
+    d : int
+        New grid depth
+    fill_value : scalar (optional)
+        If ``None``, it is taken from **src** if it is a masked array,
+        otherwise from *out* if it is a masked array,
+        otherwise numpy's default value is used.
+    out : numpy.ndarray (optional)
+        Alternate output array in which to place the result. The
+        default is *None*; if provided, it must have the same shape as
+        the expected output.
+
+    Returns
+    -------
+    resampled : numpy.ndarray or dask.array.Array
+        A resampled version of the *src* array.
+    """
+    out = _get_out(out, src, (d, h, w))
+    if out is None:
+        return src
+    mask, use_mask = _get_mask(src)
+    fill_value = _get_fill_value(fill_value, src, out)
+
+    resampled = _resample_3d(src, mask, use_mask, fill_value, out)
+    return _mask_or_not(resampled, src, fill_value)
+
+
 _resample_2d_delayed = delayed(resample_2d)
 
 
@@ -443,7 +482,8 @@ def _get_mask(src):
         mask = np.ma.getmask(src)
         if mask is not np.ma.nomask:
             return mask, True
-    return _NOMASK2D, False
+    mask = _NOMASK2D if len(src.shape) == 2 else _NOMASK3D
+    return mask, False
 
 
 def _mask_or_not(out, src, fill_value):
@@ -477,6 +517,17 @@ def _get_dimensions(src, out):
     out_w = out.shape[-1]
     out_h = out.shape[-2]
     return src_w, src_h, out_w, out_h
+
+
+@ngjit
+def _get_dimensions3d(src, out):
+    src_w = src.shape[-1]
+    src_h = src.shape[-2]
+    src_d = src.shape[-3]
+    out_w = out.shape[-1]
+    out_h = out.shape[-2]
+    out_d = out.shape[-3]
+    return src_w, src_h, src_d, out_w, out_h, out_d
 
 
 def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value,
@@ -533,6 +584,34 @@ def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value,
     return src
 
 
+def _resample_3d(src, mask, use_mask, fill_value, out):
+    src_w, src_h, src_d, out_w, out_h, out_d = _get_dimensions3d(src, out)
+
+    if src_h == 0 or src_w == 0 or src_d == 0 or out_h == 0 or out_w == 0 or out_d == 0:
+       return np.zeros((out_d, out_h, out_w), dtype=src.dtype)
+    elif out_w < src_w and out_h < src_h and out_d < src_d:
+        return _downsample_3d_mean(src, mask, use_mask, fill_value, out)
+    elif out_w > src_w and out_h > src_h and out_d > src_d:
+        return _upsample_3d_nearest(src, mask, use_mask, fill_value, out)
+    elif out_w < src_w:
+        temp = np.zeros((src_d, src_h, out_w), dtype=src.dtype)
+        temp = _downsample_3d_mean(src, mask, use_mask, fill_value, temp)
+    else:
+        temp = np.zeros((src_d, src_h, out_w), dtype=src.dtype)
+        temp = _upsample_3d_nearest(src, mask, use_mask, fill_value, temp)
+
+    temp2 = np.zeros((src_d, out_h, out_w), dtype=src.dtype)
+    if out_h > src_h:
+        temp2 = _upsample_3d_nearest(temp, mask, use_mask, fill_value, temp2)
+    else:
+        temp2 = _downsample_3d_mean(temp, mask, use_mask, fill_value, temp2)
+
+    if out_d > src_d:
+        return _upsample_3d_nearest(temp2, mask, use_mask, fill_value, out)
+    else:
+        return _downsample_3d_mean(temp2, mask, use_mask, fill_value, out)
+
+
 @ngjit_parallel
 def _upsample_2d_nearest(src, mask, use_mask, fill_value, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
@@ -559,6 +638,34 @@ def _upsample_2d_nearest(src, mask, use_mask, fill_value, x_offset, y_offset, ou
                 out[out_y, out_x] = value
             else:
                 out[out_y, out_x] = fill_value
+    return out
+
+
+@ngjit
+def _upsample_3d_nearest(src, mask, use_mask, fill_value, out):
+    src_w, src_h, src_d, out_w, out_h, out_d = _get_dimensions3d(src, out)
+    
+    if src_w == out_w and src_h == out_h and src_d == out_d:
+        return src
+
+    if out_w < src_w or out_h < src_h or out_d < src_d:
+        raise ValueError("invalid target size")
+
+    scale_x = src_w / out_w
+    scale_y = src_h / out_h
+    scale_z = src_d / out_d
+
+    for out_z in range(out_d):
+        src_z = int(scale_z * out_z)
+        for out_y in range(out_h):
+            src_y = int(scale_y * out_y)
+            for out_x in range(out_w):
+                src_x = int(scale_x * out_x)
+                value = src[src_z, src_y, src_x]
+                if np.isfinite(value) and not (use_mask and mask[src_z, src_y, src_x]):
+                    out[out_z, out_y, out_x] = value
+                else:
+                    out[out_z, out_y, out_x] = fill_value
     return out
 
 
@@ -879,6 +986,75 @@ def _downsample_2d_mean(src, mask, use_mask, method, fill_value,
                 out[out_y, out_x] = fill_value
             else:
                 out[out_y, out_x] = v_sum / w_sum
+    return out
+
+
+@ngjit
+def _downsample_3d_mean(src, mask, use_mask, fill_value, out):
+    src_w, src_h, src_d, out_w, out_h, out_d = _get_dimensions3d(src, out)
+
+    if src_w == out_w and src_h == out_h and src_d == out_d:
+        return src
+
+    if out_w > src_w or out_h > src_h and out_d > src_d:
+        raise ValueError("invalid target size")
+
+    scale_x = src_w / out_w
+    scale_y = src_h / out_h
+    scale_z = src_d / out_d
+
+    for out_z in range(out_d):
+        src_zf0 = (scale_z * out_z)
+        src_zf1 = (src_zf0 + scale_z)
+        src_z0 = int(src_zf0)
+        src_z1 = int(src_zf1)
+
+        wz0 = 1.0 - (src_zf0 - src_z0)
+        wz1 = src_zf1 - src_z1
+        if wz1 < _EPS:
+            wz1 = 1.0
+            if src_z1 > src_z0:
+                src_z1 -= 1
+        for out_y in range(out_h):
+            src_yf0 = (scale_y * out_y)
+            src_yf1 = (src_yf0 + scale_y)
+            src_y0 = int(src_yf0)
+            src_y1 = int(src_yf1)
+
+            wy0 = 1.0 - (src_yf0 - src_y0)
+            wy1 = src_yf1 - src_y1
+            if wy1 < _EPS:
+                wy1 = 1.0
+                if src_y1 > src_y0:
+                    src_y1 -= 1
+            for out_x in range(out_w):
+                src_xf0 = (scale_x * out_x)
+                src_xf1 = src_xf0 + scale_x
+                src_x0 = int(src_xf0)
+                src_x1 = int(src_xf1)
+                wx0 = 1.0 - (src_xf0 - src_x0)
+                wx1 = src_xf1 - src_x1
+                if wx1 < _EPS:
+                    wx1 = 1.0
+                    if src_x1 > src_x0:
+                        src_x1 -= 1
+                v_sum = 0.0
+                w_sum = 0.0
+                for src_z in range(src_z0, src_z1 + 1):
+                    wz = wz0 if (src_z == src_z0) else wz1 if (src_z == src_z1) else 1.0
+                    for src_y in range(src_y0, src_y1 + 1):
+                        wy = wy0 if (src_y == src_y0) else wy1 if (src_y == src_y1) else 1.0
+                        for src_x in range(src_x0, src_x1 + 1):
+                            wx = wx0 if (src_x == src_x0) else wx1 if (src_x == src_x1) else 1.0
+                            v = src[src_z, src_y, src_x]
+                            if np.isfinite(v) and not (use_mask and mask[src_z, src_y, src_x]):
+                                w = wx * wy * wz
+                                v_sum += w * v
+                                w_sum += w
+                if w_sum < _EPS:
+                    out[out_z, out_y, out_x] = fill_value
+                else:
+                    out[out_z, out_y, out_x] = v_sum / w_sum
     return out
 
 
