@@ -74,11 +74,11 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit test_lint
-      - name: doit test_unit_deploy
+      - name: doit test_unit
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit test_unit_deploy
+          doit test_unit
       - name: doit test_unit_nojit
         run: |
           eval "$(conda shell.bash hook)"
