@@ -111,6 +111,22 @@ def test_partial_extent_with_layer_returns_correct_size(cvs):
 
 
 @rasterio_available
+def test_full_extent_returns_correct_coords():
+    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+        res = ds.utils.calc_res(src)
+        left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
+        cvs = ds.Canvas(plot_width=512,
+                        plot_height=256,
+                        x_range=[left, right],
+                        y_range=[bottom, top])
+        agg = cvs.raster(src)
+        assert agg.shape == (3, 256, 512)
+        assert agg is not None
+        for dim in src.dims:
+            assert np.all(agg[dim].data == src[dim].data)
+
+
+@rasterio_available
 def test_calc_res():
     """Assert that resolution is calculated correctly when using the xarray
     rasterio backend.

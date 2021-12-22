@@ -1041,7 +1041,9 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         height_ratio = min((ymax - ymin) / (self.y_range[1] - self.y_range[0]), 1)
 
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
-            raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
+            raise ValueError('Canvas x_range or y_range values do not match closely enough '
+                             'with the data source to be able to accurately rasterize. '
+                             'Please provide ranges that are more accurate.')
 
         w = max(int(round(self.plot_width * width_ratio)), 1)
         h = max(int(round(self.plot_height * height_ratio)), 1)
@@ -1126,7 +1128,20 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             data = data.astype(dtype)
 
         # Compute DataArray metadata
-        xs, ys = compute_coords(self.plot_width, self.plot_height, self.x_range, self.y_range, res)
+
+        # To avoid floating point representation error,
+        # do not recompute x coords if same x_range and same plot_width,
+        # do not recompute y coords if same y_range and same plot_height
+        close_x = np.isclose([left, right], self.x_range).all() and np.size(xvals) == self.plot_width
+        close_y = np.isclose([bottom, top], self.y_range).all() and np.size(yvals) == self.plot_height
+        if close_x and close_y:
+            xs, ys = xvals, yvals
+        else:
+            xs, ys = compute_coords(self.plot_width, self.plot_height,
+                                    self.x_range, self.y_range, res)
+            xs = xvals if close_x else xs
+            ys = yvals if close_y else ys
+
         coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
         attrs = dict(res=res[0])
