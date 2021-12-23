@@ -11,11 +11,5 @@ if PY3:
         else:
             return func(*args)
 
-    def _exec(codestr, glbls):
-        exec(codestr, glbls)
 else:
     apply = apply
-    eval(compile("""
-def _exec(codestr, glbls):
-    exec codestr in glbls
-""", "<_exec>", "exec"))

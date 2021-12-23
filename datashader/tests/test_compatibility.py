@@ -1,22 +1,7 @@
 from __future__ import absolute_import
 from pytest import raises
 
-from datashader.compatibility import apply, _exec
-
-
-def test__exec():
-    c = "def foo(a):\n    return bar(a) + 1"
-    namespace = {'bar': lambda a: a + 1}
-    bar = lambda a: a - 1  # noqa (define a different local ``bar`` to ensure
-                           # that names are pulled from namespace, not locals)
-    _exec(c, namespace)
-    foo = namespace['foo']
-    assert foo(1) == 3
-    namespace = {}
-    _exec(c, namespace)
-    foo = namespace['foo']
-    with raises(NameError):
-        foo(1)
+from datashader.compatibility import apply
 
 
 def test_apply():
