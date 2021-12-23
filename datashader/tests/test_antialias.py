@@ -121,7 +121,6 @@
 
 
 import os
-import sys
 
 import xarray as xr
 import datashader as ds

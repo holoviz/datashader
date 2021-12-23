@@ -1,7 +1,5 @@
 from __future__ import division
 
-import sys
-
 import pytest
 
 import numpy as np
