@@ -967,9 +967,6 @@ def infer_interval_breaks(coord, axis=0):
         pass
     else:
         coord = np.asarray(coord)
-    if sys.version_info.major == 2 and len(coord) and isinstance(coord[0], (dt.datetime, dt.date)):
-        # np.diff does not work on datetimes in python 2
-        coord = coord.astype('datetime64')
     if len(coord) == 0:
         return np.array([], dtype=coord.dtype)
     deltas = 0.5 * np.diff(coord, axis=axis)
