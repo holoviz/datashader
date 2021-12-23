@@ -9,7 +9,7 @@ import dask.dataframe as dd
 from dask.base import tokenize, compute
 
 from datashader.core import bypixel
-from datashader.compatibility import apply
+from datashader.utils import apply
 from datashader.compiler import compile_components
 from datashader.glyphs import Glyph, LineAxis0
 from datashader.utils import Dispatcher

@@ -4,7 +4,7 @@ from datashader.utils import Dispatcher
 from datashader.glyphs.quadmesh import (
     QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvilinear, build_scale_translate
 )
-from datashader.compatibility import apply
+from datashader.utils import apply
 import dask
 import numpy as np
 import xarray as xr
