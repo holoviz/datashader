@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 import dask.array as da
-from six import string_types
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
@@ -353,8 +352,8 @@ class Canvas(object):
             x, y = _broadcast_column_specifications(x, y)
 
             if axis == 0:
-                if (isinstance(x, (Number, string_types)) and
-                        isinstance(y, (Number, string_types))):
+                if (isinstance(x, (Number, str)) and
+                        isinstance(y, (Number, str))):
                     glyph = LineAxis0(x, y)
                 elif (isinstance(x, (list, tuple)) and
                         isinstance(y, (list, tuple))):
@@ -377,8 +376,8 @@ See docstring for more information on valid usage""".format(
                 elif (isinstance(x, (list, tuple)) and
                       isinstance(y, np.ndarray)):
                     glyph = LinesAxis1YConstant(tuple(x), y)
-                elif (isinstance(x, (Number, string_types)) and
-                        isinstance(y, (Number, string_types))):
+                elif (isinstance(x, (Number, str)) and
+                        isinstance(y, (Number, str))):
                     glyph = LinesAxis1Ragged(x, y)
                 else:
                     raise ValueError("""
@@ -544,8 +543,8 @@ The axis argument to Canvas.line must be 0 or 1
 
         if axis == 0:
             if y_stack is None:
-                if (isinstance(x, (Number, string_types)) and
-                        isinstance(y, (Number, string_types))):
+                if (isinstance(x, (Number, str)) and
+                        isinstance(y, (Number, str))):
                     glyph = AreaToZeroAxis0(x, y)
                 elif (isinstance(x, (list, tuple)) and
                       isinstance(y, (list, tuple))):
@@ -560,9 +559,9 @@ See docstring for more information on valid usage""".format(
                         x=repr(x), y=repr(y)))
             else:
                 # y_stack is not None
-                if (isinstance(x, (Number, string_types)) and
-                        isinstance(y, (Number, string_types)) and
-                        isinstance(y_stack, (Number, string_types))):
+                if (isinstance(x, (Number, str)) and
+                        isinstance(y, (Number, str)) and
+                        isinstance(y_stack, (Number, str))):
 
                     glyph = AreaToLineAxis0(x, y, y_stack)
                 elif (isinstance(x, (list, tuple)) and
@@ -593,8 +592,8 @@ See docstring for more information on valid usage""".format(
                 elif (isinstance(x, (list, tuple)) and
                       isinstance(y, np.ndarray)):
                     glyph = AreaToZeroAxis1YConstant(tuple(x), y)
-                elif (isinstance(x, (Number, string_types)) and
-                      isinstance(y, (Number, string_types))):
+                elif (isinstance(x, (Number, str)) and
+                      isinstance(y, (Number, str))):
                     glyph = AreaToZeroAxis1Ragged(x, y)
                 else:
                     raise ValueError("""
@@ -619,9 +618,9 @@ See docstring for more information on valid usage""".format(
                       isinstance(y, np.ndarray) and
                       isinstance(y_stack, np.ndarray)):
                     glyph = AreaToLineAxis1YConstant(tuple(x), y, y_stack)
-                elif (isinstance(x, (Number, string_types)) and
-                      isinstance(y, (Number, string_types)) and
-                      isinstance(y_stack, (Number, string_types))):
+                elif (isinstance(x, (Number, str)) and
+                      isinstance(y, (Number, str)) and
+                      isinstance(y_stack, (Number, str))):
                     glyph = AreaToLineAxis1Ragged(x, y, y_stack)
                 else:
                     raise ValueError("""
@@ -1239,7 +1238,7 @@ def _broadcast_column_specifications(*args):
     else:
         n = lengths.pop()
         return tuple(
-            (arg,) * n if isinstance(arg, (Number, string_types)) else arg
+            (arg,) * n if isinstance(arg, (Number, str)) else arg
             for arg in args
         )
 
