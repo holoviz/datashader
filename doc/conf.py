@@ -4,54 +4,65 @@ from nbsite.shared_conf import *
 
 project = u'Datashader'
 authors = u'Datashader contributors'
-copyright = u'2016-2021, Anaconda, Inc.'
+copyright = u'2016-2022, Anaconda, Inc.'
 description = 'Turns even the largest data into images, accurately.'
 
 from datashader import __version__
-version = release  = __version__
+version = release  = base_version(__version__)
 
 html_static_path += ['_static']
-html_theme = 'sphinx_holoviz_theme'
+html_theme = 'pydata_sphinx_theme'
+
+html_css_files = [
+    'nbsite.css',
+    'css/custom.css'
+]
+
+html_logo = '_static/logo_horizontal.svg'
+html_favicon = '_static/favicon.ico'
+
 html_theme_options = {
-    'logo': 'logo_horizontal.svg',
-    'include_logo_text': False,
-    'favicon': 'favicon.ico',
-    'primary_color': '#774c9a',
-    'primary_color_dark': '#460f72',
-    'secondary_color': '#c4a9d6',
-    'second_nav': True,
+    'github_url': 'https://github.com/holoviz/datashader',
+    'icon_links': [
+        {
+            'name': 'Twitter',
+            'url': 'https://twitter.com/datashader',
+            'icon': 'fab fa-twitter-square',
+        },
+        {
+            'name': 'Discourse',
+            'url': 'https://discourse.holoviz.org/',
+            'icon': 'fab fa-discourse',
+        },
+    ],
+    "footer_items": [
+        "copyright",
+        "last-updated",
+    ],
+    'google_analytics_id': 'UA-154795830-1',
 }
 
-_NAV =  (
-    ('Getting Started', 'getting_started/index'),
-    ('User Guide', 'user_guide/index'),
-    ('Topics', 'topics/index'),
-    ('API', 'api'),
-    ('FAQ', 'FAQ'),
-    ('About', 'about')
-)
+templates_path = [
+    '_templates'
+]
 
 html_context.update({
-    'PROJECT': project,
-    'DESCRIPTION': description,
-    'AUTHOR': authors,
-    'WEBSITE_SERVER': 'https://datashader.org',
-    'GOOGLE_SEARCH_ID': '017396756996884923145:fgzzciei5qk',
-    'GOOGLE_ANALYTICS_UA': 'UA-154795830-1',
-    'VERSION': version,
-    'NAV': _NAV,
-    'LINKS': _NAV,
-    'SOCIAL': (
-        ('Github', 'https://github.com/holoviz/datashader/'),
-        ('Twitter', 'https://twitter.com/datashader/'),
-        ('Discourse', 'https://discourse.holoviz.org/'),
-        ('HoloViz', 'https://holoviz.org'),
-    )
+    # Used to add binder links to the latest released tag.
+    'last_release': release,
+    'github_user': 'holoviz',
+    'github_repo': 'datashader',
 })
+
 
 extensions += [
     'sphinx.ext.autosummary',
     'numpydoc',
+    'sphinx_copybutton',
 ]
 
-nbbuild_cell_timeout=2000
+nbbuild_cell_timeout = 2000
+
+# Override the Sphinx default title that appends `documentation`
+html_title = f'{project} v{version}'
+# Format of the last updated section in the footer
+html_last_updated_fmt = '%Y-%m-%d'

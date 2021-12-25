@@ -65,9 +65,10 @@ extras_require = {
 }
 
 extras_require['doc'] = extras_require['examples_extra'] + [
-    'nbsite >=0.5.2',
-    'sphinx_holoviz_theme',
-    'numpydoc'
+    'nbsite >=0.7.1',
+    'pydata-sphinx-theme',
+    'sphinx-copybutton',
+    'numpydoc',
 ]
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
