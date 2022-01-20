@@ -90,9 +90,9 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, cuda):
         # for i, (coord_name, coord_vals) in enumerate(coords.items()):
         for i, coord_name in enumerate(coords.dims):
             chunk_number = inds[i]
+            
             coord_slice = slice(
-                chunk_inds[coord_name][chunk_number],
-                chunk_inds[coord_name][chunk_number + 1]
+                *chunk_inds[coord_name][chunk_number:chunk_number + 2:1]
             )
             chunk_coords_list.append([coord_name, coords[coord_name][coord_slice]])
 
