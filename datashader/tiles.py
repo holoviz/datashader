@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 import math
 import os
 import sqlite3
+import uuid
 from io import BytesIO
 
 import dask.bag as db
@@ -32,46 +33,48 @@ def _create_dir(path):
             raise
 
 
-def _get_super_tile_min_max(tile_info, load_data_func, rasterize_func):
-    tile_size = tile_info['tile_size']
+def _get_super_tile_min_max(tile_info, load_data_func, rasterize_func, local_cache_path=None):
     df = load_data_func(tile_info['x_range'], tile_info['y_range'])
     agg = rasterize_func(df, x_range=tile_info['x_range'],
                          y_range=tile_info['y_range'],
-                         height=tile_size, width=tile_size)
-    return agg
+                         height=tile_info['tile_size'], width=tile_info['tile_size'])
+    tile_info['agg_type'] = agg.dtype.kind
+    tile_info['span_min'] = np.nanmin(agg.data)
+    tile_info['span_max'] = np.nanmax(agg.data)
+
+    if local_cache_path:
+        cache_file_path = os.path.join(local_cache_path, 'super_tile_' + str(uuid.uuid4()) + '.nc')
+        agg.to_netcdf(cache_file_path, engine='netcdf4', format='NETCDF4')
+        tile_info['cache_file'] = cache_file_path
+
+    return tile_info
 
 
 def calculate_zoom_level_stats(super_tiles, load_data_func,
                                rasterize_func,
                                color_ranging_strategy='fullscan', local_cache_path=None):
     if color_ranging_strategy == 'fullscan':
+
+        super_tiles = db.from_sequence(super_tiles).map(_get_super_tile_min_max, load_data_func,
+                                                        rasterize_func, local_cache_path).compute()
+
         span_min = None
         span_max = None
         is_bool = False
-        index = 0
+
         for super_tile in super_tiles:
-            agg = _get_super_tile_min_max(super_tile, load_data_func, rasterize_func)
-
-            if local_cache_path:
-                cache_file_path = os.path.join(local_cache_path, 'super_tile_' + str(index) + '.nc')
-                agg.to_netcdf(cache_file_path, engine='netcdf4', format='NETCDF4')
-                super_tile['agg'] = cache_file_path
-            else:
-                super_tile['agg'] = agg
-
-            if agg.dtype.kind == 'b':
+            if super_tile['agg_type'] == 'b':
                 is_bool = True
             else:
                 if span_min is None:
-                    span_min = np.nanmin(agg.data)
+                    span_min = super_tile['span_min']
                 else:
-                    span_min = min(span_min, np.nanmin(agg.data))
+                    span_min = min(span_min, super_tile['span_min'])
 
                 if span_max is None:
-                    span_max = np.nanmax(agg.data)
+                    span_max = super_tile['span_max']
                 else:
-                    span_max = max(span_max, np.nanmax(agg.data))
-            index = index + 1
+                    span_max = max(span_max, super_tile['span_max'])
 
         if is_bool:
             span = (0, 1)
@@ -84,7 +87,7 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
 
 def render_tiles(full_extent, levels, load_data_func,
                  rasterize_func, shader_func,
-                 post_render_func, output_path, color_ranging_strategy='fullscan', num_workers=4,
+                 post_render_func, output_path, color_ranging_strategy='fullscan',
                  local_cache_path=None):
     results = dict()
 
@@ -98,8 +101,8 @@ def render_tiles(full_extent, levels, load_data_func,
                                                        local_cache_path=local_cache_path)
         print('rendering {} supertiles for zoom level {} with span={}'.format(len(super_tiles), level, span))
         b = db.from_sequence(super_tiles)
-        b.map(render_super_tile, span, output_path, shader_func, post_render_func, local_cache_path).compute(
-            num_workers=num_workers)
+        b.map(render_super_tile, span, output_path, load_data_func, rasterize_func, shader_func, post_render_func,
+              local_cache_path).compute()
         results[level] = dict(success=True, stats=span, supertile_count=len(super_tiles))
 
     return results
@@ -122,20 +125,22 @@ def gen_super_tiles(extent, zoom_level, span=None):
                'span': span}
 
 
-def render_super_tile(tile_info, span, output_path, shader_func, post_render_func, local_cache_path):
-    level = tile_info['level']
-
+def render_super_tile(tile_info, span, output_path, load_data_func, rasterize_func, shader_func, post_render_func,
+                      local_cache_path):
     agg = None
 
     if local_cache_path is not None:
-        agg = xarray.load_dataarray(tile_info['agg'], engine='netcdf4')
-        os.remove(tile_info['agg'])
+        agg = xarray.load_dataarray(tile_info['cache_file'], engine='netcdf4')
+        os.remove(tile_info['cache_file'])
     else:
-        agg = tile_info['agg']
+        df = load_data_func(tile_info['x_range'], tile_info['y_range'])
+        agg = rasterize_func(df, x_range=tile_info['x_range'],
+                             y_range=tile_info['y_range'],
+                             height=tile_info['tile_size'], width=tile_info['tile_size'])
 
     ds_img = shader_func(agg, span=span)
 
-    return create_sub_tiles(ds_img, level, tile_info, output_path, post_render_func)
+    return create_sub_tiles(ds_img, tile_info, output_path, post_render_func)
 
 
 def _setup(full_extent, levels, output_path, local_cache_path):
@@ -152,7 +157,7 @@ def _setup(full_extent, levels, output_path, local_cache_path):
         _create_dir(local_cache_path)
 
 
-def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func=None):
+def create_sub_tiles(data_array, tile_info, output_path, post_render_func=None):
     # create tile source
     tile_def = MercatorTileDefinition(x_range=tile_info['x_range'],
                                       y_range=tile_info['y_range'],
@@ -169,7 +174,7 @@ def create_sub_tiles(data_array, level, tile_info, output_path, post_render_func
         renderer = FileSystemTileRenderer(tile_def, output_location=output_path,
                                           post_render_func=post_render_func)
 
-    return renderer.render(data_array, level=level)
+    return renderer.render(data_array, level=tile_info['level'])
 
 
 def invert_y_tile(y, z):

@@ -18,6 +18,8 @@ TOLERANCE = 0.01
 MERCATOR_CONST = 20037508.34
 
 df = None
+
+
 def mock_load_data_func(x_range, y_range):
     global df
     if df is None:
@@ -89,23 +91,22 @@ def assert_is_numeric(value):
     assert any([is_int_or_float, is_numpy_int_or_float])
 
 
-
 def test_get_super_tile_min_max():
-
     tile_info = {'level': 0,
-                'x_range': (-MERCATOR_CONST, MERCATOR_CONST),
-                'y_range': (-MERCATOR_CONST, MERCATOR_CONST),
-                'tile_size': 256,
-                'span': (0, 1000)}
+                 'x_range': (-MERCATOR_CONST, MERCATOR_CONST),
+                 'y_range': (-MERCATOR_CONST, MERCATOR_CONST),
+                 'tile_size': 256,
+                 'span': (0, 1000)}
 
-    agg = _get_super_tile_min_max(tile_info, mock_load_data_func, mock_rasterize_func)
+    tile_info = _get_super_tile_min_max(tile_info, mock_load_data_func, mock_rasterize_func)
 
-    result = [np.nanmin(agg.data), np.nanmax(agg.data)]
+    result = [tile_info['span_min'], tile_info['span_max']]
 
     assert isinstance(result, list)
     assert len(result) == 2
     assert_is_numeric(result[0])
     assert_is_numeric(result[1])
+
 
 def test_calculate_zoom_level_stats_with_fullscan_ranging_strategy():
     full_extent = (-MERCATOR_CONST, -MERCATOR_CONST,
@@ -113,14 +114,15 @@ def test_calculate_zoom_level_stats_with_fullscan_ranging_strategy():
     level = 0
     color_ranging_strategy = 'fullscan'
     super_tiles, span = calculate_zoom_level_stats(list(gen_super_tiles(full_extent, level)),
-                                        mock_load_data_func,
-                                        mock_rasterize_func,
-                                        color_ranging_strategy=color_ranging_strategy)
+                                                   mock_load_data_func,
+                                                   mock_rasterize_func,
+                                                   color_ranging_strategy=color_ranging_strategy)
 
     assert isinstance(span, (list, tuple))
     assert len(span) == 2
     assert_is_numeric(span[0])
     assert_is_numeric(span[1])
+
 
 def test_meters_to_tile():
     # Part of NYC (used in taxi demo)
@@ -129,4 +131,4 @@ def test_meters_to_tile():
     zoom = 12
     tile_def = MercatorTileDefinition((xmin, xmax), (ymin, ymax), tile_size=256)
     tile = tile_def.meters_to_tile(xmin, ymin, zoom)
-    assert tile == (1205, 1540) # using Google tile coordinates, not TMS
+    assert tile == (1205, 1540)  # using Google tile coordinates, not TMS
