@@ -26,8 +26,7 @@ def _create_dir(path):
     import os, errno
 
     try:
-        if os.path.isdir(path):
-            os.makedirs(path)
+        os.makedirs(path)
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
@@ -144,13 +143,17 @@ def render_super_tile(tile_info, span, output_path, load_data_func, rasterize_fu
 
 
 def _setup(full_extent, levels, output_path, local_cache_path):
-    # validate / createoutput_dir
-    _create_dir(output_path)
+    if os.path.splitext(output_path)[1] == '.mbtiles':
 
-    if output_path.endswith("mbtiles"):
-        _create_dir(os.path.dirname(output_path))
+        output_dir = os.path.dirname(output_path)
+
+        if output_dir:
+            _create_dir(output_dir)
+
         # Create mbtiles file and setup sqlite tables.
         MapboxTileRenderer.setup(output_path, full_extent, levels[0], levels[len(levels) - 1])
+    else:
+        _create_dir(output_path)
 
     if local_cache_path:
         assert netCDF4, 'netcdf4 library must be installed for use with local_cache.'
