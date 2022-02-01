@@ -520,6 +520,28 @@ def test_stack():
     np.testing.assert_equal(img.data, out)
 
 
+def test_stack_tolerance():
+    # Floating-point coords
+    coords = [c.astype(np.float64) for c in coords2]
+
+    for offsets in ([1e-10, 0.0], [0.0, 1e-10]):
+        img2_float = tf.Image(
+            img2.data, dims=img2.dims,
+            coords=[coords[0] + offsets[0], coords[1] + offsets[1]])
+
+        # Prior to fix for issue #1038 the next line gives:
+        # TypeError: ufunc 'over' not supported for the input types, and the
+        # inputs could not be safely coerced to any supported types according
+        # to the casting rule ''safe''
+        img = tf.stack(img2_float, img1)
+        np.testing.assert_array_equal(img.x_axis, img2_float.x_axis)
+        np.testing.assert_array_equal(img.y_axis, img2_float.y_axis)
+
+        img = tf.stack(img1, img2_float)
+        np.testing.assert_array_equal(img.x_axis, img1.x_axis)
+        np.testing.assert_array_equal(img.y_axis, img1.y_axis)
+
+
 def test_masks():
     # Square
     mask = tf._square_mask(2)
@@ -929,7 +951,7 @@ def test_int_array_density():
     assert np.allclose(tf._array_density(data, float_type=False), 0.75)
     assert np.allclose(tf._array_density(data, float_type=False, px=3), 1)
 
-    
+
 def test_float_array_density():
     data = np.ones((4, 4), dtype='float32')
     assert tf._array_density(data, float_type=True) == 1.0
@@ -940,7 +962,7 @@ def test_float_array_density():
     data[2, 0] = data[0, 2] = data[1, 1] = 1
     assert np.allclose(tf._array_density(data, float_type=True), 0.75)
     assert np.allclose(tf._array_density(data, float_type=True, px=3), 1)
-    
+
 
 def test_rgb_dynspread():
     b = 0xffff0000

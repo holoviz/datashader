@@ -132,7 +132,7 @@ def stack(*imgs, **kwargs):
     op = composite_op_lookup[kwargs.get('how', 'over')]
     if len(imgs) == 1:
         return imgs[0]
-    imgs = xr.align(*imgs, copy=False, join='outer')
+    imgs = xr.align(*imgs, copy=False, join='override')
     with np.errstate(divide='ignore', invalid='ignore'):
         out = tz.reduce(tz.flip(op), [i.data for i in imgs])
     return Image(out, coords=imgs[0].coords, dims=imgs[0].dims, name=name)
