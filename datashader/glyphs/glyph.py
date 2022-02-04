@@ -93,11 +93,11 @@ class Glyph(Expr):
     @staticmethod
     def to_gpu_matrix(df, columns):
         if not isinstance(columns, (list, tuple)):
-            return df[columns].to_gpu_array()
+            return df[columns].to_cupy()
         else:
             return cudf.concat([
                 df[name].rename(str(i)) for i, name in enumerate(columns)
-            ], axis=1).as_gpu_matrix()
+            ], axis=1).to_cupy()
 
     def expand_aggs_and_cols(self, append):
         """

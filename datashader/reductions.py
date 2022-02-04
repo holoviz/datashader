@@ -42,7 +42,7 @@ class extract(Preprocess):
                 nullval = np.nan
             else:
                 nullval = 0
-            return cupy.array(df[self.column].to_gpu_array(fillna=nullval))
+            return df[self.column].to_cupy(na_value=nullval)
         elif isinstance(df, xr.Dataset):
             # DataArray could be backed by numpy or cupy array
             return df[self.column].data
@@ -81,7 +81,7 @@ class category_codes(CategoryPreprocess):
 
     def apply(self, df):
         if cudf and isinstance(df, cudf.DataFrame):
-            return df[self.column].cat.codes.to_gpu_array()
+            return df[self.column].cat.codes.to_cupy()
         else:
             return df[self.column].cat.codes.values
 
@@ -114,7 +114,7 @@ class category_modulo(category_codes):
     def apply(self, df):
         result = (df[self.column] - self.offset) % self.modulo
         if cudf and isinstance(df, cudf.DataFrame):
-            return result.to_gpu_array()
+            return result.to_cupy()
         else:
             return result.values
 
@@ -193,7 +193,7 @@ class category_values(CategoryPreprocess):
             else:
                 nullval = 0
             a = cupy.asarray(a)
-            b = cupy.asarray(df[self.column].to_gpu_array(fillna=nullval))
+            b = cupy.asarray(df[self.column].to_cupy(na_value=nullval))
             return cupy.stack((a, b), axis=-1)
         else:
             b = df[self.column].values

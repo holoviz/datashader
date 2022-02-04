@@ -17,7 +17,7 @@ except Exception:
 
 def values(s):
     if isinstance(s, cudf.Series):
-        return s.to_gpu_array(fillna=np.nan)
+        return s.to_cupy(na_value=np.nan)
     else:
         return s.values
 
@@ -191,8 +191,8 @@ class Point(_PointLike):
             xmin, xmax, ymin, ymax = bounds
 
             if cudf and isinstance(df, cudf.DataFrame):
-                xs = df[x_name].to_gpu_array(fillna=np.nan)
-                ys = df[y_name].to_gpu_array(fillna=np.nan)
+                xs = df[x_name].to_cupy(na_value=np.nan)
+                ys = df[y_name].to_cupy(na_value=np.nan)
                 do_extend = extend_cuda[cuda_args(xs.shape[0])]
             else:
                 xs = df[x_name].values
