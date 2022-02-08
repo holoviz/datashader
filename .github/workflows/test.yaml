@@ -39,10 +39,9 @@ jobs:
         run: git fetch --prune --tags --unshallow
       - name: conda setup
         run: |
-          conda config --set always_yes True
           conda update -n base -c defaults conda
-          conda install -c pyviz "pyctdev>=0.5"
-          doit env_create ${{ env.CHANS_DEV}} --python=${{ matrix.python-version }}
+          conda create ${{ env.CHANS_DEV}} -n test-environment python=${{ matrix.python-version }} pyctdev
+          # doit env_create ${{ env.CHANS_DEV}} --python=${{ matrix.python-version }}
       - name: doit develop_install
         run: |
           eval "$(conda shell.bash hook)"
