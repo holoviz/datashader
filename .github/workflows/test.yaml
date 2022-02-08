@@ -22,10 +22,7 @@ jobs:
         shell: bash -l {0} 
     env:
       DESC: "Python ${{ matrix.python-version }} tests"
-      HV_REQUIREMENTS: "unit_tests"
-      PYTHON_VERSION: ${{ matrix.python-version }}
       CHANS_DEV: "-c pyviz/label/dev"
-      CHANS: "-c pyviz -c bokeh -c conda-forge"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
@@ -44,7 +41,6 @@ jobs:
           conda config --set always_yes True
           conda update -n base -c defaults conda
           conda install -c pyviz "pyctdev>=0.5"
-          doit ecosystem_setup
           doit env_create ${{ env.CHANS_DEV}} --python=${{ matrix.python-version }}
       - name: doit develop_install
         run: |
