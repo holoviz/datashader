@@ -15,8 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-        python-version: ["3.10"]
-        # python-version: [3.6, 3.7, 3.8, 3.9, "3.10"]
+        python-version: [3.6, 3.7, 3.8, 3.9, "3.10"]
     timeout-minutes: 60
     defaults:
       run:
@@ -41,7 +40,6 @@ jobs:
         run: |
           conda update -n base -c defaults conda
           conda create ${{ env.CHANS_DEV}} -n test-environment python=${{ matrix.python-version }} pyctdev
-          # doit env_create ${{ env.CHANS_DEV}} --python=${{ matrix.python-version }}
       - name: doit develop_install
         run: |
           eval "$(conda shell.bash hook)"
@@ -53,12 +51,12 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           conda install ${{ env.CHANS_DEV}} "panel=0.12"
-      - name: Patch with latest dask from conda-forge
-        if: (!contains(matrix.python-version, '3.6'))
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          conda install ${{ env.CHANS_DEV}} "dask>=2021.05.0"
+      # - name: Patch with latest dask from conda-forge
+      #   if: (!contains(matrix.python-version, '3.6'))
+      #   run: |
+      #     eval "$(conda shell.bash hook)"
+      #     conda activate test-environment
+      #     conda install ${{ env.CHANS_DEV}} "dask>=2021.05.0"
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
