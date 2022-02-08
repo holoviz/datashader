@@ -15,14 +15,15 @@ jobs:
       fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-        python-version: [3.6, 3.7, 3.8, 3.9, "3.10"]
+        python-version: ["3.10"]
+        # python-version: [3.6, 3.7, 3.8, 3.9, "3.10"]
     timeout-minutes: 60
     defaults:
       run:
         shell: bash -l {0} 
     env:
       DESC: "Python ${{ matrix.python-version }} tests"
-      CHANS_DEV: "-c pyviz/label/dev"
+      CHANS_DEV: "-c pyviz/label/dev -c conda-forge"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
@@ -58,7 +59,7 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          conda install -c conda-forge "dask>=2021.05.0"
+          conda install ${{ env.CHANS_DEV}} "dask>=2021.05.0"
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
