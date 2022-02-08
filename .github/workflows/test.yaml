@@ -23,7 +23,7 @@ jobs:
         shell: bash -l {0} 
     env:
       DESC: "Python ${{ matrix.python-version }} tests"
-      CHANS_DEV: "-c pyviz/label/dev -c conda-forge"
+      CHANS_DEV: "-c pyviz/label/dev -c conda-forge -c nodefaults"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
