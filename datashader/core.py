@@ -13,7 +13,7 @@ from xarray import DataArray, Dataset
 from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
-    compute_coords, dshape_from_xarray_dataset
+    dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
@@ -1132,15 +1132,24 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         # To avoid floating point representation error,
         # do not recompute x coords if same x_range and same plot_width,
         # do not recompute y coords if same y_range and same plot_height
-        close_x = np.isclose([left, right], self.x_range).all() and np.size(xvals) == self.plot_width
-        close_y = np.isclose([bottom, top], self.y_range).all() and np.size(yvals) == self.plot_height
-        if close_x and close_y:
-            xs, ys = xvals, yvals
+        close_x = np.allclose([left, right], self.x_range) and np.size(xvals) == self.plot_width
+        close_y = np.allclose([bottom, top], self.y_range) and np.size(yvals) == self.plot_height
+
+        if close_x:
+            xs = xvals
         else:
-            xs, ys = compute_coords(self.plot_width, self.plot_height,
-                                    self.x_range, self.y_range, res)
-            xs = xvals if close_x else xs
-            ys = yvals if close_y else ys
+            x_st = self.x_axis.compute_scale_and_translate(self.x_range, self.plot_width)
+            xs = self.x_axis.compute_index(x_st, self.plot_width)
+            if res[0] < 0:
+                xs = xs[::-1]
+
+        if close_y:
+            ys = yvals
+        else:
+            y_st = self.y_axis.compute_scale_and_translate(self.y_range, self.plot_height)
+            ys = self.y_axis.compute_index(y_st, self.plot_height)
+            if res[1] > 0:
+                ys = ys[::-1]
 
         coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
