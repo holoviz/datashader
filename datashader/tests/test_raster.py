@@ -15,8 +15,10 @@ import datashader as ds
 import xarray as xr
 import numpy as np
 import dask.array as da
+import pandas as pd
 
 from datashader.resampling import compute_chunksize
+import datashader.transfer_functions as tf
 
 BASE_PATH = path.split(__file__)[0]
 DATA_PATH = path.abspath(path.join(BASE_PATH, 'data'))
@@ -379,7 +381,7 @@ def test_raster_single_pixel_range_with_padding():
     beyond the defined data ranges is handled correctly.
     """
 
-    # The .301 value ensures that one pixel covers the edge of the input extent 
+    # The .301 value ensures that one pixel covers the edge of the input extent
     cvs = ds.Canvas(plot_height=4, plot_width=6, x_range=(-0.5, 0.25), y_range=(-.5, 0.301))
     cvs2 = ds.Canvas(plot_height=4, plot_width=6, x_range=(-0.5, 0.25), y_range=(-.5, 0.3))
     array = np.array([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]], dtype='f')
@@ -514,3 +516,21 @@ def test_resample_methods(cvs):
             pass
         else:
             assert False
+
+
+def test_raster_vs_points_coords():
+    # Issue 1038.
+    points = pd.DataFrame(data=dict(x=[2, 6, 8], y=[9, 7, 3]))
+    raster = xr.DataArray(data=[[0.0, 1.0], [2.0, 3.0]], dims=("y", "x"),
+                          coords=dict(x=[0, 9], y=[0, 11]))
+
+    canvas = ds.Canvas(25, 15, x_range=(0, 10), y_range=(0, 5))
+    agg_points = canvas.points(points, x="x", y="y")
+    agg_raster = canvas.raster(raster)
+
+    im_points = tf.shade(agg_points)
+    im_raster = tf.shade(agg_raster)
+
+    # Coordinates should be identical, not merely close.
+    np.testing.assert_array_equal(im_points.coords["x"], im_raster.coords["x"])
+    np.testing.assert_array_equal(im_points.coords["y"], im_raster.coords["y"])

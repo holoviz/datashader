@@ -286,44 +286,6 @@ def orient_array(raster, res=None, layer=None):
     return array
 
 
-def compute_coords(width, height, x_range, y_range, res):
-    """
-    Computes DataArray coordinates at bin centers
-
-    Parameters
-    ----------
-    width : int
-        Number of coordinates along the x-axis
-    height : int
-        Number of coordinates along the y-axis
-    x_range : tuple
-        Left and right edge of the coordinates
-    y_range : tuple
-        Bottom and top edges of the coordinates
-    res : tuple
-        Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
-        sizes"), respectively. Used to determine coordinate orientation.
-
-    Returns
-    -------
-    xs : numpy.ndarray
-        1D array of x-coordinates
-    ys : numpy.ndarray
-        1D array of y-coordinates
-    """
-    (x0, x1), (y0, y1) = x_range, y_range
-    xd = (x1-x0)/float(width)
-    yd = (y1-y0)/float(height)
-    xpad, ypad = abs(xd/2.), abs(yd/2.)
-    x0, x1 = x0+xpad, x1-xpad
-    y0, y1 = y0+ypad, y1-ypad
-    xs = np.linspace(x0, x1, width)
-    ys = np.linspace(y0, y1, height)
-    if res[0] < 0: xs = xs[::-1]
-    if res[1] > 0: ys = ys[::-1]
-    return xs, ys
-
-
 def downsample_aggregate(aggregate, factor, how='mean'):
     """Create downsampled aggregate factor in pixels units"""
     ys, xs = aggregate.shape[:2]
