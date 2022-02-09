@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division
+from distutils.version import Version
 import numpy as np
 from toolz import memoize
 
@@ -17,8 +18,11 @@ except Exception:
 
 def values(s):
     if isinstance(s, cudf.Series):
-        import cupy
-        return cupy.asarray(s.fillna(np.nan))
+        if cudf.__version__ >= Version("22.02"):
+            return s.to_cupy(na_value=np.nan)
+        else:
+            return s.to_gpu_array(fillna=np.nan)
+        
     else:
         return s.values
 
@@ -192,9 +196,8 @@ class Point(_PointLike):
             xmin, xmax, ymin, ymax = bounds
 
             if cudf and isinstance(df, cudf.DataFrame):
-                import cupy
-                xs = cupy.asarray(df[x_name].fillna(np.nan))
-                ys = cupy.asarray(df[y_name].fillna(np.nan))
+                xs = values(df[x_name])
+                ys = values(df[y_name])
                 do_extend = extend_cuda[cuda_args(xs.shape[0])]
             else:
                 xs = df[x_name].values

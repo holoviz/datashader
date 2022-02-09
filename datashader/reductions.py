@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, print_function
-
+from distutils.version import Version
 import numpy as np
 from datashape import dshape, isnumeric, Record, Option
 from datashape import coretypes as ct
@@ -42,7 +42,9 @@ class extract(Preprocess):
                 nullval = np.nan
             else:
                 nullval = 0
-            return cupy.asarray(df[self.column].fillna(nullval))
+            if cudf.__version__ >= Version("22.02"):
+                return df[self.column].to_cupy(na_value=nullval)
+            return cupy.array(df[self.column].to_gpu_array(fillna=nullval))
         elif isinstance(df, xr.Dataset):
             # DataArray could be backed by numpy or cupy array
             return df[self.column].data
@@ -81,8 +83,9 @@ class category_codes(CategoryPreprocess):
 
     def apply(self, df):
         if cudf and isinstance(df, cudf.DataFrame):
-            import cupy
-            return cupy.asarray(df[self.column].cat.codes)
+            if cudf.__version__ >= Version("22.02"):
+                return df[self.column].cat.codes.to_cupy()
+            return df[self.column].cat.codes.to_gpu_array()
         else:
             return df[self.column].cat.codes.values
 
@@ -115,8 +118,9 @@ class category_modulo(category_codes):
     def apply(self, df):
         result = (df[self.column] - self.offset) % self.modulo
         if cudf and isinstance(df, cudf.Series):
-            import cupy
-            return cupy.asarray(result)
+            if cudf.__version__ >= Version("22.02"):
+                return result.to_cupy()
+            return result.to_gpu_array()
         else:
             return result.values
 
@@ -195,7 +199,10 @@ class category_values(CategoryPreprocess):
             else:
                 nullval = 0
             a = cupy.asarray(a)
-            b = cupy.asarray(df[self.column].fillna(nullval))
+            if cudf.__version__ >= "22.02":
+                b = df[self.column].to_cupy(na_value=nullval)
+            else:
+                b = cupy.asarray(df[self.column].fillna(nullval))
             return cupy.stack((a, b), axis=-1)
         else:
             b = df[self.column].values
