@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, print_function
-from distutils.version import Version
+from packaging.version import Version
 import numpy as np
 from datashape import dshape, isnumeric, Record, Option
 from datashape import coretypes as ct
@@ -199,7 +199,7 @@ class category_values(CategoryPreprocess):
             else:
                 nullval = 0
             a = cupy.asarray(a)
-            if cudf.__version__ >= "22.02":
+            if cudf.__version__ >= Version("22.02"):
                 b = df[self.column].to_cupy(na_value=nullval)
             else:
                 b = cupy.asarray(df[self.column].fillna(nullval))
