@@ -31,7 +31,7 @@ requirements:
     # adding pyct here is temporary (this conda recipe template will disappear when new pyctdev is released)
     - pyct
   run_constrained:
-    - cudf >=22.02
+    - cudf >=0.10.0
 test:
   imports:
     - datashader
