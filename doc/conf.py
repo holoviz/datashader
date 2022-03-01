@@ -2,9 +2,9 @@
 
 from nbsite.shared_conf import *
 
-project = u'Datashader'
-authors = u'Datashader contributors'
-copyright = u'2016-2022, Anaconda, Inc.'
+project = 'Datashader'
+copyright_years['start_year'] = '2016'
+copyright = copyright_fmt.format(**copyright_years)
 description = 'Turns even the largest data into images, accurately.'
 
 from datashader import __version__
@@ -35,10 +35,6 @@ html_theme_options = {
             'icon': 'fab fa-discourse',
         },
     ],
-    "footer_items": [
-        "copyright",
-        "last-updated",
-    ],
     'google_analytics_id': 'UA-154795830-1',
 }
 
@@ -64,5 +60,3 @@ nbbuild_cell_timeout = 2000
 
 # Override the Sphinx default title that appends `documentation`
 html_title = f'{project} v{version}'
-# Format of the last updated section in the footer
-html_last_updated_fmt = '%Y-%m-%d'
