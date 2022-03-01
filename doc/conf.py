@@ -31,7 +31,7 @@ html_theme_options = {
         },
         {
             'name': 'Discourse',
-            'url': 'https://discourse.holoviz.org/',
+            'url': 'https://discourse.holoviz.org/c/datashader/',
             'icon': 'fab fa-discourse',
         },
     ],
