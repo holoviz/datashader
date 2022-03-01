@@ -48,7 +48,7 @@ templates_path = [
 
 html_context.update({
     # Used to add binder links to the latest released tag.
-    'last_release': release,
+    'last_release': f'v{release}',
     'github_user': 'holoviz',
     'github_repo': 'datashader',
 })
