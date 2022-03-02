@@ -27,7 +27,6 @@ jobs:
         shell: bash -l {0}
     env:
       DESC: "Documentation build"
-      CHANS_DEV: "-c pyviz/label/dev -c bokeh -c conda-forge"
     steps:
       - uses: actions/checkout@v2
         with:
@@ -45,7 +44,7 @@ jobs:
           echo ::set-output name=tag::${GITHUB_REF#refs/*/}
       - name: conda setup
         run: |
-          conda install -c pyviz "pyctdev>=0.5"
+          conda install "pyctdev>=0.5"
           conda create -n test-environment python=3.8 pyctdev
       - name: doit develop_install
         run: |
