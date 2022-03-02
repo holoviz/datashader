@@ -84,6 +84,9 @@ setup_args = dict(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url='https://datashader.org',
+    project_urls={
+        'Source': 'https://github.com/holoviz/datashader',
+    },
     maintainer='Datashader developers',
     maintainer_email='dev@datashader.org',
     python_requires=">=2.7",
