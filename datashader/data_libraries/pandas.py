@@ -43,9 +43,6 @@ def default(glyph, source, schema, canvas, summary, cuda=False):
 
     bases = create((height, width))
 
-    if getattr(glyph, "_linewidth", 0) > 0:
-        bases = tuple(base.astype("f4") for base in bases)
-
     extend(bases, source, x_st + y_st, x_range + y_range)
 
     return finalize(bases,

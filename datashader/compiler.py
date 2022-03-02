@@ -14,7 +14,7 @@ from .utils import ngjit
 __all__ = ['compile_components']
 
 
-@memoize
+#@memoize
 def compile_components(agg, schema, glyph, cuda=False):
     """Given a ``Aggregation`` object and a schema, return 5 sub-functions.
 

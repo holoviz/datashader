@@ -411,6 +411,10 @@ The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
         glyph.set_linewidth(linewidth)
+        if linewidth > 0:
+            agg.set_antialias()
+            if isinstance(agg, (rd.any, rd.max)):
+                glyph.set_antialias_combination_max()
 
         return bypixel(source, self, glyph, agg)
 
