@@ -46,7 +46,7 @@ jobs:
       - name: conda setup
         run: |
           conda install -c pyviz "pyctdev>=0.5"
-          doit env_create --python=3.8
+          conda create -n test-environment python=3.8 pyctdev
       - name: doit develop_install
         run: |
           eval "$(conda shell.bash hook)"
