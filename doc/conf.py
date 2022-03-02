@@ -21,7 +21,7 @@ html_css_files = [
 html_logo = '_static/logo_horizontal.svg'
 html_favicon = '_static/favicon.ico'
 
-html_theme_options = {
+html_theme_options.update({
     'github_url': 'https://github.com/holoviz/datashader',
     'icon_links': [
         {
@@ -36,7 +36,7 @@ html_theme_options = {
         },
     ],
     'google_analytics_id': 'UA-154795830-1',
-}
+})
 
 templates_path = [
     '_templates'
