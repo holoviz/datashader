@@ -872,7 +872,7 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         if density > threshold:
             px_=px_-1
             break
-        
+
     if px_>=1:
         return spread(img, px_, shape=shape, how=how, name=name)
     else:

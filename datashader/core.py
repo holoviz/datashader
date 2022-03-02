@@ -214,7 +214,7 @@ class Canvas(object):
         return bypixel(source, self, glyph, agg)
 
     def line(self, source, x=None, y=None, agg=None, axis=0, geometry=None,
-             antialias=False):
+             linewidth=0, antialias=False):
         """Compute a reduction by pixel, mapping data to pixels as one or
         more lines.
 
@@ -248,13 +248,21 @@ class Canvas(object):
         geometry : str
             Column name of a LinesArray of the coordinates of each line. If provided,
             the x and y arguments may not also be provided.
-        antialias : bool
-            If True, draw anti-aliased lines, distributing the aggregate value
-            across neighboring pixels to more closely approximate the line
-            shape. If False, each position on the line affects only a single
-            pixel, resulting in line shapes that are blocky but easier to
-            reason about. Needs at least Numba 0.51.2 to work and can only
-            operate on the 'sum' or 'max' aggregators.
+        linewidth : number, optional
+            Width of antialiased lines in pixels. If zero, the default, do not
+            use antialiasing, which results in line shapes that are blocky but
+            easy to reason about. If greater than zero use antialiasing. This
+            spreads the line out into neighboring pixels which produces a less
+            blocky output with lines that have a more uniform visual impact
+            regardless of their angle with respect to the pixels, but is slower
+            to produce. Linewidths between 0 and 1 always use a linewidth of 1
+            but with a proportionate reduction in the strength of the line
+            pixels.
+        antialias : bool, optional
+            This is kept for backward compatibility. ``True`` is equivalent to
+            ``linewidth=1`` and ``False``, the default to ``linewidth=0``. Do
+            not specify both ``antialias`` and ``linewidth`` in the same call
+            as a ``ValueError`` will be raised if they disagree.
 
         Examples
         --------
@@ -331,6 +339,14 @@ class Canvas(object):
         if agg is None:
             agg = rd.any()
 
+        # Check and convert antialias kwarg to linewidth.
+        if antialias and linewidth != 0:
+            raise ValueError(
+                "Do not specify non-default values for both the linewidth and \n"
+                "antialias keyword arguments, use one only, preferably linewidth.")
+        if antialias:
+            linewidth = 1.0
+
         if geometry is not None:
             from spatialpandas import GeoDataFrame
             from spatialpandas.dask import DaskGeoDataFrame
@@ -394,14 +410,8 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
-        # Enable antialias if requested and if the reduction will allow it.
-        if antialias:
-            if isinstance(agg, (rd.sum, rd.max)):
-                glyph.enable_antialias()
-            else:
-                message = ("Aggresgation: '{}' is not supported by antialias".
-                           format(agg))
-                warnings.warn(message)
+        glyph.set_linewidth(linewidth)
+
         return bypixel(source, self, glyph, agg)
 
     def area(self, source, x, y, agg=None, axis=0, y_stack=None):
