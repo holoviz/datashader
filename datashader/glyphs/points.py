@@ -18,7 +18,7 @@ except Exception:
 
 def values(s):
     if isinstance(s, cudf.Series):
-        if cudf.__version__ >= Version("22.02"):
+        if Version(cudf.__version__) >= Version("22.02"):
             return s.to_cupy(na_value=np.nan)
         else:
             return s.to_gpu_array(fillna=np.nan)

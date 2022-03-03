@@ -74,7 +74,11 @@ extras_require['doc'] = extras_require['examples_extra'] + [
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
 
-
+extras_require['gpu_tests'] = [
+    "cupy",
+    "cudf",  # Install with conda install -c rapidsai
+    "dask-cudf",  # Install with conda install -c rapidsai
+]
 
 ########## metadata for setuptools ##########
 

@@ -42,7 +42,7 @@ class extract(Preprocess):
                 nullval = np.nan
             else:
                 nullval = 0
-            if cudf.__version__ >= Version("22.02"):
+            if Version(cudf.__version__) >= Version("22.02"):
                 return df[self.column].to_cupy(na_value=nullval)
             return cupy.array(df[self.column].to_gpu_array(fillna=nullval))
         elif isinstance(df, xr.Dataset):
@@ -83,7 +83,7 @@ class category_codes(CategoryPreprocess):
 
     def apply(self, df):
         if cudf and isinstance(df, cudf.DataFrame):
-            if cudf.__version__ >= Version("22.02"):
+            if Version(cudf.__version__) >= Version("22.02"):
                 return df[self.column].cat.codes.to_cupy()
             return df[self.column].cat.codes.to_gpu_array()
         else:
@@ -118,7 +118,7 @@ class category_modulo(category_codes):
     def apply(self, df):
         result = (df[self.column] - self.offset) % self.modulo
         if cudf and isinstance(df, cudf.Series):
-            if cudf.__version__ >= Version("22.02"):
+            if Version(cudf.__version__) >= Version("22.02"):
                 return result.to_cupy()
             return result.to_gpu_array()
         else:
@@ -199,7 +199,7 @@ class category_values(CategoryPreprocess):
             else:
                 nullval = 0
             a = cupy.asarray(a)
-            if cudf.__version__ >= Version("22.02"):
+            if Version(cudf.__version__) >= Version("22.02"):
                 b = df[self.column].to_cupy(na_value=nullval)
             else:
                 b = cupy.asarray(df[self.column].fillna(nullval))
