@@ -1206,7 +1206,7 @@ def bypixel(source, canvas, glyph, agg):
     if isinstance(source, Dataset) and len(source.dims) == 1:
         columns = list(source.coords.keys()) + list(source.data_vars.keys())
         cols_to_keep = _cols_to_keep(columns, glyph, agg)
-        source = source.drop([col for col in columns if col not in cols_to_keep])
+        source = source.drop_vars([col for col in columns if col not in cols_to_keep])
         source = source.to_dask_dataframe()
 
     if (isinstance(source, pd.DataFrame) or
