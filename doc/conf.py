@@ -38,7 +38,7 @@ html_theme_options.update({
     'google_analytics_id': 'UA-154795830-1',
 })
 
-templates_path = [
+templates_path += [
     '_templates'
 ]
 
