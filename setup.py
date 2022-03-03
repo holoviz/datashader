@@ -50,6 +50,7 @@ extras_require = {
         'rfc3986', # required by twine
         'keyring', # required by twine
         'spatialpandas'
+        'rioxarray',
     ],
     'examples': examples,
     'examples_extra': examples + [
