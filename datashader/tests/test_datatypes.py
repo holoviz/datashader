@@ -752,6 +752,13 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
     def test_view(self):
         pass
 
+    def test_tolist(self, data):
+        result = data.tolist()
+        expected = list(data)
+        assert isinstance(result, list)
+        for r, e in zip(result, expected):
+            assert np.array_equal(r, e, equal_nan=True)
+
 
 class TestRaggedMethods(eb.BaseMethodsTests):
 
@@ -815,6 +822,9 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     def test_sort_values_frame(self):
         pass
 
+    @pytest.mark.skip(reason="__setitem__ not supported")
+    def test_where_series(self):
+        pass
 
 class TestRaggedPrinting(eb.BasePrintingTests):
     pass
