@@ -63,8 +63,8 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
                 ys = self.to_cupy_array(df, y_name)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df[x_name].values
-                ys = df[y_name].values
+                xs = df.loc[:, x_name].to_numpy()
+                ys = df.loc[:, y_name].to_numpy()
                 do_extend = extend_cpu
 
             # line may be clipped, then mapped to pixels
@@ -149,8 +149,8 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df[list(x_names)].values
-                ys = df[list(y_names)].values
+                xs = df.loc[:, list(x_names)].to_numpy()
+                ys = df.loc[:, list(y_names)].to_numpy()
                 do_extend = extend_cpu
 
             # line may be clipped, then mapped to pixels
@@ -258,8 +258,8 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df[list(x_names)].values
-                ys = df[list(y_names)].values
+                xs = df.loc[:, list(x_names)].to_numpy()
+                ys = df.loc[:, list(y_names)].to_numpy()
                 do_extend = extend_cpu
 
             do_extend(
@@ -327,7 +327,7 @@ class LinesAxis1XConstant(LinesAxis1):
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(ys.shape)]
             else:
-                ys = df[list(y_names)].values
+                ys = df.loc[:, list(y_names)].to_numpy()
                 do_extend = extend_cpu
 
             do_extend(
@@ -397,7 +397,7 @@ class LinesAxis1YConstant(LinesAxis1):
                 xs = self.to_cupy_array(df, x_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df[list(x_names)].values
+                xs = df.loc[:, list(x_names)].to_numpy()
                 do_extend = extend_cpu
 
             do_extend(
