@@ -93,12 +93,15 @@ class Glyph(Expr):
 
     @staticmethod
     def to_cupy_array(df, columns):
+        if isinstance(columns, tuple):
+            columns = list(columns)
+
         if Version(cudf.__version__) >= Version("22.02"):
             return df[columns].to_cupy()
         else:
-            if not isinstance(columns, (list, tuple)):
+            if not isinstance(columns, list):
                 return df[columns].to_gpu_array()
-            return df[list(columns)].as_gpu_matrix()
+            return df[columns].as_gpu_matrix()
 
     def expand_aggs_and_cols(self, append):
         """
