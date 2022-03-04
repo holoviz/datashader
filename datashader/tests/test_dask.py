@@ -250,7 +250,7 @@ def test_count_cat(ddf):
     sol = np.append(sol, [[[0], [0]],[[0], [0]]], axis=2)
 
     if dask_cudf and isinstance(ddf, dask_cudf.DataFrame):
-        pytest.skip("The following tests is not Implemented for cuda")
+        pytest.skip("The following tests is not implemented for cuda")
 
     # categorizing by binning the integer arange columns using [0,20] into 4 bins. Same result as for count_cat
     for col in 'i32', 'i64':

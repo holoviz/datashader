@@ -336,7 +336,7 @@ Cannot check equality of RaggedArray values of unequal length
                 self.start_indices, self.flat_array,
                 other.start_indices, other.flat_array)
         else:
-            # Convert other to numpy arrauy
+            # Convert other to numpy array
             if not isinstance(other, np.ndarray):
                 other_array = np.asarray(other)
             else:

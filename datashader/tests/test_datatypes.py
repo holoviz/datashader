@@ -753,7 +753,7 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
     def test_view(self):
         pass
 
-    @pytest.mark.skipif(Version(pd.__version__) < Version("1.4"), reason="Added in version 1.4")
+    @pytest.mark.skipif(Version(pd.__version__) < Version("1.4"), reason="Added in pandas 1.4")
     def test_tolist(self, data):
         result = data.tolist()
         expected = list(data)
