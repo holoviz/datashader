@@ -122,7 +122,11 @@ def values(s):
     """Get numpy array of values from pandas-like Series, handling Series
     of different types"""
     if cudf and isinstance(s, cudf.Series):
-        return s.to_array(fillna=np.nan)
+        try:
+            return s.to_numpy(na_value=np.nan)
+        except AttributeError:
+            # to_array is deprecated from cudf 22.02
+            return s.to_array(fillna=np.nan)
     else:
         return s.values
 
