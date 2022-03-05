@@ -13,8 +13,10 @@ from datashader.macros import expand_varargs
 
 try:
     import cudf
+    import cupy as cp
 except Exception:
     cudf = None
+    cp = None
 
 
 @ngjit
@@ -95,6 +97,12 @@ class Glyph(Expr):
     def to_cupy_array(df, columns):
         if isinstance(columns, tuple):
             columns = list(columns)
+
+        # cuDF does not extract the same column name multiple
+        # times but only one time. Where pandas extract the
+        # column name multiple times. See PR 1050 for more details.
+        if isinstance(columns, list) and (len(columns) != len(set(columns))):
+            return cp.stack([cp.array(df[c]) for c in columns], axis=1)
 
         if Version(cudf.__version__) >= Version("22.02"):
             return df[columns].to_cupy()
