@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from distutils.version import LooseVersion
+from packaging.version import Version
 
 import uuid
 import json
@@ -21,9 +21,9 @@ from .utils import (
     summarize_aggregate_values
 )
 
-bokeh_version = LooseVersion(bokeh.__version__)
+bokeh_version = Version(bokeh.__version__)
 
-if bokeh_version > '0.12.9':
+if bokeh_version > Version('0.12.9'):
     from bokeh.protocol import Protocol
     from bokeh.embed.notebook import notebook_content
     try:
@@ -58,7 +58,7 @@ def bokeh_notebook_div(image):
     div: str
         HTML string containing the bokeh plot to be displayed
     """
-    if bokeh_version > '0.12.9':
+    if bokeh_version > Version('0.12.9'):
         js, div, _ = notebook_content(image.p, image.ref)
         html = NOTEBOOK_DIV.format(plot_script=js, plot_div=div)
         div = encode_utf8(html)
@@ -85,12 +85,12 @@ def patch_event(image):
     msg: str
         JSON message containing patch events to update the plot
     """
-    if bokeh_version > '0.12.9':
-        event_obj = image.doc.callbacks if bokeh_version >= '2.4' else image.doc
+    if bokeh_version > Version('0.12.9'):
+        event_obj = image.doc.callbacks if bokeh_version >= Version('2.4') else image.doc
         events = list(event_obj._held_events)
         if not events:
             return None
-        if bokeh_version > '2.0.0':
+        if bokeh_version > Version('2.0.0'):
             protocol = Protocol()
         else:
             protocol = Protocol("1.0")
@@ -305,7 +305,7 @@ class InteractiveImage(object):
         """
         if not self.comms_handle:
             comm = get_comms(self.ref)
-            comm_args = (comm, self.doc) if bokeh_version > '0.12.9' else (comm, self.doc, {})
+            comm_args = (comm, self.doc) if bokeh_version > Version('0.12.9') else (comm, self.doc, {})
             self.comms_handle = CommsHandle(*comm_args)
         self.update_image(ranges)
         msg = self.get_update_event()

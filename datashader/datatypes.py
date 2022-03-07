@@ -2,8 +2,8 @@ from __future__ import absolute_import
 
 import re
 
-from distutils.version import LooseVersion
 from functools import total_ordering
+from packaging.version import Version
 
 import numpy as np
 import pandas as pd
@@ -449,7 +449,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
                 # check for NA values
                 isna = pd.isna(item)
                 if isna.any():
-                    if LooseVersion(pd.__version__) > '1.0.1':
+                    if Version(pd.__version__) > Version('1.0.1'):
                         item[isna] = False
                     else:
                         raise ValueError(
