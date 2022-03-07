@@ -49,7 +49,7 @@ extras_require = {
         'twine',   # required for pip packaging
         'rfc3986', # required by twine
         'keyring', # required by twine
-        'spatialpandas'
+        'spatialpandas',
         'rioxarray',
     ],
     'examples': examples,
