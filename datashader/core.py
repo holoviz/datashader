@@ -361,6 +361,7 @@ class Canvas(object):
                     "spatialpandas.dask.DaskGeoDataFrame.\n"
                     "  Received value of type {typ}".format(typ=type(source)))
 
+            print("LineAxis1Geometry")
             glyph = LineAxis1Geometry(geometry)
         else:
             # Broadcast column specifications to handle cases where
@@ -371,9 +372,11 @@ class Canvas(object):
             if axis == 0:
                 if (isinstance(x, (Number, string_types)) and
                         isinstance(y, (Number, string_types))):
+                    print("LineAxis0")
                     glyph = LineAxis0(x, y)
                 elif (isinstance(x, (list, tuple)) and
                         isinstance(y, (list, tuple))):
+                    print("LineAxis0Multi")
                     glyph = LineAxis0Multi(tuple(x), tuple(y))
                 else:
                     raise ValueError("""
@@ -386,15 +389,19 @@ See docstring for more information on valid usage""".format(
 
             elif axis == 1:
                 if isinstance(x, (list, tuple)) and isinstance(y, (list, tuple)):
+                    print("LineAxis1")
                     glyph = LinesAxis1(tuple(x), tuple(y))
                 elif (isinstance(x, np.ndarray) and
                       isinstance(y,  (list, tuple))):
+                    print("LineAxis1XConstant")
                     glyph = LinesAxis1XConstant(x, tuple(y))
                 elif (isinstance(x, (list, tuple)) and
                       isinstance(y, np.ndarray)):
+                    print("LineAxis1YConstant")
                     glyph = LinesAxis1YConstant(tuple(x), y)
                 elif (isinstance(x, (Number, string_types)) and
                         isinstance(y, (Number, string_types))):
+                    print("LineAxis1Ragged")
                     glyph = LinesAxis1Ragged(x, y)
                 else:
                     raise ValueError("""
@@ -412,7 +419,16 @@ The axis argument to Canvas.line must be 0 or 1
 
         glyph.set_linewidth(linewidth)
         if linewidth > 0:
-            agg.set_antialias()
+            print("before agg", agg)
+
+            # Switch agg to floating point.
+            if isinstance(agg, rd.count):
+                agg = rd.count_f32()
+            elif isinstance(agg, rd.any):
+                agg = rd.any_f32()
+
+            print("after agg ", agg)
+
             if isinstance(agg, (rd.any, rd.max)):
                 glyph.set_antialias_combination_max()
 
