@@ -419,18 +419,14 @@ The axis argument to Canvas.line must be 0 or 1
 
         glyph.set_linewidth(linewidth)
         if linewidth > 0:
-            print("before agg", agg)
+            if isinstance(agg, (rd.any, rd.max)):
+                glyph.set_antialias_combination_max()
 
             # Switch agg to floating point.
             if isinstance(agg, rd.count):
                 agg = rd.count_f32()
             elif isinstance(agg, rd.any):
                 agg = rd.any_f32()
-
-            print("after agg ", agg)
-
-            if isinstance(agg, (rd.any, rd.max)):
-                glyph.set_antialias_combination_max()
 
         return bypixel(source, self, glyph, agg)
 
