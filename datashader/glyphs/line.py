@@ -5,7 +5,7 @@ from toolz import memoize
 
 from datashader.glyphs.points import _PointLike, _GeometryLike
 from datashader.glyphs.glyph import isnull
-from datashader.utils import isreal, ngjit
+from datashader.utils import isreal, ngjit, nanmax_in_place, nansum_in_place
 from numba import cuda
 
 
@@ -784,38 +784,11 @@ def _full_antialias(linewidth, i, x0, x1, y0, y1, *aggs_and_cols):
 
 
 @ngjit
-def __max_ignoring_nan_in_place(ret, other):
-    # rd.max() equivalent but taking nans into account, used for antialiased combination.
-    ny, nx = ret.shape
-    for j in range(ny):
-        for i in range(nx):
-            if isnull(ret[j, i]):
-                if not isnull(other[j, i]):
-                    ret[j, i] = other[j, i]
-            elif not isnull(other[j, i]) and other[j,i] > ret[j, i]:
-                ret[j,i] = other[j, i]
-
-
-@ngjit
-def __sum_ignoring_nan_in_place(ret, other):
-    # rd.sum() equivalent but taking nans into account, used for antialiased lines.
-    ny, nx = ret.shape
-    for j in range(ny):
-        for i in range(nx):
-            if isnull(ret[j, i]):
-                if not isnull(other[j, i]):
-                    ret[j, i] = other[j, i]
-            elif not isnull(other[j, i]):
-                ret[j,i] += other[j, i]
-
-
-@ngjit
 def _antialias_combine(want_max, ret, other):
     if want_max:
-        return __max_ignoring_nan_in_place(ret, other)
+        return nanmax_in_place(ret, other)
     else:
-        return __sum_ignoring_nan_in_place(ret, other)
-
+        return nansum_in_place(ret, other)
 
 
 def _build_bresenham(expand_aggs_and_cols):

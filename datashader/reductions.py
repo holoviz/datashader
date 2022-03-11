@@ -20,7 +20,7 @@ try:
 except Exception:
     cudf = None
 
-from .utils import Expr, ngjit, nansum_missing
+from .utils import Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place
 
 
 class Preprocess(Expr):
@@ -361,7 +361,10 @@ class count_f32(OptionalFieldReduction):
 
     @staticmethod
     def _combine(aggs):
-        return aggs.sum(axis=0, dtype='f4')
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nansum_in_place(ret, aggs[i])
+        return ret
 
 
 class by(Reduction):
@@ -509,7 +512,10 @@ class any_f32(OptionalFieldReduction):
 
     @staticmethod
     def _combine(aggs):
-        return aggs.sum(axis=0, dtype='f4')
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nanmax_in_place(ret, aggs[i])
+        return ret
 
 
 class _upsample(Reduction):
