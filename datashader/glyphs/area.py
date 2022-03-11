@@ -2,10 +2,10 @@ from __future__ import absolute_import, division
 import numpy as np
 from toolz import memoize
 
-from datashader.glyphs.glyph import Glyph, isnull
+from datashader.glyphs.glyph import Glyph
 from datashader.glyphs.line import _build_map_onto_pixel_for_line, _clipt
 from datashader.glyphs.points import _PointLike
-from datashader.utils import isreal, ngjit
+from datashader.utils import isnull, isreal, ngjit
 from numba import cuda
 
 try:

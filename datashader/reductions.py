@@ -6,7 +6,7 @@ from datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 
-from datashader.glyphs.glyph import isnull
+from datashader.utils import isnull
 from numba import cuda as nb_cuda
 
 try:

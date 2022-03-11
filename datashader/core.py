@@ -2,7 +2,6 @@ from __future__ import absolute_import, division, print_function
 
 from numbers import Number
 from math import log10
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -658,7 +657,7 @@ See docstring for more information on valid usage""".format(
                         y_stack=repr(orig_y_stack)))
         else:
             raise ValueError("""
-The axis argument to Canvas.line must be 0 or 1
+The axis argument to Canvas.area must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
         return bypixel(source, self, glyph, agg)

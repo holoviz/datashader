@@ -4,8 +4,7 @@ import numpy as np
 from toolz import memoize
 
 from datashader.glyphs.points import _PointLike, _GeometryLike
-from datashader.glyphs.glyph import isnull
-from datashader.utils import isreal, ngjit, nanmax_in_place, nansum_in_place
+from datashader.utils import isnull, isreal, ngjit, nanmax_in_place, nansum_in_place
 from numba import cuda
 
 
