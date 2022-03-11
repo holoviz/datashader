@@ -339,6 +339,9 @@ class Canvas(object):
         if agg is None:
             agg = rd.any()
 
+        if linewidth is None:
+            linewidth = 0
+
         # Check and convert antialias kwarg to linewidth.
         if antialias and linewidth != 0:
             raise ValueError(
@@ -361,7 +364,6 @@ class Canvas(object):
                     "spatialpandas.dask.DaskGeoDataFrame.\n"
                     "  Received value of type {typ}".format(typ=type(source)))
 
-            print("LineAxis1Geometry")
             glyph = LineAxis1Geometry(geometry)
         else:
             # Broadcast column specifications to handle cases where
@@ -372,11 +374,9 @@ class Canvas(object):
             if axis == 0:
                 if (isinstance(x, (Number, string_types)) and
                         isinstance(y, (Number, string_types))):
-                    print("LineAxis0")
                     glyph = LineAxis0(x, y)
                 elif (isinstance(x, (list, tuple)) and
                         isinstance(y, (list, tuple))):
-                    print("LineAxis0Multi")
                     glyph = LineAxis0Multi(tuple(x), tuple(y))
                 else:
                     raise ValueError("""
@@ -389,19 +389,15 @@ See docstring for more information on valid usage""".format(
 
             elif axis == 1:
                 if isinstance(x, (list, tuple)) and isinstance(y, (list, tuple)):
-                    print("LineAxis1")
                     glyph = LinesAxis1(tuple(x), tuple(y))
                 elif (isinstance(x, np.ndarray) and
                       isinstance(y,  (list, tuple))):
-                    print("LineAxis1XConstant")
                     glyph = LinesAxis1XConstant(x, tuple(y))
                 elif (isinstance(x, (list, tuple)) and
                       isinstance(y, np.ndarray)):
-                    print("LineAxis1YConstant")
                     glyph = LinesAxis1YConstant(tuple(x), y)
                 elif (isinstance(x, (Number, string_types)) and
                         isinstance(y, (Number, string_types))):
-                    print("LineAxis1Ragged")
                     glyph = LinesAxis1Ragged(x, y)
                 else:
                     raise ValueError("""

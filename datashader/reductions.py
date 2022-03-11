@@ -337,7 +337,6 @@ class count_f32(OptionalFieldReduction):
     def _append_no_field(x, y, agg):
         agg[y, x] += 1
 
-
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
@@ -358,11 +357,12 @@ class count_f32(OptionalFieldReduction):
 
     @staticmethod
     def _create(shape, array_module):
-        return array_module.zeros(shape, dtype='f4')
+        return array_module.full(shape, array_module.nan, dtype='f4')
 
     @staticmethod
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='f4')
+
 
 class by(Reduction):
     """Apply the provided reduction separately per category.
@@ -505,7 +505,7 @@ class any_f32(OptionalFieldReduction):
 
     @staticmethod
     def _create(shape, array_module):
-        return array_module.zeros(shape, dtype='f4')
+        return array_module.full(shape, array_module.nan, dtype='f4')
 
     @staticmethod
     def _combine(aggs):

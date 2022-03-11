@@ -44,7 +44,6 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, linewidth):
-        print("==> LineAxis0")
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
             x_mapper, y_mapper, linewidth > 0)
@@ -132,7 +131,6 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, linewidth):
-        print("==> LineAxis0Multi")
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
             x_mapper, y_mapper, linewidth > 0)
@@ -245,7 +243,6 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, linewidth):
-        print("==> LineAxis1")
         want_antialias = (linewidth > 0)
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
@@ -317,7 +314,6 @@ class LinesAxis1XConstant(LinesAxis1):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, linewidth):
-        print("==> LineAxis1XConstant")
         want_antialias = (linewidth > 0)
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
@@ -388,7 +384,6 @@ class LinesAxis1YConstant(LinesAxis1):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, linewidth):
-        print("==> LineAxis1YConstant")
         want_antialias = (linewidth > 0)
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
@@ -465,7 +460,6 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, linewidth):
-        print("==> LineAxis1Ragged")
         want_antialias = (linewidth > 0)
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
@@ -510,7 +504,6 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, linewidth):
-        print("==> LineAxis1Geometry")
         from spatialpandas.geometry import (
             PolygonArray, MultiPolygonArray, RingArray
         )
@@ -792,7 +785,7 @@ def _full_antialias(linewidth, i, x0, x1, y0, y1, *aggs_and_cols):
 
 @ngjit
 def __max_ignoring_nan_in_place(ret, other):
-    # ds.max() equivalent but taking nans into account, used for antialiased combination.
+    # rd.max() equivalent but taking nans into account, used for antialiased combination.
     ny, nx = ret.shape
     for j in range(ny):
         for i in range(nx):
@@ -805,7 +798,7 @@ def __max_ignoring_nan_in_place(ret, other):
 
 @ngjit
 def __sum_ignoring_nan_in_place(ret, other):
-    # ds.sum() equivalent but taking nans into account, used for antialiased lines.
+    # rd.sum() equivalent but taking nans into account, used for antialiased lines.
     ny, nx = ret.shape
     for j in range(ny):
         for i in range(nx):
