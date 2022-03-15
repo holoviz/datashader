@@ -93,7 +93,7 @@ class Glyph(Expr):
 
     @staticmethod
     def to_cupy_array(df, columns):
-        if cudf.__version__ >= Version("22.02"):
+        if Version(cudf.__version__) >= Version("22.02"):
             return df[columns].to_cupy()
         else:
             if not isinstance(columns, (list, tuple)):
