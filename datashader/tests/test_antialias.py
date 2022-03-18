@@ -73,12 +73,12 @@
 #
 # The big difference between 005 and 006 is that in 005 each line is individual
 # line whereas for 006 it is a multi-segment line, and each vertex is listed
-# only a single time. Datasahder then "connects the dots" as it were.
+# only a single time. Datashader then "connects the dots" as it were.
 #
 # Test 007 tests the edge case, where we draw an almost staright line between
 # corners with only a single pixel offset. This is to ensure that anti-aliasing
 # does not try to draw pixels that  are out of bounds. Importantly, this needs
-# to be run with Numba disabled, since Numba does not do  OOB checking by
+# to be run with Numba disabled, since Numba does not do OOB checking by
 # default.
 #
 # +---------------------------------------------+
@@ -171,7 +171,7 @@ def draw_line(cvs, p1, p2, antialias):
 
     Returns
     -------
-    agg: A Datasahder aggregator  (xarray)
+    agg: A Datashader aggregator (xarray)
 
     """
     xs, ys = np.array([p1[0], p2[0]]), np.array([p1[1], p2[1]])
@@ -196,7 +196,7 @@ def draw_lines(cvs, points, antialias):
 
     Returns
     -------
-    agg: A Datasahder aggregator  (xarray)
+    agg: A Datashader aggregator (xarray)
     """
     aggs = []
     for ((x1, y1), (x2, y2)) in points:
@@ -219,7 +219,7 @@ def draw_multi_segment_line(cvs, points, antialias):
 
     Returns
     -------
-    agg: A Datasahder aggregator  (xarray)
+    agg: A Datashader aggregator (xarray)
     """
     x, y = [], []
     for (x1, y1) in points:
@@ -298,7 +298,7 @@ def load_from_netcdf(filename):
 
     """
     filename = os.path.join(datadir, filename + '.nc')
-    return xr.open_dataset(filename)
+    return xr.open_dataarray(filename)
 
 # All test generators return a 'points' list and the name of the point set
 
@@ -442,7 +442,7 @@ def test_antialiasing():
     loaded = load_test_images(images)
     print(list(loaded.keys()))
     for description in images.keys():
-        assert images[description] == loaded[description]
+        assert (images[description] == loaded[description]).all()
 
 if __name__ == '__main__':
     # Run this to generate the PNG and NetCDF files.
