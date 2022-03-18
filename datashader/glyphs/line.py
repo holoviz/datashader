@@ -59,8 +59,8 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
             aggs_and_cols = aggs + info(df)
 
             if cudf and isinstance(df, cudf.DataFrame):
-                xs = self.to_gpu_matrix(df, x_name)
-                ys = self.to_gpu_matrix(df, y_name)
+                xs = self.to_cupy_array(df, x_name)
+                ys = self.to_cupy_array(df, y_name)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
                 xs = df[x_name].values
@@ -145,8 +145,8 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
             aggs_and_cols = aggs + info(df)
 
             if cudf and isinstance(df, cudf.DataFrame):
-                xs = self.to_gpu_matrix(df, x_names)
-                ys = self.to_gpu_matrix(df, y_names)
+                xs = self.to_cupy_array(df, x_names)
+                ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
                 xs = df[list(x_names)].values
@@ -254,8 +254,8 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
             aggs_and_cols = aggs + info(df)
 
             if cudf and isinstance(df, cudf.DataFrame):
-                xs = self.to_gpu_matrix(df, x_names)
-                ys = self.to_gpu_matrix(df, y_names)
+                xs = self.to_cupy_array(df, x_names)
+                ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
                 xs = df[list(x_names)].values
@@ -324,7 +324,7 @@ class LinesAxis1XConstant(LinesAxis1):
             aggs_and_cols = aggs + info(df)
 
             if cudf and isinstance(df, cudf.DataFrame):
-                ys = self.to_gpu_matrix(df, y_names)
+                ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(ys.shape)]
             else:
                 ys = df[list(y_names)].values
@@ -394,7 +394,7 @@ class LinesAxis1YConstant(LinesAxis1):
             aggs_and_cols = aggs + info(df)
 
             if cudf and isinstance(df, cudf.DataFrame):
-                xs = self.to_gpu_matrix(df, x_names)
+                xs = self.to_cupy_array(df, x_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
                 xs = df[list(x_names)].values
