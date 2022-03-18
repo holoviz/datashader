@@ -59,12 +59,6 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit develop_install ${{ env.CHANS_DEV}} -o tests -o examples
-      # - name: Patch with latest dask from conda-forge
-      #   if: (!contains(matrix.python-version, '3.6'))
-      #   run: |
-      #     eval "$(conda shell.bash hook)"
-      #     conda activate test-environment
-      #     conda install ${{ env.CHANS_DEV}} "dask>=2021.05.0"
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
