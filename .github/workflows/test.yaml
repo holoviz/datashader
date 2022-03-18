@@ -21,8 +21,6 @@ jobs:
       run:
         shell: bash -l {0} 
     env:
-      DESC: "Python ${{ matrix.python-version }} tests"
-      CHANS_DEV: "-c pyviz/label/dev -c conda-forge -c nodefaults"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
@@ -33,32 +31,29 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: conda-incubator/setup-miniconda@v2
         with:
-          miniconda-version: "latest"
+          mamba-version: "*"
+          channels: pyviz/label/dev,conda-forge,nodefaults
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow
-      - name: conda setup 3.6
-        if: matrix.python-version == '3.6'
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda create -c pyviz/label/dev -n test-environment python=${{ matrix.python-version }} pyctdev
-      - name: conda setup > 3.6
+      - name: conda update > 3.6
         if: matrix.python-version != '3.6'
         run: |
-          conda update -n base -c defaults conda
-          conda create ${{ env.CHANS_DEV}} -n test-environment python=${{ matrix.python-version }} pyctdev
-      - name: doit develop_install 3.6
+          conda update -n base conda
+      - name: conda setup
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda create -n test-environment python=${{ matrix.python-version }} pyctdev
+      - name: doit develop_install
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit develop_install -o tests -o examples --conda-mode=mamba
+      - name: panel 3.6
         if: matrix.python-version == '3.6'
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit develop_install -c pyviz/label/dev -o tests -o examples
-          conda install -c pyviz/label/dev "panel=0.12"
-      - name: doit develop_install > 3.6
-        if: matrix.python-version != '3.6'
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit develop_install ${{ env.CHANS_DEV}} -o tests -o examples
+          mamba install "panel=0.12"
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
