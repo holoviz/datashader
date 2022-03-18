@@ -412,6 +412,14 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
+        if (linewidth > 0 and ((cudf and isinstance(source, cudf.DataFrame)) or
+                               (dask_cudf and isinstance(source, dask_cudf.DataFrame)))):
+            import warnings
+            warnings.warn(
+                "Antialiased lines are not supported for CUDA-backed sources, "
+                "so reverting to linewidth=0")
+            linewidth = 0
+
         glyph.set_linewidth(linewidth)
         if linewidth > 0:
             if isinstance(agg, (rd.any, rd.max)):
