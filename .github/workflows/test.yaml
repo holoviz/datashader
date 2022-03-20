@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-        python-version: [3.6, 3.7, 3.8, 3.9, "3.10"]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
     timeout-minutes: 60
     defaults:
       run:
@@ -35,8 +35,8 @@ jobs:
           channels: pyviz/label/dev,conda-forge,nodefaults
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow
-      - name: conda update > 3.6
-        if: matrix.python-version != '3.6'
+      - name: conda update > 3.9
+        if: matrix.python-version > '3.9'
         run: |
           conda update -n base conda
       - name: conda setup
@@ -48,7 +48,7 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit develop_install -o tests -o examples --conda-mode=mamba
-      - name: panel 3.6
+      - name: panel and dataclasses on 3.6  
         if: matrix.python-version == '3.6'
         run: |
           eval "$(conda shell.bash hook)"
