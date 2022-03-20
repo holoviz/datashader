@@ -31,6 +31,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: conda-incubator/setup-miniconda@v2
         with:
+          miniconda-version: "latest"
+          mamba-version: "*"
           channels: pyviz/label/dev,conda-forge,nodefaults
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow
@@ -42,17 +44,19 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           conda create -n test-environment python=${{ matrix.python-version }} pyctdev
-      - name: doit develop_install
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit develop_install -o tests -o examples
-      - name: panel and dataclasses on 3.6  
+      - name: doit develop_install 3.6
         if: matrix.python-version == '3.6'
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
+          doit develop_install -o tests -o examples --conda-mode=mamba
           mamba install "panel=0.12" dataclasses
+      - name: doit develop_install > 3.6
+        if: matrix.python-version > '3.6'
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit develop_install -o tests -o examples
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
