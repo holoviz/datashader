@@ -81,7 +81,6 @@ examples are on https://examples.pyviz.org.
 
 .. toctree::
     :titlesonly:
-    :hidden:
     :maxdepth: 2
 
     Census <https://examples.pyviz.org/census/census.html>
