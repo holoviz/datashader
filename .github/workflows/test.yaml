@@ -31,7 +31,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: conda-incubator/setup-miniconda@v2
         with:
-          mamba-version: "*"
           channels: pyviz/label/dev,conda-forge,nodefaults
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow
@@ -47,7 +46,7 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit develop_install -o tests -o examples --conda-mode=mamba
+          doit develop_install -o tests -o examples
       - name: panel and dataclasses on 3.6  
         if: matrix.python-version == '3.6'
         run: |
