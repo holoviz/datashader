@@ -181,12 +181,13 @@ def eq_hist(data, mask=None, nbins=256*256):
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
     out = interp(data, bin_centers, cdf).reshape(data.shape)
-    return out if mask is None else np.where(mask, np.nan, out)
+    return out if mask is None else np.where(mask, np.nan, out), data2.max()
 
 
-_interpolate_lookup = {'log': lambda d, m: np.log1p(np.where(m, np.nan, d)),
-                       'cbrt': lambda d, m: np.where(m, np.nan, d)**(1/3.),
-                       'linear': lambda d, m: np.where(m, np.nan, d),
+
+_interpolate_lookup = {'log': lambda d, m: (np.log1p(np.where(m, np.nan, d)), None),
+                       'cbrt': lambda d, m: (np.where(m, np.nan, d)**(1/3.), None),
+                       'linear': lambda d, m: (np.where(m, np.nan, d), None),
                        'eq_hist': eq_hist}
 
 
@@ -198,7 +199,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
+def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_small_values):
     if cupy and isinstance(agg.data, cupy.ndarray):
         from ._cuda_utils import masked_clip_2d, interp
     else:
@@ -244,12 +245,21 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
 
     with np.errstate(invalid="ignore", divide="ignore"):
         # Transform data (log, eq_hist, etc.)
-        data = interpolater(data, mask)
+        data, max_data = interpolater(data, mask)
 
         # Transform span
         if span is None:
             masked_data = np.where(~mask, data, np.nan)
             span = np.nanmin(masked_data), np.nanmax(masked_data)
+
+            if rescale_small_values:  # Only valid for how='eq_hist'
+                if max_data is None:
+                    raise ValueError("interpolator did not return a valid max_data")
+
+                lower_span = 1.0 - 0.6*np.log10(max_data)
+                lower_span = np.clip(lower_span, 0.0, 0.9)
+                if lower_span < span[0]:
+                    span = (lower_span, 1)
         else:
             if how == 'eq_hist':
                 # For eq_hist to work with span, we'll need to compute the histogram
@@ -518,7 +528,7 @@ def _apply_discrete_colorkey(agg, color_key, alpha, name, color_baseline):
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
           how='eq_hist', alpha=255, min_alpha=40, span=None, name=None,
-          color_baseline=None):
+          color_baseline=None, rescale_small_values=False):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
 
     Requires a DataArray with a single data dimension, here called the
@@ -615,6 +625,12 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         color will be an evenly weighted average of all such
         categories with data (to avoid the color being undefined in
         this case).
+    rescale_small_values : boolean, optional
+        If ``how='eq_hist`` and there are a small number of discrete values
+        then ``rescale_small_values=True`` decreases the lower limit of the
+        autoranged span so that the values are rendering towards the top of
+        the ``cmap`` range, thus avoiding washout of the lower values.
+        Has no effect if ``how!=`eq_hist``. Default is False.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
@@ -623,13 +639,18 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     if not ((0 <= min_alpha <= 255) and (0 <= alpha <= 255)):
         raise ValueError("min_alpha ({}) and alpha ({}) must be between 0 and 255".format(min_alpha,alpha))
 
+    if rescale_small_values and how != 'eq_hist':
+        rescale_small_values = False
+        import warnings
+        warnings.warn("rescale_small_values is only valid for how='eq_hist', so ignoring")
+
     if agg.ndim == 2:
         if color_key is not None and isinstance(color_key, dict):
             return _apply_discrete_colorkey(
                 agg, color_key, alpha, name, color_baseline
             )
         else:
-            return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
+            return _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_small_values)
     elif agg.ndim == 3:
         return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     else:
@@ -872,7 +893,7 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         if density > threshold:
             px_=px_-1
             break
-        
+
     if px_>=1:
         return spread(img, px_, shape=shape, how=how, name=name)
     else:
