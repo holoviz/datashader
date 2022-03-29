@@ -256,9 +256,13 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_small_val
                 if max_data is None:
                     raise ValueError("interpolator did not return a valid max_data")
 
-                lower_span = 1.0 - 0.6*np.log10(max_data)
-                lower_span = np.clip(lower_span, 0.0, 0.9)
-                if lower_span < span[0]:
+                # Straight line y = mx + c through (2, 1.5) and (100, 1) where
+                # x is max_data (number of discrete levels) and y is lower span limit.
+                m = -0.5/98.0  # (y[1] - y[0]) / (x[1] - x[0])
+                c = 1.5 - 2*m  # y[0] - m*x[0]
+                multiple = m*max_data + c
+                if multiple > 1:
+                    lower_span = max(span[1] - multiple*(span[1] - span[0]), 0)
                     span = (lower_span, 1)
         else:
             if how == 'eq_hist':
