@@ -185,9 +185,9 @@ def eq_hist(data, mask=None, nbins=256*256):
 
 
 
-_interpolate_lookup = {'log': lambda d, m: (np.log1p(np.where(m, np.nan, d)), None),
-                       'cbrt': lambda d, m: (np.where(m, np.nan, d)**(1/3.), None),
-                       'linear': lambda d, m: (np.where(m, np.nan, d), None),
+_interpolate_lookup = {'log': lambda d, m: np.log1p(np.where(m, np.nan, d)),
+                       'cbrt': lambda d, m: np.where(m, np.nan, d)**(1/3.),
+                       'linear': lambda d, m: np.where(m, np.nan, d),
                        'eq_hist': eq_hist}
 
 
@@ -245,7 +245,10 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_small_val
 
     with np.errstate(invalid="ignore", divide="ignore"):
         # Transform data (log, eq_hist, etc.)
-        data, max_data = interpolater(data, mask)
+        data = interpolater(data, mask)
+        max_data = None
+        if isinstance(data, (list, tuple)):
+            data, max_data = data
 
         # Transform span
         if span is None:

@@ -1034,13 +1034,13 @@ def test_eq_hist():
     data[np.random.randint(300**2, size=100)] = np.nan
     data = (data - np.nanmin(data)).reshape((300, 300))
     mask = np.isnan(data)
-    eq = tf.eq_hist(data, mask)
+    eq, _ = tf.eq_hist(data, mask)
     check_eq_hist_cdf_slope(eq)
     assert (np.isnan(eq) == mask).all()
     # Integer
     data = np.random.normal(scale=100, size=(300, 300)).astype('i8')
     data = data - data.min()
-    eq = tf.eq_hist(data)
+    eq, _ = tf.eq_hist(data)
     check_eq_hist_cdf_slope(eq)
 
 
