@@ -15,17 +15,12 @@ jobs:
       fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-        python-version: [3.6, 3.7, 3.8]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
     timeout-minutes: 60
     defaults:
       run:
         shell: bash -l {0} 
     env:
-      DESC: "Python ${{ matrix.python-version }} tests"
-      HV_REQUIREMENTS: "unit_tests"
-      PYTHON_VERSION: ${{ matrix.python-version }}
-      CHANS_DEV: "-c pyviz/label/dev"
-      CHANS: "-c pyviz -c bokeh -c conda-forge"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
@@ -36,33 +31,31 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: conda-incubator/setup-miniconda@v2
         with:
+          channel-priority: strict
           miniconda-version: "latest"
+          mamba-version: "*"
+          channels: pyviz/label/dev,conda-forge,nodefaults
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow
+      - name: conda update > 3.9
+        if: matrix.python-version > '3.9'
+        run: |
+          conda update -n base conda
       - name: conda setup
         run: |
-          conda config --set always_yes True
-          conda update -n base -c defaults conda
-          conda install -c pyviz "pyctdev>=0.5"
-          doit ecosystem_setup
-          doit env_create ${{ env.CHANS_DEV}} --python=${{ matrix.python-version }}
+          eval "$(conda shell.bash hook)"
+          conda create -n test-environment python=${{ matrix.python-version }} pyctdev
       - name: doit develop_install
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit develop_install ${{ env.CHANS_DEV}} -o tests -o examples
-      - name: Current dev version of panel is broken on py36
-        if: (matrix.python-version == '3.6')
+          doit develop_install -o tests -o examples --conda-mode=mamba
+      - name: Python 3.6 installs
+        if: matrix.python-version == '3.6'
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          conda install ${{ env.CHANS_DEV}} "panel=0.12"
-      - name: Patch with latest dask from conda-forge
-        if: (!contains(matrix.python-version, '3.6'))
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          conda install -c conda-forge "dask>=2021.05.0"
+          mamba install "panel=0.12" dataclasses
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
