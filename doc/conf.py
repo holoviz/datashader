@@ -34,6 +34,12 @@ html_theme_options.update({
             'url': 'https://discourse.holoviz.org/c/datashader/',
             'icon': 'fab fa-discourse',
         },
+        {
+            "name": "HoloViz",
+            "url": "https://holoviz.org/",
+            "icon": holoviz_icon_white(__file__),
+            "type": "local",
+        },
     ],
     'google_analytics_id': 'UA-154795830-1',
 })
