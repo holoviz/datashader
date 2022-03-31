@@ -34,7 +34,7 @@ examples = [
 
 extras_require = {
     'tests': [
-        'pytest >=3.9.3,<6.0',
+        'pytest >=3.9.3',
         'pytest-benchmark >=3.0.0',
         'pytest-cov',
         'codecov',
@@ -46,9 +46,6 @@ extras_require = {
         'bokeh',
         'pyarrow',
         'netcdf4',
-        'twine',   # required for pip packaging
-        'rfc3986', # required by twine
-        'keyring', # required by twine
         'spatialpandas'
     ],
     'examples': examples,
