@@ -25,7 +25,10 @@ def build_agg(array_module=np):
     c = array_module.arange(10, 19, dtype='f8').reshape((3, 3))
     c[[0, 1, 2], [0, 1, 2]] = array_module.nan
     s_c = xr.DataArray(c, coords=coords, dims=dims)
-    agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c))
+    d = array_module.arange(10, 19, dtype='u4').reshape((3, 3))
+    d[[0, 1, 2, 2], [0, 1, 2, 1]] = 1
+    s_d = xr.DataArray(d, coords=coords, dims=dims)
+    agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c, d=s_d))
     return agg
 
 
@@ -461,6 +464,7 @@ def test_shade_category(array):
     assert ((img.data[1,0] >> 24) & 0xFF) == 20 # min alpha
     assert ((img.data[1,1] >> 24) & 0xFF) == 20 # min alpha
 
+
 @pytest.mark.parametrize('array', arrays)
 def test_shade_zeros(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
@@ -474,6 +478,25 @@ def test_shade_zeros(array):
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=0)
     sol = np.array([[5584810, 5584810],
                     [5584810, 5584810]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+
+
+@pytest.mark.parametrize('agg', aggs)
+@pytest.mark.parametrize('attr', ['d'])
+@pytest.mark.parametrize('rescale', [False, True])
+def test_shade_rescale_small_values(agg, attr, rescale):
+    x = getattr(agg, attr)
+    cmap = ['pink', 'red']
+    img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_small_values=rescale)
+    if rescale:
+        sol = np.array([[0xff8d85ff, 0xff716bff, 0xff5450ff],
+                        [0xff3835ff, 0xff8d85ff, 0xff1c1aff],
+                        [0xff0000ff, 0xff8d85ff, 0xff8d85ff]], dtype='uint32')
+    else:
+        sol = np.array([[0xffcbc0ff, 0xffa299ff, 0xff7973ff],
+                        [0xff514cff, 0xffcbc0ff, 0xff2826ff],
+                        [0xff0000ff, 0xffcbc0ff, 0xffcbc0ff]], dtype='uint32')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
