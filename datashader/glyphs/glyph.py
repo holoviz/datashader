@@ -98,9 +98,9 @@ class Glyph(Expr):
         if isinstance(columns, tuple):
             columns = list(columns)
 
-        # cuDF does not extract the same column name multiple
-        # times but only one time. Where pandas extract the
-        # column name multiple times. See PR 1050 for more details.
+        # Pandas extracts the column name multiple times, but
+        # cuDF only extracts each name a single time. For details, see:
+        # https://github.com/holoviz/datashader/pull/1050
         if isinstance(columns, list) and (len(columns) != len(set(columns))):
             return cp.stack([cp.array(df[c]) for c in columns], axis=1)
 
