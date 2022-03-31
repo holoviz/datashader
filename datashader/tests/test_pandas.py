@@ -1281,7 +1281,8 @@ if sp:
     )
 @pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_args,cvs_kwargs', line_autorange_params)
-def test_line_autorange(DataFrame, df_args, cvs_kwargs):
+@pytest.mark.parametrize('linewidth', [0, 1])
+def test_line_autorange(DataFrame, df_args, cvs_kwargs, linewidth):
     if cudf and DataFrame is cudf_DataFrame:
         if (isinstance(getattr(df_args[0].get('x', []), 'dtype', ''), RaggedDtype) or
                 sp and isinstance(
@@ -1289,6 +1290,9 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs):
                 )
         ):
             pytest.skip("cudf DataFrames do not support extension types")
+
+        if linewidth > 0:
+            pytest.skip("cudf DataFrames do not support antialiased lines")
 
     df = DataFrame(geo='geometry' in cvs_kwargs, *df_args)
 
@@ -1298,21 +1302,38 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs):
 
     cvs = ds.Canvas(plot_width=9, plot_height=9)
 
-    agg = cvs.line(df, agg=ds.count(), **cvs_kwargs)
+    agg = cvs.line(df, agg=ds.count(), linewidth=linewidth, **cvs_kwargs)
 
-    sol = np.array([[0, 0, 0, 0, 2, 0, 0, 0, 0],
-                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
-                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
-                    [1, 0, 0, 0, 0, 0, 0, 0, 1],
-                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
-                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
-                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
-                    [0, 0, 0, 0, 2, 0, 0, 0, 0]], dtype='i4')
+    if linewidth > 0:
+        sol = np.array([
+            [np.nan,   np.nan,   np.nan,   np.nan,   1.146447, 1.146447, np.nan,   np.nan,   np.nan  ],
+            [np.nan,   np.nan,   np.nan,   0.646447, 0.646447, 0.646447, 0.646447, np.nan,   np.nan  ],
+            [np.nan,   np.nan,   0.646447, 0.646447, np.nan,   np.nan,   0.646447, 0.646447, np.nan  ],
+            [np.nan,   0.646447, 0.646447, np.nan,   np.nan,   np.nan,   np.nan,   0.646447, 0.646447],
+            [0.646447, 0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447],
+            [0.646447, 0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447],
+            [np.nan,   0.646447, 0.646447, np.nan,   np.nan,   np.nan,   np.nan,   0.646447, 0.646447],
+            [np.nan,   np.nan,   0.646447, 0.646447, np.nan,   np.nan,   0.646447, 0.646447, np.nan  ],
+            [np.nan,   np.nan,   np.nan,   0.646447, 0.646447, 0.646447, 0.646447, np.nan,   np.nan  ]
+        ], dtype='f4')
+
+        if cvs_kwargs == dict(x='x', y='y', axis=0):
+            # axis0 single draws both lines at the same time.
+            sol[[0, 0], [4, 5]] = 0.646447
+    else:
+        sol = np.array([[0, 0, 0, 0, 2, 0, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                        [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                        [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+                        [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                        [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                        [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 2, 0, 0, 0, 0]], dtype='i4')
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
-    assert_eq_xr(agg, out)
+    assert_eq_xr(agg, out, close=(linewidth > 0))
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
