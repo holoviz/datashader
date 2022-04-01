@@ -2,11 +2,16 @@ from __future__ import absolute_import
 import pytest
 
 try:
+    import rasterio
+except ImportError:
+    rasterio = None
+
+try:
     import rioxarray
 except ImportError:
     rioxarray = None
 
-rioxarray_available = pytest.mark.skipif(rioxarray is None, reason="requires rioxarray")
+open_rasterio_available = pytest.mark.skipif(rioxarray is None and rasterio is None, reason="requires rioxarray or rasterio")
 
 from os import path
 from itertools import product
@@ -19,15 +24,26 @@ import pandas as pd
 
 from datashader.resampling import compute_chunksize
 import datashader.transfer_functions as tf
+from packaging.version import Version
 
 BASE_PATH = path.split(__file__)[0]
 DATA_PATH = path.abspath(path.join(BASE_PATH, 'data'))
 TEST_RASTER_PATH = path.join(DATA_PATH, 'world.rgb.tif')
 
 
+def open_rasterio(path, *args, **kwargs):
+    # xarray deprecated xr.open_rasterio in its 0.20 release
+    # in favor or rioxarray.open_rasterio.
+    if Version(xr) < Version('0.20'):
+        func = xr.open_rasterio
+    else:
+        func = rioxarray.open_rasterio
+    return func(path, *args, **kwargs)
+
+
 @pytest.fixture
 def cvs():
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         res = ds.utils.calc_res(src)
         left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
         return ds.Canvas(plot_width=2,
@@ -36,38 +52,38 @@ def cvs():
                          y_range=(bottom, top))
 
 
-@rioxarray_available
+@open_rasterio_available
 def test_raster_aggregate_default(cvs):
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src)
         assert agg is not None
 
-@rioxarray_available
+@open_rasterio_available
 def test_raster_aggregate_nearest(cvs):
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, upsample_method='nearest')
         assert agg is not None
 
 
 @pytest.mark.skip('use_overviews opt no longer supported; may be re-implemented in the future')
-@rioxarray_available
+@open_rasterio_available
 def test_raster_aggregate_with_overviews(cvs):
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, use_overviews=True)
         assert agg is not None
 
 
 @pytest.mark.skip('use_overviews opt no longer supported; may be re-implemented in the future')
-@rioxarray_available
+@open_rasterio_available
 def test_raster_aggregate_without_overviews(cvs):
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, use_overviews=False)
         assert agg is not None
 
 
-@rioxarray_available
+@open_rasterio_available
 def test_out_of_bounds_return_correct_size(cvs):
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         cvs = ds.Canvas(plot_width=2,
                         plot_height=2,
                         x_range=[1e10, 1e20],
@@ -80,9 +96,9 @@ def test_out_of_bounds_return_correct_size(cvs):
             assert False
 
 
-@rioxarray_available
+@open_rasterio_available
 def test_partial_extent_returns_correct_size():
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         res = ds.utils.calc_res(src)
         left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
         half_width = (right - left) / 2
@@ -96,9 +112,9 @@ def test_partial_extent_returns_correct_size():
         assert agg is not None
 
 
-@rioxarray_available
+@open_rasterio_available
 def test_partial_extent_with_layer_returns_correct_size(cvs):
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         res = ds.utils.calc_res(src)
         left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
         half_width = (right - left) / 2
@@ -112,9 +128,9 @@ def test_partial_extent_with_layer_returns_correct_size(cvs):
         assert agg is not None
 
 
-@rioxarray_available
+@open_rasterio_available
 def test_full_extent_returns_correct_coords():
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         res = ds.utils.calc_res(src)
         left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
         cvs = ds.Canvas(plot_width=512,
@@ -128,28 +144,28 @@ def test_full_extent_returns_correct_coords():
             assert np.all(agg[dim].data == src[dim].data)
 
 
-@rioxarray_available
+@open_rasterio_available
 def test_calc_res():
     """Assert that resolution is calculated correctly when using the xarray
     rasterio backend.
     """
     import rasterio
 
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         xr_res = ds.utils.calc_res(src)
     with rasterio.open(TEST_RASTER_PATH) as src:
         rio_res = src.res
     assert np.allclose(xr_res, rio_res)
 
 
-@rioxarray_available
+@open_rasterio_available
 def test_calc_bbox():
     """Assert that bounding boxes are calculated correctly when using the xarray
     rasterio backend.
     """
     import rasterio
 
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         xr_res = ds.utils.calc_res(src)
         xr_bounds = ds.utils.calc_bbox(src.x.values, src.y.values, xr_res)
     with rasterio.open(TEST_RASTER_PATH) as src:
@@ -494,12 +510,12 @@ def test_resample_compute_chunksize():
     assert explicit_chunksize == (5, 4)
 
 
-@rioxarray_available
+@open_rasterio_available
 def test_resample_methods(cvs):
     """Assert that an error is raised when incorrect upsample and/or downsample
     methods are provided to cvs.raster().
     """
-    with rioxarray.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         try:
             cvs.raster(src, upsample_method='santaclaus', downsample_method='toothfairy')
         except ValueError:

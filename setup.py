@@ -51,6 +51,7 @@ extras_require = {
         'keyring', # required by twine
         'spatialpandas',
         'rioxarray',
+        'rasterio',
     ],
     'examples': examples,
     'examples_extra': examples + [
