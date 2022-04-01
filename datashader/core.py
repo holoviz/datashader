@@ -13,7 +13,7 @@ from xarray import DataArray, Dataset
 from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
-    compute_coords, dshape_from_xarray_dataset
+    dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
@@ -1041,7 +1041,9 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         height_ratio = min((ymax - ymin) / (self.y_range[1] - self.y_range[0]), 1)
 
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
-            raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
+            raise ValueError('Canvas x_range or y_range values do not match closely enough '
+                             'with the data source to be able to accurately rasterize. '
+                             'Please provide ranges that are more accurate.')
 
         w = max(int(round(self.plot_width * width_ratio)), 1)
         h = max(int(round(self.plot_height * height_ratio)), 1)
@@ -1126,7 +1128,29 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             data = data.astype(dtype)
 
         # Compute DataArray metadata
-        xs, ys = compute_coords(self.plot_width, self.plot_height, self.x_range, self.y_range, res)
+
+        # To avoid floating point representation error,
+        # do not recompute x coords if same x_range and same plot_width,
+        # do not recompute y coords if same y_range and same plot_height
+        close_x = np.allclose([left, right], self.x_range) and np.size(xvals) == self.plot_width
+        close_y = np.allclose([bottom, top], self.y_range) and np.size(yvals) == self.plot_height
+
+        if close_x:
+            xs = xvals
+        else:
+            x_st = self.x_axis.compute_scale_and_translate(self.x_range, self.plot_width)
+            xs = self.x_axis.compute_index(x_st, self.plot_width)
+            if res[0] < 0:
+                xs = xs[::-1]
+
+        if close_y:
+            ys = yvals
+        else:
+            y_st = self.y_axis.compute_scale_and_translate(self.y_range, self.plot_height)
+            ys = self.y_axis.compute_index(y_st, self.plot_height)
+            if res[1] > 0:
+                ys = ys[::-1]
+
         coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
         attrs = dict(res=res[0])
@@ -1182,7 +1206,7 @@ def bypixel(source, canvas, glyph, agg):
     if isinstance(source, Dataset) and len(source.dims) == 1:
         columns = list(source.coords.keys()) + list(source.data_vars.keys())
         cols_to_keep = _cols_to_keep(columns, glyph, agg)
-        source = source.drop([col for col in columns if col not in cols_to_keep])
+        source = source.drop_vars([col for col in columns if col not in cols_to_keep])
         source = source.to_dask_dataframe()
 
     if (isinstance(source, pd.DataFrame) or

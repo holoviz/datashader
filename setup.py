@@ -15,7 +15,7 @@ install_requires = [
     'dask[complete] >=0.18.0',
     'datashape >=0.5.1',
     'numba >=0.51',
-    'numpy >=1.7',
+    'numpy >=1.7,!=1.22',
     'pandas >=0.24.1',
     'pillow >=3.1.1',
     'xarray >=0.9.6',
@@ -34,22 +34,21 @@ examples = [
 
 extras_require = {
     'tests': [
-        'pytest >=3.9.3,<6.0',
+        'pytest >=3.9.3',
         'pytest-benchmark >=3.0.0',
         'pytest-cov',
         'codecov',
         'flake8',
         'nbconvert',
-        'nbsmoke[all] >0.5',
+        'nbsmoke[verify] >0.5',
         'fastparquet >=0.1.6',  # optional dependency
         'holoviews >=1.10.0',
         'bokeh',
         'pyarrow',
         'netcdf4',
-        'twine',   # required for pip packaging
-        'rfc3986', # required by twine
-        'keyring', # required by twine
-        'spatialpandas'
+        'spatialpandas',
+        'rioxarray',
+        'rasterio',
     ],
     'examples': examples,
     'examples_extra': examples + [
@@ -73,7 +72,11 @@ extras_require['doc'] = extras_require['examples_extra'] + [
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
 
-
+extras_require['gpu_tests'] = [
+    "cupy",
+    "cudf",  # Install with conda install -c rapidsai
+    "dask-cudf",  # Install with conda install -c rapidsai
+]
 
 ########## metadata for setuptools ##########
 
@@ -84,6 +87,9 @@ setup_args = dict(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url='https://datashader.org',
+    project_urls={
+        'Source': 'https://github.com/holoviz/datashader',
+    },
     maintainer='Datashader developers',
     maintainer_email='dev@datashader.org',
     python_requires=">=2.7",

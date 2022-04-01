@@ -122,7 +122,11 @@ def values(s):
     """Get numpy array of values from pandas-like Series, handling Series
     of different types"""
     if cudf and isinstance(s, cudf.Series):
-        return s.to_array(fillna=np.nan)
+        try:
+            return s.to_numpy(na_value=np.nan)
+        except AttributeError:
+            # to_array is deprecated from cudf 22.02
+            return s.to_array(fillna=np.nan)
     else:
         return s.values
 
@@ -130,6 +134,21 @@ def values(s):
 def test_gpu_dependencies():
     if test_gpu is True and cudf is None:
         pytest.fail("cudf and/or cupy not available and DATASHADER_TEST_GPU=1")
+
+
+@pytest.mark.skipif(test_gpu is None, reason="DATASHADER_TEST_GPU not in environment")
+@pytest.mark.skipif(test_gpu is False, reason="DATASHADER_TEST_GPU is set to False")
+def test_cudf_concat():
+    # Testing if a newer version of cuDF implements the possibility to
+    # concatenate multiple columns with the same name.
+    # Currently, a workaround for this is
+    # implemented in `datashader.glyphs.Glyph.to_cupy_array`.
+    # For details, see: https://github.com/holoviz/datashader/pull/1050
+
+    with pytest.raises(NotImplementedError):
+        dfp = pd.DataFrame({'y': [0, 1]})
+        dfc = cudf.from_pandas(dfp)
+        cudf.concat((dfc["y"], dfc["y"]), axis=1)
 
 
 @pytest.mark.parametrize('df', dfs)

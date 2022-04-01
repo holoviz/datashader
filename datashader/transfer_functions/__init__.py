@@ -409,7 +409,11 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha):
                 offset = total[total > 0].min()
             total = np.where(~mask, total, np.nan)
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
-        norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
+
+        # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
+        with np.warnings.catch_warnings():
+            np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+            norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
     else:
         if how == 'eq_hist':
             # For eq_hist to work with span, we'll need to compute the histogram

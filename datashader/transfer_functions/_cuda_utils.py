@@ -1,7 +1,7 @@
 from __future__ import division
 
-from distutils.version import LooseVersion
 from math import ceil, isnan
+from packaging.version import Version
 
 try:
     from math import nan
@@ -84,14 +84,14 @@ def masked_clip_2d(data, mask, lower, upper):
 
 # Behaviour of numba.cuda.atomic.max/min changed in 0.50 so as to behave as per
 # np.nanmax/np.nanmin
-if LooseVersion(numba.__version__) >= LooseVersion("0.51.0"):
+if Version(numba.__version__) >= Version("0.51.0"):
     @cuda.jit(device=True)
     def cuda_atomic_nanmin(ary, idx, val):
         return cuda.atomic.nanmin(ary, idx, val)
     @cuda.jit(device=True)
     def cuda_atomic_nanmax(ary, idx, val):
         return cuda.atomic.nanmax(ary, idx, val)
-elif LooseVersion(numba.__version__) <= LooseVersion("0.49.1"):
+elif Version(numba.__version__) <= Version("0.49.1"):
     @cuda.jit(device=True)
     def cuda_atomic_nanmin(ary, idx, val):
         return cuda.atomic.min(ary, idx, val)
