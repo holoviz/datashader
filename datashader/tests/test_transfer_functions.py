@@ -485,10 +485,10 @@ def test_shade_zeros(array):
 @pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('attr', ['d'])
 @pytest.mark.parametrize('rescale', [False, True])
-def test_shade_rescale_small_values(agg, attr, rescale):
+def test_shade_rescale_discrete_levels(agg, attr, rescale):
     x = getattr(agg, attr)
     cmap = ['pink', 'red']
-    img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_small_values=rescale)
+    img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=rescale)
     if rescale:
         sol = np.array([[0xff8d85ff, 0xff716bff, 0xff5450ff],
                         [0xff3835ff, 0xff8d85ff, 0xff1c1aff],

@@ -199,7 +199,7 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_small_values):
+def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_levels):
     if cupy and isinstance(agg.data, cupy.ndarray):
         from ._cuda_utils import masked_clip_2d, interp
     else:
@@ -246,30 +246,30 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_small_val
     with np.errstate(invalid="ignore", divide="ignore"):
         # Transform data (log, eq_hist, etc.)
         data = interpolater(data, mask)
-        max_data = None
+        discrete_levels = None
         if isinstance(data, (list, tuple)):
-            data, max_data = data
+            data, discrete_levels = data
 
         # Transform span
         if span is None:
             masked_data = np.where(~mask, data, np.nan)
             span = np.nanmin(masked_data), np.nanmax(masked_data)
 
-            if rescale_small_values:  # Only valid for how='eq_hist'
-                if max_data is None:
-                    raise ValueError("interpolator did not return a valid max_data")
+            if rescale_discrete_levels:  # Only valid for how='eq_hist'
+                if discrete_levels is None:
+                    raise ValueError("interpolator did not return a valid discrete_levels")
 
                 # Straight line y = mx + c through (2, 1.5) and (100, 1) where
-                # x is max_data (number of discrete levels) and y is lower span limit.
+                # x is number of discrete_levels and y is lower span limit.
                 m = -0.5/98.0  # (y[1] - y[0]) / (x[1] - x[0])
                 c = 1.5 - 2*m  # y[0] - m*x[0]
-                multiple = m*max_data + c
+                multiple = m*discrete_levels + c
                 if multiple > 1:
                     lower_span = max(span[1] - multiple*(span[1] - span[0]), 0)
                     span = (lower_span, 1)
         else:
             if how == 'eq_hist':
-                # For eq_hist to work with span, we'll need to compute the histogram
+                # For eq_hist to work with span, we'd need to compute the histogram
                 # only on the specified span's range.
                 raise ValueError("span is not (yet) valid to use with eq_hist")
 
@@ -535,7 +535,7 @@ def _apply_discrete_colorkey(agg, color_key, alpha, name, color_baseline):
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
           how='eq_hist', alpha=255, min_alpha=40, span=None, name=None,
-          color_baseline=None, rescale_small_values=False):
+          color_baseline=None, rescale_discrete_levels=False):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
 
     Requires a DataArray with a single data dimension, here called the
@@ -632,12 +632,13 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         color will be an evenly weighted average of all such
         categories with data (to avoid the color being undefined in
         this case).
-    rescale_small_values : boolean, optional
-        If ``how='eq_hist`` and there are a small number of discrete values
-        then ``rescale_small_values=True`` decreases the lower limit of the
-        autoranged span so that the values are rendering towards the top of
-        the ``cmap`` range, thus avoiding washout of the lower values.
-        Has no effect if ``how!=`eq_hist``. Default is False.
+    rescale_discrete_levels : boolean, optional
+        If ``how='eq_hist`` and there are only a few discrete values,
+        then ``rescale_discrete_levels=True`` decreases the lower
+        limit of the autoranged span so that the values are rendering
+        towards the (more visible) top of the ``cmap`` range, thus
+        avoiding washout of the lower values.  Has no effect if
+        ``how!=`eq_hist``. Default is False.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
@@ -646,10 +647,8 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     if not ((0 <= min_alpha <= 255) and (0 <= alpha <= 255)):
         raise ValueError("min_alpha ({}) and alpha ({}) must be between 0 and 255".format(min_alpha,alpha))
 
-    if rescale_small_values and how != 'eq_hist':
-        rescale_small_values = False
-        import warnings
-        warnings.warn("rescale_small_values is only valid for how='eq_hist', so ignoring")
+    if rescale_discrete_levels and how != 'eq_hist':
+        rescale_discrete_levels = False
 
     if agg.ndim == 2:
         if color_key is not None and isinstance(color_key, dict):
@@ -657,7 +656,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
                 agg, color_key, alpha, name, color_baseline
             )
         else:
-            return _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_small_values)
+            return _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_levels)
     elif agg.ndim == 3:
         return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     else:
