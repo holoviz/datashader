@@ -248,20 +248,24 @@ class Canvas(object):
             Column name of a LinesArray of the coordinates of each line. If provided,
             the x and y arguments may not also be provided.
         linewidth : number, optional
-            Width of antialiased lines in pixels. If zero, the default, do not
-            use antialiasing, which results in line shapes that are blocky but
-            easy to reason about. If greater than zero use antialiasing. This
-            spreads the line out into neighboring pixels which produces a less
-            blocky output with lines that have a more uniform visual impact
-            regardless of their angle with respect to the pixels, but is slower
-            to produce. Linewidths between 0 and 1 always use a linewidth of 1
-            but with a proportionate reduction in the strength of the line
-            pixels.
+            Width of the line to draw, in pixels. If zero, the
+            default, lines are drawn using a simple algorithm with a
+            blocky single-pixel width based on whether the line passes
+            through each pixel or does not. If greater than one, lines
+            are drawn with the specified width ususing a slower and
+            more complex antialiasing algorithm with fractional values
+            along each edge, so that lines have a more uniform visual
+            appearance across all angles. Linewidths between 0 and 1
+            effectively use a linewidth of 1 pixel but with a
+            proportionate reduction in the strength of each pixel,
+            approximating the visual appearance of a subpixel line
+            width.
         antialias : bool, optional
-            This is kept for backward compatibility. ``True`` is equivalent to
-            ``linewidth=1`` and ``False``, the default to ``linewidth=0``. Do
-            not specify both ``antialias`` and ``linewidth`` in the same call
-            as a ``ValueError`` will be raised if they disagree.
+            This option is kept for backward compatibility only. 
+            ``True`` is equivalent to ``linewidth=1`` and
+            ``False`` (the default) to ``linewidth=0``. Do not specify
+            both ``antialias`` and ``linewidth`` in the same call as a
+            ``ValueError`` will be raised if they disagree.
 
         Examples
         --------
@@ -344,8 +348,8 @@ class Canvas(object):
         # Check and convert antialias kwarg to linewidth.
         if antialias and linewidth != 0:
             raise ValueError(
-                "Do not specify non-default values for both the linewidth and \n"
-                "antialias keyword arguments, use one only, preferably linewidth.")
+                "Do not specify values for both the linewidth and \n"
+                "antialias keyword arguments; use linewidth instead.")
         if antialias:
             linewidth = 1.0
 
