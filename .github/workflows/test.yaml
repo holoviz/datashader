@@ -47,6 +47,9 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           conda create -n test-environment python=${{ matrix.python-version }} pyctdev
+      - name: temporarily patch setup.py on windows
+        if: matrix.os == 'windows-latest'
+        run: sed -i -e 's/numpy >=1.7,!=1.22/numpy <1.22/g' setup.py
       - name: doit develop_install
         run: |
           eval "$(conda shell.bash hook)"
