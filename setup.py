@@ -33,7 +33,6 @@ examples = [
 ]
 
 extras_require = {
-    'debug':['twine'],
     'tests': [
         'pytest >=3.9.3',
         'pytest-benchmark >=3.0.0',
@@ -41,7 +40,7 @@ extras_require = {
         'codecov',
         'flake8',
         'nbconvert',
-        'nbsmoke[all] >0.5',
+        'nbsmoke[verify] >0.5',
         'fastparquet >=0.1.6',  # optional dependency
         'holoviews >=1.10.0',
         'bokeh',
