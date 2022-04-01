@@ -301,23 +301,20 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
 
 def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline):
     if cupy and isinstance(agg.data, cupy.ndarray):
-        from ._cuda_utils import interp, masked_clip_2d 
         array = cupy.array
     else:
-        from ._cpu_utils import masked_clip_2d
-        interp = np.interp
         array = np.array
 
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
-    
+
     cats = agg.indexes[agg.dims[-1]]
     if not len(cats): # No categories and therefore no data; return an empty image
         return Image(np.zeros(agg.shape[0:2], dtype=np.uint32), dims=agg.dims[:-1],
                      coords=OrderedDict([
                          (agg.dims[1], agg.coords[agg.dims[1]]),
                          (agg.dims[0], agg.coords[agg.dims[0]]) ]), name=name)
-    
+
     if color_key is None:
         raise ValueError("Color key must be provided, with at least as many " +
                          "colors as there are categorical fields")
@@ -329,6 +326,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
 
     colors = [rgb(color_key[c]) for c in cats]
     rs, gs, bs = map(array, zip(*colors))
+
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
     data = orient_array(agg_t).transpose([1, 2, 0])
@@ -347,9 +345,9 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
             color_data[color_data<0]=0
 
     color_total = nansum_missing(color_data, axis=2)
-
     # dot does not handle nans, so replace with zeros
     color_data[np.isnan(data)] = 0
+
     # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
     with np.errstate(divide='ignore', invalid='ignore'):
         r = (color_data.dot(rs)/color_total).astype(np.uint8)
@@ -360,6 +358,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     # take avg color of all non-nan categories
     color_mask = ~np.isnan(data)
     cmask_sum = np.sum(color_mask, axis=2)
+
     with np.errstate(divide='ignore', invalid='ignore'):
         r2 = (color_mask.dot(rs)/cmask_sum).astype(np.uint8)
         g2 = (color_mask.dot(gs)/cmask_sum).astype(np.uint8)
@@ -369,9 +368,35 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     r = np.where(missing_colors, r2, r)
     g = np.where(missing_colors, g2, g)
     b = np.where(missing_colors, b2, b)
-        
+
     total = nansum_missing(data, axis=2)
     mask = np.isnan(total)
+    a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha)
+
+    values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
+    if cupy and isinstance(values, cupy.ndarray):
+        # Convert cupy array to numpy for final image
+        values = cupy.asnumpy(values)
+
+    return Image(values,
+                 dims=agg.dims[:-1],
+                 coords=OrderedDict([
+                     (agg.dims[1], agg.coords[agg.dims[1]]),
+                     (agg.dims[0], agg.coords[agg.dims[0]]),
+                 ]),
+                 name=name)
+
+
+def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha):
+
+    if cupy and isinstance(data, cupy.ndarray):
+        from ._cuda_utils import interp, masked_clip_2d
+        array = cupy.array
+    else:
+        from ._cpu_utils import masked_clip_2d
+        interp = np.interp
+        array = np.array
+
     # if span is provided, use it, otherwise produce a span based off the
     # min/max of the data
     if span is None:
@@ -407,20 +432,88 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     # Interpolate the alpha values
     a = interp(a_scaled, array(norm_span), array([min_alpha, alpha]),
                left=0, right=255).astype(np.uint8)
+    return a
 
-    values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
 
-    if cupy and isinstance(values, cupy.ndarray):
+def _apply_discrete_colorkey(agg, color_key, alpha, name, color_baseline):
+    # use the same approach as 3D case
+
+    if cupy and isinstance(agg.data, cupy.ndarray):
+        module = cupy
+        array = cupy.array
+    else:
+        module = np
+        array = np.array
+
+    if not agg.ndim == 2:
+        raise ValueError("agg must be 2D")
+
+    # validate color_key
+    if (color_key is None) or (not isinstance(color_key, dict)):
+        raise ValueError("Color key must be provided as a dictionary")
+
+    agg_data = agg.data
+    if isinstance(agg_data, da.Array):
+        agg_data = agg_data.compute()
+
+    cats = color_key.keys()
+    colors = [rgb(color_key[c]) for c in cats]
+    rs, gs, bs = map(array, zip(*colors))
+
+    data = module.empty_like(agg_data) * module.nan
+
+    r = module.zeros_like(data, dtype=module.uint8)
+    g = module.zeros_like(data, dtype=module.uint8)
+    b = module.zeros_like(data, dtype=module.uint8)
+
+    r2 = module.zeros_like(data, dtype=module.uint8)
+    g2 = module.zeros_like(data, dtype=module.uint8)
+    b2 = module.zeros_like(data, dtype=module.uint8)
+
+    for i, c in enumerate(cats):
+        value_mask = agg_data == c
+        data[value_mask] = 1
+        r2[value_mask] = rs[i]
+        g2[value_mask] = gs[i]
+        b2[value_mask] = bs[i]
+
+    color_data = data.copy()
+
+    # subtract color_baseline if needed
+    baseline = module.nanmin(color_data) if color_baseline is None else color_baseline
+    with np.errstate(invalid='ignore'):
+        if baseline > 0:
+            color_data -= baseline
+        elif baseline < 0:
+            color_data += -baseline
+        if color_data.dtype.kind != 'u' and color_baseline is not None:
+            color_data[color_data < 0] = 0
+
+    color_data[module.isnan(data)] = 0
+    if not color_data.any():
+        r[:] = r2
+        g[:] = g2
+        b[:] = b2
+
+    missing_colors = color_data == 0
+    r = module.where(missing_colors, r2, r)
+    g = module.where(missing_colors, g2, g)
+    b = module.where(missing_colors, b2, b)
+
+    # alpha channel
+    a = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
+
+    values = module.dstack([r, g, b, a]).view(module.uint32).reshape(a.shape)
+
+    if cupy and isinstance(agg.data, cupy.ndarray):
         # Convert cupy array to numpy for final image
         values = cupy.asnumpy(values)
 
     return Image(values,
-                 dims=agg.dims[:-1],
-                 coords=OrderedDict([
-                     (agg.dims[1], agg.coords[agg.dims[1]]),
-                     (agg.dims[0], agg.coords[agg.dims[0]]),
-                 ]),
-                 name=name)
+                 dims=agg.dims,
+                 coords=agg.coords,
+                 name=name
+                 )
 
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
@@ -435,15 +528,21 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     from the values by interpolated lookup into the given colormap
     ``cmap``.  The A channel is then set to the given fixed ``alpha``
     value for all non-zero values, and to zero for all zero values.
+    A dictionary ``color_key`` that specifies categories (values in ``agg``)
+    and corresponding colors can be provided to support discrete coloring
+    2D aggregates, i.e aggregates with a single category per pixel,
+    with no mixing. The A channel is set the given ``alpha`` value for all
+    pixels in the categories specified in ``color_key``, and to zero otherwise.
 
     DataArrays with 3D coordinates are expected to contain values
     distributed over different categories that are indexed by the
-    additional coordinate.  Such an array would reduce to the
+    additional coordinate. Such an array would reduce to the
     2D-coordinate case if collapsed across the categories (e.g. if one
     did ``aggc.sum(dim='cat')`` for a categorical dimension ``cat``).
-    The RGB channels for the uncollapsed, 3D case are computed by
-    averaging the colors in the provided ``color_key`` (with one color
-    per category), weighted by the array's value for that category.
+    The RGB channels for the uncollapsed, 3D case are mixed from separate
+    values over all categories. They are computed by averaging the colors
+    in the provided ``color_key`` (with one color per category),
+    weighted by the array's value for that category.
     The A channel is then computed from the array's total value
     collapsed across all categories at that location, ranging from the
     specified ``min_alpha`` to the maximum alpha value (255).
@@ -457,10 +556,13 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         of ``(red, green, blue)`` values.), or a matplotlib colormap
         object.  Default is ``["lightblue", "darkblue"]``.
     color_key : dict or iterable
-        The colors to use for a 3D (categorical) agg array.  Can be
+        The colors to use for a categorical agg array. In 3D case, it can be
         either a ``dict`` mapping from field name to colors, or an
         iterable of colors in the same order as the record fields,
-        and including at least that many distinct colors.
+        and including at least that many distinct colors. In 2D case,
+        ``color_key`` must be a ``dict`` where all keys are categories,
+        and values are corresponding colors. Number of categories does not
+        necessarily equal to the number of unique values in the agg DataArray.
     how : str or callable, optional
         The interpolation method to use, for the ``cmap`` of a 2D
         DataArray or the alpha channel of a 3D DataArray. Valid
@@ -478,13 +580,16 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         Regardless of this value, ``NaN`` values are set to be fully
         transparent when doing colormapping.
     min_alpha : float, optional
-        The minimum alpha value to use for non-empty pixels when 
+        The minimum alpha value to use for non-empty pixels when
         alpha is indicating data value, in [0, 255].  Use a higher value
         to avoid undersaturation, i.e. poorly visible low-value datapoints,
-        at the expense of the overall dynamic range.
+        at the expense of the overall dynamic range. Note that ``min_alpha``
+        will not take any effect when doing discrete categorical coloring
+        for 2D case as the aggregate can have only a single value to denote
+        the category.
     span : list of min-max range, optional
-        Min and max data values to use for colormap/alpha interpolation, when
-        wishing to override autoranging.
+        Min and max data values to use for 2D colormapping,
+        and 3D alpha interpolation, when wishing to override autoranging.
     name : string name, optional
         Optional string name to give to the Image object to return,
         to label results for display.
@@ -519,7 +624,12 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         raise ValueError("min_alpha ({}) and alpha ({}) must be between 0 and 255".format(min_alpha,alpha))
 
     if agg.ndim == 2:
-        return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
+        if color_key is not None and isinstance(color_key, dict):
+            return _apply_discrete_colorkey(
+                agg, color_key, alpha, name, color_baseline
+            )
+        else:
+            return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
     elif agg.ndim == 3:
         return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     else:
