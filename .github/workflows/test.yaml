@@ -14,8 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['windows-latest']
-        # os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
         python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
     timeout-minutes: 60
     defaults:
@@ -34,7 +33,6 @@ jobs:
         with:
           channel-priority: strict
           miniconda-version: "latest"
-          mamba-version: "*"
           channels: pyviz/label/dev,conda-forge,nodefaults
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow
@@ -50,13 +48,13 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit develop_install -o tests -o examples --conda-mode=mamba
+          doit develop_install -o tests -o examples
       - name: Python 3.6 installs
         if: matrix.python-version == '3.6'
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          mamba install "panel=0.12" dataclasses
+          conda install "panel=0.12" dataclasses
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
