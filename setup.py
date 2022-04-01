@@ -46,9 +46,6 @@ extras_require = {
         'bokeh',
         'pyarrow',
         'netcdf4',
-        'twine',   # required for pip packaging
-        'rfc3986', # required by twine
-        'keyring', # required by twine
         'spatialpandas',
         'rioxarray',
         'rasterio',
