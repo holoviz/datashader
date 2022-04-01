@@ -51,6 +51,9 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit develop_install -o doc --conda-mode=mamba
+          conda remove nbconvert-core --force
+          conda remove nbconvert --force
+          mamba install "nbconvert<6" --no-deps
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
