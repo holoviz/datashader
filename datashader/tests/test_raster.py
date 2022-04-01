@@ -34,7 +34,7 @@ TEST_RASTER_PATH = path.join(DATA_PATH, 'world.rgb.tif')
 def open_rasterio(path, *args, **kwargs):
     # xarray deprecated xr.open_rasterio in its 0.20 release
     # in favor or rioxarray.open_rasterio.
-    if Version(xr) < Version('0.20'):
+    if Version(xr.__version__) < Version('0.20'):
         func = xr.open_rasterio
     else:
         func = rioxarray.open_rasterio
