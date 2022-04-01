@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import datashader as ds
 import datashader.transfer_functions as tf
+from packaging.version import Version
 
 from bokeh.plotting import figure, Document
 from datashader.bokeh_ext import InteractiveImage, bokeh_version
@@ -77,5 +78,5 @@ def test_interactive_image_update():
     assert image['shape'] == [1, 1]
 
     # Ensure events are cleared after update
-    event_obj = img.doc.callbacks if bokeh_version >= '2.4' else img.doc
+    event_obj = img.doc.callbacks if bokeh_version >= Version('2.4') else img.doc
     assert event_obj._held_events == []

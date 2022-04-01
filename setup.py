@@ -15,7 +15,7 @@ install_requires = [
     'dask[complete] >=0.18.0',
     'datashape >=0.5.1',
     'numba >=0.51',
-    'numpy >=1.7',
+    'numpy >=1.7,!=1.2.2',
     'pandas >=0.24.1',
     'pillow >=3.1.1',
     'xarray >=0.9.6',
@@ -46,7 +46,11 @@ extras_require = {
         'bokeh',
         'pyarrow',
         'netcdf4',
-        'spatialpandas'
+        'twine',   # required for pip packaging
+        'rfc3986', # required by twine
+        'keyring', # required by twine
+        'spatialpandas',
+        'rioxarray',
     ],
     'examples': examples,
     'examples_extra': examples + [
@@ -70,7 +74,11 @@ extras_require['doc'] = extras_require['examples_extra'] + [
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
 
-
+extras_require['gpu_tests'] = [
+    "cupy",
+    "cudf",  # Install with conda install -c rapidsai
+    "dask-cudf",  # Install with conda install -c rapidsai
+]
 
 ########## metadata for setuptools ##########
 

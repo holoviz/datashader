@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 import pandas as pd
 import pandas.tests.extension.base as eb
+from packaging.version import Version
 
 from datashader.datatypes import RaggedDtype, RaggedArray
 
@@ -87,7 +88,7 @@ def test_construct_ragged_array_fastpath():
     assert np.array_equal(rarray.flat_array, flat_array)
 
     # Check interpretation as ragged array
-    object_array = np.asarray(rarray)
+    object_array = np.asarray(rarray, dtype=object)
     expected_lists = [[0, 1], [2, 3, 4], [5], [], [6, 7, 8, 9, 10], []]
     expected_array = np.array([np.array(v, dtype='float32')
                                for v in expected_lists], dtype='object')
@@ -276,7 +277,7 @@ def test_get_item_slice():
     [0, 0, 0, 0, 0]
 ])
 def test_get_item_mask(mask):
-    arg = np.array([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]])
+    arg = np.array([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]], dtype=object)
     rarray = RaggedArray(arg, dtype='int16')
     mask = np.array(mask, dtype='bool')
 
@@ -293,7 +294,7 @@ def test_get_item_mask(mask):
     [4, 3, 2, 1, 0]
 ])
 def test_get_item_list(inds):
-    arg = np.array([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]])
+    arg = np.array([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]], dtype=object)
     rarray = RaggedArray(arg, dtype='int16')
 
     assert_ragged_arrays_equal(
@@ -304,7 +305,7 @@ def test_get_item_list(inds):
 # _from_factorized
 # ----------------
 def test_factorization():
-    arg = np.array([[1, 2], [], [1, 2], None, [11, 22, 33, 44]])
+    arg = np.array([[1, 2], [], [1, 2], None, [11, 22, 33, 44]], dtype=object)
     rarray = RaggedArray(arg, dtype='int16')
     labels, uniques = rarray.factorize()
 
@@ -731,7 +732,7 @@ class TestRaggedGroupby(eb.BaseGroupbyTests):
 class TestRaggedInterface(eb.BaseInterfaceTests):
     # Add array equality
     def test_array_interface(self, data):
-        result = np.array(data)
+        result = np.array(data, dtype=object)
         np.testing.assert_array_equal(result[0], data[0])
 
         result = np.array(data, dtype=object)
@@ -751,6 +752,14 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
     @pytest.mark.skip(reason="__setitem__ not supported")
     def test_view(self):
         pass
+
+    @pytest.mark.skipif(Version(pd.__version__) < Version("1.4"), reason="Added in pandas 1.4")
+    def test_tolist(self, data):
+        result = data.tolist()
+        expected = list(data)
+        assert isinstance(result, list)
+        for r, e in zip(result, expected):
+            assert np.array_equal(r, e, equal_nan=True)
 
 
 class TestRaggedMethods(eb.BaseMethodsTests):
@@ -815,6 +824,9 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     def test_sort_values_frame(self):
         pass
 
+    @pytest.mark.skip(reason="__setitem__ not supported")
+    def test_where_series(self):
+        pass
 
 class TestRaggedPrinting(eb.BasePrintingTests):
     pass

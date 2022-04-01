@@ -13,8 +13,10 @@ from datashader.macros import expand_varargs
 
 try:
     import cudf
+    import cupy as cp
 except Exception:
     cudf = None
+    cp = None
 
 
 @ngjit
@@ -93,11 +95,20 @@ class Glyph(Expr):
 
     @staticmethod
     def to_cupy_array(df, columns):
+        if isinstance(columns, tuple):
+            columns = list(columns)
+
+        # Pandas extracts the column name multiple times, but
+        # cuDF only extracts each name a single time. For details, see:
+        # https://github.com/holoviz/datashader/pull/1050
+        if isinstance(columns, list) and (len(columns) != len(set(columns))):
+            return cp.stack([cp.array(df[c]) for c in columns], axis=1)
+
         if Version(cudf.__version__) >= Version("22.02"):
             return df[columns].to_cupy()
         else:
-            if not isinstance(columns, (list, tuple)):
-                return df[columns].to_cupy_array()
+            if not isinstance(columns, list):
+                return df[columns].to_gpu_array()
             return df[columns].as_gpu_matrix()
 
     def expand_aggs_and_cols(self, append):
