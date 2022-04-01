@@ -51,7 +51,9 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit develop_install -o tests
+          conda install -y  "param >=1.7.0" "pyct >=0.4.4" "setuptools >=30.3.0"
+          conda install -y   "dask >=0.18.0" "datashape >=0.5.1" "numba >=0.51" "numpy >=1.7,!=1.22" "pandas >=0.24.1" "pillow >=3.1.1" "xarray >=0.9.6" "colorcet >=0.9.0" "param >=1.6.1" "pyct >=0.4.5" "scipy" "pytest >=3.9.3" "pytest-benchmark >=3.0.0" "pytest-cov" "codecov" "flake8" "nbconvert" "nbsmoke >0.5" "fastparquet >=0.1.6" "holoviews >=1.10.0" "bokeh" "pyarrow" "netcdf4" "twine" "rfc3986" "keyring" "spatialpandas" "rioxarray" "rasterio"
+          # doit develop_install -o tests
       - name: Python 3.6 installs
         if: matrix.python-version == '3.6'
         run: |
