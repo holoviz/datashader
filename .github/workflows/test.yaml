@@ -43,11 +43,13 @@ jobs:
       - name: conda setup
         run: |
           eval "$(conda shell.bash hook)"
+          conda install -n base conda-libmamba-solver
           conda create -n test-environment python=${{ matrix.python-version }} pyctdev
       - name: doit develop_install
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
+          conda config --set experimental_solver libmamba --env 
           doit develop_install -o tests -o examples
       - name: Python 3.6 installs
         if: matrix.python-version == '3.6'
