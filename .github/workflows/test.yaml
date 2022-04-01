@@ -36,6 +36,7 @@ jobs:
           channel-priority: strict
           miniconda-version: "latest"
           channels: pyviz/label/dev,conda-forge,nodefaults
+          mamba-version: "*"
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow
       - name: conda update > 3.9
@@ -50,7 +51,7 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit develop_install -o tests -o examples
+          doit develop_install -o tests -o examples --conda-mode=mamba
       - name: Python 3.6 installs
         if: matrix.python-version == '3.6'
         run: |
