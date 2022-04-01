@@ -33,6 +33,7 @@ examples = [
 ]
 
 extras_require = {
+    'debug':['twine'],
     'tests': [
         'pytest >=3.9.3',
         'pytest-benchmark >=3.0.0',
