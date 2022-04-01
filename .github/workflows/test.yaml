@@ -22,6 +22,7 @@ jobs:
         shell: bash -l {0} 
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      MAMBA_NO_BANNER: 1
     steps:
       - uses: actions/checkout@v2
         with:
@@ -34,6 +35,7 @@ jobs:
           channel-priority: strict
           miniconda-version: "latest"
           channels: pyviz/label/dev,conda-forge,nodefaults
+          mamba-version: "*"
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow
       - name: conda update > 3.9
@@ -43,20 +45,18 @@ jobs:
       - name: conda setup
         run: |
           eval "$(conda shell.bash hook)"
-          conda install -n base conda-libmamba-solver
           conda create -n test-environment python=${{ matrix.python-version }} pyctdev
       - name: doit develop_install
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          conda config --set experimental_solver libmamba --env 
-          doit develop_install -o tests -o examples
+          doit develop_install -o tests -o examples --conda-mode=mamba
       - name: Python 3.6 installs
         if: matrix.python-version == '3.6'
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          conda install "panel=0.12" dataclasses
+          mamba install "panel=0.12" dataclasses
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
