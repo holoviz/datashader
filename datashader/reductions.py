@@ -404,7 +404,7 @@ class any(OptionalFieldReduction):
     Parameters
     ----------
     column : str, optional
-        If provided, only elements in ``column`` that are ``NaN`` are skipped.
+        If provided, any elements in ``column`` that are ``NaN`` are skipped.
     """
     _dshape = dshape(ct.bool_)
 
