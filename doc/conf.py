@@ -37,7 +37,7 @@ html_theme_options.update({
         {
             "name": "HoloViz",
             "url": "https://holoviz.org/",
-            "icon": holoviz_icon_white(__file__),
+            "icon": "_static/holoviz-icon-white.svg",
             "type": "local",
         },
     ],
