@@ -10,9 +10,11 @@ from numba import cuda
 
 try:
     import cudf
+    import cupy as cp
     from ..transfer_functions._cuda_utils import cuda_args
-except Exception:
+except ImportError:
     cudf = None
+    cp = None
     cuda_args = None
 
 
@@ -815,15 +817,17 @@ class AreaToZeroAxis1YConstant(AreaToZeroAxis1):
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df,list(x_names))
+                ys = cp.array(y_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
                 xs = df.loc[:, list(x_names)].to_numpy()
+                ys = y_values
                 do_extend = extend_cpu
 
             do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
-                xs, y_values, *aggs_and_cols
+                xs, ys, *aggs_and_cols
             )
 
         return extend
@@ -881,16 +885,19 @@ class AreaToLineAxis1YConstant(AreaToLineAxis1):
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df,list(x_names))
+                ys = cp.array(y_values)
+                ysv = cp.array(y_stack_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
                 xs = df.loc[:, list(x_names)].to_numpy()
-
+                ys = y_values
+                ysv = y_stack_values
                 do_extend = extend_cpu
 
             do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
-                xs, y_values, y_stack_values, *aggs_and_cols
+                xs, ys, ysv, *aggs_and_cols
             )
 
         return extend

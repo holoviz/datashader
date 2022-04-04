@@ -10,8 +10,9 @@ from numba import cuda
 
 try:
     import cudf
+    import cupy as cp
     from ..transfer_functions._cuda_utils import cuda_args
-except Exception:
+except ImportError:
     cudf = None
     cuda_args = None
 
@@ -324,16 +325,18 @@ class LinesAxis1XConstant(LinesAxis1):
             aggs_and_cols = aggs + info(df)
 
             if cudf and isinstance(df, cudf.DataFrame):
+                xs = cp.array(x_values)
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(ys.shape)]
             else:
+                xs = x_values
                 ys = df.loc[:, list(y_names)].to_numpy()
                 do_extend = extend_cpu
 
             do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
-                x_values, ys, *aggs_and_cols
+                xs, ys, *aggs_and_cols
             )
 
         return extend
@@ -395,15 +398,17 @@ class LinesAxis1YConstant(LinesAxis1):
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_names)
+                ys = cp.array(y_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
                 xs = df.loc[:, list(x_names)].to_numpy()
+                ys = y_values
                 do_extend = extend_cpu
 
             do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
-                xs, y_values, *aggs_and_cols
+                xs, ys, *aggs_and_cols
             )
 
         return extend
