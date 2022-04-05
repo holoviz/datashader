@@ -82,6 +82,15 @@ eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
                               [4281281791, 4278190335, 0]], dtype='u4')}
 eq_hist_sol['c'] = eq_hist_sol['b']
 
+eq_hist_sol_rescale_discrete_levels = {
+    'a': np.array([[0, 4289306879, 4287070463],
+                   [4284834047, 0, 4282597631],
+                   [4280361215, 4278190335, 0]], dtype='u4'),
+    'b': np.array([[0, 4289306879, 4287070463],
+                   [4285228543, 0, 4282597631],
+                   [4280755711, 4278190335, 0]], dtype='u4')}
+eq_hist_sol_rescale_discrete_levels['c'] = eq_hist_sol_rescale_discrete_levels['b']
+
 
 def check_span(x, cmap, how, sol):
     # Copy inputs that will be modified
@@ -156,9 +165,14 @@ def test_shade(agg, attr, span):
     assert_eq_xr(img, sol)
 
     # span option not supported with how='eq_hist'
-    img = tf.shade(x, cmap=cmap, how='eq_hist')
-    sol = tf.Image(eq_hist_sol[attr], coords=coords, dims=dims)
-    assert_eq_xr(img, sol)
+    if span is None:
+        img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=False)
+        sol = tf.Image(eq_hist_sol[attr], coords=coords, dims=dims)
+        assert_eq_xr(img, sol)
+
+        img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=True)
+        sol = tf.Image(eq_hist_sol_rescale_discrete_levels[attr], coords=coords, dims=dims)
+        assert_eq_xr(img, sol)
 
     img = tf.shade(x, cmap=cmap,
                    how=lambda x, mask: np.where(mask, np.nan, x ** 2))

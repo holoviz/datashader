@@ -425,7 +425,10 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha):
             if not np.all(mask):
                 offset = total[total > 0].min()
             total = np.where(~mask, total, np.nan)
+
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
+        if isinstance(a_scaled, (list, tuple)):
+            a_scaled = a_scaled[0]  # Ignore discrete_levels
 
         # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
         with np.warnings.catch_warnings():
@@ -444,8 +447,15 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha):
             mask = mask | (total <= 0)
             total = np.where(~mask, total, np.nan)
         masked_clip_2d(total, mask, *span)
+
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
+        if isinstance(a_scaled, (list, tuple)):
+            a_scaled = a_scaled[0]  # Ignore discrete_levels
+
         norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
+        if isinstance(norm_span, (list, tuple)):
+            norm_span = norm_span[0]  # Ignore discrete_levels
+
     # Interpolate the alpha values
     a = interp(a_scaled, array(norm_span), array([min_alpha, alpha]),
                left=0, right=255).astype(np.uint8)
@@ -535,7 +545,7 @@ def _apply_discrete_colorkey(agg, color_key, alpha, name, color_baseline):
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
           how='eq_hist', alpha=255, min_alpha=40, span=None, name=None,
-          color_baseline=None, rescale_discrete_levels=False):
+          color_baseline=None, rescale_discrete_levels=True):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
 
     Requires a DataArray with a single data dimension, here called the
