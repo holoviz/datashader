@@ -17,7 +17,6 @@ jobs:
       run:
         shell: bash -l {0}
     env:
-      CHANS: "-c pyviz/label/dev -c conda-forge"
       PKG_TEST_PYTHON: "--test-python=py38"
       MPLBACKEND: "Agg"
       CONDA_UPLOAD_TOKEN: ${{ secrets.CONDA_UPLOAD_TOKEN }}
@@ -41,7 +40,7 @@ jobs:
         run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
       - name: conda setup
         run: |
-          conda install -c pyviz "pyctdev>=0.5"
+          conda install "pyctdev>=0.5"
           doit ecosystem_setup
       - name: conda build
         run: doit package_build $PKG_TEST_PYTHON --test-group=all
@@ -60,7 +59,6 @@ jobs:
       run:
         shell: bash -l {0}
     env:
-      CHANS: "-c pyviz/label/dev -c conda-forge"
       PKG_TEST_PYTHON: "--test-python=py38"
       PYTHON_VERSION: "3.8"
       MPLBACKEND: "Agg"
