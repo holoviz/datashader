@@ -13,6 +13,7 @@ jobs:
   conda_build:
     name: Build Conda Packages
     runs-on: 'ubuntu-latest'
+    timeout-minutes: 60
     defaults:
       run:
         shell: bash -l {0}
@@ -24,9 +25,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: "100"
-      - uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
       - uses: conda-incubator/setup-miniconda@v2
         with:
           miniconda-version: "latest"
@@ -42,6 +40,11 @@ jobs:
         run: |
           conda install "pyctdev>=0.5"
           doit ecosystem_setup
+      - name: doit env_capture
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit env_capture
       - name: conda build
         run: doit package_build $PKG_TEST_PYTHON --test-group=all
       # - name: dev deploy
@@ -55,6 +58,7 @@ jobs:
   pip_build:
     name: Build PyPI Packages
     runs-on: 'ubuntu-latest'
+    timeout-minutes: 60
     defaults:
       run:
         shell: bash -l {0}
@@ -65,13 +69,11 @@ jobs:
       PPU: ${{ secrets.PPU }}
       PPP: ${{ secrets.PPP }}
       PYPI: "https://upload.pypi.org/legacy/"
+      MAMBA_NO_BANNER: 1
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: "100"
-      - uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
       - uses: conda-incubator/setup-miniconda@v2
         with:
           channel-priority: strict
@@ -90,8 +92,13 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit develop_install -o tests --conda-mode=mamba
-          pip uninstall -y datashader
-          doit pip_on_conda
+          # pip uninstall -y datashader
+          # doit pip_on_conda
+      - name: doit env_capture
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit env_capture
       - name: pip build
         run: |
           eval "$(conda shell.bash hook)"
