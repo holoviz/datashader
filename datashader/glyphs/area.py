@@ -817,7 +817,7 @@ class AreaToZeroAxis1YConstant(AreaToZeroAxis1):
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df,list(x_names))
-                ys = cp.array(y_values)
+                ys = cp.asarray(y_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
                 xs = df.loc[:, list(x_names)].to_numpy()
@@ -885,8 +885,8 @@ class AreaToLineAxis1YConstant(AreaToLineAxis1):
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df,list(x_names))
-                ys = cp.array(y_values)
-                ysv = cp.array(y_stack_values)
+                ys = cp.asarray(y_values)
+                ysv = cp.asarray(y_stack_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
                 xs = df.loc[:, list(x_names)].to_numpy()

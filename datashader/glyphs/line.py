@@ -325,7 +325,7 @@ class LinesAxis1XConstant(LinesAxis1):
             aggs_and_cols = aggs + info(df)
 
             if cudf and isinstance(df, cudf.DataFrame):
-                xs = cp.array(x_values)
+                xs = cp.asarray(x_values)
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(ys.shape)]
             else:
@@ -398,7 +398,7 @@ class LinesAxis1YConstant(LinesAxis1):
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_names)
-                ys = cp.array(y_values)
+                ys = cp.asarray(y_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
                 xs = df.loc[:, list(x_names)].to_numpy()
