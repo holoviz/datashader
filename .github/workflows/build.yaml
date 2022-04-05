@@ -42,8 +42,6 @@ jobs:
           doit ecosystem_setup
       - name: doit env_capture
         run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
           doit env_capture
       - name: conda build
         run: doit package_build $PKG_TEST_PYTHON --test-group=all
@@ -93,7 +91,7 @@ jobs:
           conda activate test-environment
           doit develop_install -o tests --conda-mode=mamba
           pip uninstall -y datashader
-          # doit pip_on_conda
+          doit pip_on_conda
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
