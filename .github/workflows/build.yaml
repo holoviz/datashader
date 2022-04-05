@@ -1,13 +1,11 @@
 name: packages
 on:
   push:
-    branches:    
-      - 'fix_ci_build'
-    # tags:
-    # - 'v[0-9]+.[0-9]+.[0-9]+'
-    # - 'v[0-9]+.[0-9]+.[0-9]+a[0-9]+'
-    # - 'v[0-9]+.[0-9]+.[0-9]+b[0-9]+'
-    # - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+    tags:
+    - 'v[0-9]+.[0-9]+.[0-9]+'
+    - 'v[0-9]+.[0-9]+.[0-9]+a[0-9]+'
+    - 'v[0-9]+.[0-9]+.[0-9]+b[0-9]+'
+    - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
 
 jobs:
   conda_build:
@@ -45,14 +43,14 @@ jobs:
           doit env_capture
       - name: conda build
         run: doit package_build $PKG_TEST_PYTHON --test-group=all
-      # - name: dev deploy
-      #   if: (contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc'))
-      #   run: |
-      #     doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev
-      # - name: main deploy
-      #   if: (!(contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc')))
-      #   run: |
-      #     doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev --label=main
+      - name: dev deploy
+        if: (contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc'))
+        run: |
+          doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev
+      - name: main deploy
+        if: (!(contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc')))
+        run: |
+          doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev --label=main
   pip_build:
     name: Build PyPI Packages
     runs-on: 'ubuntu-latest'
@@ -102,8 +100,8 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=unit
-      # - name: pip upload
-      #   run: |
-      #     eval "$(conda shell.bash hook)"
-      #     conda activate test-environment
-      #     doit ecosystem=pip package_upload -u $PPU -p $PPP -r $PYPI
+      - name: pip upload
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit ecosystem=pip package_upload -u $PPU -p $PPP -r $PYPI
