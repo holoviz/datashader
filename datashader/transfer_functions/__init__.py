@@ -545,7 +545,7 @@ def _apply_discrete_colorkey(agg, color_key, alpha, name, color_baseline):
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
           how='eq_hist', alpha=255, min_alpha=40, span=None, name=None,
-          color_baseline=None, rescale_discrete_levels=True):
+          color_baseline=None, rescale_discrete_levels=False):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
 
     Requires a DataArray with a single data dimension, here called the
