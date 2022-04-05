@@ -25,7 +25,10 @@ def build_agg(array_module=np):
     c = array_module.arange(10, 19, dtype='f8').reshape((3, 3))
     c[[0, 1, 2], [0, 1, 2]] = array_module.nan
     s_c = xr.DataArray(c, coords=coords, dims=dims)
-    agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c))
+    d = array_module.arange(10, 19, dtype='u4').reshape((3, 3))
+    d[[0, 1, 2, 2], [0, 1, 2, 1]] = 1
+    s_d = xr.DataArray(d, coords=coords, dims=dims)
+    agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c, d=s_d))
     return agg
 
 
@@ -78,6 +81,15 @@ eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
                               [4286609919, 0, 4283518207],
                               [4281281791, 4278190335, 0]], dtype='u4')}
 eq_hist_sol['c'] = eq_hist_sol['b']
+
+eq_hist_sol_rescale_discrete_levels = {
+    'a': np.array([[0, 4289306879, 4287070463],
+                   [4284834047, 0, 4282597631],
+                   [4280361215, 4278190335, 0]], dtype='u4'),
+    'b': np.array([[0, 4289306879, 4287070463],
+                   [4285228543, 0, 4282597631],
+                   [4280755711, 4278190335, 0]], dtype='u4')}
+eq_hist_sol_rescale_discrete_levels['c'] = eq_hist_sol_rescale_discrete_levels['b']
 
 
 def check_span(x, cmap, how, sol):
@@ -153,9 +165,14 @@ def test_shade(agg, attr, span):
     assert_eq_xr(img, sol)
 
     # span option not supported with how='eq_hist'
-    img = tf.shade(x, cmap=cmap, how='eq_hist')
-    sol = tf.Image(eq_hist_sol[attr], coords=coords, dims=dims)
-    assert_eq_xr(img, sol)
+    if span is None:
+        img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=False)
+        sol = tf.Image(eq_hist_sol[attr], coords=coords, dims=dims)
+        assert_eq_xr(img, sol)
+
+        img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=True)
+        sol = tf.Image(eq_hist_sol_rescale_discrete_levels[attr], coords=coords, dims=dims)
+        assert_eq_xr(img, sol)
 
     img = tf.shade(x, cmap=cmap,
                    how=lambda x, mask: np.where(mask, np.nan, x ** 2))
@@ -461,6 +478,7 @@ def test_shade_category(array):
     assert ((img.data[1,0] >> 24) & 0xFF) == 20 # min alpha
     assert ((img.data[1,1] >> 24) & 0xFF) == 20 # min alpha
 
+
 @pytest.mark.parametrize('array', arrays)
 def test_shade_zeros(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
@@ -474,6 +492,25 @@ def test_shade_zeros(array):
     img = tf.shade(cat_agg, color_key=colors, how='linear', min_alpha=0)
     sol = np.array([[5584810, 5584810],
                     [5584810, 5584810]], dtype='u4')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+
+
+@pytest.mark.parametrize('agg', aggs)
+@pytest.mark.parametrize('attr', ['d'])
+@pytest.mark.parametrize('rescale', [False, True])
+def test_shade_rescale_discrete_levels(agg, attr, rescale):
+    x = getattr(agg, attr)
+    cmap = ['pink', 'red']
+    img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=rescale)
+    if rescale:
+        sol = np.array([[0xff8d85ff, 0xff716bff, 0xff5450ff],
+                        [0xff3835ff, 0xff8d85ff, 0xff1c1aff],
+                        [0xff0000ff, 0xff8d85ff, 0xff8d85ff]], dtype='uint32')
+    else:
+        sol = np.array([[0xffcbc0ff, 0xffa299ff, 0xff7973ff],
+                        [0xff514cff, 0xffcbc0ff, 0xff2826ff],
+                        [0xff0000ff, 0xffcbc0ff, 0xffcbc0ff]], dtype='uint32')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
 
@@ -1034,13 +1071,13 @@ def test_eq_hist():
     data[np.random.randint(300**2, size=100)] = np.nan
     data = (data - np.nanmin(data)).reshape((300, 300))
     mask = np.isnan(data)
-    eq = tf.eq_hist(data, mask)
+    eq, _ = tf.eq_hist(data, mask)
     check_eq_hist_cdf_slope(eq)
     assert (np.isnan(eq) == mask).all()
     # Integer
     data = np.random.normal(scale=100, size=(300, 300)).astype('i8')
     data = data - data.min()
-    eq = tf.eq_hist(data)
+    eq, _ = tf.eq_hist(data)
     check_eq_hist_cdf_slope(eq)
 
 
