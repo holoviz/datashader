@@ -11,26 +11,24 @@ jobs:
   conda_build:
     name: Build Conda Packages
     runs-on: 'ubuntu-latest'
+    timeout-minutes: 60
     defaults:
       run:
         shell: bash -l {0}
     env:
-      CHANS: "-c pyviz/label/dev -c conda-forge"
-      PKG_TEST_PYTHON: "--test-python=py37"
-      PYTHON_VERSION: "3.7"
+      PKG_TEST_PYTHON: "--test-python=py38"
       MPLBACKEND: "Agg"
       CONDA_UPLOAD_TOKEN: ${{ secrets.CONDA_UPLOAD_TOKEN }}
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: "100"
-      - uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
       - uses: conda-incubator/setup-miniconda@v2
         with:
           miniconda-version: "latest"
           python-version: 3.8
+          channel-priority: strict
+          channels: pyviz/label/dev,conda-forge,nodefaults
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow -f
       - name: Set output
@@ -38,11 +36,13 @@ jobs:
         run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
       - name: conda setup
         run: |
-          conda config --set always_yes True
-          conda install -c pyviz "pyctdev>=0.5"
+          conda install "pyctdev>=0.5"
           doit ecosystem_setup
+      - name: doit env_capture
+        run: |
+          doit env_capture
       - name: conda build
-        run: doit package_build $CHANS $PKG_TEST_PYTHON --test-group=all
+        run: doit package_build $PKG_TEST_PYTHON --test-group=all
       - name: dev deploy
         if: (contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc'))
         run: |
@@ -54,42 +54,47 @@ jobs:
   pip_build:
     name: Build PyPI Packages
     runs-on: 'ubuntu-latest'
+    timeout-minutes: 60
     defaults:
       run:
         shell: bash -l {0}
     env:
-      CHANS: "-c pyviz/label/dev -c conda-forge"
-      PKG_TEST_PYTHON: "--test-python=py37"
-      PYTHON_VERSION: "3.7"
+      PKG_TEST_PYTHON: "--test-python=py38"
+      PYTHON_VERSION: "3.8"
       MPLBACKEND: "Agg"
       PPU: ${{ secrets.PPU }}
       PPP: ${{ secrets.PPP }}
       PYPI: "https://upload.pypi.org/legacy/"
+      MAMBA_NO_BANNER: 1
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: "100"
-      - uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
       - uses: conda-incubator/setup-miniconda@v2
         with:
+          channel-priority: strict
           miniconda-version: "latest"
+          channels: pyviz/label/dev,conda-forge,nodefaults
+          mamba-version: "*"
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow -f
       - name: conda setup
         run: |
-          conda config --set always_yes True
-          conda install -c pyviz "pyctdev>=0.5"
+          conda install "pyctdev>=0.5"
           doit ecosystem_setup
-          doit env_create $CHANS --python=$PYTHON_VERSION
+          conda create -n test-environment python=$PYTHON_VERSION pyctdev
       - name: env setup
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit develop_install $CHANS -o tests
+          doit develop_install -o tests --conda-mode=mamba
           pip uninstall -y datashader
           doit pip_on_conda
+      - name: doit env_capture
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda activate test-environment
+          doit env_capture
       - name: pip build
         run: |
           eval "$(conda shell.bash hook)"

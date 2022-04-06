@@ -280,10 +280,6 @@ def test_categorical_count(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_count_binning(df):
-    if cudf and isinstance(df, cudf.DataFrame):
-        pytest.skip(
-            "The categorical binning of 'count' reduction is yet supported on the GPU"
-        )
     sol = np.array([[[5, 0, 0, 0],
                      [0, 0, 5, 0]],
                     [[0, 5, 0, 0],
@@ -356,10 +352,6 @@ def test_categorical_sum(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_sum_binning(df):
-    if cudf and isinstance(df, cudf.DataFrame):
-        pytest.skip(
-            "The categorical binning of 'sum' reduction is yet supported on the GPU"
-        )
     sol = np.array([[[8.0,  nan,  nan,  nan],
                      [nan,  nan, 60.0,  nan]],
                     [[nan, 35.0,  nan,  nan],
@@ -402,10 +394,6 @@ def test_categorical_max(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_max_binning(df):
-    if cudf and isinstance(df, cudf.DataFrame):
-        pytest.skip(
-            "The categorical binning of 'max' reduction is yet supported on the GPU"
-        )
     sol = np.array([[[  4, nan, nan, nan],
                      [nan, nan,  14, nan]],
                     [[nan,   9, nan, nan],
@@ -452,10 +440,6 @@ def test_categorical_mean(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_mean_binning(df):
-    if cudf and isinstance(df, cudf.DataFrame):
-        pytest.skip(
-            "The categorical binning of 'mean' reduction is yet supported on the GPU"
-        )
     sol = np.array([[[  2, nan, nan, nan],
                      [nan, nan,  12, nan]],
                     [[nan,   7, nan, nan],
