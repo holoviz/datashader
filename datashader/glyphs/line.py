@@ -697,7 +697,7 @@ def _full_antialias(line_width, i, x0, x1, y0, y1, *aggs_and_cols):
     aa = 1.0
     halfwidth = 0.5*(line_width + aa)
 
-    # Want y0 <= y1, so switch vertical direction if it this is not so.
+    # Want y0 <= y1, so switch vertical direction if this is not so.
     if y1 < y0 or (y1 == y0 and x1 < x0):
         x0, x1 = x1, x0
         y0, y1 = y1, y0
@@ -748,7 +748,7 @@ def _full_antialias(line_width, i, x0, x1, y0, y1, *aggs_and_cols):
     # y limits of scan.
     ystart = clip_y(math.ceil(cy[lowindex]))
     yend = clip_y(math.floor(cy[(lowindex+2) % 4]))
-    # Need to know which edges are to left and right, both will change.
+    # Need to know which edges are to left and right; both will change.
     ll = lowindex  # Index of lower point of left edge.
     lu = (ll + 1) % 4  # Index of upper point of left edge.
     rl = lowindex  # Index of lower point of right edge.

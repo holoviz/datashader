@@ -252,7 +252,7 @@ class Canvas(object):
             default, lines are drawn using a simple algorithm with a
             blocky single-pixel width based on whether the line passes
             through each pixel or does not. If greater than one, lines
-            are drawn with the specified width ususing a slower and
+            are drawn with the specified width using a slower and
             more complex antialiasing algorithm with fractional values
             along each edge, so that lines have a more uniform visual
             appearance across all angles. Line widths between 0 and 1
