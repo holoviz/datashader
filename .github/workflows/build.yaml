@@ -29,7 +29,7 @@ jobs:
         with:
           miniconda-version: "latest"
           python-version: 3.7
-          channels: pyviz/label/dev
+          channels: pyviz/label/dev,conda-forge,nodefaults
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow -f
       - name: Set output
@@ -43,7 +43,7 @@ jobs:
         run: |
           doit env_capture
       - name: conda build
-        run: doit package_build --no-pkg-test
+        run: doit package_build $PKG_TEST_PYTHON --test-group=all
       # - name: dev deploy
       #   if: (contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc'))
       #   run: |
