@@ -29,8 +29,7 @@ jobs:
         with:
           miniconda-version: "latest"
           python-version: 3.7
-          channel-priority: strict
-          channels: pyviz/label/dev,conda-forge,nodefaults
+          channels: pyviz/label/dev
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow -f
       - name: Set output
