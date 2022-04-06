@@ -343,7 +343,7 @@ class LinesAxis1XConstant(LinesAxis1):
             do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
-                x_values, ys, *aggs_and_cols
+                xs, ys, *aggs_and_cols
             )
 
         return extend
@@ -415,7 +415,7 @@ class LinesAxis1YConstant(LinesAxis1):
             do_extend(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
-                xs, y_values, *aggs_and_cols
+                xs, ys, *aggs_and_cols
             )
 
         return extend
