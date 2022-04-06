@@ -15,7 +15,7 @@ install_requires = [
     'dask[complete] >=0.18.0',
     'datashape >=0.5.1',
     'numba >=0.51',
-    'numpy >=1.7,!=1.22',
+    'numpy >=1.7',
     'pandas >=0.24.1',
     'pillow >=3.1.1',
     'xarray >=0.9.6',

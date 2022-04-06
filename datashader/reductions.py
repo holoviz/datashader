@@ -17,8 +17,9 @@ except ImportError:
 
 try:
     import cudf
+    import cupy as cp
 except Exception:
-    cudf = None
+    cudf = cp = None
 
 from .utils import Expr, ngjit, nansum_missing
 
@@ -37,14 +38,13 @@ class extract(Preprocess):
     """Extract a column from a dataframe as a numpy array of values."""
     def apply(self, df):
         if cudf and isinstance(df, cudf.DataFrame):
-            import cupy
             if df[self.column].dtype.kind == 'f':
                 nullval = np.nan
             else:
                 nullval = 0
             if Version(cudf.__version__) >= Version("22.02"):
                 return df[self.column].to_cupy(na_value=nullval)
-            return cupy.array(df[self.column].to_gpu_array(fillna=nullval))
+            return cp.array(df[self.column].to_gpu_array(fillna=nullval))
         elif isinstance(df, xr.Dataset):
             # DataArray could be backed by numpy or cupy array
             return df[self.column].data
@@ -158,15 +158,20 @@ class category_binning(category_modulo):
 
     def apply(self, df):
         if cudf and isinstance(df, cudf.DataFrame):
-            ## dunno how to do this in CUDA
-            raise NotImplementedError("this feature is not implemented in cuda")
+            if Version(cudf.__version__) >= Version("22.02"):
+                values = df[self.column].to_cupy(na_value=cp.nan)
+            else:
+                values = cp.array(df[self.column].to_gpu_array(fillna=True))
+            nan_values = cp.isnan(values)
         else:
-            value = df[self.column].values
-            index = ((value - self.bin0) / self.binsize).astype(int)
-            index[index < 0] = self.bin_under
-            index[index >= self.nbins] = self.bin_over
-            index[np.isnan(value)] = self.nbins
-            return index
+            values = df[self.column].to_numpy()
+            nan_values = np.isnan(values)
+
+        index = ((values - self.bin0) / self.binsize).astype(int)
+        index[index < 0] = self.bin_under
+        index[index >= self.nbins] = self.bin_over
+        index[nan_values] = self.nbins
+        return index
 
 
 class category_values(CategoryPreprocess):
