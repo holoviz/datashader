@@ -189,7 +189,7 @@ def draw_lines(cvs, points, antialias):
       A Datashader canvas
     points: list of tuple of tuple
       The lines to render as a list of tuples, where each tuple represents a
-      line consisting of two tuples each containing two  scalars describing the
+      line consisting of two tuples each containing two scalars describing the
       two vertices of the line.
     antialias: boolean
       To anti-alias or not is the question
@@ -365,10 +365,10 @@ def generate_test_006():
 
 def generate_test_007():
     points = [
-        ((0,0),  (1, 49)),
-        ((0,0),  (49, 1)),
-        ((49,49),  (48, 0)),
-        ((49,49),  (0, 48)),
+        ((0.5, 0.5),  (1.5, 48.5)),
+        ((0.5, 0.5),  (48.5, 1.5)),
+        ((48.5, 48.5),  (47.5, 0.5)),
+        ((48.5, 48.5),  (0.5, 47.5)),
     ]
     return points, "test_007"
 

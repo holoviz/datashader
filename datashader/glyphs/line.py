@@ -572,9 +572,9 @@ def _build_map_onto_pixel_for_line(x_mapper, y_mapper, want_antialias=False):
 
     @ngjit
     def map_onto_pixel_no_snap(sx, tx, sy, ty, xmin, xmax, ymin, ymax, x, y):
-        xx = x_mapper(x) * sx + tx
-        yy = y_mapper(y) * sy + ty
-        return float(xx), float(yy)
+        xx = x_mapper(x)*sx + tx - 0.5
+        yy = y_mapper(y)*sy + ty - 0.5
+        return xx, yy
 
     if want_antialias:
         return map_onto_pixel_no_snap
