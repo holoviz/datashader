@@ -561,3 +561,43 @@ def mesh(vertices, simplices):
         return _dd_mesh(vertices, simplices)
 
     return _pd_mesh(vertices, simplices)
+
+
+@ngjit
+def isnull(val):
+    """
+    Equivalent to isnan for floats, but also numba compatible with integers
+    """
+    return not (val <= 0 or val > 0)
+
+
+@ngjit
+def nanmax_in_place(ret, other):
+    """Max of 2 arrays but taking nans into account.  Could use np.nanmax but
+    would need to replace zeros with nans where both arrays are nans.
+    Return the first array.
+    """
+    ny, nx = ret.shape
+    for j in range(ny):
+        for i in range(nx):
+            if isnull(ret[j, i]):
+                if not isnull(other[j, i]):
+                    ret[j, i] = other[j, i]
+            elif not isnull(other[j, i]) and other[j,i] > ret[j, i]:
+                ret[j,i] = other[j, i]
+
+
+@ngjit
+def nansum_in_place(ret, other):
+    """Sum of 2 arrays but taking nans into account.  Could use np.nansum but
+    would need to replace zeros with nans where both arrays are nans.
+    Return the first array.
+    """
+    ny, nx = ret.shape
+    for j in range(ny):
+        for i in range(nx):
+            if isnull(ret[j, i]):
+                if not isnull(other[j, i]):
+                    ret[j, i] = other[j, i]
+            elif not isnull(other[j, i]):
+                ret[j,i] += other[j, i]

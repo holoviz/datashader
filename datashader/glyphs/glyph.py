@@ -19,14 +19,6 @@ except Exception:
     cp = None
 
 
-@ngjit
-def isnull(val):
-    """
-    Equivalent to isnan for floats, but also numba compatible with integers
-    """
-    return not (val <= 0 or val > 0)
-
-
 class Glyph(Expr):
     """Base class for glyphs."""
 

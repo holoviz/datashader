@@ -6,7 +6,7 @@ from datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 
-from datashader.glyphs.glyph import isnull
+from datashader.utils import isnull
 from numba import cuda as nb_cuda
 
 try:
@@ -21,7 +21,7 @@ try:
 except Exception:
     cudf = cp = None
 
-from .utils import Expr, ngjit, nansum_missing
+from .utils import Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place
 
 
 class Preprocess(Expr):
@@ -322,6 +322,56 @@ class count(OptionalFieldReduction):
         return aggs.sum(axis=0, dtype='u4')
 
 
+class count_f32(OptionalFieldReduction):
+    """Count elements in each bin, returning the result as a float32.
+
+    Is floating point rather than boolean to deal with fractional antialiased
+    values.
+
+    Parameters
+    ----------
+    column : str, optional
+        If provided, only counts elements in ``column`` that are not ``NaN``.
+        Otherwise, counts every element.
+    """
+    _dshape = dshape(ct.float32)
+
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append_no_field(x, y, agg):
+        agg[y, x] += 1
+
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            agg[y, x] += 1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_no_field_cuda(x, y, agg):
+        nb_cuda.atomic.add(agg, (y, x), 1)
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field):
+        if not isnull(field):
+            nb_cuda.atomic.add(agg, (y, x), 1)
+
+    @staticmethod
+    def _create(shape, array_module):
+        return array_module.full(shape, array_module.nan, dtype='f4')
+
+    @staticmethod
+    def _combine(aggs):
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nansum_in_place(ret, aggs[i])
+        return ret
+
+
 class by(Reduction):
     """Apply the provided reduction separately per category.
     Parameters
@@ -433,6 +483,44 @@ class any(OptionalFieldReduction):
     @staticmethod
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='bool')
+
+
+class any_f32(OptionalFieldReduction):
+    """Whether any elements in ``column`` map to each bin.
+
+    Is floating point rather than boolean to deal with fractional antialiased
+    values.
+
+    Parameters
+    ----------
+    column : str, optional
+        If provided, only elements in ``column`` that are ``NaN`` are skipped.
+    """
+    _dshape = dshape(ct.float32)
+
+    @staticmethod
+    @ngjit
+    def _append_no_field(x, y, agg):
+        agg[y, x] = True
+    _append_no_field_cuda = _append_no_field
+
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            agg[y, x] = True
+    _append_cuda =_append
+
+    @staticmethod
+    def _create(shape, array_module):
+        return array_module.full(shape, array_module.nan, dtype='f4')
+
+    @staticmethod
+    def _combine(aggs):
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nanmax_in_place(ret, aggs[i])
+        return ret
 
 
 class _upsample(Reduction):

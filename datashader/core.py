@@ -2,7 +2,6 @@ from __future__ import absolute_import, division, print_function
 
 from numbers import Number
 from math import log10
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -214,7 +213,7 @@ class Canvas(object):
         return bypixel(source, self, glyph, agg)
 
     def line(self, source, x=None, y=None, agg=None, axis=0, geometry=None,
-             antialias=False):
+             line_width=0, antialias=False):
         """Compute a reduction by pixel, mapping data to pixels as one or
         more lines.
 
@@ -248,13 +247,25 @@ class Canvas(object):
         geometry : str
             Column name of a LinesArray of the coordinates of each line. If provided,
             the x and y arguments may not also be provided.
-        antialias : bool
-            If True, draw anti-aliased lines, distributing the aggregate value
-            across neighboring pixels to more closely approximate the line
-            shape. If False, each position on the line affects only a single
-            pixel, resulting in line shapes that are blocky but easier to
-            reason about. Needs at least Numba 0.51.2 to work and can only
-            operate on the 'sum' or 'max' aggregators.
+        line_width : number, optional
+            Width of the line to draw, in pixels. If zero, the
+            default, lines are drawn using a simple algorithm with a
+            blocky single-pixel width based on whether the line passes
+            through each pixel or does not. If greater than one, lines
+            are drawn with the specified width using a slower and
+            more complex antialiasing algorithm with fractional values
+            along each edge, so that lines have a more uniform visual
+            appearance across all angles. Line widths between 0 and 1
+            effectively use a line_width of 1 pixel but with a
+            proportionate reduction in the strength of each pixel,
+            approximating the visual appearance of a subpixel line
+            width.
+        antialias : bool, optional
+            This option is kept for backward compatibility only. 
+            ``True`` is equivalent to ``line_width=1`` and
+            ``False`` (the default) to ``line_width=0``. Do not specify
+            both ``antialias`` and ``line_width`` in the same call as a
+            ``ValueError`` will be raised if they disagree.
 
         Examples
         --------
@@ -331,6 +342,17 @@ class Canvas(object):
         if agg is None:
             agg = rd.any()
 
+        if line_width is None:
+            line_width = 0
+
+        # Check and convert antialias kwarg to line_width.
+        if antialias and line_width != 0:
+            raise ValueError(
+                "Do not specify values for both the line_width and \n"
+                "antialias keyword arguments; use line_width instead.")
+        if antialias:
+            line_width = 1.0
+
         if geometry is not None:
             from spatialpandas import GeoDataFrame
             from spatialpandas.dask import DaskGeoDataFrame
@@ -394,14 +416,25 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
-        # Enable antialias if requested and if the reduction will allow it.
-        if antialias:
-            if isinstance(agg, (rd.sum, rd.max)):
-                glyph.enable_antialias()
-            else:
-                message = ("Aggresgation: '{}' is not supported by antialias".
-                           format(agg))
-                warnings.warn(message)
+        if (line_width > 0 and ((cudf and isinstance(source, cudf.DataFrame)) or
+                               (dask_cudf and isinstance(source, dask_cudf.DataFrame)))):
+            import warnings
+            warnings.warn(
+                "Antialiased lines are not supported for CUDA-backed sources, "
+                "so reverting to line_width=0")
+            line_width = 0
+
+        glyph.set_line_width(line_width)
+        if line_width > 0:
+            if isinstance(agg, (rd.any, rd.max)):
+                glyph.set_antialias_combination_max()
+
+            # Switch agg to floating point.
+            if isinstance(agg, rd.count):
+                agg = rd.count_f32()
+            elif isinstance(agg, rd.any):
+                agg = rd.any_f32()
+
         return bypixel(source, self, glyph, agg)
 
     def area(self, source, x, y, agg=None, axis=0, y_stack=None):
@@ -636,7 +669,7 @@ See docstring for more information on valid usage""".format(
                         y_stack=repr(orig_y_stack)))
         else:
             raise ValueError("""
-The axis argument to Canvas.line must be 0 or 1
+The axis argument to Canvas.area must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
         return bypixel(source, self, glyph, agg)
