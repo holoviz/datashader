@@ -1281,8 +1281,8 @@ if sp:
     )
 @pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_args,cvs_kwargs', line_autorange_params)
-@pytest.mark.parametrize('linewidth', [0, 1])
-def test_line_autorange(DataFrame, df_args, cvs_kwargs, linewidth):
+@pytest.mark.parametrize('line_width', [0, 1])
+def test_line_autorange(DataFrame, df_args, cvs_kwargs, line_width):
     if cudf and DataFrame is cudf_DataFrame:
         if (isinstance(getattr(df_args[0].get('x', []), 'dtype', ''), RaggedDtype) or
                 sp and isinstance(
@@ -1291,7 +1291,7 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs, linewidth):
         ):
             pytest.skip("cudf DataFrames do not support extension types")
 
-        if linewidth > 0:
+        if line_width > 0:
             pytest.skip("cudf DataFrames do not support antialiased lines")
 
     df = DataFrame(geo='geometry' in cvs_kwargs, *df_args)
@@ -1302,9 +1302,9 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs, linewidth):
 
     cvs = ds.Canvas(plot_width=9, plot_height=9)
 
-    agg = cvs.line(df, agg=ds.count(), linewidth=linewidth, **cvs_kwargs)
+    agg = cvs.line(df, agg=ds.count(), line_width=line_width, **cvs_kwargs)
 
-    if linewidth > 0:
+    if line_width > 0:
         sol = np.array([
             [np.nan,   np.nan,   np.nan,   0.646447, 1.292893, 0.646447, np.nan,   np.nan,   np.nan  ],
             [np.nan,   np.nan,   0.646447, 0.646447, np.nan,   0.646447, 0.646447, np.nan,   np.nan  ],
@@ -1333,7 +1333,7 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs, linewidth):
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
-    assert_eq_xr(agg, out, close=(linewidth > 0))
+    assert_eq_xr(agg, out, close=(line_width > 0))
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)

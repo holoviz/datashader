@@ -18,21 +18,21 @@ except Exception:
 
 class _AntiAliasedLine(object):
     """ Methods common to all lines. """
-    _linewidth = 0  # Use antialiasing if > 0.
+    _line_width = 0  # Use antialiasing if > 0.
     _antialias_combination_max = False
 
     def set_antialias_combination_max(self):
         self._antialias_combination_max = True
 
-    def set_linewidth(self, linewidth):
-        self._linewidth = linewidth
+    def set_line_width(self, line_width):
+        self._line_width = line_width
 
     def _build_extend(self, x_mapper, y_mapper, info, append):
         return self._internal_build_extend(
-                x_mapper, y_mapper, info, append, self._linewidth)
+                x_mapper, y_mapper, info, append, self._line_width)
 
     def _want_antialias_sum(self):
-        return self._linewidth > 0 and not self._antialias_combination_max
+        return self._line_width > 0 and not self._antialias_combination_max
 
 
 class LineAxis0(_PointLike, _AntiAliasedLine):
@@ -45,12 +45,12 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
     """
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, linewidth):
+            self, x_mapper, y_mapper, info, append, line_width):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, linewidth > 0)
+            x_mapper, y_mapper, line_width > 0)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, linewidth
+            append, map_onto_pixel, expand_aggs_and_cols, line_width
         )
         extend_cpu, extend_cuda = _build_extend_line_axis0(
             draw_segment, expand_aggs_and_cols
@@ -132,12 +132,12 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, linewidth):
+            self, x_mapper, y_mapper, info, append, line_width):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, linewidth > 0)
+            x_mapper, y_mapper, line_width > 0)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, linewidth
+            append, map_onto_pixel, expand_aggs_and_cols, line_width
         )
         extend_cpu, extend_cuda = _build_extend_line_axis0_multi(
             draw_segment, expand_aggs_and_cols, self._want_antialias_sum()
@@ -242,12 +242,12 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, linewidth):
+            self, x_mapper, y_mapper, info, append, line_width):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, linewidth > 0)
+            x_mapper, y_mapper, line_width > 0)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, linewidth
+            append, map_onto_pixel, expand_aggs_and_cols, line_width
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_none_constant(
             draw_segment, expand_aggs_and_cols, self._want_antialias_sum()
@@ -311,12 +311,12 @@ class LinesAxis1XConstant(LinesAxis1):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, linewidth):
+            self, x_mapper, y_mapper, info, append, line_width):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, linewidth > 0)
+            x_mapper, y_mapper, line_width > 0)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, linewidth
+            append, map_onto_pixel, expand_aggs_and_cols, line_width
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_x_constant(
             draw_segment, expand_aggs_and_cols, self._want_antialias_sum()
@@ -379,12 +379,12 @@ class LinesAxis1YConstant(LinesAxis1):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, linewidth):
+            self, x_mapper, y_mapper, info, append, line_width):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, linewidth > 0)
+            x_mapper, y_mapper, line_width > 0)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, linewidth
+            append, map_onto_pixel, expand_aggs_and_cols, line_width
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_y_constant(
             draw_segment, expand_aggs_and_cols, self._want_antialias_sum()
@@ -453,12 +453,12 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, linewidth):
+            self, x_mapper, y_mapper, info, append, line_width):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, linewidth > 0)
+            x_mapper, y_mapper, line_width > 0)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, linewidth
+            append, map_onto_pixel, expand_aggs_and_cols, line_width
         )
         extend_cpu = _build_extend_line_axis1_ragged(
             draw_segment, expand_aggs_and_cols, self._want_antialias_sum()
@@ -495,15 +495,15 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, linewidth):
+            self, x_mapper, y_mapper, info, append, line_width):
         from spatialpandas.geometry import (
             PolygonArray, MultiPolygonArray, RingArray
         )
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, linewidth > 0)
+            x_mapper, y_mapper, line_width > 0)
         draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, linewidth
+            append, map_onto_pixel, expand_aggs_and_cols, line_width
         )
         perform_extend_cpu = _build_extend_line_axis1_geometry(
             draw_segment, expand_aggs_and_cols, self._want_antialias_sum()
@@ -664,7 +664,7 @@ def _linearstep(edge0, edge1, x):
 
 
 @ngjit
-def _full_antialias(linewidth, i, x0, x1, y0, y1, *aggs_and_cols):
+def _full_antialias(line_width, i, x0, x1, y0, y1, *aggs_and_cols):
     # Need to deal with zero-length segments as they have no direction.
     if x0 == x1 and y0 == y1:
         return
@@ -679,14 +679,14 @@ def _full_antialias(linewidth, i, x0, x1, y0, y1, *aggs_and_cols):
 
     agg = aggs_and_cols[0]
 
-    # Linewidths less than 1 are rendered as 1 but with lower intensity.
+    # line_width less than 1 is rendered as 1 but with lower intensity.
     scale = 1.0
-    if linewidth < 1.0:
-        scale = linewidth
-        linewidth = 1.0
+    if line_width < 1.0:
+        scale = line_width
+        line_width = 1.0
 
     aa = 1.0
-    halfwidth = 0.5*(linewidth + aa)
+    halfwidth = 0.5*(line_width + aa)
 
     # Want y0 <= y1, so switch vertical direction if it this is not so.
     if y1 < y0 or (y1 == y0 and x1 < x0):
@@ -763,7 +763,7 @@ def _full_antialias(linewidth, i, x0, x1, y0, y1, *aggs_and_cols):
             else:
                 distance = abs((x-x0)*rightx + (y-y0)*righty)
 
-            value = 1.0 - _linearstep(0.5*(linewidth - aa), halfwidth, distance)
+            value = 1.0 - _linearstep(0.5*(line_width - aa), halfwidth, distance)
             value *= scale
             if value > 0.0:
                 if flip:
@@ -821,7 +821,7 @@ def _build_bresenham(expand_aggs_and_cols):
                 append(i, x0, y0, *aggs_and_cols)
     return _bresenham
 
-def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, linewidth):
+def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, line_width):
     """Specialize a line plotting kernel for a given append/axis combination"""
 
     _bresenham = _build_bresenham(expand_aggs_and_cols)
@@ -857,8 +857,8 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, linewidth)
             x1_2, y1_2 = map_onto_pixel(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax, x1_1, y1_1
             )
-            if linewidth > 0.0:
-                _full_antialias(linewidth, i, x0_2, x1_2, y0_2, y1_2, *aggs_and_cols)
+            if line_width > 0.0:
+                _full_antialias(line_width, i, x0_2, x1_2, y0_2, y1_2, *aggs_and_cols)
             else:
                 _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                            segment_start, x0_2, x1_2, y0_2, y1_2,

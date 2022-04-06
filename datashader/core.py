@@ -213,7 +213,7 @@ class Canvas(object):
         return bypixel(source, self, glyph, agg)
 
     def line(self, source, x=None, y=None, agg=None, axis=0, geometry=None,
-             linewidth=0, antialias=False):
+             line_width=0, antialias=False):
         """Compute a reduction by pixel, mapping data to pixels as one or
         more lines.
 
@@ -247,7 +247,7 @@ class Canvas(object):
         geometry : str
             Column name of a LinesArray of the coordinates of each line. If provided,
             the x and y arguments may not also be provided.
-        linewidth : number, optional
+        line_width : number, optional
             Width of the line to draw, in pixels. If zero, the
             default, lines are drawn using a simple algorithm with a
             blocky single-pixel width based on whether the line passes
@@ -255,16 +255,16 @@ class Canvas(object):
             are drawn with the specified width ususing a slower and
             more complex antialiasing algorithm with fractional values
             along each edge, so that lines have a more uniform visual
-            appearance across all angles. Linewidths between 0 and 1
-            effectively use a linewidth of 1 pixel but with a
+            appearance across all angles. Line widths between 0 and 1
+            effectively use a line_width of 1 pixel but with a
             proportionate reduction in the strength of each pixel,
             approximating the visual appearance of a subpixel line
             width.
         antialias : bool, optional
             This option is kept for backward compatibility only. 
-            ``True`` is equivalent to ``linewidth=1`` and
-            ``False`` (the default) to ``linewidth=0``. Do not specify
-            both ``antialias`` and ``linewidth`` in the same call as a
+            ``True`` is equivalent to ``line_width=1`` and
+            ``False`` (the default) to ``line_width=0``. Do not specify
+            both ``antialias`` and ``line_width`` in the same call as a
             ``ValueError`` will be raised if they disagree.
 
         Examples
@@ -342,16 +342,16 @@ class Canvas(object):
         if agg is None:
             agg = rd.any()
 
-        if linewidth is None:
-            linewidth = 0
+        if line_width is None:
+            line_width = 0
 
-        # Check and convert antialias kwarg to linewidth.
-        if antialias and linewidth != 0:
+        # Check and convert antialias kwarg to line_width.
+        if antialias and line_width != 0:
             raise ValueError(
-                "Do not specify values for both the linewidth and \n"
-                "antialias keyword arguments; use linewidth instead.")
+                "Do not specify values for both the line_width and \n"
+                "antialias keyword arguments; use line_width instead.")
         if antialias:
-            linewidth = 1.0
+            line_width = 1.0
 
         if geometry is not None:
             from spatialpandas import GeoDataFrame
@@ -416,16 +416,16 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
-        if (linewidth > 0 and ((cudf and isinstance(source, cudf.DataFrame)) or
+        if (line_width > 0 and ((cudf and isinstance(source, cudf.DataFrame)) or
                                (dask_cudf and isinstance(source, dask_cudf.DataFrame)))):
             import warnings
             warnings.warn(
                 "Antialiased lines are not supported for CUDA-backed sources, "
-                "so reverting to linewidth=0")
-            linewidth = 0
+                "so reverting to line_width=0")
+            line_width = 0
 
-        glyph.set_linewidth(linewidth)
-        if linewidth > 0:
+        glyph.set_line_width(line_width)
+        if line_width > 0:
             if isinstance(agg, (rd.any, rd.max)):
                 glyph.set_antialias_combination_max()
 
