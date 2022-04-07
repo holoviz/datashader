@@ -3,7 +3,7 @@ name: downstream_tests
 on:
   # Run this workflow after the build workflow has completed.
   workflow_run:
-    workflows: [build]
+    workflows: [packages]
     types: [completed]
   # Or by triggering it manually via Github's UI
   workflow_dispatch:
