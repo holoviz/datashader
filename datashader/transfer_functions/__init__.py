@@ -7,6 +7,7 @@ except ImportError: # py2.7
 
 from collections import OrderedDict
 from io import BytesIO
+import warnings
 
 import numpy as np
 import numba as nb
@@ -169,8 +170,10 @@ def eq_hist(data, mask=None, nbins=256*256):
 
     data2 = data if mask is None else data[~mask]
     if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
-        if data2.dtype.kind == 'u':
-             data2 = data2.astype('i8')
+        # workaround for bincount not supporting uint64 (https://github.com/numpy/numpy/issues/17760)
+        if data2.dtype == np.uint64:
+            warnings.warn("uint64 aggregate not supported by numpy bincount; casting to uint32")
+            data2 = data2.astype(np.uint32)
         hist = np.bincount(data2.ravel())
         bin_centers = np.arange(len(hist))
         idx = int(np.nonzero(hist)[0][0])
