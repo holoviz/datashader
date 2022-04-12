@@ -202,6 +202,23 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
+def _rescale_discrete_levels(discrete_levels, span):
+    if discrete_levels is None:
+        raise ValueError("interpolator did not return a valid discrete_levels")
+
+    # Straight line y = mx + c through (2, 1.5) and (100, 1) where
+    # x is number of discrete_levels and y is lower span limit.
+    m = -0.5/98.0  # (y[1] - y[0]) / (x[1] - x[0])
+    c = 1.5 - 2*m  # y[0] - m*x[0]
+    multiple = m*discrete_levels + c
+
+    if multiple > 1:
+        lower_span = max(span[1] - multiple*(span[1] - span[0]), 0)
+        span = (lower_span, 1)
+
+    return span
+
+
 def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_levels):
     if cupy and isinstance(agg.data, cupy.ndarray):
         from ._cuda_utils import masked_clip_2d, interp
@@ -259,17 +276,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
             span = np.nanmin(masked_data), np.nanmax(masked_data)
 
             if rescale_discrete_levels:  # Only valid for how='eq_hist'
-                if discrete_levels is None:
-                    raise ValueError("interpolator did not return a valid discrete_levels")
-
-                # Straight line y = mx + c through (2, 1.5) and (100, 1) where
-                # x is number of discrete_levels and y is lower span limit.
-                m = -0.5/98.0  # (y[1] - y[0]) / (x[1] - x[0])
-                c = 1.5 - 2*m  # y[0] - m*x[0]
-                multiple = m*discrete_levels + c
-                if multiple > 1:
-                    lower_span = max(span[1] - multiple*(span[1] - span[0]), 0)
-                    span = (lower_span, 1)
+                span = _rescale_discrete_levels(discrete_levels, span)
         else:
             if how == 'eq_hist':
                 # For eq_hist to work with span, we'd need to compute the histogram
@@ -319,7 +326,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
-def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline):
+def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline, rescale_discrete_levels):
     if cupy and isinstance(agg.data, cupy.ndarray):
         array = cupy.array
     else:
@@ -391,7 +398,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
 
     total = nansum_missing(data, axis=2)
     mask = np.isnan(total)
-    a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha)
+    a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels)
 
     values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
     if cupy and isinstance(values, cupy.ndarray):
@@ -407,7 +414,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
                  name=name)
 
 
-def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha):
+def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels):
 
     if cupy and isinstance(data, cupy.ndarray):
         from ._cuda_utils import interp, masked_clip_2d
@@ -430,13 +437,18 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha):
             total = np.where(~mask, total, np.nan)
 
         a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
+        discrete_levels = None
         if isinstance(a_scaled, (list, tuple)):
-            a_scaled = a_scaled[0]  # Ignore discrete_levels
+            a_scaled, discrete_levels = a_scaled
 
         # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
         with np.warnings.catch_warnings():
             np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
             norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
+
+        if rescale_discrete_levels:  # Only valid for how='eq_hist'
+            norm_span = _rescale_discrete_levels(discrete_levels, norm_span)
+
     else:
         if how == 'eq_hist':
             # For eq_hist to work with span, we'll need to compute the histogram
@@ -671,7 +683,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         else:
             return _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_levels)
     elif agg.ndim == 3:
-        return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
+        return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline, rescale_discrete_levels)
     else:
         raise ValueError("agg must use 2D or 3D coordinates")
 
