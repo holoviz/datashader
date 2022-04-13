@@ -7,7 +7,6 @@ except ImportError: # py2.7
 
 from collections import OrderedDict
 from io import BytesIO
-import warnings
 
 import numpy as np
 import numba as nb
