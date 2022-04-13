@@ -151,7 +151,8 @@ def eq_hist(data, mask=None, nbins=256*256):
        Boolean array of missing points. Where True, the output will be `NaN`.
     nbins : int, optional
         Number of bins to use. Note that this argument is ignored for integer
-        arrays, which bin by the integer values directly.
+        and boolean arrays with dtypes 32 bits or smaller, which bin by the
+        integer values directly.
 
     Notes
     -----
@@ -169,11 +170,7 @@ def eq_hist(data, mask=None, nbins=256*256):
         interp = np.interp
 
     data2 = data if mask is None else data[~mask]
-    if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
-        # workaround for bincount not supporting uint64 (https://github.com/numpy/numpy/issues/17760)
-        if data2.dtype == np.uint64:
-            warnings.warn("uint64 aggregate not supported by numpy bincount; casting to uint32")
-            data2 = data2.astype(np.uint32)
+    if data2.dtype == bool or (np.issubdtype(data2.dtype, np.integer) and data2.itemsize <= 4):
         hist = np.bincount(data2.ravel())
         bin_centers = np.arange(len(hist))
         idx = int(np.nonzero(hist)[0][0])
