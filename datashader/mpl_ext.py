@@ -407,6 +407,7 @@ class ScalarDSArtist(DSArtist):
                 self.norm.vmin = A.min()
             if self._vmax is None:
                 self.norm.vmax = A.max()
+        self.autoscale_None()
 
         # Make the image with matplotlib
         return self.to_rgba(A, bytes=True, norm=True)
