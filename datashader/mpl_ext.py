@@ -398,9 +398,15 @@ class ScalarDSArtist(DSArtist):
 
         # Rescale the norm to the current array
         self.set_array(A)
-        self.norm.vmin = self._vmin
-        self.norm.vmax = self._vmax
-        self.autoscale_None()
+        if self._vmin is not None:
+            self.norm.vmin = self._vmin
+        if self._vmax is not None:
+            self.norm.vmax = self._vmax
+        if A.size:
+            if self._vmin is None:
+                self.norm.vmin = A.min()
+            if self._vmax is None:
+                self.norm.vmax = A.max()
 
         # Make the image with matplotlib
         return self.to_rgba(A, bytes=True, norm=True)
