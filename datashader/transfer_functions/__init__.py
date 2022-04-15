@@ -149,8 +149,9 @@ def eq_hist(data, mask=None, nbins=256*256):
     mask : ndarray, optional
        Boolean array of missing points. Where True, the output will be `NaN`.
     nbins : int, optional
-        Number of bins to use. Note that this argument is ignored for integer
-        arrays, which bin by the integer values directly.
+        Maximum number of bins to use. If data is of type boolean or integer
+        this will determine when to switch from exact unique value counts to
+        a binned histogram.
 
     Notes
     -----
@@ -168,13 +169,16 @@ def eq_hist(data, mask=None, nbins=256*256):
         interp = np.interp
 
     data2 = data if mask is None else data[~mask]
-    if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
-        if data2.dtype.kind == 'u':
-             data2 = data2.astype('i8')
-        hist = np.bincount(data2.ravel())
-        bin_centers = np.arange(len(hist))
-        idx = int(np.nonzero(hist)[0][0])
-        hist, bin_centers = hist[idx:], bin_centers[idx:]
+
+    # Run more accurate value counting if data is of boolean or integer type
+    # and unique value array is smaller than nbins.
+    if data2.dtype == bool or (np.issubdtype(data2.dtype, np.integer) and data2.max() < nbins):
+        values, counts = np.unique(data2, return_counts=True)
+        vmin, vmax = values.min(), values.max()
+        interval = vmax-vmin
+        bin_centers = np.arange(vmin, vmax+1)
+        hist = np.zeros(interval+1, dtype='uint64')
+        hist[values-vmin] = counts
     else:
         hist, bin_edges = np.histogram(data2, bins=nbins)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
