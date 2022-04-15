@@ -54,8 +54,14 @@ test_tiles_output/
 # Django stuff:
 *.log
 
-# Sphinx documentation
-docs/_build/
+# (Mostly) auto-generated during Sphinx doc builds
+doc/_build/
+doc/_static/nyc_races.jpg
+doc/_static/usa_census.jpg
+doc/*.ipynb
+doc/*/*.ipynb
+doc/*.rst
+doc/*/*.rst
 
 # PyBuilder
 target/
@@ -71,6 +77,8 @@ target/
 examples/times
 examples/data
 examples/export
+examples/user_guide/export
+examples/tiles_output_directory
 
 **.org
 .doit*
