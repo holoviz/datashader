@@ -70,8 +70,18 @@ class CategoryPreprocess(Preprocess):
         """Applies preprocessor to DataFrame and returns array"""
         raise NotImplementedError("apply not implemented")
 
+
 class category_codes(CategoryPreprocess):
-    """Extract just the category codes from a categorical column."""
+    """
+    Extract just the category codes from a categorical column.
+
+    To create a new type of categorizer, derive a subclass from this
+    class or one of its subclasses, implementing ``__init__``,
+    ``_hashable_inputs``, ``categories``, ``validate``, and ``apply``.
+
+    See the implementation of ``category_modulo`` in ``reductions.py``
+    for an example.
+    """
     def categories(self, input_dshape):
         return input_dshape.measure[self.column].categories
 
