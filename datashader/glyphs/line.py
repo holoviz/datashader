@@ -694,6 +694,10 @@ def _full_antialias(line_width, i, x0, x1, y0, y1, *aggs_and_cols):
         scale = line_width
         line_width = 1.0
 
+    # Scale by column value, if required.
+    if len(aggs_and_cols) > 1:
+        scale *= aggs_and_cols[1][i]
+
     aa = 1.0
     halfwidth = 0.5*(line_width + aa)
 
@@ -949,7 +953,7 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, want_anti
 
         accum_agg = aggs_and_cols[0]
         temp_agg = np.full_like(accum_agg, null_value, dtype=np.float32)
-        temp_aggs_and_cols = (temp_agg,)
+        temp_aggs_and_cols = (temp_agg,) + aggs_and_cols[1:]
 
         nrows, ncols = xs.shape
 
@@ -1019,7 +1023,7 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, w
 
         accum_agg = aggs_and_cols[0]
         temp_agg = np.full_like(accum_agg, null_value, dtype=np.float32)
-        temp_aggs_and_cols = (temp_agg,)
+        temp_aggs_and_cols = (temp_agg,) + aggs_and_cols[1:]
 
         ncols = xs.shape[1]
         for i in range(xs.shape[0]):
@@ -1090,7 +1094,7 @@ def _build_extend_line_axis1_x_constant(
 
         accum_agg = aggs_and_cols[0]
         temp_agg = np.full_like(accum_agg, null_value, dtype=np.float32)
-        temp_aggs_and_cols = (temp_agg,)
+        temp_aggs_and_cols = (temp_agg,) + aggs_and_cols[1:]
 
         ncols = ys.shape[1]
         for i in range(ys.shape[0]):
@@ -1166,7 +1170,7 @@ def _build_extend_line_axis1_y_constant(
 
         accum_agg = aggs_and_cols[0]
         temp_agg = np.full_like(accum_agg, null_value, dtype=np.float32)
-        temp_aggs_and_cols = (temp_agg,)
+        temp_aggs_and_cols = (temp_agg,) + aggs_and_cols[1:]
 
         ncols = xs.shape[1]
         for i in range(xs.shape[0]):
@@ -1286,7 +1290,7 @@ def _build_extend_line_axis1_ragged(
 
         accum_agg = aggs_and_cols[0]
         temp_agg = np.full_like(accum_agg, null_value, dtype=np.float32)
-        temp_aggs_and_cols = (temp_agg,)
+        temp_aggs_and_cols = (temp_agg,) + aggs_and_cols[1:]
 
         nrows = len(x_start_i)
         x_flat_len = len(x_flat)
@@ -1462,7 +1466,7 @@ def _build_extend_line_axis1_geometry(
 
         accum_agg = aggs_and_cols[0]
         temp_agg = np.full_like(accum_agg, null_value, dtype=np.float32)
-        temp_aggs_and_cols = (temp_agg,)
+        temp_aggs_and_cols = (temp_agg,) + aggs_and_cols[1:]
 
         for i in eligible_inds:
             if missing[i]:
