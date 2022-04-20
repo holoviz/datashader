@@ -588,6 +588,22 @@ def nanmax_in_place(ret, other):
 
 
 @ngjit
+def nanmin_in_place(ret, other):
+    """Min of 2 arrays but taking nans into account.  Could use np.nanmin but
+    would need to replace zeros with nans where both arrays are nans.
+    Return the first array.
+    """
+    ny, nx = ret.shape
+    for j in range(ny):
+        for i in range(nx):
+            if isnull(ret[j, i]):
+                if not isnull(other[j, i]):
+                    ret[j, i] = other[j, i]
+            elif not isnull(other[j, i]) and other[j,i] < ret[j, i]:
+                ret[j,i] = other[j, i]
+
+
+@ngjit
 def nansum_in_place(ret, other):
     """Sum of 2 arrays but taking nans into account.  Could use np.nansum but
     would need to replace zeros with nans where both arrays are nans.
