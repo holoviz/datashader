@@ -427,16 +427,25 @@ The axis argument to Canvas.line must be 0 or 1
 
         glyph.set_line_width(line_width)
         if line_width > 0:
+            # Eventually this will be replaced with attributes and/or
+            # member functions of Reduction classes.
+            antialias_combination = AntialiasCombination.NONE
             if isinstance(agg, (rd.any, rd.max)):
-                glyph.set_antialias_combination(AntialiasCombination.MAX)
+                antialias_combination = AntialiasCombination.MAX
             elif isinstance(agg, rd.min):
-                glyph.set_antialias_combination(AntialiasCombination.MIN)
+                antialias_combination = AntialiasCombination.MIN
+            elif isinstance(agg, (rd.count, rd.sum)):
+                if agg.self_intersect:
+                    antialias_combination = AntialiasCombination.SUM_1AGG
+                else:
+                    antialias_combination = AntialiasCombination.SUM_2AGG
             else:
-                glyph.set_antialias_combination(AntialiasCombination.SUM)
+                antialias_combination = AntialiasCombination.SUM_2AGG
+            glyph.set_antialias_combination(antialias_combination)
 
             # Switch agg to floating point.
             if isinstance(agg, rd.count):
-                agg = rd.count_f32()
+                agg = rd.count_f32(self_intersect=agg.self_intersect)
             elif isinstance(agg, rd.any):
                 agg = rd.any_f32()
 

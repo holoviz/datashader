@@ -8,7 +8,7 @@ import numpy as np
 
 from datashader.glyphs import Glyph
 from datashader.glyphs.line import _build_draw_segment, \
-    _build_map_onto_pixel_for_line
+    _build_map_onto_pixel_for_line, AntialiasCombination
 from datashader.utils import ngjit
 
 py2_skip = pytest.mark.skipif(sys.version_info.major < 3, reason="py2 not supported")
@@ -28,7 +28,7 @@ def draw_line():
 
     expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
     return _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
-                               False)
+                               False, AntialiasCombination.NONE)
 
 
 @py2_skip
