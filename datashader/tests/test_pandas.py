@@ -1300,10 +1300,6 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs, line_width):
             [np.nan,   np.nan,   0.646447, 0.646447, np.nan,   0.646447, 0.646447, np.nan,   np.nan  ],
             [np.nan,   np.nan,   np.nan,   0.646447, 1.292893, 0.646447, np.nan,   np.nan,   np.nan  ]
         ], dtype='f4')
-
-        if cvs_kwargs == dict(x='x', y='y', axis=0):
-            # axis0 single draws both lines at the same time.
-            sol[[0, -1], [4, 4]] = 0.646447
     else:
         sol = np.array([[0, 0, 0, 0, 2, 0, 0, 0, 0],
                         [0, 0, 0, 1, 0, 1, 0, 0, 0],
