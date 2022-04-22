@@ -571,49 +571,57 @@ def isnull(val):
     return not (val <= 0 or val > 0)
 
 
-@ngjit
+@ngjit_parallel
 def nanmax_in_place(ret, other):
     """Max of 2 arrays but taking nans into account.  Could use np.nanmax but
     would need to replace zeros with nans where both arrays are nans.
     Return the first array.
     """
-    ny, nx = ret.shape
-    for j in range(ny):
-        for i in range(nx):
-            if isnull(ret[j, i]):
-                if not isnull(other[j, i]):
-                    ret[j, i] = other[j, i]
-            elif not isnull(other[j, i]) and other[j,i] > ret[j, i]:
-                ret[j,i] = other[j, i]
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]):
+            if not isnull(other[i]):
+                ret[i] = other[i]
+        elif not isnull(other[i]) and other[i] > ret[i]:
+            ret[i] = other[i]
 
 
-@ngjit
+@ngjit_parallel
 def nanmin_in_place(ret, other):
     """Min of 2 arrays but taking nans into account.  Could use np.nanmin but
     would need to replace zeros with nans where both arrays are nans.
     Return the first array.
     """
-    ny, nx = ret.shape
-    for j in range(ny):
-        for i in range(nx):
-            if isnull(ret[j, i]):
-                if not isnull(other[j, i]):
-                    ret[j, i] = other[j, i]
-            elif not isnull(other[j, i]) and other[j,i] < ret[j, i]:
-                ret[j,i] = other[j, i]
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]):
+            if not isnull(other[i]):
+                ret[i] = other[i]
+        elif not isnull(other[i]) and other[i] < ret[i]:
+            ret[i] = other[i]
 
 
-@ngjit
+@ngjit_parallel
 def nansum_in_place(ret, other):
     """Sum of 2 arrays but taking nans into account.  Could use np.nansum but
     would need to replace zeros with nans where both arrays are nans.
     Return the first array.
     """
-    ny, nx = ret.shape
-    for j in range(ny):
-        for i in range(nx):
-            if isnull(ret[j, i]):
-                if not isnull(other[j, i]):
-                    ret[j, i] = other[j, i]
-            elif not isnull(other[j, i]):
-                ret[j,i] += other[j, i]
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]):
+            if not isnull(other[i]):
+                ret[i] = other[i]
+        elif not isnull(other[i]):
+            ret[i] += other[i]
+
+
+@ngjit_parallel
+def parallel_fill(array, value):
+    """Parallel version of np.fill()"""
+    array = array.ravel()
+    for i in nb.prange(len(array)):
+        array[i] = value

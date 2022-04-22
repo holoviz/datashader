@@ -6,7 +6,7 @@ from toolz import memoize
 
 from datashader.glyphs.points import _PointLike, _GeometryLike
 from datashader.utils import (isnull, isreal, ngjit, nanmax_in_place,
-                              nanmin_in_place, nansum_in_place)
+                              nanmin_in_place, nansum_in_place, parallel_fill)
 from numba import cuda
 
 
@@ -1072,7 +1072,7 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, antialias
 
         for j in range(ncols):
             if j > 0:
-                temp_agg.fill(null_value)
+                parallel_fill(temp_agg, null_value)
 
             for i in range(nrows - 1):
                 perform_extend_line(i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1151,7 +1151,7 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, a
         ncols = xs.shape[1]
         for i in range(xs.shape[0]):
             if i > 0:
-                temp_agg.fill(null_value)
+                parallel_fill(temp_agg, null_value)
 
             for j in range(ncols - 1):
                 perform_extend_line(i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1234,7 +1234,7 @@ def _build_extend_line_axis1_x_constant(
             # Each time in this loop need to use its own canvas/agg/reduction
             # So create a temporary one and use that, and need use a "max" reduction.
             if i > 0:
-                temp_agg.fill(null_value)
+                parallel_fill(temp_agg, null_value)
 
             for j in range(ncols - 1):
                 perform_extend_line(
@@ -1318,7 +1318,7 @@ def _build_extend_line_axis1_y_constant(
         ncols = xs.shape[1]
         for i in range(xs.shape[0]):
             if i > 0:
-                temp_agg.fill(null_value)
+                parallel_fill(temp_agg, null_value)
 
             for j in range(ncols - 1):
                 perform_extend_line(
@@ -1467,7 +1467,7 @@ def _build_extend_line_axis1_ragged(
                               y_stop_index - y_start_index)
 
             if i > 0:
-                temp_agg.fill(null_value)
+                parallel_fill(temp_agg, null_value)
 
             for j in range(segment_len - 1):
 
@@ -1644,7 +1644,7 @@ def _build_extend_line_axis1_geometry(
                 stop1 = offsets1[j + 1]
 
                 if j > 0:
-                    temp_agg.fill(null_value)
+                    parallel_fill(temp_agg, null_value)
 
                 for k in range(start1, stop1 - 2, 2):
                     x0 = values[k]

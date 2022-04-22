@@ -24,7 +24,7 @@ def extend_line():
     expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
     draw_line = _build_draw_segment(append, map_onto_pixel,
                                     expand_aggs_and_cols, False, AntialiasCombination.NONE)
-    return _build_extend_line_axis0(draw_line, expand_aggs_and_cols)[0]
+    return _build_extend_line_axis0(draw_line, expand_aggs_and_cols, AntialiasCombination.NONE)[0]
 
 
 @py2_skip
