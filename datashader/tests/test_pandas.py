@@ -103,12 +103,15 @@ def assert_eq_xr(agg, b, close=False):
     else:
         xr.testing.assert_equal(agg, b)
 
-def assert_eq_ndarray(data, b):
+def assert_eq_ndarray(data, b, close=False):
     """Assert that two ndarrays are equal, handling the possibility that the
     ndarrays are of different types"""
     if cupy and isinstance(data, cupy.ndarray):
         data = cupy.asnumpy(data)
-    np.testing.assert_equal(data, b)
+    if close:
+        np.testing.assert_array_almost_equal(data, b, decimal=5)
+    else:
+        np.testing.assert_equal(data, b)
 
 
 def floats(n):
@@ -1750,3 +1753,152 @@ def test_area_to_line_autorange_gap():
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y0', 'x'])
     assert_eq_xr(agg, out)
+
+
+
+# Using local versions of nan-aware combinations rather than those in
+# utils.py.  These versions are not always applicable, e.g. if summming
+# a positive and negative value to total exactly zero will be wrong here.
+def nanmax(arr0, arr1):
+    mask = np.logical_and(np.isnan(arr0), np.isnan(arr1))
+    ret = np.maximum(np.nan_to_num(arr0, nan=0.0), np.nan_to_num(arr1, nan=0.0))
+    ret[mask] = np.nan
+    return ret
+
+def nanmin(arr0, arr1):
+    mask = np.logical_and(np.isnan(arr0), np.isnan(arr1))
+    ret = np.minimum(np.nan_to_num(arr0, nan=1e10), np.nan_to_num(arr1, nan=1e10))
+    ret[mask] = np.nan
+    return ret
+
+def nansum(arr0, arr1):
+    mask = np.logical_and(np.isnan(arr0), np.isnan(arr1))
+    ret = np.nan_to_num(arr0, nan=0.0) + np.nan_to_num(arr1, nan=0.0)
+    ret[mask] = np.nan
+    return ret
+
+line_antialias_df = pd.DataFrame(dict(
+    # Self-intersecting line.
+    x0=np.asarray([0, 1, 1, 0]),
+    y0=np.asarray([0, 1, 0, 1]),
+    # Non-self-intersecting line.
+    x1=np.linspace(0.0, 1.0, 4),
+    y1=np.linspace(0.125, 0.2, 4),
+    value=[3, 3, 3, 3],
+))
+line_antialias_sol_0 = np.array([
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.292893, 1.0,      0.292893, np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      0.292893, np.nan,   np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.292893, 1.0,      0.292893, np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
+])
+line_antialias_sol_0_intersect = np.array([
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.585786, 1.0,      0.292893, np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   0.585786, 2.0,      0.585786, np.nan,   np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.585786, 1.0,      0.292893, np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
+])
+line_antialias_sol_1 = np.array([
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, 1.0,      0.92521,  0.85042,  0.77563,  0.70084, 0.62605, 0.55126 , 0.47647, 0.40168, np.nan],
+    [np.nan, 0.002801, 0.077591, 0.152381, 0.227171, 0.30196, 0.37675, 0.45154 , 0.52633, 0.6,     np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+])
+
+def test_line_antialias():
+    x_range = y_range = (-0.1875, 1.1875)
+    cvs = ds.Canvas(plot_width=11, plot_height=11, x_range=x_range, y_range=y_range)
+
+    # First line only, self-intersects
+    kwargs = dict(source=line_antialias_df, x="x0", y="y0", line_width=1)
+    agg = cvs.line(agg=ds.any(), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=False), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=True), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_0_intersect, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=False), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=True), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0_intersect, close=True)
+
+    agg = cvs.line(agg=ds.max("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.min("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
+
+    # Second line only, doesn't self-intersect
+    kwargs = dict(source=line_antialias_df, x="x1", y="y1", line_width=1)
+    agg = cvs.line(agg=ds.any(), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=False), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=True), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=False), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=True), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.max("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.min("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    # Both lines.
+    kwargs = dict(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], line_width=1)
+    agg = cvs.line(agg=ds.any(), **kwargs)
+    sol_max = nanmax(line_antialias_sol_0, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, sol_max, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=False), **kwargs)
+    sol_sum = nansum(line_antialias_sol_0, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, sol_sum, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=True), **kwargs)
+    sol_sum_intersect = nansum(line_antialias_sol_0_intersect, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, sol_sum_intersect, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=False), **kwargs)
+    assert_eq_ndarray(agg.data, 3*sol_sum, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=True), **kwargs)
+    assert_eq_ndarray(agg.data, 3*sol_sum_intersect, close=True)
+
+    agg = cvs.line(agg=ds.max("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*sol_max, close=True)
+
+    agg = cvs.line(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], agg=ds.min("value"), line_width=1)
+    sol_min = nanmin(line_antialias_sol_0, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, 3*sol_min, close=True)
