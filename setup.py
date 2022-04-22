@@ -49,6 +49,7 @@ extras_require = {
         'spatialpandas',
         'rioxarray',
         'rasterio',
+        'typing-extensions <4.2.0',
     ],
     'examples': examples,
     'examples_extra': examples + [
