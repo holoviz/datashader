@@ -19,7 +19,7 @@ except ImportError:
     cuda_args = None
 
 
-# Eventually this will be replaced with attributes and/or
+# It would be preferable to replace this with attributes and/or
 # member functions of Reduction classes.
 class AntialiasCombination(Enum):
     NONE = 0
@@ -830,7 +830,7 @@ def _full_antialias(line_width, antialias_combination, i, x0, x1, y0, y1,
                 # Within segment
                 distance = abs((x-x0)*rightx + (y-y0)*righty)
                 if not overwrite and not segment_start and \
-                        (x-x0)*prev_alongx + (y-y0)*prev_alongy <= 0.0 and \
+                        -prev_length <= (x-x0)*prev_alongx + (y-y0)*prev_alongy <= 0.0 and \
                         abs((x-x0)*prev_rightx + (y-y0)*prev_righty) <= halfwidth:
                     prev_correction = True
 
