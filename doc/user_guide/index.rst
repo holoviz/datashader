@@ -32,7 +32,7 @@ Contents:
 `7. Networks <Networks.html>`_
  Plotting network graphs
 
-`8. Geography <Geography.html>`_
+`8. Polygons <Polygons.html>`_
  Using Datashader for geographic and other spatial applications.
 
 `9. Extending <Extending.html>`_
@@ -40,6 +40,9 @@ Contents:
 
 `10. Performance <Performance.html>`_
  Hints for getting good performance out of Datashader in your applications.
+
+`11. Geography <Geography.html>`_
+ Pointers to using Datashader for geographic and other spatial applications.
 
 .. toctree::
     :hidden:
@@ -52,6 +55,7 @@ Contents:
     Grids <Grids>
     Trimesh <Trimesh>
     Networks <Networks>
-    Geography <Geography>
+    Polygons <Polygons>
     Extending <Extending>
     Performance <Performance>
+    Geography <Geography>
