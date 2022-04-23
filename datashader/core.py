@@ -427,7 +427,7 @@ The axis argument to Canvas.line must be 0 or 1
 
         glyph.set_line_width(line_width)
         if line_width > 0:
-            # Eventually this will be replaced with attributes and/or
+            # Eventually this should be replaced with attributes and/or
             # member functions of Reduction classes.
             antialias_combination = AntialiasCombination.NONE
             if isinstance(agg, (rd.any, rd.max)):

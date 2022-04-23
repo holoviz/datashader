@@ -19,8 +19,8 @@ except ImportError:
     cuda_args = None
 
 
-# It would be preferable to replace this with attributes and/or
-# member functions of Reduction classes.
+# This Enum should eventually be replaced with attributes
+# and/or member functions of Reduction classes.
 class AntialiasCombination(Enum):
     NONE = 0
     SUM_1AGG = 1
