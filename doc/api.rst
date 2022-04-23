@@ -16,6 +16,9 @@ Entry Points
    Canvas.raster
    Canvas.trimesh
    Canvas.validate
+   Canvas.area
+   Canvas.polygons
+   Canvas.quadmesh
 
 .. currentmodule:: datashader
 
@@ -140,7 +143,30 @@ Definitions
 
 .. currentmodule:: datashader.glyphs
 .. autoclass:: Point
-.. autoclass:: Line
+.. autoclass:: Triangles
+.. autoclass:: PolygonGeom
+.. autoclass:: QuadMeshRaster
+.. autoclass:: QuadMeshRectilinear
+.. autoclass:: QuadMeshCurvilinear
+.. autoclass:: LineAxis0
+.. autoclass:: LineAxis0Multi
+.. autoclass:: LinesAxis1
+.. autoclass:: LinesAxis1XConstant
+.. autoclass:: LinesAxis1YConstant
+.. autoclass:: LinesAxis1Ragged
+.. autoclass:: LineAxis1Geometry
+.. autoclass:: AreaToZeroAxis0
+.. autoclass:: AreaToZeroAxis0Multi
+.. autoclass:: AreaToZeroAxis1
+.. autoclass:: AreaToZeroAxis1XConstant
+.. autoclass:: AreaToZeroAxis1YConstant
+.. autoclass:: AreaToZeroAxis1Ragged
+.. autoclass:: AreaToLineAxis0
+.. autoclass:: AreaToLineAxis0Multi
+.. autoclass:: AreaToLineAxis1
+.. autoclass:: AreaToLineAxis1XConstant
+.. autoclass:: AreaToLineAxis1YConstant
+.. autoclass:: AreaToLineAxis1Ragged
 
 .. currentmodule:: datashader.reductions
 .. autoclass:: any

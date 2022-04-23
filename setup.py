@@ -62,6 +62,8 @@ extras_require = {
         'python-snappy',
         'rasterio',
         'snappy',
+        'spatialpandas',
+        'geopandas',
     ]
 }
 
