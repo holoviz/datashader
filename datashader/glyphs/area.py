@@ -58,7 +58,7 @@ class _AreaToLineLike(Glyph):
 
 
 class AreaToZeroAxis0(_PointLike):
-    """A filled area glyph
+    """A filled area glyph.
     The area to be filled is the region from the line defined by ``x`` and
     ``y`` and the y=0 line
 
