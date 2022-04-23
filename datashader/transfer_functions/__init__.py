@@ -693,7 +693,7 @@ def set_background(img, color=None, name=None):
     """Return a new image, with the background set to `color`.
 
     Parameters
-    -----------------
+    ----------
     img : Image
     color : color name or tuple, optional
         The background color. Can be specified either by name, hexcode, or as a
