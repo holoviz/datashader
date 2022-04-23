@@ -94,7 +94,7 @@ setup_args = dict(
     },
     maintainer='Datashader developers',
     maintainer_email='dev@datashader.org',
-    python_requires=">=2.7",
+    python_requires=">=3.6",
     install_requires=install_requires,
     extras_require=extras_require,
     tests_require=extras_require['tests'],
