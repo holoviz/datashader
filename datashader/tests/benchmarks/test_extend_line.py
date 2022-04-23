@@ -5,7 +5,8 @@ import pytest
 
 from datashader.glyphs import Glyph
 from datashader.glyphs.line import (
-    _build_draw_segment, _build_extend_line_axis0, _build_map_onto_pixel_for_line
+    _build_draw_segment, _build_extend_line_axis0, _build_map_onto_pixel_for_line,
+    AntialiasCombination
 )
 from datashader.utils import ngjit
 
@@ -22,8 +23,8 @@ def extend_line():
     map_onto_pixel = _build_map_onto_pixel_for_line(mapper, mapper)
     expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
     draw_line = _build_draw_segment(append, map_onto_pixel,
-                                    expand_aggs_and_cols, False)
-    return _build_extend_line_axis0(draw_line, expand_aggs_and_cols)[0]
+                                    expand_aggs_and_cols, False, AntialiasCombination.NONE)
+    return _build_extend_line_axis0(draw_line, expand_aggs_and_cols, AntialiasCombination.NONE)[0]
 
 
 @py2_skip

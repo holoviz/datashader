@@ -277,7 +277,19 @@ class OptionalFieldReduction(Reduction):
     def _finalize(bases, cuda=False, **kwargs):
         return xr.DataArray(bases[0], **kwargs)
 
-class count(OptionalFieldReduction):
+
+class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
+    """
+    Base class for optional field reductions for which self-intersecting
+    geometry may or may not be desireable.
+    Ignored if not using antialiasing.
+    """
+    def __init__(self, column=None, self_intersect=True):
+        super().__init__(column)
+        self.self_intersect = self_intersect
+
+
+class count(SelfIntersectingOptionalFieldReduction):
     """Count elements in each bin, returning the result as a uint32.
 
     Parameters
@@ -293,7 +305,6 @@ class count(OptionalFieldReduction):
     @ngjit
     def _append_no_field(x, y, agg):
         agg[y, x] += 1
-
 
     @staticmethod
     @ngjit
@@ -322,7 +333,7 @@ class count(OptionalFieldReduction):
         return aggs.sum(axis=0, dtype='u4')
 
 
-class count_f32(OptionalFieldReduction):
+class count_f32(SelfIntersectingOptionalFieldReduction):
     """Count elements in each bin, returning the result as a float32.
 
     Is floating point rather than boolean to deal with fractional antialiased
@@ -601,7 +612,19 @@ class _sum_zero(FloatingReduction):
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='f8')
 
-class sum(FloatingReduction):
+
+class SelfIntersectingFloatingReduction(FloatingReduction):
+    """
+    Base class for floating reductions for which self-intersecting geometry
+    may or may not be desireable.
+    Ignored if not using antialiasing.
+    """
+    def __init__(self, column=None, self_intersect=True):
+        super().__init__(column)
+        self.self_intersect = self_intersect
+
+
+class sum(SelfIntersectingFloatingReduction):
     """Sum of all elements in ``column``.
 
     Elements of resulting aggregate are nan if they are not updated.

@@ -261,7 +261,7 @@ class Canvas(object):
             approximating the visual appearance of a subpixel line
             width.
         antialias : bool, optional
-            This option is kept for backward compatibility only. 
+            This option is kept for backward compatibility only.
             ``True`` is equivalent to ``line_width=1`` and
             ``False`` (the default) to ``line_width=0``. Do not specify
             both ``antialias`` and ``line_width`` in the same call as a
@@ -335,7 +335,8 @@ class Canvas(object):
         """
         from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
                              LinesAxis1YConstant, LineAxis0Multi,
-                             LinesAxis1Ragged, LineAxis1Geometry)
+                             LinesAxis1Ragged, LineAxis1Geometry,
+                             AntialiasCombination)
 
         validate_xy_or_geometry('Line', x, y, geometry)
 
@@ -426,12 +427,25 @@ The axis argument to Canvas.line must be 0 or 1
 
         glyph.set_line_width(line_width)
         if line_width > 0:
+            # Eventually this should be replaced with attributes and/or
+            # member functions of Reduction classes.
+            antialias_combination = AntialiasCombination.NONE
             if isinstance(agg, (rd.any, rd.max)):
-                glyph.set_antialias_combination_max()
+                antialias_combination = AntialiasCombination.MAX
+            elif isinstance(agg, rd.min):
+                antialias_combination = AntialiasCombination.MIN
+            elif isinstance(agg, (rd.count, rd.sum)):
+                if agg.self_intersect:
+                    antialias_combination = AntialiasCombination.SUM_1AGG
+                else:
+                    antialias_combination = AntialiasCombination.SUM_2AGG
+            else:
+                antialias_combination = AntialiasCombination.SUM_2AGG
+            glyph.set_antialias_combination(antialias_combination)
 
             # Switch agg to floating point.
             if isinstance(agg, rd.count):
-                agg = rd.count_f32()
+                agg = rd.count_f32(self_intersect=agg.self_intersect)
             elif isinstance(agg, rd.any):
                 agg = rd.any_f32()
 
