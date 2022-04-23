@@ -4,6 +4,7 @@ from packaging.version import Version
 
 import param
 __version__ = str(param.version.Version(fpath=__file__, archive_commit="$Format:%h$",reponame="datashader"))
+__version__ = "0.14.0"
 
 from .core import Canvas                                 # noqa (API import)
 from .reductions import *                                # noqa (API import)
