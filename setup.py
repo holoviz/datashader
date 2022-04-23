@@ -30,6 +30,7 @@ examples = [
     'scikit-image',
     'bokeh',
     'matplotlib',
+    'geopandas',
 ]
 
 extras_require = {
@@ -61,7 +62,6 @@ extras_require = {
         'python-snappy',
         'rasterio',
         'snappy',
-        'geopandas',
     ]
 }
 
