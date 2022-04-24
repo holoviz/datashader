@@ -1,7 +1,7 @@
 from __future__ import division
 
-from distutils.version import LooseVersion
 from math import ceil, isnan
+from packaging.version import Version
 
 try:
     from math import nan
@@ -84,14 +84,14 @@ def masked_clip_2d(data, mask, lower, upper):
 
 # Behaviour of numba.cuda.atomic.max/min changed in 0.50 so as to behave as per
 # np.nanmax/np.nanmin
-if LooseVersion(numba.__version__) >= LooseVersion("0.51.0"):
+if Version(numba.__version__) >= Version("0.51.0"):
     @cuda.jit(device=True)
     def cuda_atomic_nanmin(ary, idx, val):
         return cuda.atomic.nanmin(ary, idx, val)
     @cuda.jit(device=True)
     def cuda_atomic_nanmax(ary, idx, val):
         return cuda.atomic.nanmax(ary, idx, val)
-elif LooseVersion(numba.__version__) <= LooseVersion("0.49.1"):
+elif Version(numba.__version__) <= Version("0.49.1"):
     @cuda.jit(device=True)
     def cuda_atomic_nanmin(ary, idx, val):
         return cuda.atomic.min(ary, idx, val)
@@ -111,14 +111,16 @@ def masked_clip_2d_kernel(data, mask, lower, upper):
         cuda_atomic_nanmin(data, (i, j), upper)
 
 
-# interp
-# ------
-# When cupy adds cupy.interp support, this function can be removed
 def interp(x, xp, fp, left=None, right=None):
     """
-    cupy implementation of np.interp.  This function can be removed when an
-    official cupy.interp function is added to the cupy library.
+    cupy implementation of np.interp, falls back to cupy implementation
+    if available.
     """
+    x = cupy.asarray(x)
+    xp = cupy.asarray(xp)
+    fp = cupy.asarray(fp)
+    if hasattr(cupy, 'interp'):
+        return cupy.interp(x, xp, fp, left, right)
     output_y = cupy.zeros(x.shape, dtype=cupy.float64)
     assert len(x.shape) == 2
     if left is None:

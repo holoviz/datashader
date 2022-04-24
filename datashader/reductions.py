@@ -1,12 +1,12 @@
 from __future__ import absolute_import, division, print_function
-
+from packaging.version import Version
 import numpy as np
 from datashape import dshape, isnumeric, Record, Option
 from datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 
-from datashader.glyphs.glyph import isnull
+from datashader.utils import isnull
 from numba import cuda as nb_cuda
 
 try:
@@ -17,10 +17,11 @@ except ImportError:
 
 try:
     import cudf
+    import cupy as cp
 except Exception:
-    cudf = None
+    cudf = cp = None
 
-from .utils import Expr, ngjit, nansum_missing
+from .utils import Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place
 
 
 class Preprocess(Expr):
@@ -37,12 +38,13 @@ class extract(Preprocess):
     """Extract a column from a dataframe as a numpy array of values."""
     def apply(self, df):
         if cudf and isinstance(df, cudf.DataFrame):
-            import cupy
             if df[self.column].dtype.kind == 'f':
                 nullval = np.nan
             else:
                 nullval = 0
-            return cupy.array(df[self.column].to_gpu_array(fillna=nullval))
+            if Version(cudf.__version__) >= Version("22.02"):
+                return df[self.column].to_cupy(na_value=nullval)
+            return cp.array(df[self.column].to_gpu_array(fillna=nullval))
         elif isinstance(df, xr.Dataset):
             # DataArray could be backed by numpy or cupy array
             return df[self.column].data
@@ -68,8 +70,18 @@ class CategoryPreprocess(Preprocess):
         """Applies preprocessor to DataFrame and returns array"""
         raise NotImplementedError("apply not implemented")
 
+
 class category_codes(CategoryPreprocess):
-    """Extract just the category codes from a categorical column."""
+    """
+    Extract just the category codes from a categorical column.
+
+    To create a new type of categorizer, derive a subclass from this
+    class or one of its subclasses, implementing ``__init__``,
+    ``_hashable_inputs``, ``categories``, ``validate``, and ``apply``.
+
+    See the implementation of ``category_modulo`` in ``reductions.py``
+    for an example.
+    """
     def categories(self, input_dshape):
         return input_dshape.measure[self.column].categories
 
@@ -81,6 +93,8 @@ class category_codes(CategoryPreprocess):
 
     def apply(self, df):
         if cudf and isinstance(df, cudf.DataFrame):
+            if Version(cudf.__version__) >= Version("22.02"):
+                return df[self.column].cat.codes.to_cupy()
             return df[self.column].cat.codes.to_gpu_array()
         else:
             return df[self.column].cat.codes.values
@@ -113,7 +127,9 @@ class category_modulo(category_codes):
 
     def apply(self, df):
         result = (df[self.column] - self.offset) % self.modulo
-        if cudf and isinstance(df, cudf.DataFrame):
+        if cudf and isinstance(df, cudf.Series):
+            if Version(cudf.__version__) >= Version("22.02"):
+                return result.to_cupy()
             return result.to_gpu_array()
         else:
             return result.values
@@ -152,15 +168,20 @@ class category_binning(category_modulo):
 
     def apply(self, df):
         if cudf and isinstance(df, cudf.DataFrame):
-            ## dunno how to do this in CUDA
-            raise NotImplementedError("this feature is not implemented in cuda")
+            if Version(cudf.__version__) >= Version("22.02"):
+                values = df[self.column].to_cupy(na_value=cp.nan)
+            else:
+                values = cp.array(df[self.column].to_gpu_array(fillna=True))
+            nan_values = cp.isnan(values)
         else:
-            value = df[self.column].values
-            index = ((value - self.bin0) / self.binsize).astype(int)
-            index[index < 0] = self.bin_under
-            index[index >= self.nbins] = self.bin_over
-            index[np.isnan(value)] = self.nbins
-            return index
+            values = df[self.column].to_numpy()
+            nan_values = np.isnan(values)
+
+        index = ((values - self.bin0) / self.binsize).astype(int)
+        index[index < 0] = self.bin_under
+        index[index >= self.nbins] = self.bin_over
+        index[nan_values] = self.nbins
+        return index
 
 
 class category_values(CategoryPreprocess):
@@ -193,7 +214,10 @@ class category_values(CategoryPreprocess):
             else:
                 nullval = 0
             a = cupy.asarray(a)
-            b = cupy.asarray(df[self.column].to_gpu_array(fillna=nullval))
+            if Version(cudf.__version__) >= Version("22.02"):
+                b = df[self.column].to_cupy(na_value=nullval)
+            else:
+                b = cupy.asarray(df[self.column].fillna(nullval))
             return cupy.stack((a, b), axis=-1)
         else:
             b = df[self.column].values
@@ -263,7 +287,19 @@ class OptionalFieldReduction(Reduction):
     def _finalize(bases, cuda=False, **kwargs):
         return xr.DataArray(bases[0], **kwargs)
 
-class count(OptionalFieldReduction):
+
+class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
+    """
+    Base class for optional field reductions for which self-intersecting
+    geometry may or may not be desireable.
+    Ignored if not using antialiasing.
+    """
+    def __init__(self, column=None, self_intersect=True):
+        super().__init__(column)
+        self.self_intersect = self_intersect
+
+
+class count(SelfIntersectingOptionalFieldReduction):
     """Count elements in each bin, returning the result as a uint32.
 
     Parameters
@@ -279,7 +315,6 @@ class count(OptionalFieldReduction):
     @ngjit
     def _append_no_field(x, y, agg):
         agg[y, x] += 1
-
 
     @staticmethod
     @ngjit
@@ -306,6 +341,56 @@ class count(OptionalFieldReduction):
     @staticmethod
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='u4')
+
+
+class count_f32(SelfIntersectingOptionalFieldReduction):
+    """Count elements in each bin, returning the result as a float32.
+
+    Is floating point rather than boolean to deal with fractional antialiased
+    values.
+
+    Parameters
+    ----------
+    column : str, optional
+        If provided, only counts elements in ``column`` that are not ``NaN``.
+        Otherwise, counts every element.
+    """
+    _dshape = dshape(ct.float32)
+
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append_no_field(x, y, agg):
+        agg[y, x] += 1
+
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            agg[y, x] += 1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_no_field_cuda(x, y, agg):
+        nb_cuda.atomic.add(agg, (y, x), 1)
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field):
+        if not isnull(field):
+            nb_cuda.atomic.add(agg, (y, x), 1)
+
+    @staticmethod
+    def _create(shape, array_module):
+        return array_module.full(shape, array_module.nan, dtype='f4')
+
+    @staticmethod
+    def _combine(aggs):
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nansum_in_place(ret, aggs[i])
+        return ret
 
 
 class by(Reduction):
@@ -395,7 +480,7 @@ class any(OptionalFieldReduction):
     Parameters
     ----------
     column : str, optional
-        If provided, only elements in ``column`` that are ``NaN`` are skipped.
+        If provided, any elements in ``column`` that are ``NaN`` are skipped.
     """
     _dshape = dshape(ct.bool_)
 
@@ -419,6 +504,44 @@ class any(OptionalFieldReduction):
     @staticmethod
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='bool')
+
+
+class any_f32(OptionalFieldReduction):
+    """Whether any elements in ``column`` map to each bin.
+
+    Is floating point rather than boolean to deal with fractional antialiased
+    values.
+
+    Parameters
+    ----------
+    column : str, optional
+        If provided, only elements in ``column`` that are ``NaN`` are skipped.
+    """
+    _dshape = dshape(ct.float32)
+
+    @staticmethod
+    @ngjit
+    def _append_no_field(x, y, agg):
+        agg[y, x] = True
+    _append_no_field_cuda = _append_no_field
+
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            agg[y, x] = True
+    _append_cuda =_append
+
+    @staticmethod
+    def _create(shape, array_module):
+        return array_module.full(shape, array_module.nan, dtype='f4')
+
+    @staticmethod
+    def _combine(aggs):
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nanmax_in_place(ret, aggs[i])
+        return ret
 
 
 class _upsample(Reduction):
@@ -499,7 +622,19 @@ class _sum_zero(FloatingReduction):
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='f8')
 
-class sum(FloatingReduction):
+
+class SelfIntersectingFloatingReduction(FloatingReduction):
+    """
+    Base class for floating reductions for which self-intersecting geometry
+    may or may not be desireable.
+    Ignored if not using antialiasing.
+    """
+    def __init__(self, column=None, self_intersect=True):
+        super().__init__(column)
+        self.self_intersect = self_intersect
+
+
+class sum(SelfIntersectingFloatingReduction):
     """Sum of all elements in ``column``.
 
     Elements of resulting aggregate are nan if they are not updated.

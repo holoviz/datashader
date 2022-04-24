@@ -11,6 +11,7 @@ from datashader.glyphs.line import (
     _build_map_onto_pixel_for_line,
     _build_draw_segment,
     _build_extend_line_axis0,
+    AntialiasCombination,
 )
 from datashader.glyphs.trimesh import(
     _build_map_onto_pixel_for_triangle,
@@ -54,8 +55,9 @@ map_onto_pixel_for_triangle = _build_map_onto_pixel_for_triangle(mapper, mapper)
 # Line rasterization
 expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
 _draw_segment = _build_draw_segment(append, map_onto_pixel_for_line,
-                                    expand_aggs_and_cols, False)
-extend_line, _ = _build_extend_line_axis0(_draw_segment, expand_aggs_and_cols)
+                                    expand_aggs_and_cols, 0, AntialiasCombination.NONE)
+extend_line, _ = _build_extend_line_axis0(_draw_segment, expand_aggs_and_cols,
+                                          AntialiasCombination.NONE)
 
 # Triangles rasterization
 draw_triangle, draw_triangle_interp = _build_draw_triangle(tri_append)
@@ -78,7 +80,7 @@ def draw_segment(x0, y0, x1, y1, i, segment_start, agg):
     xmin, xmax, ymin, ymax = 0, 5, 0, 5
     _draw_segment(
         i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-        segment_start, x0, x1, y0, y1, agg)
+        segment_start, False, x0, x1, y0, y1, 0.0, 0.0, agg)
 
 
 def draw_trapezoid(x0, x1, y0, y1, y2, y3, i, trapezoid_start, stacked, agg):

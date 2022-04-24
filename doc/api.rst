@@ -16,6 +16,9 @@ Entry Points
    Canvas.raster
    Canvas.trimesh
    Canvas.validate
+   Canvas.area
+   Canvas.polygons
+   Canvas.quadmesh
 
 .. currentmodule:: datashader
 
@@ -39,23 +42,33 @@ Glyphs
 
 .. currentmodule:: datashader.glyphs
 
-**Point**
-
 .. autosummary::
 
    Point
-   Point.inputs
-   Point.validate
-
-.. currentmodule:: datashader.glyphs
-
-**Line**
-
-.. autosummary::
-
-   Line
-   Line.inputs
-   Line.validate
+   Triangles
+   PolygonGeom
+   QuadMeshRaster
+   QuadMeshRectilinear
+   QuadMeshCurvilinear
+   LineAxis0
+   LineAxis0Multi
+   LinesAxis1
+   LinesAxis1XConstant
+   LinesAxis1YConstant
+   LinesAxis1Ragged
+   LineAxis1Geometry
+   AreaToZeroAxis0
+   AreaToZeroAxis0Multi
+   AreaToZeroAxis1
+   AreaToZeroAxis1XConstant
+   AreaToZeroAxis1YConstant
+   AreaToZeroAxis1Ragged
+   AreaToLineAxis0
+   AreaToLineAxis0Multi
+   AreaToLineAxis1
+   AreaToLineAxis1XConstant
+   AreaToLineAxis1YConstant
+   AreaToLineAxis1Ragged
 
 Reductions
 ----------
@@ -65,7 +78,6 @@ Reductions
 
    any
    count
-   count_cat
    by
    first
    last
@@ -79,6 +91,11 @@ Reductions
    summary
    var
 
+**Categorizers**
+
+   category_binning
+   category_modulo
+
 Transfer Functions
 ------------------
 
@@ -91,7 +108,7 @@ Transfer Functions
    Image
    Image.to_bytesio
    Image.to_pil
-   
+
 .. currentmodule:: datashader.transfer_functions
 
 **Images**
@@ -126,7 +143,30 @@ Definitions
 
 .. currentmodule:: datashader.glyphs
 .. autoclass:: Point
-.. autoclass:: Line
+.. autoclass:: Triangles
+.. autoclass:: PolygonGeom
+.. autoclass:: QuadMeshRaster
+.. autoclass:: QuadMeshRectilinear
+.. autoclass:: QuadMeshCurvilinear
+.. autoclass:: LineAxis0
+.. autoclass:: LineAxis0Multi
+.. autoclass:: LinesAxis1
+.. autoclass:: LinesAxis1XConstant
+.. autoclass:: LinesAxis1YConstant
+.. autoclass:: LinesAxis1Ragged
+.. autoclass:: LineAxis1Geometry
+.. autoclass:: AreaToZeroAxis0
+.. autoclass:: AreaToZeroAxis0Multi
+.. autoclass:: AreaToZeroAxis1
+.. autoclass:: AreaToZeroAxis1XConstant
+.. autoclass:: AreaToZeroAxis1YConstant
+.. autoclass:: AreaToZeroAxis1Ragged
+.. autoclass:: AreaToLineAxis0
+.. autoclass:: AreaToLineAxis0Multi
+.. autoclass:: AreaToLineAxis1
+.. autoclass:: AreaToLineAxis1XConstant
+.. autoclass:: AreaToLineAxis1YConstant
+.. autoclass:: AreaToLineAxis1Ragged
 
 .. currentmodule:: datashader.reductions
 .. autoclass:: any

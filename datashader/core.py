@@ -2,7 +2,6 @@ from __future__ import absolute_import, division, print_function
 
 from numbers import Number
 from math import log10
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -12,7 +11,7 @@ from xarray import DataArray, Dataset
 from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
-    compute_coords, dshape_from_xarray_dataset
+    dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
@@ -213,7 +212,7 @@ class Canvas(object):
         return bypixel(source, self, glyph, agg)
 
     def line(self, source, x=None, y=None, agg=None, axis=0, geometry=None,
-             antialias=False):
+             line_width=0, antialias=False):
         """Compute a reduction by pixel, mapping data to pixels as one or
         more lines.
 
@@ -247,13 +246,25 @@ class Canvas(object):
         geometry : str
             Column name of a LinesArray of the coordinates of each line. If provided,
             the x and y arguments may not also be provided.
-        antialias : bool
-            If True, draw anti-aliased lines, distributing the aggregate value
-            across neighboring pixels to more closely approximate the line
-            shape. If False, each position on the line affects only a single
-            pixel, resulting in line shapes that are blocky but easier to
-            reason about. Needs at least Numba 0.51.2 to work and can only
-            operate on the 'sum' or 'max' aggregators.
+        line_width : number, optional
+            Width of the line to draw, in pixels. If zero, the
+            default, lines are drawn using a simple algorithm with a
+            blocky single-pixel width based on whether the line passes
+            through each pixel or does not. If greater than one, lines
+            are drawn with the specified width using a slower and
+            more complex antialiasing algorithm with fractional values
+            along each edge, so that lines have a more uniform visual
+            appearance across all angles. Line widths between 0 and 1
+            effectively use a line_width of 1 pixel but with a
+            proportionate reduction in the strength of each pixel,
+            approximating the visual appearance of a subpixel line
+            width.
+        antialias : bool, optional
+            This option is kept for backward compatibility only.
+            ``True`` is equivalent to ``line_width=1`` and
+            ``False`` (the default) to ``line_width=0``. Do not specify
+            both ``antialias`` and ``line_width`` in the same call as a
+            ``ValueError`` will be raised if they disagree.
 
         Examples
         --------
@@ -323,12 +334,24 @@ class Canvas(object):
         """
         from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
                              LinesAxis1YConstant, LineAxis0Multi,
-                             LinesAxis1Ragged, LineAxis1Geometry)
+                             LinesAxis1Ragged, LineAxis1Geometry,
+                             AntialiasCombination)
 
         validate_xy_or_geometry('Line', x, y, geometry)
 
         if agg is None:
             agg = rd.any()
+
+        if line_width is None:
+            line_width = 0
+
+        # Check and convert antialias kwarg to line_width.
+        if antialias and line_width != 0:
+            raise ValueError(
+                "Do not specify values for both the line_width and \n"
+                "antialias keyword arguments; use line_width instead.")
+        if antialias:
+            line_width = 1.0
 
         if geometry is not None:
             from spatialpandas import GeoDataFrame
@@ -393,14 +416,38 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
-        # Enable antialias if requested and if the reduction will allow it.
-        if antialias:
-            if isinstance(agg, (rd.sum, rd.max)):
-                glyph.enable_antialias()
+        if (line_width > 0 and ((cudf and isinstance(source, cudf.DataFrame)) or
+                               (dask_cudf and isinstance(source, dask_cudf.DataFrame)))):
+            import warnings
+            warnings.warn(
+                "Antialiased lines are not supported for CUDA-backed sources, "
+                "so reverting to line_width=0")
+            line_width = 0
+
+        glyph.set_line_width(line_width)
+        if line_width > 0:
+            # Eventually this should be replaced with attributes and/or
+            # member functions of Reduction classes.
+            antialias_combination = AntialiasCombination.NONE
+            if isinstance(agg, (rd.any, rd.max)):
+                antialias_combination = AntialiasCombination.MAX
+            elif isinstance(agg, rd.min):
+                antialias_combination = AntialiasCombination.MIN
+            elif isinstance(agg, (rd.count, rd.sum)):
+                if agg.self_intersect:
+                    antialias_combination = AntialiasCombination.SUM_1AGG
+                else:
+                    antialias_combination = AntialiasCombination.SUM_2AGG
             else:
-                message = ("Aggresgation: '{}' is not supported by antialias".
-                           format(agg))
-                warnings.warn(message)
+                antialias_combination = AntialiasCombination.SUM_2AGG
+            glyph.set_antialias_combination(antialias_combination)
+
+            # Switch agg to floating point.
+            if isinstance(agg, rd.count):
+                agg = rd.count_f32(self_intersect=agg.self_intersect)
+            elif isinstance(agg, rd.any):
+                agg = rd.any_f32()
+
         return bypixel(source, self, glyph, agg)
 
     def area(self, source, x, y, agg=None, axis=0, y_stack=None):
@@ -635,7 +682,7 @@ See docstring for more information on valid usage""".format(
                         y_stack=repr(orig_y_stack)))
         else:
             raise ValueError("""
-The axis argument to Canvas.line must be 0 or 1
+The axis argument to Canvas.area must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
         return bypixel(source, self, glyph, agg)
@@ -1040,7 +1087,9 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         height_ratio = min((ymax - ymin) / (self.y_range[1] - self.y_range[0]), 1)
 
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
-            raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
+            raise ValueError('Canvas x_range or y_range values do not match closely enough '
+                             'with the data source to be able to accurately rasterize. '
+                             'Please provide ranges that are more accurate.')
 
         w = max(int(round(self.plot_width * width_ratio)), 1)
         h = max(int(round(self.plot_height * height_ratio)), 1)
@@ -1125,7 +1174,29 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             data = data.astype(dtype)
 
         # Compute DataArray metadata
-        xs, ys = compute_coords(self.plot_width, self.plot_height, self.x_range, self.y_range, res)
+
+        # To avoid floating point representation error,
+        # do not recompute x coords if same x_range and same plot_width,
+        # do not recompute y coords if same y_range and same plot_height
+        close_x = np.allclose([left, right], self.x_range) and np.size(xvals) == self.plot_width
+        close_y = np.allclose([bottom, top], self.y_range) and np.size(yvals) == self.plot_height
+
+        if close_x:
+            xs = xvals
+        else:
+            x_st = self.x_axis.compute_scale_and_translate(self.x_range, self.plot_width)
+            xs = self.x_axis.compute_index(x_st, self.plot_width)
+            if res[0] < 0:
+                xs = xs[::-1]
+
+        if close_y:
+            ys = yvals
+        else:
+            y_st = self.y_axis.compute_scale_and_translate(self.y_range, self.plot_height)
+            ys = self.y_axis.compute_index(y_st, self.plot_height)
+            if res[1] > 0:
+                ys = ys[::-1]
+
         coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
         attrs = dict(res=res[0])
@@ -1181,7 +1252,7 @@ def bypixel(source, canvas, glyph, agg):
     if isinstance(source, Dataset) and len(source.dims) == 1:
         columns = list(source.coords.keys()) + list(source.data_vars.keys())
         cols_to_keep = _cols_to_keep(columns, glyph, agg)
-        source = source.drop([col for col in columns if col not in cols_to_keep])
+        source = source.drop_vars([col for col in columns if col not in cols_to_keep])
         source = source.to_dask_dataframe()
 
     if (isinstance(source, pd.DataFrame) or

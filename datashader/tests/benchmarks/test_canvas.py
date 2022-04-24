@@ -35,7 +35,8 @@ def test_points(benchmark, time_series):
     benchmark(cvs.points, time_series, 'x', 'y')
 
 
-@pytest.mark.skipif(test_gpu is not True, reason="DATASHADER_TEST_GPU not set")
+@pytest.mark.skipif(test_gpu is None, reason="DATASHADER_TEST_GPU not in environment")
+@pytest.mark.skipif(test_gpu is False, reason="DATASHADER_TEST_GPU is set to False")
 @pytest.mark.benchmark(group="canvas")
 def test_line_gpu(benchmark, time_series):
     from cudf import from_pandas
@@ -44,7 +45,8 @@ def test_line_gpu(benchmark, time_series):
     benchmark(cvs.line, time_series, 'x', 'y')
 
 
-@pytest.mark.skipif(test_gpu is not True, reason="DATASHADER_TEST_GPU not set")
+@pytest.mark.skipif(test_gpu is None, reason="DATASHADER_TEST_GPU not in environment")
+@pytest.mark.skipif(test_gpu is False, reason="DATASHADER_TEST_GPU is set to False")
 @pytest.mark.benchmark(group="canvas")
 def test_points_gpu(benchmark, time_series):
     from cudf import from_pandas

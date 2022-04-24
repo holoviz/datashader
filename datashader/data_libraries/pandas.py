@@ -42,6 +42,7 @@ def default(glyph, source, schema, canvas, summary, cuda=False):
     y_axis = canvas.y_axis.compute_index(y_st, height)
 
     bases = create((height, width))
+
     extend(bases, source, x_st + y_st, x_range + y_range)
 
     return finalize(bases,
