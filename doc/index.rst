@@ -11,9 +11,13 @@
   <div style="display: flex">
     <div style="width: 70%">
 
+
+<i>New to Datashader? Check out this
+`quick video introduction to what it does and how it works <https://youtu.be/U6dyIRolIhI>`_ ! </i>
+
 Datashader is a graphics pipeline system for creating meaningful representations of large
 datasets quickly and flexibly. Datashader breaks the creation of images into a series of explicit
-steps that allow computations to be done on intermediate representations.  This approach allows
+steps that allow computations to be done on intermediate representations. This approach allows
 accurate and effective visualizations to be produced automatically without trial-and-error parameter
 tuning, and also makes it simple for data scientists to focus on particular data and relationships
 of interest in a principled way.
