@@ -5,7 +5,7 @@ Getting Started
 Installation
 ------------
 
-Datashader supports Python 2.7, 3.5, 3.6, and 3.7 on Linux, Windows, or Mac
+Datashader supports Python 3.7, 3.8, 3.9 and 3.10 on Linux, Windows, or Mac
 and can be installed with conda::
 
     conda install datashader

@@ -121,7 +121,6 @@
 
 
 import os
-import sys
 
 import xarray as xr
 import datashader as ds
@@ -129,8 +128,6 @@ import pandas as pd
 import numpy as np
 import pytest
 
-if sys.version_info.major < 3:
-    pytestmark = pytest.mark.skip('Anti-aliasing not supported in python 2.')
 
 cm = pytest.importorskip('matplotlib.cm')
 binary = cm.binary

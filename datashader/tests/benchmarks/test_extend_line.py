@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 import pytest
 
@@ -9,8 +7,6 @@ from datashader.glyphs.line import (
     AntialiasCombination
 )
 from datashader.utils import ngjit
-
-py2_skip = pytest.mark.skipif(sys.version_info.major < 3, reason="py2 not supported")
 
 
 @pytest.fixture
@@ -27,7 +23,6 @@ def extend_line():
     return _build_extend_line_axis0(draw_line, expand_aggs_and_cols, AntialiasCombination.NONE)[0]
 
 
-@py2_skip
 @pytest.mark.parametrize('high', [0, 10**5])
 @pytest.mark.parametrize('low', [0, -10**5])
 @pytest.mark.benchmark(group="extend_line")
@@ -45,7 +40,6 @@ def test_extend_line_uniform(benchmark, extend_line, low, high):
     )
 
 
-@py2_skip
 @pytest.mark.benchmark(group="extend_line")
 def test_extend_line_normal(benchmark, extend_line):
     n = 10**6

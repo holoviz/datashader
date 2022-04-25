@@ -6,7 +6,6 @@ from toolz import unique, concat, pluck, get, memoize
 import numpy as np
 import xarray as xr
 
-from .compatibility import _exec
 from .reductions import by, category_codes, summary
 from .utils import ngjit
 
@@ -148,7 +147,7 @@ def make_append(bases, cols, calls, glyph, categorical):
         code = ('def append({0}, x, y, {1}):\n'
                 '    {2}'
                 ).format(subscript, ', '.join(signature), '\n    '.join(body))
-    _exec(code, namespace)
+    exec(code, namespace)
     return ngjit(namespace['append'])
 
 

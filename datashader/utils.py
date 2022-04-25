@@ -563,6 +563,13 @@ def mesh(vertices, simplices):
     return _pd_mesh(vertices, simplices)
 
 
+def apply(func, args, kwargs=None):
+    if kwargs:
+        return func(*args, **kwargs)
+    else:
+        return func(*args)
+
+
 @ngjit
 def isnull(val):
     """

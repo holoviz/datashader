@@ -1,9 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
-try:
-    from collections.abc import Iterator
-except ImportError: # py2.7
-    from collections import Iterator
+from collections.abc import Iterator
 
 from collections import OrderedDict
 from io import BytesIO

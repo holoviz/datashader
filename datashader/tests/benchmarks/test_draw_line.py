@@ -1,7 +1,5 @@
 from __future__ import division
 
-import sys
-
 import pytest
 
 import numpy as np
@@ -10,9 +8,6 @@ from datashader.glyphs import Glyph
 from datashader.glyphs.line import _build_draw_segment, \
     _build_map_onto_pixel_for_line, AntialiasCombination
 from datashader.utils import ngjit
-
-py2_skip = pytest.mark.skipif(sys.version_info.major < 3, reason="py2 not supported")
-
 
 mapper = ngjit(lambda x: x)
 map_onto_pixel = _build_map_onto_pixel_for_line(mapper, mapper)
@@ -31,7 +26,6 @@ def draw_line():
                                False, AntialiasCombination.NONE)
 
 
-@py2_skip
 @pytest.mark.benchmark(group="draw_line")
 def test_draw_line_left_border(benchmark, draw_line):
     n = 10**4
@@ -43,7 +37,6 @@ def test_draw_line_left_border(benchmark, draw_line):
               x0, x1, y0, y1, 0.0, 0.0, agg)
 
 
-@py2_skip
 @pytest.mark.benchmark(group="draw_line")
 def test_draw_line_diagonal(benchmark, draw_line):
     n = 10**4
@@ -55,7 +48,6 @@ def test_draw_line_diagonal(benchmark, draw_line):
               x0, x1, y0, y1, 0.0, 0.0, agg)
 
 
-@py2_skip
 @pytest.mark.benchmark(group="draw_line")
 def test_draw_line_offset(benchmark, draw_line):
     n = 10**4

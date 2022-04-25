@@ -6,6 +6,7 @@ on:
   pull_request:
     branches:
     - '*'
+  workflow_dispatch:
 
 jobs:
   test_suite:
@@ -54,12 +55,6 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit develop_install -o tests -o examples --conda-mode=mamba
-      - name: Python 3.6 installs
-        if: matrix.python-version == '3.6'
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          mamba install "panel=0.12" dataclasses
       - name: patch for fiona on windows / 3.7 
         if: matrix.os == 'windows-latest' && matrix.python-version == '3.7'
         run: |
@@ -76,11 +71,11 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit test_lint
-      - name: doit test_unit_deploy
+      - name: doit test_unit
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit test_unit_deploy
+          doit test_unit
       - name: doit test_unit_nojit
         run: |
           eval "$(conda shell.bash hook)"
