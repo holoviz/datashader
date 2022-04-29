@@ -172,20 +172,22 @@ def eq_hist(data, mask=None, nbins=256*256):
 
     # Run more accurate value counting if data is of boolean or integer type
     # and unique value array is smaller than nbins.
-    if data2.dtype == bool or (np.issubdtype(data2.dtype, np.integer) and data2.max() < nbins):
+    if data2.dtype == bool or (np.issubdtype(data2.dtype, np.integer) and data2.ptp() < nbins):
         values, counts = np.unique(data2, return_counts=True)
-        vmin, vmax = values.min(), values.max()
+        vmin, vmax = values[0], values[-1]
         interval = vmax-vmin
         bin_centers = np.arange(vmin, vmax+1)
         hist = np.zeros(interval+1, dtype='uint64')
         hist[values-vmin] = counts
+        discrete_levels = len(values)
     else:
         hist, bin_edges = np.histogram(data2, bins=nbins)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        discrete_levels = None
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
     out = interp(data, bin_centers, cdf).reshape(data.shape)
-    return out if mask is None else np.where(mask, np.nan, out), data2.max()
+    return out if mask is None else np.where(mask, np.nan, out), discrete_levels
 
 
 
@@ -276,7 +278,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
             masked_data = np.where(~mask, data, np.nan)
             span = np.nanmin(masked_data), np.nanmax(masked_data)
 
-            if rescale_discrete_levels:  # Only valid for how='eq_hist'
+            if rescale_discrete_levels and discrete_levels is not None:  # Only valid for how='eq_hist'
                 span = _rescale_discrete_levels(discrete_levels, span)
         else:
             if how == 'eq_hist':

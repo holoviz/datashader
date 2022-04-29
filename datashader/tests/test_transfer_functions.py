@@ -86,9 +86,9 @@ eq_hist_sol_rescale_discrete_levels = {
     'a': np.array([[0, 4289306879, 4287070463],
                    [4284834047, 0, 4282597631],
                    [4280361215, 4278190335, 0]], dtype='u4'),
-    'b': np.array([[0, 4289306879, 4287070463],
-                   [4285228543, 0, 4282597631],
-                   [4280755711, 4278190335, 0]], dtype='u4')}
+    'b': np.array([[0, 4291543295, 4288846335],
+                   [4286609919, 0, 4283518207],
+                   [4281281791, 4278190335, 0]], dtype='u4')}
 eq_hist_sol_rescale_discrete_levels['c'] = eq_hist_sol_rescale_discrete_levels['b']
 
 
@@ -499,14 +499,15 @@ def test_shade_zeros(array):
 @pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('attr', ['d'])
 @pytest.mark.parametrize('rescale', [False, True])
+#@pytest.mark.parametrize('rescale', [True])
 def test_shade_rescale_discrete_levels(agg, attr, rescale):
     x = getattr(agg, attr)
     cmap = ['pink', 'red']
     img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=rescale)
     if rescale:
-        sol = np.array([[0xff8d85ff, 0xff716bff, 0xff5450ff],
-                        [0xff3835ff, 0xff8d85ff, 0xff1c1aff],
-                        [0xff0000ff, 0xff8d85ff, 0xff8d85ff]], dtype='uint32')
+        sol = np.array([[0xff8981ff, 0xff6d67ff, 0xff524dff],
+                        [0xff3633ff, 0xff8981ff, 0xff1b19ff],
+                        [0xff0000ff, 0xff8981ff, 0xff8981ff]], dtype='uint32')
     else:
         sol = np.array([[0xffcbc0ff, 0xffa299ff, 0xff7973ff],
                         [0xff514cff, 0xffcbc0ff, 0xff2826ff],
