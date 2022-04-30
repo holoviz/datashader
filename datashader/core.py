@@ -443,10 +443,7 @@ The axis argument to Canvas.line must be 0 or 1
             glyph.set_antialias_combination(antialias_combination)
 
             # Switch agg to floating point.
-            if isinstance(agg, rd.count):
-                agg = rd.count_f32(self_intersect=agg.self_intersect)
-            elif isinstance(agg, rd.any):
-                agg = rd.any_f32()
+            agg = rd._reduction_to_floating_point(agg)
 
         return bypixel(source, self, glyph, agg)
 

@@ -708,17 +708,20 @@ def _full_antialias(line_width, antialias_combination, i, x0, x1, y0, y1,
         x1, y1 = y1, x1
         xm, ym = ym, xm
 
-    agg = aggs_and_cols[0]
-
     # line_width less than 1 is rendered as 1 but with lower intensity.
     scale = 1.0
     if line_width < 1.0:
         scale = line_width
         line_width = 1.0
 
-    # Scale by column value, if required.
-    if len(aggs_and_cols) > 1:
-        scale *= aggs_and_cols[1][i]
+    agg = aggs_and_cols[0]
+    if aggs_and_cols[0].ndim == 3:
+        cat_index = aggs_and_cols[1][i]
+        agg = agg[:, :, cat_index]
+    else:
+        # Scale by column value, if required.
+        if len(aggs_and_cols) > 1:
+            scale *= aggs_and_cols[1][i]
 
     aa = 1.0
     halfwidth = 0.5*(line_width + aa)
