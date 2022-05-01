@@ -7,6 +7,8 @@ on:
     branches:
     - '*'
   workflow_dispatch:
+  schedule:
+    - cron: '0 16 * * SUN'
 
 jobs:
   test_suite:

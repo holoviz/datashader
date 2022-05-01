@@ -6,6 +6,10 @@ on:
     - 'v[0-9]+.[0-9]+.[0-9]+a[0-9]+'
     - 'v[0-9]+.[0-9]+.[0-9]+b[0-9]+'
     - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+  # Dry-run only
+  workflow_dispatch:
+  schedule:
+    - cron: '0 16 * * SUN'
 
 jobs:
   conda_build:
@@ -43,11 +47,11 @@ jobs:
       - name: conda build
         run: doit package_build $PKG_TEST_PYTHON --test-group=all
       - name: dev deploy
-        if: (contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc'))
+        if: (github.event_name == 'push' && (contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc')))
         run: |
           doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev
       - name: main deploy
-        if: (!(contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc')))
+        if: (github.event_name == 'push' && !(contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc')))
         run: |
           doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev --label=main
   pip_build:
@@ -100,6 +104,7 @@ jobs:
           conda activate test-environment
           doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=unit
       - name: pip upload
+        if: github.event_name == 'push'
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
