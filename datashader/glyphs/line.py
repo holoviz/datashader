@@ -710,7 +710,7 @@ def _agg2d_with_scale(aggs_and_cols, i):
 
 
 @overload(_agg2d_with_scale)
-def _overload_agg2d_with_scale(aggs_and_cols, i):
+def _overload_agg2d_with_scale(aggs_and_cols, i):  # pragma: no cover
     # Return different implementation based on whether the first array in
     # aggs_and_cols is 2D or 3D.
     agg2or3d = aggs_and_cols[0]
