@@ -8,6 +8,7 @@ from datashader.glyphs.points import _PointLike, _GeometryLike
 from datashader.utils import (isnull, isreal, ngjit, nanmax_in_place,
                               nanmin_in_place, nansum_in_place, parallel_fill)
 from numba import cuda
+from numba.extending import overload
 
 
 try:
@@ -692,6 +693,44 @@ def _linearstep(edge0, edge1, x):
     return t
 
 
+def _agg2d_with_scale(aggs_and_cols, i):
+    # Python implementation for use when Numba is disabled.
+    agg2or3d = aggs_and_cols[0]
+    if agg2or3d.ndim == 2:
+        agg = aggs_and_cols[0]  # 2D array
+        # Scale by column value if present.
+        scale = 1.0 if len(aggs_and_cols) == 1 else aggs_and_cols[1][i]
+        return agg, scale
+    elif agg2or3d.ndim == 3:
+        cat_index = aggs_and_cols[1][i]
+        agg = aggs_and_cols[0][:, :, cat_index]  # 2D array
+        return agg, 1.0
+    else:
+        raise TypeError("Not supported")
+
+
+@overload(_agg2d_with_scale)
+def _overload_agg2d_with_scale(aggs_and_cols, i):  # pragma: no cover
+    # Return different implementation based on whether the first array in
+    # aggs_and_cols is 2D or 3D.
+    agg2or3d = aggs_and_cols[0]
+    if agg2or3d.ndim == 2:
+        def impl(aggs_and_cols, i):
+            agg = aggs_and_cols[0]  # 2D array
+            # Scale by column value if present.
+            scale = 1.0 if len(aggs_and_cols) == 1 else aggs_and_cols[1][i]
+            return agg, scale
+        return impl
+    elif agg2or3d.ndim == 3:
+        def impl(aggs_and_cols, i):
+            cat_index = aggs_and_cols[1][i]
+            agg = aggs_and_cols[0][:, :, cat_index]  # 2D array
+            return agg, 1.0
+        return impl
+    else:
+        raise TypeError("Not supported")
+
+
 @ngjit
 def _full_antialias(line_width, antialias_combination, i, x0, x1, y0, y1,
                     segment_start, segment_end, xm, ym, *aggs_and_cols):
@@ -708,17 +747,12 @@ def _full_antialias(line_width, antialias_combination, i, x0, x1, y0, y1,
         x1, y1 = y1, x1
         xm, ym = ym, xm
 
-    agg = aggs_and_cols[0]
+    agg, scale = _agg2d_with_scale(aggs_and_cols, i)
 
     # line_width less than 1 is rendered as 1 but with lower intensity.
-    scale = 1.0
     if line_width < 1.0:
-        scale = line_width
+        scale *= line_width
         line_width = 1.0
-
-    # Scale by column value, if required.
-    if len(aggs_and_cols) > 1:
-        scale *= aggs_and_cols[1][i]
 
     aa = 1.0
     halfwidth = 0.5*(line_width + aa)

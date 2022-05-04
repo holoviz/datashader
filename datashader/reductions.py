@@ -998,6 +998,17 @@ class summary(Expr):
         return tuple(unique(concat(v.inputs for v in self.values)))
 
 
+def _reduction_to_floating_point(reduction):
+    # Reductions need to be floating-point when using antialiasing.
+    if isinstance(reduction, count):
+        reduction = count_f32(self_intersect=reduction.self_intersect)
+    elif isinstance(reduction, any):
+        reduction = any_f32()
+    elif isinstance(reduction, by):
+        reduction.reduction = _reduction_to_floating_point(reduction.reduction)
+
+    return reduction
+
 
 __all__ = list(set([_k for _k,_v in locals().items()
                     if isinstance(_v,type) and (issubclass(_v,Reduction) or _v is summary)
