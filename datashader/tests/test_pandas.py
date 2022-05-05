@@ -1914,8 +1914,12 @@ def test_line_antialias_categorical():
     x_range = y_range = (-0.1875, 1.1875)
     cvs = ds.Canvas(plot_width=11, plot_height=11, x_range=x_range, y_range=y_range)
 
-    for self_intersect in [False, True]:
-        agg = cvs.line(source=df, x="x", y="y", line_width=1,
-                       agg=ds.by("cat", ds.count(self_intersect=self_intersect)))
-        assert_eq_ndarray(agg.data[:, :, 0], line_antialias_sol_0, close=True)
-        assert_eq_ndarray(agg.data[:, :, 1], line_antialias_sol_1, close=True)
+    agg = cvs.line(source=df, x="x", y="y", line_width=1,
+                   agg=ds.by("cat", ds.count(self_intersect=False)))
+    assert_eq_ndarray(agg.data[:, :, 0], line_antialias_sol_0, close=True)
+    assert_eq_ndarray(agg.data[:, :, 1], line_antialias_sol_1, close=True)
+
+    agg = cvs.line(source=df, x="x", y="y", line_width=1,
+                   agg=ds.by("cat", ds.count(self_intersect=True)))
+    assert_eq_ndarray(agg.data[:, :, 0], line_antialias_sol_0_intersect, close=True)
+    assert_eq_ndarray(agg.data[:, :, 1], line_antialias_sol_1, close=True)

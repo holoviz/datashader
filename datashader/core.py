@@ -428,16 +428,17 @@ The axis argument to Canvas.line must be 0 or 1
         if line_width > 0:
             # Eventually this should be replaced with attributes and/or
             # member functions of Reduction classes.
+            non_cat_agg = agg
+            if isinstance(non_cat_agg, rd.by):
+                non_cat_agg = non_cat_agg.reduction
+
             antialias_combination = AntialiasCombination.NONE
-            if isinstance(agg, (rd.any, rd.max)):
+            if isinstance(non_cat_agg, (rd.any, rd.max)):
                 antialias_combination = AntialiasCombination.MAX
-            elif isinstance(agg, rd.min):
+            elif isinstance(non_cat_agg, rd.min):
                 antialias_combination = AntialiasCombination.MIN
-            elif isinstance(agg, (rd.count, rd.sum)):
-                if agg.self_intersect:
-                    antialias_combination = AntialiasCombination.SUM_1AGG
-                else:
-                    antialias_combination = AntialiasCombination.SUM_2AGG
+            elif isinstance(non_cat_agg, (rd.count, rd.sum)) and non_cat_agg.self_intersect:
+                antialias_combination = AntialiasCombination.SUM_1AGG
             else:
                 antialias_combination = AntialiasCombination.SUM_2AGG
             glyph.set_antialias_combination(antialias_combination)
