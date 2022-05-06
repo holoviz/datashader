@@ -1136,3 +1136,9 @@ def test_shade_with_discrete_color_key():
         assert (result_cupy.data == result).all()
     except ImportError:
         cupy = None
+
+
+def test_interpolate_alpha_discrete_levels_None():
+    data = np.array([[0.0, 1.0], [1.0, 0.0]])
+    # Issue #1084: this raises a ValueError.
+    tf._interpolate_alpha(data, data, None, "eq_hist", 0.5, None, 0.4, True)
