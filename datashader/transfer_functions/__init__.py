@@ -446,7 +446,7 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_d
             np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
             norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
 
-        if rescale_discrete_levels:  # Only valid for how='eq_hist'
+        if rescale_discrete_levels and discrete_levels is not None:  # Only valid for how='eq_hist'        if rescale_discrete_levels:  # Only valid for how='eq_hist'
             norm_span = _rescale_discrete_levels(discrete_levels, norm_span)
 
     else:
