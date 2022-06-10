@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division
+from math import floor, ceil
 import numpy as np
 from toolz import memoize
 
@@ -74,7 +75,6 @@ class Triangles(_PolygonLike):
             # mapped to pixels, then may be clipped
             extend_triangles(vt, bounds, df.values, weight_type, interpolate, aggs, cols)
 
-
         return extend
 
 
@@ -103,7 +103,9 @@ def _build_draw_triangle(append):
                     g2 = edge_func(ax, ay, bx, by, i, j)
                     g0 = edge_func(bx, by, cx, cy, i, j)
                     g1 = edge_func(cx, cy, ax, ay, i, j)
-                    if ((g2 + bias0) | (g0 + bias1) | (g1 + bias2)) >= 0:
+                    if ((g2 > 0 or (bias0 < 0 and g2 == 0)) and
+                        (g0 > 0 or (bias1 < 0 and g0 == 0)) and
+                        (g1 > 0 or (bias2 < 0 and g1 == 0))):
                         interp_res = (g0 * w0 + g1 * w1 + g2 * w2) / area
                         append(i, j, *(aggs + (interp_res,)))
 
@@ -124,11 +126,13 @@ def _build_draw_triangle(append):
             bias0, bias1, bias2 = biases
             for j in range(miny, maxy+1):
                 for i in range(minx, maxx+1):
-                    if ((edge_func(ax, ay, bx, by, i, j) + bias0) >= 0 and
-                            (edge_func(bx, by, cx, cy, i, j) + bias1) >= 0 and
-                            (edge_func(cx, cy, ax, ay, i, j) + bias2) >= 0):
+                    g2 = edge_func(ax, ay, bx, by, i, j)
+                    g0 = edge_func(bx, by, cx, cy, i, j)
+                    g1 = edge_func(cx, cy, ax, ay, i, j)
+                    if ((g2 > 0 or (bias0 < 0 and g2 == 0)) and
+                        (g0 > 0 or (bias1 < 0 and g0 == 0)) and
+                        (g1 > 0 or (bias2 < 0 and g1 == 0))):
                         append(i, j, *(aggs + (val,)))
-
 
     return draw_triangle, draw_triangle_interp
 
@@ -146,6 +150,9 @@ def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
         cmin_x, cmin_y = min(xmin, xmax), min(ymin, ymax)
         vmax_x, vmax_y = map_onto_pixel(vt, bounds, cmax_x, cmax_y)
         vmin_x, vmin_y = map_onto_pixel(vt, bounds, cmin_x, cmin_y)
+
+        max_x_pixels = round((bounds[1] - bounds[0])*vt[0]) - 1
+        max_y_pixels = round((bounds[3] - bounds[2])*vt[2]) - 1
 
         col = cols[0] # Only aggregate over one column, for now
         n_tris = verts.shape[0]
@@ -182,6 +189,12 @@ def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
             miny = max(miny, vmin_y)
             maxy = min(maxy, vmax_y)
 
+            # Convert bbox to integer pixels
+            minx = max(floor(minx), 0)
+            miny = max(floor(miny), 0)
+            maxx = min(ceil(maxx), max_x_pixels)
+            maxy = min(ceil(maxy), max_y_pixels)
+
             # Prevent double-drawing edges.
             # https://msdn.microsoft.com/en-us/library/windows/desktop/bb147314(v=vs.85).aspx
             bias0, bias1, bias2 = -1, -1, -1
@@ -214,10 +227,10 @@ def _build_map_onto_pixel_for_triangle(x_mapper, y_mapper):
 
         Points falling on upper bound are mapped into previous bin.
         """
+        # Do not snap to pixel centers
         sx, tx, sy, ty = vt
-        xmax, ymax = bounds[1], bounds[3]
-        xx = int(x_mapper(x) * sx + tx)
-        yy = int(y_mapper(y) * sy + ty)
-        return (xx - 1 if x == xmax else xx,
-                yy - 1 if y == ymax else yy)
+        xx = x_mapper(x)*sx + tx - 0.5
+        yy = y_mapper(y)*sy + ty - 0.5
+        return xx, yy
+
     return map_onto_pixel
