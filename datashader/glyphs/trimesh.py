@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division
-from math import floor, ceil
+from math import floor
 import numpy as np
 from toolz import memoize
 
@@ -190,10 +190,10 @@ def _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)
             maxy = min(maxy, vmax_y)
 
             # Convert bbox to integer pixels
-            minx = max(floor(minx), 0)
-            miny = max(floor(miny), 0)
-            maxx = min(ceil(maxx), max_x_pixels)
-            maxy = min(ceil(maxy), max_y_pixels)
+            minx = max(floor(minx+0.5), 0)
+            miny = max(floor(miny+0.5), 0)
+            maxx = min(floor(maxx+0.5), max_x_pixels)
+            maxy = min(floor(maxy+0.5), max_y_pixels)
 
             # Prevent double-drawing edges.
             # https://msdn.microsoft.com/en-us/library/windows/desktop/bb147314(v=vs.85).aspx
@@ -224,8 +224,6 @@ def _build_map_onto_pixel_for_triangle(x_mapper, y_mapper):
     @ngjit
     def map_onto_pixel(vt, bounds, x, y):
         """Map points onto pixel grid.
-
-        Points falling on upper bound are mapped into previous bin.
         """
         # Do not snap to pixel centers
         sx, tx, sy, ty = vt
