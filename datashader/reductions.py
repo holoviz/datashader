@@ -875,20 +875,21 @@ class first(Reduction):
     _dshape = dshape(Option(ct.float64))
 
     @staticmethod
-    def _append(x, y, agg):
-        raise NotImplementedError("first is currently implemented only for rasters")
+    def _append(x, y, agg,field):
+        if not isnull(field) and isnull(agg[y, x]):
+            agg[y, x] = field
 
     @staticmethod
     def _create(shape, array_module):
-        raise NotImplementedError("first is currently implemented only for rasters")
+        return array_module.full(shape, np.nan)
 
     @staticmethod
     def _combine(aggs):
         raise NotImplementedError("first is currently implemented only for rasters")
 
     @staticmethod
-    def _finalize(bases, **kwargs):
-        raise NotImplementedError("first is currently implemented only for rasters")
+    def _finalize(bases,cuda=False, **kwargs):
+        return xr.DataArray(bases[0], **kwargs)
 
 
 
