@@ -875,6 +875,7 @@ class first(Reduction):
     _dshape = dshape(Option(ct.float64))
 
     @staticmethod
+    @ngjit
     def _append(x, y, agg,field):
         if not isnull(field) and isnull(agg[y, x]):
             agg[y, x] = field
@@ -910,6 +911,7 @@ class last(Reduction):
     _dshape = dshape(Option(ct.float64))
 
     @staticmethod
+    @ngjit
     def _append(x, y, agg,field):
         if not isnull(field):
             agg[y, x] = field
