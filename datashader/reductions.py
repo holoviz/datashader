@@ -910,12 +910,13 @@ class last(Reduction):
     _dshape = dshape(Option(ct.float64))
 
     @staticmethod
-    def _append(x, y, agg):
-        raise NotImplementedError("last is currently implemented only for rasters")
+    def _append(x, y, agg,field):
+        if not isnull(field):
+            agg[y, x] = field
 
     @staticmethod
     def _create(shape, array_module):
-        raise NotImplementedError("last is currently implemented only for rasters")
+        return array_module.full(shape, np.nan)
 
     @staticmethod
     def _combine(aggs):
@@ -923,7 +924,7 @@ class last(Reduction):
 
     @staticmethod
     def _finalize(bases, **kwargs):
-        raise NotImplementedError("last is currently implemented only for rasters")
+        return xr.DataArray(bases[0], **kwargs)
 
 
 
