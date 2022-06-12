@@ -925,7 +925,7 @@ class last(Reduction):
         raise NotImplementedError("last is currently implemented only for rasters")
 
     @staticmethod
-    def _finalize(bases, **kwargs):
+    def _finalize(bases,cuda=False, **kwargs):
         return xr.DataArray(bases[0], **kwargs)
 
 
