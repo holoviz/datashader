@@ -180,7 +180,12 @@ def eq_hist(data, mask=None, nbins=256*256):
     else:
         hist, bin_edges = np.histogram(data2, bins=nbins)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-        discrete_levels = None
+        keep_mask = (hist > 0)
+        discrete_levels = np.count_nonzero(keep_mask)
+        if discrete_levels != len(hist):
+            # Remove empty histogram bins.
+            hist = hist[keep_mask]
+            bin_centers = bin_centers[keep_mask]
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
     out = interp(data, bin_centers, cdf).reshape(data.shape)
