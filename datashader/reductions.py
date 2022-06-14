@@ -886,7 +886,7 @@ class first(Reduction):
 
     @staticmethod
     def _combine(aggs):
-        raise NotImplementedError("first is currently implemented only for rasters")
+        raise NotImplementedError("first is not implemented for dask DataFrames")
 
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
@@ -922,7 +922,7 @@ class last(Reduction):
 
     @staticmethod
     def _combine(aggs):
-        raise NotImplementedError("last is currently implemented only for rasters")
+        raise NotImplementedError("last is not implemented for dask DataFrames")
 
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
