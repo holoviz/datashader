@@ -69,7 +69,7 @@ extras_require = {
 
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.7.1',
-    'pydata-sphinx-theme',
+    'pydata-sphinx-theme <0.9.0',
     'sphinx-copybutton',
     'numpydoc',
 ]
