@@ -174,7 +174,7 @@ def nansum_missing(array, axis):
 
 def calc_res(raster):
     """Calculate the resolution of xarray.DataArray raster and return it as the
-    two-tuple (xres, yres).
+    two-tuple (xres, yres). yres is positive if it is decreasing.
     """
     h, w = raster.shape[-2:]
     ydim, xdim = raster.dims[-2:]
@@ -251,6 +251,15 @@ def get_indices(start, end, coords, res):
     return sidx, eidx
 
 
+def _flip_array(array, xflip, yflip):
+    # array may have 2 or 3 dimensions, last one is x-dimension, last but one is y-dimension.
+    if yflip:
+        array = array[..., ::-1, :]
+    if xflip:
+        array = array[..., :, ::-1]
+    return array
+
+
 def orient_array(raster, res=None, layer=None):
     """
     Reorients the array to a canonical orientation depending on
@@ -277,12 +286,9 @@ def orient_array(raster, res=None, layer=None):
     if layer is not None: array = array[layer-1]
     r0zero = np.timedelta64(0, 'ns') if isinstance(res[0], np.timedelta64) else 0
     r1zero = np.timedelta64(0, 'ns') if isinstance(res[1], np.timedelta64) else 0
-    if array.ndim == 2:
-        if res[0] < r0zero: array = array[:, ::-1]
-        if res[1] > r1zero: array = array[::-1]
-    else:
-        if res[0] < r0zero: array = array[:, :, ::-1]
-        if res[1] > r1zero: array = array[:, ::-1]
+    xflip = res[0] < r0zero
+    yflip = res[1] > r1zero
+    array = _flip_array(array, xflip, yflip)
     return array
 
 
