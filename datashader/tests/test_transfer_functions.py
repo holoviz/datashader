@@ -74,21 +74,18 @@ solutions = {how: tf.Image(np.array(v, dtype='u4'),
                            coords=coords, dims=dims)
              for how, v in solution_lists.items()}
 
-eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
-                              [4286149631, 0, 4283518207],
-                              [4280821503, 4278190335, 0]], dtype='u4'),
-               'b': np.array([[0, 4291543295, 4288846335],
-                              [4286609919, 0, 4283518207],
-                              [4281281791, 4278190335, 0]], dtype='u4')}
-eq_hist_sol['c'] = eq_hist_sol['b']
+# Same result obtained regardless of data dtype (u4, f4, f8)
+eq_hist_sol = np.array([[0, 4291543295, 4288846335],
+                        [4286149631, 0, 4283518207],
+                        [4280821503, 4278190335, 0]], dtype='u4')
 
 eq_hist_sol_rescale_discrete_levels = {
     'a': np.array([[0, 4289306879, 4287070463],
                    [4284834047, 0, 4282597631],
                    [4280361215, 4278190335, 0]], dtype='u4'),
-    'b': np.array([[0, 4291543295, 4288846335],
-                   [4286609919, 0, 4283518207],
-                   [4281281791, 4278190335, 0]], dtype='u4')}
+    'b': np.array([[0, 4289306879, 4287070207],
+                   [4284834047, 0, 4282597375],
+                   [4280361215, 4278190335, 0]], dtype='u4')}
 eq_hist_sol_rescale_discrete_levels['c'] = eq_hist_sol_rescale_discrete_levels['b']
 
 
@@ -167,7 +164,7 @@ def test_shade(agg, attr, span):
     # span option not supported with how='eq_hist'
     if span is None:
         img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=False)
-        sol = tf.Image(eq_hist_sol[attr], coords=coords, dims=dims)
+        sol = tf.Image(eq_hist_sol, coords=coords, dims=dims)
         assert_eq_xr(img, sol)
 
         img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=True)
