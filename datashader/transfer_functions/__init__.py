@@ -14,7 +14,7 @@ from PIL.Image import fromarray
 
 from datashader.colors import rgb, Sets1to3
 from datashader.composite import composite_op_lookup, over, validate_operator
-from datashader.utils import nansum_missing, ngjit, orient_array
+from datashader.utils import nansum_missing, ngjit
 
 try:
     import cupy
@@ -230,7 +230,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
         raise ValueError("agg must be 2D")
     interpolater = _normalize_interpolate_how(how)
 
-    data = orient_array(agg)
+    data = agg.data
     if isinstance(data, da.Array):
         data = data.compute()
     else:
@@ -356,7 +356,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
 
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
-    data = orient_array(agg_t).transpose([1, 2, 0])
+    data = agg_t.data.transpose([1, 2, 0])
     if isinstance(data, da.Array):
         data = data.compute()
     color_data = data.copy()
