@@ -562,9 +562,7 @@ def test_first():
         [np.nan, 100., 102., np.nan, np.nan],
         [100., 101., 101., np.nan, np.nan]], dtype='float64')
 
-    out = xr.DataArray(sol, coords=[lincoords, lincoords],
-                       dims=['y', 'x'])
-    assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg, sol)
 
 
 def test_last():
