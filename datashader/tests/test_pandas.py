@@ -547,9 +547,6 @@ def test_categorical_std(df):
 
 
 def test_first():
-    axis = ds.core.LinearAxis()
-    lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 5), 5), 5)
-
     df = pd.DataFrame({'x': [4, 0, 2, 2, 5, 2],
                        'y': [0, 4, 5, 1, 1, 3],
                        'z': [100, 101, 102, 103, 104, 105]})
@@ -566,9 +563,6 @@ def test_first():
 
 
 def test_last():
-    axis = ds.core.LinearAxis()
-    lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 5), 5), 5)
-
     df = pd.DataFrame({'x': [4, 0, 2, 2, 5, 2],
                        'y': [0, 4, 5, 1, 1, 3],
                        'z': [100, 101, 102, 103, 104, 105]})
@@ -581,9 +575,7 @@ def test_last():
         [np.nan, 100., 104., np.nan, np.nan],
         [100., 101., 101., np.nan, np.nan]], dtype='float64')
 
-    out = xr.DataArray(sol, coords=[lincoords, lincoords],
-                       dims=['y', 'x'])
-    assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg, sol)
 
 @pytest.mark.parametrize('df', dfs)
 def test_multiple_aggregates(df):
