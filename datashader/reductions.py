@@ -876,7 +876,7 @@ class first(Reduction):
 
     @staticmethod
     @ngjit
-    def _append(x, y, agg,field):
+    def _append(x, y, agg, field):
         if not isnull(field) and isnull(agg[y, x]):
             agg[y, x] = field
 
