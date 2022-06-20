@@ -1927,6 +1927,111 @@ def test_line_antialias():
     assert_eq_ndarray(agg.data, 3*sol_min, close=True)
 
 
+line_antialias_nan_sol = np.array([
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan,      nan,      nan,      nan,      0.085786, 0.5,      0.085786],
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
+    [nan,      nan,      nan,      nan,      0.085786, 0.585786, 0.878679, 1.0,      0.792893, 0.085786, nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.585786, 1.792893, 1.792893, 0.878679, 0.085786, nan,      nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.585786, 1.792893, 1.792893, 0.878679, 0.085786, nan,      nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.085786, 0.585786, 0.878679, 1.0,      0.792893, 0.085786, nan,      nan     ],
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan,      nan,      nan,      nan,      0.085786, 0.5,      0.085786],
+])
+
+line_antialias_nan_params = [
+    # LineAxis0
+    (dict(data=dict(
+        x=[0.5, 1.5, np.nan, 4.5, 9.5, np.nan, 0.5, 1.5, np.nan, 4.5, 9.5],
+        y=[0.5, 1.5, np.nan, 4.5, 9.5, np.nan, 9.5, 8.5, np.nan, 5.5, 0.5],
+    ), dtype='float32'),
+    dict(x='x', y='y', axis=0),
+    line_antialias_nan_sol),
+    # LineAxis0Multi
+    (dict(data=dict(
+        x0=[0.5, 1.5, np.nan, 4.5, 9.5],
+        x1=[0.5, 1.5, np.nan, 4.5, 9.5],
+        y0=[0.5, 1.5, np.nan, 4.5, 9.5],
+        y1=[9.5, 8.5, np.nan, 5.5, 0.5],
+    ), dtype='float32'),
+    dict(x=['x0', 'x1'], y=['y0', 'y1'], axis=0),
+    line_antialias_nan_sol),
+    # LinesAxis1
+    (dict(data=dict(
+        x0=[0.5, 0.5],
+        x1=[1.5, 1.5],
+        x2=[np.nan, np.nan],
+        x3=[4.5, 4.5],
+        x4=[9.5, 9.5],
+        y0=[0.5, 9.5],
+        y1=[1.5, 8.5],
+        y2=[np.nan, np.nan],
+        y3=[4.5, 5.5],
+        y4=[9.5, 0.5],
+    ), dtype='float32'),
+    dict(x=['x0', 'x1', 'x2', 'x3', 'x4'], y=['y0', 'y1', 'y2', 'y3', 'y4'], axis=1),
+    line_antialias_nan_sol),
+    # LinesAxis1XConstant
+    (dict(data=dict(
+        y0=[0.5, 9.5],
+        y1=[1.5, 8.5],
+        y2=[np.nan, np.nan],
+        y3=[4.5, 5.5],
+        y4=[9.5, 0.5],
+    ), dtype='float32'),
+    dict(x=np.array([0.5, 1.5, np.nan, 4.5, 9.5]), y=['y0', 'y1', 'y2', 'y3', 'y4'], axis=1),
+    line_antialias_nan_sol),
+   # LinesAxis1YConstant
+    (dict(data=dict(
+        x0=[0.5, 9.5],
+        x1=[1.5, 8.5],
+        x2=[np.nan, np.nan],
+        x3=[4.5, 5.5],
+        x4=[9.5, 0.5],
+    ), dtype='float32'),
+    dict(y=np.array([0.5, 1.5, np.nan, 4.5, 9.5]), x=['x0', 'x1', 'x2', 'x3', 'x4'], axis=1),
+    line_antialias_nan_sol.T),
+    # LineAxis1Ragged
+    (dict(data=dict(
+        x=pd.array([[0.5, 1.5, np.nan, 4.5, 9.5], [0.5, 1.5, np.nan, 4.5, 9.5]], dtype='Ragged[float32]'),
+        y=pd.array([[0.5, 1.5, np.nan, 4.5, 9.5], [9.5, 8.5, np.nan, 5.5, 0.5]], dtype='Ragged[float32]'),
+    )),
+    dict(x='x', y='y', axis=1),
+    line_antialias_nan_sol),
+]
+if sp:
+    line_antialias_nan_params.append(
+        # LineAxis1Geometry
+        (
+            dict(geom=pd.array(
+                [
+                    [0.5, 0.5, 1.5, 1.5, np.nan, np.nan, 4.5, 4.5, 9.5, 9.5],
+                    [0.5, 9.5, 1.5, 8.5, np.nan, np.nan, 4.5, 5.5, 9.5, 0.5],
+                ], dtype='Line[float32]')),
+            dict(geometry='geom'),
+            line_antialias_nan_sol,
+        )
+    )
+
+@pytest.mark.parametrize('df_kwargs, cvs_kwargs, sol', line_antialias_nan_params)
+def test_line_antialias_nan(df_kwargs, cvs_kwargs, sol):
+    # Canvas.line(..., agg=ds.count(self_intersect=True)) with line_width > 0 has
+    # specific identification of start and end line segments from nan coordinates.
+    x_range = y_range = (-1, 11)
+    cvs = ds.Canvas(plot_width=12, plot_height=12, x_range=x_range, y_range=y_range)
+
+    if 'geometry' in cvs_kwargs:
+        df = sp.GeoDataFrame(df_kwargs)
+    else:
+        df = pd.DataFrame(**df_kwargs)
+
+    agg = cvs.line(df, line_width=2, agg=ds.count(self_intersect=True), **cvs_kwargs)
+    assert_eq_ndarray(agg.data, sol, close=True)
+
+
 def test_line_antialias_categorical():
     df = pd.DataFrame(dict(
         x=np.asarray([0, 1, 1, 0, np.nan, 0, 1/3.0, 2/3.0, 1]),

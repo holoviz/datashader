@@ -1008,7 +1008,7 @@ def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, antialias_combi
         segment_start = (plot_start if i == 0 else
                          (isnull(xs[i - 1]) or isnull(ys[i - 1])))
 
-        segment_end = (i == len(xs)-2)
+        segment_end = (i == len(xs)-2) or isnull(xs[i+2]) or isnull(ys[i+2])
 
         if segment_start or antialias_combination != AntialiasCombination.SUM_1AGG:
             xm = 0.0
@@ -1066,7 +1066,7 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, antialias
         segment_start = (plot_start if i == 0 else
                          (isnull(xs[i - 1, j]) or isnull(ys[i - 1, j])))
 
-        segment_end = (i == len(xs)-2)
+        segment_end = (i == len(xs)-2) or isnull(xs[i+2, j]) or isnull(ys[i+2, j])
 
         if segment_start or antialias_combination != AntialiasCombination.SUM_1AGG:
             xm = 0.0
@@ -1148,7 +1148,7 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, a
                 (j == 0) or isnull(xs[i, j - 1]) or isnull(ys[i, j - 1])
         )
 
-        segment_end = (j == xs.shape[1]-2)
+        segment_end = (j == xs.shape[1]-2) or isnull(xs[i, j+2]) or isnull(ys[i, j+2])
 
         if segment_start or antialias_combination != AntialiasCombination.SUM_1AGG:
             xm = 0.0
@@ -1230,7 +1230,7 @@ def _build_extend_line_axis1_x_constant(
                 (j == 0) or isnull(xs[j - 1]) or isnull(ys[i, j - 1])
         )
 
-        segment_end = (j == len(xs)-2)
+        segment_end = (j == len(xs)-2) or isnull(xs[j+2]) or isnull(ys[i, j+2])
 
         if segment_start or antialias_combination != AntialiasCombination.SUM_1AGG:
             xm = 0.0
@@ -1315,7 +1315,7 @@ def _build_extend_line_axis1_y_constant(
                 (j == 0) or isnull(xs[i, j - 1]) or isnull(ys[j - 1])
         )
 
-        segment_end = (j == len(ys)-2)
+        segment_end = (j == len(ys)-2) or isnull(xs[i, j+2]) or isnull(ys[j+2])
 
         if segment_start or antialias_combination != AntialiasCombination.SUM_1AGG:
             xm = 0.0
@@ -1437,10 +1437,14 @@ def _build_extend_line_axis1_ragged(
                 segment_start = (
                         (j == 0) or
                         isnull(x_flat[x_start_index + j - 1]) or
-                        isnull(y_flat[y_start_index + j] - 1)
+                        isnull(y_flat[y_start_index + j - 1])
                 )
 
-                segment_end = (j == segment_len-2)
+                segment_end = (
+                        (j == segment_len-2) or
+                        isnull(x_flat[x_start_index + j + 2]) or
+                        isnull(y_flat[y_start_index + j + 2])
+                )
 
                 if segment_start or antialias_combination != AntialiasCombination.SUM_1AGG:
                     xm = 0.0
@@ -1513,11 +1517,17 @@ def _build_extend_line_axis1_ragged(
                 segment_start = (
                         (j == 0) or
                         isnull(x_flat[x_start_index + j - 1]) or
-                        isnull(y_flat[y_start_index + j] - 1)
+                        isnull(y_flat[y_start_index + j - 1])
+                )
+
+                segment_end = (
+                        (j == segment_len-2) or
+                        isnull(x_flat[x_start_index + j + 2]) or
+                        isnull(y_flat[y_start_index + j + 2])
                 )
 
                 draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                             segment_start, False, x0, x1, y0, y1,
+                             segment_start, segment_end, x0, x1, y0, y1,
                              0.0, 0.0, *temp_aggs_and_cols)
 
             # Combined canvas/agg/reduction from above with the others, in some way.
@@ -1607,7 +1617,12 @@ def _build_extend_line_axis1_geometry(
                              not np.isfinite(values[k - 1]))
                     )
 
-                    segment_end = (not closed_rings and k == stop1-4)
+                    segment_end = (
+                            (not closed_rings and k == stop1-4) or
+                            (k < stop1-4 and
+                             not np.isfinite(values[k + 4]) or
+                             not np.isfinite(values[k + 5]))
+                    )
 
                     if segment_start or antialias_combination != AntialiasCombination.SUM_1AGG:
                         xm = 0.0
@@ -1704,8 +1719,15 @@ def _build_extend_line_axis1_geometry(
                              not np.isfinite(values[k - 1]))
                     )
 
+                    segment_end = (
+                            (not closed_rings and k == stop1-4) or
+                            (k < stop1-4 and
+                             not np.isfinite(values[k + 4]) or
+                             not np.isfinite(values[k + 5]))
+                    )
+
                     draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                                 segment_start, False, x0, x1, y0, y1,
+                                 segment_start, segment_end, x0, x1, y0, y1,
                                  0.0, 0.0, *temp_aggs_and_cols)
 
                 # Combined canvas/agg/reduction from above with the others, in some way.
