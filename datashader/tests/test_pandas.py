@@ -1927,7 +1927,7 @@ def test_line_antialias():
     assert_eq_ndarray(agg.data, 3*sol_min, close=True)
 
 
-line_antialias_nan_sol = np.array([
+line_antialias_nan_sol_intersect = np.array([
     [0.085786, 0.5,      0.085786, nan,      nan,      nan,      nan,      nan,      nan,      0.085786, 0.5,      0.085786],
     [0.5,      1.0,      0.792893, 0.085786, nan,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
     [0.085786, 0.792893, 1.0,      0.5,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
@@ -1942,6 +1942,21 @@ line_antialias_nan_sol = np.array([
     [0.085786, 0.5,      0.085786, nan,      nan,      nan,      nan,      nan,      nan,      0.085786, 0.5,      0.085786],
 ])
 
+line_antialias_nan_sol_max = np.array([
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan, nan,      nan,      nan,      0.085786, 0.5,      0.085786],
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan, nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan, nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan, 0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
+    [nan,      nan,      nan,      nan,      0.085786, 0.5, 0.792893, 1.0,      0.792893, 0.085786, nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.5,      1.0, 1.0,      0.792893, 0.085786, nan,      nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.5,      1.0, 1.0,      0.792893, 0.085786, nan,      nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.085786, 0.5, 0.792893, 1.0,      0.792893, 0.085786, nan,      nan     ],
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan, 0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan, nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan, nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan, nan,      nan,      nan,      0.085786, 0.5,      0.085786],
+])
+
 line_antialias_nan_params = [
     # LineAxis0
     (dict(data=dict(
@@ -1949,7 +1964,7 @@ line_antialias_nan_params = [
         y=[0.5, 1.5, np.nan, 4.5, 9.5, np.nan, 9.5, 8.5, np.nan, 5.5, 0.5],
     ), dtype='float32'),
     dict(x='x', y='y', axis=0),
-    line_antialias_nan_sol),
+    line_antialias_nan_sol_max, line_antialias_nan_sol_intersect),
     # LineAxis0Multi
     (dict(data=dict(
         x0=[0.5, 1.5, np.nan, 4.5, 9.5],
@@ -1958,7 +1973,7 @@ line_antialias_nan_params = [
         y1=[9.5, 8.5, np.nan, 5.5, 0.5],
     ), dtype='float32'),
     dict(x=['x0', 'x1'], y=['y0', 'y1'], axis=0),
-    line_antialias_nan_sol),
+    line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect),
     # LinesAxis1
     (dict(data=dict(
         x0=[0.5, 0.5],
@@ -1973,7 +1988,7 @@ line_antialias_nan_params = [
         y4=[9.5, 0.5],
     ), dtype='float32'),
     dict(x=['x0', 'x1', 'x2', 'x3', 'x4'], y=['y0', 'y1', 'y2', 'y3', 'y4'], axis=1),
-    line_antialias_nan_sol),
+    line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect),
     # LinesAxis1XConstant
     (dict(data=dict(
         y0=[0.5, 9.5],
@@ -1983,7 +1998,7 @@ line_antialias_nan_params = [
         y4=[9.5, 0.5],
     ), dtype='float32'),
     dict(x=np.array([0.5, 1.5, np.nan, 4.5, 9.5]), y=['y0', 'y1', 'y2', 'y3', 'y4'], axis=1),
-    line_antialias_nan_sol),
+    line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect),
    # LinesAxis1YConstant
     (dict(data=dict(
         x0=[0.5, 9.5],
@@ -1993,14 +2008,14 @@ line_antialias_nan_params = [
         x4=[9.5, 0.5],
     ), dtype='float32'),
     dict(y=np.array([0.5, 1.5, np.nan, 4.5, 9.5]), x=['x0', 'x1', 'x2', 'x3', 'x4'], axis=1),
-    line_antialias_nan_sol.T),
+    line_antialias_nan_sol_intersect.T, line_antialias_nan_sol_intersect.T),
     # LineAxis1Ragged
     (dict(data=dict(
         x=pd.array([[0.5, 1.5, np.nan, 4.5, 9.5], [0.5, 1.5, np.nan, 4.5, 9.5]], dtype='Ragged[float32]'),
         y=pd.array([[0.5, 1.5, np.nan, 4.5, 9.5], [9.5, 8.5, np.nan, 5.5, 0.5]], dtype='Ragged[float32]'),
     )),
     dict(x='x', y='y', axis=1),
-    line_antialias_nan_sol),
+    line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect),
 ]
 if sp:
     line_antialias_nan_params.append(
@@ -2012,14 +2027,15 @@ if sp:
                     [0.5, 9.5, 1.5, 8.5, np.nan, np.nan, 4.5, 5.5, 9.5, 0.5],
                 ], dtype='Line[float32]')),
             dict(geometry='geom'),
-            line_antialias_nan_sol,
+            line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect,
         )
     )
 
-@pytest.mark.parametrize('df_kwargs, cvs_kwargs, sol', line_antialias_nan_params)
-def test_line_antialias_nan(df_kwargs, cvs_kwargs, sol):
-    # Canvas.line(..., agg=ds.count(self_intersect=True)) with line_width > 0 has
-    # specific identification of start and end line segments from nan coordinates.
+@pytest.mark.parametrize('df_kwargs, cvs_kwargs, sol_False, sol_True', line_antialias_nan_params)
+@pytest.mark.parametrize('self_intersect', [False, True])
+def test_line_antialias_nan(df_kwargs, cvs_kwargs, sol_False, sol_True, self_intersect):
+    # Canvas.line() with line_width > 0 has specific identification of start
+    # and end line segments from nan coordinates to draw end caps correctly.
     x_range = y_range = (-1, 11)
     cvs = ds.Canvas(plot_width=12, plot_height=12, x_range=x_range, y_range=y_range)
 
@@ -2028,7 +2044,8 @@ def test_line_antialias_nan(df_kwargs, cvs_kwargs, sol):
     else:
         df = pd.DataFrame(**df_kwargs)
 
-    agg = cvs.line(df, line_width=2, agg=ds.count(self_intersect=True), **cvs_kwargs)
+    agg = cvs.line(df, line_width=2, agg=ds.count(self_intersect=self_intersect), **cvs_kwargs)
+    sol = sol_True if self_intersect else sol_False
     assert_eq_ndarray(agg.data, sol, close=True)
 
 
