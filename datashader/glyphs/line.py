@@ -1613,15 +1613,13 @@ def _build_extend_line_axis1_geometry(
                     segment_start = (
                             (k == start1 and not closed_rings) or
                             (k > start1 and
-                             not np.isfinite(values[k - 2]) or
-                             not np.isfinite(values[k - 1]))
+                             (not np.isfinite(values[k - 2]) or not np.isfinite(values[k - 1])))
                     )
 
                     segment_end = (
                             (not closed_rings and k == stop1-4) or
                             (k < stop1-4 and
-                             not np.isfinite(values[k + 4]) or
-                             not np.isfinite(values[k + 5]))
+                             (not np.isfinite(values[k + 4]) or not np.isfinite(values[k + 5])))
                     )
 
                     if segment_start or antialias_combination != AntialiasCombination.SUM_1AGG:
@@ -1715,15 +1713,13 @@ def _build_extend_line_axis1_geometry(
                     segment_start = (
                             (k == start1 and not closed_rings) or
                             (k > start1 and
-                             not np.isfinite(values[k - 2]) or
-                             not np.isfinite(values[k - 1]))
+                             (not np.isfinite(values[k - 2]) or not np.isfinite(values[k - 1])))
                     )
 
                     segment_end = (
                             (not closed_rings and k == stop1-4) or
                             (k < stop1-4 and
-                             not np.isfinite(values[k + 4]) or
-                             not np.isfinite(values[k + 5]))
+                             (not np.isfinite(values[k + 4]) or not np.isfinite(values[k + 5])))
                     )
 
                     draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
