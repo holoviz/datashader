@@ -2069,3 +2069,20 @@ def test_line_antialias_categorical():
                    agg=ds.by("cat", ds.count(self_intersect=True)))
     assert_eq_ndarray(agg.data[:, :, 0], line_antialias_sol_0_intersect, close=True)
     assert_eq_ndarray(agg.data[:, :, 1], line_antialias_sol_1, close=True)
+
+
+@pytest.mark.parametrize('self_intersect', [False, True])
+def test_line_antialias_duplicate_points(self_intersect):
+    # Issue #1098. Duplicate points should not raise a divide by zero error and
+    # should produce same results as without duplicate points.
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(-0.1, 1.1), y_range=(0.9, 2.1))
+
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2]))
+    agg_no_duplicate = cvs.line(source=df, x="x", y="y", line_width=1,
+                                agg=ds.count(self_intersect=self_intersect))
+
+    df = pd.DataFrame(dict(x=[0, 0, 1], y=[1, 1, 2]))
+    agg_duplicate = cvs.line(source=df, x="x", y="y", line_width=1,
+                             agg=ds.count(self_intersect=self_intersect))
+
+    assert_eq_xr(agg_no_duplicate, agg_duplicate)

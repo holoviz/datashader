@@ -822,10 +822,13 @@ def _full_antialias(line_width, antialias_combination, i, x0, x1, y0, y1,
         prev_alongx = x0 - xm
         prev_alongy = y0 - ym
         prev_length = math.sqrt(prev_alongx**2 + prev_alongy**2)
-        prev_alongx /= prev_length
-        prev_alongy /= prev_length
-        prev_rightx = prev_alongy
-        prev_righty = -prev_alongx
+        if prev_length > 0.0:
+            prev_alongx /= prev_length
+            prev_alongy /= prev_length
+            prev_rightx = prev_alongy
+            prev_righty = -prev_alongx
+        else:
+            overwrite = True
 
     # y limits of scan.
     ystart = clip_y(math.ceil(cy[lowindex]))
