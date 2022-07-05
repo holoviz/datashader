@@ -374,6 +374,8 @@ class Canvas(object):
             orig_x, orig_y = x, y
             x, y = _broadcast_column_specifications(x, y)
 
+            # (x_src, y_src, x_dst, y_dst)
+
             if axis == 0:
                 if (isinstance(x, (Number, str)) and
                         isinstance(y, (Number, str))):
