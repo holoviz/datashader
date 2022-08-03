@@ -9,13 +9,9 @@ import pyct.build
 ########## dependencies ##########
 
 install_requires = [
-    # `conda install dask[complete]` happily gives you dask...which is
-    # happily like pip's dask[complete]. (conda's dask-core is more
-    # like pip's dask.)
-    'dask[complete] >=0.18.0',
+    'dask',
     'datashape >=0.5.1',
     'numba >=0.51',
-    'numpy >=1.7',
     'pandas >=0.24.1',
     'pillow >=3.1.1',
     'xarray >=0.9.6',
@@ -31,6 +27,7 @@ examples = [
     'bokeh',
     'matplotlib',
     'geopandas',
+    'spatialpandas',
 ]
 
 extras_require = {
