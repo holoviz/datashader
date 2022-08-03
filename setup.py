@@ -18,6 +18,7 @@ install_requires = [
     'colorcet >=0.9.0',
     'param >=1.6.1',
     'pyct >=0.4.5',
+    'requests',
     'scipy',
 ]
 
