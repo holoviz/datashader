@@ -26,7 +26,7 @@ requirements:
   run:
     - python {{ sdata['python_requires'] }}
     {% for dep in sdata.get('install_requires',{}) %}
-    - {{ dep }}
+    - {{ dep if dep != 'dask' else 'dask-core'}}
     {% endfor %}
     # adding pyct here is temporary (this conda recipe template will disappear when new pyctdev is released)
     - pyct
