@@ -55,6 +55,7 @@ jobs:
         run: |
           doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev --label=main
   pip_build:
+    if: ${{ false }}  # disable for now
     name: Build PyPI Packages
     runs-on: 'ubuntu-latest'
     timeout-minutes: 60
