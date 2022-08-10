@@ -53,6 +53,7 @@ hardware, while exploiting distributed and GPU systems when available.
     Getting Started <getting_started/index>
     User Guide <user_guide/index>
     Topics <topics/index>
+    Releases <releases>
     API <api>
     FAQ <FAQ>
     About <about>
