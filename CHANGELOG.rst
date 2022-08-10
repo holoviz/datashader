@@ -1,3 +1,27 @@
+Version 0.14.2 (2022-08-10)
+---------------------------
+
+This is a bug fix release to fix an important divide by zero bug in antialiased lines, along with improvements to documentation and handling of dependencies.
+
+Thanks to `@ianthomas23 <https://github.com/ianthomas23>`_ and `@adamjhawley <https://github.com/adamjhawley>`_.
+
+Enhancements:
+
+* Improvements to documentation:
+
+  - Fix links in docs when viewed in browser (`#1102 <https://github.com/holoviz/datashader/pull/1102>`_)
+  - Add release notes (`#1108 <https://github.com/holoviz/datashader/pull/1108>`_)
+
+* Improvements to handling of dependencies:
+
+  - Correct dask and bokeh dependencies (`#1104 <https://github.com/holoviz/datashader/pull/1104>`_)
+  - Add requests as an install dependency (`#1105 <https://github.com/holoviz/datashader/pull/1105>`_)
+  - Better handle returned dask npartitions in tests (`#1107 <https://github.com/holoviz/datashader/pull/1107>`_)
+
+Bug fixes:
+
+* Fix antialiased line divide by zero bug (`#1099 <https://github.com/holoviz/datashader/pull/1099>`_)
+
 Version 0.14.1 (2022-06-21)
 ---------------------------
 
