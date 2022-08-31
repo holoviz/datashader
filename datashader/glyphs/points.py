@@ -8,6 +8,9 @@ from datashader.utils import isreal, ngjit
 
 from numba import cuda
 
+import awkward._v2 as ak
+from awkward_pandas import AwkwardDtype
+
 try:
     import cudf
     from ..transfer_functions._cuda_utils import cuda_args
@@ -72,11 +75,23 @@ class _GeometryLike(Glyph):
         return [self.geometry]
 
     def compute_x_bounds(self, df):
-        bounds = df[self.geometry].array.total_bounds_x
+        col = df[self.geometry]
+        if isinstance(col.dtype, AwkwardDtype):
+            arr = df[self.geometry].values._data
+            x = arr[..., ::2]
+            bounds = (ak.min(x), ak.max(x))
+        else:
+            bounds = col.array.total_bounds_x
         return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, df):
-        bounds = df[self.geometry].array.total_bounds_y
+        col = df[self.geometry]
+        if isinstance(col.dtype, AwkwardDtype):
+            arr = df[self.geometry].values._data
+            y = arr[..., 1::2]
+            bounds = (ak.min(y), ak.max(y))
+        else:
+            bounds = col.array.total_bounds_y
         return self.maybe_expand_bounds(bounds)
 
     @memoize

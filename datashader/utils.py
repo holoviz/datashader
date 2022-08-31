@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import re
 
+from awkward_pandas import AwkwardDtype
+
 from inspect import getmro
 
 import numba as nb
@@ -430,6 +432,8 @@ def dshape_from_pandas_helper(col):
         return datashape.Option(datashape.DateTime(tz=tz))
     elif isinstance(col.dtype, (RaggedDtype, GeometryDtype)):
         return col.dtype
+    elif isinstance(col.dtype, AwkwardDtype):
+        return col.dtype  # AwkwardDtype
     dshape = datashape.CType.from_numpy_dtype(col.dtype)
     dshape = datashape.string if dshape == datashape.object_ else dshape
     if dshape in (datashape.string, datashape.datetime_):

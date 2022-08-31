@@ -17,6 +17,10 @@ from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
 
+import awkward._v2 as ak
+import awkward_pandas as akpd
+ak.numba.register()  # Don't know if this is needed here
+
 try:
     import cudf
 except Exception:
@@ -730,24 +734,34 @@ The axis argument to Canvas.area must be 0 or 1
         ... agg = cvs.polygons(df, geometry='polygons', agg=ds.sum('v'))
         ... tf.shade(agg)
         """
-        from .glyphs import PolygonGeom
+        from .glyphs import PolygonAwkwardGeom, PolygonGeom
         from .reductions import any as any_rdn
-        if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
-            # Downselect partitions to those that may contain polygons in viewport
-            x_range = self.x_range if self.x_range is not None else (None, None)
-            y_range = self.y_range if self.y_range is not None else (None, None)
-            source = source.cx_partitions[slice(*x_range), slice(*y_range)]
-        elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
-            pass
-        else:
-            raise ValueError(
-                "source must be an instance of spatialpandas.GeoDataFrame or \n"
-                "spatialpandas.dask.DaskGeoDataFrame.\n"
-                "  Received value of type {typ}".format(typ=type(source)))
 
-        if agg is None:
-            agg = any_rdn()
-        glyph = PolygonGeom(geometry)
+        from spatialpandas import GeoDataFrame
+        from spatialpandas.dask import DaskGeoDataFrame
+
+        if (isinstance(source, pd.DataFrame) and geometry in source and
+                isinstance(source[geometry].dtype, akpd.AwkwardDtype)):
+            # Probably need to do more checking here...
+            if agg is None:
+                agg = any_rdn()
+            glyph = PolygonAwkwardGeom(geometry)
+        else:
+            if isinstance(source, DaskGeoDataFrame):
+                # Downselect partitions to those that may contain polygons in viewport
+                x_range = self.x_range if self.x_range is not None else (None, None)
+                y_range = self.y_range if self.y_range is not None else (None, None)
+                source = source.cx_partitions[slice(*x_range), slice(*y_range)]
+            elif not isinstance(source, GeoDataFrame):
+                raise ValueError(
+                    "source must be an instance of spatialpandas.GeoDataFrame or \n"
+                    "spatialpandas.dask.DaskGeoDataFrame.\n"
+                    "  Received value of type {typ}".format(typ=type(source)))
+
+            if agg is None:
+                agg = any_rdn()
+            glyph = PolygonGeom(geometry)
+
         return bypixel(source, self, glyph, agg)
 
     def quadmesh(self, source, x=None, y=None, agg=None):

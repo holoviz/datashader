@@ -9,6 +9,8 @@ import pyct.build
 ########## dependencies ##########
 
 install_requires = [
+    'awkward',
+    'awkward-pandas',
     'colorcet',
     'dask',
     'datashape',
