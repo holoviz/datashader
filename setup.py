@@ -9,7 +9,7 @@ import pyct.build
 ########## dependencies ##########
 
 install_requires = [
-    'dask[complete]',
+    'dask',
     'datashape >=0.5.1',
     'numba >=0.51',
     'pandas >=0.24.1',
