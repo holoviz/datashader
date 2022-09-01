@@ -19,10 +19,10 @@ jobs:
       matrix:
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
         python-version: ["3.7", "3.8", "3.9", "3.10"]
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
-        shell: bash -l {0} 
+        shell: bash -l {0}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       MAMBA_NO_BANNER: 1
@@ -54,7 +54,7 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit develop_install -o tests -o examples --conda-mode=mamba
-      - name: patch for fiona on mac and windows / 3.7 
+      - name: patch for fiona on mac and windows / 3.7
         if: (matrix.os == 'windows-latest' || matrix.os == 'macos-latest') && matrix.python-version == '3.7'
         run: |
           eval "$(conda shell.bash hook)"
