@@ -27,6 +27,11 @@ try:
 except Exception:
     dask_cudf = None
 
+try:
+    import spatialpandas
+except Exception:
+    spatialpandas = None
+
 class Axis(object):
     """Interface for implementing axis transformations.
 
@@ -194,14 +199,14 @@ class Canvas(object):
         if geometry is None:
             glyph = Point(x, y)
         else:
-            from spatialpandas import GeoDataFrame
-            from spatialpandas.dask import DaskGeoDataFrame
-            if isinstance(source, DaskGeoDataFrame):
+            if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
                 # Downselect partitions to those that may contain points in viewport
                 x_range = self.x_range if self.x_range is not None else (None, None)
                 y_range = self.y_range if self.y_range is not None else (None, None)
                 source = source.cx_partitions[slice(*x_range), slice(*y_range)]
-            elif not isinstance(source, GeoDataFrame):
+            elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
+                pass
+            else:
                 raise ValueError(
                     "source must be an instance of spatialpandas.GeoDataFrame or \n"
                     "spatialpandas.dask.DaskGeoDataFrame.\n"
@@ -354,14 +359,14 @@ class Canvas(object):
             line_width = 1.0
 
         if geometry is not None:
-            from spatialpandas import GeoDataFrame
-            from spatialpandas.dask import DaskGeoDataFrame
-            if isinstance(source, DaskGeoDataFrame):
+            if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
                 # Downselect partitions to those that may contain lines in viewport
                 x_range = self.x_range if self.x_range is not None else (None, None)
                 y_range = self.y_range if self.y_range is not None else (None, None)
                 source = source.cx_partitions[slice(*x_range), slice(*y_range)]
-            elif not isinstance(source, GeoDataFrame):
+            elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
+                pass
+            else:
                 raise ValueError(
                     "source must be an instance of spatialpandas.GeoDataFrame or \n"
                     "spatialpandas.dask.DaskGeoDataFrame.\n"
@@ -733,14 +738,14 @@ The axis argument to Canvas.area must be 0 or 1
         """
         from .glyphs import PolygonGeom
         from .reductions import any as any_rdn
-        from spatialpandas import GeoDataFrame
-        from spatialpandas.dask import DaskGeoDataFrame
-        if isinstance(source, DaskGeoDataFrame):
+        if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
             # Downselect partitions to those that may contain polygons in viewport
             x_range = self.x_range if self.x_range is not None else (None, None)
             y_range = self.y_range if self.y_range is not None else (None, None)
             source = source.cx_partitions[slice(*x_range), slice(*y_range)]
-        elif not isinstance(source, GeoDataFrame):
+        elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
+            pass
+        else:
             raise ValueError(
                 "source must be an instance of spatialpandas.GeoDataFrame or \n"
                 "spatialpandas.dask.DaskGeoDataFrame.\n"

@@ -15,6 +15,11 @@ except Exception:
     cudf = None
     cuda_args = None
 
+try:
+    import spatialpandas
+except Exception:
+    spatialpandas = None
+
 
 def values(s):
     if isinstance(s, cudf.Series):
@@ -22,7 +27,7 @@ def values(s):
             return s.to_cupy(na_value=np.nan)
         else:
             return s.to_gpu_array(fillna=np.nan)
-        
+
     else:
         return s.values
 
@@ -41,8 +46,11 @@ class _GeometryLike(Glyph):
 
     @property
     def geom_dtypes(self):
-        from spatialpandas.geometry import GeometryDtype
-        return (GeometryDtype,)
+        if spatialpandas:
+            from spatialpandas.geometry import GeometryDtype
+            return (GeometryDtype,)
+        else:
+            return ()  # Empty tuple
 
     def validate(self, in_dshape):
         if not isinstance(in_dshape[str(self.geometry)], self.geom_dtypes):
@@ -212,6 +220,7 @@ class Point(_PointLike):
 
 
 class MultiPointGeometry(_GeometryLike):
+    # spatialpandas must be available if a MultiPointGeometry object is created.
 
     @property
     def geom_dtypes(self):

@@ -9,7 +9,6 @@ import pyct.build
 ########## dependencies ##########
 
 install_requires = [
-    'colorcet',
     'dask',
     'datashape',
     'numba >=0.51',
@@ -23,7 +22,7 @@ install_requires = [
 ]
 
 examples = [
-    'bokeh',
+    'colorcet',
     'geopandas',
     'holoviews',
     'matplotlib',
@@ -55,13 +54,11 @@ extras_require = {
         'streamz',
         ### conda only below here
         'fastparquet',
-        'geopandas',
         'graphviz',
         'python-graphviz',
         'python-snappy',
         'rasterio',
         'snappy',
-        'spatialpandas',
     ]
 }
 

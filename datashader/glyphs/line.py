@@ -19,6 +19,11 @@ except ImportError:
     cudf = None
     cuda_args = None
 
+try:
+    import spatialpandas
+except Exception:
+    spatialpandas = None
+
 
 # This Enum should eventually be replaced with attributes
 # and/or member functions of Reduction classes.
@@ -513,6 +518,7 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
 
 
 class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
+    # spatialpandas must be available if a LineAxis1Geometry object is created.
 
     @property
     def geom_dtypes(self):
