@@ -12,16 +12,19 @@ install_requires = [
     'dask',
     'datashape',
     'numba >=0.51',
+    'numpy',
     'pandas',
     'param',
     'pillow',
     'pyct',
     'requests',
     'scipy',
+    'toolz',
     'xarray',
 ]
 
 examples = [
+    'bokeh',
     'colorcet',
     'geopandas',
     'holoviews',
@@ -32,11 +35,9 @@ examples = [
 
 extras_require = {
     'tests': [
-        'bokeh',
         'codecov',
         'fastparquet',  # optional dependency
         'flake8',
-        'holoviews',
         'nbconvert',
         'nbsmoke[verify] >0.5',
         'netcdf4',
