@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 import datashader as ds
 import datashader.transfer_functions as tf
 

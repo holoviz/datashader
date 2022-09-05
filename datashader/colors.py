@@ -1,6 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
-
 # Lookup of web color names to their hex codes.
 color_lookup = {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7',
                 'aqua': '#00FFFF', 'aquamarine': '#7FFFD4',

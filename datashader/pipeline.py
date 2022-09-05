@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 from toolz import identity
 
 from . import transfer_functions as tf

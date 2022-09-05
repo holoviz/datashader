@@ -8,8 +8,6 @@ Test files may be generated starting from any file format supported by Pandas:
   python -c "import filetimes ; filetimes.base='<hdf5base>' ; filetimes.categories=['<cat1>','<cat2>']; filetimes.timed_write('<file>')"
 """
 
-from __future__ import print_function
-
 import time
 global_start = time.time()
 

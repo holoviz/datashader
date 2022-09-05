@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 from datashader.data_libraries.dask import dask_pipeline
 from datashader.core import bypixel
 import dask_cudf

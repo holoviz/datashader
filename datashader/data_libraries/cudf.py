@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 from datashader.data_libraries.pandas import default
 from datashader.core import bypixel
 import cudf

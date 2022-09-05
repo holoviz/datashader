@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 import pytest
 import numpy as np
 import pandas as pd
@@ -709,8 +708,8 @@ class TestRaggedGetitem(eb.BaseGetitemTests):
     def test_getitem_ellipsis_and_slice(self, data):
         pass
 
-    # Ellipsis, numpy.newaxis, None, not supported in RaggedArray.__getitem__ 
-    # so the error message raised RaggedArray.__getitem__ isn't the same as 
+    # Ellipsis, numpy.newaxis, None, not supported in RaggedArray.__getitem__
+    # so the error message raised RaggedArray.__getitem__ isn't the same as
     # the one raised by the base extension.
     @pytest.mark.skip(reason="RaggedArray.__getitem__ raises a different error message")
     def test_getitem_invalid(self, data):

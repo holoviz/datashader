@@ -1,5 +1,3 @@
-from __future__ import division, absolute_import
-
 from io import BytesIO
 
 import numpy as np

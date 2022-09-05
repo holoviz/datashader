@@ -11,8 +11,6 @@ algorithm.
    https://gitlab.com/ianjcalvert/edgehammer
 """
 
-from __future__ import absolute_import, division, print_function
-
 from math import ceil
 
 from dask import compute, delayed
