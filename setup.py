@@ -10,20 +10,20 @@ import pyct.build
 
 install_requires = [
     'dask',
-    'datashape >=0.5.1',
+    'datashape',
     'numba >=0.51',
-    'pandas >=0.24.1',
-    'pillow >=3.1.1',
-    'xarray >=0.9.6',
-    'colorcet >=0.9.0',
-    'param >=1.6.1',
-    'pyct >=0.4.5',
+    'pandas',
+    'pillow',
+    'xarray',
+    'colorcet',
+    'param',
+    'pyct',
     'requests',
     'scipy',
 ]
 
 examples = [
-    'holoviews >=1.10.0',
+    'holoviews',
     'scikit-image',
     'bokeh',
     'matplotlib',
@@ -33,15 +33,15 @@ examples = [
 
 extras_require = {
     'tests': [
-        'pytest >=3.9.3',
-        'pytest-benchmark >=3.0.0',
+        'pytest',
+        'pytest-benchmark',
         'pytest-cov',
         'codecov',
         'flake8',
         'nbconvert',
         'nbsmoke[verify] >0.5',
-        'fastparquet >=0.1.6',  # optional dependency
-        'holoviews >=1.10.0',
+        'fastparquet',  # optional dependency
+        'holoviews',
         'bokeh',
         'pyarrow',
         'netcdf4',
@@ -51,8 +51,8 @@ extras_require = {
     ],
     'examples': examples,
     'examples_extra': examples + [
-        'networkx >=2.0',
-        'streamz >=0.2.0',
+        'networkx',
+        'streamz',
         ### conda only below here
         'graphviz',
         'python-graphviz',
