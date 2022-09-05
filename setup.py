@@ -123,6 +123,11 @@ setup_args = dict(
 )
 
 if __name__ == '__main__':
+
+
+    print("VERSION", param.version.get_setup_version(__file__,"datashader",archive_commit="$Format:%h$"))
+
+
     example_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'datashader','examples')
     if 'develop' not in sys.argv:
