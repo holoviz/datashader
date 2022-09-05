@@ -4,7 +4,7 @@ Binary graphical composition operators
 See https://www.cairographics.org/operators/; more could easily be added from there.
 """
 
-from __future__ import division
+from __future__ import annotations
 
 import numba as nb
 import numpy as np

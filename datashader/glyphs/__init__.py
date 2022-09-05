@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import annotations
 from .points import Point, MultiPointGeometry   # noqa (API import)
 from .line import (  # noqa (API import)
     AntialiasCombination,

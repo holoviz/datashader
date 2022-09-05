@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division
+from __future__ import annotations
 from packaging.version import Version
 import numpy as np
 from toolz import memoize
@@ -22,7 +22,7 @@ def values(s):
             return s.to_cupy(na_value=np.nan)
         else:
             return s.to_gpu_array(fillna=np.nan)
-        
+
     else:
         return s.values
 

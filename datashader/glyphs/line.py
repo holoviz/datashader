@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division
+from __future__ import annotations
 from enum import Enum
 import math
 import numpy as np
