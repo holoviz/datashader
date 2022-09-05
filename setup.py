@@ -9,67 +9,67 @@ import pyct.build
 ########## dependencies ##########
 
 install_requires = [
+    'colorcet',
     'dask',
     'datashape',
     'numba >=0.51',
     'pandas',
-    'pillow',
-    'xarray',
-    'colorcet',
     'param',
+    'pillow',
     'pyct',
     'requests',
     'scipy',
+    'xarray',
 ]
 
 examples = [
-    'holoviews',
-    'scikit-image',
     'bokeh',
-    'matplotlib',
     'geopandas',
+    'holoviews',
+    'matplotlib',
+    'scikit-image',
     'spatialpandas',
 ]
 
 extras_require = {
     'tests': [
+        'bokeh',
+        'codecov',
+        'fastparquet',  # optional dependency
+        'flake8',
+        'holoviews',
+        'nbconvert',
+        'nbsmoke[verify] >0.5',
+        'netcdf4',
+        'pyarrow',
         'pytest',
         'pytest-benchmark',
         'pytest-cov',
-        'codecov',
-        'flake8',
-        'nbconvert',
-        'nbsmoke[verify] >0.5',
-        'fastparquet',  # optional dependency
-        'holoviews',
-        'bokeh',
-        'pyarrow',
-        'netcdf4',
-        'spatialpandas',
-        'rioxarray',
         'rasterio',
+        'rioxarray',
+        'spatialpandas',
     ],
     'examples': examples,
     'examples_extra': examples + [
         'networkx',
         'streamz',
         ### conda only below here
+        'fastparquet',
+        'geopandas',
         'graphviz',
         'python-graphviz',
-        'fastparquet',
         'python-snappy',
         'rasterio',
         'snappy',
         'spatialpandas',
-        'geopandas',
     ]
 }
 
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.7.1',
+    'numpydoc',
     'pydata-sphinx-theme <0.9.0',
     'sphinx-copybutton',
-    'numpydoc',
 ]
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
