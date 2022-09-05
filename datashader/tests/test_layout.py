@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import annotations
 import pytest
 skimage = pytest.importorskip("skimage")
 

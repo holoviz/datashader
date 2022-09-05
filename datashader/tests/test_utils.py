@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import annotations
 from datashape import dshape
 import numpy as np
 from xarray import DataArray

@@ -1,7 +1,7 @@
 """Assign coordinates to the nodes of a graph.
 """
 
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 import numpy as np
 import param

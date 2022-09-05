@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import annotations
 
 from math import ceil, isnan
 from packaging.version import Version

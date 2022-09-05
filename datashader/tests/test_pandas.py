@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import annotations
 from collections import OrderedDict
 import os
 from numpy import nan
