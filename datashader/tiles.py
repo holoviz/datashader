@@ -336,7 +336,7 @@ def tile_previewer(full_extent, tileset_url,
         from bokeh.io import output_file, save
         from os import path
     except ImportError:
-        raise ImportError('conda install bokeh to enable creation of simple tile viewer')
+        raise ImportError('install bokeh to enable creation of simple tile viewer')
 
     if output_dir:
         output_file(filename=path.join(output_dir, filename),
@@ -388,7 +388,7 @@ class S3TileRenderer(TileRenderer):
         try:
             import boto3
         except ImportError:
-            raise ImportError('conda install boto3 to enable rendering to S3')
+            raise ImportError('install boto3 to enable rendering to S3')
 
         try:
             from urlparse import urlparse
