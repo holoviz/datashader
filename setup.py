@@ -10,66 +10,64 @@ import pyct.build
 
 install_requires = [
     'dask',
-    'datashape >=0.5.1',
+    'datashape',
     'numba >=0.51',
-    'pandas >=0.24.1',
-    'pillow >=3.1.1',
-    'xarray >=0.9.6',
-    'colorcet >=0.9.0',
-    'param >=1.6.1',
-    'pyct >=0.4.5',
+    'numpy',
+    'pandas',
+    'param',
+    'pillow',
+    'pyct',
     'requests',
     'scipy',
+    'toolz',
+    'xarray',
 ]
 
 examples = [
-    'holoviews >=1.10.0',
-    'scikit-image',
     'bokeh',
-    'matplotlib',
+    'colorcet',
     'geopandas',
+    'holoviews',
+    'matplotlib',
+    'scikit-image',
     'spatialpandas',
 ]
 
 extras_require = {
     'tests': [
-        'pytest >=3.9.3',
-        'pytest-benchmark >=3.0.0',
-        'pytest-cov',
         'codecov',
+        'fastparquet',  # optional dependency
         'flake8',
         'nbconvert',
         'nbsmoke[verify] >0.5',
-        'fastparquet >=0.1.6',  # optional dependency
-        'holoviews >=1.10.0',
-        'bokeh',
-        'pyarrow',
         'netcdf4',
-        'spatialpandas',
-        'rioxarray',
+        'pyarrow',
+        'pytest',
+        'pytest-benchmark',
+        'pytest-cov',
         'rasterio',
+        'rioxarray',
+        'spatialpandas',
     ],
     'examples': examples,
     'examples_extra': examples + [
-        'networkx >=2.0',
-        'streamz >=0.2.0',
+        'networkx',
+        'streamz',
         ### conda only below here
+        'fastparquet',
         'graphviz',
         'python-graphviz',
-        'fastparquet',
         'python-snappy',
         'rasterio',
         'snappy',
-        'spatialpandas',
-        'geopandas',
     ]
 }
 
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.7.1',
+    'numpydoc',
     'pydata-sphinx-theme <0.9.0',
     'sphinx-copybutton',
-    'numpydoc',
 ]
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
@@ -125,6 +123,11 @@ setup_args = dict(
 )
 
 if __name__ == '__main__':
+
+
+    print("VERSION", param.version.get_setup_version(__file__,"datashader",archive_commit="$Format:%h$"))
+
+
     example_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'datashader','examples')
     if 'develop' not in sys.argv:

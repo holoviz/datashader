@@ -92,3 +92,50 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           codecov
+
+  test_pip:
+    name: Pip tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest']
+        python-version: ["3.9"]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Update setuptools
+        run: |
+          pip install --upgrade setuptools
+      - name: Install pyctdev
+        run: |
+          pip install pyctdev
+      - name: doit develop_install
+        run: |
+          doit ecosystem=pip develop_install -o tests -o examples
+      - name: doit env_capture
+        run: |
+          doit ecosystem=pip env_capture
+      - name: doit test_lint
+        run: |
+          doit ecosystem=pip test_lint
+      - name: doit test_unit
+        run: |
+          doit ecosystem=pip test_unit
+      - name: doit test_unit_nojit
+        run: |
+          doit ecosystem=pip test_unit_nojit
+        env:
+          NUMBA_DISABLE_JIT: 1
+      - name: doit test_examples
+        run: |
+          doit ecosystem=pip test_examples
+      - name: codecov
+        run: |
+          codecov
