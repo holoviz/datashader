@@ -85,3 +85,5 @@ examples/user_guide/df_world.parq
 .doit*
 datashader/.version
 /.pytest_cache
+
+.asv/
