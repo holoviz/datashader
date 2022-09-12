@@ -1,5 +1,4 @@
 import colorcet
-import datashader as ds
 import datashader.transfer_functions as tf
 import numpy as np
 import xarray as xr
