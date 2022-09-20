@@ -24,7 +24,7 @@ def dask_GeoDataFrame(*args, **kwargs):
 DataFrames = [GeoDataFrame, dask_GeoDataFrame]
 
 
-@pytest.mark.skipif(not spatialpandas, reason="spacialpandas not installed")
+@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('DataFrame', DataFrames)
 def test_multipolygon_manual_range(DataFrame):
     df = DataFrame({
@@ -72,7 +72,7 @@ def test_multipolygon_manual_range(DataFrame):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.skipif(not spatialpandas, reason="spacialpandas not installed")
+@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('DataFrame', DataFrames)
 def test_multiple_polygons_auto_range(DataFrame):
     df = DataFrame({
@@ -121,7 +121,7 @@ def test_multiple_polygons_auto_range(DataFrame):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.skipif(not spatialpandas, reason="spacialpandas not installed")
+@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('DataFrame', DataFrames)
 def test_no_overlap(DataFrame):
     df = DataFrame({
@@ -170,7 +170,7 @@ def test_no_overlap(DataFrame):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.skipif(not spatialpandas, reason="spacialpandas not installed")
+@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('DataFrame', DataFrames)
 def test_no_overlap_agg(DataFrame):
     df = DataFrame({
@@ -215,7 +215,7 @@ def test_no_overlap_agg(DataFrame):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.skipif(not spatialpandas, reason="spacialpandas not installed")
+@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('scale', [4, 100])
 def test_multipolygon_subpixel_vertical(DataFrame, scale):
@@ -253,7 +253,7 @@ def test_multipolygon_subpixel_vertical(DataFrame, scale):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.skipif(not spatialpandas, reason="spacialpandas not installed")
+@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('scale', [4, 100])
 def test_multipolygon_subpixel_horizontal(DataFrame, scale):
@@ -289,3 +289,27 @@ def test_multipolygon_subpixel_horizontal(DataFrame, scale):
         axis.compute_scale_and_translate((0, 4), 8), 8)
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x], dims=['y', 'x'])
     assert_eq_xr(agg, out)
+
+
+@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
+def test_spatial_index_not_dropped():
+    # Issue 1121
+    df = GeoDataFrame({
+        'some_geom': MultiPolygonArray([
+            [[[0, 0, 1, 0, 1, 1, 0, 1, 0, 0]]],
+            [[[0, 2, 1, 2, 1, 3, 0, 3, 0, 2]]],
+        ]),
+        'other': [23, 45],  # This column is not used and will be dropped.
+    })
+
+    assert df.some_geom.array._sindex is None
+    sindex = df.some_geom.array.sindex
+    assert sindex is not None
+   
+    glyph = ds.glyphs.polygon.PolygonGeom('some_geom')
+    agg = ds.count()
+    
+    df2, _ = ds.core._bypixel_sanitise(df, glyph, agg)
+
+    assert df2.columns == ['some_geom']
+    assert df2.some_geom.array._sindex == df.some_geom.array._sindex

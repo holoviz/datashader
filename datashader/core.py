@@ -1246,7 +1246,20 @@ def bypixel(source, canvas, glyph, agg):
     glyph : Glyph
     agg : Reduction
     """
+    source, dshape = _bypixel_sanitise(source, glyph, agg)
 
+    schema = dshape.measure
+    glyph.validate(schema)
+    agg.validate(schema)
+    canvas.validate()
+
+    # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
+    with np.warnings.catch_warnings():
+        np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+        return bypixel.pipeline(source, schema, canvas, glyph, agg)
+
+
+def _bypixel_sanitise(source, glyph, agg):
     # Convert 1D xarray DataArrays and DataSets into Dask DataFrames
     if isinstance(source, DataArray) and source.ndim == 1:
         if not source.name:
@@ -1266,7 +1279,15 @@ def bypixel(source, canvas, glyph, agg):
         # Preserve column ordering without duplicates
         cols_to_keep = _cols_to_keep(source.columns, glyph, agg)
         if len(cols_to_keep) < len(source.columns):
+            # If _sindex is set, ensure it is not dropped
+            # https://github.com/holoviz/datashader/issues/1121
+            sindex = None
+            from .glyphs.polygon import PolygonGeom
+            if isinstance(glyph, PolygonGeom):
+                sindex = getattr(source[glyph.geometry].array, "_sindex", None)
             source = source[cols_to_keep]
+            if sindex is not None and getattr(source[glyph.geometry].array, "_sindex", None) is None:
+                source[glyph.geometry].array._sindex = sindex
         dshape = dshape_from_pandas(source)
     elif isinstance(source, dd.DataFrame):
         dshape = dshape_from_dask(source)
@@ -1275,15 +1296,8 @@ def bypixel(source, canvas, glyph, agg):
         dshape = dshape_from_xarray_dataset(source)
     else:
         raise ValueError("source must be a pandas or dask DataFrame")
-    schema = dshape.measure
-    glyph.validate(schema)
-    agg.validate(schema)
-    canvas.validate()
 
-    # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
-    with np.warnings.catch_warnings():
-        np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
-        return bypixel.pipeline(source, schema, canvas, glyph, agg)
+    return source, dshape
 
 
 def _cols_to_keep(columns, glyph, agg):
