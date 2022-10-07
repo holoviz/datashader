@@ -160,28 +160,31 @@ def eq_hist(data, mask=None, nbins=256*256):
     """
     if cupy and isinstance(data, cupy.ndarray):
         from._cuda_utils import interp
+        array_module = cupy
     elif not isinstance(data, np.ndarray):
         raise TypeError("data must be an ndarray")
     else:
         interp = np.interp
+        array_module = np
 
     data2 = data if mask is None else data[~mask]
 
     # Run more accurate value counting if data is of boolean or integer type
     # and unique value array is smaller than nbins.
-    if data2.dtype == bool or (np.issubdtype(data2.dtype, np.integer) and data2.ptp() < nbins):
-        values, counts = np.unique(data2, return_counts=True)
-        vmin, vmax = values[0], values[-1]
+    if data2.dtype == bool or (array_module.issubdtype(data2.dtype, array_module.integer) and
+                               data2.ptp() < nbins):
+        values, counts = array_module.unique(data2, return_counts=True)
+        vmin, vmax = values[0].item(), values[-1].item()  # Convert from arrays to scalars.
         interval = vmax-vmin
-        bin_centers = np.arange(vmin, vmax+1)
-        hist = np.zeros(interval+1, dtype='uint64')
+        bin_centers = array_module.arange(vmin, vmax+1)
+        hist = array_module.zeros(interval+1, dtype='uint64')
         hist[values-vmin] = counts
         discrete_levels = len(values)
     else:
-        hist, bin_edges = np.histogram(data2, bins=nbins)
+        hist, bin_edges = array_module.histogram(data2, bins=nbins)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
         keep_mask = (hist > 0)
-        discrete_levels = np.count_nonzero(keep_mask)
+        discrete_levels = array_module.count_nonzero(keep_mask)
         if discrete_levels != len(hist):
             # Remove empty histogram bins.
             hist = hist[keep_mask]
@@ -189,7 +192,7 @@ def eq_hist(data, mask=None, nbins=256*256):
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
     out = interp(data, bin_centers, cdf).reshape(data.shape)
-    return out if mask is None else np.where(mask, np.nan, out), discrete_levels
+    return out if mask is None else array_module.where(mask, array_module.nan, out), discrete_levels
 
 
 

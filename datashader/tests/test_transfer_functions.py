@@ -169,6 +169,11 @@ def test_shade(agg, attr, span):
 
         img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=True)
         sol = tf.Image(eq_hist_sol_rescale_discrete_levels[attr], coords=coords, dims=dims)
+        if cupy and attr=='a' and isinstance(agg.a.data, cupy.ndarray):
+            # cupy eq_hist has slightly different numerics hence slightly different RGBA results
+            sol = sol.copy(deep=True)
+            sol[2, 0] = sol[2, 0] - 0x100
+
         assert_eq_xr(img, sol)
 
     img = tf.shade(x, cmap=cmap,
