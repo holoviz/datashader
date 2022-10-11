@@ -19,7 +19,7 @@ from . import reductions as rd
 
 import awkward._v2 as ak
 import awkward_pandas as akpd
-ak.numba.register()  # Don't know if this is needed here
+ak.numba.register_and_check()  # Don't know if this is needed here
 
 try:
     import cudf

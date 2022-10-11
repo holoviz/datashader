@@ -466,19 +466,26 @@ def _build_extend_awkward_polygon_geometry(
         # This function will eventually deal with different nested polygon arrangements.
         # This is usually a non-ngjitted function...
         # determine eligible indices and so on.
+        if geometry._sindex is not None:
+            # Compute indices of potentially intersecting polygons using
+            # geometry's R-tree if there is one
+            eligible_inds = geometry._sindex.intersects((xmin, ymin, xmax, ymax))
+        else:
+            # Otherwise, process all indices
+            eligible_inds = np.arange(0, len(geometry), dtype='uint32')
 
         extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            geometry._data,
-            *aggs_and_cols
+            geometry._data, eligible_inds, *aggs_and_cols
         )
 
     @ngjit
     @expand_aggs_and_cols
     def draw_all_polygons(geometry, xs, ys, yincreasing, eligible,
-                          sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                          sx, tx, sy, ty, xmin, xmax, ymin, ymax, eligible_inds,
                           *aggs_and_cols):
-        for i, item in enumerate(geometry):
+        for i in eligible_inds:
+            item = geometry[i]
             for multipoly in item:
                 for polygon in multipoly:
                     draw_polygon(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -488,8 +495,7 @@ def _build_extend_awkward_polygon_geometry(
     # Do not jit this.
     def extend_cpu_numba(
         sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-        geometry,  # Awkward Array
-        *aggs_and_cols
+        geometry, eligible_inds, *aggs_and_cols
     ):
         # Pre-allocate temp arrays
         max_edges = ak.max(ak.num(geometry, axis=3) // 2)  # 430
@@ -501,7 +507,7 @@ def _build_extend_awkward_polygon_geometry(
         eligible = np.ones(max_edges, dtype=np.int8)
 
         draw_all_polygons(geometry, xs, ys, yincreasing, eligible,
-                          sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                          sx, tx, sy, ty, xmin, xmax, ymin, ymax, eligible_inds,
                           *aggs_and_cols)
 
     return extend_cpu
