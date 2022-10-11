@@ -27,10 +27,7 @@ from datashader.tests.test_pandas import (
 
 config.set(scheduler='synchronous')
 
-if "DATASHADER_TEST_GPU" in os.environ:
-    test_gpu = bool(int(os.environ["DATASHADER_TEST_GPU"]))
-else:
-    test_gpu = None
+test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
 df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
@@ -62,7 +59,7 @@ try:
     import cupy
     import dask_cudf
 
-    if test_gpu is False:
+    if not test_gpu:
         # GPU testing disabled even though cudf/cupy are available
         raise ImportError
 
@@ -109,7 +106,7 @@ def floats(n):
 
 
 def test_gpu_dependencies():
-    if test_gpu is True and cudf is None:
+    if test_gpu and cudf is None:
         pytest.fail(
             "cudf, cupy, and/or dask_cudf not available and DATASHADER_TEST_GPU=1"
         )

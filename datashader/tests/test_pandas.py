@@ -29,10 +29,7 @@ df_pd.at[2,'f32'] = nan
 df_pd.at[2,'f64'] = nan
 dfs_pd = [df_pd]
 
-if "DATASHADER_TEST_GPU" in os.environ:
-    test_gpu = bool(int(os.environ["DATASHADER_TEST_GPU"]))
-else:
-    test_gpu = None
+test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
 
 try:
@@ -135,12 +132,11 @@ def values(s):
 
 
 def test_gpu_dependencies():
-    if test_gpu is True and cudf is None:
+    if test_gpu and cudf is None:
         pytest.fail("cudf and/or cupy not available and DATASHADER_TEST_GPU=1")
 
 
-@pytest.mark.skipif(test_gpu is None, reason="DATASHADER_TEST_GPU not in environment")
-@pytest.mark.skipif(test_gpu is False, reason="DATASHADER_TEST_GPU is set to False")
+@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
 def test_cudf_concat():
     # Testing if a newer version of cuDF implements the possibility to
     # concatenate multiple columns with the same name.
