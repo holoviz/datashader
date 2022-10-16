@@ -24,7 +24,7 @@ jobs:
       MPLBACKEND: "Agg"
       CONDA_UPLOAD_TOKEN: ${{ secrets.CONDA_UPLOAD_TOKEN }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: "100"
       - uses: conda-incubator/setup-miniconda@v2
@@ -70,7 +70,7 @@ jobs:
       PYPI: "https://upload.pypi.org/legacy/"
       MAMBA_NO_BANNER: 1
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: "100"
       - uses: conda-incubator/setup-miniconda@v2
