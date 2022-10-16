@@ -44,7 +44,7 @@ jobs:
         id: vars
         run: |
           echo "Deploying from ref ${GITHUB_REF#refs/*/}"
-          echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+          echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: conda setup
         run: |
           conda install "pyctdev>=0.5"
