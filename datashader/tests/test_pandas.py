@@ -2082,3 +2082,15 @@ def test_line_antialias_duplicate_points(self_intersect):
                              agg=ds.count(self_intersect=self_intersect))
 
     assert_eq_xr(agg_no_duplicate, agg_duplicate)
+
+
+@pytest.mark.parametrize('reduction', [
+    ds.mean('value'), ds.std('value'), ds.summary(c=ds.count()), ds.var('value'),
+    ds.first('value'), ds.last('value')])
+def test_line_antialias_reduction_not_implemented(reduction):
+    # Issue #1133, detect and report reductions that are not implemented.
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2]))
+
+    with pytest.raises(NotImplementedError):
+        cvs.line(df, 'x', 'y', line_width=1, agg=reduction)    

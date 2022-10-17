@@ -442,10 +442,15 @@ The axis argument to Canvas.line must be 0 or 1
                 antialias_combination = AntialiasCombination.MAX
             elif isinstance(non_cat_agg, rd.min):
                 antialias_combination = AntialiasCombination.MIN
-            elif isinstance(non_cat_agg, (rd.count, rd.sum)) and non_cat_agg.self_intersect:
-                antialias_combination = AntialiasCombination.SUM_1AGG
+            elif isinstance(non_cat_agg, (rd.count, rd.sum)):
+                if non_cat_agg.self_intersect:
+                    antialias_combination = AntialiasCombination.SUM_1AGG
+                else:
+                    antialias_combination = AntialiasCombination.SUM_2AGG
             else:
-                antialias_combination = AntialiasCombination.SUM_2AGG
+                raise NotImplementedError(
+                    f"{type(non_cat_agg)} reduction not implemented for antialiased lines")
+
             glyph.set_antialias_combination(antialias_combination)
 
             # Switch agg to floating point.
