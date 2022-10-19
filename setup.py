@@ -39,7 +39,6 @@ extras_require = {
         'fastparquet',  # optional dependency
         'flake8',
         'nbconvert',
-        'nbformat <=5.4.0',
         'nbsmoke[verify] >0.5',
         'netcdf4',
         'pyarrow',
