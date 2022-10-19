@@ -46,6 +46,21 @@ asv dev
 instead of `asv run`.
 
 
+Running cuDF and Dask-cuDF benchmarks
+-------------------------------------
+
+Benchmarks that use `pandas` and `dask` DataFrames are always run whereas those that use `cudf` and `dask-cudf` are only run if the required libraries are installed and appropriate GPU hardware is available. Because installing the required libraries is non-trivial it is recommended to run the benchmarks in your default `cudf`-enabled development environment rather than allow `asv` to create new environments specifically for the benchmarking.
+
+Before running `cudf` and `dask-cudf` benchmarks you should first check that you can run the Datashader `pytest` test suite as debugging your environment is much easier using `pytest` than `asv`.
+
+The `asv` command to run all benchmarks using your default development environment is:
+```
+asv run --python=same --launch-method spawn
+```
+
+The `--launch-method spawn` is recommended to avoid problems in accessing the GPU from subprocesses which is how `asv` runs individual isolated benchmarks.
+
+
 Adding new benchmarks
 ---------------------
 
