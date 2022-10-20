@@ -454,7 +454,7 @@ The axis argument to Canvas.line must be 0 or 1
             glyph.set_antialias_combination(antialias_combination)
 
             # Switch agg to floating point.
-            agg = rd._reduction_to_floating_point(agg)
+            #############agg = rd._reduction_to_floating_point(agg)
 
         return bypixel(source, self, glyph, agg, antialias=(line_width > 0))
 

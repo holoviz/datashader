@@ -51,7 +51,8 @@ def compile_components(agg, schema, glyph, cuda=False, antialias=False):
 
     # List of base reductions (actually computed)
     bases = list(unique(concat(r._build_bases(cuda) for r in reds)))
-    dshapes = [b.out_dshape(schema) for b in bases]
+    dshapes = [b.out_dshape(schema, antialias) for b in bases]
+    print("DSHAPES", dshapes)
     # List of tuples of (append, base, input columns, temps)
     calls = [_get_call_tuples(b, d, schema, cuda, antialias) for (b, d) in zip(bases, dshapes)]
     # List of unique column names needed
@@ -147,6 +148,8 @@ def make_append(bases, cols, calls, glyph, categorical):
         code = ('def append({0}, x, y, {1}):\n'
                 '    {2}'
                 ).format(subscript, ', '.join(signature), '\n    '.join(body))
+    print("CODE", code)  # If aa, need another aa_factor in range 0 to 1 to combine with field...
+                         # but can call the same reduction.append in the end anyway.
     exec(code, namespace)
     return ngjit(namespace['append'])
 
