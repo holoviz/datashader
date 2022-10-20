@@ -44,13 +44,13 @@ class Line:
             if cudf:
                 self.df = cudf.DataFrame.from_pandas(self.df)
             else:
-                raise NotImplementedError(f"CuDF not available")
+                raise NotImplementedError("CuDF not available")
         elif data_library == DataLibrary.DaskCuDF:
             if dask_cudf:
                 cdf = cudf.DataFrame.from_pandas(self.df)
                 self.df = dask_cudf.from_cudf(cdf, npartitions=4)
             else:
-                raise NotImplementedError(f"Dask-cuDF not available")
+                raise NotImplementedError("Dask-cuDF not available")
         else:
             raise NotImplementedError(f"data_library {data_library} not supported in this test")
 
