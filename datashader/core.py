@@ -456,7 +456,7 @@ The axis argument to Canvas.line must be 0 or 1
             # Switch agg to floating point.
             agg = rd._reduction_to_floating_point(agg)
 
-        return bypixel(source, self, glyph, agg)
+        return bypixel(source, self, glyph, agg, antialias=(line_width > 0))
 
     def area(self, source, x, y, agg=None, axis=0, y_stack=None):
         """Compute a reduction by pixel, mapping data to pixels as a filled
@@ -1236,7 +1236,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         self.y_axis.validate(self.y_range)
 
 
-def bypixel(source, canvas, glyph, agg):
+def bypixel(source, canvas, glyph, agg, antialias=False):
     """Compute an aggregate grouped by pixel sized bins.
 
     Aggregate input data ``source`` into a grid with shape and axis matching
@@ -1261,7 +1261,7 @@ def bypixel(source, canvas, glyph, agg):
     # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
     with np.warnings.catch_warnings():
         np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
-        return bypixel.pipeline(source, schema, canvas, glyph, agg)
+        return bypixel.pipeline(source, schema, canvas, glyph, agg, antialias)
 
 
 def _bypixel_sanitise(source, glyph, agg):

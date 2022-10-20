@@ -14,7 +14,7 @@ __all__ = ['compile_components']
 
 
 @memoize
-def compile_components(agg, schema, glyph, cuda=False):
+def compile_components(agg, schema, glyph, cuda=False, antialias=False):
     """Given a ``Aggregation`` object and a schema, return 5 sub-functions.
 
     Parameters
@@ -53,7 +53,7 @@ def compile_components(agg, schema, glyph, cuda=False):
     bases = list(unique(concat(r._build_bases(cuda) for r in reds)))
     dshapes = [b.out_dshape(schema) for b in bases]
     # List of tuples of (append, base, input columns, temps)
-    calls = [_get_call_tuples(b, d, schema, cuda) for (b, d) in zip(bases, dshapes)]
+    calls = [_get_call_tuples(b, d, schema, cuda, antialias) for (b, d) in zip(bases, dshapes)]
     # List of unique column names needed
     cols = list(unique(concat(pluck(2, calls))))
     # List of temps needed
@@ -78,8 +78,8 @@ def traverse_aggregation(agg):
         yield agg
 
 
-def _get_call_tuples(base, dshape, schema, cuda):
-    return (base._build_append(dshape, schema, cuda),
+def _get_call_tuples(base, dshape, schema, cuda, antialias):
+    return (base._build_append(dshape, schema, cuda, antialias),
             (base,), base.inputs, base._build_temps(cuda))
 
 

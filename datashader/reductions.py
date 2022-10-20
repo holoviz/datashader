@@ -252,17 +252,18 @@ class Reduction(Expr):
     def _build_create(self, dshape):
         return self._create
 
-    def _build_append(self, dshape, schema, cuda=False):
+    def _build_append(self, dshape, schema, cuda, antialias):
+        print("XX _build_append", type(self), cuda, antialias)
         if cuda:
             if self.column is None:
-                return self._append_no_field_cuda
+                return self._append_no_field_cuda_antialias if antialias else self._append_no_field_cuda
             else:
-                return self._append_cuda
+                return self._append_cuda_antialias if antialias else self._append_cuda
         else:
             if self.column is None:
-                return self._append_no_field
+                return self._append_no_field_antialias if antialias else self._append_no_field
             else:
-                return self._append
+                return self._append_antialias if antialias else self._append
 
     def _build_combine(self, dshape):
         return self._combine
@@ -360,24 +361,24 @@ class count_f32(SelfIntersectingOptionalFieldReduction):
     # CPU append functions
     @staticmethod
     @ngjit
-    def _append_no_field(x, y, agg):
+    def _append_no_field_antialias(x, y, agg):
         agg[y, x] += 1
 
     @staticmethod
     @ngjit
-    def _append(x, y, agg, field):
+    def _append_antialias(x, y, agg, field):
         if not isnull(field):
             agg[y, x] += 1
 
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_no_field_cuda(x, y, agg):
+    def _append_no_field_cuda_antialias(x, y, agg):
         nb_cuda.atomic.add(agg, (y, x), 1)
 
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_cuda(x, y, agg, field):
+    def _append_cuda_antialias(x, y, agg, field):
         if not isnull(field):
             nb_cuda.atomic.add(agg, (y, x), 1)
 
@@ -458,8 +459,8 @@ class by(Reduction):
             return bases
         return tuple(by(self.categorizer, base) for base in bases)
 
-    def _build_append(self, dshape, schema, cuda=False):
-        return self.reduction._build_append(dshape, schema, cuda)
+    def _build_append(self, dshape, schema, cuda, antialias):
+        return self.reduction._build_append(dshape, schema, cuda, antialias)
 
     def _build_combine(self, dshape):
         return self.reduction._combine
@@ -699,11 +700,11 @@ class m2(FloatingReduction):
     def _build_temps(self, cuda=False):
         return (_sum_zero(self.column), count(self.column))
 
-    def _build_append(self, dshape, schema, cuda=False):
+    def _build_append(self, dshape, schema, cuda, antialias):
         if cuda:
             raise ValueError("""\
 The 'std' and 'var' reduction operations are not yet supported on the GPU""")
-        return super(m2, self)._build_append(dshape, schema, cuda)
+        return super(m2, self)._build_append(dshape, schema, cuda, antialias)
 
     @staticmethod
     @ngjit
