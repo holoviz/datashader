@@ -249,6 +249,9 @@ class Reduction(Expr):
         return ()
 
     def _build_create(self, required_dshape):
+        if isinstance(required_dshape, Option):
+            required_dshape = dshape(required_dshape.ty)
+
         if required_dshape == dshape(ct.bool_):
             return self._create_bool
         elif required_dshape == dshape(ct.float32):
@@ -513,18 +516,35 @@ class any(OptionalFieldReduction):
     def out_dshape(self, in_dshape, antialias):
         return dshape(ct.float32) if antialias else dshape(ct.bool_)
 
-    @staticmethod
-    @ngjit
-    def _append_no_field(x, y, agg):
-        agg[y, x] = True
-    _append_no_field_cuda = _append_no_field
-
+    # CPU append functions
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] = True
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        if not isnull(field):
+            value = field*aa_factor
+            if isnull(agg[y, x]) or value > agg[y, x]:
+                agg[y, x] = value
+
+    @staticmethod
+    @ngjit
+    def _append_no_field(x, y, agg):
+        agg[y, x] = True
+
+    @staticmethod
+    @ngjit
+    def _append_no_field_antialias(x, y, agg, aa_factor):
+        if isnull(agg[y, x]) or aa_factor > agg[y, x]:
+            agg[y, x] = aa_factor
+
+    # GPU append functions
     _append_cuda =_append
+    _append_no_field_cuda = _append_no_field
 
     #@staticmethod
     #def _create(shape, array_module):
@@ -535,42 +555,13 @@ class any(OptionalFieldReduction):
         return aggs.sum(axis=0, dtype='bool')
 
 
-class any_f32(OptionalFieldReduction):
-    """Whether any elements in ``column`` map to each bin.
-
-    Is floating point rather than boolean to deal with fractional antialiased
-    values.
-
-    Parameters
-    ----------
-    column : str, optional
-        If provided, only elements in ``column`` that are ``NaN`` are skipped.
-    """
-    #_dshape = dshape(ct.float32)
-
-    @staticmethod
-    @ngjit
-    def _append_no_field(x, y, agg):
-        agg[y, x] = True
-    _append_no_field_cuda = _append_no_field
-
-    @staticmethod
-    @ngjit
-    def _append(x, y, agg, field):
-        if not isnull(field):
-            agg[y, x] = True
-    _append_cuda =_append
-
+#class any_f32(OptionalFieldReduction):
     #@staticmethod
-    #def _create(shape, array_module):
-    #    return array_module.full(shape, array_module.nan, dtype='f4')
-
-    @staticmethod
-    def _combine(aggs):
-        ret = aggs[0]
-        for i in range(1, len(aggs)):
-            nanmax_in_place(ret, aggs[i])
-        return ret
+    #def _combine(aggs):
+    #    ret = aggs[0]
+    #    for i in range(1, len(aggs)):
+    #        nanmax_in_place(ret, aggs[i])
+    #    return ret
 
 
 class _upsample(Reduction):
@@ -769,6 +760,7 @@ class min(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+    # CPU append functions
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
@@ -777,6 +769,14 @@ class min(FloatingReduction):
         elif agg[y, x] > field:
             agg[y, x] = field
 
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if isnull(agg[y, x]) or value > agg[y, x]:
+            agg[y, x] = value
+
+    # GPU append functions
     @staticmethod
     @ngjit
     def _append_cuda(x, y, agg, field):
@@ -796,6 +796,7 @@ class max(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+    # CPU append functions
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
@@ -804,6 +805,14 @@ class max(FloatingReduction):
         elif agg[y, x] < field:
             agg[y, x] = field
 
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if isnull(agg[y, x]) or value > agg[y, x]:
+            agg[y, x] = value
+
+    # GPU append functions
     @staticmethod
     @ngjit
     def _append_cuda(x, y, agg, field):
@@ -1062,8 +1071,8 @@ def _reduction_to_floating_point(reduction):
     if isinstance(reduction, count):
         #reduction = count_f32(self_intersect=reduction.self_intersect)
         pass
-    elif isinstance(reduction, any):
-        reduction = any_f32()
+    #elif isinstance(reduction, any):
+    #    reduction = any_f32()
     elif isinstance(reduction, by):
         reduction.reduction = _reduction_to_floating_point(reduction.reduction)
 
