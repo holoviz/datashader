@@ -267,6 +267,7 @@ class Reduction(Expr):
         # Need to know if self-intersecting too, which we get from self here...
         if cuda:
             if antialias:
+                #####################
                 return self._append_antialias_cuda
             elif self.column is None:
                 return self._append_no_field_cuda
@@ -274,7 +275,10 @@ class Reduction(Expr):
                 return self._append_cuda
         else:
             if antialias:
-                return self._append_antialias
+                if self.column is None:
+                    return self._append_antialias_no_field
+                else:
+                    return self._append_antialias
             elif self.column is None:
                 return self._append_no_field
             else:
@@ -356,8 +360,6 @@ class count(SelfIntersectingOptionalFieldReduction):
     #else:
     #    antialias_combination = AntialiasCombination.SUM_2AGG
 
-
-
     # CPU append functions
     @staticmethod
     @ngjit
@@ -370,13 +372,22 @@ class count(SelfIntersectingOptionalFieldReduction):
         if not isnull(field):
             agg[y, x] += 1
 
+    @staticmethod
+    @ngjit
+    def _append_antialias_no_field(x, y, agg, aa_factor):
+        if isnull(agg[y, x]):
+            agg[y, x] = aa_factor
+        else:
+            agg[y, x] += aa_factor
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field):
+    def _append_antialias(x, y, agg, field, aa_factor):
         if not isnull(field):
-            agg[y, x] += 1
-
+            if isnull(agg[y, x]):
+                agg[y, x] = aa_factor
+            else:
+                agg[y, x] += aa_factor
 
     # GPU append functions
     @staticmethod
@@ -397,56 +408,6 @@ class count(SelfIntersectingOptionalFieldReduction):
     @staticmethod
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='u4')
-
-
-#class count_f32(SelfIntersectingOptionalFieldReduction):
-    """Count elements in each bin, returning the result as a float32.
-
-    Is floating point rather than boolean to deal with fractional antialiased
-    values.
-
-    Parameters
-    ----------
-    column : str, optional
-        If provided, only counts elements in ``column`` that are not ``NaN``.
-        Otherwise, counts every element.
-    """
-#    _dshape = dshape(ct.float32)
-
-    # CPU append functions
-#    @staticmethod
-#    @ngjit
-#    def _append_no_field_antialias(x, y, agg):
-#        agg[y, x] += 1
-
-#    @staticmethod
-#    @ngjit
-#    def _append_antialias(x, y, agg, field):
-#        if not isnull(field):
-#            agg[y, x] += 1
-
-    # GPU append functions
-#    @staticmethod
-#    @nb_cuda.jit(device=True)
-#    def _append_no_field_cuda_antialias(x, y, agg):
-#        nb_cuda.atomic.add(agg, (y, x), 1)
-
-#    @staticmethod
-#    @nb_cuda.jit(device=True)
-#    def _append_cuda_antialias(x, y, agg, field):
-#        if not isnull(field):
-#            nb_cuda.atomic.add(agg, (y, x), 1)
-
-#    @staticmethod
-#    def _create(shape, array_module):
-#        return array_module.full(shape, array_module.nan, dtype='f4')
-
-#    @staticmethod
-#    def _combine(aggs):
-#        ret = aggs[0]
-#        for i in range(1, len(aggs)):
-#            nansum_in_place(ret, aggs[i])
-#        return ret
 
 
 class by(Reduction):

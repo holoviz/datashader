@@ -62,7 +62,7 @@ def compile_components(agg, schema, glyph, cuda=False, antialias=False):
 
     create = make_create(bases, dshapes, cuda)
     info = make_info(cols)
-    append = make_append(bases, cols, calls, glyph, isinstance(agg, by))
+    append = make_append(bases, cols, calls, glyph, isinstance(agg, by), antialias)
     combine = make_combine(bases, dshapes, temps)
     finalize = make_finalize(bases, agg, schema, cuda)
 
@@ -80,8 +80,13 @@ def traverse_aggregation(agg):
 
 
 def _get_call_tuples(base, dshape, schema, cuda, antialias):
-    return (base._build_append(dshape, schema, cuda, antialias),
-            (base,), base.inputs, base._build_temps(cuda))
+    # Comments refer to usage in make_append()
+    return (
+        base._build_append(dshape, schema, cuda, antialias),  # func
+        (base,),  # bases
+        base.inputs,  # cols
+        base._build_temps(cuda),  # temps
+    )
 
 
 def make_create(bases, dshapes, cuda):
@@ -98,7 +103,7 @@ def make_info(cols):
     return lambda df: tuple(c.apply(df) for c in cols)
 
 
-def make_append(bases, cols, calls, glyph, categorical):
+def make_append(bases, cols, calls, glyph, categorical, antialias):
     names = ('_{0}'.format(i) for i in count())
     inputs = list(bases) + list(cols)
     signature = [next(names) for i in inputs]
@@ -129,10 +134,16 @@ def make_append(bases, cols, calls, glyph, categorical):
                         for i in cols)
 
         args.extend([local_lk[i] for i in temps])
+        if antialias:
+            args.append("aa_factor")
+
         body.append('{0}(x, y, {1})'.format(func_name, ', '.join(args)))
 
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body
+
+    if antialias:
+        signature.insert(0, "aa_factor")
 
     # Categorical aggregate arrays need to be unpacked
     if categorical:
@@ -148,8 +159,7 @@ def make_append(bases, cols, calls, glyph, categorical):
         code = ('def append({0}, x, y, {1}):\n'
                 '    {2}'
                 ).format(subscript, ', '.join(signature), '\n    '.join(body))
-    print("CODE", code)  # If aa, need another aa_factor in range 0 to 1 to combine with field...
-                         # but can call the same reduction.append in the end anyway.
+    print("CODE", code)
     exec(code, namespace)
     return ngjit(namespace['append'])
 

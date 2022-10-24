@@ -698,209 +698,177 @@ def _linearstep(edge0, edge1, x):
     t = _clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0)
     return t
 
-
-def _agg2d_with_scale(aggs_and_cols, i):
-    # Python implementation for use when Numba is disabled.
-    agg2or3d = aggs_and_cols[0]
-    if agg2or3d.ndim == 2:
-        agg = aggs_and_cols[0]  # 2D array
-        # Scale by column value if present.
-        scale = 1.0 if len(aggs_and_cols) == 1 else aggs_and_cols[1][i]
-        return agg, scale
-    elif agg2or3d.ndim == 3:
-        cat_index = aggs_and_cols[1][i]
-        agg = aggs_and_cols[0][:, :, cat_index]  # 2D array
-        return agg, 1.0
-    else:
-        raise TypeError("Not supported")
-
-
-@overload(_agg2d_with_scale)
-def _overload_agg2d_with_scale(aggs_and_cols, i):  # pragma: no cover
-    # Return different implementation based on whether the first array in
-    # aggs_and_cols is 2D or 3D.
-    agg2or3d = aggs_and_cols[0]
-    if agg2or3d.ndim == 2:
-        def impl(aggs_and_cols, i):
-            agg = aggs_and_cols[0]  # 2D array
-            # Scale by column value if present.
-            scale = 1.0 if len(aggs_and_cols) == 1 else aggs_and_cols[1][i]
-            return agg, scale
-        return impl
-    elif agg2or3d.ndim == 3:
-        def impl(aggs_and_cols, i):
-            cat_index = aggs_and_cols[1][i]
-            agg = aggs_and_cols[0][:, :, cat_index]  # 2D array
-            return agg, 1.0
-        return impl
-    else:
-        raise TypeError("Not supported")
-
-
 @ngjit
-def _full_antialias(line_width, antialias_combination, i, x0, x1, y0, y1,
-                    segment_start, segment_end, xm, ym, *aggs_and_cols):
-    # Need to deal with zero-length segments as they have no direction.
-    if x0 == x1 and y0 == y1:
-        return
+def _x_intercept(y, cx0, cy0, cx1, cy1):
+    # Return x value of intercept between line at constant y and line
+    # between corner points.
+    if cy0 == cy1:
+        # Line is horizontal, return the "upper", i.e. right-hand, end of it.
+        return cx1
+    frac = (y - cy0) / (cy1 - cy0)  # In range 0..1
+    return cx0 + frac*(cx1 - cx0)
 
-    # Scan occurs in y-direction. But wish to scan in the shortest direction,
-    # so if |x0-x1| < |y0-y1| then flip (x,y) coords for maths and flip back
-    # again before setting pixels.
-    flip_xy = abs(x0-x1) < abs(y0-y1)
-    if flip_xy:
-        x0, y0 = y0, x0
-        x1, y1 = y1, x1
-        xm, ym = ym, xm
 
-    agg, scale = _agg2d_with_scale(aggs_and_cols, i)
+def _build_full_antialias(expand_aggs_and_cols):
+    """Specialize antialiased line drawing algorithm for a given append/axis combination"""
+    @ngjit
+    @expand_aggs_and_cols
+    def _full_antialias(line_width, antialias_combination, i, x0, x1, y0, y1,
+                        segment_start, segment_end, xm, ym, append, *aggs_and_cols):
+        """Draw a line segment using Bresenham's algorithm
+        This method plots a line segment with integer coordinates onto a pixel
+        grid.
+        """
+        if x0 == x1 and y0 == y1:
+            return
 
-    # line_width less than 1 is rendered as 1 but with lower intensity.
-    if line_width < 1.0:
-        scale *= line_width
-        line_width = 1.0
+        # Scan occurs in y-direction. But wish to scan in the shortest direction,
+        # so if |x0-x1| < |y0-y1| then flip (x,y) coords for maths and flip back
+        # again before setting pixels.
+        flip_xy = abs(x0-x1) < abs(y0-y1)
+        if flip_xy:
+            x0, y0 = y0, x0
+            x1, y1 = y1, x1
+            xm, ym = ym, xm
 
-    aa = 1.0
-    halfwidth = 0.5*(line_width + aa)
+        #agg, scale = _agg2d_with_scale(aggs_and_cols, i)
+        scale = 1.0
 
-    # Want y0 <= y1, so switch vertical direction if this is not so.
-    flip_order = y1 < y0 or (y1 == y0 and x1 < x0)
+        # line_width less than 1 is rendered as 1 but with lower intensity.
+        if line_width < 1.0:
+            scale *= line_width
+            line_width = 1.0
 
-    # Start (x0, y0), end (y0, y1)
-    #       c1 +-------------+ c2          along    | right
-    # (x0, y0) | o         o | (x1, y1)    vector   | vector
-    #       c0 +-------------+ c3          ---->    v
+        aa = 1.0
+        halfwidth = 0.5*(line_width + aa)
 
-    alongx = float(x1 - x0)
-    alongy = float(y1 - y0)  # Always +ve
-    length = math.sqrt(alongx**2 + alongy**2)
-    alongx /= length
-    alongy /= length
+        # Want y0 <= y1, so switch vertical direction if this is not so.
+        flip_order = y1 < y0 or (y1 == y0 and x1 < x0)
 
-    rightx = alongy
-    righty = -alongx
+        # Start (x0, y0), end (y0, y1)
+        #       c1 +-------------+ c2          along    | right
+        # (x0, y0) | o         o | (x1, y1)    vector   | vector
+        #       c0 +-------------+ c3          ---->    v
 
-    # 4 corners, x and y.
-    if flip_order:
-        cx = np.asarray([x1 - halfwidth*( rightx - alongx), x1 - halfwidth*(-rightx - alongx),
-                         x0 - halfwidth*(-rightx + alongx), x0 - halfwidth*( rightx + alongx)])
-        cy = np.asarray([y1 - halfwidth*( righty - alongy), y1 - halfwidth*(-righty - alongy),
-                         y0 - halfwidth*(-righty + alongy), y0 - halfwidth*( righty + alongy)])
-    else:
-        cx = np.asarray([x0 + halfwidth*( rightx - alongx), x0 + halfwidth*(-rightx - alongx),
-                         x1 + halfwidth*(-rightx + alongx), x1 + halfwidth*( rightx + alongx)])
-        cy = np.asarray([y0 + halfwidth*( righty - alongy), y0 + halfwidth*(-righty - alongy),
-                         y1 + halfwidth*(-righty + alongy), y1 + halfwidth*( righty + alongy)])
+        alongx = float(x1 - x0)
+        alongy = float(y1 - y0)  # Always +ve
+        length = math.sqrt(alongx**2 + alongy**2)
+        alongx /= length
+        alongy /= length
 
-    xmax = agg.shape[1]-1
-    ymax = agg.shape[0]-1
-    if flip_xy:
-        xmax, ymax = ymax, xmax
+        rightx = alongy
+        righty = -alongx
 
-    def clip_x(x):
-        return _clamp(x, 0, xmax)
-
-    def clip_y(y):
-        return _clamp(y, 0, ymax)
-
-    def x_intercept(y, corner0, corner1):
-        # Return x value of intercept between line at constant y and line
-        # between corner points.
-        if cy[corner0] == cy[corner1]:
-            # Line is horizontal, return the "upper", i.e. right-hand, end of it.
-            return cx[corner1]
-        frac = (y - cy[corner0]) / (cy[corner1] - cy[corner0])  # In range 0..1
-        return cx[corner0] + frac*(cx[corner1] - cx[corner0])
-
-    # Index of lowest-y point.
-    if flip_order:
-        lowindex = 0 if x0 > x1 else 1
-    else:
-        lowindex = 0 if x1 > x0 else 1
-
-    # If True can overwrite each pixel multiple times because using max for
-    # the overwriting.  If False can only write each pixel once per segment
-    # and its previous segment.
-    # Argument xm, ym are only valid if overwrite and segment_start are False.
-    overwrite = (antialias_combination != AntialiasCombination.SUM_1AGG)
-
-    if not overwrite and not segment_start:
-        prev_alongx = x0 - xm
-        prev_alongy = y0 - ym
-        prev_length = math.sqrt(prev_alongx**2 + prev_alongy**2)
-        if prev_length > 0.0:
-            prev_alongx /= prev_length
-            prev_alongy /= prev_length
-            prev_rightx = prev_alongy
-            prev_righty = -prev_alongx
+        # 4 corners, x and y.
+        if flip_order:
+            ################# arrays a problem on GPU ???????????
+            cx = np.asarray([x1 - halfwidth*( rightx - alongx), x1 - halfwidth*(-rightx - alongx),
+                             x0 - halfwidth*(-rightx + alongx), x0 - halfwidth*( rightx + alongx)])
+            cy = np.asarray([y1 - halfwidth*( righty - alongy), y1 - halfwidth*(-righty - alongy),
+                             y0 - halfwidth*(-righty + alongy), y0 - halfwidth*( righty + alongy)])
         else:
-            overwrite = True
+            cx = np.asarray([x0 + halfwidth*( rightx - alongx), x0 + halfwidth*(-rightx - alongx),
+                             x1 + halfwidth*(-rightx + alongx), x1 + halfwidth*( rightx + alongx)])
+            cy = np.asarray([y0 + halfwidth*( righty - alongy), y0 + halfwidth*(-righty - alongy),
+                             y1 + halfwidth*(-righty + alongy), y1 + halfwidth*( righty + alongy)])
 
-    # y limits of scan.
-    ystart = clip_y(math.ceil(cy[lowindex]))
-    yend = clip_y(math.floor(cy[(lowindex+2) % 4]))
-    # Need to know which edges are to left and right; both will change.
-    ll = lowindex  # Index of lower point of left edge.
-    lu = (ll + 1) % 4  # Index of upper point of left edge.
-    rl = lowindex  # Index of lower point of right edge.
-    ru = (rl + 3) % 4  # Index of upper point of right edge.
-    for y in range(ystart, yend+1):
-        if ll == lowindex and y > cy[lu]:
-            ll = lu
-            lu = (ll + 1) % 4
-        if rl == lowindex and y > cy[ru]:
-            rl = ru
-            ru = (rl + 3) % 4
-        # Find x limits of scan at this y.
-        xleft = clip_x(math.ceil(x_intercept(y, ll, lu)))
-        xright = clip_x(math.floor(x_intercept(y, rl, ru)))
-        for x in range(xleft, xright+1):
-            along = (x-x0)*alongx + (y-y0)*alongy  # dot product
-            prev_correction = False
-            if along < 0.0:
-                # Before start of segment
-                if overwrite or segment_start or (x-x0)*prev_alongx + (y-y0)*prev_alongy > 0.0:
-                    distance = np.sqrt((x-x0)**2 + (y-y0)**2)  # round join/end cap
-                else:
-                    continue
-            elif along > length:
-                # After end of segment
-                if overwrite or segment_end:
-                    distance = np.sqrt((x-x1)**2 + (y-y1)**2)  # round join/end cap
-                else:
-                    continue
+        xmax = 9  ###############
+        ymax = 4
+        if flip_xy:
+            xmax, ymax = ymax, xmax
+
+        # Index of lowest-y point.
+        if flip_order:
+            lowindex = 0 if x0 > x1 else 1
+        else:
+            lowindex = 0 if x1 > x0 else 1
+
+        # If True can overwrite each pixel multiple times because using max for
+        # the overwriting.  If False can only write each pixel once per segment
+        # and its previous segment.
+        # Argument xm, ym are only valid if overwrite and segment_start are False.
+        overwrite = (antialias_combination != AntialiasCombination.SUM_1AGG)
+
+        if not overwrite and not segment_start:
+            prev_alongx = x0 - xm
+            prev_alongy = y0 - ym
+            prev_length = math.sqrt(prev_alongx**2 + prev_alongy**2)
+            if prev_length > 0.0:
+                prev_alongx /= prev_length
+                prev_alongy /= prev_length
+                prev_rightx = prev_alongy
+                prev_righty = -prev_alongx
             else:
-                # Within segment
-                distance = abs((x-x0)*rightx + (y-y0)*righty)
-                if not overwrite and not segment_start and \
-                        -prev_length <= (x-x0)*prev_alongx + (y-y0)*prev_alongy <= 0.0 and \
-                        abs((x-x0)*prev_rightx + (y-y0)*prev_righty) <= halfwidth:
-                    prev_correction = True
+                overwrite = True
 
-            value = 1.0 - _linearstep(0.5*(line_width - aa), halfwidth, distance)
-            value *= scale
-            if prev_correction:
-                # Already set pixel from previous segment, need to correct it
-                prev_distance = abs((x-x0)*prev_rightx + (y-y0)*prev_righty)
-                prev_value = 1.0 - _linearstep(0.5*(line_width - aa), halfwidth, prev_distance)
-                prev_value *= scale
-                if value > prev_value:
-                    correction = value - prev_value
-                    xx, yy = (y, x) if flip_xy else (x, y)
-                    if isnull(agg[yy, xx]):
-                        agg[yy, xx] = correction
+        # y limits of scan.
+        ystart = _clamp(math.ceil(cy[lowindex]), 0, ymax)
+        yend = _clamp(math.floor(cy[(lowindex+2) % 4]), 0, ymax)
+        # Need to know which edges are to left and right; both will change.
+        ll = lowindex  # Index of lower point of left edge.
+        lu = (ll + 1) % 4  # Index of upper point of left edge.
+        rl = lowindex  # Index of lower point of right edge.
+        ru = (rl + 3) % 4  # Index of upper point of right edge.
+        for y in range(ystart, yend+1):
+            if ll == lowindex and y > cy[lu]:
+                ll = lu
+                lu = (ll + 1) % 4
+            if rl == lowindex and y > cy[ru]:
+                rl = ru
+                ru = (rl + 3) % 4
+            # Find x limits of scan at this y.
+            xleft = _clamp(math.ceil(_x_intercept(y, cx[ll], cy[ll], cx[lu], cy[lu])), 0, xmax)
+            xright = _clamp(math.floor(_x_intercept(y, cx[rl], cy[rl], cx[ru], cy[ru])), 0, xmax)
+            for x in range(xleft, xright+1):
+                along = (x-x0)*alongx + (y-y0)*alongy  # dot product
+                prev_correction = False
+                if along < 0.0:
+                    # Before start of segment
+                    if overwrite or segment_start or (x-x0)*prev_alongx + (y-y0)*prev_alongy > 0.0:
+                        distance = np.sqrt((x-x0)**2 + (y-y0)**2)  # round join/end cap
                     else:
-                        agg[yy, xx] += correction
-            elif value > 0.0:
-                xx, yy = (y, x) if flip_xy else (x, y)
-                if antialias_combination == AntialiasCombination.SUM_1AGG:
-                    if isnull(agg[yy, xx]):
-                        agg[yy, xx] = value
+                        continue
+                elif along > length:
+                    # After end of segment
+                    if overwrite or segment_end:
+                        distance = np.sqrt((x-x1)**2 + (y-y1)**2)  # round join/end cap
                     else:
-                        agg[yy, xx] += value
+                        continue
                 else:
-                    if isnull(agg[yy, xx]) or value > agg[yy, xx]:
-                        agg[yy, xx] = value
+                    # Within segment
+                    distance = abs((x-x0)*rightx + (y-y0)*righty)
+                    if not overwrite and not segment_start and \
+                            -prev_length <= (x-x0)*prev_alongx + (y-y0)*prev_alongy <= 0.0 and \
+                            abs((x-x0)*prev_rightx + (y-y0)*prev_righty) <= halfwidth:
+                        prev_correction = True
+                value = 1.0 - _linearstep(0.5*(line_width - aa), halfwidth, distance)
+                value *= scale
+                if prev_correction:
+                    # Already set pixel from previous segment, need to correct it
+                    prev_distance = abs((x-x0)*prev_rightx + (y-y0)*prev_righty)
+                    prev_value = 1.0 - _linearstep(0.5*(line_width - aa), halfwidth, prev_distance)
+                    prev_value *= scale
+                    if value > prev_value:
+                        correction = value - prev_value
+                        xx, yy = (y, x) if flip_xy else (x, y)
+                        append(i, xx, yy, correction, *aggs_and_cols)
+                        #if isnull(agg[yy, xx]):
+                        #    agg[yy, xx] = correction
+                        #else:
+                        #    agg[yy, xx] += correction
+                elif value > 0.0:
+                    xx, yy = (y, x) if flip_xy else (x, y)
+                    append(i, xx, yy, value, *aggs_and_cols)
+                    #if antialias_combination == AntialiasCombination.SUM_1AGG:
+                    #    if isnull(agg[yy, xx]):
+                    #        agg[yy, xx] = value
+                    #    else:
+                    #        agg[yy, xx] += value
+                    #else:
+                    #    if isnull(agg[yy, xx]) or value > agg[yy, xx]:
+                    #        agg[yy, xx] = value
+
+    return _full_antialias
 
 
 def _build_bresenham(expand_aggs_and_cols):
@@ -955,6 +923,7 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, line_width
     """Specialize a line plotting kernel for a given append/axis combination"""
 
     _bresenham = _build_bresenham(expand_aggs_and_cols)
+    _full_antialias = _build_full_antialias(expand_aggs_and_cols)
 
     @ngjit
     @expand_aggs_and_cols
@@ -996,7 +965,7 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, line_width
                     xm_2, ym_2 = map_onto_pixel(
                         sx, tx, sy, ty, xmin, xmax, ymin, ymax, xm, ym)
                 _full_antialias(line_width, antialias_combination, i, x0_2, x1_2, y0_2, y1_2,
-                                segment_start, segment_end, xm_2, ym_2, *aggs_and_cols)
+                                segment_start, segment_end, xm_2, ym_2, append, *aggs_and_cols)
             else:
                 _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                            segment_start, x0_2, x1_2, y0_2, y1_2,

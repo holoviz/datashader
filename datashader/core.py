@@ -430,7 +430,9 @@ The axis argument to Canvas.line must be 0 or 1
             line_width = 0
 
         glyph.set_line_width(line_width)
-        if line_width > 0:
+        glyph.antialiased = (line_width > 0)
+
+        if glyph.antialiased:
             # Eventually this should be replaced with attributes and/or
             # member functions of Reduction classes.
             non_cat_agg = agg
