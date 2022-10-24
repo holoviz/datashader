@@ -89,20 +89,23 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
+            workspace_len = 8 if line_width > 0 else 0
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_name)
                 ys = self.to_cupy_array(df, y_name)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
+                workspace = cp.empty(workspace_len)
             else:
                 xs = df.loc[:, x_name].to_numpy()
                 ys = df.loc[:, y_name].to_numpy()
                 do_extend = extend_cpu
+                workspace = np.empty(workspace_len)
 
             # line may be clipped, then mapped to pixels
             do_extend(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                xs, ys, plot_start, *aggs_and_cols
+                xs, ys, plot_start, workspace, *aggs_and_cols
             )
 
         return extend
@@ -714,7 +717,8 @@ def _build_full_antialias(expand_aggs_and_cols):
     @ngjit
     @expand_aggs_and_cols
     def _full_antialias(line_width, antialias_combination, i, x0, x1, y0, y1,
-                        segment_start, segment_end, xm, ym, append, *aggs_and_cols):
+                        segment_start, segment_end, xm, ym, append,
+                        nx, ny, workspace, *aggs_and_cols):
         """Draw a line segment using Bresenham's algorithm
         This method plots a line segment with integer coordinates onto a pixel
         grid.
@@ -731,7 +735,6 @@ def _build_full_antialias(expand_aggs_and_cols):
             x1, y1 = y1, x1
             xm, ym = ym, xm
 
-        #agg, scale = _agg2d_with_scale(aggs_and_cols, i)
         scale = 1.0
 
         # line_width less than 1 is rendered as 1 but with lower intensity.
@@ -759,21 +762,29 @@ def _build_full_antialias(expand_aggs_and_cols):
         rightx = alongy
         righty = -alongx
 
-        # 4 corners, x and y.
+        # 4 corners, x and y.  Uses workspace, which must have length 8.  Order of coords is
+        # (x0, x1, x2, x3, y0, y1, y2, y3).
         if flip_order:
-            ################# arrays a problem on GPU ???????????
-            cx = np.asarray([x1 - halfwidth*( rightx - alongx), x1 - halfwidth*(-rightx - alongx),
-                             x0 - halfwidth*(-rightx + alongx), x0 - halfwidth*( rightx + alongx)])
-            cy = np.asarray([y1 - halfwidth*( righty - alongy), y1 - halfwidth*(-righty - alongy),
-                             y0 - halfwidth*(-righty + alongy), y0 - halfwidth*( righty + alongy)])
+            workspace[0] = x1 - halfwidth*( rightx - alongx)
+            workspace[1] = x1 - halfwidth*(-rightx - alongx)
+            workspace[2] = x0 - halfwidth*(-rightx + alongx)
+            workspace[3] = x0 - halfwidth*( rightx + alongx)
+            workspace[4] = y1 - halfwidth*( righty - alongy)
+            workspace[5] = y1 - halfwidth*(-righty - alongy)
+            workspace[6] = y0 - halfwidth*(-righty + alongy)
+            workspace[7] = y0 - halfwidth*( righty + alongy)
         else:
-            cx = np.asarray([x0 + halfwidth*( rightx - alongx), x0 + halfwidth*(-rightx - alongx),
-                             x1 + halfwidth*(-rightx + alongx), x1 + halfwidth*( rightx + alongx)])
-            cy = np.asarray([y0 + halfwidth*( righty - alongy), y0 + halfwidth*(-righty - alongy),
-                             y1 + halfwidth*(-righty + alongy), y1 + halfwidth*( righty + alongy)])
+            workspace[0] = x0 + halfwidth*( rightx - alongx)
+            workspace[1] = x0 + halfwidth*(-rightx - alongx)
+            workspace[2] = x1 + halfwidth*(-rightx + alongx)
+            workspace[3] = x1 + halfwidth*( rightx + alongx)
+            workspace[4] = y0 + halfwidth*( righty - alongy)
+            workspace[5] = y0 + halfwidth*(-righty - alongy)
+            workspace[6] = y1 + halfwidth*(-righty + alongy)
+            workspace[7] = y1 + halfwidth*( righty + alongy)
 
-        xmax = 9  ###############
-        ymax = 4
+        xmax = nx-1
+        ymax = ny-1
         if flip_xy:
             xmax, ymax = ymax, xmax
 
@@ -802,36 +813,38 @@ def _build_full_antialias(expand_aggs_and_cols):
                 overwrite = True
 
         # y limits of scan.
-        ystart = _clamp(math.ceil(cy[lowindex]), 0, ymax)
-        yend = _clamp(math.floor(cy[(lowindex+2) % 4]), 0, ymax)
+        ystart = _clamp(math.ceil(workspace[4 + lowindex]), 0, ymax)
+        yend = _clamp(math.floor(workspace[4 + (lowindex+2) % 4]), 0, ymax)
         # Need to know which edges are to left and right; both will change.
         ll = lowindex  # Index of lower point of left edge.
         lu = (ll + 1) % 4  # Index of upper point of left edge.
         rl = lowindex  # Index of lower point of right edge.
         ru = (rl + 3) % 4  # Index of upper point of right edge.
         for y in range(ystart, yend+1):
-            if ll == lowindex and y > cy[lu]:
+            if ll == lowindex and y > workspace[4 + lu]:
                 ll = lu
                 lu = (ll + 1) % 4
-            if rl == lowindex and y > cy[ru]:
+            if rl == lowindex and y > workspace[4 + ru]:
                 rl = ru
                 ru = (rl + 3) % 4
             # Find x limits of scan at this y.
-            xleft = _clamp(math.ceil(_x_intercept(y, cx[ll], cy[ll], cx[lu], cy[lu])), 0, xmax)
-            xright = _clamp(math.floor(_x_intercept(y, cx[rl], cy[rl], cx[ru], cy[ru])), 0, xmax)
+            xleft = _clamp(math.ceil(_x_intercept(
+                y, workspace[ll], workspace[4+ll], workspace[lu], workspace[4+lu])), 0, xmax)
+            xright = _clamp(math.floor(_x_intercept(
+                y, workspace[rl], workspace[4+rl], workspace[ru], workspace[4+ru])), 0, xmax)
             for x in range(xleft, xright+1):
                 along = (x-x0)*alongx + (y-y0)*alongy  # dot product
                 prev_correction = False
                 if along < 0.0:
                     # Before start of segment
                     if overwrite or segment_start or (x-x0)*prev_alongx + (y-y0)*prev_alongy > 0.0:
-                        distance = np.sqrt((x-x0)**2 + (y-y0)**2)  # round join/end cap
+                        distance = math.sqrt((x-x0)**2 + (y-y0)**2)  # round join/end cap
                     else:
                         continue
                 elif along > length:
                     # After end of segment
                     if overwrite or segment_end:
-                        distance = np.sqrt((x-x1)**2 + (y-y1)**2)  # round join/end cap
+                        distance = math.sqrt((x-x1)**2 + (y-y1)**2)  # round join/end cap
                     else:
                         continue
                 else:
@@ -929,7 +942,7 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, line_width
     @expand_aggs_and_cols
     def draw_segment(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start, segment_end,
-            x0, x1, y0, y1, xm, ym, *aggs_and_cols
+            x0, x1, y0, y1, xm, ym, workspace, *aggs_and_cols
     ):
         # xm, ym are only valid if segment_start is True.
 
@@ -964,8 +977,11 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, line_width
                 else:
                     xm_2, ym_2 = map_onto_pixel(
                         sx, tx, sy, ty, xmin, xmax, ymin, ymax, xm, ym)
+                nx = round((xmax - xmin)*sx)
+                ny = round((ymax - ymin)*sy)
                 _full_antialias(line_width, antialias_combination, i, x0_2, x1_2, y0_2, y1_2,
-                                segment_start, segment_end, xm_2, ym_2, append, *aggs_and_cols)
+                                segment_start, segment_end, xm_2, ym_2, append,
+                                nx, ny, workspace, *aggs_and_cols)
             else:
                 _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                            segment_start, x0_2, x1_2, y0_2, y1_2,
@@ -978,7 +994,7 @@ def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, antialias_combi
     @ngjit
     @expand_aggs_and_cols
     def perform_extend_line(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                            plot_start, xs, ys, *aggs_and_cols):
+                            plot_start, xs, ys, workspace, *aggs_and_cols):
         x0 = xs[i]
         y0 = ys[i]
         x1 = xs[i + 1]
@@ -997,26 +1013,26 @@ def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, antialias_combi
 
         draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                      segment_start, segment_end, x0, x1, y0, y1,
-                     xm, ym, *aggs_and_cols)
+                     xm, ym, workspace, *aggs_and_cols)
 
     @ngjit
     @expand_aggs_and_cols
     def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                   xs, ys, plot_start, *aggs_and_cols):
+                   xs, ys, plot_start, workspace, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
         nrows = xs.shape[0]
         for i in range(nrows - 1):
             perform_extend_line(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                                plot_start, xs, ys, *aggs_and_cols)
+                                plot_start, xs, ys, workspace, *aggs_and_cols)
 
     @cuda.jit
     @expand_aggs_and_cols
     def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                    xs, ys, plot_start, *aggs_and_cols):
+                    xs, ys, plot_start, workspace, *aggs_and_cols):
         i = cuda.grid(1)
         if i < xs.shape[0] - 1:
             perform_extend_line(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                                plot_start, xs, ys, *aggs_and_cols)
+                                plot_start, xs, ys, workspace, *aggs_and_cols)
 
     return extend_cpu, extend_cuda
 

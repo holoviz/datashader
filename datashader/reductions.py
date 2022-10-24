@@ -224,7 +224,6 @@ class category_values(CategoryPreprocess):
             return np.stack((a, b), axis=-1)
 
 
-
 class Reduction(Expr):
     """Base class for per-bin reductions."""
     def __init__(self, column=None):
@@ -263,22 +262,20 @@ class Reduction(Expr):
 
     def _build_append(self, dshape, schema, cuda, antialias):
         print("XX _build_append", type(self), cuda, antialias)
-        # antialiasing always takes a value.  But value is multiplied by aa factor if from a column
-        # Need to know if self-intersecting too, which we get from self here...
         if cuda:
-            if antialias:
-                #####################
+            if antialias and self.column is None:
+                return self._append_no_field_antialias_cuda
+            elif antialias:
                 return self._append_antialias_cuda
             elif self.column is None:
                 return self._append_no_field_cuda
             else:
                 return self._append_cuda
         else:
-            if antialias:
-                if self.column is None:
-                    return self._append_antialias_no_field
-                else:
-                    return self._append_antialias
+            if antialias and self.column is None:
+                return self._append_no_field_antialias
+            elif antialias:
+                return self._append_antialias
             elif self.column is None:
                 return self._append_no_field
             else:
@@ -363,22 +360,9 @@ class count(SelfIntersectingOptionalFieldReduction):
     # CPU append functions
     @staticmethod
     @ngjit
-    def _append_no_field(x, y, agg):
-        agg[y, x] += 1
-
-    @staticmethod
-    @ngjit
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] += 1
-
-    @staticmethod
-    @ngjit
-    def _append_antialias_no_field(x, y, agg, aa_factor):
-        if isnull(agg[y, x]):
-            agg[y, x] = aa_factor
-        else:
-            agg[y, x] += aa_factor
 
     @staticmethod
     @ngjit
@@ -389,11 +373,25 @@ class count(SelfIntersectingOptionalFieldReduction):
             else:
                 agg[y, x] += aa_factor
 
+    @staticmethod
+    @ngjit
+    def _append_no_field(x, y, agg):
+        agg[y, x] += 1
+
+    @staticmethod
+    @ngjit
+    def _append_no_field_antialias(x, y, agg, aa_factor):
+        if isnull(agg[y, x]):
+            agg[y, x] = aa_factor
+        else:
+            agg[y, x] += aa_factor
+
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_no_field_cuda(x, y, agg):
-        nb_cuda.atomic.add(agg, (y, x), 1)
+    def _append_antialias_cuda(x, y, agg, field, aa_factor):
+        #nb_cuda.atomic.add(agg, (y, x), field*aa_factor)
+        cuda_atomic_nanmax(agg, (y, x), field*aa_factor)
 
     @staticmethod
     @nb_cuda.jit(device=True)
@@ -401,13 +399,24 @@ class count(SelfIntersectingOptionalFieldReduction):
         if not isnull(field):
             nb_cuda.atomic.add(agg, (y, x), 1)
 
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_no_field_antialias_cuda(x, y, agg, aa_factor):
+        #nb_cuda.atomic.add(agg, (y, x), aa_factor)
+        cuda_atomic_nanmax(agg, (y, x), aa_factor)
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_no_field_cuda(x, y, agg):
+        nb_cuda.atomic.add(agg, (y, x), 1)
+
     #@staticmethod
     #def _create(shape, array_module):
     #    return array_module.zeros(shape, dtype='u4')
 
     @staticmethod
     def _combine(aggs):
-        return aggs.sum(axis=0, dtype='u4')
+        return aggs.sum(axis=0, dtype='u4')  ##################
 
 
 class by(Reduction):

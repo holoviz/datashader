@@ -421,14 +421,6 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
-        if (line_width > 0 and ((cudf and isinstance(source, cudf.DataFrame)) or
-                               (dask_cudf and isinstance(source, dask_cudf.DataFrame)))):
-            import warnings
-            warnings.warn(
-                "Antialiased lines are not supported for CUDA-backed sources, "
-                "so reverting to line_width=0")
-            line_width = 0
-
         glyph.set_line_width(line_width)
         glyph.antialiased = (line_width > 0)
 
@@ -458,7 +450,7 @@ The axis argument to Canvas.line must be 0 or 1
             # Switch agg to floating point.
             #############agg = rd._reduction_to_floating_point(agg)
 
-        return bypixel(source, self, glyph, agg, antialias=(line_width > 0))
+        return bypixel(source, self, glyph, agg, antialias=glyph.antialiased)
 
     def area(self, source, x, y, agg=None, axis=0, y_stack=None):
         """Compute a reduction by pixel, mapping data to pixels as a filled
