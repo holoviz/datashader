@@ -431,6 +431,8 @@ The axis argument to Canvas.line must be 0 or 1
             if isinstance(non_cat_agg, rd.by):
                 non_cat_agg = non_cat_agg.reduction
 
+            ################### This can be much simpler, just needs to be the 2nd-order combine
+            ################### that is peculiar to antialiased lines.
             antialias_combination = AntialiasCombination.NONE
             if isinstance(non_cat_agg, (rd.any, rd.max)):
                 antialias_combination = AntialiasCombination.MAX
@@ -447,8 +449,7 @@ The axis argument to Canvas.line must be 0 or 1
 
             glyph.set_antialias_combination(antialias_combination)
 
-            # Switch agg to floating point.
-            #############agg = rd._reduction_to_floating_point(agg)
+        print("Line:", type(glyph), glyph.antialiased, glyph._line_width)
 
         return bypixel(source, self, glyph, agg, antialias=glyph.antialiased)
 
