@@ -342,6 +342,19 @@ class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
         super().__init__(column)
         self.self_intersect = self_intersect
 
+    def _build_append(self, dshape, schema, cuda, antialias):
+        print("XX SelfIntersectingOptionalFieldReduction::_build_append", type(self), cuda, antialias)
+        if antialias and not self.self_intersect:
+            if cuda:
+                raise NotImplementedError("SelfIntersectingOptionalFieldReduction")
+            else:
+                if self.column is None:
+                    return self._append_no_field_antialias_not_self_intersect
+                else:
+                    return self._append_antialias_not_self_intersect
+
+        return super()._build_append(dshape, schema, cuda, antialias)
+
 
 class count(SelfIntersectingOptionalFieldReduction):
     """Count elements in each bin, returning the result as a uint32.
@@ -378,6 +391,13 @@ class count(SelfIntersectingOptionalFieldReduction):
 
     @staticmethod
     @ngjit
+    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor):
+        if not isnull(field):
+            if isnull(agg[y, x]) or aa_factor > agg[y, x]:
+                agg[y, x] = aa_factor
+
+    @staticmethod
+    @ngjit
     def _append_no_field(x, y, agg):
         agg[y, x] += 1
 
@@ -388,6 +408,12 @@ class count(SelfIntersectingOptionalFieldReduction):
             agg[y, x] = aa_factor
         else:
             agg[y, x] += aa_factor
+
+    @staticmethod
+    @ngjit
+    def _append_no_field_antialias_not_self_intersect(x, y, agg, aa_factor):
+        if isnull(agg[y, x]) or aa_factor > agg[y, x]:
+            agg[y, x] = aa_factor
 
     # GPU append functions
     @staticmethod
@@ -658,6 +684,19 @@ class SelfIntersectingFloatingReduction(FloatingReduction):
         super().__init__(column)
         self.self_intersect = self_intersect
 
+    def _build_append(self, dshape, schema, cuda, antialias):
+        print("XX SelfIntersectingOptionalFieldReduction::_build_append", type(self), cuda, antialias)
+        if antialias and not self.self_intersect:
+            if cuda:
+                raise NotImplementedError("SelfIntersectingOptionalFieldReduction")
+            else:
+                if self.column is None:
+                    return self._append_no_field_antialias_not_self_intersect
+                else:
+                    return self._append_antialias_not_self_intersect
+
+        return super()._build_append(dshape, schema, cuda, antialias)
+
 
 class sum(SelfIntersectingFloatingReduction):
     """Sum of all elements in ``column``.
@@ -691,8 +730,7 @@ class sum(SelfIntersectingFloatingReduction):
         else:
             return xr.DataArray(bases[0], **kwargs)
 
-    # Single pass CPU implementation
-    # These methods will only be called if _build_bases returned (self,)
+    # CPU append functions
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
@@ -701,6 +739,24 @@ class sum(SelfIntersectingFloatingReduction):
                 agg[y, x] = field
             else:
                 agg[y, x] += field
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value):
+            if isnull(agg[y, x]):
+                agg[y, x] = value
+            else:
+                agg[y, x] += value
+
+    @staticmethod
+    @ngjit
+    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value):
+            if isnull(agg[y, x]) or value > agg[y, x]:
+                agg[y, x] = value
 
     @staticmethod
     def _combine(aggs):
