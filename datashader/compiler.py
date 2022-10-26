@@ -170,6 +170,7 @@ def make_combine(bases, dshapes, temps):
              for (b, d, t) in zip(bases, dshapes, temps)]
 
     def combine(base_tuples):
+        print("COMBINE")
         bases = tuple(np.stack(bs) for bs in zip(*base_tuples))
         return tuple(f(*get(inds, bases)) for (f, inds) in calls)
 

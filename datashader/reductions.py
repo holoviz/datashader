@@ -235,9 +235,6 @@ class Reduction(Expr):
         if not isnumeric(in_dshape.measure[self.column]):
             raise ValueError("input must be numeric")
 
-  #  def out_dshape(self, in_dshape):
-  #      return self._dshape
-
     @property
     def inputs(self):
         return (extract(self.column),)
@@ -249,22 +246,28 @@ class Reduction(Expr):
         return ()
 
     def _build_create(self, required_dshape):
+        fields = getattr(required_dshape.measure, "fields", None)
+        if fields is not None and len(required_dshape.measure.fields) > 1:
+            # If more than one field then they all have the same dtype so can just take the first.
+            first_field = required_dshape.measure.fields[0]
+            required_dshape = dshape(first_field[1])
+
         if isinstance(required_dshape, Option):
             required_dshape = dshape(required_dshape.ty)
 
         if required_dshape == dshape(ct.bool_):
             return self._create_bool
         elif required_dshape == dshape(ct.float32):
-            return self._create_float32
+            return self._create_float32_nan
         elif required_dshape == dshape(ct.float64):
-            return self._create_float64
+            return self._create_float64_nan
         elif required_dshape == dshape(ct.uint32):
             return self._create_uint32
         else:
             raise NotImplementedError(f"Unexpected dshape {dshape}")
 
     def _build_append(self, dshape, schema, cuda, antialias):
-        print("XX _build_append", type(self), cuda, antialias)
+        print("XX Reduction._build_append", type(self), cuda, antialias)
         if cuda:
             if antialias and self.column is None:
                 return self._append_no_field_antialias_cuda
@@ -295,11 +298,11 @@ class Reduction(Expr):
         return array_module.zeros(shape, dtype='bool')
 
     @staticmethod
-    def _create_float32(shape, array_module):
+    def _create_float32_nan(shape, array_module):
         return array_module.full(shape, array_module.nan, dtype='f4')
 
     @staticmethod
-    def _create_float64(shape, array_module):
+    def _create_float64_nan(shape, array_module):
         return array_module.full(shape, array_module.nan, dtype='f8')
 
     @staticmethod
@@ -493,19 +496,19 @@ class by(Reduction):
         self.preprocess.validate(in_dshape)
         self.reduction.validate(in_dshape)
 
-  #  def out_dshape(self, input_dshape):
-  #      cats = self.categorizer.categories(input_dshape)
-  #      red_shape = self.reduction.out_dshape(input_dshape)
-  #      return dshape(Record([(c, red_shape) for c in cats]))
+    def out_dshape(self, input_dshape, antialias):
+        cats = self.categorizer.categories(input_dshape)
+        red_shape = self.reduction.out_dshape(input_dshape, antialias)
+        return dshape(Record([(c, red_shape) for c in cats]))
 
     @property
     def inputs(self):
         return (self.preprocess, )
 
-    #def _build_create(self, out_dshape):
-    #    n_cats = len(out_dshape.measure.fields)
-    #    return lambda shape, array_module: self.reduction._build_create(
-    #        out_dshape)(shape + (n_cats,), array_module)
+    def _build_create(self, required_dshape):
+        n_cats = len(required_dshape.measure.fields)
+        return lambda shape, array_module: self.reduction._build_create(
+            required_dshape)(shape + (n_cats,), array_module)
 
     def _build_bases(self, cuda=False):
         bases = self.reduction._build_bases(cuda)
@@ -652,17 +655,20 @@ class _sum_zero(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+    def _build_create(self, required_dshape):
+        return self._create_float64_zero
 
-    #@staticmethod
-    #def _create(shape, array_module):
-    #    return array_module.zeros(shape, dtype='f8')
-
+    # CPU append functions.
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
         if not isnull(field):
-            agg[y, x] += field
+            if isnull(agg[y, x]):
+                agg[y, x] = field
+            else:
+                agg[y, x] += field
 
+    # GPU append functions
     @staticmethod
     @ngjit
     def _append_cuda(x, y, agg, field):
@@ -709,8 +715,6 @@ class sum(SelfIntersectingFloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-    #_dshape = dshape(Option(ct.float64))
-
     def out_dshape(self, in_dshape, antialias):
         return dshape(Option(ct.float64))
 
@@ -775,19 +779,17 @@ class m2(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-
-    #@staticmethod
-    #def _create(shape, array_module):
-    #    return array_module.full(shape, 0.0, dtype='f8')
-
-    def _build_temps(self, cuda=False):
-        return (_sum_zero(self.column), count(self.column))
-
     def _build_append(self, dshape, schema, cuda, antialias):
         if cuda:
             raise ValueError("""\
 The 'std' and 'var' reduction operations are not yet supported on the GPU""")
         return super(m2, self)._build_append(dshape, schema, cuda, antialias)
+
+    def _build_create(self, required_dshape):
+        return self._create_float64_zero
+
+    def _build_temps(self, cuda=False):
+        return (_sum_zero(self.column), count(self.column))
 
     @staticmethod
     @ngjit
@@ -930,8 +932,8 @@ class var(Reduction):
     """
     #_dshape = dshape(Option(ct.float64))
 
-    def out_dshape(self, in_dshape, antialias):
-        return dshape(Option(ct.float64))
+ #   def out_dshape(self, in_dshape, antialias):
+  #      return dshape(Option(ct.float64))
 
     def _build_bases(self, cuda=False):
         return (_sum_zero(self.column), count(self.column), m2(self.column))
@@ -955,8 +957,9 @@ class std(Reduction):
     """
     #_dshape = dshape(Option(ct.float64))
 
-    def out_dshape(self, in_dshape, antialias):
-        return dshape(Option(ct.float64))
+   # def out_dshape(self, in_dshape, antialias):
+   #     print("XXXXXXXXXXXXXXXXXXXXXXXX")
+   #     return dshape(Option(ct.float64))
 
     def _build_bases(self, cuda=False):
         return (_sum_zero(self.column), count(self.column), m2(self.column))
