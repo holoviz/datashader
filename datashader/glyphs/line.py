@@ -878,7 +878,7 @@ def _build_full_antialias(expand_aggs_and_cols):
                         correction = value - prev_value
                         xx, yy = (y, x) if flip_xy else (x, y)
                         append(i, xx, yy, correction, *aggs_and_cols)
-                        #if isnull(agg[yy, xx]):
+                        #if isnull(agg[yy, xx]):   # cannot be null of course as is a correction!!!!!
                         #    agg[yy, xx] = correction
                         #else:
                         #    agg[yy, xx] += correction

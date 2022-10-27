@@ -358,6 +358,11 @@ class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
 
         return super()._build_append(dshape, schema, cuda, antialias)
 
+    def _hashable_inputs(self):
+        # Reductions with different self_intersect attributes much have different hashes otherwise
+        # toolz.memoize will treat them as the same to give incorrect results.
+        return super()._hashable_inputs() + (self.self_intersect,)
+
 
 class count(SelfIntersectingOptionalFieldReduction):
     """Count elements in each bin, returning the result as a uint32.
@@ -702,6 +707,11 @@ class SelfIntersectingFloatingReduction(FloatingReduction):
                     return self._append_antialias_not_self_intersect
 
         return super()._build_append(dshape, schema, cuda, antialias)
+
+    def _hashable_inputs(self):
+        # Reductions with different self_intersect attributes much have different hashes otherwise
+        # toolz.memoize will treat them as the same to give incorrect results.
+        return super()._hashable_inputs() + (self.self_intersect,)
 
 
 class sum(SelfIntersectingFloatingReduction):

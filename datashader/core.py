@@ -448,6 +448,7 @@ The axis argument to Canvas.line must be 0 or 1
                     f"{type(non_cat_agg)} reduction not implemented for antialiased lines")
 
             glyph.set_antialias_combination(antialias_combination)
+            print("GLYPH ANTIALIAS_COMBINATION", antialias_combination)
 
         print("Line:", type(glyph), glyph.antialiased, glyph._line_width)
 
