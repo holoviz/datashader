@@ -13,8 +13,8 @@ __all__ = ()
 
 
 @bypixel.pipeline.register(pd.DataFrame)
-def pandas_pipeline(df, schema, canvas, glyph, summary, antialias=False):
-    return glyph_dispatch(glyph, df, schema, canvas, summary, antialias)
+def pandas_pipeline(df, schema, canvas, glyph, summary, *, antialias=False):
+    return glyph_dispatch(glyph, df, schema, canvas, summary, antialias=antialias)
 
 
 glyph_dispatch = Dispatcher()
@@ -23,8 +23,9 @@ glyph_dispatch = Dispatcher()
 @glyph_dispatch.register(_PointLike)
 @glyph_dispatch.register(_GeometryLike)
 @glyph_dispatch.register(_AreaToLineLike)
-def default(glyph, source, schema, canvas, summary, antialias, cuda=False):
-    create, info, append, _, finalize = compile_components(summary, schema, glyph, cuda, antialias)
+def default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=False):
+    create, info, append, _, finalize = compile_components(
+        summary, schema, glyph, antialias=antialias, cuda=cuda)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)

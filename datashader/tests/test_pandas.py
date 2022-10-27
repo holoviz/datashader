@@ -2093,4 +2093,4 @@ def test_line_antialias_reduction_not_implemented(reduction):
     df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2]))
 
     with pytest.raises(NotImplementedError):
-        cvs.line(df, 'x', 'y', line_width=1, agg=reduction)    
+        cvs.line(df, 'x', 'y', line_width=1, agg=reduction)

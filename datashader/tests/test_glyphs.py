@@ -53,7 +53,7 @@ map_onto_pixel_for_line = _build_map_onto_pixel_for_line(mapper, mapper)
 map_onto_pixel_for_triangle = _build_map_onto_pixel_for_triangle(mapper, mapper)
 
 # Line rasterization
-expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
+expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1, False)
 _draw_segment = _build_draw_segment(append, map_onto_pixel_for_line,
                                     expand_aggs_and_cols, 0, AntialiasCombination.NONE)
 extend_line, _ = _build_extend_line_axis0(_draw_segment, expand_aggs_and_cols,
@@ -78,9 +78,10 @@ def draw_segment(x0, y0, x1, y1, i, segment_start, agg):
     """
     sx, tx, sy, ty = 1, 0, 1, 0
     xmin, xmax, ymin, ymax = 0, 5, 0, 5
+    workspace = np.empty(0)
     _draw_segment(
         i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-        segment_start, False, x0, x1, y0, y1, 0.0, 0.0, agg)
+        segment_start, False, x0, x1, y0, y1, 0.0, 0.0, workspace, agg)
 
 
 def draw_trapezoid(x0, x1, y0, y1, y2, y3, i, trapezoid_start, stacked, agg):
@@ -195,12 +196,13 @@ def test_extend_lines():
     agg = new_agg()
     sx, tx, sy, ty = vt
     xmin, xmax, ymin, ymax = bounds
-    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, False, agg)
+    workspace = np.empty(0)
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, False, workspace, agg)
     np.testing.assert_equal(agg, out)
     # plot_start = True
     out[2, 3] += 1
     agg = new_agg()
-    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, workspace, agg)
     np.testing.assert_equal(agg, out)
 
     xs = np.array([2, 1, 0, -1, -4, -1, -100, -1, 2])
@@ -211,7 +213,7 @@ def test_extend_lines():
                     [1, 1, 0, 1, 0],
                     [0, 0, 0, 0, 0]])
     agg = new_agg()
-    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, workspace, agg)
     np.testing.assert_equal(agg, out)
 
 
@@ -221,7 +223,8 @@ def test_extend_lines_all_out_of_bounds():
     agg = new_agg()
     sx, tx, sy, ty = vt
     xmin, xmax, ymin, ymax = bounds
-    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
+    workspace = np.empty(0)
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, workspace, agg)
     assert agg.sum() == 0
 
 
@@ -231,7 +234,8 @@ def test_extend_lines_nan():
     agg = new_agg()
     sx, tx, sy, ty = vt
     xmin, xmax, ymin, ymax = bounds
-    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
+    workspace = np.empty(0)
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, workspace, agg)
     out = np.diag([1, 1, 0, 1, 0])
     np.testing.assert_equal(agg, out)
 
@@ -243,7 +247,8 @@ def test_extend_lines_exact_bounds():
     agg = np.zeros((4, 4), dtype='i4')
     sx, tx, sy, ty = vt
     xmin, xmax, ymin, ymax = bounds
-    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg)
+    workspace = np.empty(0)
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, workspace, agg)
     out = np.array([[2, 1, 1, 1],
                     [1, 0, 0, 1],
                     [1, 0, 0, 1],
@@ -251,7 +256,7 @@ def test_extend_lines_exact_bounds():
     np.testing.assert_equal(agg, out)
 
     agg = np.zeros((4, 4), dtype='i4')
-    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, False, agg)
+    extend_line(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, False, workspace, agg)
     out = np.array([[1, 1, 1, 1],
                     [1, 0, 0, 1],
                     [1, 0, 0, 1],

@@ -1232,7 +1232,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         self.y_axis.validate(self.y_range)
 
 
-def bypixel(source, canvas, glyph, agg, antialias=False):
+def bypixel(source, canvas, glyph, agg, *, antialias=False):
     """Compute an aggregate grouped by pixel sized bins.
 
     Aggregate input data ``source`` into a grid with shape and axis matching
@@ -1257,7 +1257,7 @@ def bypixel(source, canvas, glyph, agg, antialias=False):
     # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
     with np.warnings.catch_warnings():
         np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
-        return bypixel.pipeline(source, schema, canvas, glyph, agg, antialias)
+        return bypixel.pipeline(source, schema, canvas, glyph, agg, antialias=antialias)
 
 
 def _bypixel_sanitise(source, glyph, agg):

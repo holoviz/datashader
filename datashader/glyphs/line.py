@@ -1394,8 +1394,6 @@ def _build_extend_line_axis1_ragged(
         draw_segment, expand_aggs_and_cols, antialias_combination
 ):
 
-    @ngjit
-    #@expand_aggs_and_cols
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols
     ):
@@ -1411,7 +1409,7 @@ def _build_extend_line_axis1_ragged(
         )
 
     @ngjit
-    #@expand_aggs_and_cols
+    @expand_aggs_and_cols
     def extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             x_start_i, x_flat, y_start_i, y_flat, workspace, *aggs_and_cols
@@ -1467,8 +1465,6 @@ def _build_extend_line_axis1_ragged(
                              segment_start, segment_end, x0, x1, y0, y1,
                              xm, ym, workspace, *aggs_and_cols)
 
-    @ngjit
-    #@expand_aggs_and_cols
     def extend_cpu_antialias_2agg(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols
     ):
@@ -1557,8 +1553,6 @@ def _build_extend_line_axis1_ragged(
 def _build_extend_line_axis1_geometry(
         draw_segment, expand_aggs_and_cols, antialias_combination
 ):
-    @ngjit
-    #@expand_aggs_and_cols
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             geometry, closed_rings, workspace, *aggs_and_cols
@@ -1590,7 +1584,7 @@ def _build_extend_line_axis1_geometry(
         )
 
     @ngjit
-    #@expand_aggs_and_cols
+    @expand_aggs_and_cols
     def extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             values, missing, offsets0, offsets1, eligible_inds,
@@ -1650,8 +1644,6 @@ def _build_extend_line_axis1_geometry(
                                  segment_start, segment_end, x0, x1, y0, y1,
                                  xm, ym, workspace, *aggs_and_cols)
 
-    @ngjit
-    #@expand_aggs_and_cols
     def extend_cpu_antialias_2agg(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             geometry, closed_rings, workspace, *aggs_and_cols

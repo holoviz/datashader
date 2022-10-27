@@ -14,7 +14,7 @@ __all__ = ['compile_components']
 
 
 @memoize
-def compile_components(agg, schema, glyph, cuda=False, antialias=False):
+def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     """Given a ``Aggregation`` object and a schema, return 5 sub-functions.
 
     Parameters
@@ -142,15 +142,15 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body
 
-    if antialias:
-        signature.insert(0, "aa_factor")
-
     # Categorical aggregate arrays need to be unpacked
     if categorical:
         col_index = '' if isinstance(cols[0], category_codes) else '[0]'
         cat_var = 'cat = int({0}[{1}]{2})'.format(signature[-1], subscript, col_index)
         aggs = ['{0} = {0}[:, :, cat]'.format(s) for s in signature[:len(calls)]]
         body = [cat_var] + aggs + body
+
+    if antialias:
+        signature.insert(0, "aa_factor")
 
     if ndims is None:
         code = ('def append(x, y, {0}):\n'
