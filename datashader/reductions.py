@@ -349,7 +349,10 @@ class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
         print("XX SelfIntersectingOptionalFieldReduction::_build_append", type(self), cuda, antialias)
         if antialias and not self.self_intersect:
             if cuda:
-                raise NotImplementedError("SelfIntersectingOptionalFieldReduction")
+                if self.column is None:
+                    return self._append_no_field_antialias_cuda_not_self_intersect
+                else:
+                    return self._append_antialias_cuda_not_self_intersect
             else:
                 if self.column is None:
                     return self._append_no_field_antialias_not_self_intersect
@@ -429,6 +432,12 @@ class count(SelfIntersectingOptionalFieldReduction):
     def _append_antialias_cuda(x, y, agg, field, aa_factor):
         #nb_cuda.atomic.add(agg, (y, x), field*aa_factor)
         cuda_atomic_nanmax(agg, (y, x), field*aa_factor)
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_no_field_antialias_cuda_not_self_intersect(x, y, agg, aa_factor):
+        #nb_cuda.atomic.add(agg, (y, x), aa_factor)
+        cuda_atomic_nanmax(agg, (y, x), aa_factor)
 
     @staticmethod
     @nb_cuda.jit(device=True)
@@ -883,11 +892,20 @@ class max(FloatingReduction):
     # GPU append functions
     @staticmethod
     @ngjit
+    def _append_antialias_cuda(x, y, agg, field, aa_factor):
+        #print("MAX aa cuda", x, y, agg[y, x], field, aa_factor)
+        #agg[y,x] = 0.98
+        cuda_atomic_nanmax(agg, (y, x), field*aa_factor)
+
+    @staticmethod
+    @ngjit
     def _append_cuda(x, y, agg, field):
+        #print("MAX cuda", x, y, agg[y, x], field)
         cuda_atomic_nanmax(agg, (y, x), field)
 
     @staticmethod
     def _combine(aggs):
+        #print("MAX COMBINE")
         return np.nanmax(aggs, axis=0)
 
 

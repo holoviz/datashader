@@ -8,7 +8,7 @@ from datashader.glyphs.points import _PointLike, _GeometryLike
 from datashader.utils import (isnull, isreal, ngjit, nanmax_in_place,
                               nanmin_in_place, nansum_in_place, parallel_fill)
 from numba import cuda
-from numba.extending import overload
+import numba.types as nb_types
 
 
 try:
@@ -73,9 +73,10 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_combination):
+        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, line_width > 0)
+            x_mapper, y_mapper, antialias)
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, antialias_combination
         )
@@ -89,23 +90,20 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
-            workspace_len = 8 if line_width > 0 else 0
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_name)
                 ys = self.to_cupy_array(df, y_name)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
-                workspace = cp.empty(workspace_len)
             else:
                 xs = df.loc[:, x_name].to_numpy()
                 ys = df.loc[:, y_name].to_numpy()
                 do_extend = extend_cpu
-                workspace = np.empty(workspace_len)
 
             # line may be clipped, then mapped to pixels
             do_extend(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                xs, ys, plot_start, workspace, *aggs_and_cols
+                xs, ys, plot_start, antialias, *aggs_and_cols
             )
 
         return extend
@@ -163,9 +161,10 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_combination):
+        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, line_width > 0)
+            x_mapper, y_mapper, antialias)
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, antialias_combination
         )
@@ -180,23 +179,20 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
-            workspace_len = 8 if line_width > 0 else 0
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_names)
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
-                workspace = cp.empty(workspace_len)
             else:
                 xs = df.loc[:, list(x_names)].to_numpy()
                 ys = df.loc[:, list(y_names)].to_numpy()
                 do_extend = extend_cpu
-                workspace = np.empty(workspace_len)
 
             # line may be clipped, then mapped to pixels
             do_extend(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                xs, ys, plot_start, workspace, *aggs_and_cols,
+                xs, ys, plot_start, antialias, *aggs_and_cols,
             )
 
         return extend
@@ -276,9 +272,10 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_combination):
+        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, line_width > 0)
+            x_mapper, y_mapper, antialias)
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, antialias_combination
         )
@@ -292,21 +289,18 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
-            workspace_len = 8 if line_width > 0 else 0
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_names)
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
-                workspace = cp.empty(workspace_len)
             else:
                 xs = df.loc[:, list(x_names)].to_numpy()
                 ys = df.loc[:, list(y_names)].to_numpy()
                 do_extend = extend_cpu
-                workspace = np.empty(workspace_len)
 
             do_extend(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols
             )
 
         return extend
@@ -348,9 +342,10 @@ class LinesAxis1XConstant(LinesAxis1):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_combination):
+        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, line_width > 0)
+            x_mapper, y_mapper, antialias)
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, antialias_combination
         )
@@ -365,21 +360,18 @@ class LinesAxis1XConstant(LinesAxis1):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
-            workspace_len = 8 if line_width > 0 else 0
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = cp.asarray(x_values)
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(ys.shape)]
-                workspace = cp.empty(workspace_len)
             else:
                 xs = x_values
                 ys = df.loc[:, list(y_names)].to_numpy()
                 do_extend = extend_cpu
-                workspace = np.empty(workspace_len)
 
             do_extend(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols
             )
 
         return extend
@@ -421,9 +413,10 @@ class LinesAxis1YConstant(LinesAxis1):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_combination):
+        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, line_width > 0)
+            x_mapper, y_mapper, antialias)
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, antialias_combination
         )
@@ -438,21 +431,18 @@ class LinesAxis1YConstant(LinesAxis1):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
-            workspace_len = 8 if line_width > 0 else 0
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_names)
                 ys = cp.asarray(y_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
-                workspace = cp.empty(workspace_len)
             else:
                 xs = df.loc[:, list(x_names)].to_numpy()
                 ys = y_values
                 do_extend = extend_cpu
-                workspace = np.empty(workspace_len)
 
             do_extend(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols
             )
 
         return extend
@@ -500,9 +490,10 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_combination):
+        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, line_width > 0)
+            x_mapper, y_mapper, antialias)
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, antialias_combination
         )
@@ -516,15 +507,13 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
-            workspace_len = 8 if line_width > 0 else 0
 
             xs = df[x_name].array
             ys = df[y_name].array
-            workspace = np.empty(workspace_len)
 
             # line may be clipped, then mapped to pixels
             extend_cpu(
-                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols
             )
 
         return extend
@@ -548,9 +537,10 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
         from spatialpandas.geometry import (
             PolygonArray, MultiPolygonArray, RingArray
         )
+        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, line_width > 0)
+            x_mapper, y_mapper, antialias)
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, antialias_combination
         )
@@ -564,8 +554,6 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
             xmin, xmax, ymin, ymax = bounds
             aggs_and_cols = aggs + info(df)
             geom_array = df[geometry_name].array
-            workspace_len = 8 if line_width > 0 else 0
-            workspace = np.empty(workspace_len)
 
             # Use type to decide whether geometry represents a closed .
             # We skip for closed geometries so as not to double count the first/last
@@ -581,7 +569,7 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
 
             perform_extend_cpu(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                geom_array, closed_rings, workspace, *aggs_and_cols
+                geom_array, closed_rings, antialias, *aggs_and_cols
             )
 
         return extend
@@ -1031,8 +1019,9 @@ def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, antialias_combi
     @ngjit
     @expand_aggs_and_cols
     def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                   xs, ys, plot_start, workspace, *aggs_and_cols):
+                   xs, ys, plot_start, antialias, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
+        workspace = np.empty(8) if antialias else None
         nrows = xs.shape[0]
         for i in range(nrows - 1):
             perform_extend_line(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1041,7 +1030,8 @@ def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, antialias_combi
     @cuda.jit
     @expand_aggs_and_cols
     def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                    xs, ys, plot_start, workspace, *aggs_and_cols):
+                    xs, ys, plot_start, antialias, *aggs_and_cols):
+        workspace = cuda.local.array(8, nb_types.float64) if antialias else None
         i = cuda.grid(1)
         if i < xs.shape[0] - 1:
             perform_extend_line(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1089,8 +1079,9 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, antialias
     @ngjit
     @expand_aggs_and_cols
     def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
-                   plot_start, workspace, *aggs_and_cols):
+                   plot_start, antialias, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
+        workspace = np.empty(8) if antialias else None
         nrows, ncols = xs.shape
 
         for j in range(ncols):
@@ -1101,8 +1092,9 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, antialias
     @ngjit
     #@expand_aggs_and_cols
     def extend_cpu_antialias_2agg(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
-                                  plot_start, workspace, *aggs_and_cols):
+                                  plot_start, antialias, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
+        workspace = np.empty(8) if antialias else None
         null_value = np.nan
 
         accum_agg = aggs_and_cols[0]   ############ Cannot do this if using expand_aggs_and_cols
@@ -1129,7 +1121,8 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, antialias
     @cuda.jit
     @expand_aggs_and_cols
     def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
-                    plot_start, workspace, *aggs_and_cols):
+                    plot_start, antialias, *aggs_and_cols):
+        workspace = cuda.local.array(8, nb_types.float64) if antialias else None
         i, j = cuda.grid(2)
         if i < xs.shape[0] - 1 and j < xs.shape[1]:
             perform_extend_line(i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1171,7 +1164,8 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, a
 
     @ngjit
     @expand_aggs_and_cols
-    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols):
+    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols):
+        workspace = np.empty(8) if antialias else None
         ncols = xs.shape[1]
         for i in range(xs.shape[0]):
             for j in range(ncols - 1):
@@ -1183,7 +1177,8 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, a
     @ngjit
     #@expand_aggs_and_cols
     def extend_cpu_antialias_2agg(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
-                                  workspace, *aggs_and_cols):
+                                  antialias, *aggs_and_cols):
+        workspace = np.empty(8) if antialias else None
         null_value = np.nan
 
         accum_agg = aggs_and_cols[0]
@@ -1207,7 +1202,8 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, a
 
     @cuda.jit
     @expand_aggs_and_cols
-    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols):
+    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols):
+        workspace = cuda.local.array(8, nb_types.float64) if antialias else None
         i, j = cuda.grid(2)
         if i < xs.shape[0] and j < xs.shape[1] - 1:
             perform_extend_line(
@@ -1253,7 +1249,8 @@ def _build_extend_line_axis1_x_constant(
 
     @ngjit
     @expand_aggs_and_cols
-    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols):
+    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols):
+        workspace = np.empty(8) if antialias else None
         ncols = ys.shape[1]
         for i in range(ys.shape[0]):
             for j in range(ncols - 1):
@@ -1264,7 +1261,8 @@ def _build_extend_line_axis1_x_constant(
     @ngjit
     #@expand_aggs_and_cols
     def extend_cpu_antialias_2agg(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
-                                  workspace, *aggs_and_cols):
+                                  antialias, *aggs_and_cols):
+        workspace = np.empty(8) if antialias else None
         null_value = np.nan
 
         accum_agg = aggs_and_cols[0]
@@ -1292,7 +1290,8 @@ def _build_extend_line_axis1_x_constant(
 
     @cuda.jit
     @expand_aggs_and_cols
-    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols):
+    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols):
+        workspace = cuda.local.array(8, nb_types.float64) if antialias else None
         i, j = cuda.grid(2)
         if i < ys.shape[0] and j < ys.shape[1] - 1:
             perform_extend_line(
@@ -1338,7 +1337,8 @@ def _build_extend_line_axis1_y_constant(
 
     @ngjit
     @expand_aggs_and_cols
-    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols):
+    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols):
+        workspace = np.empty(8) if antialias else None
         ncols = xs.shape[1]
         for i in range(xs.shape[0]):
             for j in range(ncols - 1):
@@ -1350,7 +1350,8 @@ def _build_extend_line_axis1_y_constant(
     @ngjit
     #@expand_aggs_and_cols
     def extend_cpu_antialias_2agg(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
-                                  workspace, *aggs_and_cols):
+                                  antialias, *aggs_and_cols):
+        workspace = np.empty(8) if antialias else None
         null_value = np.nan
 
         accum_agg = aggs_and_cols[0]
@@ -1376,12 +1377,13 @@ def _build_extend_line_axis1_y_constant(
 
     @cuda.jit
     @expand_aggs_and_cols
-    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols):
+    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols):
+        workspace = cuda.local.array(8, nb_types.float64) if antialias else None
         i, j = cuda.grid(2)
         if i < xs.shape[0] and j < xs.shape[1] - 1:
             perform_extend_line(
                 i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                xs, ys, *aggs_and_cols
+                xs, ys, workspace, *aggs_and_cols
             )
 
     if _use_2_stage_agg(antialias_combination):
@@ -1395,7 +1397,7 @@ def _build_extend_line_axis1_ragged(
 ):
 
     def extend_cpu(
-            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols
     ):
         x_start_i = xs.start_indices
         x_flat = xs.flat_array
@@ -1405,15 +1407,16 @@ def _build_extend_line_axis1_ragged(
 
         extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            x_start_i, x_flat, y_start_i, y_flat, workspace, *aggs_and_cols
+            x_start_i, x_flat, y_start_i, y_flat, antialias, *aggs_and_cols
         )
 
     @ngjit
     @expand_aggs_and_cols
     def extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            x_start_i, x_flat, y_start_i, y_flat, workspace, *aggs_and_cols
+            x_start_i, x_flat, y_start_i, y_flat, antialias, *aggs_and_cols
     ):
+        workspace = np.empty(8) if antialias else None
         nrows = len(x_start_i)
         x_flat_len = len(x_flat)
         y_flat_len = len(y_flat)
@@ -1466,7 +1469,7 @@ def _build_extend_line_axis1_ragged(
                              xm, ym, workspace, *aggs_and_cols)
 
     def extend_cpu_antialias_2agg(
-            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, workspace, *aggs_and_cols
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols
     ):
         x_start_i = xs.start_indices
         x_flat = xs.flat_array
@@ -1476,15 +1479,16 @@ def _build_extend_line_axis1_ragged(
 
         extend_cpu_numba_antialias_2agg(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            x_start_i, x_flat, y_start_i, y_flat, workspace, *aggs_and_cols
+            x_start_i, x_flat, y_start_i, y_flat, antialias, *aggs_and_cols
         )
 
     @ngjit
     #@expand_aggs_and_cols
     def extend_cpu_numba_antialias_2agg(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            x_start_i, x_flat, y_start_i, y_flat, workspace, *aggs_and_cols
+            x_start_i, x_flat, y_start_i, y_flat, antialias, *aggs_and_cols
     ):
+        workspace = np.empty(8) if antialias else None
         null_value = np.nan
 
         accum_agg = aggs_and_cols[0]
@@ -1555,7 +1559,7 @@ def _build_extend_line_axis1_geometry(
 ):
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            geometry, closed_rings, workspace, *aggs_and_cols
+            geometry, closed_rings, antialias, *aggs_and_cols
     ):
         values = geometry.buffer_values
         missing = geometry.isna()
@@ -1580,7 +1584,7 @@ def _build_extend_line_axis1_geometry(
         extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             values, missing, offsets0, offsets1, eligible_inds,
-            closed_rings, workspace, *aggs_and_cols
+            closed_rings, antialias, *aggs_and_cols
         )
 
     @ngjit
@@ -1588,8 +1592,9 @@ def _build_extend_line_axis1_geometry(
     def extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             values, missing, offsets0, offsets1, eligible_inds,
-            closed_rings, workspace, *aggs_and_cols
+            closed_rings, antialias, *aggs_and_cols
     ):
+        workspace = np.empty(8) if antialias else None
         for i in eligible_inds:
             if missing[i]:
                 continue
@@ -1646,7 +1651,7 @@ def _build_extend_line_axis1_geometry(
 
     def extend_cpu_antialias_2agg(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            geometry, closed_rings, workspace, *aggs_and_cols
+            geometry, closed_rings, antialias, *aggs_and_cols
     ):
         values = geometry.buffer_values
         missing = geometry.isna()
@@ -1671,7 +1676,7 @@ def _build_extend_line_axis1_geometry(
         extend_cpu_numba_antialias_2agg(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             values, missing, offsets0, offsets1, eligible_inds,
-            closed_rings, workspace, *aggs_and_cols
+            closed_rings, antialias, *aggs_and_cols
         )
 
     @ngjit
@@ -1679,8 +1684,9 @@ def _build_extend_line_axis1_geometry(
     def extend_cpu_numba_antialias_2agg(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             values, missing, offsets0, offsets1, eligible_inds,
-            closed_rings, workspace, *aggs_and_cols
+            closed_rings, antialias, *aggs_and_cols
     ):
+        workspace = np.empty(8) if antialias else None
         null_value = np.nan
 
         accum_agg = aggs_and_cols[0]
