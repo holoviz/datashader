@@ -287,7 +287,7 @@ class Reduction(Expr):
             else:
                 return self._append
 
-    def _build_combine(self, dshape):
+    def _build_combine(self, dshape, antialias):
         return self._combine
 
     def _build_finalize(self, dshape):
@@ -348,6 +348,7 @@ class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
     def _build_append(self, dshape, schema, cuda, antialias):
         print("XX SelfIntersectingOptionalFieldReduction::_build_append", type(self), cuda, antialias)
         if antialias and not self.self_intersect:
+            # append functions specific to antialiased lines without self_intersect
             if cuda:
                 if self.column is None:
                     return self._append_no_field_antialias_cuda_not_self_intersect
@@ -456,13 +457,22 @@ class count(SelfIntersectingOptionalFieldReduction):
     def _append_no_field_cuda(x, y, agg):
         nb_cuda.atomic.add(agg, (y, x), 1)
 
-    #@staticmethod
-    #def _create(shape, array_module):
-    #    return array_module.zeros(shape, dtype='u4')
+    def _build_combine(self, dshape, antialias):
+        if antialias:
+            return self._combine_antialias
+        else:
+            return self._combine
 
     @staticmethod
     def _combine(aggs):
-        return aggs.sum(axis=0, dtype='u4')  ##################
+        return aggs.sum(axis=0, dtype='u4')
+
+    @staticmethod
+    def _combine_antialias(aggs):
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nanmax_in_place(ret, aggs[i])
+        return ret
 
 
 class by(Reduction):
@@ -533,8 +543,8 @@ class by(Reduction):
     def _build_append(self, dshape, schema, cuda, antialias):
         return self.reduction._build_append(dshape, schema, cuda, antialias)
 
-    def _build_combine(self, dshape):
-        return self.reduction._combine
+    def _build_combine(self, dshape, antialias):
+        return self.reduction._build_combine(dshape, antialias)
 
     def _build_finalize(self, dshape):
         cats = list(self.categorizer.categories(dshape))
@@ -589,22 +599,22 @@ class any(OptionalFieldReduction):
     _append_cuda =_append
     _append_no_field_cuda = _append_no_field
 
-    #@staticmethod
-    #def _create(shape, array_module):
-    #    return array_module.zeros(shape, dtype='bool')
+    def _build_combine(self, dshape, antialias):
+        if antialias:
+            return self._combine_antialias
+        else:
+            return self._combine
 
     @staticmethod
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='bool')
 
-
-#class any_f32(OptionalFieldReduction):
-    #@staticmethod
-    #def _combine(aggs):
-    #    ret = aggs[0]
-    #    for i in range(1, len(aggs)):
-    #        nanmax_in_place(ret, aggs[i])
-    #    return ret
+    @staticmethod
+    def _combine_antialias(aggs):
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nanmax_in_place(ret, aggs[i])
+        return ret
 
 
 class _upsample(Reduction):

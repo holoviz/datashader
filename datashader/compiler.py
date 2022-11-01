@@ -63,7 +63,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     create = make_create(bases, dshapes, cuda)
     info = make_info(cols)
     append = make_append(bases, cols, calls, glyph, isinstance(agg, by), antialias)
-    combine = make_combine(bases, dshapes, temps)
+    combine = make_combine(bases, dshapes, temps, antialias)
     finalize = make_finalize(bases, agg, schema, cuda)
 
     return create, info, append, combine, finalize
@@ -164,9 +164,9 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
     return ngjit(namespace['append'])
 
 
-def make_combine(bases, dshapes, temps):
+def make_combine(bases, dshapes, temps, antialias):
     arg_lk = dict((k, v) for (v, k) in enumerate(bases))
-    calls = [(b._build_combine(d), [arg_lk[i] for i in (b,) + t])
+    calls = [(b._build_combine(d, antialias), [arg_lk[i] for i in (b,) + t])
              for (b, d, t) in zip(bases, dshapes, temps)]
 
     def combine(base_tuples):
