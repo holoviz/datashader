@@ -918,8 +918,12 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, line_width
                         antialias_combination):
     """Specialize a line plotting kernel for a given append/axis combination"""
 
-    _bresenham = _build_bresenham(expand_aggs_and_cols)
-    _full_antialias = _build_full_antialias(expand_aggs_and_cols)
+    if line_width > 0.0:
+        _bresenham = None
+        _full_antialias = _build_full_antialias(expand_aggs_and_cols)
+    else:
+        _bresenham = _build_bresenham(expand_aggs_and_cols)
+        _full_antialias = None
 
     @ngjit
     @expand_aggs_and_cols
