@@ -421,6 +421,14 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
+        if (line_width > 0 and ((cudf and isinstance(source, cudf.DataFrame)) or
+                               (dask_cudf and isinstance(source, dask_cudf.DataFrame)))):
+            import warnings
+            warnings.warn(
+                "Antialiased lines are not supported for CUDA-backed sources, "
+                "so reverting to line_width=0")
+            line_width = 0
+
         glyph.set_line_width(line_width)
         glyph.antialiased = (line_width > 0)
 
@@ -431,8 +439,6 @@ The axis argument to Canvas.line must be 0 or 1
             if isinstance(non_cat_agg, rd.by):
                 non_cat_agg = non_cat_agg.reduction
 
-            ################### This can be much simpler, just needs to be the 2nd-order combine
-            ################### that is peculiar to antialiased lines.
             antialias_combination = AntialiasCombination.NONE
             if isinstance(non_cat_agg, (rd.any, rd.max)):
                 antialias_combination = AntialiasCombination.MAX
@@ -448,9 +454,6 @@ The axis argument to Canvas.line must be 0 or 1
                     f"{type(non_cat_agg)} reduction not implemented for antialiased lines")
 
             glyph.set_antialias_combination(antialias_combination)
-            print("GLYPH ANTIALIAS_COMBINATION", antialias_combination)
-
-        print("Line:", type(glyph), glyph.antialiased, glyph._line_width)
 
         return bypixel(source, self, glyph, agg, antialias=glyph.antialiased)
 

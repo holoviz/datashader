@@ -506,11 +506,11 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
 
             xs = df[x_name].array
             ys = df[y_name].array
 
+            aggs_and_cols = aggs + info(df)
             # line may be clipped, then mapped to pixels
             extend_cpu(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias, *aggs_and_cols
@@ -720,10 +720,7 @@ def _build_full_antialias(expand_aggs_and_cols):
     def _full_antialias(line_width, antialias_combination, i, x0, x1, y0, y1,
                         segment_start, segment_end, xm, ym, append,
                         nx, ny, workspace, *aggs_and_cols):
-        """Draw a line segment using Bresenham's algorithm
-        This method plots a line segment with integer coordinates onto a pixel
-        grid.
-        """
+        """Draw an antialiased line segment."""
         if x0 == x1 and y0 == y1:
             return
 
@@ -1082,7 +1079,7 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, antialias
         workspace = np.empty(8) if antialias else None
         null_value = np.nan
 
-        accum_agg = aggs_and_cols[0]   ############ Cannot do this if using expand_aggs_and_cols
+        accum_agg = aggs_and_cols[0]
         temp_agg = np.full_like(accum_agg, null_value, dtype=np.float32)
         temp_aggs_and_cols = (temp_agg,) + aggs_and_cols[1:]
 
@@ -1095,7 +1092,6 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, antialias
             for i in range(nrows - 1):
                 perform_extend_line(i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                                     plot_start, xs, ys, workspace, *temp_aggs_and_cols)
-                                    #plot_start, xs, ys, workspace, *aggs_and_cols)
 
             # Combined canvas/agg/reduction from above with the others.
             if j == 0:

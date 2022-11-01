@@ -52,7 +52,6 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     # List of base reductions (actually computed)
     bases = list(unique(concat(r._build_bases(cuda) for r in reds)))
     dshapes = [b.out_dshape(schema, antialias) for b in bases]
-    print("DSHAPES", dshapes)
     # List of tuples of (append, base, input columns, temps)
     calls = [_get_call_tuples(b, d, schema, cuda, antialias) for (b, d) in zip(bases, dshapes)]
     # List of unique column names needed
@@ -159,7 +158,6 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         code = ('def append({0}, x, y, {1}):\n'
                 '    {2}'
                 ).format(subscript, ', '.join(signature), '\n    '.join(body))
-    print("CODE", code)
     exec(code, namespace)
     return ngjit(namespace['append'])
 
@@ -170,7 +168,6 @@ def make_combine(bases, dshapes, temps, antialias):
              for (b, d, t) in zip(bases, dshapes, temps)]
 
     def combine(base_tuples):
-        print("COMBINE")
         bases = tuple(np.stack(bs) for bs in zip(*base_tuples))
         return tuple(f(*get(inds, bases)) for (f, inds) in calls)
 

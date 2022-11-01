@@ -102,7 +102,7 @@ class Dispatcher(object):
     def __call__(self, head, *rest, **kwargs):
         # We dispatch first on type(head), and fall back to iterating through
         # the mro. This is significantly faster in the common case where
-        # type(head) is in the lookup, with only a small penalty on fall back.)
+        # type(head) is in the lookup, with only a small penalty on fall back.
         lk = self._lookup
         typ = type(head)
         if typ in lk:
