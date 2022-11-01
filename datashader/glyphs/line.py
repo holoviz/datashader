@@ -862,25 +862,10 @@ def _build_full_antialias(expand_aggs_and_cols):
                     prev_distance = abs((x-x0)*prev_rightx + (y-y0)*prev_righty)
                     prev_value = 1.0 - _linearstep(0.5*(line_width - aa), halfwidth, prev_distance)
                     prev_value *= scale
-                    if value > prev_value:
-                        correction = value - prev_value
-                        xx, yy = (y, x) if flip_xy else (x, y)
-                        append(i, xx, yy, correction, *aggs_and_cols)
-                        #if isnull(agg[yy, xx]):   # cannot be null of course as is a correction!!!!!
-                        #    agg[yy, xx] = correction
-                        #else:
-                        #    agg[yy, xx] += correction
-                elif value > 0.0:
+                    value = value - prev_value  # Correction from previous segment.
+                if value > 0.0:
                     xx, yy = (y, x) if flip_xy else (x, y)
                     append(i, xx, yy, value, *aggs_and_cols)
-                    #if antialias_combination == AntialiasCombination.SUM_1AGG:
-                    #    if isnull(agg[yy, xx]):
-                    #        agg[yy, xx] = value
-                    #    else:
-                    #        agg[yy, xx] += value
-                    #else:
-                    #    if isnull(agg[yy, xx]) or value > agg[yy, xx]:
-                    #        agg[yy, xx] = value
 
     return _full_antialias
 
