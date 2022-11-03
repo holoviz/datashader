@@ -35,9 +35,9 @@ def test_extend_line_uniform(benchmark, extend_line, low, high):
     ys = np.random.uniform(xmax + low, ymax + high, n)
 
     agg = np.zeros((ymin, ymax), dtype='i4')
-    workspace = np.empty(0)
+    buffer = np.empty(0)
     benchmark(
-        extend_line, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, workspace, agg
+        extend_line, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, buffer, agg
     )
 
 
@@ -56,7 +56,7 @@ def test_extend_line_normal(benchmark, extend_line):
     ys = signal + noise(1, 10*(np.random.random() - 0.5), n)
 
     agg = np.zeros((ymin, ymax), dtype='i4')
-    workspace = np.empty(0)
+    buffer = np.empty(0)
     benchmark(
-        extend_line, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, workspace, agg
+        extend_line, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, buffer, agg
     )
