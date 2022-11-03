@@ -50,10 +50,21 @@ jobs:
           eval "$(conda shell.bash hook)"
           conda create -n test-environment python=${{ matrix.python-version }} pyctdev "typing_extensions<4.2.0"
       - name: doit develop_install
+        if: matrix.os != 'macos-latest'
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit develop_install -o tests -o examples --conda-mode=mamba
+      # Temporarily hacked step as on MacOS doit develop_install updates CPython leading to pyctdev failure
+      - name: doit develop_install
+        if: matrix.os == 'macos-latest'
+        run: |
+          conda activate test-environment
+          conda list
+          doit develop_install -o tests -o examples --conda-mode=mamba || echo "Keep going"
+          pip install --no-deps --no-build-isolation -e .
+          git describe
+          pip list
       - name: patch for fiona on mac and windows / 3.7
         if: (matrix.os == 'windows-latest' || matrix.os == 'macos-latest') && matrix.python-version == '3.7'
         run: |
