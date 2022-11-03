@@ -6,6 +6,7 @@ from datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 
+from datashader.enums import AntialiasCombination
 from datashader.utils import isnull
 from numba import cuda as nb_cuda
 
@@ -239,6 +240,10 @@ class Reduction(Expr):
     def inputs(self):
         return (extract(self.column),)
 
+    def _antialias_stage_2(self, self_intersect, array_module):
+        # Only called if using antialiased lines. Overridden in derived classes.
+        raise NotImplementedError(f"{type(self)}._antialias_combination is not defined")
+
     def _build_bases(self, cuda=False):
         return (self,)
 
@@ -379,6 +384,12 @@ class count(SelfIntersectingOptionalFieldReduction):
     """
     def out_dshape(self, in_dshape, antialias):
         return dshape(ct.float32) if antialias else dshape(ct.uint32)
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        if self_intersect:
+            return ((AntialiasCombination.SUM_1AGG, array_module.nan),)
+        else:
+            return ((AntialiasCombination.SUM_2AGG, array_module.nan),)
 
     # CPU append functions
     @staticmethod
