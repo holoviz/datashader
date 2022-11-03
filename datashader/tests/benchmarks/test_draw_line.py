@@ -21,7 +21,7 @@ def draw_line():
     def append(i, x, y, agg):
         agg[y, x] += 1
 
-    expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
+    expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1, False)
     return _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
                                False, AntialiasCombination.NONE)
 
@@ -33,8 +33,9 @@ def test_draw_line_left_border(benchmark, draw_line):
     x1, y1 = (0, n)
 
     agg = np.zeros((n+1, n+1), dtype='i4')
+    buffer = np.empty(0)
     benchmark(draw_line, 0, sx, tx, sy, ty, xmin, xmax, ymin, ymax, True, True,
-              x0, x1, y0, y1, 0.0, 0.0, agg)
+              x0, x1, y0, y1, 0.0, 0.0, buffer, agg)
 
 
 @pytest.mark.benchmark(group="draw_line")
@@ -44,8 +45,9 @@ def test_draw_line_diagonal(benchmark, draw_line):
     x1, y1 = (n, n)
 
     agg = np.zeros((n+1, n+1), dtype='i4')
+    buffer = np.empty(0)
     benchmark(draw_line, 0, sx, tx, sy, ty, xmin, xmax, ymin, ymax, True, True,
-              x0, x1, y0, y1, 0.0, 0.0, agg)
+              x0, x1, y0, y1, 0.0, 0.0, buffer, agg)
 
 
 @pytest.mark.benchmark(group="draw_line")
@@ -55,5 +57,6 @@ def test_draw_line_offset(benchmark, draw_line):
     x1, y1 = (n, n//4-1)
 
     agg = np.zeros((n+1, n+1), dtype='i4')
+    buffer = np.empty(0)
     benchmark(draw_line, 0, sx, tx, sy, ty, xmin, xmax, ymin, ymax, True, True,
-              x0, x1, y0, y1, 0.0, 0.0, agg)
+              x0, x1, y0, y1, 0.0, 0.0, buffer, agg)

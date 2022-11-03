@@ -5,5 +5,5 @@ import dask_cudf
 
 
 @bypixel.pipeline.register(dask_cudf.DataFrame)
-def dask_cudf_pipeline(df, schema, canvas, glyph, summary):
-    return dask_pipeline(df, schema, canvas, glyph, summary, cuda=True)
+def dask_cudf_pipeline(df, schema, canvas, glyph, summary, *, antialias=False):
+    return dask_pipeline(df, schema, canvas, glyph, summary, antialias=antialias, cuda=True)

@@ -2093,4 +2093,24 @@ def test_line_antialias_reduction_not_implemented(reduction):
     df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2]))
 
     with pytest.raises(NotImplementedError):
-        cvs.line(df, 'x', 'y', line_width=1, agg=reduction)    
+        cvs.line(df, 'x', 'y', line_width=1, agg=reduction)
+
+
+@pytest.mark.parametrize('reduction,dtype,aa_dtype', [
+    (ds.any(), bool, np.float32),
+    (ds.count(), np.uint32, np.float32),
+    (ds.max("value"), np.float64, np.float64),
+    (ds.min("value"), np.float64, np.float64),
+    (ds.sum("value"), np.float64, np.float64),
+])
+def test_reduction_dtype(reduction, dtype, aa_dtype):
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2]))
+
+    # Non-antialiased lines
+    agg = cvs.line(df, 'x', 'y', line_width=0, agg=reduction)
+    assert agg.dtype == dtype
+
+    # Antialiased lines
+    agg = cvs.line(df, 'x', 'y', line_width=1, agg=reduction)
+    assert agg.dtype == aa_dtype

@@ -22,6 +22,8 @@ except Exception:
 class Glyph(Expr):
     """Base class for glyphs."""
 
+    antialiased = False
+
     @property
     def ndims(self):
         """
@@ -130,10 +132,10 @@ class Glyph(Expr):
         function
             Decorator function
         """
-        return self._expand_aggs_and_cols(append, self.ndims)
+        return self._expand_aggs_and_cols(append, self.ndims, self.antialiased)
 
     @staticmethod
-    def _expand_aggs_and_cols(append, ndims):
+    def _expand_aggs_and_cols(append, ndims, antialiased):
         if os.environ.get('NUMBA_DISABLE_JIT', None):
             # If the NUMBA_DISABLE_JIT environment is set, then we return an
             # identity decorator (one that return function unchanged).
@@ -158,10 +160,14 @@ class Glyph(Expr):
         xy_arglen = 2
 
         # We will also subtract the number of dimensions in this glyph,
-        # becuase that's how many data index arguments are passed to append
+        # because that's how many data index arguments are passed to append
         dim_arglen = (ndims or 0)
 
         # The remaining arguments are for aggregates and columns
         aggs_and_cols_len = append_arglen - xy_arglen - dim_arglen
+
+        # Antialiased append() calls also take aa_factor argument
+        if antialiased:
+            aggs_and_cols_len -= 1
 
         return expand_varargs(aggs_and_cols_len)

@@ -18,8 +18,8 @@ __all__ = ()
 
 
 @bypixel.pipeline.register(dd.DataFrame)
-def dask_pipeline(df, schema, canvas, glyph, summary, cuda=False):
-    dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary, cuda=cuda)
+def dask_pipeline(df, schema, canvas, glyph, summary, *, antialias=False, cuda=False):
+    dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary, antialias=antialias, cuda=cuda)
 
     # Get user configured scheduler (if any), or fall back to default
     # scheduler for dask DataFrame
@@ -66,12 +66,12 @@ glyph_dispatch = Dispatcher()
 
 
 @glyph_dispatch.register(Glyph)
-def default(glyph, df, schema, canvas, summary, cuda=False):
+def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
     create, info, append, combine, finalize = \
-        compile_components(summary, schema, glyph, cuda=cuda)
+        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
@@ -176,7 +176,7 @@ def default(glyph, df, schema, canvas, summary, cuda=False):
 
 
 @glyph_dispatch.register(LineAxis0)
-def line(glyph, df, schema, canvas, summary, cuda=False):
+def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     if cuda:
         from cudf import concat
     else:
@@ -186,7 +186,7 @@ def line(glyph, df, schema, canvas, summary, cuda=False):
 
     # Compile functions
     create, info, append, combine, finalize = \
-        compile_components(summary, schema, glyph, cuda=cuda)
+        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append)
