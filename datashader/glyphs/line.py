@@ -26,14 +26,12 @@ except Exception:
 
 
 def _use_2_stage_agg(antialias_stage_2):
-    print("2 STAGE", antialias_stage_2)
-
     if antialias_stage_2 is None:
         # Not using antialiased lines, doesn't matter what is returned.
         return False
 
     if len(antialias_stage_2[0]) > 1:
-        raise NotImplementedError("to do ...")
+        raise NotImplementedError("Currently only support single antialiased reductions")
     comb = antialias_stage_2[0][0]
     return comb in (AntialiasCombination.SUM_2AGG, AntialiasCombination.MIN)
 
@@ -1079,15 +1077,21 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, use_2_sta
                 perform_extend_line(i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                                     plot_start, xs, ys, buffer, *aggs_and_cols)
 
-    @ngjit
-    #@expand_aggs_and_cols
     def extend_cpu_antialias_2agg(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
                                   plot_start, antialias_stage_2, *aggs_and_cols):
         """Aggregate along a line formed by ``xs`` and ``ys``"""
+        n_aggs = len(antialias_stage_2[0])
+        aggs = aggs_and_cols[:n_aggs]
+        cpu_antialias_2agg_impl(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
+                                plot_start, antialias_stage_2, aggs, *aggs_and_cols)
+
+    @ngjit
+    #@expand_aggs_and_cols
+    def cpu_antialias_2agg_impl(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
+                                plot_start, antialias_stage_2, aggs, *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
         antialias_combinations, antialias_zeroes = antialias_stage_2
-        print("CHECK", len(aggs_and_cols), antialias_zeroes)
         n_aggs = len(antialias_combinations)
 
         nrows, ncols = xs.shape
@@ -1100,17 +1104,17 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, use_2_sta
                 return
 
             if j == 0:
-                accum_aggs = [aggs_and_cols[k].copy() for k in range(n_aggs)]
+                accum_aggs = [aggs[k].copy() for k in range(n_aggs)]
             else:
                 for k in range(n_aggs):
-                    _combine_in_place(accum_aggs[k], aggs_and_cols[k], antialias_combinations[k])
+                    _combine_in_place(accum_aggs[k], aggs[k], antialias_combinations[k])
 
             if j < ncols - 1:
                 for k in range(n_aggs):
-                    parallel_fill(aggs_and_cols[k], antialias_zeroes[k])
+                    parallel_fill(aggs[k], antialias_zeroes[k])
 
         for k in range(n_aggs):
-            aggs_and_cols[k][:] = accum_aggs[k][:]
+            aggs[k][:] = accum_aggs[k][:]
 
     @cuda.jit
     @expand_aggs_and_cols
@@ -1170,14 +1174,20 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, u
                     xs, ys, buffer, *aggs_and_cols
                 )
 
-    @ngjit
-    #@expand_aggs_and_cols
     def extend_cpu_antialias_2agg(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
                                   antialias_stage_2, *aggs_and_cols):
+        n_aggs = len(antialias_stage_2[0])
+        aggs = aggs_and_cols[:n_aggs]
+        cpu_antialias_2agg_impl(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
+                                antialias_stage_2, aggs, *aggs_and_cols)
+
+    @ngjit
+    #@expand_aggs_and_cols
+    def cpu_antialias_2agg_impl(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
+                                antialias_stage_2, aggs, *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
         antialias_combinations, antialias_zeroes = antialias_stage_2
-        print("CHECK", len(aggs_and_cols), use_2_stage_agg, antialias_zeroes)
         n_aggs = len(antialias_combinations)
 
         ncols = xs.shape[1]
@@ -1189,22 +1199,18 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, u
             if xs.shape[0] == 1:
                 return
 
-            ##################################################
-            # If SUM_1AGG then do not need to do the 2-stage combine, for that agg only.
-            # May not need to copy some of the aggs.......
-
             if i == 0:
-                accum_aggs = [aggs_and_cols[k].copy() for k in range(n_aggs)]
+                accum_aggs = [aggs[k].copy() for k in range(n_aggs)]
             else:
                 for k in range(n_aggs):
-                    _combine_in_place(accum_aggs[k], aggs_and_cols[k], antialias_combinations[k])
+                    _combine_in_place(accum_aggs[k], aggs[k], antialias_combinations[k])
 
             if i < xs.shape[0] - 1:
                 for k in range(n_aggs):
-                    parallel_fill(aggs_and_cols[k], antialias_zeroes[k])
+                    parallel_fill(aggs[k], antialias_zeroes[k])
 
         for k in range(n_aggs):
-            aggs_and_cols[k][:] = accum_aggs[k][:]
+            aggs[k][:] = accum_aggs[k][:]
 
     @cuda.jit
     @expand_aggs_and_cols
@@ -1264,14 +1270,20 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols, use_
                     i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, buffer, *aggs_and_cols
                 )
 
-    @ngjit
-    #@expand_aggs_and_cols
     def extend_cpu_antialias_2agg(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
                                   antialias_stage_2, *aggs_and_cols):
+        n_aggs = len(antialias_stage_2[0])
+        aggs = aggs_and_cols[:n_aggs]
+        cpu_antialias_2agg_impl(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
+                                antialias_stage_2, aggs, *aggs_and_cols)
+
+    @ngjit
+    #@expand_aggs_and_cols
+    def cpu_antialias_2agg_impl(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
+                                antialias_stage_2, aggs, *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
         antialias_combinations, antialias_zeroes = antialias_stage_2
-        print("CHECK", len(aggs_and_cols), antialias_zeroes)
         n_aggs = len(antialias_combinations)
 
         ncols = ys.shape[1]
@@ -1282,21 +1294,21 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols, use_
                     buffer, *aggs_and_cols
                 )
 
-            if xs.shape[0] == 1:
+            if ys.shape[0] == 1:
                 return
 
             if i == 0:
-                accum_aggs = [aggs_and_cols[k].copy() for k in range(n_aggs)]
+                accum_aggs = [aggs[k].copy() for k in range(n_aggs)]
             else:
                 for k in range(n_aggs):
-                    _combine_in_place(accum_aggs[k], aggs_and_cols[k], antialias_combinations[k])
+                    _combine_in_place(accum_aggs[k], aggs[k], antialias_combinations[k])
 
-            if i < xs.shape[0] - 1:
+            if i < ys.shape[0] - 1:
                 for k in range(n_aggs):
-                    parallel_fill(aggs_and_cols[k], antialias_zeroes[k])
+                    parallel_fill(aggs[k], antialias_zeroes[k])
 
         for k in range(n_aggs):
-            aggs_and_cols[k][:] = accum_aggs[k][:]
+            aggs[k][:] = accum_aggs[k][:]
 
     @cuda.jit
     @expand_aggs_and_cols
@@ -1357,14 +1369,20 @@ def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols, use_
                     xs, ys, buffer, *aggs_and_cols
                 )
 
-    @ngjit
-    #@expand_aggs_and_cols
     def extend_cpu_antialias_2agg(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
                                   antialias_stage_2, *aggs_and_cols):
+        n_aggs = len(antialias_stage_2[0])
+        aggs = aggs_and_cols[:n_aggs]
+        cpu_antialias_2agg_impl(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
+                                antialias_stage_2, aggs, *aggs_and_cols)
+
+    @ngjit
+    #@expand_aggs_and_cols
+    def cpu_antialias_2agg_impl(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
+                                antialias_stage_2, aggs, *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
         antialias_combinations, antialias_zeroes = antialias_stage_2
-        print("CHECK", len(aggs_and_cols), antialias_zeroes)
         n_aggs = len(antialias_combinations)
 
         ncols = xs.shape[1]
@@ -1380,17 +1398,17 @@ def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols, use_
                 return
 
             if i == 0:
-                accum_aggs = [aggs_and_cols[k].copy() for k in range(n_aggs)]
+                accum_aggs = [aggs[k].copy() for k in range(n_aggs)]
             else:
                 for k in range(n_aggs):
-                    _combine_in_place(accum_aggs[k], aggs_and_cols[k], antialias_combinations[k])
+                    _combine_in_place(accum_aggs[k], aggs[k], antialias_combinations[k])
 
             if i < xs.shape[0] - 1:
                 for k in range(n_aggs):
-                    parallel_fill(aggs_and_cols[k], antialias_zeroes[k])
+                    parallel_fill(aggs[k], antialias_zeroes[k])
 
         for k in range(n_aggs):
-            aggs_and_cols[k][:] = accum_aggs[k][:]
+            aggs[k][:] = accum_aggs[k][:]
 
     @cuda.jit
     @expand_aggs_and_cols
@@ -1494,21 +1512,23 @@ def _build_extend_line_axis1_ragged(draw_segment, expand_aggs_and_cols, use_2_st
         y_start_i = ys.start_indices
         y_flat = ys.flat_array
 
+        n_aggs = len(antialias_stage_2[0])
+        aggs = aggs_and_cols[:n_aggs]
+
         extend_cpu_numba_antialias_2agg(
-            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            x_start_i, x_flat, y_start_i, y_flat, antialias_stage_2, *aggs_and_cols
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, x_start_i, x_flat,
+            y_start_i, y_flat, antialias_stage_2, aggs, *aggs_and_cols
         )
 
     @ngjit
     #@expand_aggs_and_cols
     def extend_cpu_numba_antialias_2agg(
-            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            x_start_i, x_flat, y_start_i, y_flat, antialias_stage_2, *aggs_and_cols
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, x_start_i, x_flat,
+            y_start_i, y_flat, antialias_stage_2, aggs, *aggs_and_cols
     ):
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
         antialias_combinations, antialias_zeroes = antialias_stage_2
-        print("CHECK", len(aggs_and_cols), antialias_zeroes)
         n_aggs = len(antialias_combinations)
 
         nrows = len(x_start_i)
@@ -1559,17 +1579,17 @@ def _build_extend_line_axis1_ragged(draw_segment, expand_aggs_and_cols, use_2_st
                 return
 
             if i == 0:
-                accum_aggs = [aggs_and_cols[k].copy() for k in range(n_aggs)]
+                accum_aggs = [aggs[k].copy() for k in range(n_aggs)]
             else:
                 for k in range(n_aggs):
-                    _combine_in_place(accum_aggs[k], aggs_and_cols[k], antialias_combinations[k])
+                    _combine_in_place(accum_aggs[k], aggs[k], antialias_combinations[k])
 
             if i < nrows - 1:
                 for k in range(n_aggs):
-                    parallel_fill(aggs_and_cols[k], antialias_zeroes[k])
+                    parallel_fill(aggs[k], antialias_zeroes[k])
 
         for k in range(n_aggs):
-            aggs_and_cols[k][:] = accum_aggs[k][:]
+            aggs[k][:] = accum_aggs[k][:]
 
     if use_2_stage_agg:
         return extend_cpu_antialias_2agg
@@ -1695,10 +1715,13 @@ def _build_extend_line_axis1_geometry(draw_segment, expand_aggs_and_cols, use_2_
             # Otherwise, process all indices
             eligible_inds = np.arange(0, len(geometry), dtype='uint32')
 
+        n_aggs = len(antialias_stage_2[0])
+        aggs = aggs_and_cols[:n_aggs]
+
         extend_cpu_numba_antialias_2agg(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             values, missing, offsets0, offsets1, eligible_inds,
-            closed_rings, antialias_stage_2, *aggs_and_cols
+            closed_rings, antialias_stage_2, aggs, *aggs_and_cols
         )
 
     @ngjit
@@ -1706,12 +1729,11 @@ def _build_extend_line_axis1_geometry(draw_segment, expand_aggs_and_cols, use_2_
     def extend_cpu_numba_antialias_2agg(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
             values, missing, offsets0, offsets1, eligible_inds,
-            closed_rings, antialias_stage_2, *aggs_and_cols
+            closed_rings, antialias_stage_2, aggs, *aggs_and_cols
     ):
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
         antialias_combinations, antialias_zeroes = antialias_stage_2
-        print("CHECK", len(aggs_and_cols), antialias_zeroes)
         n_aggs = len(antialias_combinations)
 
         for i in eligible_inds:
@@ -1759,17 +1781,17 @@ def _build_extend_line_axis1_geometry(draw_segment, expand_aggs_and_cols, use_2_
                                  0.0, 0.0, buffer, *aggs_and_cols)
 
                 if j == start0:
-                    accum_aggs = [aggs_and_cols[k].copy() for k in range(n_aggs)]
+                    accum_aggs = [aggs[k].copy() for k in range(n_aggs)]
                 else:
                     for k in range(n_aggs):
-                        _combine_in_place(accum_aggs[k], aggs_and_cols[k], antialias_combinations[k])
+                        _combine_in_place(accum_aggs[k], aggs[k], antialias_combinations[k])
 
                 if j < stop0 - 1:
                     for k in range(n_aggs):
-                        parallel_fill(aggs_and_cols[k], antialias_zeroes[k])
+                        parallel_fill(aggs[k], antialias_zeroes[k])
 
         for k in range(n_aggs):
-            aggs_and_cols[k][:] = accum_aggs[k][:]
+            aggs[k][:] = accum_aggs[k][:]
 
     if use_2_stage_agg:
         return extend_cpu_antialias_2agg

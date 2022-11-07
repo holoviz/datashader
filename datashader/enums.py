@@ -2,10 +2,9 @@ from __future__ import annotations
 from enum import Enum
 
 
-# This Enum should eventually be replaced with attributes
-# and/or member functions of Reduction classes.
+# Enum used to specify how the second stage aggregation is performed
+# for 2-stage antialiased lines.
 class AntialiasCombination(Enum):
-    NONE = 0        ##################### may not be needed
     SUM_1AGG = 1
     SUM_2AGG = 2
     MIN = 3

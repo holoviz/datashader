@@ -225,10 +225,8 @@ def make_antialias_stage_2(reds, bases):
     # Warn if requested both self_intersect=True and self_intersect=False???????
 
 
-    print("MAKE ANTIALIAS STAGE 2", bases)
 
     def antialias_stage_2(array_module):
-        print("CALLED")
         return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module) for b in bases)))
 
     return antialias_stage_2
