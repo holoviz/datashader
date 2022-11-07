@@ -6,7 +6,7 @@ from toolz import unique, concat, pluck, get, memoize
 import numpy as np
 import xarray as xr
 
-from .reductions import by, category_codes, summary
+from .reductions import by, category_codes, min, summary
 from .utils import ngjit
 
 
@@ -47,10 +47,10 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
         Given a tuple of base numpy arrays, returns the finalized ``DataArray``
         or ``Dataset``.
 
-    ###########antialias_stage_2()``
-     ##########   If using antialiased lines, returns a tuple of the ``AntialiasCombination``
-     #########   values corresponding to the aggs. If not using antialiased lines then
-     ###########   antialias_combinations will be None so do not call.
+    ``antialias_stage_2(array_module)``
+        If using antialiased lines, returns a tuple of the ``AntialiasCombination``
+        values corresponding to the aggs. If not using antialiased lines then
+        antialias_combinations will be None so do not call.
     """
     reds = list(traverse_aggregation(agg))
 
@@ -210,18 +210,25 @@ def make_finalize(bases, agg, schema, cuda):
 def make_antialias_stage_2(reds, bases):
     # Only called if antialias is True.
 
-    self_intersect = False  # Need to walk reductions for this...
 
-  #  antialias_combinations = tuple(concat(b._antialias_combination(self_intersect) for b in bases))
+    # Need to walk reductions for this...
+    # If just one reduction requests self_intersect=False then use False.
+    # or MIN...
+    # Otherwise use True.
+    # There is overlap here with _use_2_stage_agg function.
+    self_intersect = True
+    for red in reds:
+        if getattr(red, "self_intersect", True) == False or isinstance(red, min):
+            self_intersect = False
+    print("COMBINED self_intersect", self_intersect)
+
+    # Warn if requested both self_intersect=True and self_intersect=False???????
+
+
     print("MAKE ANTIALIAS STAGE 2", bases)
-   # # Needs to return a function that, when called, returns the tuple....
 
-    def antialias_stage_2(cuda):
+    def antialias_stage_2(array_module):
         print("CALLED")
-        #import pdb; pdb.set_trace()
-        #a = (b._antialias_combination(self_intersect, cuda) for b in bases)
-        #ret = tuple(concat(a))
-        #return ret
-        return tuple(zip(*concat(b._antialias_stage_2(self_intersect, cuda) for b in bases)))
+        return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module) for b in bases)))
 
     return antialias_stage_2
