@@ -339,8 +339,7 @@ class Canvas(object):
         """
         from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
                              LinesAxis1YConstant, LineAxis0Multi,
-                             LinesAxis1Ragged, LineAxis1Geometry,
-                             AntialiasCombination)
+                             LinesAxis1Ragged, LineAxis1Geometry)
 
         validate_xy_or_geometry('Line', x, y, geometry)
 
