@@ -62,7 +62,7 @@ class Triangles(_PolygonLike):
         Column names of x, y, and (optional) z coordinates of each vertex.
     """
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         draw_triangle, draw_triangle_interp = _build_draw_triangle(append)
         map_onto_pixel = _build_map_onto_pixel_for_triangle(x_mapper, y_mapper)
         extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel)

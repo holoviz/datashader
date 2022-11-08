@@ -6,7 +6,7 @@ import numpy as np
 
 from datashader.glyphs import Glyph
 from datashader.glyphs.line import _build_draw_segment, \
-    _build_map_onto_pixel_for_line, AntialiasCombination
+    _build_map_onto_pixel_for_line
 from datashader.utils import ngjit
 
 mapper = ngjit(lambda x: x)
@@ -23,7 +23,7 @@ def draw_line():
 
     expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1, False)
     return _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols,
-                               False, AntialiasCombination.NONE)
+                               0, False)
 
 
 @pytest.mark.benchmark(group="draw_line")

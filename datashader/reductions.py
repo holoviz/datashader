@@ -240,6 +240,12 @@ class Reduction(Expr):
     def inputs(self):
         return (extract(self.column),)
 
+    def _antialias_requires_2_stages(self):
+        # Return True if this Reduction must be processed with 2 stages,
+        # False if it doesn't matter.
+        # Overridden in derived classes as appropriate.
+        return False
+
     def _antialias_stage_2(self, self_intersect, array_module):
         # Only called if using antialiased lines. Overridden in derived classes.
         raise NotImplementedError(f"{type(self)}._antialias_combination is not defined")
@@ -348,6 +354,9 @@ class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
     def __init__(self, column=None, self_intersect=True):
         super().__init__(column)
         self.self_intersect = self_intersect
+
+    def _antialias_requires_2_stages(self):
+        return not self.self_intersect
 
     def _build_append(self, dshape, schema, cuda, antialias):
         if antialias and not self.self_intersect:
@@ -532,6 +541,12 @@ class by(Reduction):
     def inputs(self):
         return (self.preprocess, )
 
+    def _antialias_requires_2_stages(self):
+        return self.reduction._antialias_requires_2_stages()
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return self.reduction._antialias_stage_2(self_intersect, array_module)
+
     def _build_create(self, required_dshape):
         n_cats = len(required_dshape.measure.fields)
         return lambda shape, array_module: self.reduction._build_create(
@@ -709,6 +724,9 @@ class SelfIntersectingFloatingReduction(FloatingReduction):
         super().__init__(column)
         self.self_intersect = self_intersect
 
+    def _antialias_requires_2_stages(self):
+        return not self.self_intersect
+
     def _build_append(self, dshape, schema, cuda, antialias):
         if antialias and not self.self_intersect:
             if cuda:
@@ -843,6 +861,9 @@ class min(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+    def _antialias_requires_2_stages(self):
+        return True
+
     def _antialias_stage_2(self, self_intersect, array_module):
         return ((AntialiasCombination.MIN, array_module.nan),)
 

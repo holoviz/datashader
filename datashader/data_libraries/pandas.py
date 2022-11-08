@@ -29,13 +29,6 @@ def default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=Fal
         summary, schema, glyph, antialias=antialias, cuda=cuda)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    if antialias:
-        if cuda:
-            import cupy
-            array_module = cupy
-        else:
-            array_module = np
-        antialias_stage_2 = antialias_stage_2(array_module)
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
 
     x_range = canvas.x_range or glyph.compute_x_bounds(source)

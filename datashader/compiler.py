@@ -15,7 +15,9 @@ __all__ = ['compile_components']
 
 @memoize
 def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
-    """Given a ``Aggregation`` object and a schema, return 6 sub-functions.
+    """Given a ``Aggregation`` object and a schema, return 5 sub-functions
+    and, if antialiasing is requested, information on how to perform the
+    second stage aggregation.
 
     Parameters
     ----------
@@ -47,10 +49,10 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
         Given a tuple of base numpy arrays, returns the finalized ``DataArray``
         or ``Dataset``.
 
-    ``antialias_stage_2(array_module)``
-        If using antialiased lines, returns a tuple of the ``AntialiasCombination``
+    ``antialias_stage_2``
+        If using antialiased lines this is a tuple of the ``AntialiasCombination``
         values corresponding to the aggs. If not using antialiased lines then
-        antialias_combinations will be None so do not call.
+        this is None.
     """
     reds = list(traverse_aggregation(agg))
 
@@ -72,6 +74,12 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
 
     if antialias:
         antialias_stage_2 = make_antialias_stage_2(reds, bases)
+        if cuda:
+            import cupy
+            array_module = cupy
+        else:
+            array_module = np
+        antialias_stage_2 = antialias_stage_2(array_module)
     else:
         antialias_stage_2 = None
 
@@ -210,21 +218,13 @@ def make_finalize(bases, agg, schema, cuda):
 def make_antialias_stage_2(reds, bases):
     # Only called if antialias is True.
 
-
-    # Need to walk reductions for this...
-    # If just one reduction requests self_intersect=False then use False.
-    # or MIN...
-    # Otherwise use True.
-    # There is overlap here with _use_2_stage_agg function.
     self_intersect = True
     for red in reds:
-        if getattr(red, "self_intersect", True) == False or isinstance(red, min):
+        if red._antialias_requires_2_stages():
             self_intersect = False
-    print("COMBINED self_intersect", self_intersect)
+            break
 
-    # Warn if requested both self_intersect=True and self_intersect=False???????
-
-
+    # Warn if requested both self_intersect=True and self_intersect=False?
 
     def antialias_stage_2(array_module):
         return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module) for b in bases)))

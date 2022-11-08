@@ -20,7 +20,7 @@ class PolygonGeom(_GeometryLike):
         return PolygonDtype, MultiPolygonDtype
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_polygon = _build_draw_polygon(

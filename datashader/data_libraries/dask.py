@@ -70,11 +70,11 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize = \
+    create, info, append, combine, finalize, antialias_stage_2 = \
         compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
 
     # Here be dragons
     # Get the dataframe graph
@@ -185,11 +185,11 @@ def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize = \
+    create, info, append, combine, finalize, antialias_stage_2 = \
         compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
 
     def chunk(df, df2=None):
         plot_start = True
