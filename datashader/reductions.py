@@ -248,7 +248,9 @@ class Reduction(Expr):
 
     def _antialias_stage_2(self, self_intersect, array_module):
         # Only called if using antialiased lines. Overridden in derived classes.
-        raise NotImplementedError(f"{type(self)}._antialias_combination is not defined")
+        # Returns a tuple containing an item for each constituent reduction.
+        # Each item is (AntialiasCombination, zero_value)).
+        raise NotImplementedError(f"{type(self)}._antialias_stage_2 is not defined")
 
     def _build_bases(self, cuda=False):
         return (self,)

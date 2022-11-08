@@ -6,7 +6,7 @@ from toolz import unique, concat, pluck, get, memoize
 import numpy as np
 import xarray as xr
 
-from .reductions import by, category_codes, min, summary
+from .reductions import by, category_codes, summary
 from .utils import ngjit
 
 
@@ -16,8 +16,8 @@ __all__ = ['compile_components']
 @memoize
 def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     """Given a ``Aggregation`` object and a schema, return 5 sub-functions
-    and, if antialiasing is requested, information on how to perform the
-    second stage aggregation.
+    and information on how to perform the second stage aggregation if
+    antialiasing is requested,
 
     Parameters
     ----------
@@ -52,7 +52,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     ``antialias_stage_2``
         If using antialiased lines this is a tuple of the ``AntialiasCombination``
         values corresponding to the aggs. If not using antialiased lines then
-        this is None.
+        this is False.
     """
     reds = list(traverse_aggregation(agg))
 
@@ -81,7 +81,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
             array_module = np
         antialias_stage_2 = antialias_stage_2(array_module)
     else:
-        antialias_stage_2 = None
+        antialias_stage_2 = False
 
     return create, info, append, combine, finalize, antialias_stage_2
 
@@ -217,14 +217,11 @@ def make_finalize(bases, agg, schema, cuda):
 
 def make_antialias_stage_2(reds, bases):
     # Only called if antialias is True.
-
     self_intersect = True
     for red in reds:
         if red._antialias_requires_2_stages():
             self_intersect = False
             break
-
-    # Warn if requested both self_intersect=True and self_intersect=False?
 
     def antialias_stage_2(array_module):
         return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module) for b in bases)))

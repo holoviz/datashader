@@ -26,7 +26,8 @@ except Exception:
 
 
 def _two_stage_agg(antialias_stage_2):
-    if antialias_stage_2 is None:
+    """Information used to perform the correct stage 2 aggregation."""
+    if not antialias_stage_2:
         # Not using antialiased lines, doesn't matter what is returned.
         return False, False
 
