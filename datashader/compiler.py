@@ -61,7 +61,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     dshapes = [b.out_dshape(schema, antialias) for b in bases]
 
     # Information on how to perform second stage aggregation of antialiased lines,
-    # including whether antialiased lines self-intersect or not as need a single
+    # including whether antialiased lines self-intersect or not as we need a single
     # value for this even for a compound reduction. This is by default True, but
     # is False if a single constituent reduction requests it.
     if antialias:
