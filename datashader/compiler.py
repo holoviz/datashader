@@ -15,7 +15,7 @@ __all__ = ['compile_components']
 
 @memoize
 def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
-    """Given a ``Aggregation`` object and a schema, return 5 sub-functions
+    """Given an ``Aggregation`` object and a schema, return 5 sub-functions
     and information on how to perform the second stage aggregation if
     antialiasing is requested,
 
