@@ -15,7 +15,9 @@ __all__ = ['compile_components']
 
 @memoize
 def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
-    """Given a ``Aggregation`` object and a schema, return 5 sub-functions.
+    """Given an ``Aggregation`` object and a schema, return 5 sub-functions
+    and information on how to perform the second stage aggregation if
+    antialiasing is requested,
 
     Parameters
     ----------
@@ -46,6 +48,11 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     ``finalize(aggs)``
         Given a tuple of base numpy arrays, returns the finalized ``DataArray``
         or ``Dataset``.
+
+    ``antialias_stage_2``
+        If using antialiased lines this is a tuple of the ``AntialiasCombination``
+        values corresponding to the aggs. If not using antialiased lines then
+        this is False.
     """
     reds = list(traverse_aggregation(agg))
 
@@ -65,7 +72,18 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     combine = make_combine(bases, dshapes, temps, antialias)
     finalize = make_finalize(bases, agg, schema, cuda)
 
-    return create, info, append, combine, finalize
+    if antialias:
+        antialias_stage_2 = make_antialias_stage_2(reds, bases)
+        if cuda:
+            import cupy
+            array_module = cupy
+        else:
+            array_module = np
+        antialias_stage_2 = antialias_stage_2(array_module)
+    else:
+        antialias_stage_2 = False
+
+    return create, info, append, combine, finalize, antialias_stage_2
 
 
 def traverse_aggregation(agg):
@@ -195,3 +213,17 @@ def make_finalize(bases, agg, schema, cuda):
         return finalize
     else:
         return agg._build_finalize(schema)
+
+
+def make_antialias_stage_2(reds, bases):
+    # Only called if antialias is True.
+    self_intersect = True
+    for red in reds:
+        if red._antialias_requires_2_stages():
+            self_intersect = False
+            break
+
+    def antialias_stage_2(array_module):
+        return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module) for b in bases)))
+
+    return antialias_stage_2

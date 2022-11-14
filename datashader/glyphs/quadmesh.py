@@ -105,7 +105,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
         return infer_interval_breaks(centers)
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         x_name = self.x
         y_name = self.y
         name = self.name
@@ -257,7 +257,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
         return upsample_width, upsample_height
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         x_name = self.x
         y_name = self.y
         name = self.name
@@ -431,7 +431,7 @@ class QuadMeshCurvilinear(_QuadMeshLike):
         return breaks
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         x_name = self.x
         y_name = self.y
         name = self.name

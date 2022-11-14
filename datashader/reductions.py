@@ -6,6 +6,7 @@ from datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 
+from datashader.enums import AntialiasCombination
 from datashader.utils import isnull
 from numba import cuda as nb_cuda
 
@@ -239,6 +240,18 @@ class Reduction(Expr):
     def inputs(self):
         return (extract(self.column),)
 
+    def _antialias_requires_2_stages(self):
+        # Return True if this Reduction must be processed with 2 stages,
+        # False if it doesn't matter.
+        # Overridden in derived classes as appropriate.
+        return False
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        # Only called if using antialiased lines. Overridden in derived classes.
+        # Returns a tuple containing an item for each constituent reduction.
+        # Each item is (AntialiasCombination, zero_value)).
+        raise NotImplementedError(f"{type(self)}._antialias_stage_2 is not defined")
+
     def _build_bases(self, cuda=False):
         return (self,)
 
@@ -344,6 +357,9 @@ class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
         super().__init__(column)
         self.self_intersect = self_intersect
 
+    def _antialias_requires_2_stages(self):
+        return not self.self_intersect
+
     def _build_append(self, dshape, schema, cuda, antialias):
         if antialias and not self.self_intersect:
             # append functions specific to antialiased lines without self_intersect
@@ -379,6 +395,12 @@ class count(SelfIntersectingOptionalFieldReduction):
     """
     def out_dshape(self, in_dshape, antialias):
         return dshape(ct.float32) if antialias else dshape(ct.uint32)
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        if self_intersect:
+            return ((AntialiasCombination.SUM_1AGG, array_module.nan),)
+        else:
+            return ((AntialiasCombination.SUM_2AGG, array_module.nan),)
 
     # CPU append functions
     @staticmethod
@@ -521,6 +543,12 @@ class by(Reduction):
     def inputs(self):
         return (self.preprocess, )
 
+    def _antialias_requires_2_stages(self):
+        return self.reduction._antialias_requires_2_stages()
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return self.reduction._antialias_stage_2(self_intersect, array_module)
+
     def _build_create(self, required_dshape):
         n_cats = len(required_dshape.measure.fields)
         return lambda shape, array_module: self.reduction._build_create(
@@ -558,6 +586,9 @@ class any(OptionalFieldReduction):
     """
     def out_dshape(self, in_dshape, antialias):
         return dshape(ct.float32) if antialias else dshape(ct.bool_)
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.MAX, array_module.nan),)
 
     # CPU append functions
     @staticmethod
@@ -695,6 +726,9 @@ class SelfIntersectingFloatingReduction(FloatingReduction):
         super().__init__(column)
         self.self_intersect = self_intersect
 
+    def _antialias_requires_2_stages(self):
+        return not self.self_intersect
+
     def _build_append(self, dshape, schema, cuda, antialias):
         if antialias and not self.self_intersect:
             if cuda:
@@ -724,6 +758,12 @@ class sum(SelfIntersectingFloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+    def _antialias_stage_2(self, self_intersect, array_module):
+        if self_intersect:
+            return ((AntialiasCombination.SUM_1AGG, array_module.nan),)
+        else:
+            return ((AntialiasCombination.SUM_2AGG, array_module.nan),)
+
     def _build_bases(self, cuda=False):
         if cuda:
             return (_sum_zero(self.column), any(self.column))
@@ -823,6 +863,12 @@ class min(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.MIN, array_module.nan),)
+
     # CPU append functions
     @staticmethod
     @ngjit
@@ -859,6 +905,9 @@ class max(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.MAX, array_module.nan),)
+
     # CPU append functions
     @staticmethod
     @ngjit

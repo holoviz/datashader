@@ -339,8 +339,7 @@ class Canvas(object):
         """
         from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
                              LinesAxis1YConstant, LineAxis0Multi,
-                             LinesAxis1Ragged, LineAxis1Geometry,
-                             AntialiasCombination)
+                             LinesAxis1Ragged, LineAxis1Geometry)
 
         validate_xy_or_geometry('Line', x, y, geometry)
 
@@ -433,27 +432,15 @@ The axis argument to Canvas.line must be 0 or 1
         glyph.antialiased = (line_width > 0)
 
         if glyph.antialiased:
-            # Eventually this should be replaced with attributes and/or
-            # member functions of Reduction classes.
+            # This is required to identify and report use of reductions that do
+            # not yet support antialiasing.
             non_cat_agg = agg
             if isinstance(non_cat_agg, rd.by):
                 non_cat_agg = non_cat_agg.reduction
 
-            antialias_combination = AntialiasCombination.NONE
-            if isinstance(non_cat_agg, (rd.any, rd.max)):
-                antialias_combination = AntialiasCombination.MAX
-            elif isinstance(non_cat_agg, rd.min):
-                antialias_combination = AntialiasCombination.MIN
-            elif isinstance(non_cat_agg, (rd.count, rd.sum)):
-                if non_cat_agg.self_intersect:
-                    antialias_combination = AntialiasCombination.SUM_1AGG
-                else:
-                    antialias_combination = AntialiasCombination.SUM_2AGG
-            else:
+            if not isinstance(non_cat_agg, (rd.any, rd.count, rd.max, rd.min, rd.sum)):
                 raise NotImplementedError(
                     f"{type(non_cat_agg)} reduction not implemented for antialiased lines")
-
-            glyph.set_antialias_combination(antialias_combination)
 
         return bypixel(source, self, glyph, agg, antialias=glyph.antialiased)
 
