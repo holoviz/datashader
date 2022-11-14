@@ -59,8 +59,26 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     # List of base reductions (actually computed)
     bases = list(unique(concat(r._build_bases(cuda) for r in reds)))
     dshapes = [b.out_dshape(schema, antialias) for b in bases]
+
+    # Information on how to perform second stage aggregation of antialiased lines,
+    # including whether antialiased lines self-intersect or not as need a single
+    # value for this even for a compound reduction. This is by default True, but
+    # is False if a single constituent reduction requests it.
+    if antialias:
+        self_intersect, antialias_stage_2 = make_antialias_stage_2(reds, bases)
+        if cuda:
+            import cupy
+            array_module = cupy
+        else:
+            array_module = np
+        antialias_stage_2 = antialias_stage_2(array_module)
+    else:
+        self_intersect = False
+        antialias_stage_2 = False
+
     # List of tuples of (append, base, input columns, temps)
-    calls = [_get_call_tuples(b, d, schema, cuda, antialias) for (b, d) in zip(bases, dshapes)]
+    calls = [_get_call_tuples(b, d, schema, cuda, antialias, self_intersect)
+             for (b, d) in zip(bases, dshapes)]
     # List of unique column names needed
     cols = list(unique(concat(pluck(2, calls))))
     # List of temps needed
@@ -71,17 +89,6 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     append = make_append(bases, cols, calls, glyph, isinstance(agg, by), antialias)
     combine = make_combine(bases, dshapes, temps, antialias)
     finalize = make_finalize(bases, agg, schema, cuda)
-
-    if antialias:
-        antialias_stage_2 = make_antialias_stage_2(reds, bases)
-        if cuda:
-            import cupy
-            array_module = cupy
-        else:
-            array_module = np
-        antialias_stage_2 = antialias_stage_2(array_module)
-    else:
-        antialias_stage_2 = False
 
     return create, info, append, combine, finalize, antialias_stage_2
 
@@ -96,10 +103,10 @@ def traverse_aggregation(agg):
         yield agg
 
 
-def _get_call_tuples(base, dshape, schema, cuda, antialias):
+def _get_call_tuples(base, dshape, schema, cuda, antialias, self_intersect):
     # Comments refer to usage in make_append()
     return (
-        base._build_append(dshape, schema, cuda, antialias),  # func
+        base._build_append(dshape, schema, cuda, antialias, self_intersect),  # func
         (base,),  # bases
         base.inputs,  # cols
         base._build_temps(cuda),  # temps
@@ -217,6 +224,9 @@ def make_finalize(bases, agg, schema, cuda):
 
 def make_antialias_stage_2(reds, bases):
     # Only called if antialias is True.
+
+    # Prefer a single-stage antialiased aggregation, but if any requested
+    # reduction requires two stages then force use of two for all reductions.
     self_intersect = True
     for red in reds:
         if red._antialias_requires_2_stages():
@@ -226,4 +236,4 @@ def make_antialias_stage_2(reds, bases):
     def antialias_stage_2(array_module):
         return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module) for b in bases)))
 
-    return antialias_stage_2
+    return self_intersect, antialias_stage_2

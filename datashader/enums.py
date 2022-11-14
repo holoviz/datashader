@@ -9,3 +9,5 @@ class AntialiasCombination(Enum):
     SUM_2AGG = 2
     MIN = 3
     MAX = 4
+    FIRST = 5
+    LAST = 6

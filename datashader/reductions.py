@@ -279,7 +279,7 @@ class Reduction(Expr):
         else:
             raise NotImplementedError(f"Unexpected dshape {dshape}")
 
-    def _build_append(self, dshape, schema, cuda, antialias):
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         if cuda:
             if antialias and self.column is None:
                 return self._append_no_field_antialias_cuda
@@ -360,8 +360,8 @@ class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
     def _antialias_requires_2_stages(self):
         return not self.self_intersect
 
-    def _build_append(self, dshape, schema, cuda, antialias):
-        if antialias and not self.self_intersect:
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if antialias and not self_intersect:
             # append functions specific to antialiased lines without self_intersect
             if cuda:
                 if self.column is None:
@@ -375,7 +375,7 @@ class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
                     return self._append_antialias_not_self_intersect
 
         # Fall back to base class implementation
-        return super()._build_append(dshape, schema, cuda, antialias)
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     def _hashable_inputs(self):
         # Reductions with different self_intersect attributes much have different hashes otherwise
@@ -560,8 +560,8 @@ class by(Reduction):
             return bases
         return tuple(by(self.categorizer, base) for base in bases)
 
-    def _build_append(self, dshape, schema, cuda, antialias):
-        return self.reduction._build_append(dshape, schema, cuda, antialias)
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        return self.reduction._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     def _build_combine(self, dshape, antialias):
         return self.reduction._build_combine(dshape, antialias)
@@ -689,8 +689,13 @@ class _sum_zero(FloatingReduction):
     ----------
     column : str
         Name of the column to aggregate over. Column data type must be numeric.
-        ``NaN`` values in the column are skipped.
     """
+    def _antialias_stage_2(self, self_intersect, array_module):
+        if self_intersect:
+            return ((AntialiasCombination.SUM_1AGG, 0),)
+        else:
+            return ((AntialiasCombination.SUM_2AGG, 0),)
+
     def _build_create(self, required_dshape):
         return self._create_float64_zero
 
@@ -699,10 +704,24 @@ class _sum_zero(FloatingReduction):
     @ngjit
     def _append(x, y, agg, field):
         if not isnull(field):
-            if isnull(agg[y, x]):
-                agg[y, x] = field
-            else:
-                agg[y, x] += field
+            # agg[y, x] cannot be null as initialised to zero.
+            agg[y, x] += field
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value):
+            # agg[y, x] cannot be null as initialised to zero.
+            agg[y, x] += value
+
+    @staticmethod
+    @ngjit
+    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value) and value > agg[y, x]:
+            # agg[y, x] cannot be null as initialised to zero.
+            agg[y, x] = value
 
     # GPU append functions
     @staticmethod
@@ -729,8 +748,8 @@ class SelfIntersectingFloatingReduction(FloatingReduction):
     def _antialias_requires_2_stages(self):
         return not self.self_intersect
 
-    def _build_append(self, dshape, schema, cuda, antialias):
-        if antialias and not self.self_intersect:
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if antialias and not self_intersect:
             if cuda:
                 raise NotImplementedError("SelfIntersectingOptionalFieldReduction")
             else:
@@ -739,7 +758,7 @@ class SelfIntersectingFloatingReduction(FloatingReduction):
                 else:
                     return self._append_antialias_not_self_intersect
 
-        return super()._build_append(dshape, schema, cuda, antialias)
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     def _hashable_inputs(self):
         # Reductions with different self_intersect attributes much have different hashes otherwise
@@ -824,11 +843,11 @@ class m2(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-    def _build_append(self, dshape, schema, cuda, antialias):
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         if cuda:
             raise ValueError("""\
 The 'std' and 'var' reduction operations are not yet supported on the GPU""")
-        return super(m2, self)._build_append(dshape, schema, cuda, antialias)
+        return super(m2, self)._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     def _build_create(self, required_dshape):
         return self._create_float64_zero
@@ -1032,11 +1051,24 @@ class first(Reduction):
     def out_dshape(self, in_dshape, antialias):
         return dshape(Option(ct.float64))
 
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.FIRST, array_module.nan),)
+
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
         if not isnull(field) and isnull(agg[y, x]):
             agg[y, x] = field
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if isnull(agg[y, x]) or value > agg[y, x]:
+            agg[y, x] = value
 
     @staticmethod
     def _combine(aggs):
@@ -1065,11 +1097,24 @@ class last(Reduction):
     def out_dshape(self, in_dshape, antialias):
         return dshape(Option(ct.float64))
 
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.LAST, array_module.nan),)
+
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] = field
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if isnull(agg[y, x]) or value > agg[y, x]:
+            agg[y, x] = value
 
     @staticmethod
     def _combine(aggs):
@@ -1128,6 +1173,15 @@ class summary(Expr):
 
     >>> import datashader as ds
     >>> red = ds.summary(mean_a=ds.mean('a'), sum_b=ds.sum('b'))
+
+    Notes
+    -----
+    A single pass of the source dataset using antialiased lines can either be
+    performed using a single-stage aggregation (e.g. ``self_intersect=True``)
+    or two stages (``self_intersect=False``). If a ``summary`` contains a
+    ``count`` or ``sum`` reduction with ``self_intersect=False``, or any of
+    ``first``, ``last`` or ``min``, then the antialiased line pass will be
+    performed in two stages.
     """
     def __init__(self, **kwargs):
         ks, vs = zip(*sorted(kwargs.items()))
