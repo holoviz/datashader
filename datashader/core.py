@@ -17,7 +17,7 @@ from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
 
-import awkward._v2 as ak
+import awkward as ak
 import awkward_pandas as akpd
 ak.numba.register_and_check()  # Don't know if this is needed here
 

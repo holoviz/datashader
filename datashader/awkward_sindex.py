@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import awkward._v2 as ak
+import awkward as ak
 import awkward_pandas as akpd
 import numpy as np
 import pandas as pd

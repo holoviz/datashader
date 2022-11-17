@@ -1,4 +1,4 @@
-import awkward._v2 as ak
+import awkward as ak
 from awkward_pandas import AwkwardDtype
 
 from toolz import memoize

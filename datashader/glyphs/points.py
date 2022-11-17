@@ -8,7 +8,7 @@ from datashader.utils import isreal, ngjit
 
 from numba import cuda
 
-import awkward._v2 as ak
+import awkward as ak
 from awkward_pandas import AwkwardDtype
 
 try:
