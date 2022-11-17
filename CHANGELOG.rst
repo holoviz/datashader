@@ -1,3 +1,40 @@
+Version 0.14.3 (2022-11-17)
+---------------------------
+
+This release fixes a bug related to spatial indexing of ``spatialpandas.GeoDataFrames``, and introduces enhancements to antialiased lines, benchmarking and GPU support.
+
+Thanks to first-time contributors `@eriknw <https://github.com/eriknw>`_ and `@raybellwaves <https://github.com/raybellwaves>`_, and also `@ianthomas23 <https://github.com/ianthomas23>`_ and `@maximlt <https://github.com/maximlt>`_.
+
+Enhancements:
+
+* Improvements to antialiased lines:
+
+  - Fit antialiased line code within usual numba/dask framework (`#1142 <https://github.com/holoviz/datashader/pull/1142>`_)
+  - Refactor stage 2 aggregation for antialiased lines (`#1145 <https://github.com/holoviz/datashader/pull/1145>`_)
+  - Support compound reductions for antialiased lines on the CPU (`#1146 <https://github.com/holoviz/datashader/pull/1146>`_)
+
+* New benchmark framework:
+
+  - Add benchmarking framework using ``asv`` (`#1120 <https://github.com/holoviz/datashader/pull/1120>`_)
+  - Add ``cudf``, ``dask`` and ``dask-cudf`` ``Canvas.line`` benchmarks (`#1140 <https://github.com/holoviz/datashader/pull/1140>`_)
+
+* Improvements to GPU support:
+
+  - Cupy implementation of eq_hist (`#1129 <https://github.com/holoviz/datashader/pull/1129>`_)
+
+* Improvements to documentation:
+
+  - Fix markdown syntax for link (`#1119 <https://github.com/holoviz/datashader/pull/1119>`_)
+  - DOC: add text link to https://examples.pyviz.org/datashader_dashboard (`#1123 <https://github.com/holoviz/datashader/pull/1123>`_)
+
+* Improvements to dependency management (`#1111 <https://github.com/holoviz/datashader/pull/1111>`_, `#1116 <https://github.com/holoviz/datashader/pull/1116>`_)
+
+* Improvements to CI (`#1132 <https://github.com/holoviz/datashader/pull/1132>`_, `#1135 <https://github.com/holoviz/datashader/pull/1135>`_, `#1136 <https://github.com/holoviz/datashader/pull/1136>`_, `#1137 <https://github.com/holoviz/datashader/pull/1137>`_, `#1143 <https://github.com/holoviz/datashader/pull/1143>`_)
+
+Bug fixes:
+
+*  Ensure spatial index ``_sindex`` is retained on dataframe copy (`#1122 <https://github.com/holoviz/datashader/pull/1122>`_)
+
 Version 0.14.2 (2022-08-10)
 ---------------------------
 
