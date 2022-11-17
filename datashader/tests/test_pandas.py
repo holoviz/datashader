@@ -1872,6 +1872,17 @@ def test_line_antialias():
     agg = cvs.line(agg=ds.min("value"), **kwargs)
     assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
 
+    agg = cvs.line(agg=ds.first("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.last("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.mean("value"), **kwargs)
+    # Sum = 3*count so mean is 3 everywhere that there is any fraction of an antialiased line
+    sol = np.where(line_antialias_sol_0 > 0, 3.0, np.nan)
+    assert_eq_ndarray(agg.data, sol, close=True)
+
     # Second line only, doesn't self-intersect
     kwargs = dict(source=line_antialias_df, x="x1", y="y1", line_width=1)
     agg = cvs.line(agg=ds.any(), **kwargs)
@@ -1895,6 +1906,16 @@ def test_line_antialias():
     agg = cvs.line(agg=ds.min("value"), **kwargs)
     assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
 
+    agg = cvs.line(agg=ds.first("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.last("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.mean("value"), **kwargs)
+    sol_mean = np.where(line_antialias_sol_1 > 0, 3.0, np.nan)
+    assert_eq_ndarray(agg.data, sol_mean, close=True)
+
     # Both lines.
     kwargs = dict(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], line_width=1)
     agg = cvs.line(agg=ds.any(), **kwargs)
@@ -1902,25 +1923,103 @@ def test_line_antialias():
     assert_eq_ndarray(agg.data, sol_max, close=True)
 
     agg = cvs.line(agg=ds.count(self_intersect=False), **kwargs)
-    sol_sum = nansum(line_antialias_sol_0, line_antialias_sol_1)
-    assert_eq_ndarray(agg.data, sol_sum, close=True)
+    sol_count = nansum(line_antialias_sol_0, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, sol_count, close=True)
 
     agg = cvs.line(agg=ds.count(self_intersect=True), **kwargs)
-    sol_sum_intersect = nansum(line_antialias_sol_0_intersect, line_antialias_sol_1)
-    assert_eq_ndarray(agg.data, sol_sum_intersect, close=True)
+    sol_count_intersect = nansum(line_antialias_sol_0_intersect, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, sol_count_intersect, close=True)
 
     agg = cvs.line(agg=ds.sum("value", self_intersect=False), **kwargs)
-    assert_eq_ndarray(agg.data, 3*sol_sum, close=True)
+    assert_eq_ndarray(agg.data, 3*sol_count, close=True)
 
     agg = cvs.line(agg=ds.sum("value", self_intersect=True), **kwargs)
-    assert_eq_ndarray(agg.data, 3*sol_sum_intersect, close=True)
+    assert_eq_ndarray(agg.data, 3*sol_count_intersect, close=True)
 
     agg = cvs.line(agg=ds.max("value"), **kwargs)
     assert_eq_ndarray(agg.data, 3*sol_max, close=True)
 
-    agg = cvs.line(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], agg=ds.min("value"), line_width=1)
+    agg = cvs.line(agg=ds.min("value"), **kwargs)
     sol_min = nanmin(line_antialias_sol_0, line_antialias_sol_1)
     assert_eq_ndarray(agg.data, 3*sol_min, close=True)
+
+    agg = cvs.line(agg=ds.first("value"), **kwargs)
+    sol_first = 3*np.where(np.isnan(line_antialias_sol_0), line_antialias_sol_1, line_antialias_sol_0)
+    assert_eq_ndarray(agg.data, sol_first, close=True)
+
+    agg = cvs.line(agg=ds.last("value"), **kwargs)
+    sol_last = 3*np.where(np.isnan(line_antialias_sol_1), line_antialias_sol_0, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, sol_last, close=True)
+
+    agg = cvs.line(agg=ds.mean("value"), **kwargs)
+    sol_mean = np.where(sol_count>0, 3.0, np.nan)
+    assert_eq_ndarray(agg.data, sol_mean, close=True)
+
+
+def test_line_antialias_summary():
+    kwargs = dict(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], line_width=1)
+
+    x_range = y_range = (-0.1875, 1.1875)
+    cvs = ds.Canvas(plot_width=11, plot_height=11, x_range=x_range, y_range=y_range)
+
+    # Precalculate expected solutions
+    sol_count = nansum(line_antialias_sol_0, line_antialias_sol_1)
+    sol_count_intersect = nansum(line_antialias_sol_0_intersect, line_antialias_sol_1)
+    sol_min = 3*nanmin(line_antialias_sol_0, line_antialias_sol_1)
+    sol_first = 3*np.where(np.isnan(line_antialias_sol_0), line_antialias_sol_1, line_antialias_sol_0)
+    sol_last = 3*np.where(np.isnan(line_antialias_sol_1), line_antialias_sol_0, line_antialias_sol_1)
+
+    # Summary of count and sum using self_intersect=True
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=True),
+            sum=ds.sum("value", self_intersect=True),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count_intersect, close=True)
+    assert_eq_ndarray(agg["sum"].data, 3*sol_count_intersect, close=True)
+
+    # Summary of count and sum using self_intersect=False
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=False),
+            sum=ds.sum("value", self_intersect=False),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+    assert_eq_ndarray(agg["sum"].data, 3*sol_count, close=True)
+
+    # Summary of count/sum with mix of self_intersect will force self_intersect=False for both
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=True),
+            sum=ds.sum("value", self_intersect=False),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+    assert_eq_ndarray(agg["sum"].data, 3*sol_count, close=True)
+
+    # min, first and last also force use of self_intersect=False
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=True),
+            min=ds.min("value"),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+    assert_eq_ndarray(agg["min"].data, sol_min, close=True)
+
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=True),
+            first=ds.first("value"),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+    assert_eq_ndarray(agg["first"].data, sol_first, close=True)
+
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=True),
+            last=ds.last("value"),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+    assert_eq_ndarray(agg["last"].data, sol_last, close=True)
 
 
 line_antialias_nan_sol_intersect = np.array([
@@ -2085,8 +2184,13 @@ def test_line_antialias_duplicate_points(self_intersect):
 
 
 @pytest.mark.parametrize('reduction', [
-    ds.mean('value'), ds.std('value'), ds.summary(c=ds.count()), ds.var('value'),
-    ds.first('value'), ds.last('value')])
+    #ds.mean('value'),
+    ds.std('value'),
+    ds.var('value'),
+    #ds.summary(c=ds.count()), ds.sum('value'),
+    #ds.first('value'),
+    #ds.last('value'),
+])
 def test_line_antialias_reduction_not_implemented(reduction):
     # Issue #1133, detect and report reductions that are not implemented.
     cvs = ds.Canvas(plot_width=10, plot_height=10)

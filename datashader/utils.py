@@ -585,6 +585,30 @@ def isnull(val):
 
 
 @ngjit_parallel
+def nanfirst_in_place(ret, other):
+    """First of 2 arrays but taking nans into account.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]) and not isnull(other[i]):
+            ret[i] = other[i]
+
+
+@ngjit_parallel
+def nanlast_in_place(ret, other):
+    """Last of 2 arrays but taking nans into account.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if not isnull(other[i]):
+            ret[i] = other[i]
+
+
+@ngjit_parallel
 def nanmax_in_place(ret, other):
     """Max of 2 arrays but taking nans into account.  Could use np.nanmax but
     would need to replace zeros with nans where both arrays are nans.
