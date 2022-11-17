@@ -25,7 +25,7 @@ install_requires = [
 ]
 
 examples = [
-    'bokeh',
+    'bokeh <3.0',
     'geopandas',
     'holoviews',
     'matplotlib',
