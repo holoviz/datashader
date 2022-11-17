@@ -55,7 +55,7 @@ class PolygonAwkwardGeom(_GeometryLike):
         return (AwkwardDtype,)
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_polygon = _build_draw_awkward_polygon(
@@ -466,7 +466,7 @@ def _build_extend_awkward_polygon_geometry(
         # This function will eventually deal with different nested polygon arrangements.
         # This is usually a non-ngjitted function...
         # determine eligible indices and so on.
-        if geometry._sindex is not None:
+        if getattr(geometry, "_sindex", None):
             # Compute indices of potentially intersecting polygons using
             # geometry's R-tree if there is one
             eligible_inds = geometry._sindex.intersects((xmin, ymin, xmax, ymax))
