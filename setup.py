@@ -57,6 +57,8 @@ extras_require = {
         ### conda only below here
         'fastparquet',
         'graphviz',
+        # Issues with comm (see https://github.com/ipython/ipykernel/issues/1026)
+        'ipykernel <6.18.0'
         'python-graphviz',
         'python-snappy',
         'rasterio',
