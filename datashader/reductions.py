@@ -1159,6 +1159,65 @@ class mode(Reduction):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
 
+class where(FloatingReduction):
+    ######## Initially dropping through to wrapped/contained reduction
+    def __init__(self, column: str, reduction: Reduction):
+        super().__init__(column)
+        self.reduction = reduction
+        self.columns = (self.column, reduction.column)
+        ##### Do not allow the column names to be the same?????
+
+    def __hash__(self):
+        return hash((type(self), self._hashable_inputs(), self.reduction))
+
+ #   @property
+ #   def inputs(self):
+ #       return self.reduction.inputs + super().inputs
+
+    def out_dshape(self, input_dshape, antialias):
+        return self.reduction.out_dshape(input_dshape, antialias)
+
+    def validate(self, in_dshape):
+        super().validate(in_dshape)
+        self.reduction.validate(in_dshape)
+
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        pass # Do nothing
+
+#    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+#        print("BUILD APPEND")
+#        return self.reduction._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+    def _build_bases(self, cuda=False):
+        ret = super()._build_bases(cuda=cuda) + self.reduction._build_bases(cuda=cuda)
+        print("BUILD BASES", ret)
+        return ret
+
+#    def _build_combine(self, dshape, antialias):
+#        print("BUILD COMBINE")
+#        return self.reduction._build_combine(dshape, antialias)
+
+#    def _build_create(self, required_dshape):
+#        ret = super()._build_create(required_dshape)
+#        print("BUILD CREATE", ret)
+#        return ret
+
+#    def _build_finalize(self, dshape):
+#        print("BUILD FINALIZE")
+#        return self.reduction._build_finalize(dshape)
+
+    @staticmethod
+    def _combine(aggs):
+        # This does need to be implemented...   Will need access to other aggs to work out how to
+        # combine???
+        raise NotImplementedError()
+
+
+
+
 
 class summary(Expr):
     """A collection of named reductions.

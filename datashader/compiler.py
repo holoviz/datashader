@@ -60,6 +60,9 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     bases = list(unique(concat(r._build_bases(cuda) for r in reds)))
     dshapes = [b.out_dshape(schema, antialias) for b in bases]
 
+    print("XX bases", bases)
+    print("XX dshape", dshapes)
+
     # Information on how to perform second stage aggregation of antialiased lines,
     # including whether antialiased lines self-intersect or not as we need a single
     # value for this even for a compound reduction. This is by default True, but
@@ -79,8 +82,12 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     # List of tuples of (append, base, input columns, temps)
     calls = [_get_call_tuples(b, d, schema, cuda, antialias, self_intersect)
              for (b, d) in zip(bases, dshapes)]
+
+    print("XX calls", calls)
+
     # List of unique column names needed
     cols = list(unique(concat(pluck(2, calls))))
+    print("XX COLS", cols, [e.column for e in cols])
     # List of temps needed
     temps = list(pluck(3, calls))
 
@@ -130,8 +137,11 @@ def make_info(cols):
 def make_append(bases, cols, calls, glyph, categorical, antialias):
     names = ('_{0}'.format(i) for i in count())
     inputs = list(bases) + list(cols)
+    print("APPEND inputs", inputs)
     signature = [next(names) for i in inputs]
+    print("APPEND signature", signature)
     arg_lk = dict(zip(inputs, signature))
+    print("ARGUMENT LOOKUP", arg_lk)
     local_lk = {}
     namespace = {}
     body = []
@@ -142,6 +152,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         subscript = None
 
     for func, bases, cols, temps in calls:
+        print("LOOP", func, bases, cols, temps)
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
         namespace[func_name] = func
@@ -183,6 +194,9 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         code = ('def append({0}, x, y, {1}):\n'
                 '    {2}'
                 ).format(subscript, ', '.join(signature), '\n    '.join(body))
+    print('-----------------------------')
+    print("CODE", code)
+    print('-----------------------------')
     exec(code, namespace)
     return ngjit(namespace['append'])
 

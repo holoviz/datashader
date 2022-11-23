@@ -45,7 +45,9 @@ def default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=Fal
 
     bases = create((height, width))
 
+    print("XXX BASES BEFORE EXTEND", bases)
     extend(bases, source, x_st + y_st, x_range + y_range)
+    print("XXX BASES AFTER EXTEND", bases)
 
     return finalize(bases,
                     cuda=cuda,
