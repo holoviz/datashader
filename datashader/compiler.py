@@ -6,7 +6,7 @@ from toolz import unique, concat, pluck, get, memoize
 import numpy as np
 import xarray as xr
 
-from .reductions import by, category_codes, summary
+from .reductions import by, category_codes, summary, where
 from .utils import ngjit
 
 
@@ -173,6 +173,24 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
             args.append("aa_factor")
 
         body.append('{0}(x, y, {1})'.format(func_name, ', '.join(args)))
+
+
+        # Need to identify if this is a where reduction, then need the next reduction too...
+        # Next reduction must be a single-action reduction (i.e. summary is no good as cannot have
+        # idea of single boolean change flag retured)
+
+      #  if index == 1:
+      #      body[-1] = 'changed=' + body[-1]
+      #      body.append('print("changed", changed, x, y)')
+
+        if len(bases) == 1 and isinstance(bases[0], where):
+            print("===== MODIFY")
+            #import pdb; pdb.set_trace()
+            # Need to modify the previous and current bodies.
+            body[-2] = 'if ' + body[-2] + ':'
+            body[-1] = '    ' + body[-1]
+
+
 
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body

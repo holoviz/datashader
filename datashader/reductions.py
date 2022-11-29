@@ -892,10 +892,10 @@ class min(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if isnull(agg[y, x]):
+        if isnull(agg[y, x]) or agg[y, x] > field:
             agg[y, x] = field
-        elif agg[y, x] > field:
-            agg[y, x] = field
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -931,10 +931,10 @@ class max(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if isnull(agg[y, x]):
+        if isnull(agg[y, x]) or agg[y, x] < field:
             agg[y, x] = field
-        elif agg[y, x] < field:
-            agg[y, x] = field
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -1170,6 +1170,10 @@ class where(FloatingReduction):
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.reduction))
 
+    @staticmethod
+    def _finalize(bases, cuda=False, **kwargs):
+        return xr.DataArray(bases[-1], **kwargs)
+
  #   @property
  #   def inputs(self):
  #       return self.reduction.inputs + super().inputs
@@ -1185,14 +1189,17 @@ class where(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        pass # Do nothing
+        print('where update', x, y, field)
+        agg[y, x] = field
+        return True
 
 #    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
 #        print("BUILD APPEND")
 #        return self.reduction._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     def _build_bases(self, cuda=False):
-        ret = super()._build_bases(cuda=cuda) + self.reduction._build_bases(cuda=cuda)
+        #ret = super()._build_bases(cuda=cuda) + self.reduction._build_bases(cuda=cuda)
+        ret = self.reduction._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
         print("BUILD BASES", ret)
         return ret
 
