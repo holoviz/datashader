@@ -340,7 +340,8 @@ class OptionalFieldReduction(Reduction):
         return (extract(self.column),) if self.column is not None else ()
 
     def validate(self, in_dshape):
-        pass
+        if self.column is not None:
+            super().validate(in_dshape)
 
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
@@ -1209,13 +1210,13 @@ class mode(Reduction):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
 
-class where(FloatingReduction):
-    ######## Initially dropping through to wrapped/contained reduction
-    def __init__(self, column: str, reduction: Reduction):
+class where(OptionalFieldReduction):
+    def __init__(self, reduction, column = None):
         super().__init__(column)
         self.reduction = reduction
-        self.columns = (self.column, reduction.column)
-        ##### Do not allow the column names to be the same?????
+        self.columns = (reduction.column,)
+        if self.column is not None:
+            self.columns += (self.column,)
 
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.reduction))
@@ -1230,6 +1231,8 @@ class where(FloatingReduction):
     def validate(self, in_dshape):
         super().validate(in_dshape)
         self.reduction.validate(in_dshape)
+        if self.column is not None and self.column == self.reduction.column:
+            raise ValueError("where and its contained reduction cannot use the same column")
 
     # CPU append functions
     @staticmethod
