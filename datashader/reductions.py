@@ -1224,10 +1224,6 @@ class where(FloatingReduction):
     def _finalize(bases, cuda=False, **kwargs):
         return xr.DataArray(bases[-1], **kwargs)
 
- #   @property
- #   def inputs(self):
- #       return self.reduction.inputs + super().inputs
-
     def out_dshape(self, input_dshape, antialias):
         return self.reduction.out_dshape(input_dshape, antialias)
 
@@ -1239,40 +1235,17 @@ class where(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        print('where update', x, y, field)
         agg[y, x] = field
         return True
 
-#    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-#        print("BUILD APPEND")
-#        return self.reduction._build_append(dshape, schema, cuda, antialias, self_intersect)
-
     def _build_bases(self, cuda=False):
-        #ret = super()._build_bases(cuda=cuda) + self.reduction._build_bases(cuda=cuda)
-        ret = self.reduction._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
-        print("BUILD BASES", ret)
-        return ret
-
-#    def _build_combine(self, dshape, antialias):
-#        print("BUILD COMBINE")
-#        return self.reduction._build_combine(dshape, antialias)
-
-#    def _build_create(self, required_dshape):
-#        ret = super()._build_create(required_dshape)
-#        print("BUILD CREATE", ret)
-#        return ret
-
-#    def _build_finalize(self, dshape):
-#        print("BUILD FINALIZE")
-#        return self.reduction._build_finalize(dshape)
+        return self.reduction._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
 
     @staticmethod
     def _combine(aggs):
         # This does need to be implemented...   Will need access to other aggs to work out how to
         # combine???
         raise NotImplementedError()
-
-
 
 
 
