@@ -662,7 +662,7 @@ class _upsample(Reduction):
         pass
 
     @staticmethod
-    @ngjit
+    @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         # not called, the upsample function must set agg directly
         pass
@@ -725,7 +725,7 @@ class _sum_zero(FloatingReduction):
 
     # GPU append functions
     @staticmethod
-    @ngjit
+    @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         if not isnull(field):
             nb_cuda.atomic.add(agg, (y, x), field)
@@ -906,7 +906,7 @@ class min(FloatingReduction):
 
     # GPU append functions
     @staticmethod
-    @ngjit
+    @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         cuda_atomic_nanmin(agg, (y, x), field)
 
@@ -945,12 +945,12 @@ class max(FloatingReduction):
 
     # GPU append functions
     @staticmethod
-    @ngjit
+    @nb_cuda.jit(device=True)
     def _append_antialias_cuda(x, y, agg, field, aa_factor):
         cuda_atomic_nanmax(agg, (y, x), field*aa_factor)
 
     @staticmethod
-    @ngjit
+    @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         cuda_atomic_nanmax(agg, (y, x), field)
 
