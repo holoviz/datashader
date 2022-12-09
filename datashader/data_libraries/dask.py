@@ -46,6 +46,7 @@ def shape_bounds_st_and_axis(df, canvas, glyph):
     y_range = canvas.y_range or y_extents
     x_min, x_max, y_min, y_max = bounds = compute(*(x_range + y_range))
     x_range, y_range = (x_min, x_max), (y_min, y_max)
+    canvas.validate_ranges(x_range, y_range)
 
     width = canvas.plot_width
     height = canvas.plot_height
