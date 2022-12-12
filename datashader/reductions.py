@@ -255,7 +255,16 @@ class Reduction(Expr):
     def _build_bases(self, cuda=False):
         return (self,)
 
+    def _build_combine_temps(self, cuda=False):
+        # Temporaries (i.e. not returned to user) that are reductions, the
+        # aggs of which are passed to the combine() function but not the
+        # append() functions, as opposed to _build_temps() which are passed
+        # to both append() and combine().
+        return ()
+
     def _build_temps(self, cuda=False):
+        # Temporaries (i.e. not returned to user) that are reductions, the
+        # aggs of which are passed to both append() and combine() functions.
         return ()
 
     def _build_create(self, required_dshape):
@@ -1244,12 +1253,24 @@ class where(OptionalFieldReduction):
     def _build_bases(self, cuda=False):
         return self.reduction._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
 
-    @staticmethod
-    def _combine(aggs):
-        # This does need to be implemented...   Will need access to other aggs to work out how to
-        # combine???
-        raise NotImplementedError()
+    def _build_combine(self, dshape, antialias):
+        # Does not support categorical reductions or CUDA.
+        append = self.reduction._append
 
+        @ngjit
+        def combine(aggs, reduction_aggs):
+            ny, nx = aggs[0].shape
+            for y in range(ny):
+                for x in range(nx):
+                    value = reduction_aggs[1][y, x]
+                    if not isnull(value) and append(x, y, reduction_aggs[0], value):
+                        aggs[0][y, x] = aggs[1][y, x]
+            return aggs[0]
+
+        return combine
+
+    def _build_combine_temps(self, cuda=False):
+        return (self.reduction,)
 
 
 class summary(Expr):

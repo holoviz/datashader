@@ -1277,7 +1277,6 @@ def _bypixel_sanitise(source, glyph, agg):
         # https://github.com/bokeh/datashader/issues/396
         # Preserve column ordering without duplicates
 
-
         cols_to_keep = _cols_to_keep(source.columns, glyph, agg)
         if len(cols_to_keep) < len(source.columns):
             # If _sindex is set, ensure it is not dropped
