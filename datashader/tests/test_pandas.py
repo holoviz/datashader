@@ -2184,12 +2184,8 @@ def test_line_antialias_duplicate_points(self_intersect):
 
 
 @pytest.mark.parametrize('reduction', [
-    #ds.mean('value'),
     ds.std('value'),
     ds.var('value'),
-    #ds.summary(c=ds.count()), ds.sum('value'),
-    #ds.first('value'),
-    #ds.last('value'),
 ])
 def test_line_antialias_reduction_not_implemented(reduction):
     # Issue #1133, detect and report reductions that are not implemented.

@@ -1219,28 +1219,27 @@ class mode(Reduction):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
 
-class where(OptionalFieldReduction):
-    def __init__(self, reduction, column = None):
-        super().__init__(column)
-        self.reduction = reduction
-        self.columns = (reduction.column,)
-        if self.column is not None:
-            self.columns += (self.column,)
+class where(FloatingReduction):
+    def __init__(self, selector: Reduction, lookup_column: str):
+        super().__init__(lookup_column)
+        self.selector = selector
+        # List of all column names that this reduction uses.
+        self.columns = (selector.column, lookup_column)
 
     def __hash__(self):
-        return hash((type(self), self._hashable_inputs(), self.reduction))
+        return hash((type(self), self._hashable_inputs(), self.selector))
 
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
         return xr.DataArray(bases[-1], **kwargs)
 
     def out_dshape(self, input_dshape, antialias):
-        return self.reduction.out_dshape(input_dshape, antialias)
+        return self.selector.out_dshape(input_dshape, antialias)
 
     def validate(self, in_dshape):
         super().validate(in_dshape)
-        self.reduction.validate(in_dshape)
-        if self.column is not None and self.column == self.reduction.column:
+        self.selector.validate(in_dshape)
+        if self.column is not None and self.column == self.selector.column:
             raise ValueError("where and its contained reduction cannot use the same column")
 
     # CPU append functions
@@ -1251,26 +1250,26 @@ class where(OptionalFieldReduction):
         return True
 
     def _build_bases(self, cuda=False):
-        return self.reduction._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
+        return self.selector._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
 
     def _build_combine(self, dshape, antialias):
         # Does not support categorical reductions or CUDA.
-        append = self.reduction._append
+        append = self.selector._append
 
         @ngjit
-        def combine(aggs, reduction_aggs):
+        def combine(aggs, selector_aggs):
             ny, nx = aggs[0].shape
             for y in range(ny):
                 for x in range(nx):
-                    value = reduction_aggs[1][y, x]
-                    if not isnull(value) and append(x, y, reduction_aggs[0], value):
+                    value = selector_aggs[1][y, x]
+                    if not isnull(value) and append(x, y, selector_aggs[0], value):
                         aggs[0][y, x] = aggs[1][y, x]
             return aggs[0]
 
         return combine
 
     def _build_combine_temps(self, cuda=False):
-        return (self.reduction,)
+        return (self.selector,)
 
 
 class summary(Expr):
