@@ -37,6 +37,7 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'i64': np.arange(20, dtype='i8'),
                       'f32': np.arange(20, dtype='f4'),
                       'f64': np.arange(20, dtype='f8'),
+                      'reverse': np.arange(20, 0, -1),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
@@ -161,6 +162,19 @@ def test_min(ddf):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.min('i64')), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.min('f32')), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.min('f64')), out)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+def test_where_min(ddf):
+    out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
+
+    print(c.points(ddf, 'x', 'y', ds.where(ds.min('i32'), 'reverse')))
+
+
+    #assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i32'), 'reverse')), out)
+    #assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i64'), 'reverse')), out)
+    #assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'), 'reverse')), out)
+    #assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
 
 
 @pytest.mark.parametrize('ddf', ddfs)

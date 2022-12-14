@@ -21,6 +21,7 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'i64': np.arange(20, dtype='i8'),
                       'f32': np.arange(20, dtype='f4'),
                       'f64': np.arange(20, dtype='f8'),
+                      'reverse': np.arange(20, 0, -1),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
@@ -198,6 +199,15 @@ def test_min(df):
 
 
 @pytest.mark.parametrize('df', dfs)
+def test_where_min(df):
+    out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
+
+
+@pytest.mark.parametrize('df', dfs)
 def test_max(df):
     out = xr.DataArray(values(df.i64).reshape((2, 2, 5)).max(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
@@ -205,6 +215,15 @@ def test_max(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('i64')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f64')), out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_where_max(df):
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f64'), 'reverse')), out)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -2226,6 +2245,35 @@ def test_reduction_dtype(reduction, dtype, aa_dtype):
 def test_log_axis_not_positive(df, canvas):
     with pytest.raises(ValueError, match='Range values must be >0 for logarithmic axes'):
         canvas.line(df, 'x', 'y')
+
+
+@pytest.mark.parametrize('selector', [
+    ds.any(),
+    ds.count(),
+    ds.first('value'),
+    ds.last('value'),
+    ds.mean('value'),
+    ds.std('value'),
+    ds.sum('value'),
+    ds.summary(any=ds.any()),
+    ds.var('value'),
+    ds.where(ds.max('value'), 'other'),
+])
+def test_where_unsupported_selector(selector):
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], ))
+
+    with pytest.raises(TypeError, match='selector can only be a max or min reduction'):
+        cvs.line(df, 'x', 'y', agg=ds.where(selector, 'value'))
+
+
+def test_by_cannot_use_where():
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], cat=['a', 'b']))
+    df["cat"] = df["cat"].astype("category")
+
+    with pytest.raises(TypeError, match="'by' reduction cannot use a 'where' reduction"):
+        cvs.line(df, 'x', 'y',agg=ds.by('cat', ds.where(ds.max('value'), 'other')))
 
 
 def test_line_coordinate_lengths():

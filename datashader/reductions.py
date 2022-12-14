@@ -531,6 +531,10 @@ class by(Reduction):
             self.categorizer = category_codes(cat_column)
         else:
             raise TypeError("first argument must be a column name or a CategoryPreprocess instance")
+
+        if isinstance(reduction, where):
+            raise TypeError("'by' reduction cannot use a 'where' reduction")
+
         self.column = self.categorizer.column # for backwards compatibility with count_cat
         self.columns = (self.categorizer.column, getattr(reduction, 'column', None))
         self.reduction = reduction
@@ -1221,6 +1225,8 @@ class mode(Reduction):
 
 class where(FloatingReduction):
     def __init__(self, selector: Reduction, lookup_column: str):
+        if not isinstance(selector, (max, min)):
+            raise TypeError("selector can only be a max or min reduction")
         super().__init__(lookup_column)
         self.selector = selector
         # List of all column names that this reduction uses.
