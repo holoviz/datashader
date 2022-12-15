@@ -131,8 +131,7 @@ class LogAxis(Axis):
         if range is None:
             # Nothing to check if no range
             return
-        low, high = map(self.mapper, range)
-        if not (np.isfinite(low) and np.isfinite(high)):
+        if range[0] <= 0 or range[1] <= 0:
             raise ValueError('Range values must be >0 for logarithmic axes')
 
 
