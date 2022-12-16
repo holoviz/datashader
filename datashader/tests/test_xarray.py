@@ -49,6 +49,3 @@ def test_count(source):
                        coords=coords, dims=dims)
     assert_eq(c.points(source, 'x', 'y', ds.count('f32')), out)
     assert_eq(c.points(source, 'x', 'y', ds.count('f64')), out)
-
-
-

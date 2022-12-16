@@ -32,6 +32,7 @@ def default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=Fal
 
     x_range = canvas.x_range or glyph.compute_x_bounds(source)
     y_range = canvas.y_range or glyph.compute_y_bounds(source)
+    canvas.validate_ranges(x_range, y_range)
 
     width = canvas.plot_width
     height = canvas.plot_height

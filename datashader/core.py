@@ -128,9 +128,11 @@ class LogAxis(Axis):
         return y**val
 
     def validate(self, range):
-        low, high = map(self.mapper, range)
-        if not (np.isfinite(low) and np.isfinite(high)):
-            raise ValueError('Range values must be >0 for a LogAxis')
+        if range is None:
+            # Nothing to check if no range
+            return
+        if range[0] <= 0 or range[1] <= 0:
+            raise ValueError('Range values must be >0 for logarithmic axes')
 
 
 _axis_lookup = {'linear': LinearAxis(), 'log': LogAxis()}
@@ -1219,10 +1221,13 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             dims = [layer_dim]+dims
         return DataArray(data, coords=coords, dims=dims, attrs=attrs)
 
+    def validate_ranges(self, x_range, y_range):
+        self.x_axis.validate(x_range)
+        self.y_axis.validate(y_range)
+
     def validate(self):
         """Check that parameter settings are valid for this object"""
-        self.x_axis.validate(self.x_range)
-        self.y_axis.validate(self.y_range)
+        self.validate_ranges(self.x_range, self.y_range)
 
 
 def bypixel(source, canvas, glyph, agg, *, antialias=False):
