@@ -1235,10 +1235,6 @@ class where(FloatingReduction):
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.selector))
 
-    @staticmethod
-    def _finalize(bases, cuda=False, **kwargs):
-        return xr.DataArray(bases[-1], **kwargs)
-
     def out_dshape(self, input_dshape, antialias):
         return self.selector.out_dshape(input_dshape, antialias)
 
@@ -1248,10 +1244,19 @@ class where(FloatingReduction):
         if self.column is not None and self.column == self.selector.column:
             raise ValueError("where and its contained reduction cannot use the same column")
 
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return self.selector._antialias_stage_2(self_intersect, array_module)
+
     # CPU append functions
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
+        agg[y, x] = field
+        return True
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
         agg[y, x] = field
         return True
 
@@ -1277,6 +1282,10 @@ class where(FloatingReduction):
 
     def _build_combine_temps(self, cuda=False):
         return (self.selector,)
+
+    @staticmethod
+    def _finalize(bases, cuda=False, **kwargs):
+        return xr.DataArray(bases[-1], **kwargs)
 
 
 class summary(Expr):
