@@ -1264,13 +1264,14 @@ class where(FloatingReduction):
 
         @ngjit
         def combine(aggs, selector_aggs):
-            ny, nx = aggs[0].shape
-            for y in range(ny):
-                for x in range(nx):
-                    value = selector_aggs[1][y, x]
-                    if not isnull(value) and append(x, y, selector_aggs[0], value):
-                        aggs[0][y, x] = aggs[1][y, x]
-            return aggs[0]
+            if len(aggs) > 1:
+                ny, nx = aggs[0].shape
+                for y in range(ny):
+                    for x in range(nx):
+                        value = selector_aggs[1][y, x]
+                        if not isnull(value) and append(x, y, selector_aggs[0], value):
+                            aggs[0][y, x] = aggs[1][y, x]
+            return aggs[0], selector_aggs[0]
 
         return combine
 

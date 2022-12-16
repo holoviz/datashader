@@ -202,14 +202,25 @@ def make_combine(bases, dshapes, temps, combine_temps, antialias):
 
     # where._combine() deals with combine of preceding reduction so exclude
     # it from explicit combine calls.
-    next_is_where = [isinstance(b, where) for b in bases[1:]] + [False]
-    calls = [(b._build_combine(d, antialias), [arg_lk[i] for i in (b,) + t + ct])
-             for (b, d, t, ct, n) in zip(bases, dshapes, temps, combine_temps, next_is_where)
-             if not n]
+    base_is_where = [isinstance(b, where) for b in bases]
+    next_base_is_where = base_is_where[1:] + [False]
+    calls = [(None if n else b._build_combine(d, antialias), [arg_lk[i] for i in (b,) + t + ct])
+             for (b, d, t, ct, n) in zip(bases, dshapes, temps, combine_temps, next_base_is_where)]
 
     def combine(base_tuples):
         bases = tuple(np.stack(bs) for bs in zip(*base_tuples))
-        return tuple(f(*get(inds, bases)) for (f, inds) in calls)
+        ret = []
+        for is_where, (func, inds) in zip(base_is_where, calls):
+            if func is None:
+                continue
+            call = func(*get(inds, bases))
+            if is_where:
+                # Separate aggs of where reduction and its selector,
+                # selector's goes first to match order of bases.
+                ret.extend(call[::-1])
+            else:
+                ret.append(call)
+        return tuple(ret)
 
     return combine
 

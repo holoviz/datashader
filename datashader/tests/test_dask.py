@@ -165,16 +165,15 @@ def test_min(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_where_min(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_min(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    ddf = ddf.repartition(npartitions)
     out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
-
-    print(c.points(ddf, 'x', 'y', ds.where(ds.min('i32'), 'reverse')))
-
-
-    #assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i32'), 'reverse')), out)
-    #assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i64'), 'reverse')), out)
-    #assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'), 'reverse')), out)
-    #assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -186,6 +185,18 @@ def test_max(ddf):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('i64')), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f32')), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f64')), out)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_max(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    ddf = ddf.repartition(npartitions)
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f64'), 'reverse')), out)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
