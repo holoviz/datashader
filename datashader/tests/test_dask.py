@@ -64,7 +64,8 @@ try:
         # GPU testing disabled even though cudf/cupy are available
         raise ImportError
 
-    ddfs = [_ddf, dask_cudf.from_dask_dataframe(_ddf)]
+    cudf_ddf = dask_cudf.from_dask_dataframe(_ddf)
+    ddfs = [_ddf, cudf_ddf]
 
     def dask_cudf_DataFrame(*args, **kwargs):
         assert not kwargs.pop("geo", False)
@@ -76,6 +77,7 @@ try:
     DataFrames = [dask_DataFrame, dask_cudf_DataFrame]
 except ImportError:
     cudf = cupy = dask_cudf = None
+    cudf_ddf = None
     ddfs = [_ddf]
     DataFrames = [dask_DataFrame]
     dask_cudf_DataFrame = None
@@ -165,6 +167,30 @@ def test_min(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
+def test_max(ddf):
+    out = xr.DataArray(
+        values(df_pd.i64).reshape((2, 2, 5)).max(axis=2).astype('f8').T,
+        coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('i32')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('i64')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f32')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f64')), out)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_max(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f64'), 'reverse')), out)
+
+
+@pytest.mark.parametrize('ddf',[_ddf])
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_min(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
@@ -177,28 +203,10 @@ def test_where_min(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
 
 
-@pytest.mark.parametrize('ddf', ddfs)
-def test_max(ddf):
-    out = xr.DataArray(
-        values(df_pd.i64).reshape((2, 2, 5)).max(axis=2).astype('f8').T,
-        coords=coords, dims=dims)
-    assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('i32')), out)
-    assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('i64')), out)
-    assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f32')), out)
-    assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f64')), out)
-
-
-@pytest.mark.parametrize('ddf', ddfs)
-@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
-def test_where_max(ddf, npartitions):
-    # Important to test with npartitions > 2 to have multiple combination stages.
-    # Identical results to equivalent pandas test.
-    ddf = ddf.repartition(npartitions)
-    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
-    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
-    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i64'), 'reverse')), out)
-    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f32'), 'reverse')), out)
-    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f64'), 'reverse')), out)
+@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+def test_where_cuda():
+    with pytest.raises(NotImplementedError, match="where reduction not supported on CUDA"):
+        c.points(cudf_ddf, 'x', 'y', ds.where(ds.min('i32'), 'reverse'))
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -1501,7 +1509,6 @@ def test_log_axis_not_positive(ddf, canvas):
 
 @pytest.mark.parametrize('npartitions', [1, 2, 3])
 def test_line_antialias_where(npartitions):
-    # Identical results to equivalent pandas test.
     x = np.arange(2)
     df = pd.DataFrame(dict(
         y0 = [0.0, 0.5, 1.0],
@@ -1534,6 +1541,9 @@ def test_line_antialias_where(npartitions):
         [nan, -5, -5,  -9, -9,  -9, -9 ],
         [-5,  -5, -5,  -5, nan, -9, -9 ],
     ])
+    if npartitions == 3:
+        # dask solution differs slightly depending on number of partitions.
+        sol_where_min[2, 2] = -7
     agg_where_min = cvs.line(
         source=ddf, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
         agg=ds.where(ds.min("value"), "other"),

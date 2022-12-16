@@ -1260,6 +1260,11 @@ class where(FloatingReduction):
         agg[y, x] = field
         return True
 
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise NotImplementedError("where reduction not supported on CUDA")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
     def _build_bases(self, cuda=False):
         return self.selector._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
 
