@@ -310,7 +310,7 @@ This release includes major contributions from `@jonmmease <https://github.com/j
 
 New features:
 
-* Replaced outdated 536-line Bokeh `dashboard.py <https://github.com/pyviz/datashader/blob/ae72d237d574cbd7103a912fc84094ce10d55344/examples/dashboard/dashboard.py>`_ with 71-line Panel+HoloViews `dashboard <https://github.com/pyviz/datashader/blob/master/examples/dashboard.ipynb>`_ (`#676 <https://github.com/holoviz/datashader/pull/676>`_)
+* Replaced outdated 536-line Bokeh `dashboard.py <https://github.com/holoviz/datashader/blob/ae72d237d574cbd7103a912fc84094ce10d55344/examples/dashboard/dashboard.py>`_ with 71-line Panel+HoloViews `dashboard <https://github.com/holoviz/datashader/blob/main/examples/dashboard.ipynb>`_ (`#676 <https://github.com/holoviz/datashader/pull/676>`_)
 * Allow aggregating xarray objects (in addition to Pandas and Dask DataFrames) (`#675 <https://github.com/holoviz/datashader/pull/675>`_)
 * Create WMTS tiles from Datashader data (`#636 <https://github.com/holoviz/datashader/pull/636>`_)
 * Added various `geographic utility functions <http://datashader.org/user_guide/8_Geography.html>`_ (ndvi, slope, aspect, hillshade, mean, bump map, Perlin noise) (`#661 <https://github.com/holoviz/datashader/pull/661>`_)
@@ -368,8 +368,8 @@ Major release with extensive support for triangular meshes and changes to the ra
 
 New features:
 
-- Trimesh support: Rendering of irregular triangular meshes using ``Canvas.trimesh()`` (see `user guide <https://github.com/bokeh/datashader/blob/master/examples/user_guide/6_Trimesh.ipynb>`_)  (`#525 <https://github.com/holoviz/datashader/pull/525>`_, `#552 <https://github.com/holoviz/datashader/pull/552>`_)
-- Added a new website at `datashader.org <https://datashader.org>`_, with new Getting Started pages and an extensive User Guide, with about 50% new material not previously in example notebooks. Built entirely from Jupyter notebooks, which can be run in the ``examples/`` directory.  Website is now complete except for sections on points (see the `nyc_taxi example <https://github.com/bokeh/datashader/blob/master/examples/topics/nyc_taxi.ipynb>`_ in the meantime).
+- Trimesh support: Rendering of irregular triangular meshes using ``Canvas.trimesh()`` (see `user guide <https://github.com/holoviz/datashader/blob/main/examples/user_guide/6_Trimesh.ipynb>`_)  (`#525 <https://github.com/holoviz/datashader/pull/525>`_, `#552 <https://github.com/holoviz/datashader/pull/552>`_)
+- Added a new website at `datashader.org <https://datashader.org>`_, with new Getting Started pages and an extensive User Guide, with about 50% new material not previously in example notebooks. Built entirely from Jupyter notebooks, which can be run in the ``examples/`` directory.  Website is now complete except for sections on points (see the `nyc_taxi example <https://github.com/holoviz/datashader/blob/main/examples/topics/nyc_taxi.ipynb>`_ in the meantime).
 - ``Canvas.raster()`` now accepts xarray Dataset types, not just DataArrays, with the specific DataArray selectable from the Dataset using the ``column=`` argument of a supplied aggregation function.
 - ``tf.Images()`` now displays anything with an HTML representation, to allow laying out Pandas dataframes alongside datashader output.
 
@@ -488,10 +488,10 @@ Major release with extensive optimizations and new plotting-library support, inc
 
 - Extensive optimizations for speed and memory usage, providing at least 5X improvements in speed (using the latest Numba versions) and 2X improvements in peak memory requirements.
 - Added `HoloViews support <https://anaconda.org/jbednar/holoviews_datashader>`_ for flexible, composable, dynamic plotting, making it simple to switch between datashaded and non-datashaded versions of a Bokeh or Matplotlib plot.
-- Added `examples/environment.yml <https://github.com/bokeh/datashader/blob/master/examples/environment.yml>`_ to make it easy to install dependencies needed to run the examples.
+- Added `examples/environment.yml <https://github.com/holoviz/datashader/blob/main/examples/environment.yml>`_ to make it easy to install dependencies needed to run the examples.
 - Updated examples to use the now-recommended supported and fast Apache Parquet file format
 - Added support for variable alpha for non-categorical aggregates, by specifying a single color rather than a list or colormap #345
-- Added `datashader.utils.lnglat_to_meters <https://github.com/bokeh/datashader/blob/master/datashader/utils.py#L142>`_ utility function for working in Web Mercator coordinates with Bokeh
+- Added `datashader.utils.lnglat_to_meters <https://github.com/holoviz/datashader/blob/main/datashader/utils.py#L142>`_ utility function for working in Web Mercator coordinates with Bokeh
 - Added `discussion of why you should be using uniform colormaps <https://anacondausercontent.org/user-content/notebooks/jbednar/plotting_pitfalls?signature=C_divg.WRaRHLPmIEtQ1V1lp0dCBZ34U8Y#6.-Nonuniform-colormapping>`_), and examples of using uniform colormaps from the new `colorcet <https://github.com/bokeh/colorcet>`_ package
 - Numerous bug fixes and updates, mostly in the examples and Bokeh extension
 - Updated reference manual and documentation
@@ -520,7 +520,7 @@ Version 0.4.0 (2016-08-18)
 
 Minor bugfix release to support Bokeh 0.12.1, with some API and defaults changes.
 
-- Added ``examples()`` function to obtain the notebooks and other examples corresponding to the installed datashader version; see `examples/README.md <https://github.com/bokeh/datashader/blob/master/examples/README.md>`_.
+- Added ``examples()`` function to obtain the notebooks and other examples corresponding to the installed datashader version; see `examples/README.md <https://github.com/holoviz/datashader/blob/main/examples/README.md>`_.
 - Updated dashboard example to match changes in Bokeh
 - Added default color cycle with distinguishable colors for shading categorical data; now ``tf.shade(agg)`` with no other arguments should give a usable plot for both categorical and non-categorical data.
 

@@ -1,4 +1,4 @@
-.. Datashader documentation master file
+.. Datashader documentation main file
 
 .. raw:: html
 
