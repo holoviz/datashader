@@ -17,7 +17,7 @@ and [virtualenv](https://virtualenv.pypa.io) if desired.
 To get started, first go to your home directory and
 download the current list of everything needed for the examples:
 
-- Download the [conda ds environment file](https://raw.githubusercontent.com/bokeh/datashader/master/examples/environment.yml) and save it as `environment.yml`.
+- Download the [conda ds environment file](https://raw.githubusercontent.com/holoviz/datashader/main/examples/environment.yml) and save it as `environment.yml`.
 
 Then run the following commands in your terminal (command) prompt, from wherever you saved `environment.yml`:
 
