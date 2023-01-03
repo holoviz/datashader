@@ -2222,7 +2222,7 @@ def test_line_antialias_reduction_not_implemented(reduction):
 
 
 def test_line_antialias_where():
-    x = np.arange(2)
+    x = np.arange(3)
     df = pd.DataFrame(dict(
         y0 = [0.0, 0.5, 1.0],
         y1 = [1.0, 0.0, 0.5],
@@ -2234,12 +2234,13 @@ def test_line_antialias_where():
     cvs = ds.Canvas(plot_width=7, plot_height=5)
 
     sol_where_max = np.array([
-        [-9,  -9, nan, -7, -7,  -7, -7 ],
-        [-7,  -7, -7,  -7, -7,  -7, nan],
-        [-7,  -7, -9,  -9, -5,  -5, -5 ],
-        [nan, -5, -5,  -5, -5,  -5, -5 ],
-        [-5,  -5, -5,  -5, nan, -9, -9 ],
+       [-9., -7., -7., -7., -7., -5., -5.],
+       [-7., -7., -7., -5., -5., -5., -9.],
+       [-7., -9., -5., -5., -5., -7., nan],
+       [-5., -5., -5., -5., -9., -7., -7.],
+       [-5., -5., -9., -9., -9., -7., -7.],
     ])
+
     agg_where_max = cvs.line(
         source=df, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
         agg=ds.where(ds.max("value"), "other"),
@@ -2247,12 +2248,13 @@ def test_line_antialias_where():
     assert_eq_ndarray(agg_where_max.data, sol_where_max)
 
     sol_where_min = np.array([
-        [-9,  -9, nan, -7, -7,  -7, -7 ],
-        [-9,  -9, -9,  -9, -7,  -7, nan],
-        [-7,  -7, -9,  -9, -9,  -5, -5 ],
-        [nan, -5, -5,  -9, -9,  -9, -9 ],
-        [-5,  -5, -5,  -5, nan, -9, -9 ],
+        [-9., -9., -7., -7., -7., -9., -9.],
+        [-9., -9., -7., -7., -7., -9., -9.],
+        [-7., -9., -9., -5., -9., -9., nan],
+        [-5., -9., -9., -9., -9., -9., -7.],
+        [-5., -5., -9., -9., -9., -7., -7.],
     ])
+
     agg_where_min = cvs.line(
         source=df, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
         agg=ds.where(ds.min("value"), "other"),
