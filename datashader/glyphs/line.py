@@ -125,6 +125,10 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
         elif not all([isreal(in_dshape.measure[str(ycol)]) for ycol in self.y]):
             raise ValueError('y columns must be real')
 
+        if len(self.x) != len(self.y):
+            raise ValueError(
+                f'x and y coordinate lengths do not match: {len(self.x)} != {len(self.y)}')
+
     @property
     def x_label(self):
         return 'x'
@@ -233,6 +237,10 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
         if len(unique_y_measures) > 1:
             raise ValueError('y columns must have the same data type')
 
+        if len(self.x) != len(self.y):
+            raise ValueError(
+                f'x and y coordinate lengths do not match: {len(self.x)} != {len(self.y)}')
+
     def required_columns(self):
         return self.x + self.y
 
@@ -326,6 +334,10 @@ class LinesAxis1XConstant(LinesAxis1):
         if len(unique_y_measures) > 1:
             raise ValueError('y columns must have the same data type')
 
+        if len(self.x) != len(self.y):
+            raise ValueError(
+                f'x and y coordinate lengths do not match: {len(self.x)} != {len(self.y)}')
+
     def required_columns(self):
         return self.y
 
@@ -397,6 +409,10 @@ class LinesAxis1YConstant(LinesAxis1):
                                 for xcol in self.x)
         if len(unique_x_measures) > 1:
             raise ValueError('x columns must have the same data type')
+
+        if len(self.x) != len(self.y):
+            raise ValueError(
+                f'x and y coordinate lengths do not match: {len(self.x)} != {len(self.y)}')
 
     def required_columns(self):
         return self.x

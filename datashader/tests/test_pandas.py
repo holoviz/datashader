@@ -2230,3 +2230,30 @@ def test_reduction_dtype(reduction, dtype, aa_dtype):
 def test_log_axis_not_positive(df, canvas):
     with pytest.raises(ValueError, match='Range values must be >0 for logarithmic axes'):
         canvas.line(df, 'x', 'y')
+
+
+def test_line_coordinate_lengths():
+    # Issue #1159.
+    cvs = ds.Canvas(plot_width=10, plot_height=6)
+    msg = r'^x and y coordinate lengths do not match'
+
+    # LineAxis0Multi (axis=0) and LinesAxis1 (axis=1)
+    df = pd.DataFrame(
+        dict(x0=[0, 0.2, 1], y0=[0, 0.4, 1], x1=[0, 0.6, 1], y1=[1, 0.8, 1]))
+    for axis in (0, 1):
+        with pytest.raises(ValueError, match=msg):
+            cvs.line(source=df, x=["x0"], y=["y0", "y1"], axis=axis)
+        with pytest.raises(ValueError, match=msg):
+            cvs.line(source=df, x=["x0", "x1"], y=["y0"], axis=axis)
+
+    # LinesAxis1XConstant
+    df = pd.DataFrame(dict(y0=[0, 1, 0, 1], y1=[0, 1, 1, 0]))
+    for nx in (1, 3):
+        with pytest.raises(ValueError, match=msg):
+            cvs.line(source=df, x=np.arange(nx), y=["y0", "y1"], axis=1)
+
+    # LinesAxis1YConstant
+    df = pd.DataFrame(dict(x0=[0, 1, 0, 1], x1=[0, 1, 1, 0]))
+    for ny in (1, 3):
+        with pytest.raises(ValueError, match=msg):
+            cvs.line(source=df, x=["x0", "x1"], y=np.arange(ny), axis=1)
