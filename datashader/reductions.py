@@ -1230,7 +1230,7 @@ class where(FloatingReduction):
 
     Example
     -------
-    >>> canvas.line(df, 'x', 'y', agg=ds.where(ds.max("value"), "other"))
+    >>> canvas.line(df, 'x', 'y', agg=ds.where(ds.max("value"), "other"))  # doctest: +SKIP
 
     This returns the values of the "other" column that correspond to the
     maximum of the "value" column in each bin.
