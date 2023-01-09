@@ -25,82 +25,38 @@ jobs:
         shell: bash -l {0}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      MAMBA_NO_BANNER: 1
     steps:
-      - uses: actions/checkout@v3
+      - uses: pyviz-dev/holoviz_tasks/install@v0.1a9
         with:
-          fetch-depth: "100"
-      - uses: actions/setup-python@v4
-        with:
+          name: unit_test_suite
           python-version: ${{ matrix.python-version }}
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
           channel-priority: strict
-          miniconda-version: "latest"
           channels: pyviz/label/dev,conda-forge,nodefaults
-          mamba-version: "*"
-      - name: Fetch unshallow
-        run: git fetch --prune --tags --unshallow
-      - name: conda update > 3.9
-        if: matrix.python-version > '3.9'
-        run: |
-          conda update -n base conda
-      - name: conda setup
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda create -n test-environment python=${{ matrix.python-version }} pyctdev "typing_extensions<4.2.0"
-      - name: doit develop_install
-        if: matrix.os != 'macos-latest'
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit develop_install -o tests -o examples --conda-mode=mamba
-      # Temporarily hacked step as on MacOS doit develop_install updates CPython leading to pyctdev failure
-      - name: doit develop_install
-        if: matrix.os == 'macos-latest'
-        run: |
-          conda activate test-environment
-          conda list
-          doit develop_install -o tests -o examples --conda-mode=mamba || echo "Keep going"
-          pip install --no-deps --no-build-isolation -e .
-          git describe
-          pip list
-      - name: patch for fiona on mac and windows / 3.7
-        if: (matrix.os == 'windows-latest' || matrix.os == 'macos-latest') && matrix.python-version == '3.7'
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          mamba install "fiona=1.8.19" "gdal=3.2.2"
-      - name: doit env_capture
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit env_capture
+          envs: "-o tests -o examples"
+          cache: true
+          conda-update: true
+          conda-mamba: mamba
+        id: install
       - name: doit test_lint
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit test_lint
       - name: doit test_unit
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit test_unit
       - name: doit test_unit_nojit
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit test_unit_nojit
         env:
           NUMBA_DISABLE_JIT: 1
       - name: doit test_examples
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit test_examples
       - name: codecov
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           codecov
 
