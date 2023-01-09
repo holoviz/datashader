@@ -1224,6 +1224,27 @@ class mode(Reduction):
 
 
 class where(FloatingReduction):
+    """
+    Returns values from a ``lookup_column`` corresponding to a ``selector``
+    reduction that is applied to some other column.
+
+    Example
+    -------
+    >>> canvas.line(df, 'x', 'y', agg=ds.where(ds.max("value"), "other"))
+
+    This returns the values of the "other" column that correspond to the
+    maximum of the "value" column in each bin.
+
+    Parameters
+    ----------
+    selector: Reduction
+        Reduction used to select the values of the ``lookup_column`` which are
+        returned by this ``where`` reduction.
+
+    lookup_column : str
+        Column containing values that are returned from this ``where``
+        reduction.
+    """
     def __init__(self, selector: Reduction, lookup_column: str):
         if not isinstance(selector, (max, min)):
             raise TypeError("selector can only be a max or min reduction")
