@@ -49,7 +49,7 @@ class extract(Preprocess):
         elif isinstance(df, xr.Dataset):
             # DataArray could be backed by numpy or cupy array
             return df[self.column].data
-        elif self.column == "rowindex":
+        elif self.column is None:
             row_index = df.attrs.get("_datashader_row_offset", 0)
             ret = np.arange(row_index, row_index+len(df), dtype=np.int64)
             print("XXX create row_index array", type(df), ret)
@@ -240,14 +240,6 @@ class Reduction(Expr):
         return False
 
     def validate(self, in_dshape):
-
-
-        ################
-        if self.column == "rowindex":
-            return
-        ################
-
-
         if not self.column in in_dshape.dict:
             raise ValueError("specified column not found")
         if not isnumeric(in_dshape.measure[self.column]):
@@ -1246,6 +1238,10 @@ class where(FloatingReduction):
     Returns values from a ``lookup_column`` corresponding to a ``selector``
     reduction that is applied to some other column.
 
+    If ``lookup_column`` is ``None`` then it uses the index of the row in the
+    DataFrame instead of a named column. This is returned as an int64
+    aggregation with -1 used to denote no value.
+
     Example
     -------
     >>> canvas.line(df, 'x', 'y', agg=ds.where(ds.max("value"), "other"))  # doctest: +SKIP
@@ -1259,11 +1255,11 @@ class where(FloatingReduction):
         Reduction used to select the values of the ``lookup_column`` which are
         returned by this ``where`` reduction.
 
-    lookup_column : str
+    lookup_column : str | None
         Column containing values that are returned from this ``where``
-        reduction.
+        reduction, or ``None`` to return row indexes instead.
     """
-    def __init__(self, selector: Reduction, lookup_column: str):
+    def __init__(self, selector: Reduction, lookup_column: str | None=None):
         if not isinstance(selector, (max, min)):
             raise TypeError("selector can only be a max or min reduction")
         super().__init__(lookup_column)
@@ -1278,10 +1274,11 @@ class where(FloatingReduction):
         return self.selector.out_dshape(input_dshape, antialias)
 
     def uses_row_index(self):
-        return self.column == "rowindex"
+        return self.column is None
 
     def validate(self, in_dshape):
-        super().validate(in_dshape)
+        if self.column is not None:
+            super().validate(in_dshape)
         self.selector.validate(in_dshape)
         if self.column is not None and self.column == self.selector.column:
             raise ValueError("where and its contained reduction cannot use the same column")
@@ -1305,7 +1302,13 @@ class where(FloatingReduction):
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         if cuda:
             raise NotImplementedError("where reduction not supported on CUDA")
-        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+        # If self.column is None then append function still receives a 'field'
+        # argument which is the row index.
+        if antialias:
+            return self._append_antialias
+        else:
+            return self._append
 
     def _build_bases(self, cuda=False):
         return self.selector._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
