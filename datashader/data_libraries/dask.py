@@ -77,8 +77,7 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
 
-    want_row_offset = True   # Only if dask too, and npartitions > 1
-    if want_row_offset:
+    if summary.uses_row_index() and isinstance(df, dd.DataFrame) and df.npartitions > 1:
         print("want_row_offset")
 
         def func(partition: pd.DataFrame, cumulative_lens, partition_info=None):

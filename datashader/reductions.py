@@ -236,6 +236,9 @@ class Reduction(Expr):
     def __init__(self, column=None):
         self.column = column
 
+    def uses_row_index(self):
+        return False
+
     def validate(self, in_dshape):
 
 
@@ -1274,6 +1277,9 @@ class where(FloatingReduction):
     def out_dshape(self, input_dshape, antialias):
         return self.selector.out_dshape(input_dshape, antialias)
 
+    def uses_row_index(self):
+        return self.column == "rowindex"
+
     def validate(self, in_dshape):
         super().validate(in_dshape)
         self.selector.validate(in_dshape)
@@ -1359,6 +1365,9 @@ class summary(Expr):
 
     def __hash__(self):
         return hash((type(self), tuple(self.keys), tuple(self.values)))
+
+    def uses_row_index(self):
+        return any(v.uses_row_index() for v in self.values)
 
     def validate(self, input_dshape):
         for v in self.values:
