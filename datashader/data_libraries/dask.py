@@ -77,6 +77,23 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
 
+    want_row_offset = True   # Only if dask too, and npartitions > 1
+    if want_row_offset:
+        print("want_row_offset")
+
+        def func(partition: pd.DataFrame, cumulative_lens, partition_info=None):
+            # This function is called once for each dask dataframe partition.
+            # It sets the _datashader_row_offset attribute so that row indexes
+            # can be calculated correctly in the reductions.extract class.
+            if partition_info is not None:
+                partition_index = partition_info["number"]
+                row_offset = cumulative_lengths[partition_index-1] if partition_index > 0 else 0
+                partition.attrs["_datashader_row_offset"] = row_offset
+            return partition
+
+        cumulative_lengths = df.map_partitions(len).compute().cumsum().to_numpy()
+        df = df.map_partitions(func, cumulative_lengths)
+
     # Here be dragons
     # Get the dataframe graph
     graph = df.__dask_graph__()
@@ -126,6 +143,7 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
 
     def chunk(df, axis, keepdims):
         """ used in the dask.array.reduction chunk step """
+        # df is a pandas.DataFrame computed from one dask.DataFrame partition
         aggs = create(shape)
         extend(aggs, df, st, bounds)
         return aggs

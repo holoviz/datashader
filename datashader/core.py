@@ -1315,6 +1315,12 @@ def _cols_to_keep(columns, glyph, agg):
                 cols_to_keep[column] = True
     elif agg.column is not None:
         cols_to_keep[agg.column] = True
+
+    #################
+    if agg.column == "rowindex":
+        cols_to_keep[agg.column] = False
+    #################
+
     return [col for col, keepit in cols_to_keep.items() if keepit]
 
 

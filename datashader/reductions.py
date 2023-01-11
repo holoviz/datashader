@@ -49,8 +49,14 @@ class extract(Preprocess):
         elif isinstance(df, xr.Dataset):
             # DataArray could be backed by numpy or cupy array
             return df[self.column].data
+        elif self.column == "rowindex":
+            row_index = df.attrs.get("_datashader_row_offset", 0)
+            ret = np.arange(row_index, row_index+len(df), dtype=np.int64)
+            print("XXX create row_index array", type(df), ret)
+            return ret
         else:
             return df[self.column].values
+
 
 class CategoryPreprocess(Preprocess):
     """Base class for categorizing preprocessors."""
@@ -231,6 +237,14 @@ class Reduction(Expr):
         self.column = column
 
     def validate(self, in_dshape):
+
+
+        ################
+        if self.column == "rowindex":
+            return
+        ################
+
+
         if not self.column in in_dshape.dict:
             raise ValueError("specified column not found")
         if not isnumeric(in_dshape.measure[self.column]):
