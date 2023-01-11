@@ -292,6 +292,8 @@ class Reduction(Expr):
             return self._create_float32_nan
         elif required_dshape == dshape(ct.float64):
             return self._create_float64_nan
+        elif required_dshape == dshape(ct.int64):
+            return self._create_int64
         elif required_dshape == dshape(ct.uint32):
             return self._create_uint32
         else:
@@ -342,6 +344,10 @@ class Reduction(Expr):
     @staticmethod
     def _create_float64_zero(shape, array_module):
         return array_module.zeros(shape, dtype='f8')
+
+    @staticmethod
+    def _create_int64(shape, array_module):
+        return array_module.full(shape, -1, dtype='i8')
 
     @staticmethod
     def _create_uint32(shape, array_module):
@@ -1271,7 +1277,10 @@ class where(FloatingReduction):
         return hash((type(self), self._hashable_inputs(), self.selector))
 
     def out_dshape(self, input_dshape, antialias):
-        return self.selector.out_dshape(input_dshape, antialias)
+        if self.uses_row_index():
+            return dshape(ct.int64)
+        else:
+            return dshape(ct.float64)
 
     def uses_row_index(self):
         return self.column is None
@@ -1317,8 +1326,10 @@ class where(FloatingReduction):
         # Does not support categorical reductions or CUDA.
         append = self.selector._append
 
+        # combine functions are identical except for test to determine valid
+        # values. For floats: not isnull(value), for integers: value != -1.
         @ngjit
-        def combine(aggs, selector_aggs):
+        def combine_float(aggs, selector_aggs):
             if len(aggs) > 1:
                 ny, nx = aggs[0].shape
                 for y in range(ny):
@@ -1328,7 +1339,21 @@ class where(FloatingReduction):
                             aggs[0][y, x] = aggs[1][y, x]
             return aggs[0], selector_aggs[0]
 
-        return combine
+        @ngjit
+        def combine_int(aggs, selector_aggs):
+            if len(aggs) > 1:
+                ny, nx = aggs[0].shape
+                for y in range(ny):
+                    for x in range(nx):
+                        value = selector_aggs[1][y, x]
+                        if value != -1 and append(x, y, selector_aggs[0], value):
+                            aggs[0][y, x] = aggs[1][y, x]
+            return aggs[0], selector_aggs[0]
+
+        if self.uses_row_index():
+            return combine_int
+        else:
+            return combine_float
 
     def _build_combine_temps(self, cuda=False):
         return (self.selector,)
