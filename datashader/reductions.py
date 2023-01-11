@@ -1266,7 +1266,7 @@ class where(FloatingReduction):
         reduction, or ``None`` to return row indexes instead.
     """
     def __init__(self, selector: Reduction, lookup_column: str | None=None):
-        if not isinstance(selector, (max, min)):
+        if not isinstance(selector, (first, last, max, min)):
             raise TypeError("selector can only be a max or min reduction")
         super().__init__(lookup_column)
         self.selector = selector
