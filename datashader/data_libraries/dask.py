@@ -78,8 +78,6 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
 
     if summary.uses_row_index() and isinstance(df, dd.DataFrame) and df.npartitions > 1:
-        print("want_row_offset")
-
         def func(partition: pd.DataFrame, cumulative_lens, partition_info=None):
             # This function is called once for each dask dataframe partition.
             # It sets the _datashader_row_offset attribute so that row indexes

@@ -189,6 +189,13 @@ def test_where_max(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f32'), 'reverse')), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f64'), 'reverse')), out)
 
+    # Using row index.
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i32'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f32'))), out)
+
 
 @pytest.mark.parametrize('ddf',[_ddf])
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
@@ -201,6 +208,13 @@ def test_where_min(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i64'), 'reverse')), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'), 'reverse')), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i32'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'))), out)
 
 
 @pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")

@@ -51,9 +51,7 @@ class extract(Preprocess):
             return df[self.column].data
         elif self.column is None:
             row_index = df.attrs.get("_datashader_row_offset", 0)
-            ret = np.arange(row_index, row_index+len(df), dtype=np.int64)
-            print("XXX create row_index array", type(df), ret)
-            return ret
+            return np.arange(row_index, row_index+len(df), dtype=np.int64)
         else:
             return df[self.column].values
 
@@ -1267,7 +1265,7 @@ class where(FloatingReduction):
     """
     def __init__(self, selector: Reduction, lookup_column: str | None=None):
         if not isinstance(selector, (first, last, max, min)):
-            raise TypeError("selector can only be a max or min reduction")
+            raise TypeError("selector can only be a first, last, max or min reduction")
         super().__init__(lookup_column)
         self.selector = selector
         # List of all column names that this reduction uses.
@@ -1324,7 +1322,9 @@ class where(FloatingReduction):
 
     def _build_combine(self, dshape, antialias):
         # Does not support categorical reductions or CUDA.
-        append = self.selector._append
+        selector = self.selector
+        uses_row_index = self.uses_row_index
+        append = selector._append
 
         # combine functions are identical except for test to determine valid
         # values. For floats: not isnull(value), for integers: value != -1.
@@ -1350,10 +1350,19 @@ class where(FloatingReduction):
                             aggs[0][y, x] = aggs[1][y, x]
             return aggs[0], selector_aggs[0]
 
-        if self.uses_row_index():
-            return combine_int
-        else:
-            return combine_float
+        def wrapped_combine(aggs, selector_aggs):
+            # Equivalent check to first._combine and last._combine
+            # When first and last are supported for dask, this function can be
+            # removed and combine_int/combine_float returned directly.
+            if isinstance(selector, (first, last)):
+                raise NotImplementedError("first and last are not implemented for dask DataFrames")
+
+            if uses_row_index:
+                return combine_int(aggs, selector_aggs)
+            else:
+                return combine_float(aggs, selector_aggs)
+
+        return wrapped_combine
 
     def _build_combine_temps(self, cuda=False):
         return (self.selector,)
