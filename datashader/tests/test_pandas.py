@@ -2319,7 +2319,8 @@ def test_by_cannot_use_where():
     df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], cat=['a', 'b']))
     df["cat"] = df["cat"].astype("category")
 
-    with pytest.raises(TypeError, match="'by' reduction cannot use a 'where' reduction"):
+    msg = "'by' reduction does not support 'where' reduction for its first argument"
+    with pytest.raises(TypeError, match=msg):
         cvs.line(df, 'x', 'y',agg=ds.by('cat', ds.where(ds.max('value'), 'other')))
 
 

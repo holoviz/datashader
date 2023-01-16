@@ -533,7 +533,8 @@ class by(Reduction):
             raise TypeError("first argument must be a column name or a CategoryPreprocess instance")
 
         if isinstance(reduction, where):
-            raise TypeError("'by' reduction cannot use a 'where' reduction")
+            raise TypeError(
+                "'by' reduction does not support 'where' reduction for its first argument")
 
         self.column = self.categorizer.column # for backwards compatibility with count_cat
         self.columns = (self.categorizer.column, getattr(reduction, 'column', None))
