@@ -21,6 +21,7 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'i64': np.arange(20, dtype='i8'),
                       'f32': np.arange(20, dtype='f4'),
                       'f64': np.arange(20, dtype='f8'),
+                      'reverse': np.arange(20, 0, -1),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
@@ -205,6 +206,30 @@ def test_max(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('i64')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f64')), out)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_where_max(df):
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f64'), 'reverse')), out)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_where_min(df):
+    out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
+
+
+@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+def test_where_cuda():
+    with pytest.raises(NotImplementedError, match="where reduction not supported on CUDA"):
+        c.points(df_cuda, 'x', 'y', ds.where(ds.min('i32'), 'reverse'))
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -2184,12 +2209,8 @@ def test_line_antialias_duplicate_points(self_intersect):
 
 
 @pytest.mark.parametrize('reduction', [
-    #ds.mean('value'),
     ds.std('value'),
     ds.var('value'),
-    #ds.summary(c=ds.count()), ds.sum('value'),
-    #ds.first('value'),
-    #ds.last('value'),
 ])
 def test_line_antialias_reduction_not_implemented(reduction):
     # Issue #1133, detect and report reductions that are not implemented.
@@ -2198,6 +2219,47 @@ def test_line_antialias_reduction_not_implemented(reduction):
 
     with pytest.raises(NotImplementedError):
         cvs.line(df, 'x', 'y', line_width=1, agg=reduction)
+
+
+def test_line_antialias_where():
+    x = np.arange(3)
+    df = pd.DataFrame(dict(
+        y0 = [0.0, 0.5, 1.0],
+        y1 = [1.0, 0.0, 0.5],
+        y2 = [0.0, 1.0, 0.0],
+        value = [1.1, 2.2, 3.3],
+        other = [-9.0, -7.0, -5.0],
+    ))
+
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+
+    sol_where_max = np.array([
+       [-9., -7., -7., -7., -7., -5., -5.],
+       [-7., -7., -7., -5., -5., -5., -9.],
+       [-7., -9., -5., -5., -5., -7., nan],
+       [-5., -5., -5., -5., -9., -7., -7.],
+       [-5., -5., -9., -9., -9., -7., -7.],
+    ])
+
+    agg_where_max = cvs.line(
+        source=df, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
+        agg=ds.where(ds.max("value"), "other"),
+    )
+    assert_eq_ndarray(agg_where_max.data, sol_where_max)
+
+    sol_where_min = np.array([
+        [-9., -9., -7., -7., -7., -9., -9.],
+        [-9., -9., -7., -7., -7., -9., -9.],
+        [-7., -9., -9., -5., -9., -9., nan],
+        [-5., -9., -9., -9., -9., -9., -7.],
+        [-5., -5., -9., -9., -9., -7., -7.],
+    ])
+
+    agg_where_min = cvs.line(
+        source=df, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
+        agg=ds.where(ds.min("value"), "other"),
+    )
+    assert_eq_ndarray(agg_where_min.data, sol_where_min)
 
 
 @pytest.mark.parametrize('reduction,dtype,aa_dtype', [
@@ -2230,6 +2292,36 @@ def test_reduction_dtype(reduction, dtype, aa_dtype):
 def test_log_axis_not_positive(df, canvas):
     with pytest.raises(ValueError, match='Range values must be >0 for logarithmic axes'):
         canvas.line(df, 'x', 'y')
+
+
+@pytest.mark.parametrize('selector', [
+    ds.any(),
+    ds.count(),
+    ds.first('value'),
+    ds.last('value'),
+    ds.mean('value'),
+    ds.std('value'),
+    ds.sum('value'),
+    ds.summary(any=ds.any()),
+    ds.var('value'),
+    ds.where(ds.max('value'), 'other'),
+])
+def test_where_unsupported_selector(selector):
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], ))
+
+    with pytest.raises(TypeError, match='selector can only be a max or min reduction'):
+        cvs.line(df, 'x', 'y', agg=ds.where(selector, 'value'))
+
+
+def test_by_cannot_use_where():
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], cat=['a', 'b']))
+    df["cat"] = df["cat"].astype("category")
+
+    msg = "'by' reduction does not support 'where' reduction for its first argument"
+    with pytest.raises(TypeError, match=msg):
+        cvs.line(df, 'x', 'y',agg=ds.by('cat', ds.where(ds.max('value'), 'other')))
 
 
 def test_line_coordinate_lengths():

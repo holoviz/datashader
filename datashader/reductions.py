@@ -255,7 +255,16 @@ class Reduction(Expr):
     def _build_bases(self, cuda=False):
         return (self,)
 
+    def _build_combine_temps(self, cuda=False):
+        # Temporaries (i.e. not returned to user) that are reductions, the
+        # aggs of which are passed to the combine() function but not the
+        # append() functions, as opposed to _build_temps() which are passed
+        # to both append() and combine().
+        return ()
+
     def _build_temps(self, cuda=False):
+        # Temporaries (i.e. not returned to user) that are reductions, the
+        # aggs of which are passed to both append() and combine() functions.
         return ()
 
     def _build_create(self, required_dshape):
@@ -340,7 +349,8 @@ class OptionalFieldReduction(Reduction):
         return (extract(self.column),) if self.column is not None else ()
 
     def validate(self, in_dshape):
-        pass
+        if self.column is not None:
+            super().validate(in_dshape)
 
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
@@ -408,6 +418,8 @@ class count(SelfIntersectingOptionalFieldReduction):
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] += 1
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -417,6 +429,8 @@ class count(SelfIntersectingOptionalFieldReduction):
                 agg[y, x] = aa_factor
             else:
                 agg[y, x] += aa_factor
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -424,11 +438,14 @@ class count(SelfIntersectingOptionalFieldReduction):
         if not isnull(field):
             if isnull(agg[y, x]) or aa_factor > agg[y, x]:
                 agg[y, x] = aa_factor
+                return True
+        return False
 
     @staticmethod
     @ngjit
     def _append_no_field(x, y, agg):
         agg[y, x] += 1
+        return True
 
     @staticmethod
     @ngjit
@@ -437,39 +454,46 @@ class count(SelfIntersectingOptionalFieldReduction):
             agg[y, x] = aa_factor
         else:
             agg[y, x] += aa_factor
+        return True
 
     @staticmethod
     @ngjit
     def _append_no_field_antialias_not_self_intersect(x, y, agg, aa_factor):
         if isnull(agg[y, x]) or aa_factor > agg[y, x]:
             agg[y, x] = aa_factor
+            return True
+        return False
 
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_antialias_cuda(x, y, agg, field, aa_factor):
-        cuda_atomic_nanmax(agg, (y, x), field*aa_factor)
+        value = field*aa_factor
+        return cuda_atomic_nanmax(agg, (y, x), value) != value
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_no_field_antialias_cuda_not_self_intersect(x, y, agg, aa_factor):
-        cuda_atomic_nanmax(agg, (y, x), aa_factor)
+        return cuda_atomic_nanmax(agg, (y, x), aa_factor) != aa_factor
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         if not isnull(field):
             nb_cuda.atomic.add(agg, (y, x), 1)
+            return True
+        return False
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_no_field_antialias_cuda(x, y, agg, aa_factor):
-        cuda_atomic_nanmax(agg, (y, x), aa_factor)
+        return cuda_atomic_nanmax(agg, (y, x), aa_factor) != aa_factor
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_no_field_cuda(x, y, agg):
         nb_cuda.atomic.add(agg, (y, x), 1)
+        return True
 
     def _build_combine(self, dshape, antialias):
         if antialias:
@@ -507,6 +531,11 @@ class by(Reduction):
             self.categorizer = category_codes(cat_column)
         else:
             raise TypeError("first argument must be a column name or a CategoryPreprocess instance")
+
+        if isinstance(reduction, where):
+            raise TypeError(
+                "'by' reduction does not support 'where' reduction for its first argument")
+
         self.column = self.categorizer.column # for backwards compatibility with count_cat
         self.columns = (self.categorizer.column, getattr(reduction, 'column', None))
         self.reduction = reduction
@@ -596,6 +625,8 @@ class any(OptionalFieldReduction):
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] = True
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -603,17 +634,22 @@ class any(OptionalFieldReduction):
         if not isnull(field):
             if isnull(agg[y, x]) or aa_factor > agg[y, x]:
                 agg[y, x] = aa_factor
+                return True
+        return False
 
     @staticmethod
     @ngjit
     def _append_no_field(x, y, agg):
         agg[y, x] = True
+        return True
 
     @staticmethod
     @ngjit
     def _append_no_field_antialias(x, y, agg, aa_factor):
         if isnull(agg[y, x]) or aa_factor > agg[y, x]:
             agg[y, x] = aa_factor
+            return True
+        return False
 
     # GPU append functions
     _append_cuda =_append
@@ -706,6 +742,8 @@ class _sum_zero(FloatingReduction):
         if not isnull(field):
             # agg[y, x] cannot be null as initialised to zero.
             agg[y, x] += field
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -714,6 +752,8 @@ class _sum_zero(FloatingReduction):
         if not isnull(value):
             # agg[y, x] cannot be null as initialised to zero.
             agg[y, x] += value
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -722,6 +762,8 @@ class _sum_zero(FloatingReduction):
         if not isnull(value) and value > agg[y, x]:
             # agg[y, x] cannot be null as initialised to zero.
             agg[y, x] = value
+            return True
+        return False
 
     # GPU append functions
     @staticmethod
@@ -729,6 +771,8 @@ class _sum_zero(FloatingReduction):
     def _append_cuda(x, y, agg, field):
         if not isnull(field):
             nb_cuda.atomic.add(agg, (y, x), field)
+            return True
+        return False
 
     @staticmethod
     def _combine(aggs):
@@ -798,6 +842,8 @@ class sum(SelfIntersectingFloatingReduction):
                 agg[y, x] = field
             else:
                 agg[y, x] += field
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -808,6 +854,8 @@ class sum(SelfIntersectingFloatingReduction):
                 agg[y, x] = value
             else:
                 agg[y, x] += value
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -816,6 +864,8 @@ class sum(SelfIntersectingFloatingReduction):
         if not isnull(value):
             if isnull(agg[y, x]) or value > agg[y, x]:
                 agg[y, x] = value
+                return True
+        return False
 
     @staticmethod
     def _combine(aggs):
@@ -865,6 +915,8 @@ The 'std' and 'var' reduction operations are not yet supported on the GPU""")
                 u1 = np.float64(sum) / count
                 u = np.float64(sum + field) / (count + 1)
                 m2[y, x] += (field - u1) * (field - u)
+                return True
+        return False
 
     @staticmethod
     def _combine(Ms, sums, ns):
@@ -892,10 +944,10 @@ class min(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if isnull(agg[y, x]):
+        if isnull(agg[y, x]) or agg[y, x] > field:
             agg[y, x] = field
-        elif agg[y, x] > field:
-            agg[y, x] = field
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -903,12 +955,14 @@ class min(FloatingReduction):
         value = field*aa_factor
         if isnull(agg[y, x]) or value > agg[y, x]:
             agg[y, x] = value
+            return True
+        return False
 
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
-        cuda_atomic_nanmin(agg, (y, x), field)
+        return cuda_atomic_nanmin(agg, (y, x), field) != field
 
     @staticmethod
     def _combine(aggs):
@@ -931,10 +985,10 @@ class max(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if isnull(agg[y, x]):
+        if isnull(agg[y, x]) or agg[y, x] < field:
             agg[y, x] = field
-        elif agg[y, x] < field:
-            agg[y, x] = field
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -942,17 +996,20 @@ class max(FloatingReduction):
         value = field*aa_factor
         if isnull(agg[y, x]) or value > agg[y, x]:
             agg[y, x] = value
+            return True
+        return False
 
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_antialias_cuda(x, y, agg, field, aa_factor):
-        cuda_atomic_nanmax(agg, (y, x), field*aa_factor)
+        value = field*aa_factor
+        return cuda_atomic_nanmax(agg, (y, x), value) != value
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
-        cuda_atomic_nanmax(agg, (y, x), field)
+        return cuda_atomic_nanmax(agg, (y, x), field) != field
 
     @staticmethod
     def _combine(aggs):
@@ -1062,6 +1119,8 @@ class first(Reduction):
     def _append(x, y, agg, field):
         if not isnull(field) and isnull(agg[y, x]):
             agg[y, x] = field
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -1069,6 +1128,8 @@ class first(Reduction):
         value = field*aa_factor
         if isnull(agg[y, x]) or value > agg[y, x]:
             agg[y, x] = value
+            return True
+        return False
 
     @staticmethod
     def _combine(aggs):
@@ -1108,6 +1169,8 @@ class last(Reduction):
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] = field
+            return True
+        return False
 
     @staticmethod
     @ngjit
@@ -1115,6 +1178,8 @@ class last(Reduction):
         value = field*aa_factor
         if isnull(agg[y, x]) or value > agg[y, x]:
             agg[y, x] = value
+            return True
+        return False
 
     @staticmethod
     def _combine(aggs):
@@ -1158,6 +1223,96 @@ class mode(Reduction):
     def _finalize(bases, **kwargs):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
+
+class where(FloatingReduction):
+    """
+    Returns values from a ``lookup_column`` corresponding to a ``selector``
+    reduction that is applied to some other column.
+
+    Example
+    -------
+    >>> canvas.line(df, 'x', 'y', agg=ds.where(ds.max("value"), "other"))  # doctest: +SKIP
+
+    This returns the values of the "other" column that correspond to the
+    maximum of the "value" column in each bin.
+
+    Parameters
+    ----------
+    selector: Reduction
+        Reduction used to select the values of the ``lookup_column`` which are
+        returned by this ``where`` reduction.
+
+    lookup_column : str
+        Column containing values that are returned from this ``where``
+        reduction.
+    """
+    def __init__(self, selector: Reduction, lookup_column: str):
+        if not isinstance(selector, (max, min)):
+            raise TypeError("selector can only be a max or min reduction")
+        super().__init__(lookup_column)
+        self.selector = selector
+        # List of all column names that this reduction uses.
+        self.columns = (selector.column, lookup_column)
+
+    def __hash__(self):
+        return hash((type(self), self._hashable_inputs(), self.selector))
+
+    def out_dshape(self, input_dshape, antialias):
+        return self.selector.out_dshape(input_dshape, antialias)
+
+    def validate(self, in_dshape):
+        super().validate(in_dshape)
+        self.selector.validate(in_dshape)
+        if self.column is not None and self.column == self.selector.column:
+            raise ValueError("where and its contained reduction cannot use the same column")
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return self.selector._antialias_stage_2(self_intersect, array_module)
+
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        agg[y, x] = field
+        return True
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        agg[y, x] = field
+        return True
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise NotImplementedError("where reduction not supported on CUDA")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+    def _build_bases(self, cuda=False):
+        return self.selector._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
+
+    def _build_combine(self, dshape, antialias):
+        # Does not support categorical reductions or CUDA.
+        append = self.selector._append
+
+        @ngjit
+        def combine(aggs, selector_aggs):
+            if len(aggs) > 1:
+                ny, nx = aggs[0].shape
+                for y in range(ny):
+                    for x in range(nx):
+                        value = selector_aggs[1][y, x]
+                        if not isnull(value) and append(x, y, selector_aggs[0], value):
+                            aggs[0][y, x] = aggs[1][y, x]
+            return aggs[0], selector_aggs[0]
+
+        return combine
+
+    def _build_combine_temps(self, cuda=False):
+        return (self.selector,)
+
+    @staticmethod
+    def _finalize(bases, cuda=False, **kwargs):
+        return xr.DataArray(bases[-1], **kwargs)
 
 
 class summary(Expr):

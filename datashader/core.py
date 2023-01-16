@@ -442,7 +442,7 @@ The axis argument to Canvas.line must be 0 or 1
 
             if not isinstance(non_cat_agg, (
                 rd.any, rd.count, rd.max, rd.min, rd.sum, rd.summary, rd._sum_zero,
-                rd.first, rd.last, rd.mean
+                rd.first, rd.last, rd.mean, rd.where
             )):
                 raise NotImplementedError(
                     f"{type(non_cat_agg)} reduction not implemented for antialiased lines")
@@ -1276,6 +1276,7 @@ def _bypixel_sanitise(source, glyph, agg):
         # by only retaining the necessary columns:
         # https://github.com/bokeh/datashader/issues/396
         # Preserve column ordering without duplicates
+
         cols_to_keep = _cols_to_keep(source.columns, glyph, agg)
         if len(cols_to_keep) < len(source.columns):
             # If _sindex is set, ensure it is not dropped

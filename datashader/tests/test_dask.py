@@ -37,6 +37,7 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'i64': np.arange(20, dtype='i8'),
                       'f32': np.arange(20, dtype='f4'),
                       'f64': np.arange(20, dtype='f8'),
+                      'reverse': np.arange(20, 0, -1),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
@@ -63,7 +64,8 @@ try:
         # GPU testing disabled even though cudf/cupy are available
         raise ImportError
 
-    ddfs = [_ddf, dask_cudf.from_dask_dataframe(_ddf)]
+    cudf_ddf = dask_cudf.from_dask_dataframe(_ddf)
+    ddfs = [_ddf, cudf_ddf]
 
     def dask_cudf_DataFrame(*args, **kwargs):
         assert not kwargs.pop("geo", False)
@@ -75,6 +77,7 @@ try:
     DataFrames = [dask_DataFrame, dask_cudf_DataFrame]
 except ImportError:
     cudf = cupy = dask_cudf = None
+    cudf_ddf = None
     ddfs = [_ddf]
     DataFrames = [dask_DataFrame]
     dask_cudf_DataFrame = None
@@ -172,6 +175,38 @@ def test_max(ddf):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('i64')), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f32')), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f64')), out)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_max(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f64'), 'reverse')), out)
+
+
+@pytest.mark.parametrize('ddf',[_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_min(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
+
+
+@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+def test_where_cuda():
+    with pytest.raises(NotImplementedError, match="where reduction not supported on CUDA"):
+        c.points(cudf_ddf, 'x', 'y', ds.where(ds.min('i32'), 'reverse'))
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -1470,3 +1505,54 @@ def test_combine_dtype(ddf, reduction, dtype, aa_dtype):
 def test_log_axis_not_positive(ddf, canvas):
     with pytest.raises(ValueError, match='Range values must be >0 for logarithmic axes'):
         canvas.line(ddf, 'x', 'y')
+
+
+@pytest.mark.parametrize('npartitions', [1, 2, 3])
+def test_line_antialias_where(npartitions):
+    x = np.arange(3)
+    df = pd.DataFrame(dict(
+        y0 = [0.0, 0.5, 1.0],
+        y1 = [1.0, 0.0, 0.5],
+        y2 = [0.0, 1.0, 0.0],
+        value = [1.1, 2.2, 3.3],
+        other = [-9.0, -7.0, -5.0],
+    ))
+    ddf = dd.from_pandas(df, npartitions=npartitions)
+    if ddf.npartitions != npartitions:
+        pytest.skip("Dask partitioning not as expected")
+
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+
+    sol_where_max = np.array([
+        [-9., -7., -7., -7., -7., -5., -5.],
+        [-7., -7., -7., -5., -5., -5., -9.],
+        [-7., -9., -5., -5., -5., -7., nan],
+        [-5., -5., -5., -5., -9., -7., -7.],
+        [-5., -5., -9., -9., -9., -7., -7.],
+    ])
+    agg_where_max = cvs.line(
+        source=ddf, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
+        agg=ds.where(ds.max("value"), "other"),
+    )
+    assert_eq_ndarray(agg_where_max.data, sol_where_max)
+
+    sol_where_min = np.array([
+        [-9., -9., -7., -7., -7., -9., -9.],
+        [-9., -9., -7., -7., -7., -9., -9.],
+        [-7., -9., -9., -5., -9., -9., nan],
+        [-5., -9., -9., -9., -9., -9., -7.],
+        [-5., -5., -9., -9., -9., -7., -7.],
+    ])
+    agg_where_min = cvs.line(
+        source=ddf, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
+        agg=ds.where(ds.min("value"), "other"),
+    )
+    # dask solution differs slightly depending on number of partitions.
+    # Exclude array elements that may differ from comparison.
+    if npartitions == 2:
+        sol_where_min[1, 6] = agg_where_min[1, 6] = nan
+    elif npartitions == 3:
+        for j, i in ((1, 5), (1, 6), (2, 1)):
+            sol_where_min[j, i] = agg_where_min[j, i] = nan
+
+    assert_eq_ndarray(agg_where_min.data, sol_where_min)
