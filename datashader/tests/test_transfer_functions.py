@@ -501,7 +501,6 @@ def test_shade_zeros(array):
 @pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('attr', ['d'])
 @pytest.mark.parametrize('rescale', [False, True])
-#@pytest.mark.parametrize('rescale', [True])
 def test_shade_rescale_discrete_levels(agg, attr, rescale):
     x = getattr(agg, attr)
     cmap = ['pink', 'red']
@@ -516,6 +515,29 @@ def test_shade_rescale_discrete_levels(agg, attr, rescale):
                         [0xff0000ff, 0xffcbc0ff, 0xffcbc0ff]], dtype='uint32')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
+
+
+empty_arrays = [
+    np.zeros((2, 2, 2), dtype=np.uint32),
+    np.full((2, 2, 2), np.nan, dtype=np.float64),
+]
+if cupy is not None:
+    empty_arrays += [
+        cupy.zeros((2, 2, 2), dtype=cupy.uint32),
+        cupy.full((2, 2, 2), cupy.nan, dtype=cupy.float64),
+    ]
+@pytest.mark.parametrize('empty_array', empty_arrays)
+def test_shade_all_masked(empty_array):
+    # Issue #1166, return early with array of all nans if all of data is masked out.
+    # Before the fix this test results in:
+    #   IndexError: index -1 is out of bounds for axis 0 with size 0
+    agg = xr.DataArray(
+        data=empty_array,
+        coords=dict(y=[0, 1], x=[0, 1], cat=['a', 'b']),
+    )
+    im = tf.shade(agg, how='eq_hist', cmap=["white", "white"])
+    assert isinstance(im.data, np.ndarray)
+    assert im.shape == (2, 2)
 
 
 coords2 = [np.array([0, 2]), np.array([3, 5])]
