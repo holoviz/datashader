@@ -85,7 +85,10 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
             if partition_info is not None:
                 partition_index = partition_info["number"]
                 row_offset = cumulative_lengths[partition_index-1] if partition_index > 0 else 0
-                partition.attrs["_datashader_row_offset"] = row_offset
+                # Try to add new attribute to attrs if they exist, otherwise
+                # just set the attribute directly.
+                attrs = getattr(partition, "attrs", None)
+                setattr(attrs or partition, "_datashader_row_offset", row_offset)
             return partition
 
         cumulative_lengths = df.map_partitions(len).compute().cumsum().to_numpy()
