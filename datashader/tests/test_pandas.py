@@ -209,12 +209,55 @@ def test_max(df):
 
 
 @pytest.mark.parametrize('df', dfs_pd)
+def test_where_first(df):
+    # Note reductions like ds.where(ds.first('i32'), 'reverse') are supported,
+    # but the same results can be achieved using the simpler ds.first('reverse')
+    out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('i32'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('i64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('f64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('f32'))), out)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_where_last(df):
+    # Note reductions like ds.where(ds.last('i32'), 'reverse') are supported,
+    # but the same results can be achieved using the simpler ds.last('reverse')
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('i32'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('i64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('f64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('f32'))), out)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
 def test_where_max(df):
     out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i64'), 'reverse')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f32'), 'reverse')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i32'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f32'))), out)
 
 
 @pytest.mark.parametrize('df', dfs_pd)
@@ -224,6 +267,13 @@ def test_where_min(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i64'), 'reverse')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'), 'reverse')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i32'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'))), out)
 
 
 @pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
@@ -2268,10 +2318,12 @@ def test_line_antialias_where():
     (ds.max("value"), np.float64, np.float64),
     (ds.min("value"), np.float64, np.float64),
     (ds.sum("value"), np.float64, np.float64),
+    (ds.where(ds.max("value")), np.int64, np.int64),
+    (ds.where(ds.max("value"), "other"), np.float64, np.float64),
 ])
 def test_reduction_dtype(reduction, dtype, aa_dtype):
     cvs = ds.Canvas(plot_width=10, plot_height=10)
-    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2]))
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], other=[1.2, 3.4]))
 
     # Non-antialiased lines
     agg = cvs.line(df, 'x', 'y', line_width=0, agg=reduction)
@@ -2297,8 +2349,6 @@ def test_log_axis_not_positive(df, canvas):
 @pytest.mark.parametrize('selector', [
     ds.any(),
     ds.count(),
-    ds.first('value'),
-    ds.last('value'),
     ds.mean('value'),
     ds.std('value'),
     ds.sum('value'),
@@ -2310,7 +2360,7 @@ def test_where_unsupported_selector(selector):
     cvs = ds.Canvas(plot_width=10, plot_height=10)
     df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], ))
 
-    with pytest.raises(TypeError, match='selector can only be a max or min reduction'):
+    with pytest.raises(TypeError, match='selector can only be a first, last, max or min reduction'):
         cvs.line(df, 'x', 'y', agg=ds.where(selector, 'value'))
 
 

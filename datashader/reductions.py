@@ -49,8 +49,12 @@ class extract(Preprocess):
         elif isinstance(df, xr.Dataset):
             # DataArray could be backed by numpy or cupy array
             return df[self.column].data
+        elif self.column is None:
+            row_index = df.attrs.get("_datashader_row_offset", 0)
+            return np.arange(row_index, row_index+len(df), dtype=np.int64)
         else:
             return df[self.column].values
+
 
 class CategoryPreprocess(Preprocess):
     """Base class for categorizing preprocessors."""
@@ -230,6 +234,9 @@ class Reduction(Expr):
     def __init__(self, column=None):
         self.column = column
 
+    def uses_row_index(self):
+        return False
+
     def validate(self, in_dshape):
         if not self.column in in_dshape.dict:
             raise ValueError("specified column not found")
@@ -283,6 +290,8 @@ class Reduction(Expr):
             return self._create_float32_nan
         elif required_dshape == dshape(ct.float64):
             return self._create_float64_nan
+        elif required_dshape == dshape(ct.int64):
+            return self._create_int64
         elif required_dshape == dshape(ct.uint32):
             return self._create_uint32
         else:
@@ -333,6 +342,10 @@ class Reduction(Expr):
     @staticmethod
     def _create_float64_zero(shape, array_module):
         return array_module.zeros(shape, dtype='f8')
+
+    @staticmethod
+    def _create_int64(shape, array_module):
+        return array_module.full(shape, -1, dtype='i8')
 
     @staticmethod
     def _create_uint32(shape, array_module):
@@ -1229,6 +1242,10 @@ class where(FloatingReduction):
     Returns values from a ``lookup_column`` corresponding to a ``selector``
     reduction that is applied to some other column.
 
+    If ``lookup_column`` is ``None`` then it uses the index of the row in the
+    DataFrame instead of a named column. This is returned as an int64
+    aggregation with -1 used to denote no value.
+
     Example
     -------
     >>> canvas.line(df, 'x', 'y', agg=ds.where(ds.max("value"), "other"))  # doctest: +SKIP
@@ -1242,13 +1259,13 @@ class where(FloatingReduction):
         Reduction used to select the values of the ``lookup_column`` which are
         returned by this ``where`` reduction.
 
-    lookup_column : str
+    lookup_column : str | None
         Column containing values that are returned from this ``where``
-        reduction.
+        reduction, or ``None`` to return row indexes instead.
     """
-    def __init__(self, selector: Reduction, lookup_column: str):
-        if not isinstance(selector, (max, min)):
-            raise TypeError("selector can only be a max or min reduction")
+    def __init__(self, selector: Reduction, lookup_column: str | None=None):
+        if not isinstance(selector, (first, last, max, min)):
+            raise TypeError("selector can only be a first, last, max or min reduction")
         super().__init__(lookup_column)
         self.selector = selector
         # List of all column names that this reduction uses.
@@ -1258,10 +1275,17 @@ class where(FloatingReduction):
         return hash((type(self), self._hashable_inputs(), self.selector))
 
     def out_dshape(self, input_dshape, antialias):
-        return self.selector.out_dshape(input_dshape, antialias)
+        if self.uses_row_index():
+            return dshape(ct.int64)
+        else:
+            return dshape(ct.float64)
+
+    def uses_row_index(self):
+        return self.column is None
 
     def validate(self, in_dshape):
-        super().validate(in_dshape)
+        if self.column is not None:
+            super().validate(in_dshape)
         self.selector.validate(in_dshape)
         if self.column is not None and self.column == self.selector.column:
             raise ValueError("where and its contained reduction cannot use the same column")
@@ -1285,17 +1309,27 @@ class where(FloatingReduction):
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         if cuda:
             raise NotImplementedError("where reduction not supported on CUDA")
-        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+        # If self.column is None then append function still receives a 'field'
+        # argument which is the row index.
+        if antialias:
+            return self._append_antialias
+        else:
+            return self._append
 
     def _build_bases(self, cuda=False):
         return self.selector._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
 
     def _build_combine(self, dshape, antialias):
         # Does not support categorical reductions or CUDA.
-        append = self.selector._append
+        selector = self.selector
+        uses_row_index = self.uses_row_index
+        append = selector._append
 
+        # combine functions are identical except for test to determine valid
+        # values. For floats: not isnull(value), for integers: value != -1.
         @ngjit
-        def combine(aggs, selector_aggs):
+        def combine_float(aggs, selector_aggs):
             if len(aggs) > 1:
                 ny, nx = aggs[0].shape
                 for y in range(ny):
@@ -1305,7 +1339,30 @@ class where(FloatingReduction):
                             aggs[0][y, x] = aggs[1][y, x]
             return aggs[0], selector_aggs[0]
 
-        return combine
+        @ngjit
+        def combine_int(aggs, selector_aggs):
+            if len(aggs) > 1:
+                ny, nx = aggs[0].shape
+                for y in range(ny):
+                    for x in range(nx):
+                        value = selector_aggs[1][y, x]
+                        if value != -1 and append(x, y, selector_aggs[0], value):
+                            aggs[0][y, x] = aggs[1][y, x]
+            return aggs[0], selector_aggs[0]
+
+        def wrapped_combine(aggs, selector_aggs):
+            # Equivalent check to first._combine and last._combine
+            # When first and last are supported for dask, this function can be
+            # removed and combine_int/combine_float returned directly.
+            if isinstance(selector, (first, last)):
+                raise NotImplementedError("first and last are not implemented for dask DataFrames")
+
+            if uses_row_index:
+                return combine_int(aggs, selector_aggs)
+            else:
+                return combine_float(aggs, selector_aggs)
+
+        return wrapped_combine
 
     def _build_combine_temps(self, cuda=False):
         return (self.selector,)
@@ -1345,6 +1402,9 @@ class summary(Expr):
 
     def __hash__(self):
         return hash((type(self), tuple(self.keys), tuple(self.values)))
+
+    def uses_row_index(self):
+        return any(v.uses_row_index() for v in self.values)
 
     def validate(self, input_dshape):
         for v in self.values:
