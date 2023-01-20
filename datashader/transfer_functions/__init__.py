@@ -167,6 +167,10 @@ def eq_hist(data, mask=None, nbins=256*256):
         interp = np.interp
         array_module = np
 
+    if mask is not None and array_module.all(mask):
+        # Issue #1166, return early with array of all nans if all of data is masked out.
+        return array_module.full_like(data, np.nan), 0
+
     data2 = data if mask is None else data[~mask]
 
     # Run more accurate value counting if data is of boolean or integer type
@@ -193,6 +197,7 @@ def eq_hist(data, mask=None, nbins=256*256):
     cdf = cdf / float(cdf[-1])
     out = interp(data, bin_centers, cdf).reshape(data.shape)
     return out if mask is None else array_module.where(mask, array_module.nan, out), discrete_levels
+
 
 
 
