@@ -244,7 +244,7 @@ def test_where_last(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('f32'))), out)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', dfs)
 def test_where_max(df):
     out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
@@ -260,7 +260,7 @@ def test_where_max(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f32'))), out)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', dfs)
 def test_where_min(df):
     out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i32'), 'reverse')), out)
@@ -274,12 +274,6 @@ def test_where_min(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i64'))), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f64'))), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'))), out)
-
-
-@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
-def test_where_cuda():
-    with pytest.raises(NotImplementedError, match="where reduction not supported on CUDA"):
-        c.points(df_cuda, 'x', 'y', ds.where(ds.min('i32'), 'reverse'))
 
 
 @pytest.mark.parametrize('df', dfs)

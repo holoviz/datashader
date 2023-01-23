@@ -177,7 +177,7 @@ def test_max(ddf):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f64')), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_max(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
@@ -197,7 +197,7 @@ def test_where_max(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f32'))), out)
 
 
-@pytest.mark.parametrize('ddf',[_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_min(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
@@ -215,12 +215,6 @@ def test_where_min(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i64'))), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f64'))), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'))), out)
-
-
-@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
-def test_where_cuda():
-    with pytest.raises(NotImplementedError, match="where reduction not supported on CUDA"):
-        c.points(cudf_ddf, 'x', 'y', ds.where(ds.min('i32'), 'reverse'))
 
 
 @pytest.mark.parametrize('ddf', ddfs)

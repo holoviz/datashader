@@ -584,6 +584,14 @@ def isnull(val):
     return not (val <= 0 or val > 0)
 
 
+@ngjit
+def isminus1(val):
+    """
+    Check for -1 which is equivalent to NaN for some integer aggregations
+    """
+    return val == -1
+
+
 @ngjit_parallel
 def nanfirst_in_place(ret, other):
     """First of 2 arrays but taking nans into account.

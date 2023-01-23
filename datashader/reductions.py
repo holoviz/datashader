@@ -7,14 +7,14 @@ from toolz import concat, unique
 import xarray as xr
 
 from datashader.enums import AntialiasCombination
-from datashader.utils import isnull
+from datashader.utils import isminus1, isnull
 from numba import cuda as nb_cuda
 
 try:
-    from datashader.transfer_functions._cuda_utils import (cuda_atomic_nanmin,
-                                                           cuda_atomic_nanmax)
+    from datashader.transfer_functions._cuda_utils import (
+        cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args)
 except ImportError:
-    cuda_atomic_nanmin, cuda_atomic_nanmmax = None, None
+    cuda_atomic_nanmin, cuda_atomic_nanmmax, cuda_args = None, None, None
 
 try:
     import cudf
@@ -38,7 +38,15 @@ class Preprocess(Expr):
 class extract(Preprocess):
     """Extract a column from a dataframe as a numpy array of values."""
     def apply(self, df):
+        if self.column is None:
+            # self.column of None means use virtual row index column.
+            attrs = getattr(df, "attrs", None)
+            row_offset = getattr(attrs or df, "_datashader_row_offset", 0)
+
         if cudf and isinstance(df, cudf.DataFrame):
+            if self.column is None:
+                return cp.arange(row_offset, row_offset+len(df), dtype=np.int64)
+
             if df[self.column].dtype.kind == 'f':
                 nullval = np.nan
             else:
@@ -50,8 +58,7 @@ class extract(Preprocess):
             # DataArray could be backed by numpy or cupy array
             return df[self.column].data
         elif self.column is None:
-            row_index = df.attrs.get("_datashader_row_offset", 0)
-            return np.arange(row_index, row_index+len(df), dtype=np.int64)
+            return np.arange(row_offset, row_offset+len(df), dtype=np.int64)
         else:
             return df[self.column].values
 
@@ -1306,61 +1313,72 @@ class where(FloatingReduction):
         agg[y, x] = field
         return True
 
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        if cuda:
-            raise NotImplementedError("where reduction not supported on CUDA")
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_antialias_cuda(x, y, agg, field, aa_factor):
+        agg[y, x] = field
+        return True
 
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field):
+        agg[y, x] = field
+        return True
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         # If self.column is None then append function still receives a 'field'
         # argument which is the row index.
-        if antialias:
-            return self._append_antialias
+        if cuda:
+            if antialias:
+                return self._append_antialias_cuda
+            else:
+                return self._append_cuda
         else:
-            return self._append
+            if antialias:
+                return self._append_antialias
+            else:
+                return self._append
 
     def _build_bases(self, cuda=False):
         return self.selector._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
 
     def _build_combine(self, dshape, antialias):
-        # Does not support categorical reductions or CUDA.
+        # Does not support categorical reductions.
         selector = self.selector
-        uses_row_index = self.uses_row_index
         append = selector._append
-
-        # combine functions are identical except for test to determine valid
-        # values. For floats: not isnull(value), for integers: value != -1.
-        @ngjit
-        def combine_float(aggs, selector_aggs):
-            if len(aggs) > 1:
-                ny, nx = aggs[0].shape
-                for y in range(ny):
-                    for x in range(nx):
-                        value = selector_aggs[1][y, x]
-                        if not isnull(value) and append(x, y, selector_aggs[0], value):
-                            aggs[0][y, x] = aggs[1][y, x]
-            return aggs[0], selector_aggs[0]
+        invalid = isminus1 if self.uses_row_index else isnull
 
         @ngjit
-        def combine_int(aggs, selector_aggs):
-            if len(aggs) > 1:
-                ny, nx = aggs[0].shape
-                for y in range(ny):
-                    for x in range(nx):
-                        value = selector_aggs[1][y, x]
-                        if value != -1 and append(x, y, selector_aggs[0], value):
-                            aggs[0][y, x] = aggs[1][y, x]
-            return aggs[0], selector_aggs[0]
+        def combine_cpu(aggs, selector_aggs):
+            ny, nx = aggs[0].shape
+            for y in range(ny):
+                for x in range(nx):
+                    value = selector_aggs[1][y, x]
+                    if not invalid(value) and append(x, y, selector_aggs[0], value):
+                        aggs[0][y, x] = aggs[1][y, x]
+
+        @nb_cuda.jit
+        def combine_cuda(aggs, selector_aggs):
+            ny, nx = aggs[0].shape
+            x, y = nb_cuda.grid(2)
+            if x < nx and y < ny:
+                value = selector_aggs[1][y, x]
+                if not invalid(value) and append(x, y, selector_aggs[0], value):
+                    aggs[0][y, x] = aggs[1][y, x]
 
         def wrapped_combine(aggs, selector_aggs):
             # Equivalent check to first._combine and last._combine
-            # When first and last are supported for dask, this function can be
-            # removed and combine_int/combine_float returned directly.
             if isinstance(selector, (first, last)):
                 raise NotImplementedError("first and last are not implemented for dask DataFrames")
 
-            if uses_row_index:
-                return combine_int(aggs, selector_aggs)
+            if len(aggs) == 1:
+                pass
+            elif cp is not None and isinstance(aggs[0], cp.ndarray):
+                combine_cuda[cuda_args(aggs[0].shape)](aggs, selector_aggs)
             else:
-                return combine_float(aggs, selector_aggs)
+                combine_cpu(aggs, selector_aggs)
+
+            return aggs[0], selector_aggs[0]
 
         return wrapped_combine
 
