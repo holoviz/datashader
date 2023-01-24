@@ -36,8 +36,8 @@ jobs:
           fetch-depth: "100"
       - uses: conda-incubator/setup-miniconda@v2
         with:
-          mamba-version: "*"
-          channels: pyviz/label/dev,bokeh,conda-forge,nodefaults
+          python-version: 3.8
+          channels: pyviz/label/dev,conda-forge
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow -f
       - name: Set and echo git ref
@@ -53,7 +53,7 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit develop_install -o doc --conda-mode=mamba
+          doit develop_install -o doc
       - name: doit env_capture
         run: |
           eval "$(conda shell.bash hook)"
