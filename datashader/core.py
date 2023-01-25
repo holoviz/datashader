@@ -754,6 +754,7 @@ The axis argument to Canvas.area must be 0 or 1
 
     def quadmesh(self, source, x=None, y=None, agg=None):
         """Samples a recti- or curvi-linear quadmesh by canvas size and bounds.
+
         Parameters
         ----------
         source : xarray.DataArray or Dataset
@@ -763,6 +764,7 @@ The axis argument to Canvas.area must be 0 or 1
         agg : Reduction, optional
             Reduction to compute. Default is ``mean()``. Note that agg is ignored when
             upsampling.
+
         Returns
         -------
         data : xarray.DataArray

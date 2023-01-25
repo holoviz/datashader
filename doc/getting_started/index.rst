@@ -51,10 +51,6 @@ Usage
     :titlesonly:
     :maxdepth: 2
 
-    1 Introduction <Introduction>
-    2 Pipeline <Pipeline>
-    3 Interactivity <Interactivity>
-
 If you have any questions, please refer to `FAQ <../FAQ>`_
 and if that doesn't help, feel free to post an
 `issue on GitHub <https://github.com/holoviz/datashader/issues>`_ or a

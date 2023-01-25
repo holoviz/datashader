@@ -90,8 +90,11 @@ Reductions
    sum
    summary
    var
+   where
 
 **Categorizers**
+
+.. autosummary::
 
    category_binning
    category_modulo
