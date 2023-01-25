@@ -535,6 +535,7 @@ class count(SelfIntersectingOptionalFieldReduction):
 
 class by(Reduction):
     """Apply the provided reduction separately per category.
+
     Parameters
     ----------
     cats: str or CategoryPreprocess instance
@@ -1253,8 +1254,8 @@ class where(FloatingReduction):
     DataFrame instead of a named column. This is returned as an int64
     aggregation with -1 used to denote no value.
 
-    Example
-    -------
+    Examples
+    --------
     >>> canvas.line(df, 'x', 'y', agg=ds.where(ds.max("value"), "other"))  # doctest: +SKIP
 
     This returns the values of the "other" column that correspond to the
