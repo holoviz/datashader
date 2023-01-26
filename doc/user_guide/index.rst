@@ -44,6 +44,9 @@ Contents:
 `11. Geography <Geography.html>`_
  Pointers to using Datashader for geographic and other spatial applications.
 
+`12. Inspection Reductions <Inspection_Reductions.html>`_
+ Using reduction to inspect rather than aggregate data.
+
 .. toctree::
     :hidden:
     :maxdepth: 3
@@ -59,3 +62,4 @@ Contents:
     Extending <Extending>
     Performance <Performance>
     Geography <Geography>
+    Inspection Reductions <Inspection_Reductions>
