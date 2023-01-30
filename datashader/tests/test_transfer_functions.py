@@ -188,12 +188,10 @@ def test_shade(agg, attr, span):
 @pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('attr', ['a', 'b', 'c'])
 @pytest.mark.parametrize('how', ['linear', 'log', 'cbrt'])
-def test_span_cmap_list(agg, attr, how):
+@pytest.mark.parametrize('cmap', [['pink', 'red'], ('#FFC0CB', '#FF0000')])
+def test_span_cmap_list(agg, attr, how, cmap):
     # Get input
     x = getattr(agg, attr).copy()
-
-    # Build colormap
-    cmap = ['pink', 'red']
 
     # Get expected solution for interpolation method
     sol = solutions[how]
