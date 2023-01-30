@@ -300,6 +300,8 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
 
     if isinstance(cmap, Iterator):
         cmap = list(cmap)
+    if isinstance(cmap, tuple) and isinstance(cmap[0], str):
+        cmap = list(cmap)  # Tuple of hex values
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
         span = np.linspace(span[0], span[1], len(cmap))
