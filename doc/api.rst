@@ -186,6 +186,7 @@ Definitions
 .. autoclass:: sum
 .. autoclass:: summary
 .. autoclass:: var
+.. autoclass:: where
 
 .. automodule:: datashader.transfer_functions
    :members:
