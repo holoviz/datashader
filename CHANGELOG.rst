@@ -1,3 +1,49 @@
+Version 0.14.4 (2023-02-02)
+---------------------------
+
+This release adds a new ``where`` reduction that provides improved inspection capabilities and adds support for colormaps that are tuples of hex values. There are also various bug fixes and compatibility improvements.
+
+Thanks to `@ianthomas23 <https://github.com/ianthomas23>`_, `@maximlt <https://github.com/maximlt>`_ and `@Hoxbro <https://github.com/Hoxbro>`_.
+
+Enhancements:
+
+* New ``where`` reduction to provide improved inspection functionality:
+
+  - Add new where reduction (`#1155 <https://github.com/holoviz/datashader/pull/1155>`_)
+  - Where reduction using dataframe row index (`#1164 <https://github.com/holoviz/datashader/pull/1164>`_)
+  - CUDA support for where reduction (`#1167 <https://github.com/holoviz/datashader/pull/1167>`_)
+  - User guide page for where reduction (`#1172 <https://github.com/holoviz/datashader/pull/1172>`_)
+
+* Support colormaps that are tuples of hex values (`#1173 <https://github.com/holoviz/datashader/pull/1173>`_)
+
+* Add governance docs (`#1165 <https://github.com/holoviz/datashader/pull/1165>`_)
+
+* Improve documentation build system (`#1170 <https://github.com/holoviz/datashader/pull/1170>`_, `#1171 <https://github.com/holoviz/datashader/pull/1171>`_)
+
+* Improvements to CI:
+
+  - Rename default branch from ``master`` to ``main`` (`#1156 <https://github.com/holoviz/datashader/pull/1156>`_)
+  - Use holoviz_task install action (`#1163 <https://github.com/holoviz/datashader/pull/1163>`_)
+
+Bug fixes:
+
+* Validate calculated log canvas range (`#1154 <https://github.com/holoviz/datashader/pull/1154>`_)
+
+* Better validate ``canvas.line()`` coordinate lengths (`#1160 <https://github.com/holoviz/datashader/pull/1160>`_)
+
+* Return early in ``eq_hist()`` if all data masked out (`#1168 <https://github.com/holoviz/datashader/pull/1168>`_)
+
+Compatibility:
+
+* Follow recommended ``numba`` best practice.
+
+  - Ensure cuda functions are correctly jitted (`#1153 <https://github.com/holoviz/datashader/pull/1153>`_)
+  - ``nopython=True`` everywhere (`#1162 <https://github.com/holoviz/datashader/pull/1162>`_)
+
+* Update dependencies:
+
+  - Pip ``pyarrow`` in tests dependencies (`#1174 <https://github.com/holoviz/datashader/pull/1174>`_)
+
 Version 0.14.3 (2022-11-17)
 ---------------------------
 
