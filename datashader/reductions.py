@@ -1211,6 +1211,120 @@ class last(Reduction):
         return xr.DataArray(bases[0], **kwargs)
 
 
+class FloatingNReduction(FloatingReduction):
+    def __init__(self, column=None, n=1):
+        super().__init__(column)
+        self.n = n if n >= 1 else 1
+
+    def _build_create(self, required_dshape):
+        return lambda shape, array_module: super(FloatingNReduction, self)._build_create(
+            required_dshape)(shape + (self.n,), array_module)
+
+    def _build_finalize(self, dshape):
+        # Use class name for new coordinate.  Is this good enough?
+        # Coordinate could just be "n" instead?  What if have multiple xxx_n reductions?
+        #n_name = self.__class__.__name__
+        n_name = "n"
+        n_values = np.arange(self.n)
+
+        def finalize(bases, cuda=False, **kwargs):
+            kwargs['dims'] += [n_name]
+            kwargs['coords'][n_name] = n_values
+            return super(FloatingNReduction, self)._finalize(bases, cuda=cuda, **kwargs)
+
+        return finalize
+
+
+class first_n(FloatingNReduction):
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            # Check final value first for quick abort.
+            n = agg.shape[2]
+            if not isnull(agg[y, x, n-1]):
+                return False
+
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            for i in range(n):
+                if isnull(agg[y, x, i]):
+                    agg[y, x, i] = field
+                    return True
+        return False
+
+    @staticmethod
+    def _combine(aggs):
+        raise NotImplementedError("first_n is not implemented for dask DataFrames")
+
+
+class last_n(FloatingNReduction):
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            # Bump previous values along to make room for new value.
+            n = agg.shape[2]
+            for j in range(n-1, 0, -1):
+                agg[y, x, j] = agg[y, x, j-1]
+            agg[y, x, 0] = field
+            return True
+        return False
+
+    @staticmethod
+    def _combine(aggs):
+        raise NotImplementedError("first_n is not implemented for dask DataFrames")
+
+
+class max_n(FloatingNReduction):
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if isnull(agg[y, x, i]) or field > agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+                    return True
+        return False
+
+    @staticmethod
+    def _combine(aggs):
+        print("XXX _combine")
+        raise NotImplementedError
+
+
+class min_n(FloatingNReduction):
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if isnull(agg[y, x, i]) or field < agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+                    return True
+        return False
+
+    @staticmethod
+    def _combine(aggs):
+        print("XXX _combine")
+        raise NotImplementedError
+
 
 class mode(Reduction):
     """Mode (most common value) of all the values encountered in ``column``.
