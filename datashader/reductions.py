@@ -22,7 +22,10 @@ try:
 except Exception:
     cudf = cp = None
 
-from .utils import Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place
+from .utils import (
+    Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place,
+    nanmax_n_in_place, nanmin_n_in_place
+)
 
 
 class Preprocess(Expr):
@@ -1234,6 +1237,9 @@ class FloatingNReduction(FloatingReduction):
 
         return finalize
 
+    def _hashable_inputs(self):
+        return super()._hashable_inputs() + (self.n,)
+
 
 class first_n(FloatingNReduction):
     # CPU append functions
@@ -1298,8 +1304,10 @@ class max_n(FloatingNReduction):
 
     @staticmethod
     def _combine(aggs):
-        print("XXX _combine")
-        raise NotImplementedError
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nanmax_n_in_place(ret, aggs[i])
+        return ret
 
 
 class min_n(FloatingNReduction):
@@ -1322,8 +1330,10 @@ class min_n(FloatingNReduction):
 
     @staticmethod
     def _combine(aggs):
-        print("XXX _combine")
-        raise NotImplementedError
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nanmax_n_in_place(ret, aggs[i])
+        return ret
 
 
 class mode(Reduction):

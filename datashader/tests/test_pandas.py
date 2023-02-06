@@ -22,12 +22,14 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'f32': np.arange(20, dtype='f4'),
                       'f64': np.arange(20, dtype='f8'),
                       'reverse': np.arange(20, 0, -1),
+                      'plusminus': np.arange(20, dtype='f8')*([1, -1]*10),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
 df_pd.cat = df_pd.cat.astype('category')
 df_pd.at[2,'f32'] = nan
 df_pd.at[2,'f64'] = nan
+df_pd.at[2,'plusminus'] = nan
 dfs_pd = [df_pd]
 
 test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
@@ -206,6 +208,30 @@ def test_max(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('i64')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f64')), out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_min_n(df):
+    solution = np.array([[[-3, -1, 0, 4, nan, nan], [-13, -11, 10, 12, 14, nan]],
+                         [[-9, -7, -5, 6, 8, nan], [-19, -17, -15, 16, 18, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.min_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.min('plusminus')).data)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_max_n(df):
+    solution = np.array([[[4, 0, -1, -3, nan, nan], [14, 12, 10, -11, -13, nan]],
+                         [[8, 6, -5, -7, -9, nan], [18, 16, -15, -17, -19, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.max_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.max('plusminus')).data)
 
 
 @pytest.mark.parametrize('df', dfs_pd)
@@ -641,6 +667,31 @@ def test_last():
         [100., 101., 101., np.nan, np.nan]], dtype='float64')
 
     assert_eq_ndarray(agg, sol)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_first_n(df):
+    solution = np.array([[[0, -1, -3, 4, nan, nan], [10, -11, 12, -13, 14, nan]],
+                         [[-5, 6, -7, 8, -9, nan], [-15, 16, -17, 18, -19, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.first_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.first('plusminus')).data)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_last_n(df):
+    solution = np.array([[[4, -3, -1, 0, nan, nan], [14, -13, 12, -11, 10, nan]],
+                         [[-9, 8, -7, 6, -5, nan], [-19, 18, -17, 16, -15, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.last_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.last('plusminus')).data)
+
 
 @pytest.mark.parametrize('df', dfs)
 def test_multiple_aggregates(df):
