@@ -210,7 +210,7 @@ def test_max(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
+@pytest.mark.parametrize('df', [df_pd])
 def test_min_n(df):
     solution = np.array([[[-3, -1, 0, 4, nan, nan], [-13, -11, 10, 12, 14, nan]],
                          [[-9, -7, -5, 6, 8, nan], [-19, -17, -15, 16, 18, nan]]])
@@ -222,7 +222,7 @@ def test_min_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.min('plusminus')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
+@pytest.mark.parametrize('df', [df_pd])
 def test_max_n(df):
     solution = np.array([[[4, 0, -1, -3, nan, nan], [14, 12, 10, -11, -13, nan]],
                          [[8, 6, -5, -7, -9, nan], [18, 16, -15, -17, -19, nan]]])
@@ -234,7 +234,7 @@ def test_max_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.max('plusminus')).data)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', [df_pd])
 def test_where_first(df):
     # Note reductions like ds.where(ds.first('i32'), 'reverse') are supported,
     # but the same results can be achieved using the simpler ds.first('reverse')
@@ -669,7 +669,7 @@ def test_last():
     assert_eq_ndarray(agg, sol)
 
 
-@pytest.mark.parametrize('df', dfs)
+@pytest.mark.parametrize('df', [df_pd])
 def test_first_n(df):
     solution = np.array([[[0, -1, -3, 4, nan, nan], [10, -11, 12, -13, 14, nan]],
                          [[-5, 6, -7, 8, -9, nan], [-15, 16, -17, 18, -19, nan]]])
@@ -681,7 +681,7 @@ def test_first_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.first('plusminus')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
+@pytest.mark.parametrize('df', [df_pd])
 def test_last_n(df):
     solution = np.array([[[4, -3, -1, 0, nan, nan], [14, -13, 12, -11, 10, nan]],
                          [[-9, 8, -7, 6, -5, nan], [-19, 18, -17, 16, -15, nan]]])
@@ -2347,7 +2347,7 @@ def test_line_antialias_where():
         [-9., -9., -7., -7., -7., -9., -9.],
         [-7., -9., -9., -5., -9., -9., nan],
         [-5., -9., -9., -9., -9., -9., -7.],
-        [-5., -5., -9., -9., -9., -7., -7.],
+        [-5.,  -5., -9., -9., -9., -7., -7.],
     ])
 
     agg_where_min = cvs.line(
@@ -2456,8 +2456,21 @@ def test_canvas_size():
     ]
     msg = r'Invalid size: plot_width and plot_height must be bigger than 0'
     df = pd.DataFrame(dict(x=[0, 0.2, 1], y=[0, 0.4, 1], z=[10, 20, 30]))
-    
+
     for cvs in cvs_list:
-        with pytest.raises(ValueError, match=msg): 
+        with pytest.raises(ValueError, match=msg):
             cvs.points(df, "x", "y", ds.mean("z"))
-     
+
+
+@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+@pytest.mark.parametrize('reduction', [
+    ds.first('f64'),
+    ds.first_n('f64', n=3),
+    ds.last('f64'),
+    ds.last_n('f64', n=3),
+    ds.max_n('f64', n=3),
+    ds.min_n('f64', n=3),
+])
+def test_reduction_on_cuda_raises_error(reduction):
+    with pytest.raises(ValueError, match="not supported on the GPU"):
+        c.points(df_cuda, 'x', 'y', reduction)

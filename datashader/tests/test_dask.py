@@ -180,7 +180,7 @@ def test_max(ddf):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f64')), out)
 
 
-@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('ddf', [_ddf])
 def test_min_n(ddf):
     solution = np.array([[[-3, -1, 0, 4, nan, nan], [-13, -11, 10, 12, 14, nan]],
                          [[-9, -7, -5, 6, 8, nan], [-19, -17, -15, 16, 18, nan]]])
@@ -192,7 +192,7 @@ def test_min_n(ddf):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.min('plusminus')).data)
 
 
-@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('ddf', [_ddf])
 def test_max_n(ddf):
     solution = np.array([[[4, 0, -1, -3, nan, nan], [14, 12, 10, -11, -13, nan]],
                          [[8, 6, -5, -7, -9, nan], [18, 16, -15, -17, -19, nan]]])

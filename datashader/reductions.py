@@ -1155,6 +1155,11 @@ class first(Reduction):
             return 0
         return -1
 
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise ValueError("'first' reduction is not supported on the GPU")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
     @staticmethod
     def _combine(aggs):
         raise NotImplementedError("first is not implemented for dask DataFrames")
@@ -1204,6 +1209,11 @@ class last(Reduction):
             agg[y, x] = value
             return 0
         return -1
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise ValueError("'last' reduction is not supported on the GPU")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     @staticmethod
     def _combine(aggs):
@@ -1260,6 +1270,11 @@ class first_n(FloatingNReduction):
                     return True
         return False
 
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise ValueError("'first_n' reduction is not supported on the GPU")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
     @staticmethod
     def _combine(aggs):
         raise NotImplementedError("first_n is not implemented for dask DataFrames")
@@ -1278,6 +1293,11 @@ class last_n(FloatingNReduction):
             agg[y, x, 0] = field
             return True
         return False
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise ValueError("'last_n' reduction is not supported on the GPU")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     @staticmethod
     def _combine(aggs):
@@ -1301,6 +1321,11 @@ class max_n(FloatingNReduction):
                     agg[y, x, i] = field
                     return True
         return False
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise ValueError("'max_n' reduction is not supported on the GPU")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     @staticmethod
     def _combine(aggs):
@@ -1327,6 +1352,11 @@ class min_n(FloatingNReduction):
                     agg[y, x, i] = field
                     return True
         return False
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise ValueError("'min_n' reduction is not supported on the GPU")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     @staticmethod
     def _combine(aggs):
