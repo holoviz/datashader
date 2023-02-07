@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from numbers import Number
 from math import log10
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -424,7 +425,6 @@ The axis argument to Canvas.line must be 0 or 1
 
         if (line_width > 0 and ((cudf and isinstance(source, cudf.DataFrame)) or
                                (dask_cudf and isinstance(source, dask_cudf.DataFrame)))):
-            import warnings
             warnings.warn(
                 "Antialiased lines are not supported for CUDA-backed sources, "
                 "so reverting to line_width=0")
@@ -1255,8 +1255,8 @@ def bypixel(source, canvas, glyph, agg, *, antialias=False):
     canvas.validate()
 
     # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
-    with np.warnings.catch_warnings():
-        np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
         return bypixel.pipeline(source, schema, canvas, glyph, agg, antialias=antialias)
 
 
