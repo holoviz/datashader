@@ -5,6 +5,8 @@ from collections.abc import Iterator
 from collections import OrderedDict
 from io import BytesIO
 
+import warnings
+
 import numpy as np
 import numba as nb
 import toolz as tz
@@ -457,8 +459,8 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_d
             a_scaled, discrete_levels = a_scaled
 
         # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
-        with np.warnings.catch_warnings():
-            np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
             norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
 
         if rescale_discrete_levels and discrete_levels is not None:  # Only valid for how='eq_hist'
