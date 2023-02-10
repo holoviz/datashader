@@ -245,6 +245,56 @@ def test_where_min(ddf, npartitions):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_max_n(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+
+    sol_rowindex = np.array([[[ 4,  0,  1,  3, -1, -1],
+                              [14, 12, 10, 11, 13, -1]],
+                             [[ 8,  6,  5,  7,  9, -1],
+                              [18, 16, 15, 17, 19, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.max_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+
+        # Using another column
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.max_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_min_n(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+
+    sol_rowindex = np.array([[[3,  1,  0,  4, -1, -1],
+                              [13, 11, 10, 12, 14, -1]],
+                             [[ 9,  7,  5,  6,  8, -1],
+                              [19, 17, 15, 16, 18, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.min_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+
+        # Using another column
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.min_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
 def test_mean(ddf):
     out = xr.DataArray(
         values(df_pd.i32).reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
