@@ -9,7 +9,7 @@ import PIL
 import pytest
 from collections import OrderedDict
 import datashader.transfer_functions as tf
-from datashader.tests.test_pandas import assert_eq_xr
+from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
 
 coords = OrderedDict([('x_axis', [3, 4, 5]), ('y_axis', [0, 1, 2])])
 dims = ['y_axis', 'x_axis']
@@ -47,10 +47,12 @@ try:
     import cupy
     aggs = [build_agg(np), build_agg(cupy), build_agg_dask()]
     arrays = [np.array, cupy.array, create_dask_array_np]
+    array_modules = [np, cupy]
 except ImportError:
     cupy = None
     aggs = [build_agg(np), build_agg_dask()]
     arrays = [np.array, create_dask_array_np]
+    array_modules = [np]
 
 int_span = [11, 17]
 float_span = [11.0, 17.0]
@@ -513,6 +515,22 @@ def test_shade_rescale_discrete_levels(agg, attr, rescale):
                         [0xff0000ff, 0xffcbc0ff, 0xffcbc0ff]], dtype='uint32')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_shade_rescale_discrete_levels_categorical(array_module):
+    arr = array_module.array([[[1, 2], [0, 1]],
+                              [[0, 0], [0, 0]],
+                              [[1, 0], [3, 0]],
+                              [[1, 0], [2, 1]]], dtype='u4')
+    agg = xr.DataArray(data=arr, coords=dict(y=[0, 1, 2, 3], x=[0, 1], cat=['a', 'b']))
+    img = tf.shade(agg, how='eq_hist', rescale_discrete_levels=True)
+
+    sol = np.array([[0xff845c70, 0x6fb87e37],
+                    [0x006a4c8d, 0x006a4c8d],
+                    [0x6f1c1ae4, 0xff1c1ae4],
+                    [0x6f1c1ae4, 0xff503baa]])
+    assert_eq_ndarray(img.data, sol)
 
 
 empty_arrays = [
@@ -1160,7 +1178,8 @@ def test_shade_with_discrete_color_key():
         cupy = None
 
 
-def test_interpolate_alpha_discrete_levels_None():
-    data = np.array([[0.0, 1.0], [1.0, 0.0]])
+@pytest.mark.parametrize('array_module', array_modules)
+def test_interpolate_alpha_discrete_levels_None(array_module):
+    data = array_module.array([[0.0, 1.0], [1.0, 0.0]])
     # Issue #1084: this raises a ValueError.
     tf._interpolate_alpha(data, data, None, "eq_hist", 0.5, None, 0.4, True)

@@ -435,11 +435,11 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_d
 
     if cupy and isinstance(data, cupy.ndarray):
         from ._cuda_utils import interp, masked_clip_2d
-        array = cupy.array
+        array_module = cupy
     else:
         from ._cpu_utils import masked_clip_2d
         interp = np.interp
-        array = np.array
+        array_module = np
 
     # if span is provided, use it, otherwise produce a span based off the
     # min/max of the data
@@ -488,8 +488,13 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_d
         if isinstance(norm_span, (list, tuple)):
             norm_span = norm_span[0]  # Ignore discrete_levels
 
+    # Issue 1178. Convert norm_span from 2-tuple to numpy/cupy array.
+    # array_module.stack() tolerates tuple of one float and one cupy array,
+    # whereas array_module.array() does not.
+    norm_span = array_module.hstack(norm_span)
+
     # Interpolate the alpha values
-    a = interp(a_scaled, array(norm_span), array([min_alpha, alpha]),
+    a = interp(a_scaled, norm_span, array_module.array([min_alpha, alpha]),
                left=0, right=255).astype(np.uint8)
     return a
 
