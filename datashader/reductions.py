@@ -438,8 +438,8 @@ class count(SelfIntersectingOptionalFieldReduction):
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] += 1
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -449,8 +449,8 @@ class count(SelfIntersectingOptionalFieldReduction):
                 agg[y, x] = aa_factor
             else:
                 agg[y, x] += aa_factor
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -458,14 +458,14 @@ class count(SelfIntersectingOptionalFieldReduction):
         if not isnull(field):
             if isnull(agg[y, x]) or aa_factor > agg[y, x]:
                 agg[y, x] = aa_factor
-                return True
-        return False
+                return 0
+        return -1
 
     @staticmethod
     @ngjit
     def _append_no_field(x, y, agg):
         agg[y, x] += 1
-        return True
+        return 0
 
     @staticmethod
     @ngjit
@@ -474,46 +474,46 @@ class count(SelfIntersectingOptionalFieldReduction):
             agg[y, x] = aa_factor
         else:
             agg[y, x] += aa_factor
-        return True
+        return 0
 
     @staticmethod
     @ngjit
     def _append_no_field_antialias_not_self_intersect(x, y, agg, aa_factor):
         if isnull(agg[y, x]) or aa_factor > agg[y, x]:
             agg[y, x] = aa_factor
-            return True
-        return False
+            return 0
+        return -1
 
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_antialias_cuda(x, y, agg, field, aa_factor):
         value = field*aa_factor
-        return cuda_atomic_nanmax(agg, (y, x), value) != value
+        return 0 if cuda_atomic_nanmax(agg, (y, x), value) != value else -1
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_no_field_antialias_cuda_not_self_intersect(x, y, agg, aa_factor):
-        return cuda_atomic_nanmax(agg, (y, x), aa_factor) != aa_factor
+        return 0 if cuda_atomic_nanmax(agg, (y, x), aa_factor) != aa_factor else -1
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         if not isnull(field):
             nb_cuda.atomic.add(agg, (y, x), 1)
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_no_field_antialias_cuda(x, y, agg, aa_factor):
-        return cuda_atomic_nanmax(agg, (y, x), aa_factor) != aa_factor
+        return 0 if cuda_atomic_nanmax(agg, (y, x), aa_factor) != aa_factor else -1
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_no_field_cuda(x, y, agg):
         nb_cuda.atomic.add(agg, (y, x), 1)
-        return True
+        return 0
 
     def _build_combine(self, dshape, antialias):
         if antialias:
@@ -646,8 +646,8 @@ class any(OptionalFieldReduction):
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] = True
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -655,22 +655,22 @@ class any(OptionalFieldReduction):
         if not isnull(field):
             if isnull(agg[y, x]) or aa_factor > agg[y, x]:
                 agg[y, x] = aa_factor
-                return True
-        return False
+                return 0
+        return -1
 
     @staticmethod
     @ngjit
     def _append_no_field(x, y, agg):
         agg[y, x] = True
-        return True
+        return 0
 
     @staticmethod
     @ngjit
     def _append_no_field_antialias(x, y, agg, aa_factor):
         if isnull(agg[y, x]) or aa_factor > agg[y, x]:
             agg[y, x] = aa_factor
-            return True
-        return False
+            return 0
+        return -1
 
     # GPU append functions
     _append_cuda =_append
@@ -763,8 +763,8 @@ class _sum_zero(FloatingReduction):
         if not isnull(field):
             # agg[y, x] cannot be null as initialised to zero.
             agg[y, x] += field
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -773,8 +773,8 @@ class _sum_zero(FloatingReduction):
         if not isnull(value):
             # agg[y, x] cannot be null as initialised to zero.
             agg[y, x] += value
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -783,8 +783,8 @@ class _sum_zero(FloatingReduction):
         if not isnull(value) and value > agg[y, x]:
             # agg[y, x] cannot be null as initialised to zero.
             agg[y, x] = value
-            return True
-        return False
+            return 0
+        return -1
 
     # GPU append functions
     @staticmethod
@@ -792,8 +792,8 @@ class _sum_zero(FloatingReduction):
     def _append_cuda(x, y, agg, field):
         if not isnull(field):
             nb_cuda.atomic.add(agg, (y, x), field)
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     def _combine(aggs):
@@ -863,8 +863,8 @@ class sum(SelfIntersectingFloatingReduction):
                 agg[y, x] = field
             else:
                 agg[y, x] += field
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -875,8 +875,8 @@ class sum(SelfIntersectingFloatingReduction):
                 agg[y, x] = value
             else:
                 agg[y, x] += value
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -885,8 +885,8 @@ class sum(SelfIntersectingFloatingReduction):
         if not isnull(value):
             if isnull(agg[y, x]) or value > agg[y, x]:
                 agg[y, x] = value
-                return True
-        return False
+                return 0
+        return -1
 
     @staticmethod
     def _combine(aggs):
@@ -936,8 +936,8 @@ The 'std' and 'var' reduction operations are not yet supported on the GPU""")
                 u1 = np.float64(sum) / count
                 u = np.float64(sum + field) / (count + 1)
                 m2[y, x] += (field - u1) * (field - u)
-                return True
-        return False
+                return 0
+        return -1
 
     @staticmethod
     def _combine(Ms, sums, ns):
@@ -967,8 +967,8 @@ class min(FloatingReduction):
     def _append(x, y, agg, field):
         if isnull(agg[y, x]) or agg[y, x] > field:
             agg[y, x] = field
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -976,14 +976,14 @@ class min(FloatingReduction):
         value = field*aa_factor
         if isnull(agg[y, x]) or value > agg[y, x]:
             agg[y, x] = value
-            return True
-        return False
+            return 0
+        return -1
 
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
-        return cuda_atomic_nanmin(agg, (y, x), field) != field
+        return 0 if cuda_atomic_nanmin(agg, (y, x), field) != field else -1
 
     @staticmethod
     def _combine(aggs):
@@ -1008,8 +1008,8 @@ class max(FloatingReduction):
     def _append(x, y, agg, field):
         if isnull(agg[y, x]) or agg[y, x] < field:
             agg[y, x] = field
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -1017,20 +1017,20 @@ class max(FloatingReduction):
         value = field*aa_factor
         if isnull(agg[y, x]) or value > agg[y, x]:
             agg[y, x] = value
-            return True
-        return False
+            return 0
+        return -1
 
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_antialias_cuda(x, y, agg, field, aa_factor):
         value = field*aa_factor
-        return cuda_atomic_nanmax(agg, (y, x), value) != value
+        return 0 if cuda_atomic_nanmax(agg, (y, x), value) != value else -1
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
-        return cuda_atomic_nanmax(agg, (y, x), field) != field
+        return 0 if cuda_atomic_nanmax(agg, (y, x), field) != field else -1
 
     @staticmethod
     def _combine(aggs):
@@ -1140,8 +1140,8 @@ class first(Reduction):
     def _append(x, y, agg, field):
         if not isnull(field) and isnull(agg[y, x]):
             agg[y, x] = field
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -1149,8 +1149,8 @@ class first(Reduction):
         value = field*aa_factor
         if isnull(agg[y, x]) or value > agg[y, x]:
             agg[y, x] = value
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     def _combine(aggs):
@@ -1190,8 +1190,8 @@ class last(Reduction):
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] = field
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
@@ -1199,8 +1199,8 @@ class last(Reduction):
         value = field*aa_factor
         if isnull(agg[y, x]) or value > agg[y, x]:
             agg[y, x] = value
-            return True
-        return False
+            return 0
+        return -1
 
     @staticmethod
     def _combine(aggs):
@@ -1306,25 +1306,25 @@ class where(FloatingReduction):
     @ngjit
     def _append(x, y, agg, field):
         agg[y, x] = field
-        return True
+        return 0
 
     @staticmethod
     @ngjit
     def _append_antialias(x, y, agg, field, aa_factor):
         agg[y, x] = field
-        return True
+        return 0
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_antialias_cuda(x, y, agg, field, aa_factor):
         agg[y, x] = field
-        return True
+        return 0
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         agg[y, x] = field
-        return True
+        return 0
 
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         # If self.column is None then append function still receives a 'field'
@@ -1355,7 +1355,7 @@ class where(FloatingReduction):
             for y in range(ny):
                 for x in range(nx):
                     value = selector_aggs[1][y, x]
-                    if not invalid(value) and append(x, y, selector_aggs[0], value):
+                    if not invalid(value) and append(x, y, selector_aggs[0], value) >= 0:
                         aggs[0][y, x] = aggs[1][y, x]
 
         @nb_cuda.jit
@@ -1364,7 +1364,7 @@ class where(FloatingReduction):
             x, y = nb_cuda.grid(2)
             if x < nx and y < ny:
                 value = selector_aggs[1][y, x]
-                if not invalid(value) and append(x, y, selector_aggs[0], value):
+                if not invalid(value) and append(x, y, selector_aggs[0], value) >= 0:
                     aggs[0][y, x] = aggs[1][y, x]
 
         def wrapped_combine(aggs, selector_aggs):

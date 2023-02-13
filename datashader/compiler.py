@@ -170,7 +170,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         if where_reduction:
             # where reduction needs access to the return of the contained
             # reduction, which is the preceding one here.
-            body[-2] = 'if ' + body[-2] + ':'
+            body[-2] = 'if ' + body[-2] + ' >= 0:'
             body[-1] = '    ' + body[-1]
 
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
