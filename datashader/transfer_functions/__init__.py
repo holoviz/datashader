@@ -489,7 +489,7 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_d
             norm_span = norm_span[0]  # Ignore discrete_levels
 
     # Issue 1178. Convert norm_span from 2-tuple to numpy/cupy array.
-    # array_module.stack() tolerates tuple of one float and one cupy array,
+    # array_module.hstack() tolerates tuple of one float and one cupy array,
     # whereas array_module.array() does not.
     norm_span = array_module.hstack(norm_span)
 
