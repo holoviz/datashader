@@ -716,6 +716,11 @@ class TestRaggedGetitem(eb.BaseGetitemTests):
     def test_getitem_invalid(self, data):
         pass
 
+    @pytest.mark.skip(reason="Can't autoconvert ragged array to numpy array")
+    def test_getitem_series_integer_with_missing_raises(self, data, idx):
+        pass
+
+
 class TestRaggedGroupby(eb.BaseGroupbyTests):
     @pytest.mark.skip(reason="agg not supported")
     def test_groupby_agg_extension(self):
@@ -835,7 +840,13 @@ class TestRaggedMethods(eb.BaseMethodsTests):
         pass
 
 class TestRaggedPrinting(eb.BasePrintingTests):
-    pass
+    @pytest.mark.skip(reason="Can't autoconvert ragged array to numpy array")
+    def test_dataframe_repr(self):
+        pass
+
+    @pytest.mark.skip(reason="Can't autoconvert ragged array to numpy array")
+    def test_series_repr(self):
+        pass
 
 
 class TestRaggedMissing(eb.BaseMissingTests):
