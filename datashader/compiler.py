@@ -166,17 +166,16 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
 
         where_reduction = len(bases) == 1 and isinstance(bases[0], where)
         if where_reduction:
-            arg_name = 'xxx'
-            args.append(arg_name)
+            update_index_arg_name = next(names)
+            args.append(update_index_arg_name)
 
-        call  = '{0}(x, y, {1})'.format(func_name, ', '.join(args))
-
-        if where_reduction:
             # where reduction needs access to the return of the contained
             # reduction, which is the preceding one here.
-            body[-1] = f'{arg_name} = {body[-1]}'
-            body.append(f'if {arg_name} >= 0:')
-            call = f'    {call}'
+            body[-1] = f'{update_index_arg_name} = {body[-1]}'
+            body.append(f'if {update_index_arg_name} >= 0:')
+            call  = '    {0}(x, y, {1})'.format(func_name, ', '.join(args))
+        else:
+            call  = '{0}(x, y, {1})'.format(func_name, ', '.join(args))
 
         body.append(call)
 

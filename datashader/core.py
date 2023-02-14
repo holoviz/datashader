@@ -1312,16 +1312,19 @@ def _cols_to_keep(columns, glyph, agg):
     for col in glyph.required_columns():
         cols_to_keep[col] = True
 
-    if hasattr(agg, 'values'):
-        for subagg in agg.values:
-            if subagg.column is not None:
-                cols_to_keep[subagg.column] = True
-    elif hasattr(agg, 'columns'):
-        for column in agg.columns:
-            if column is not None:
-                cols_to_keep[column] = True
-    elif agg.column is not None:
-        cols_to_keep[agg.column] = True
+    def recurse(cols_to_keep, agg):
+        if hasattr(agg, 'values'):
+            for subagg in agg.values:
+                recurse(cols_to_keep, subagg)
+        elif hasattr(agg, 'columns'):
+            for column in agg.columns:
+                if column is not None:
+                    cols_to_keep[column] = True
+        elif agg.column is not None:
+            cols_to_keep[agg.column] = True
+
+    recurse(cols_to_keep, agg)
+
     return [col for col, keepit in cols_to_keep.items() if keepit]
 
 

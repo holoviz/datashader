@@ -302,7 +302,7 @@ def test_where_min(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'))), out)
 
 
-@pytest.mark.parametrize('df', dfs)
+@pytest.mark.parametrize('df', dfs_pd)
 def test_where_first_n(df):
     sol_rowindex = np.array([[[ 0,  1,  3,  4, -1, -1],
                               [10, 11, 12, 13, 14, -1]],
@@ -322,7 +322,7 @@ def test_where_first_n(df):
         assert_eq_ndarray(agg.data, out)
 
 
-@pytest.mark.parametrize('df', dfs)
+@pytest.mark.parametrize('df', dfs_pd)
 def test_where_last_n(df):
     sol_rowindex = np.array([[[ 4,  3,  1,  0, -1, -1],
                               [14, 13, 12, 11, 10, -1]],
@@ -342,7 +342,7 @@ def test_where_last_n(df):
         assert_eq_ndarray(agg.data, out)
 
 
-@pytest.mark.parametrize('df', dfs)
+@pytest.mark.parametrize('df', dfs_pd)
 def test_where_max_n(df):
     sol_rowindex = np.array([[[ 4,  0,  1,  3, -1, -1],
                               [14, 12, 10, 11, 13, -1]],
@@ -362,7 +362,7 @@ def test_where_max_n(df):
         assert_eq_ndarray(agg.data, out)
 
 
-@pytest.mark.parametrize('df', dfs)
+@pytest.mark.parametrize('df', dfs_pd)
 def test_where_min_n(df):
     sol_rowindex = np.array([[[3,  1,  0,  4, -1, -1],
                               [13, 11, 10, 12, 14, -1]],
@@ -380,6 +380,38 @@ def test_where_min_n(df):
         agg = c.points(df, 'x', 'y', ds.where(ds.min_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_summary_where_n(df):
+    sol_min_n_rowindex = np.array([[[3,  1,  0,  4, -1],
+                                    [13, 11, 10, 12, 14]],
+                                   [[ 9,  7,  5,  6,  8],
+                                    [19, 17, 15, 16, 18]]])
+    sol_max_n_rowindex = np.array([[[ 4,  0,  1,  3, -1],
+                                    [14, 12, 10, 11, 13]],
+                                   [[ 8,  6,  5,  7,  9],
+                                    [18, 16, 15, 17, 19]]])
+    sol_max_n_reverse = np.where(sol_max_n_rowindex < 0, np.nan, 20 - sol_max_n_rowindex)
+
+    agg = c.points(df, 'x', 'y', ds.summary(
+        count=ds.count(),
+        min_n=ds.where(ds.min_n('plusminus', 5)),
+        max_n=ds.where(ds.max_n('plusminus', 5), 'reverse'),
+    ))
+    assert_eq_ndarray(agg.coords['n'], np.arange(5))
+
+    assert agg['count'].dims == ('y', 'x')
+    assert agg['min_n'].dims == ('y', 'x', 'n')
+    assert agg['max_n'].dims == ('y', 'x', 'n')
+
+    assert agg['count'].dtype == np.dtype('uint32')
+    assert agg['min_n'].dtype == np.dtype('int64')
+    assert agg['max_n'].dtype == np.dtype('float64')
+
+    assert_eq_ndarray(agg['count'].data, [[5, 5], [5, 5]])
+    assert_eq_ndarray(agg['min_n'].data, sol_min_n_rowindex)
+    assert_eq_ndarray(agg['max_n'].data, sol_max_n_reverse)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -2550,6 +2582,12 @@ def test_canvas_size():
     ds.last_n('f64', n=3),
     ds.max_n('f64', n=3),
     ds.min_n('f64', n=3),
+    ds.where(ds.first('f64')),
+    ds.where(ds.first_n('f64', n=3)),
+    ds.where(ds.last('f64')),
+    ds.where(ds.last_n('f64', n=3)),
+    ds.where(ds.max_n('f64', n=3)),
+    ds.where(ds.min_n('f64', n=3)),
 ])
 def test_reduction_on_cuda_raises_error(reduction):
     with pytest.raises(ValueError, match="not supported on the GPU"):

@@ -244,7 +244,7 @@ def test_where_min(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'))), out)
 
 
-@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('ddf', [_ddf])
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_max_n(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
@@ -269,7 +269,7 @@ def test_where_max_n(ddf, npartitions):
         assert_eq_ndarray(agg.data, out)
 
 
-@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('ddf', [_ddf])
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_min_n(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
@@ -292,6 +292,43 @@ def test_where_min_n(ddf, npartitions):
         agg = c.points(ddf, 'x', 'y', ds.where(ds.min_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_summary_where_n(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+
+    sol_min_n_rowindex = np.array([[[3,  1,  0,  4, -1],
+                                    [13, 11, 10, 12, 14]],
+                                   [[ 9,  7,  5,  6,  8],
+                                    [19, 17, 15, 16, 18]]])
+    sol_max_n_rowindex = np.array([[[ 4,  0,  1,  3, -1],
+                                    [14, 12, 10, 11, 13]],
+                                   [[ 8,  6,  5,  7,  9],
+                                    [18, 16, 15, 17, 19]]])
+    sol_max_n_reverse = np.where(sol_max_n_rowindex < 0, np.nan, 20 - sol_max_n_rowindex)
+
+    agg = c.points(ddf, 'x', 'y', ds.summary(
+        count=ds.count(),
+        min_n=ds.where(ds.min_n('plusminus', 5)),
+        max_n=ds.where(ds.max_n('plusminus', 5), 'reverse'),
+    ))
+    assert_eq_ndarray(agg.coords['n'], np.arange(5))
+
+    assert agg['count'].dims == ('y', 'x')
+    assert agg['min_n'].dims == ('y', 'x', 'n')
+    assert agg['max_n'].dims == ('y', 'x', 'n')
+
+    assert agg['count'].dtype == np.dtype('uint32')
+    assert agg['min_n'].dtype == np.dtype('int64')
+    assert agg['max_n'].dtype == np.dtype('float64')
+
+    assert_eq_ndarray(agg['count'].data, [[5, 5], [5, 5]])
+    assert_eq_ndarray(agg['min_n'].data, sol_min_n_rowindex)
+    assert_eq_ndarray(agg['max_n'].data, sol_max_n_reverse)
 
 
 @pytest.mark.parametrize('ddf', ddfs)

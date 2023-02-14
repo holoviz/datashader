@@ -1,4 +1,5 @@
 from __future__ import annotations
+import copy
 from packaging.version import Version
 import numpy as np
 from datashape import dshape, isnumeric, Record, Option
@@ -1230,13 +1231,16 @@ class FloatingNReduction(FloatingReduction):
         self.n = n if n >= 1 else 1
 
     def _add_finalize_kwargs(self, **kwargs):
-        # Use class name for new coordinate.  Is this good enough?
-        # Coordinate could just be "n" instead?  What if have multiple xxx_n reductions?
-        #n_name = self.__class__.__name__
+        # Add the new dimension and coordinate.
         n_name = "n"
         n_values = np.arange(self.n)
+
+        # Return a modified copy of kwargs. Cannot modify supplied kwargs as it
+        # may be used by multiple reductions, e.g. if a summary reduction.
+        kwargs = copy.deepcopy(kwargs)
         kwargs['dims'] += [n_name]
         kwargs['coords'][n_name] = n_values
+        return kwargs
 
     def _build_create(self, required_dshape):
         return lambda shape, array_module: super(FloatingNReduction, self)._build_create(
@@ -1244,7 +1248,7 @@ class FloatingNReduction(FloatingReduction):
 
     def _build_finalize(self, dshape):
         def finalize(bases, cuda=False, **kwargs):
-            self._add_finalize_kwargs(**kwargs)
+            kwargs = self._add_finalize_kwargs(**kwargs)
             return super(FloatingNReduction, self)._finalize(bases, cuda=cuda, **kwargs)
 
         return finalize
@@ -1596,7 +1600,7 @@ class where(FloatingReduction):
 
         def finalize(bases, cuda=False, **kwargs):
             if add_finalize_kwargs is not None:
-                add_finalize_kwargs(**kwargs)
+                kwargs = add_finalize_kwargs(**kwargs)
 
             return xr.DataArray(bases[-1], **kwargs)
 
