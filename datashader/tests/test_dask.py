@@ -1629,6 +1629,7 @@ def test_log_axis_not_positive(ddf, canvas):
         canvas.line(ddf, 'x', 'y')
 
 
+@pytest.mark.skip(reason='Antialised where reduction not yet supported')
 @pytest.mark.parametrize('npartitions', [1, 2, 3])
 def test_line_antialias_where(npartitions):
     x = np.arange(3)

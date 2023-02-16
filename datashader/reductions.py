@@ -1258,6 +1258,12 @@ class FloatingNReduction(FloatingReduction):
 
 
 class first_n(FloatingNReduction):
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.FIRST, array_module.nan),)
+
     # CPU append functions
     @staticmethod
     @ngjit
@@ -1287,6 +1293,12 @@ class first_n(FloatingNReduction):
 
 
 class last_n(FloatingNReduction):
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.LAST, array_module.nan),)
+
     # CPU append functions
     @staticmethod
     @ngjit
@@ -1312,6 +1324,9 @@ class last_n(FloatingNReduction):
 
 
 class max_n(FloatingNReduction):
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.MAX, array_module.nan),)
+
     # CPU append functions
     @staticmethod
     @ngjit
@@ -1343,6 +1358,12 @@ class max_n(FloatingNReduction):
 
 
 class min_n(FloatingNReduction):
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.MIN, array_module.nan),)
+
     # CPU append functions
     @staticmethod
     @ngjit
@@ -1369,7 +1390,7 @@ class min_n(FloatingNReduction):
     def _combine(aggs):
         ret = aggs[0]
         for i in range(1, len(aggs)):
-            nanmax_n_in_place(ret, aggs[i])
+            nanmin_n_in_place(ret, aggs[i])
         return ret
 
 
@@ -1434,7 +1455,9 @@ class where(FloatingReduction):
     """
     def __init__(self, selector: Reduction, lookup_column: str | None=None):
         if not isinstance(selector, (first, first_n, last, last_n, max, max_n, min, min_n)):
-            raise TypeError("selector can only be a first, last, max or min reduction")
+            raise TypeError(
+                "selector can only be a first, first_n, last, last_n, "
+                "max, max_n, min or min_ reduction")
         super().__init__(lookup_column)
         self.selector = selector
         # List of all column names that this reduction uses.
@@ -1460,7 +1483,11 @@ class where(FloatingReduction):
             raise ValueError("where and its contained reduction cannot use the same column")
 
     def _antialias_stage_2(self, self_intersect, array_module):
-        return self.selector._antialias_stage_2(self_intersect, array_module)
+        ret = self.selector._antialias_stage_2(self_intersect, array_module)
+        if self.uses_row_index():
+            # Override antialiased zero value when returning integer row index.
+            ret = ((ret[0][0], -1),)
+        return ret
 
     # CPU append functions
     # All where._append* functions have an extra argument which is the update index.

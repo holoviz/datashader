@@ -2418,6 +2418,14 @@ def test_line_antialias_duplicate_points(self_intersect):
 @pytest.mark.parametrize('reduction', [
     ds.std('value'),
     ds.var('value'),
+    ds.where(ds.first('value')),
+    ds.where(ds.first_n('value')),
+    ds.where(ds.last('value')),
+    ds.where(ds.last_n('value')),
+    ds.where(ds.max('value')),
+    ds.where(ds.max_n('value')),
+    ds.where(ds.min('value')),
+    ds.where(ds.min_n('value')),
 ])
 def test_line_antialias_reduction_not_implemented(reduction):
     # Issue #1133, detect and report reductions that are not implemented.
@@ -2428,6 +2436,7 @@ def test_line_antialias_reduction_not_implemented(reduction):
         cvs.line(df, 'x', 'y', line_width=1, agg=reduction)
 
 
+@pytest.mark.skip(reason='Antialised where reduction not yet supported')
 def test_line_antialias_where():
     x = np.arange(3)
     df = pd.DataFrame(dict(
@@ -2487,8 +2496,9 @@ def test_reduction_dtype(reduction, dtype, aa_dtype):
     assert agg.dtype == dtype
 
     # Antialiased lines
-    agg = cvs.line(df, 'x', 'y', line_width=1, agg=reduction)
-    assert agg.dtype == aa_dtype
+    if not isinstance(reduction, ds.where):  # Antialiased ds.where not implemented")
+        agg = cvs.line(df, 'x', 'y', line_width=1, agg=reduction)
+        assert agg.dtype == aa_dtype
 
 
 @pytest.mark.parametrize('df', dfs)

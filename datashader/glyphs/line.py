@@ -1096,11 +1096,9 @@ def _aa_stage_2_clear(aggs_and_copies, antialias_zeroes):
 
 @ngjit
 def _aa_stage_2_copy_back(aggs_and_copies):
-    k = 0
     # Numba access to heterogeneous tuples is only permitted using literal_unroll.
     for agg_and_copy in literal_unroll(aggs_and_copies):
         agg_and_copy[0][:] = agg_and_copy[1][:]
-        k += 1
 
 
 def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, use_2_stage_agg):
