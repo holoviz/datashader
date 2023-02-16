@@ -1457,7 +1457,7 @@ class where(FloatingReduction):
         if not isinstance(selector, (first, first_n, last, last_n, max, max_n, min, min_n)):
             raise TypeError(
                 "selector can only be a first, first_n, last, last_n, "
-                "max, max_n, min or min_ reduction")
+                "max, max_n, min or min_n reduction")
         super().__init__(lookup_column)
         self.selector = selector
         # List of all column names that this reduction uses.

@@ -2527,7 +2527,8 @@ def test_where_unsupported_selector(selector):
     cvs = ds.Canvas(plot_width=10, plot_height=10)
     df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], ))
 
-    with pytest.raises(TypeError, match='selector can only be a first, last, max or min reduction'):
+    with pytest.raises(TypeError, match='selector can only be a first, first_n, last, last_n, '
+                                        'max, max_n, min or min_n reduction'):
         cvs.line(df, 'x', 'y', agg=ds.where(selector, 'value'))
 
 
