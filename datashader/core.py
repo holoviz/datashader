@@ -1229,7 +1229,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
 
     def validate_extend(self, width, height):
         if width == 0 or height == 0:
-            raise ValueError(f"Invalid extend plot_width and plot_height must be bigger than 0")
+            raise ValueError("Invalid extend plot_width and plot_height must be bigger than 0")
        
     def validate(self):
         """Check that parameter settings are valid for this object"""
