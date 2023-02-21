@@ -1672,6 +1672,17 @@ class summary(Expr):
         for v in self.values:
             v.validate(input_dshape)
 
+        # Check that any included FloatingNReductions have the same n values.
+        n_values = []
+        for v in self.values:
+            if isinstance(v, where):
+                v = v.selector
+            if isinstance(v, FloatingNReduction):
+                n_values.append(v.n)
+        if len(np.unique(n_values)) > 1:
+            raise ValueError(
+                "Using multiple FloatingNReductions with different n values is not supported")
+
     @property
     def inputs(self):
         return tuple(unique(concat(v.inputs for v in self.values)))

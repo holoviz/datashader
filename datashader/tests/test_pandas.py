@@ -414,6 +414,16 @@ def test_summary_where_n(df):
     assert_eq_ndarray(agg['max_n'].data, sol_max_n_reverse)
 
 
+@pytest.mark.parametrize('df', dfs_pd)
+def test_summary_different_n(df):
+    msg = 'Using multiple FloatingNReductions with different n values is not supported'
+    with pytest.raises(ValueError, match=msg):
+        c.points(df, 'x', 'y', ds.summary(
+            min_n=ds.where(ds.min_n('plusminus', 2)),
+            max_n=ds.where(ds.max_n('plusminus', 3)),
+        ))
+
+
 @pytest.mark.parametrize('df', dfs)
 def test_mean(df):
     out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
