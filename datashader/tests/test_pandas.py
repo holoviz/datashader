@@ -2396,7 +2396,6 @@ def test_line_coordinate_lengths():
 
 
 def test_canvas_size():
-
     cvs_list = [
         ds.Canvas(plot_width=0, plot_height=6),
         ds.Canvas(plot_width=5, plot_height=0),
