@@ -638,6 +638,13 @@ Invalid indices for take with allow_fill True: {inds}""".format(
 
         return np.array([v for v in self], dtype=dtype, copy=copy)
 
+    def tolist(self):
+        # Based on pandas ExtensionArray.tolist
+        if self.ndim > 1:
+            return [item.tolist() for item in self]
+        else:
+            return list(self)
+
     def __array__(self, dtype=None):
         dtype = np.dtype(object) if dtype is None else np.dtype(dtype)
         return np.asarray(self.tolist(), dtype=dtype)
