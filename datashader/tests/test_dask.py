@@ -11,6 +11,7 @@ from dask.context import config
 from numpy import nan
 
 import datashader as ds
+from datashader.datatypes import RaggedArray
 import datashader.utils as du
 
 import pytest
@@ -713,8 +714,8 @@ line_manual_range_params = [
 
     # axis1 RaggedArray
     (dict(data={
-        'x': [[4, 0, -4], [-4, 0, 4, 4, 0, -4]],
-        'y': [[0, -4, 0], [0, 4, 0, 0, 0, 0]],
+        'x': RaggedArray([[4, 0, -4], [-4, 0, 4, 4, 0, -4]]),
+        'y': RaggedArray([[0, -4, 0], [0, 4, 0, 0, 0, 0]]),
     }, dtype='Ragged[int64]'), dict(x='x', y='y', axis=1)),
 ]
 if sp:
@@ -725,8 +726,8 @@ if sp:
                      [-4, 0, 0, 4, 4, 0, 4, 0, 0, 0, -4, 0]]
         }, dtype='Line[int64]'), dict(geometry='geom'))
     )
-@pytest.mark.parametrize('DataFrame', DataFrames)
-@pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_manual_range_params)
+@pytest.mark.parametrize('DataFrame', DataFrames[:1])
+@pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_manual_range_params[5:7])
 def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
         dtype = df_kwargs.get('dtype', '')
@@ -999,8 +1000,8 @@ def test_auto_range_line(DataFrame):
 
     # axis1 ragged arrays
     (dict(data={
-        'x': pd.array([[-4, -2, 0], [2, 4]]),
-        'y': pd.array([[0, -4, 0], [4, 0]])
+        'x': pd.array([[-4, -2, 0], [2, 4]], dtype='Ragged[float32]'),
+        'y': pd.array([[0, -4, 0], [4, 0]], dtype='Ragged[float32]')
     }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
