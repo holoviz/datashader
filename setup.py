@@ -64,7 +64,7 @@ extras_require = {
     ]
 }
 
-if sys.platform in ("win32", "cygwin") and sys.version_info < (3, 8):
+if sys.version_info < (3, 8) and sys.platform in ("win32", "cygwin"):
     extras_require['tests'] = "hdf5 ==1.12.1"  # To be able to solve on mamba
 
 extras_require['doc'] = extras_require['examples_extra'] + [
