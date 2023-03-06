@@ -92,6 +92,20 @@ Reductions
    var
    where
 
+The table below indicates which ``Reduction`` classes are supported on the CPU (e.g. using
+``pandas``), on CPU with Dask (e.g. using ``dask.dataframe``), on the GPU (e.g. using ``cudf``),
+and on the GPU with Dask (e.g. using ``dask-cudf``). The final two columns indicate which reductions
+support antialiased lines and which can be used as the ``selector`` in a
+:class:`~datashader.reductions.where` reduction.
+
+.. csv-table::
+   :file: reduction.csv
+   :header-rows: 1
+
+The :class:`~datashader.reductions.mode` reduction is not listed in the table and can only be used
+with ``Canvas.raster``. A :class:`~datashader.reductions.by` reduction supports anything that its
+contained reduction (that is applied separately to each category) supports.
+
 **Categorizers**
 
 .. autosummary::
