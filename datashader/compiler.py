@@ -164,14 +164,20 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         if antialias:
             args.append("aa_factor")
 
-        body.append('{0}(x, y, {1})'.format(func_name, ', '.join(args)))
-
         where_reduction = len(bases) == 1 and isinstance(bases[0], where)
         if where_reduction:
+            update_index_arg_name = next(names)
+            args.append(update_index_arg_name)
+
             # where reduction needs access to the return of the contained
             # reduction, which is the preceding one here.
-            body[-2] = 'if ' + body[-2] + ' >= 0:'
-            body[-1] = '    ' + body[-1]
+            body[-1] = f'{update_index_arg_name} = {body[-1]}'
+            body.append(f'if {update_index_arg_name} >= 0:')
+            call  = '    {0}(x, y, {1})'.format(func_name, ', '.join(args))
+        else:
+            call  = '{0}(x, y, {1})'.format(func_name, ', '.join(args))
+
+        body.append(call)
 
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body
