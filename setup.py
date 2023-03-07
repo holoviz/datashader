@@ -65,7 +65,10 @@ extras_require = {
 }
 
 if sys.version_info < (3, 8):
-    extras_require['tests'] += ["hdf5 ==1.12.1"]  # To be able to solve on mamba
+    extras_require['tests'] += [
+        "fsspec ==2023.1",  # Bad conda-forge fsspec 2023.3.0 release
+        "hdf5 ==1.12.1",  # To be able to solve on mamba
+    ]
 
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.7.1',
