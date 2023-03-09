@@ -210,7 +210,7 @@ def test_max(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f64')), out)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs_pd)
 def test_min_n(df):
     solution = np.array([[[-3, -1, 0, 4, nan, nan], [-13, -11, 10, 12, 14, nan]],
                          [[-9, -7, -5, 6, 8, nan], [-19, -17, -15, 16, 18, nan]]])
@@ -222,7 +222,7 @@ def test_min_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.min('plusminus')).data)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs_pd)
 def test_max_n(df):
     solution = np.array([[[4, 0, -1, -3, nan, nan], [14, 12, 10, -11, -13, nan]],
                          [[8, 6, -5, -7, -9, nan], [18, 16, -15, -17, -19, nan]]])
@@ -2601,14 +2601,10 @@ def test_canvas_size():
     ds.first_n('f64', n=3),
     ds.last('f64'),
     ds.last_n('f64', n=3),
-    ds.max_n('f64', n=3),
-    ds.min_n('f64', n=3),
     ds.where(ds.first('f64')),
     ds.where(ds.first_n('f64', n=3)),
     ds.where(ds.last('f64')),
     ds.where(ds.last_n('f64', n=3)),
-    ds.where(ds.max_n('f64', n=3)),
-    ds.where(ds.min_n('f64', n=3)),
 ])
 def test_reduction_on_cuda_raises_error(reduction):
     with pytest.raises(ValueError, match="not supported on the GPU"):

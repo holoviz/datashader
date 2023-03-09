@@ -171,3 +171,16 @@ def interp2d_kernel(x, xp, fp, left, right, output_y):
 
             # Update output
             output_y[i, j] = y_interp
+
+
+@cuda.jit(device=True)
+def cuda_mutex_lock(mutex, index):
+    while cuda.atomic.compare_and_swap(mutex, 0, 1) != 0:
+          pass
+    cuda.threadfence()
+
+
+@cuda.jit(device=True)
+def cuda_mutex_unlock(mutex, index):
+    cuda.threadfence()
+    cuda.atomic.exch(mutex, 0, 0)
