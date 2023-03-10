@@ -66,7 +66,6 @@ extras_require = {
 
 if sys.version_info < (3, 8):
     extras_require['tests'] += [
-        "fsspec ==2023.1",  # Bad conda-forge fsspec 2023.3.0 release
         "hdf5 ==1.12.1",  # To be able to solve on mamba
     ]
 
