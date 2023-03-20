@@ -328,7 +328,7 @@ class Reduction(Expr):
             else:
                 return self._append
 
-    def _build_combine(self, dshape, antialias):
+    def _build_combine(self, dshape, antialias, cuda):
         return self._combine
 
     def _build_finalize(self, dshape):
@@ -519,7 +519,7 @@ class count(SelfIntersectingOptionalFieldReduction):
         nb_cuda.atomic.add(agg, (y, x), 1)
         return 0
 
-    def _build_combine(self, dshape, antialias):
+    def _build_combine(self, dshape, antialias, cuda):
         if antialias:
             return self._combine_antialias
         else:
@@ -617,8 +617,8 @@ class by(Reduction):
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         return self.reduction._build_append(dshape, schema, cuda, antialias, self_intersect)
 
-    def _build_combine(self, dshape, antialias):
-        return self.reduction._build_combine(dshape, antialias)
+    def _build_combine(self, dshape, antialias, cuda):
+        return self.reduction._build_combine(dshape, antialias, cuda)
 
     def _build_finalize(self, dshape):
         cats = list(self.categorizer.categories(dshape))
@@ -680,7 +680,7 @@ class any(OptionalFieldReduction):
     _append_cuda =_append
     _append_no_field_cuda = _append_no_field
 
-    def _build_combine(self, dshape, antialias):
+    def _build_combine(self, dshape, antialias, cuda):
         if antialias:
             return self._combine_antialias
         else:
@@ -1542,7 +1542,7 @@ class where(FloatingReduction):
     def _build_bases(self, cuda=False):
         return self.selector._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
 
-    def _build_combine(self, dshape, antialias):
+    def _build_combine(self, dshape, antialias, cuda):
         # Does not support categorical reductions.
         selector = self.selector
         append = selector._append
@@ -1593,7 +1593,7 @@ class where(FloatingReduction):
 
             if len(aggs) == 1:
                 pass
-            elif cp is not None and isinstance(aggs[0], cp.ndarray):
+            elif cuda:
                 combine_cuda_2d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
             else:
                 if aggs[0].ndim == 3:

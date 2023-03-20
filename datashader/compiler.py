@@ -89,7 +89,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     create = make_create(bases, dshapes, cuda)
     info = make_info(cols)
     append = make_append(bases, cols, calls, glyph, isinstance(agg, by), antialias)
-    combine = make_combine(bases, dshapes, temps, combine_temps, antialias)
+    combine = make_combine(bases, dshapes, temps, combine_temps, antialias, cuda)
     finalize = make_finalize(bases, agg, schema, cuda)
 
     return create, info, append, combine, finalize, antialias_stage_2
@@ -203,14 +203,14 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
     return ngjit(namespace['append'])
 
 
-def make_combine(bases, dshapes, temps, combine_temps, antialias):
+def make_combine(bases, dshapes, temps, combine_temps, antialias, cuda):
     arg_lk = dict((k, v) for (v, k) in enumerate(bases))
 
     # where._combine() deals with combine of preceding reduction so exclude
     # it from explicit combine calls.
     base_is_where = [isinstance(b, where) for b in bases]
     next_base_is_where = base_is_where[1:] + [False]
-    calls = [(None if n else b._build_combine(d, antialias), [arg_lk[i] for i in (b,) + t + ct])
+    calls = [(None if n else b._build_combine(d, antialias, cuda), [arg_lk[i] for i in (b,) + t + ct])
              for (b, d, t, ct, n) in zip(bases, dshapes, temps, combine_temps, next_base_is_where)]
 
     def combine(base_tuples):
