@@ -13,7 +13,8 @@ from numba import cuda as nb_cuda
 
 try:
     from datashader.transfer_functions._cuda_utils import (
-        cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args, cuda_mutex_lock, cuda_mutex_unlock)
+        cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args, cuda_mutex_lock, cuda_mutex_unlock,
+        cuda_nanmax_n_in_place, cuda_nanmin_n_in_place)
 except ImportError:
     cuda_atomic_nanmin, cuda_atomic_nanmmax, cuda_args = None, None, None
 
@@ -1372,14 +1373,25 @@ class max_n(FloatingNReduction):
             cuda_mutex_unlock(mutex, index)
         return -1
 
+    def _build_combine(self, dshape, antialias, cuda):
+        if cuda:
+            return self._combine_cuda
+        else:
+            return self._combine
+
     @staticmethod
     def _combine(aggs):
-        if cp is not None and isinstance(aggs[0], cp.ndarray):
-            raise NotImplementedError("max_n not supported on GPU with dask")
-
         ret = aggs[0]
         for i in range(1, len(aggs)):
             nanmax_n_in_place(ret, aggs[i])
+        return ret
+
+    @staticmethod
+    def _combine_cuda(aggs):
+        ret = aggs[0]
+        kernel_args = cuda_args(ret.shape[:2])
+        for i in range(1, len(aggs)):
+            cuda_nanmax_n_in_place[kernel_args](ret, aggs[i])
         return ret
 
 
@@ -1432,14 +1444,25 @@ class min_n(FloatingNReduction):
             cuda_mutex_unlock(mutex, index)
         return -1
 
+    def _build_combine(self, dshape, antialias, cuda):
+        if cuda:
+            return self._combine_cuda
+        else:
+            return self._combine
+
     @staticmethod
     def _combine(aggs):
-        if cp is not None and isinstance(aggs[0], cp.ndarray):
-            raise NotImplementedError("min_n not supported on GPU with dask")
-
         ret = aggs[0]
         for i in range(1, len(aggs)):
             nanmin_n_in_place(ret, aggs[i])
+        return ret
+
+    @staticmethod
+    def _combine_cuda(aggs):
+        ret = aggs[0]
+        kernel_args = cuda_args(ret.shape[:2])
+        for i in range(1, len(aggs)):
+            cuda_nanmin_n_in_place[kernel_args](ret, aggs[i])
         return ret
 
 
@@ -1595,6 +1618,10 @@ class where(FloatingReduction):
         return self.selector._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
 
     def _build_combine(self, dshape, antialias, cuda):
+        if cuda and self.uses_cuda_mutex():
+            raise NotImplementedError(
+                "'where' reduction does not support a selector that uses a CUDA mutex such as 'max_n'")
+
         # Does not support categorical reductions.
         selector = self.selector
         append = selector._append

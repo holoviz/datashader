@@ -180,7 +180,7 @@ def test_max(ddf):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f64')), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 def test_min_n(ddf):
     solution = np.array([[[-3, -1, 0, 4, nan, nan], [-13, -11, 10, 12, 14, nan]],
                          [[-9, -7, -5, 6, 8, nan], [-19, -17, -15, 16, 18, nan]]])
@@ -192,7 +192,7 @@ def test_min_n(ddf):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.min('plusminus')).data)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 def test_max_n(ddf):
     solution = np.array([[[4, 0, -1, -3, nan, nan], [14, 12, 10, -11, -13, nan]],
                          [[8, 6, -5, -7, -9, nan], [18, 16, -15, -17, -19, nan]]])
@@ -1694,6 +1694,19 @@ def test_canvas_size():
     ddf = dd.from_pandas(df, 1)
 
     for cvs in cvs_list:
-        with pytest.raises(ValueError, match=msg): 
+        with pytest.raises(ValueError, match=msg):
             cvs.points(ddf, "x", "y", ds.mean("z"))
- 
+
+
+@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+@pytest.mark.parametrize('reduction', [
+    ds.where(ds.first('f64')),
+    ds.where(ds.first_n('f64')),
+    ds.where(ds.last('f64')),
+    ds.where(ds.last_n('f64')),
+    ds.where(ds.max_n('f64', n=3)),
+    ds.where(ds.min_n('f64', n=3)),
+])
+def test_reduction_on_cuda_dask_raises_error(reduction):
+    with pytest.raises((NotImplementedError, ValueError)):
+        c.points(cudf_ddf, 'x', 'y', reduction)

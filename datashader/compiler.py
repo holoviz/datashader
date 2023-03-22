@@ -146,7 +146,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
     if any_uses_cuda_mutex:
         # This adds an argument to the append() function that is the cuda mutex
         # generated in make_info.
-        inputs += [True]  # Doesn't matter what is in the list.
+        inputs += ["_cuda_mutex"]
     signature = [next(names) for i in inputs]
     arg_lk = dict(zip(inputs, signature))
     local_lk = {}
@@ -179,7 +179,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
             args.append("aa_factor")
 
         if uses_cuda_mutex:
-            args.append(signature[-1])
+            args.append(arg_lk["_cuda_mutex"])
 
         where_reduction = len(bases) == 1 and isinstance(bases[0], where)
         if where_reduction:

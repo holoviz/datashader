@@ -106,8 +106,12 @@ def assert_eq_xr(agg, b, close=False):
 def assert_eq_ndarray(data, b, close=False):
     """Assert that two ndarrays are equal, handling the possibility that the
     ndarrays are of different types"""
-    if cupy and isinstance(data, cupy.ndarray):
-        data = cupy.asnumpy(data)
+    if cupy:
+        if isinstance(data, cupy.ndarray):
+            data = cupy.asnumpy(data)
+        if isinstance(b, cupy.ndarray):
+            b = cupy.asnumpy(b)
+
     if close:
         np.testing.assert_array_almost_equal(data, b, decimal=5)
     else:
