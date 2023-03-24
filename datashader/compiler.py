@@ -76,7 +76,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
         self_intersect = False
         antialias_stage_2 = False
 
-    # List of tuples of (append, base, input columns, temps, combine temps)
+    # List of tuples of (append, base, input columns, temps, combine temps, uses cuda mutex)
     calls = [_get_call_tuples(b, d, schema, cuda, antialias, self_intersect)
              for (b, d) in zip(bases, dshapes)]
 
@@ -87,8 +87,8 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
     combine_temps = list(pluck(4, calls))
 
     create = make_create(bases, dshapes, cuda)
-    info = make_info(cols)
-    append = make_append(bases, cols, calls, glyph, isinstance(agg, by), antialias)
+    append, uses_cuda_mutex = make_append(bases, cols, calls, glyph, isinstance(agg, by), antialias)
+    info = make_info(cols, uses_cuda_mutex)
     combine = make_combine(bases, dshapes, temps, combine_temps, antialias, cuda)
     finalize = make_finalize(bases, agg, schema, cuda)
 
@@ -113,6 +113,7 @@ def _get_call_tuples(base, dshape, schema, cuda, antialias, self_intersect):
         base.inputs,  # cols
         base._build_temps(cuda),  # temps
         base._build_combine_temps(cuda),  # combine temps
+        cuda and base.uses_cuda_mutex(),  # uses cuda mutex
     )
 
 
@@ -126,13 +127,26 @@ def make_create(bases, dshapes, cuda):
     return lambda shape: tuple(c(shape, array_module) for c in creators)
 
 
-def make_info(cols):
-    return lambda df: tuple(c.apply(df) for c in cols)
+def make_info(cols, uses_cuda_mutex):
+    def info(df):
+        ret = tuple(c.apply(df) for c in cols)
+        if uses_cuda_mutex:
+            import cupy  # Guaranteed to be available if uses_cuda_mutex is True
+            mutex_array = cupy.zeros((1,), dtype=np.uint32)
+            ret += (mutex_array,)
+        return ret
+
+    return info
 
 
 def make_append(bases, cols, calls, glyph, categorical, antialias):
     names = ('_{0}'.format(i) for i in count())
     inputs = list(bases) + list(cols)
+    any_uses_cuda_mutex = any(call[5] for call in calls)
+    if any_uses_cuda_mutex:
+        # This adds an argument to the append() function that is the cuda mutex
+        # generated in make_info.
+        inputs += ["_cuda_mutex"]
     signature = [next(names) for i in inputs]
     arg_lk = dict(zip(inputs, signature))
     local_lk = {}
@@ -144,7 +158,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
     else:
         subscript = None
 
-    for func, bases, cols, temps, _ in calls:
+    for func, bases, cols, temps, _, uses_cuda_mutex in calls:
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
         namespace[func_name] = func
@@ -163,6 +177,9 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         args.extend([local_lk[i] for i in temps])
         if antialias:
             args.append("aa_factor")
+
+        if uses_cuda_mutex:
+            args.append(arg_lk["_cuda_mutex"])
 
         where_reduction = len(bases) == 1 and isinstance(bases[0], where)
         if where_reduction:
@@ -200,7 +217,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
                 '    {2}'
                 ).format(subscript, ', '.join(signature), '\n    '.join(body))
     exec(code, namespace)
-    return ngjit(namespace['append'])
+    return ngjit(namespace['append']), any_uses_cuda_mutex
 
 
 def make_combine(bases, dshapes, temps, combine_temps, antialias, cuda):

@@ -13,7 +13,8 @@ from numba import cuda as nb_cuda
 
 try:
     from datashader.transfer_functions._cuda_utils import (
-        cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args)
+        cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args, cuda_mutex_lock, cuda_mutex_unlock,
+        cuda_nanmax_n_in_place, cuda_nanmin_n_in_place)
 except ImportError:
     cuda_atomic_nanmin, cuda_atomic_nanmmax, cuda_args = None, None, None
 
@@ -244,6 +245,9 @@ class Reduction(Expr):
     """Base class for per-bin reductions."""
     def __init__(self, column=None):
         self.column = column
+
+    def uses_cuda_mutex(self):
+        return False
 
     def uses_row_index(self):
         return False
@@ -1324,6 +1328,9 @@ class last_n(FloatingNReduction):
 
 
 class max_n(FloatingNReduction):
+    def uses_cuda_mutex(self):
+        return True
+
     def _antialias_stage_2(self, self_intersect, array_module):
         return ((AntialiasCombination.MAX, array_module.nan),)
 
@@ -1344,10 +1351,33 @@ class max_n(FloatingNReduction):
                     return i
         return -1
 
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field, mutex):
+        if not isnull(field):
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            index = (x, y)
+            cuda_mutex_lock(mutex, index)
+            for i in range(n):
+                if isnull(agg[y, x, i]) or field > agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+
+                    cuda_mutex_unlock(mutex, index)
+                    return i
+            cuda_mutex_unlock(mutex, index)
+        return -1
+
+    def _build_combine(self, dshape, antialias, cuda):
         if cuda:
-            raise ValueError("'max_n' reduction is not supported on the GPU")
-        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+            return self._combine_cuda
+        else:
+            return self._combine
 
     @staticmethod
     def _combine(aggs):
@@ -1356,8 +1386,19 @@ class max_n(FloatingNReduction):
             nanmax_n_in_place(ret, aggs[i])
         return ret
 
+    @staticmethod
+    def _combine_cuda(aggs):
+        ret = aggs[0]
+        kernel_args = cuda_args(ret.shape[:2])
+        for i in range(1, len(aggs)):
+            cuda_nanmax_n_in_place[kernel_args](ret, aggs[i])
+        return ret
+
 
 class min_n(FloatingNReduction):
+    def uses_cuda_mutex(self):
+        return True
+
     def _antialias_requires_2_stages(self):
         return True
 
@@ -1381,16 +1422,47 @@ class min_n(FloatingNReduction):
                     return i
         return -1
 
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field, mutex):
+        if not isnull(field):
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            index = (x, y)
+            cuda_mutex_lock(mutex, index)
+            for i in range(n):
+                if isnull(agg[y, x, i]) or field < agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+
+                    cuda_mutex_unlock(mutex, index)
+                    return i
+            cuda_mutex_unlock(mutex, index)
+        return -1
+
+    def _build_combine(self, dshape, antialias, cuda):
         if cuda:
-            raise ValueError("'min_n' reduction is not supported on the GPU")
-        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+            return self._combine_cuda
+        else:
+            return self._combine
 
     @staticmethod
     def _combine(aggs):
         ret = aggs[0]
         for i in range(1, len(aggs)):
             nanmin_n_in_place(ret, aggs[i])
+        return ret
+
+    @staticmethod
+    def _combine_cuda(aggs):
+        ret = aggs[0]
+        kernel_args = cuda_args(ret.shape[:2])
+        for i in range(1, len(aggs)):
+            cuda_nanmin_n_in_place[kernel_args](ret, aggs[i])
         return ret
 
 
@@ -1472,6 +1544,9 @@ class where(FloatingReduction):
         else:
             return dshape(ct.float64)
 
+    def uses_cuda_mutex(self):
+        return self.selector.uses_cuda_mutex()
+
     def uses_row_index(self):
         return self.column is None
 
@@ -1543,6 +1618,10 @@ class where(FloatingReduction):
         return self.selector._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
 
     def _build_combine(self, dshape, antialias, cuda):
+        if cuda and self.uses_cuda_mutex():
+            raise NotImplementedError(
+                "'where' reduction does not support a selector that uses a CUDA mutex such as 'max_n'")
+
         # Does not support categorical reductions.
         selector = self.selector
         append = selector._append

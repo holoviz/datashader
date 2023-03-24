@@ -171,3 +171,72 @@ def interp2d_kernel(x, xp, fp, left, right, output_y):
 
             # Update output
             output_y[i, j] = y_interp
+
+
+@cuda.jit(device=True)
+def cuda_mutex_lock(mutex, index):
+    while cuda.atomic.compare_and_swap(mutex, 0, 1) != 0:
+          pass
+    cuda.threadfence()
+
+
+@cuda.jit(device=True)
+def cuda_mutex_unlock(mutex, index):
+    cuda.threadfence()
+    cuda.atomic.exch(mutex, 0, 0)
+
+
+@cuda.jit
+def cuda_nanmax_n_in_place(ret, other):
+    """CUDA equivalent of nanmax_n_in_place.
+    """
+    ny, nx, n = ret.shape
+    x, y = cuda.grid(2)
+    if x < nx and y < ny:
+        ret_pixel = ret[y, x]      # 1D array of n values for single pixel
+        other_pixel = other[y, x]  # ditto
+        # Walk along other_pixel array a value at a time, find insertion
+        # index in ret_pixel and bump values along to insert.  Next
+        # other_pixel value is inserted at a higher index, so this walks
+        # the two pixel arrays just once each.
+        istart = 0
+        for other_value in other_pixel:
+            if isnan(other_value):
+                break
+
+            for i in range(istart, n):
+                if isnan(ret_pixel[i]) or other_value > ret_pixel[i]:
+                    # Bump values along then insert.
+                    for j in range(n-1, i, -1):
+                        ret_pixel[j] = ret_pixel[j-1]
+                    ret_pixel[i] = other_value
+                    istart = i+1
+                    break
+
+
+@cuda.jit
+def cuda_nanmin_n_in_place(ret, other):
+    """CUDA equivalent of nanmin_n_in_place.
+    """
+    ny, nx, n = ret.shape
+    x, y = cuda.grid(2)
+    if x < nx and y < ny:
+        ret_pixel = ret[y, x]      # 1D array of n values for single pixel
+        other_pixel = other[y, x]  # ditto
+        # Walk along other_pixel array a value at a time, find insertion
+        # index in ret_pixel and bump values along to insert.  Next
+        # other_pixel value is inserted at a higher index, so this walks
+        # the two pixel arrays just once each.
+        istart = 0
+        for other_value in other_pixel:
+            if isnan(other_value):
+                break
+
+            for i in range(istart, n):
+                if isnan(ret_pixel[i]) or other_value < ret_pixel[i]:
+                    # Bump values along then insert.
+                    for j in range(n-1, i, -1):
+                        ret_pixel[j] = ret_pixel[j-1]
+                    ret_pixel[i] = other_value
+                    istart = i+1
+                    break
