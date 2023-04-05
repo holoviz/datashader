@@ -64,6 +64,8 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
 
     # Build chunk indices for coordinates
     chunk_inds = {}
@@ -130,7 +132,8 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k, k[1], k[2])) for (k2, k) in zip(keys2, keys))
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label]))
+                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+                      attrs=dict(x_range=x_range, y_range=y_range)))
     return dsk, name
 
 
@@ -143,6 +146,8 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
 
     # Build chunk indices for coordinates
     chunk_inds = {}
@@ -221,7 +226,8 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k, k[1], k[2])) for (k2, k) in zip(keys2, keys))
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label]))
+                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+                      attrs=dict(x_range=x_range, y_range=y_range)))
     return dsk, name
 
 
@@ -234,6 +240,8 @@ def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
 
     x_coord_name = glyph.x
     y_coord_name = glyph.y
@@ -328,7 +336,8 @@ def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
 
     dsk[result_name] = (
         apply, finalize, [(combine, result_keys)],
-        dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label])
+        dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+             attrs=dict(x_range=x_range, y_range=y_range))
     )
 
     # Add x/y coord tasks to task graph

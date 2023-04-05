@@ -476,6 +476,9 @@ def test_count_cat(df):
         dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.count_cat('cat'))
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
+
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_count(df):
@@ -585,6 +588,8 @@ def test_categorical_sum_binning(df):
         )
         agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.sum(col)))
         assert_eq_xr(agg, out)
+        assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+        assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -777,6 +782,8 @@ def test_first():
         [100., 101., 101., np.nan, np.nan]], dtype='float64')
 
     assert_eq_ndarray(agg, sol)
+    assert_eq_ndarray(agg.x_range, (0, 5), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 5), close=True)
 
 
 def test_last():
@@ -845,6 +852,8 @@ def test_auto_range_points(DataFrame):
     sol = np.zeros((n, n), int)
     np.fill_diagonal(sol, 1)
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 9), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 9), close=True)
 
     cvs = ds.Canvas(plot_width=n+1, plot_height=n+1)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
@@ -852,6 +861,8 @@ def test_auto_range_points(DataFrame):
     np.fill_diagonal(sol, 1)
     sol[5, 5] = 0
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 9), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 9), close=True)
 
     n = 4
     data = np.arange(n, dtype='i4')
@@ -866,6 +877,8 @@ def test_auto_range_points(DataFrame):
     sol[np.array([tuple(range(1, 4, 2))])] = 0
     sol[np.array([tuple(range(4, 8, 2))])] = 0
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 3), close=True)
 
     cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
@@ -875,6 +888,8 @@ def test_auto_range_points(DataFrame):
     sol[6, 6] = 1
     sol[8, 8] = 1
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 3), close=True)
 
 
 def test_uniform_points():
@@ -888,6 +903,8 @@ def test_uniform_points():
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
     sol = np.array([[10] * 9 + [11], [10] * 9 + [11]], dtype='i4')
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 100), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('high', [9, 10, 99, 100])
@@ -909,6 +926,9 @@ def test_uniform_diagonal_points(low, high):
     diagonal = agg.data.diagonal(0)
     assert sum(diagonal) == n
     assert abs(bounds[1] - bounds[0]) % 2 == abs(diagonal[1] / high - diagonal[0] / high)
+
+    assert_eq_ndarray(agg.x_range, (low, high), close=True)
+    assert_eq_ndarray(agg.y_range, (low, high), close=True)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -950,6 +970,8 @@ def test_points_geometry_point():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 2), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 2), close=True)
 
     # Aggregation should not have triggered calculation of spatial index
     assert df.geom.array._sindex is None
@@ -958,6 +980,8 @@ def test_points_geometry_point():
     df.geom.array.sindex
     agg = cvs.points(df, geometry='geom', agg=ds.sum('v'))
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 2), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 2), close=True)
 
 
 @pytest.mark.skipif(not sp, reason="spatialpandas not installed")
@@ -979,6 +1003,8 @@ def test_points_geometry_multipoint():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 2), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 2), close=True)
 
     # Aggregation should not have triggered calculation of spatial index
     assert df.geom.array._sindex is None
@@ -987,6 +1013,8 @@ def test_points_geometry_multipoint():
     df.geom.array.sindex
     agg = cvs.points(df, geometry='geom', agg=ds.sum('v'))
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 2), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 2), close=True)
 
 
 def test_line():
@@ -1008,6 +1036,8 @@ def test_line():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (-3, 3), close=True)
 
 
 def test_points_on_edge():
@@ -1106,6 +1136,8 @@ def test_auto_range_line():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-10, 10), close=True)
+    assert_eq_ndarray(agg.y_range, (-10, 10), close=True)
 
 
 @pytest.mark.skipif(not sp, reason="spatialpandas not installed")
@@ -1139,6 +1171,8 @@ def test_closed_ring_line(geom_data, geom_type):
         out[0, 0] = 2
 
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 2), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 def test_trimesh_no_double_edge():
@@ -1358,6 +1392,9 @@ def test_trimesh_agg_api():
     agg = cvs.trimesh(pts, tris, agg=ds.mean('weight'))
     assert agg.shape == (600, 600)
 
+    assert_eq_ndarray(agg.x_range, (0, 10), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 10), close=True)
+
 
 def test_bug_570():
     # See https://github.com/holoviz/datashader/issues/570
@@ -1475,6 +1512,8 @@ def test_line_manual_range(DataFrame, df_args, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (-3, 3), close=True)
 
 
 line_autorange_params = [
@@ -1583,6 +1622,8 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs, line_width):
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out, close=(line_width > 0))
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1690,6 +1731,8 @@ def test_line_autorange_axis1_ragged():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1753,6 +1796,8 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3.75, 3.75), close=True)
+    assert_eq_ndarray(agg.y_range, (-2.25, 2.25), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1831,6 +1876,8 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 0), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1896,6 +1943,8 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -2201,6 +2250,9 @@ def test_line_antialias():
     sol_mean = np.where(sol_count>0, 3.0, np.nan)
     assert_eq_ndarray(agg.data, sol_mean, close=True)
 
+    assert_eq_ndarray(agg.x_range, x_range, close=True)
+    assert_eq_ndarray(agg.y_range, y_range, close=True)
+
 
 def test_line_antialias_summary():
     kwargs = dict(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], line_width=1)
@@ -2266,6 +2318,9 @@ def test_line_antialias_summary():
         ), **kwargs)
     assert_eq_ndarray(agg["count"].data, sol_count, close=True)
     assert_eq_ndarray(agg["last"].data, sol_last, close=True)
+
+    assert_eq_ndarray(agg.x_range, x_range, close=True)
+    assert_eq_ndarray(agg.y_range, y_range, close=True)
 
 
 line_antialias_nan_sol_intersect = np.array([
@@ -2388,6 +2443,8 @@ def test_line_antialias_nan(df_kwargs, cvs_kwargs, sol_False, sol_True, self_int
     agg = cvs.line(df, line_width=2, agg=ds.count(self_intersect=self_intersect), **cvs_kwargs)
     sol = sol_True if self_intersect else sol_False
     assert_eq_ndarray(agg.data, sol, close=True)
+    assert_eq_ndarray(agg.x_range, x_range, close=True)
+    assert_eq_ndarray(agg.y_range, y_range, close=True)
 
 
 def test_line_antialias_categorical():

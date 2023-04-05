@@ -390,6 +390,8 @@ def test_count_cat(ddf):
     )
     agg = c.points(ddf, 'x', 'y', ds.count_cat('cat'))
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
     # categorizing by (cat_int-10)%4 ought to give the same result
     out = xr.DataArray(
@@ -397,6 +399,8 @@ def test_count_cat(ddf):
     )
     agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.count()))
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
     # easier to write these tests in here, since we expect the same result with only slight tweaks
 
@@ -410,6 +414,8 @@ def test_count_cat(ddf):
         )
         agg = c.points(ddf, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
         assert_eq_xr(agg, out)
+        assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+        assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
     # as above, but for the float arange columns. Element 2 has a nan, so the first bin is one short, and the nan bin is +1
     sol[0, 0, 0] = 4
@@ -421,6 +427,8 @@ def test_count_cat(ddf):
         )
         agg = c.points(ddf, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
         assert_eq_xr(agg, out)
+        assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+        assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -481,6 +489,8 @@ def test_categorical_sum_binning(ddf):
         )
         agg = c.points(ddf, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.sum(col)))
         assert_eq_xr(agg, out)
+        assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+        assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -636,6 +646,9 @@ def test_multiple_aggregates(ddf):
     assert_eq_xr(agg.i32_sum, f(values(df_pd.i32).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
     assert_eq_xr(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
 
+    assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
+
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
 def test_auto_range_points(DataFrame):
@@ -651,6 +664,8 @@ def test_auto_range_points(DataFrame):
     sol = np.zeros((n, n), int)
     np.fill_diagonal(sol, 1)
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 9), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 9), close=True)
 
     cvs = ds.Canvas(plot_width=n+1, plot_height=n+1)
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
@@ -658,6 +673,8 @@ def test_auto_range_points(DataFrame):
     np.fill_diagonal(sol, 1)
     sol[5, 5] = 0
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 9), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 9), close=True)
 
     n = 4
     data = np.arange(n, dtype='i4')
@@ -672,6 +689,8 @@ def test_auto_range_points(DataFrame):
     sol[np.array([tuple(range(1, 4, 2))])] = 0
     sol[np.array([tuple(range(4, 8, 2))])] = 0
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 3), close=True)
 
     cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
@@ -681,6 +700,8 @@ def test_auto_range_points(DataFrame):
     sol[6, 6] = 1
     sol[8, 8] = 1
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 3), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -695,6 +716,8 @@ def test_uniform_points(DataFrame):
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
     sol = np.array([[10] * 9 + [11], [10] * 9 + [11]], dtype='i4')
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 100), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -717,6 +740,9 @@ def test_uniform_diagonal_points(DataFrame, low, high):
     diagonal = agg.data.diagonal(0)
     assert sum(diagonal) == n
     assert abs(bounds[1] - bounds[0]) % 2 == abs(diagonal[1] / high - diagonal[0] / high)
+
+    assert_eq_ndarray(agg.x_range, (low, high), close=True)
+    assert_eq_ndarray(agg.y_range, (low, high), close=True)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -780,6 +806,8 @@ def test_line(DataFrame):
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (-3, 3), close=True)
 
 
 # # Line tests
@@ -890,6 +918,8 @@ def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (-3, 3), close=True)
 
 
 line_autorange_params = [
@@ -1006,6 +1036,8 @@ def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1083,6 +1115,8 @@ def test_auto_range_line(DataFrame):
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-10, 10), close=True)
+    assert_eq_ndarray(agg.y_range, (-10, 10), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1158,6 +1192,8 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3.75, 3.75), close=True)
+    assert_eq_ndarray(agg.y_range, (-2.25, 2.25), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1250,6 +1286,8 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 0), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1430,6 +1468,8 @@ def test_area_to_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 0), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1542,6 +1582,8 @@ def test_trimesh_no_double_edge():
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+    assert_eq_ndarray(agg.x_range, (0, 5), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 5), close=True)
 
 
 @pytest.mark.parametrize('npartitions', list(range(1, 6)))
@@ -1592,6 +1634,8 @@ def test_trimesh_dask_partitions(npartitions):
     ], dtype='i4')
     np.testing.assert_array_equal(
         np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+    assert_eq_ndarray(agg.x_range, (0, 5), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 5), close=True)
 
 
 @pytest.mark.parametrize('ddf', ddfs)

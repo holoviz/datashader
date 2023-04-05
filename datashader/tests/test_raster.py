@@ -143,6 +143,9 @@ def test_full_extent_returns_correct_coords():
         for dim in src.dims:
             assert np.all(agg[dim].data == src[dim].data)
 
+        assert np.allclose(agg.x_range, (-180, 180))
+        assert np.allclose(agg.y_range, (-90, 90))
+
 
 @open_rasterio_available
 def test_calc_res():
@@ -187,6 +190,8 @@ def test_raster_both_ascending():
     assert np.allclose(agg.data, arr)
     assert np.allclose(agg.X.values, xs)
     assert np.allclose(agg.Y.values, ys)
+    assert np.allclose(agg.x_range, (-0.5, 9.5))
+    assert np.allclose(agg.y_range, (-0.5, 4.5))
 
 
 def test_raster_both_ascending_partial_range():
@@ -204,6 +209,8 @@ def test_raster_both_ascending_partial_range():
     assert np.allclose(agg.data, xarr.sel(X=slice(1, 7), Y=slice(1, 3)))
     assert np.allclose(agg.X.values, xs[1:8])
     assert np.allclose(agg.Y.values, ys[1:4])
+    assert np.allclose(agg.x_range, (0.5, 7.5))
+    assert np.allclose(agg.y_range, (0.5, 3.5))
 
 
 def test_raster_both_descending():
@@ -220,6 +227,8 @@ def test_raster_both_descending():
     assert np.allclose(agg.data, arr)
     assert np.allclose(agg.X.values, xs)
     assert np.allclose(agg.Y.values, ys)
+    assert np.allclose(agg.x_range, (-0.5, 9.5))
+    assert np.allclose(agg.y_range, (-0.5, 4.5))
 
 
 def test_raster_both_descending_partial_range():
@@ -237,6 +246,8 @@ def test_raster_both_descending_partial_range():
     assert np.allclose(agg.data, xarr.sel(Y=slice(3,1), X=slice(7, 1)).data)
     assert np.allclose(agg.X.values, xs[2:9])
     assert np.allclose(agg.Y.values, ys[1:4])
+    assert np.allclose(agg.x_range, (0.5, 7.5))
+    assert np.allclose(agg.y_range, (0.5, 3.5))
 
 
 def test_raster_x_ascending_y_descending():
@@ -253,6 +264,8 @@ def test_raster_x_ascending_y_descending():
     assert np.allclose(agg.data, arr)
     assert np.allclose(agg.X.values, xs)
     assert np.allclose(agg.Y.values, ys)
+    assert np.allclose(agg.x_range, (-0.5, 9.5))
+    assert np.allclose(agg.y_range, (-0.5, 4.5))
 
 
 def test_raster_x_ascending_y_descending_partial_range():
@@ -269,6 +282,8 @@ def test_raster_x_ascending_y_descending_partial_range():
     assert np.allclose(agg.data, xarr.sel(X=slice(1, 7), Y=slice(3, 2)).data)
     assert np.allclose(agg.X.values, xs[1:8])
     assert np.allclose(agg.Y.values, ys[1:3])
+    assert np.allclose(agg.x_range, (0.5, 7.5))
+    assert np.allclose(agg.y_range, (1.5, 3.5))
 
 
 def test_raster_x_descending_y_ascending():
@@ -285,6 +300,8 @@ def test_raster_x_descending_y_ascending():
     assert np.allclose(agg.data, arr)
     assert np.allclose(agg.X.values, xs)
     assert np.allclose(agg.Y.values, ys)
+    assert np.allclose(agg.x_range, (-0.5, 9.5))
+    assert np.allclose(agg.y_range, (-0.5, 4.5))
 
 
 def test_raster_x_descending_y_ascending_partial_range():

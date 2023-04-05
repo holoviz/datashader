@@ -1200,7 +1200,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
 
         coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
-        attrs = dict(res=res[0])
+        attrs = dict(res=res[0], x_range=self.x_range, y_range=self.y_range)
 
         # Find nodata value if available in any of the common conventional locations
         # See https://corteva.github.io/rioxarray/stable/getting_started/nodata_management.html
