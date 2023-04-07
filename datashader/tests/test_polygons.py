@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import datashader as ds
-from datashader.tests.test_pandas import assert_eq_xr
+from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
 import dask.dataframe as dd
 
 try:
@@ -71,6 +71,9 @@ def test_multipolygon_manual_range(DataFrame):
 
     assert_eq_xr(agg, out)
 
+    assert_eq_ndarray(agg.x_range, (0, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 3), close=True)
+
 
 @pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -119,6 +122,9 @@ def test_multiple_polygons_auto_range(DataFrame):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x], dims=['y', 'x'])
 
     assert_eq_xr(agg, out)
+    
+    assert_eq_ndarray(agg.x_range, (-1, 3.5), close=True)
+    assert_eq_ndarray(agg.y_range, (0.1, 2), close=True)
 
 
 @pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
@@ -305,10 +311,10 @@ def test_spatial_index_not_dropped():
     assert df.some_geom.array._sindex is None
     sindex = df.some_geom.array.sindex
     assert sindex is not None
-   
+
     glyph = ds.glyphs.polygon.PolygonGeom('some_geom')
     agg = ds.count()
-    
+
     df2, _ = ds.core._bypixel_sanitise(df, glyph, agg)
 
     assert df2.columns == ['some_geom']

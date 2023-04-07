@@ -51,4 +51,5 @@ def default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=Fal
                     cuda=cuda,
                     coords=OrderedDict([(glyph.x_label, x_axis),
                                         (glyph.y_label, y_axis)]),
-                    dims=[glyph.y_label, glyph.x_label])
+                    dims=[glyph.y_label, glyph.x_label],
+                    attrs=dict(x_range=x_range, y_range=y_range))

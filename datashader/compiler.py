@@ -265,7 +265,13 @@ def make_finalize(bases, agg, schema, cuda):
         def finalize(bases, cuda=False, **kwargs):
             data = {key: finalizer(get(inds, bases), cuda, **kwargs)
                     for (key, finalizer, inds) in calls}
-            return xr.Dataset(data)
+
+            # Copy x and y range attrs from any DataArray (their ranges are all the same)
+            # to set on parent Dataset
+            name = agg.keys[0]  # Name of first DataArray.
+            attrs = {attr: data[name].attrs[attr] for attr in ('x_range', 'y_range')}
+
+            return xr.Dataset(data, attrs=attrs)
         return finalize
     else:
         return agg._build_finalize(schema)

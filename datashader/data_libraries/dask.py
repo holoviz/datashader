@@ -76,6 +76,8 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
 
     if summary.uses_row_index() and isinstance(df, dd.DataFrame) and df.npartitions > 1:
         def func(partition: pd.DataFrame, cumulative_lens, partition_info=None):
@@ -170,7 +172,8 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
         """ Wrap datashader finalize in dask.array.reduction aggregate """
         return finalize(wrapped_combine(x, axis, keepdims),
                         cuda=cuda, coords=local_axis,
-                        dims=[glyph.y_label, glyph.x_label])
+                        dims=[glyph.y_label, glyph.x_label],
+                        attrs=dict(x_range=x_range, y_range=y_range))
 
     R = da.reduction(df_array,
                      aggregate=aggregate,
@@ -209,6 +212,8 @@ def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
 
     def chunk(df, df2=None):
         plot_start = True
@@ -226,5 +231,6 @@ def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
         dsk[(name, i)] = (chunk, (old_name, i - 1), (old_name, i))
     keys2 = [(name, i) for i in range(df.npartitions)]
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label]))
+                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+                      attrs=dict(x_range=x_range, y_range=y_range)))
     return dsk, name
