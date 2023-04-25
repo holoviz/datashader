@@ -64,11 +64,6 @@ extras_require = {
     ]
 }
 
-if sys.version_info < (3, 8):
-    extras_require['tests'] += [
-        "hdf5 ==1.12.1",  # To be able to solve on mamba
-    ]
-
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.7.1',
     'numpydoc',
@@ -98,7 +93,7 @@ setup_args = dict(
     },
     maintainer='Datashader developers',
     maintainer_email='dev@datashader.org',
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     install_requires=install_requires,
     extras_require=extras_require,
     tests_require=extras_require['tests'],
@@ -114,7 +109,6 @@ setup_args = dict(
         "License :: OSI Approved :: BSD License",
         "Development Status :: 5 - Production/Stable",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
