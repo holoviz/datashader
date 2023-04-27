@@ -1066,7 +1066,6 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         if layer is not None:
             source=source.sel(**{source.dims[0]: layer})
         array = orient_array(source, res)
-        dtype = array.dtype
 
         if nan_value is not None:
             mask = array==nan_value
