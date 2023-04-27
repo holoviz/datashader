@@ -1166,14 +1166,6 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         if res[1] > 0: data = data[::-1]
         if res[0] < 0: data = data[:, ::-1]
 
-        # Restore nan_value from masked array
-        if nan_value is not None:
-            data = data.filled()
-
-        # Restore original dtype
-        if dtype != data.dtype:
-            data = data.astype(dtype)
-
         # Compute DataArray metadata
 
         # To avoid floating point representation error,
@@ -1230,7 +1222,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
     def validate_size(self, width, height):
         if width <= 0 or height <= 0:
             raise ValueError("Invalid size: plot_width and plot_height must be bigger than 0")
-       
+
     def validate(self):
         """Check that parameter settings are valid for this object"""
         self.validate_ranges(self.x_range, self.y_range)

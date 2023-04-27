@@ -327,6 +327,9 @@ def resample_2d(src, w, h, ds_method='mean', us_method='linear',
     us_method=upsample_methods[us_method]
     ds_method=downsample_methods[ds_method]
 
+    if isinstance(src, np.ma.MaskedArray):
+        src = src.data
+
     resampled = _resample_2d(src, mask, use_mask, ds_method, us_method,
                              fill_value, mode_rank, x_offset, y_offset, out)
     return _mask_or_not(resampled, src, fill_value)
