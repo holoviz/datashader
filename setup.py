@@ -12,7 +12,7 @@ install_requires = [
     'colorcet',
     'dask',
     'datashape',
-    'numba >=0.51',
+    'numba ==0.57.0rc1',
     'numpy',
     'pandas <2',
     'param',

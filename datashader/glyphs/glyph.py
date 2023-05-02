@@ -148,10 +148,10 @@ class Glyph(Expr):
             warnings.simplefilter("ignore")
             try:
                 # Numba keeps original function around as append.py_func
-                append_args = inspect.getargspec(append.py_func).args
+                append_args = inspect.getfullargspec(append.py_func).args
             except (TypeError, AttributeError):
                 # Treat append as a normal python function
-                append_args = inspect.getargspec(append).args
+                append_args = inspect.getfullargspec(append).args
 
         # Get number of arguments accepted by append
         append_arglen = len(append_args)
