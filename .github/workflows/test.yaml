@@ -10,6 +10,10 @@ on:
   schedule:
     - cron: '0 16 * * SUN'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test_suite:
     name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
