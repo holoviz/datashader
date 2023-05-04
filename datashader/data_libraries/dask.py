@@ -71,15 +71,16 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2 = \
-        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda)
+    partitioned = isinstance(df, dd.DataFrame) and df.npartitions > 1
+    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+        summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=partitioned)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
     x_range = bounds[:2]
     y_range = bounds[2:]
 
-    if summary.uses_row_index() and isinstance(df, dd.DataFrame) and df.npartitions > 1:
+    if summary.uses_row_index(cuda, partitioned):
         def func(partition: pd.DataFrame, cumulative_lens, partition_info=None):
             # This function is called once for each dask dataframe partition.
             # It sets the _datashader_row_offset attribute so that row indexes
@@ -207,8 +208,9 @@ def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2 = \
-        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda)
+    partitioned = isinstance(df, dd.DataFrame) and df.npartitions > 1
+    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+        summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=partitioned)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)

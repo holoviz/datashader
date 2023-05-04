@@ -26,7 +26,7 @@ except Exception:
 
 from .utils import (
     Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place,
-    nanmax_n_in_place, nanmin_n_in_place
+    nanmax_n_in_place, nanmin_n_in_place, row_max_in_place, row_min_in_place
 )
 
 
@@ -249,7 +249,21 @@ class Reduction(Expr):
     def uses_cuda_mutex(self):
         return False
 
-    def uses_row_index(self):
+    def uses_row_index(self, cuda, partitioned):
+        """Return True if this Reduction uses a row index virtual column.
+
+        For some reductions the order of the rows of supplied data is
+        important. These include ``first`` and ``last`` reductions as well as
+        ``where`` reductions that return a row index. In some situations the
+        order is intrinsic such as ``first`` reductions that are processed
+        sequentially (i.e. on a CPU without using Dask) and no extra column is
+        required. But in situations of parallel processing (using a GPU or
+        Dask) extra information is needed that is provided by a row index
+        virtual column.
+
+        Returning ``True`` from this function will cause a row index column to
+        be created and passed to the ``append`` functions in the usual manner.
+        """
         return False
 
     def validate(self, in_dshape):
@@ -274,10 +288,10 @@ class Reduction(Expr):
         # Each item is (AntialiasCombination, zero_value)).
         raise NotImplementedError(f"{type(self)}._antialias_stage_2 is not defined")
 
-    def _build_bases(self, cuda=False):
+    def _build_bases(self, cuda, partitioned):
         return (self,)
 
-    def _build_combine_temps(self, cuda=False):
+    def _build_combine_temps(self, cuda, partitioned):
         # Temporaries (i.e. not returned to user) that are reductions, the
         # aggs of which are passed to the combine() function but not the
         # append() functions, as opposed to _build_temps() which are passed
@@ -332,7 +346,7 @@ class Reduction(Expr):
             else:
                 return self._append
 
-    def _build_combine(self, dshape, antialias, cuda):
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
         return self._combine
 
     def _build_finalize(self, dshape):
@@ -431,7 +445,7 @@ class count(SelfIntersectingOptionalFieldReduction):
         If provided, only counts elements in ``column`` that are not ``NaN``.
         Otherwise, counts every element.
     """
-    def out_dshape(self, in_dshape, antialias):
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
         return dshape(ct.float32) if antialias else dshape(ct.uint32)
 
     def _antialias_stage_2(self, self_intersect, array_module):
@@ -523,7 +537,7 @@ class count(SelfIntersectingOptionalFieldReduction):
         nb_cuda.atomic.add(agg, (y, x), 1)
         return 0
 
-    def _build_combine(self, dshape, antialias, cuda):
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
         if antialias:
             return self._combine_antialias
         else:
@@ -592,9 +606,9 @@ class by(Reduction):
         self.preprocess.validate(in_dshape)
         self.reduction.validate(in_dshape)
 
-    def out_dshape(self, input_dshape, antialias):
+    def out_dshape(self, input_dshape, antialias, cuda, partitioned):
         cats = self.categorizer.categories(input_dshape)
-        red_shape = self.reduction.out_dshape(input_dshape, antialias)
+        red_shape = self.reduction.out_dshape(input_dshape, antialias, cuda, partitioned)
         return dshape(Record([(c, red_shape) for c in cats]))
 
     @property
@@ -612,8 +626,8 @@ class by(Reduction):
         return lambda shape, array_module: self.reduction._build_create(
             required_dshape)(shape + (n_cats,), array_module)
 
-    def _build_bases(self, cuda=False):
-        bases = self.reduction._build_bases(cuda)
+    def _build_bases(self, cuda, partitioned):
+        bases = self.reduction._build_bases(cuda, partitioned)
         if len(bases) == 1 and bases[0] is self:
             return bases
         return tuple(by(self.categorizer, base) for base in bases)
@@ -621,8 +635,8 @@ class by(Reduction):
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         return self.reduction._build_append(dshape, schema, cuda, antialias, self_intersect)
 
-    def _build_combine(self, dshape, antialias, cuda):
-        return self.reduction._build_combine(dshape, antialias, cuda)
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
+        return self.reduction._build_combine(dshape, antialias, cuda, partitioned)
 
     def _build_finalize(self, dshape):
         cats = list(self.categorizer.categories(dshape))
@@ -642,7 +656,7 @@ class any(OptionalFieldReduction):
     column : str, optional
         If provided, any elements in ``column`` that are ``NaN`` are skipped.
     """
-    def out_dshape(self, in_dshape, antialias):
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
         return dshape(ct.float32) if antialias else dshape(ct.bool_)
 
     def _antialias_stage_2(self, self_intersect, array_module):
@@ -684,7 +698,7 @@ class any(OptionalFieldReduction):
     _append_cuda =_append
     _append_no_field_cuda = _append_no_field
 
-    def _build_combine(self, dshape, antialias, cuda):
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
         if antialias:
             return self._combine_antialias
         else:
@@ -704,7 +718,7 @@ class any(OptionalFieldReduction):
 
 class _upsample(Reduction):
     """"Special internal class used for upsampling"""
-    def out_dshape(self, in_dshape, antialias):
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
         return dshape(Option(ct.float64))
 
     @staticmethod
@@ -739,7 +753,7 @@ class _upsample(Reduction):
 
 class FloatingReduction(Reduction):
     """Base classes for reductions that always have floating-point dtype."""
-    def out_dshape(self, in_dshape, antialias):
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
         return dshape(Option(ct.float64))
 
     @staticmethod
@@ -856,7 +870,7 @@ class sum(SelfIntersectingFloatingReduction):
         else:
             return ((AntialiasCombination.SUM_2AGG, array_module.nan),)
 
-    def _build_bases(self, cuda=False):
+    def _build_bases(self, cuda, partitioned):
         if cuda:
             return (_sum_zero(self.column), any(self.column))
         else:
@@ -1069,7 +1083,7 @@ class mean(Reduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-    def _build_bases(self, cuda=False):
+    def _build_bases(self, cuda, partitioned):
         return (_sum_zero(self.column), count(self.column))
 
     @staticmethod
@@ -1089,7 +1103,7 @@ class var(Reduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-    def _build_bases(self, cuda=False):
+    def _build_bases(self, cuda, partitioned):
         return (_sum_zero(self.column), count(self.column), m2(self.column))
 
     @staticmethod
@@ -1109,7 +1123,7 @@ class std(Reduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-    def _build_bases(self, cuda=False):
+    def _build_bases(self, cuda, partitioned):
         return (_sum_zero(self.column), count(self.column), m2(self.column))
 
     @staticmethod
@@ -1120,7 +1134,35 @@ class std(Reduction):
         return xr.DataArray(x, **kwargs)
 
 
-class first(Reduction):
+class _first_or_last(Reduction):
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(Option(ct.float64))
+
+    def uses_row_index(self, cuda, partitioned):
+        return partitioned
+
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+    @staticmethod
+    def _combine(aggs):
+        # Dask combine is handled by a where reduction using a row index.
+        # Hence this can only ever be called if npartitions == 1 in which case len(aggs) == 1.
+        if len(aggs) > 1:
+            raise RuntimeError("_combine should never be called with more than one agg")
+        return aggs[0]
+
+    @staticmethod
+    def _finalize(bases, cuda=False, **kwargs):
+        return xr.DataArray(bases[0], **kwargs)
+
+
+class first(_first_or_last):
     """First value encountered in ``column``.
 
     Useful for categorical data where an actual value must always be returned,
@@ -1134,12 +1176,6 @@ class first(Reduction):
         Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
-    def out_dshape(self, in_dshape, antialias):
-        return dshape(Option(ct.float64))
-
-    def _antialias_requires_2_stages(self):
-        return True
-
     def _antialias_stage_2(self, self_intersect, array_module):
         return ((AntialiasCombination.FIRST, array_module.nan),)
 
@@ -1160,22 +1196,18 @@ class first(Reduction):
             return 0
         return -1
 
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        if cuda:
-            raise ValueError("'first' reduction is not supported on the GPU")
-        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
-
-    @staticmethod
-    def _combine(aggs):
-        raise NotImplementedError("first is not implemented for dask DataFrames")
-
-    @staticmethod
-    def _finalize(bases, cuda=False, **kwargs):
-        return xr.DataArray(bases[0], **kwargs)
+    def _build_bases(self, cuda, partitioned):
+        if self.uses_row_index(cuda, partitioned):
+            print("XXXXXXXXXXX")
+            #wrapper = where(selector=self, lookup_column=None)
+            #return super()._build_bases(cuda, partitioned) + (wrapper,)
+            min_row_index = _min_row_index()
+            return min_row_index._build_bases(cuda, partitioned)
+        else:
+            return super()._build_bases(cuda, partitioned)
 
 
-
-class last(Reduction):
+class last(_first_or_last):
     """Last value encountered in ``column``.
 
     Useful for categorical data where an actual value must always be returned,
@@ -1189,12 +1221,6 @@ class last(Reduction):
         Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
-    def out_dshape(self, in_dshape, antialias):
-        return dshape(Option(ct.float64))
-
-    def _antialias_requires_2_stages(self):
-        return True
-
     def _antialias_stage_2(self, self_intersect, array_module):
         return ((AntialiasCombination.LAST, array_module.nan),)
 
@@ -1215,18 +1241,14 @@ class last(Reduction):
             return 0
         return -1
 
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        if cuda:
-            raise ValueError("'last' reduction is not supported on the GPU")
-        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
-
-    @staticmethod
-    def _combine(aggs):
-        raise NotImplementedError("last is not implemented for dask DataFrames")
-
-    @staticmethod
-    def _finalize(bases, cuda=False, **kwargs):
-        return xr.DataArray(bases[0], **kwargs)
+    def _build_bases(self, cuda, partitioned):
+        if self.uses_row_index(cuda, partitioned):
+            #wrapper = where(selector=self, lookup_column=None)
+            #return super()._build_bases(cuda, partitioned) + (wrapper,)
+            max_row_index = _max_row_index()
+            return max_row_index._build_bases(cuda, partitioned)
+        else:
+            return super()._build_bases(cuda, partitioned)
 
 
 class FloatingNReduction(FloatingReduction):
@@ -1373,7 +1395,7 @@ class max_n(FloatingNReduction):
             cuda_mutex_unlock(mutex, index)
         return -1
 
-    def _build_combine(self, dshape, antialias, cuda):
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
         if cuda:
             return self._combine_cuda
         else:
@@ -1444,7 +1466,7 @@ class min_n(FloatingNReduction):
             cuda_mutex_unlock(mutex, index)
         return -1
 
-    def _build_combine(self, dshape, antialias, cuda):
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
         if cuda:
             return self._combine_cuda
         else:
@@ -1483,7 +1505,7 @@ class mode(Reduction):
         Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
-    def out_dshape(self, in_dshape, antialias):
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
         return dshape(Option(ct.float64))
 
     @staticmethod
@@ -1538,8 +1560,8 @@ class where(FloatingReduction):
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.selector))
 
-    def out_dshape(self, input_dshape, antialias):
-        if self.uses_row_index():
+    def out_dshape(self, input_dshape, antialias, cuda, partitioned):
+        if self.uses_row_index(cuda, partitioned):
             return dshape(ct.int64)
         else:
             return dshape(ct.float64)
@@ -1547,7 +1569,7 @@ class where(FloatingReduction):
     def uses_cuda_mutex(self):
         return self.selector.uses_cuda_mutex()
 
-    def uses_row_index(self):
+    def uses_row_index(self, cuda, partitioned):
         return self.column is None
 
     def validate(self, in_dshape):
@@ -1559,7 +1581,7 @@ class where(FloatingReduction):
 
     def _antialias_stage_2(self, self_intersect, array_module):
         ret = self.selector._antialias_stage_2(self_intersect, array_module)
-        if self.uses_row_index():
+        if self.column is None:
             # Override antialiased zero value when returning integer row index.
             ret = ((ret[0][0], -1),)
         return ret
@@ -1614,10 +1636,10 @@ class where(FloatingReduction):
             else:
                 return self._append
 
-    def _build_bases(self, cuda=False):
-        return self.selector._build_bases(cuda=cuda) + super()._build_bases(cuda=cuda)
+    def _build_bases(self, cuda, partitioned):
+        return self.selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
 
-    def _build_combine(self, dshape, antialias, cuda):
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
         if cuda and self.uses_cuda_mutex():
             raise NotImplementedError(
                 "'where' reduction does not support a selector that uses a CUDA mutex such as 'max_n'")
@@ -1625,7 +1647,7 @@ class where(FloatingReduction):
         # Does not support categorical reductions.
         selector = self.selector
         append = selector._append
-        invalid = isminus1 if self.uses_row_index else isnull
+        invalid = isminus1 if self.uses_row_index(cuda, partitioned) else isnull
 
         @ngjit
         def combine_cpu_2d(aggs, selector_aggs):
@@ -1666,7 +1688,7 @@ class where(FloatingReduction):
 
         def wrapped_combine(aggs, selector_aggs):
             # Equivalent check to first._combine and last._combine
-            if isinstance(selector, (first, first_n, last, last_n)):
+            if isinstance(selector, (first_n, last_n)):
                 raise NotImplementedError(
                     "first, first_n, last and last_n are not implemented for dask DataFrames")
 
@@ -1684,7 +1706,7 @@ class where(FloatingReduction):
 
         return wrapped_combine
 
-    def _build_combine_temps(self, cuda=False):
+    def _build_combine_temps(self, cuda, partitioned):
         return (self.selector,)
 
     def _build_create(self, required_dshape):
@@ -1744,8 +1766,8 @@ class summary(Expr):
     def __hash__(self):
         return hash((type(self), tuple(self.keys), tuple(self.values)))
 
-    def uses_row_index(self):
-        return any(v.uses_row_index() for v in self.values)
+    def uses_row_index(self, cuda, partitioned):
+        return any(v.uses_row_index(cuda, partitioned) for v in self.values)
 
     def validate(self, input_dshape):
         for v in self.values:
@@ -1765,6 +1787,70 @@ class summary(Expr):
     @property
     def inputs(self):
         return tuple(unique(concat(v.inputs for v in self.values)))
+
+
+
+class _max_or_min_row_index(OptionalFieldReduction):
+    @property
+    def inputs(self):
+        return (extract(None),)  # row index column
+
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(ct.int64)
+
+    def uses_row_index(self, cuda, partitioned):
+        return True
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        return self._append  #### not this simple
+
+
+class _max_row_index(_max_or_min_row_index):
+    """Max reduction operating on row index.
+
+    This is a private class as it is not intended to be used explicitly in
+    user code. It is primarily purpose is to support the use of ``last``
+    reductions using dask and/or CUDA.
+    """
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        # field is int64 row index
+        if agg[y, x] == -1 or agg[y, x] < field:
+            agg[y, x] = field
+            return 0
+        return -1
+
+    @staticmethod
+    def _combine(aggs):
+        # Maximum ignoring -1 values
+        if len(aggs) > 1:
+            row_max_in_place(aggs[0], aggs[1])
+        return aggs[0]
+
+
+class _min_row_index(_max_or_min_row_index):
+    """Min reduction operating on row index.
+
+    This is a private class as it is not intended to be used explicitly in
+    user code. It is primarily purpose is to support the use of ``first``
+    reductions using dask and/or CUDA.
+    """
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        # field is int64 row index
+        if agg[y, x] == -1 or agg[y, x] > field:
+            agg[y, x] = field
+            return 0
+        return -1
+
+    @staticmethod
+    def _combine(aggs):
+        # Minimum ignoring -1 values
+        if len(aggs) > 1:
+            row_min_in_place(aggs[0], aggs[1])
+        return aggs[0]
 
 
 __all__ = list(set([_k for _k,_v in locals().items()
