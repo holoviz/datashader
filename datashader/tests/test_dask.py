@@ -269,6 +269,36 @@ def test_max_n(ddf, npartitions):
 
 @pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_min_n_row_index(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    solution = np.array([[[0, 1, 2, 3, 4, -1], [10, 11, 12, 13, 14, -1]],
+                         [[5, 6, 7, 8, 9, -1], [15, 16, 17, 18, 19, -1]]])
+    for n in range(1, 7):
+        agg = c.points(ddf, 'x', 'y', ds._min_n_row_index(n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds._min_row_index()).data)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_max_n_row_index(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    solution = np.array([[[4, 3, 2, 1, 0, -1], [14, 13, 12, 11, 10, -1]],
+                         [[9, 8, 7, 6, 5, -1], [19, 18, 17, 16, 15, -1]]])
+    for n in range(1, 7):
+        agg = c.points(ddf, 'x', 'y', ds._max_n_row_index(n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds._max_row_index()).data)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_max(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
     # Identical results to equivalent pandas test.

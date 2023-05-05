@@ -26,7 +26,8 @@ except Exception:
 
 from .utils import (
     Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place,
-    nanmax_n_in_place, nanmin_n_in_place, row_max_in_place, row_min_in_place
+    nanmax_n_in_place, nanmin_n_in_place, row_max_in_place, row_min_in_place,
+    row_max_n_in_place, row_min_n_in_place,
 )
 
 
@@ -1138,7 +1139,7 @@ class _first_or_last(Reduction):
     """Abstract base class of first and last reductions.
     """
     def out_dshape(self, in_dshape, antialias, cuda, partitioned):
-        return dshape(Option(ct.float64))
+        return dshape(ct.float64)
 
     def uses_row_index(self, cuda, partitioned):
         return partitioned
@@ -1255,10 +1256,13 @@ class last(_first_or_last):
         return _max_row_index()
 
 
-class FloatingNReduction(FloatingReduction):
+class FloatingNReduction(OptionalFieldReduction):
     def __init__(self, column=None, n=1):
         super().__init__(column)
         self.n = n if n >= 1 else 1
+
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(ct.float64)
 
     def _add_finalize_kwargs(self, **kwargs):
         # Add the new dimension and coordinate.
@@ -1810,7 +1814,7 @@ class _max_or_min_row_index(OptionalFieldReduction):
         return True
 
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        return self._append  #### not this simple
+        return self._append  ####################### not this simple
 
 
 class _max_row_index(_max_or_min_row_index):
@@ -1858,6 +1862,87 @@ class _min_row_index(_max_or_min_row_index):
         # Minimum ignoring -1 values
         if len(aggs) > 1:
             row_min_in_place(aggs[0], aggs[1])
+        return aggs[0]
+
+
+class _max_n_or_min_n_row_index(FloatingNReduction):
+    """Abstract base class of max_n and min_n row_index reductions.
+    """
+    def __init__(self, n=1):
+        super().__init__(column=None)
+        self.n = n if n >= 1 else 1
+
+    @property
+    def inputs(self):
+        return (extract(None),)  # row index column
+
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(ct.int64)
+
+    def uses_row_index(self, cuda, partitioned):
+        return True
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        return self._append  ####################### not this simple
+
+
+class _max_n_row_index(_max_n_or_min_n_row_index):
+    """Max_n reduction operating on row index.
+
+    This is a private class as it is not intended to be used explicitly in
+    user code. It is primarily purpose is to support the use of ``last_n``
+    reductions using dask and/or CUDA.
+    """
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        # field is int64 row index
+        if field != -1:
+            # Always inserts at front of agg's third dimension.
+            # Bump previous values along to make room for new value.
+            n = agg.shape[2]
+            for j in range(n-1, 0, -1):
+                agg[y, x, j] = agg[y, x, j-1]
+            agg[y, x, 0] = field
+            return 0
+        return -1
+
+    @staticmethod
+    def _combine(aggs):
+        if len(aggs) > 1:
+            row_max_n_in_place(aggs[0], aggs[1])
+        return aggs[0]
+
+
+class _min_n_row_index(_max_n_or_min_n_row_index):
+    """Min_n reduction operating on row index.
+
+    This is a private class as it is not intended to be used explicitly in
+    user code. It is primarily purpose is to support the use of ``first_n``
+    reductions using dask and/or CUDA.
+    """
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        # field is int64 row index
+        if field != -1:
+            # Check final value first for quick abort.
+            n = agg.shape[2]
+            if agg[y, x, n-1] != -1:
+                return -1
+
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            for i in range(n):
+                if agg[y, x, i] == -1:
+                    agg[y, x, i] = field
+                    return i
+        return -1
+
+    @staticmethod
+    def _combine(aggs):
+        if len(aggs) > 1:
+            row_min_n_in_place(aggs[0], aggs[1])
         return aggs[0]
 
 
