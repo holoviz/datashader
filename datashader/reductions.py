@@ -1135,6 +1135,8 @@ class std(Reduction):
 
 
 class _first_or_last(Reduction):
+    """Abstract base class of first and last reductions.
+    """
     def out_dshape(self, in_dshape, antialias, cuda, partitioned):
         return dshape(Option(ct.float64))
 
@@ -1149,6 +1151,15 @@ class _first_or_last(Reduction):
             raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
         return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
 
+    def _build_bases(self, cuda, partitioned):
+        if self.uses_row_index(cuda, partitioned):
+            row_index_selector = self._create_row_index_selector()
+            wrapper = where(selector=row_index_selector, lookup_column=self.column)
+            # where reduction is always preceded by its selector reduction
+            return row_index_selector._build_bases(cuda, partitioned) + (wrapper,)
+        else:
+            return super()._build_bases(cuda, partitioned)
+
     @staticmethod
     def _combine(aggs):
         # Dask combine is handled by a where reduction using a row index.
@@ -1157,9 +1168,15 @@ class _first_or_last(Reduction):
             raise RuntimeError("_combine should never be called with more than one agg")
         return aggs[0]
 
+    def _create_row_index_selector(self):
+        pass
+
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
-        return xr.DataArray(bases[0], **kwargs)
+        # Note returning the last of the bases which is correct regardless of whether
+        # this is a simple reduction (with a single base) or a compound where reduction
+        # (with 2 bases, the second of which is the where reduction).
+        return xr.DataArray(bases[-1], **kwargs)
 
 
 class first(_first_or_last):
@@ -1196,15 +1213,8 @@ class first(_first_or_last):
             return 0
         return -1
 
-    def _build_bases(self, cuda, partitioned):
-        if self.uses_row_index(cuda, partitioned):
-            print("XXXXXXXXXXX")
-            #wrapper = where(selector=self, lookup_column=None)
-            #return super()._build_bases(cuda, partitioned) + (wrapper,)
-            min_row_index = _min_row_index()
-            return min_row_index._build_bases(cuda, partitioned)
-        else:
-            return super()._build_bases(cuda, partitioned)
+    def _create_row_index_selector(self):
+        return _min_row_index()
 
 
 class last(_first_or_last):
@@ -1241,14 +1251,8 @@ class last(_first_or_last):
             return 0
         return -1
 
-    def _build_bases(self, cuda, partitioned):
-        if self.uses_row_index(cuda, partitioned):
-            #wrapper = where(selector=self, lookup_column=None)
-            #return super()._build_bases(cuda, partitioned) + (wrapper,)
-            max_row_index = _max_row_index()
-            return max_row_index._build_bases(cuda, partitioned)
-        else:
-            return super()._build_bases(cuda, partitioned)
+    def _create_row_index_selector(self):
+        return _max_row_index()
 
 
 class FloatingNReduction(FloatingReduction):
@@ -1548,7 +1552,7 @@ class where(FloatingReduction):
         reduction, or ``None`` to return row indexes instead.
     """
     def __init__(self, selector: Reduction, lookup_column: str | None=None):
-        if not isinstance(selector, (first, first_n, last, last_n, max, max_n, min, min_n)):
+        if not isinstance(selector, (first, first_n, last, last_n, max, max_n, min, min_n, _max_or_min_row_index)):
             raise TypeError(
                 "selector can only be a first, first_n, last, last_n, "
                 "max, max_n, min or min_n reduction")
@@ -1647,7 +1651,10 @@ class where(FloatingReduction):
         # Does not support categorical reductions.
         selector = self.selector
         append = selector._append
-        invalid = isminus1 if self.uses_row_index(cuda, partitioned) else isnull
+
+        # If the selector uses a row_index then selector_aggs will be int64 with -1
+        # representing missing data. Otherwise missing data is NaN.
+        invalid = isminus1 if self.selector.uses_row_index(cuda, partitioned) else isnull
 
         @ngjit
         def combine_cpu_2d(aggs, selector_aggs):
@@ -1789,8 +1796,9 @@ class summary(Expr):
         return tuple(unique(concat(v.inputs for v in self.values)))
 
 
-
 class _max_or_min_row_index(OptionalFieldReduction):
+    """Abstract base class of max and min row_index reductions.
+    """
     @property
     def inputs(self):
         return (extract(None),)  # row index column
