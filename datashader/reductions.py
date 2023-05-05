@@ -1283,7 +1283,7 @@ class FloatingNReduction(OptionalFieldReduction):
     def _build_finalize(self, dshape):
         def finalize(bases, cuda=False, **kwargs):
             kwargs = self._add_finalize_kwargs(**kwargs)
-            return super(FloatingNReduction, self)._finalize(bases, cuda=cuda, **kwargs)
+            return self._finalize(bases, cuda=cuda, **kwargs)
 
         return finalize
 
@@ -1291,10 +1291,49 @@ class FloatingNReduction(OptionalFieldReduction):
         return super()._hashable_inputs() + (self.n,)
 
 
-class first_n(FloatingNReduction):
+class _first_n_or_last_n(FloatingNReduction):
+    """Abstract base class of first_n and last_n reductions.
+    """
+    def uses_row_index(self, cuda, partitioned):
+        return partitioned
+
     def _antialias_requires_2_stages(self):
         return True
 
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+    def _build_bases(self, cuda, partitioned):
+        if self.uses_row_index(cuda, partitioned):
+            row_index_selector = self._create_row_index_selector()
+            wrapper = where(selector=row_index_selector, lookup_column=self.column)
+            # where reduction is always preceded by its selector reduction
+            return row_index_selector._build_bases(cuda, partitioned) + (wrapper,)
+        else:
+            return super()._build_bases(cuda, partitioned)
+
+    @staticmethod
+    def _combine(aggs):
+        # Dask combine is handled by a where reduction using a row index.
+        # Hence this can only ever be called if npartitions == 1 in which case len(aggs) == 1.
+        if len(aggs) > 1:
+            raise RuntimeError("_combine should never be called with more than one agg")
+        return aggs[0]
+
+    def _create_row_index_selector(self):
+        pass
+
+    @staticmethod
+    def _finalize(bases, cuda=False, **kwargs):
+        # Note returning the last of the bases which is correct regardless of whether
+        # this is a simple reduction (with a single base) or a compound where reduction
+        # (with 2 bases, the second of which is the where reduction).
+        return xr.DataArray(bases[-1], **kwargs)
+
+
+class first_n(_first_n_or_last_n):
     def _antialias_stage_2(self, self_intersect, array_module):
         return ((AntialiasCombination.FIRST, array_module.nan),)
 
@@ -1316,20 +1355,11 @@ class first_n(FloatingNReduction):
                     return i
         return -1
 
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        if cuda:
-            raise ValueError("'first_n' reduction is not supported on the GPU")
-        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
-
-    @staticmethod
-    def _combine(aggs):
-        raise NotImplementedError("first_n is not implemented for dask DataFrames")
+    def _create_row_index_selector(self):
+        return _min_n_row_index(n=self.n)
 
 
-class last_n(FloatingNReduction):
-    def _antialias_requires_2_stages(self):
-        return True
-
+class last_n(_first_n_or_last_n):
     def _antialias_stage_2(self, self_intersect, array_module):
         return ((AntialiasCombination.LAST, array_module.nan),)
 
@@ -1347,14 +1377,8 @@ class last_n(FloatingNReduction):
             return 0
         return -1
 
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        if cuda:
-            raise ValueError("'last_n' reduction is not supported on the GPU")
-        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
-
-    @staticmethod
-    def _combine(aggs):
-        raise NotImplementedError("first_n is not implemented for dask DataFrames")
+    def _create_row_index_selector(self):
+        return _max_n_row_index(n=self.n)
 
 
 class max_n(FloatingNReduction):
@@ -1556,7 +1580,8 @@ class where(FloatingReduction):
         reduction, or ``None`` to return row indexes instead.
     """
     def __init__(self, selector: Reduction, lookup_column: str | None=None):
-        if not isinstance(selector, (first, first_n, last, last_n, max, max_n, min, min_n, _max_or_min_row_index)):
+        if not isinstance(selector, (first, first_n, last, last_n, max, max_n, min, min_n,
+                                     _max_or_min_row_index, _max_n_or_min_n_row_index)):
             raise TypeError(
                 "selector can only be a first, first_n, last, last_n, "
                 "max, max_n, min or min_n reduction")
@@ -1659,6 +1684,12 @@ class where(FloatingReduction):
         # If the selector uses a row_index then selector_aggs will be int64 with -1
         # representing missing data. Otherwise missing data is NaN.
         invalid = isminus1 if self.selector.uses_row_index(cuda, partitioned) else isnull
+        #print("CHECK INVALID",
+        #    self.uses_row_index(cuda, partitioned),
+        #    self.selector.uses_row_index(cuda, partitioned),
+        #    "-1" if self.selector.uses_row_index(cuda, partitioned) else "nan",
+        #)
+
 
         @ngjit
         def combine_cpu_2d(aggs, selector_aggs):
@@ -1676,17 +1707,32 @@ class where(FloatingReduction):
             ny, nx, n = aggs[0].shape
             for y in range(ny):
                 for x in range(nx):
+                    #if y == 1 and x == 2:
+                    #    print("IN LOOP", selector_aggs[0][y, x], selector_aggs[1][y, x])
+                        #import pdb; pdb.set_trace()
+
                     for i in range(n):
                         value = selector_aggs[1][y, x, i]
+                        #if y == 1 and x == 2:
+                        #    print("i", i, "value", value)
                         if invalid(value):
                             break
+                        #if y == 1 and x == 2:
+                        #    print("  selector before", selector_aggs[0][y, x])
                         update_index = append(x, y, selector_aggs[0], value)
+                        #if y == 1 and x == 2:
+                        #    print("  selector after ", selector_aggs[0][y, x])
+                        #    print("  update_index", update_index)
                         if update_index < 0:
                             break
                         # Bump values along in the same way that append() has done above.
+                        #if y == 1 and x == 2:
+                        #    print("  agg before", aggs[0][y, x])
                         for j in range(n-1, update_index, -1):
                             aggs[0][y, x, j] = aggs[0][y, x, j-1]
                         aggs[0][y, x, update_index] = aggs[1][y, x, i]
+                        #if y == 1 and x == 2:
+                        #    print("  agg after ", aggs[0][y, x])
 
         @nb_cuda.jit
         def combine_cuda_2d(aggs, selector_aggs):
@@ -1709,7 +1755,15 @@ class where(FloatingReduction):
                 combine_cuda_2d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
             else:
                 if aggs[0].ndim == 3:
+                    #print("AGG0", aggs[0][0,0].tolist())
+                    #print("AGG1", aggs[1][0,0].tolist())
+                    #print("SEL0", selector_aggs[0][0,0].tolist())
+                    #print("SEL1", selector_aggs[1][0,0].tolist())
+
                     combine_cpu_3d(aggs, selector_aggs)
+
+                    #print("RETa", aggs[0][0,0].tolist())
+                    #print("RETs", selector_aggs[0][0,0].tolist())
                 else:
                     combine_cpu_2d(aggs, selector_aggs)
 
@@ -1898,13 +1952,16 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
     def _append(x, y, agg, field):
         # field is int64 row index
         if field != -1:
-            # Always inserts at front of agg's third dimension.
-            # Bump previous values along to make room for new value.
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
             n = agg.shape[2]
-            for j in range(n-1, 0, -1):
-                agg[y, x, j] = agg[y, x, j-1]
-            agg[y, x, 0] = field
-            return 0
+            for i in range(n):
+                if agg[y, x, i] == -1 or field > agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+                    return i
         return -1
 
     @staticmethod
@@ -1926,15 +1983,14 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
     def _append(x, y, agg, field):
         # field is int64 row index
         if field != -1:
-            # Check final value first for quick abort.
-            n = agg.shape[2]
-            if agg[y, x, n-1] != -1:
-                return -1
-
             # Linear walk along stored values.
             # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
             for i in range(n):
-                if agg[y, x, i] == -1:
+                if agg[y, x, i] == -1 or field < agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
                     agg[y, x, i] = field
                     return i
         return -1

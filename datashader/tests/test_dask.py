@@ -299,6 +299,36 @@ def test_max_n_row_index(ddf, npartitions):
 
 @pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_first_n(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    solution = np.array([[[0, -1, -3, 4, nan, nan], [10, -11, 12, -13, 14, nan]],
+                         [[-5, 6, -7, 8, -9, nan], [-15, 16, -17, 18, -19, nan]]])
+    for n in range(1, 7):
+        agg = c.points(ddf, 'x', 'y', ds.first_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.first('plusminus')).data)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_last_n(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    solution = np.array([[[4, -3, -1, 0, nan, nan], [14, -13, 12, -11, 10, nan]],
+                         [[-9, 8, -7, 6, -5, nan], [-19, 18, -17, 16, -15, nan]]])
+    for n in range(1, 7):
+        agg = c.points(ddf, 'x', 'y', ds.last_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.last('plusminus')).data)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_max(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
     # Identical results to equivalent pandas test.
