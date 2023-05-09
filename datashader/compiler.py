@@ -209,8 +209,23 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
             # where reduction needs access to the return of the contained
             # reduction, which is the preceding one here.
             body[-1] = f'{update_index_arg_name} = {body[-1]}'
-            body.append(f'if {update_index_arg_name} >= 0:')
-            call  = f'    {func_name}(x, y, {", ".join(args)})'
+
+            # If the lookup_column is None then it is a row index, and all row
+            # indexes passed to append() are valid, i.e. >= 0.
+            # If the lookup_column is a real column then we need to check if
+            # the value passed to append() is NaN, and if so do nothing.
+            lookup_column = bases[0].column
+            if lookup_column is None:
+                whitespace = ''
+            else:
+                var = args[1]
+                prev_body = body[-1]
+                body[-1] = f'if {var}<=0 or {var}>0:'  # Inline CUDA-friendly 'is not nan' test
+                body.append(f'    {prev_body}')
+                whitespace = '    '
+
+            body.append(f'{whitespace}if {update_index_arg_name} >= 0:')
+            call  = f'    {whitespace}{func_name}(x, y, {", ".join(args)})'
         else:
             call  = f'{func_name}(x, y, {", ".join(args)})'
 
