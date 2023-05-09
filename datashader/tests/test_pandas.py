@@ -768,38 +768,22 @@ def test_categorical_std(df):
         assert_eq_xr(agg, out)
 
 
-def test_first():
-    df = pd.DataFrame({'x': [4, 0, 2, 2, 5, 2],
-                       'y': [0, 4, 5, 1, 1, 3],
-                       'z': [100, 101, 102, 103, 104, 105]})
-    cvs = ds.Canvas(plot_height=5, plot_width=5)
-    agg = cvs.line(df, 'x', 'y', agg=ds.first('z'))
-    sol = np.array([
-        [np.nan, np.nan, np.nan, np.nan, 100.],
-        [np.nan, np.nan, 102., 100., 103.],
-        [np.nan, np.nan, 100., 104., np.nan],
-        [np.nan, 100., 102., np.nan, np.nan],
-        [100., 101., 101., np.nan, np.nan]], dtype='float64')
-
-    assert_eq_ndarray(agg, sol)
-    assert_eq_ndarray(agg.x_range, (0, 5), close=True)
-    assert_eq_ndarray(agg.y_range, (0, 5), close=True)
+@pytest.mark.parametrize('df', [df_pd])
+def test_first(df):
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.first('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.first('i64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.first('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.first('f64')), out)
 
 
-def test_last():
-    df = pd.DataFrame({'x': [4, 0, 2, 2, 5, 2],
-                       'y': [0, 4, 5, 1, 1, 3],
-                       'z': [100, 101, 102, 103, 104, 105]})
-    cvs = ds.Canvas(plot_height=5, plot_width=5)
-    agg = cvs.line(df, 'x', 'y', agg=ds.last('z'))
-    sol = np.array([
-        [np.nan, np.nan, np.nan, np.nan, 100.],
-        [np.nan, np.nan, 102., 103., 103.],
-        [np.nan, np.nan, 102., 104., np.nan],
-        [np.nan, 100., 104., np.nan, np.nan],
-        [100., 101., 101., np.nan, np.nan]], dtype='float64')
-
-    assert_eq_ndarray(agg, sol)
+@pytest.mark.parametrize('df', [df_pd])
+def test_last(df):
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.last('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.last('i64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.last('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.last('f64')), out)
 
 
 @pytest.mark.parametrize('df', [df_pd])

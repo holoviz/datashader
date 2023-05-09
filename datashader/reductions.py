@@ -1142,6 +1142,8 @@ class _first_or_last(Reduction):
         return dshape(ct.float64)
 
     def uses_row_index(self, cuda, partitioned):
+        if cuda:
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
         return partitioned
 
     def _antialias_requires_2_stages(self):
@@ -1295,6 +1297,8 @@ class _first_n_or_last_n(FloatingNReduction):
     """Abstract base class of first_n and last_n reductions.
     """
     def uses_row_index(self, cuda, partitioned):
+        if cuda:
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
         return partitioned
 
     def _antialias_requires_2_stages(self):
@@ -1603,7 +1607,7 @@ class where(FloatingReduction):
         return self.selector.uses_cuda_mutex()
 
     def uses_row_index(self, cuda, partitioned):
-        return self.column is None
+        return self.column is None or isinstance(self.selector, (_first_or_last, _first_n_or_last_n))
 
     def validate(self, in_dshape):
         if self.column is not None:
@@ -1670,7 +1674,13 @@ class where(FloatingReduction):
                 return self._append
 
     def _build_bases(self, cuda, partitioned):
-        return self.selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
+        selector = self.selector
+        if isinstance(selector, (_first_or_last, _first_n_or_last_n)) and selector.uses_row_index(cuda, partitioned):
+            row_index_selector = selector._create_row_index_selector()
+            new_where = where(row_index_selector, self.column)
+            return row_index_selector._build_bases(cuda, partitioned) + new_where._build_bases(cuda, partitioned)
+        else:
+            return selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
 
     def _build_combine(self, dshape, antialias, cuda, partitioned):
         if cuda and self.uses_cuda_mutex():
@@ -1684,12 +1694,6 @@ class where(FloatingReduction):
         # If the selector uses a row_index then selector_aggs will be int64 with -1
         # representing missing data. Otherwise missing data is NaN.
         invalid = isminus1 if self.selector.uses_row_index(cuda, partitioned) else isnull
-        #print("CHECK INVALID",
-        #    self.uses_row_index(cuda, partitioned),
-        #    self.selector.uses_row_index(cuda, partitioned),
-        #    "-1" if self.selector.uses_row_index(cuda, partitioned) else "nan",
-        #)
-
 
         @ngjit
         def combine_cpu_2d(aggs, selector_aggs):
@@ -1707,32 +1711,17 @@ class where(FloatingReduction):
             ny, nx, n = aggs[0].shape
             for y in range(ny):
                 for x in range(nx):
-                    #if y == 1 and x == 2:
-                    #    print("IN LOOP", selector_aggs[0][y, x], selector_aggs[1][y, x])
-                        #import pdb; pdb.set_trace()
-
                     for i in range(n):
                         value = selector_aggs[1][y, x, i]
-                        #if y == 1 and x == 2:
-                        #    print("i", i, "value", value)
                         if invalid(value):
                             break
-                        #if y == 1 and x == 2:
-                        #    print("  selector before", selector_aggs[0][y, x])
                         update_index = append(x, y, selector_aggs[0], value)
-                        #if y == 1 and x == 2:
-                        #    print("  selector after ", selector_aggs[0][y, x])
-                        #    print("  update_index", update_index)
                         if update_index < 0:
                             break
                         # Bump values along in the same way that append() has done above.
-                        #if y == 1 and x == 2:
-                        #    print("  agg before", aggs[0][y, x])
                         for j in range(n-1, update_index, -1):
                             aggs[0][y, x, j] = aggs[0][y, x, j-1]
                         aggs[0][y, x, update_index] = aggs[1][y, x, i]
-                        #if y == 1 and x == 2:
-                        #    print("  agg after ", aggs[0][y, x])
 
         @nb_cuda.jit
         def combine_cuda_2d(aggs, selector_aggs):
@@ -1744,26 +1733,13 @@ class where(FloatingReduction):
                     aggs[0][y, x] = aggs[1][y, x]
 
         def wrapped_combine(aggs, selector_aggs):
-            # Equivalent check to first._combine and last._combine
-            if isinstance(selector, (first_n, last_n)):
-                raise NotImplementedError(
-                    "first, first_n, last and last_n are not implemented for dask DataFrames")
-
             if len(aggs) == 1:
                 pass
             elif cuda:
                 combine_cuda_2d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
             else:
                 if aggs[0].ndim == 3:
-                    #print("AGG0", aggs[0][0,0].tolist())
-                    #print("AGG1", aggs[1][0,0].tolist())
-                    #print("SEL0", selector_aggs[0][0,0].tolist())
-                    #print("SEL1", selector_aggs[1][0,0].tolist())
-
                     combine_cpu_3d(aggs, selector_aggs)
-
-                    #print("RETa", aggs[0][0,0].tolist())
-                    #print("RETs", selector_aggs[0][0,0].tolist())
                 else:
                     combine_cpu_2d(aggs, selector_aggs)
 
@@ -1868,7 +1844,12 @@ class _max_or_min_row_index(OptionalFieldReduction):
         return True
 
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        return self._append  ####################### not this simple
+        # self.column is None but row index is passed as field argument to append functions
+        # Doesn't yet support antialiasing
+        if cuda:
+            return self._append_cuda
+        else:
+            return self._append
 
 
 class _max_row_index(_max_or_min_row_index):
@@ -1882,10 +1863,17 @@ class _max_row_index(_max_or_min_row_index):
     @ngjit
     def _append(x, y, agg, field):
         # field is int64 row index
-        if agg[y, x] == -1 or agg[y, x] < field:
+        if field != -1 and field > agg[y, x]:
             agg[y, x] = field
             return 0
         return -1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field):
+        # field is int64 row index
+        return 0 if nb_cuda.atomic.max(agg, (y, x), field) != field else -1
 
     @staticmethod
     def _combine(aggs):
@@ -1902,11 +1890,12 @@ class _min_row_index(_max_or_min_row_index):
     user code. It is primarily purpose is to support the use of ``first``
     reductions using dask and/or CUDA.
     """
+    # CPU append functions
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
         # field is int64 row index
-        if agg[y, x] == -1 or agg[y, x] > field:
+        if field != -1 and (agg[y, x] == -1 or field < agg[y, x]):
             agg[y, x] = field
             return 0
         return -1
@@ -1937,7 +1926,12 @@ class _max_n_or_min_n_row_index(FloatingNReduction):
         return True
 
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        return self._append  ####################### not this simple
+        # self.column is None but row index is passed as field argument to append functions
+        # Doesn't yet support antialiasing
+        if cuda:
+            return self._append_cuda
+        else:
+            return self._append
 
 
 class _max_n_row_index(_max_n_or_min_n_row_index):

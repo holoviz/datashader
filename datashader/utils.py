@@ -757,7 +757,7 @@ def row_min_in_place(ret, other):
     ret = ret.ravel()
     other = other.ravel()
     for i in range(len(ret)):
-        if ret[i] == -1 or (other[i] > -1 and other[i] < ret[i]):
+        if other[i] > -1 and (ret[i] == -1 or other[i] < ret[i]):
             ret[i] = other[i]
 
 

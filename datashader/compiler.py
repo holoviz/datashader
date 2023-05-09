@@ -208,17 +208,11 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
 
             # where reduction needs access to the return of the contained
             # reduction, which is the preceding one here.
-            # Before calling prev_append need to check that value from lookup_column is finite.
-            # TODO: finite check not required if lookup_column is row index.
-            prev_append = body[-1]
-            var = args[1]  # Not sure if this is always correct
-            body[-1] = f'if {var}<=0 or {var}>0:'  # Inline CUDA-friendly 'is not nan' test
-            body.append(f'    {update_index_arg_name} = {prev_append}')
-            body.append(f'    if {update_index_arg_name} >= 0:')
-
-            call  = '        {0}(x, y, {1})'.format(func_name, ', '.join(args))
+            body[-1] = f'{update_index_arg_name} = {body[-1]}'
+            body.append(f'if {update_index_arg_name} >= 0:')
+            call  = f'    {func_name}(x, y, {", ".join(args)})'
         else:
-            call  = '{0}(x, y, {1})'.format(func_name, ', '.join(args))
+            call  = f'{func_name}(x, y, {", ".join(args)})'
 
         body.append(call)
 
