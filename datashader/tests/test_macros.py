@@ -34,7 +34,7 @@ def function_with_vararg_call_numba(a, b, *others):
 def get_args(fn):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        spec = inspect.getargspec(fn)
+        spec = inspect.getfullargspec(fn)
 
     args = spec.args
     if spec.varargs:
