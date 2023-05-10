@@ -1359,7 +1359,7 @@ class max_n(FloatingNReduction):
             # Linear walk along stored values.
             # Could do binary search instead but not expecting n to be large.
             n = agg.shape[2]
-            index = (x, y)
+            index = (y, x)
             cuda_mutex_lock(mutex, index)
             for i in range(n):
                 if isnull(agg[y, x, i]) or field > agg[y, x, i]:
@@ -1430,7 +1430,7 @@ class min_n(FloatingNReduction):
             # Linear walk along stored values.
             # Could do binary search instead but not expecting n to be large.
             n = agg.shape[2]
-            index = (x, y)
+            index = (y, x)
             cuda_mutex_lock(mutex, index)
             for i in range(n):
                 if isnull(agg[y, x, i]) or field < agg[y, x, i]:

@@ -199,7 +199,7 @@ class Point(_PointLike):
 
         def extend(aggs, df, vt, bounds):
             yymax, xxmax = aggs[0].shape[:2]
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
 
@@ -282,7 +282,7 @@ class MultiPointGeometry(_GeometryLike):
         def extend(aggs, df, vt, bounds):
             from spatialpandas.geometry import PointArray
 
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
 

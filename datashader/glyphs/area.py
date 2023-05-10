@@ -114,7 +114,7 @@ class AreaToZeroAxis0(_PointLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_name)
@@ -198,7 +198,7 @@ class AreaToLineAxis0(_AreaToLineLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_name)
@@ -290,7 +290,7 @@ class AreaToZeroAxis0Multi(_PointLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_names)
@@ -381,7 +381,7 @@ class AreaToLineAxis0Multi(_AreaToLineLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_names)
@@ -489,7 +489,7 @@ class AreaToZeroAxis1(_PointLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df,list(x_names))
@@ -596,7 +596,7 @@ class AreaToLineAxis1(_AreaToLineLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df,list(x_names))
@@ -665,7 +665,7 @@ class AreaToZeroAxis1XConstant(AreaToZeroAxis1):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 ys = self.to_cupy_array(df,list(y_names))
@@ -745,7 +745,7 @@ class AreaToLineAxis1XConstant(AreaToLineAxis1):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 ys = self.to_cupy_array(df,list(y_names))
@@ -813,7 +813,7 @@ class AreaToZeroAxis1YConstant(AreaToZeroAxis1):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df,list(x_names))
@@ -881,7 +881,7 @@ class AreaToLineAxis1YConstant(AreaToLineAxis1):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df,list(x_names))
@@ -968,7 +968,7 @@ class AreaToZeroAxis1Ragged(_PointLike):
 
             xs = df[x_name].values
             ys = df[y_name].values
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
             perform_extend_cpu(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
@@ -1051,7 +1051,7 @@ class AreaToLineAxis1Ragged(_AreaToLineLike):
             ys = df[y_name].values
             y_stacks = df[y_stack_name].values
 
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
             extend_cpu(
                 sx, tx, sy, ty,
                 xmin, xmax, ymin, ymax,
