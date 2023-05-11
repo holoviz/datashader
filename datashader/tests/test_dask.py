@@ -469,9 +469,6 @@ def test_where_last(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('f32'))), out)
 
 
-
-
-###################### failing ######################
 @pytest.mark.parametrize('ddf', [_ddf])
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_first_n(ddf, npartitions):
@@ -501,7 +498,6 @@ def test_where_first_n(ddf, npartitions):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.first('plusminus'), 'reverse')).data)
 
 
-###################### failing ######################
 @pytest.mark.parametrize('ddf', [_ddf])
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_last_n(ddf, npartitions):
@@ -529,12 +525,6 @@ def test_where_last_n(ddf, npartitions):
         assert_eq_ndarray(agg.data, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.last('plusminus'), 'reverse')).data)
-
-
-
-
-
-
 
 
 @pytest.mark.parametrize('ddf', [_ddf])

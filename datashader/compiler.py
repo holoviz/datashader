@@ -95,11 +95,14 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
     calls = [_get_call_tuples(b, d, schema, cuda, antialias, self_intersect, partitioned)
              for (b, d) in zip(bases, dshapes)]
 
-    # List of unique column names needed
-    cols = list(unique(concat(pluck(2, calls))))
+    # List of unique column names needed, including nan_check_columns
+    cols = list(concat(pluck(2, calls)))
+    nan_check_cols = list(c[3] for c in calls if c[3] is not None)
+    cols = list(unique(cols + nan_check_cols))
+
     # List of temps needed
-    temps = list(pluck(3, calls))
-    combine_temps = list(pluck(4, calls))
+    temps = list(pluck(4, calls))
+    combine_temps = list(pluck(5, calls))
 
     create = make_create(bases, dshapes, cuda)
     append, uses_cuda_mutex = make_append(bases, cols, calls, glyph, isinstance(agg, by), antialias)
@@ -125,7 +128,8 @@ def _get_call_tuples(base, dshape, schema, cuda, antialias, self_intersect, part
     return (
         base._build_append(dshape, schema, cuda, antialias, self_intersect),  # func
         (base,),  # bases
-        base.inputs,  # cols
+        base.inputs,  # cols, arrays of these are passed to reduction append functions
+        base.nan_check_column,  # column used to check for NaNs in some where reductions
         base._build_temps(cuda),  # temps
         base._build_combine_temps(cuda, partitioned),  # combine temps
         cuda and base.uses_cuda_mutex(),  # uses cuda mutex
@@ -162,7 +166,7 @@ def make_info(cols, uses_cuda_mutex):
 def make_append(bases, cols, calls, glyph, categorical, antialias):
     names = ('_{0}'.format(i) for i in count())
     inputs = list(bases) + list(cols)
-    any_uses_cuda_mutex = any(call[5] for call in calls)
+    any_uses_cuda_mutex = any(call[6] for call in calls)
     if any_uses_cuda_mutex:
         # This adds an argument to the append() function that is the cuda mutex
         # generated in make_info.
@@ -178,7 +182,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
     else:
         subscript = None
 
-    for func, bases, cols, temps, _, uses_cuda_mutex in calls:
+    for func, bases, cols, nan_check_column, temps, _, uses_cuda_mutex in calls:
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
         namespace[func_name] = func
@@ -210,15 +214,13 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
             # reduction, which is the preceding one here.
             body[-1] = f'{update_index_arg_name} = {body[-1]}'
 
-            # If the lookup_column is None then it is a row index, and all row
-            # indexes passed to append() are valid, i.e. >= 0.
-            # If the lookup_column is a real column then we need to check if
-            # the value passed to append() is NaN, and if so do nothing.
-            lookup_column = bases[0].column
-            if lookup_column is None:
+            # If nan_check_column is defined then need to check if value of
+            # correct row in that column is NaN and if so do nothing. This
+            # check needs to occur before the where.selector is called.
+            if nan_check_column is None:
                 whitespace = ''
             else:
-                var = args[1]
+                var = f"{arg_lk[nan_check_column]}[{subscript}]"
                 prev_body = body[-1]
                 body[-1] = f'if {var}<=0 or {var}>0:'  # Inline CUDA-friendly 'is not nan' test
                 body.append(f'    {prev_body}')

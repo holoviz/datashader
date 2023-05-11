@@ -40,6 +40,10 @@ class Preprocess(Expr):
     def inputs(self):
         return (self.column,)
 
+    @property
+    def nan_check_column(self):
+        return None
+
 
 class extract(Preprocess):
     """Extract a column from a dataframe as a numpy array of values."""
@@ -246,6 +250,10 @@ class Reduction(Expr):
     """Base class for per-bin reductions."""
     def __init__(self, column=None):
         self.column = column
+
+    @property
+    def nan_check_column(self):
+        return None
 
     def uses_cuda_mutex(self):
         return False
@@ -1158,6 +1166,7 @@ class _first_or_last(Reduction):
         if self.uses_row_index(cuda, partitioned):
             row_index_selector = self._create_row_index_selector()
             wrapper = where(selector=row_index_selector, lookup_column=self.column)
+            wrapper._nan_check_column = self.column
             # where reduction is always preceded by its selector reduction
             return row_index_selector._build_bases(cuda, partitioned) + (wrapper,)
         else:
@@ -1313,6 +1322,7 @@ class _first_n_or_last_n(FloatingNReduction):
         if self.uses_row_index(cuda, partitioned):
             row_index_selector = self._create_row_index_selector()
             wrapper = where(selector=row_index_selector, lookup_column=self.column)
+            wrapper._nan_check_column = self.column
             # where reduction is always preceded by its selector reduction
             return row_index_selector._build_bases(cuda, partitioned) + (wrapper,)
         else:
@@ -1593,9 +1603,17 @@ class where(FloatingReduction):
         self.selector = selector
         # List of all column names that this reduction uses.
         self.columns = (selector.column, lookup_column)
+        self._nan_check_column = None
 
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.selector))
+
+    @property
+    def nan_check_column(self):
+        if self._nan_check_column is not None:
+            return extract(self._nan_check_column)
+        else:
+            return None
 
     def out_dshape(self, input_dshape, antialias, cuda, partitioned):
         if self.column is None:
@@ -1678,6 +1696,7 @@ class where(FloatingReduction):
         if isinstance(selector, (_first_or_last, _first_n_or_last_n)) and selector.uses_row_index(cuda, partitioned):
             row_index_selector = selector._create_row_index_selector()
             new_where = where(row_index_selector, self.column)
+            new_where._nan_check_column = self.selector.column
             return row_index_selector._build_bases(cuda, partitioned) + new_where._build_bases(cuda, partitioned)
         else:
             return selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
