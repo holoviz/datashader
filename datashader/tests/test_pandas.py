@@ -319,11 +319,15 @@ def test_where_first_n(df):
         agg = c.points(df, 'x', 'y', ds.where(ds.first_n('plusminus', n=n)))
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.first('plusminus'))).data)
 
         # Using another column
         agg = c.points(df, 'x', 'y', ds.where(ds.first_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.first('plusminus'), 'reverse')).data)
 
 
 @pytest.mark.parametrize('df', dfs_pd)
@@ -339,11 +343,15 @@ def test_where_last_n(df):
         agg = c.points(df, 'x', 'y', ds.where(ds.last_n('plusminus', n=n)))
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.last('plusminus'))).data)
 
         # Using another column
         agg = c.points(df, 'x', 'y', ds.where(ds.last_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.last('plusminus'), 'reverse')).data)
 
 
 @pytest.mark.parametrize('df', dfs_pd)
@@ -359,11 +367,15 @@ def test_where_max_n(df):
         agg = c.points(df, 'x', 'y', ds.where(ds.max_n('plusminus', n=n)))
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.max('plusminus'))).data)
 
         # Using another column
         agg = c.points(df, 'x', 'y', ds.where(ds.max_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.max('plusminus'), 'reverse')).data)
 
 
 @pytest.mark.parametrize('df', dfs_pd)
@@ -379,11 +391,15 @@ def test_where_min_n(df):
         agg = c.points(df, 'x', 'y', ds.where(ds.min_n('plusminus', n=n)))
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.min('plusminus'))).data)
 
         # Using another column
         agg = c.points(df, 'x', 'y', ds.where(ds.min_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.min('plusminus'), 'reverse')).data)
 
 
 @pytest.mark.parametrize('df', dfs_pd)

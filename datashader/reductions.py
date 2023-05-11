@@ -1598,7 +1598,7 @@ class where(FloatingReduction):
         return hash((type(self), self._hashable_inputs(), self.selector))
 
     def out_dshape(self, input_dshape, antialias, cuda, partitioned):
-        if self.uses_row_index(cuda, partitioned):
+        if self.column is None:
             return dshape(ct.int64)
         else:
             return dshape(ct.float64)
@@ -1660,8 +1660,8 @@ class where(FloatingReduction):
         return update_index
 
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        # If self.column is None then append function still receives a 'field'
-        # argument which is the row index.
+        # If self.column is None then append function is still passed a
+        # 'field' argument which is the row index.
         if cuda:
             if antialias:
                 return self._append_antialias_cuda

@@ -387,11 +387,15 @@ def test_where_max_n(ddf, npartitions):
         agg = c.points(ddf, 'x', 'y', ds.where(ds.max_n('plusminus', n=n)))
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.max('plusminus'))).data)
 
         # Using another column
         agg = c.points(ddf, 'x', 'y', ds.where(ds.max_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.max('plusminus'), 'reverse')).data)
 
 
 @pytest.mark.parametrize('ddf', [_ddf])
@@ -412,11 +416,125 @@ def test_where_min_n(ddf, npartitions):
         agg = c.points(ddf, 'x', 'y', ds.where(ds.min_n('plusminus', n=n)))
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.min('plusminus'))).data)
 
         # Using another column
         agg = c.points(ddf, 'x', 'y', ds.where(ds.min_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.min('plusminus'), 'reverse')).data)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_first(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    # Note reductions like ds.where(ds.first('i32'), 'reverse') are supported,
+    # but the same results can be achieved using the simpler ds.first('reverse')
+    out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('i32'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('i64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('f64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('f32'))), out)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_last(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    # Note reductions like ds.where(ds.last('i32'), 'reverse') are supported,
+    # but the same results can be achieved using the simpler ds.last('reverse')
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('i32'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('i64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('f64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('f32'))), out)
+
+
+
+
+###################### failing ######################
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_first_n(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    sol_rowindex = np.array([[[ 0,  1,  3,  4, -1, -1],
+                              [10, 11, 12, 13, 14, -1]],
+                             [[ 5,  6,  7,  8,  9, -1],
+                              [15, 16, 17, 18, 19, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.first_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.first('plusminus'))).data)
+
+        # Using another column
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.first_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.first('plusminus'), 'reverse')).data)
+
+
+###################### failing ######################
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_last_n(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    sol_rowindex = np.array([[[ 4,  3,  1,  0, -1, -1],
+                              [14, 13, 12, 11, 10, -1]],
+                             [[ 9,  8,  7,  6,  5, -1],
+                              [19, 18, 17, 16, 15, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.last_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.last('plusminus'))).data)
+
+        # Using another column
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.last_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.last('plusminus'), 'reverse')).data)
+
+
+
+
+
+
 
 
 @pytest.mark.parametrize('ddf', [_ddf])
