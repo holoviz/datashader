@@ -61,6 +61,8 @@ class _AntiAliasedLine(object):
 
     def set_line_width(self, line_width):
         self._line_width = line_width
+        if hasattr(self, "antialiased"):
+            self.antialiased = (line_width > 0)
 
     def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         return self._internal_build_extend(
