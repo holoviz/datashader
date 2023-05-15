@@ -431,7 +431,6 @@ The axis argument to Canvas.line must be 0 or 1
             line_width = 0
 
         glyph.set_line_width(line_width)
-        glyph.antialiased = (line_width > 0)
 
         if glyph.antialiased:
             # This is required to identify and report use of reductions that do
