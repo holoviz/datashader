@@ -35,7 +35,7 @@ class PolygonGeom(_GeometryLike):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
             geom_array = df[geom_name].array
 
             perform_extend_cpu(

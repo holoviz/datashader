@@ -32,7 +32,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
         Takes the aggregate shape, and returns a tuple of initialized numpy
         arrays.
 
-    ``info(df)``
+    ``info(df, canvas_shape)``
         Takes a dataframe, and returns preprocessed 1D numpy arrays of the
         needed columns.
 
@@ -45,7 +45,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False):
         Combine a list of base tuples into a single base tuple. This forms the
         reducing step in a reduction tree.
 
-    ``finalize(aggs)``
+    ``finalize(aggs, cuda)``
         Given a tuple of base numpy arrays, returns the finalized ``DataArray``
         or ``Dataset``.
 
@@ -128,11 +128,16 @@ def make_create(bases, dshapes, cuda):
 
 
 def make_info(cols, uses_cuda_mutex):
-    def info(df):
+    def info(df, canvas_shape):
         ret = tuple(c.apply(df) for c in cols)
         if uses_cuda_mutex:
             import cupy  # Guaranteed to be available if uses_cuda_mutex is True
-            mutex_array = cupy.zeros((1,), dtype=np.uint32)
+            import numba
+            from packaging.version import Version
+            if Version(numba.__version__) >= Version("0.57"):
+                mutex_array = cupy.zeros(canvas_shape, dtype=np.uint32)
+            else:
+                mutex_array = cupy.zeros((1,), dtype=np.uint32)
             ret += (mutex_array,)
         return ret
 

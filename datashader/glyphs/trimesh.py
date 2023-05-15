@@ -70,7 +70,7 @@ class Triangles(_PolygonLike):
         interpolate = self.interpolate
 
         def extend(aggs, df, vt, bounds, plot_start=True):
-            cols = info(df)
+            cols = info(df, aggs[0].shape[:2])
             assert cols, 'There must be at least one column on which to aggregate'
             # mapped to pixels, then may be clipped
             extend_triangles(vt, bounds, df.values, weight_type, interpolate, aggs, cols)

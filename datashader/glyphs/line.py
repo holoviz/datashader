@@ -95,7 +95,7 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_name)
@@ -189,7 +189,7 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_names)
@@ -304,7 +304,7 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_names)
@@ -380,7 +380,7 @@ class LinesAxis1XConstant(LinesAxis1):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = cp.asarray(x_values)
@@ -456,7 +456,7 @@ class LinesAxis1YConstant(LinesAxis1):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
 
             if cudf and isinstance(df, cudf.DataFrame):
                 xs = self.to_cupy_array(df, x_names)
@@ -536,7 +536,7 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
             xs = df[x_name].array
             ys = df[y_name].array
 
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
             # line may be clipped, then mapped to pixels
             extend_cpu(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2, *aggs_and_cols
@@ -579,7 +579,7 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
         def extend(aggs, df, vt, bounds, plot_start=True):
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
             geom_array = df[geometry_name].array
 
             # Use type to decide whether geometry represents a closed .

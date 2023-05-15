@@ -173,17 +173,29 @@ def interp2d_kernel(x, xp, fp, left, right, output_y):
             output_y[i, j] = y_interp
 
 
-@cuda.jit(device=True)
-def cuda_mutex_lock(mutex, index):
-    while cuda.atomic.compare_and_swap(mutex, 0, 1) != 0:
-          pass
-    cuda.threadfence()
+if Version(numba.__version__) >= Version("0.57"):
+    # See issues #1196 and #1211.
+    @cuda.jit(device=True)
+    def cuda_mutex_lock(mutex, index):
+        while cuda.atomic.cas(mutex, index, 0, 1) != 0:
+            pass
+        cuda.threadfence()
 
+    @cuda.jit(device=True)
+    def cuda_mutex_unlock(mutex, index):
+        cuda.threadfence()
+        cuda.atomic.exch(mutex, index, 0)
+else:
+    @cuda.jit(device=True)
+    def cuda_mutex_lock(mutex, index):
+        while cuda.atomic.compare_and_swap(mutex, 0, 1) != 0:
+              pass
+        cuda.threadfence()
 
-@cuda.jit(device=True)
-def cuda_mutex_unlock(mutex, index):
-    cuda.threadfence()
-    cuda.atomic.exch(mutex, 0, 0)
+    @cuda.jit(device=True)
+    def cuda_mutex_unlock(mutex, index):
+        cuda.threadfence()
+        cuda.atomic.exch(mutex, 0, 0)
 
 
 @cuda.jit
