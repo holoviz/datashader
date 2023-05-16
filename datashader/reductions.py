@@ -1866,7 +1866,8 @@ class _max_or_min_row_index(OptionalFieldReduction):
         # self.column is None but row index is passed as field argument to append functions
         # Doesn't yet support antialiasing
         if cuda:
-            return self._append_cuda
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
+            #return self._append_cuda
         else:
             return self._append
 
@@ -1948,7 +1949,8 @@ class _max_n_or_min_n_row_index(FloatingNReduction):
         # self.column is None but row index is passed as field argument to append functions
         # Doesn't yet support antialiasing
         if cuda:
-            return self._append_cuda
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
+            #return self._append_cuda
         else:
             return self._append
 
