@@ -14,7 +14,7 @@ from numba import cuda as nb_cuda
 try:
     from datashader.transfer_functions._cuda_utils import (
         cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args,
-        cuda_nanmax_n_in_place, cuda_nanmin_n_in_place)
+        cuda_nanmax_n_in_place, cuda_nanmin_n_in_place, cuda_row_min_in_place)
 except ImportError:
     (cuda_atomic_nanmin, cuda_atomic_nanmmax, cuda_args, cuda_nanmax_n_in_place,
      cuda_nanmin_n_in_place) = None, None, None, None, None
@@ -27,7 +27,7 @@ except Exception:
 
 from .utils import (
     Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place,
-    nanmax_n_in_place, nanmin_n_in_place, row_max_in_place, row_min_in_place,
+    nanmax_n_in_place, nanmin_n_in_place, row_min_in_place,
     row_max_n_in_place, row_min_n_in_place,
 )
 
@@ -1179,9 +1179,7 @@ class _first_or_last(Reduction):
         return dshape(ct.float64)
 
     def uses_row_index(self, cuda, partitioned):
-        if cuda:
-            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
-        return partitioned
+        return cuda or partitioned
 
     def _antialias_requires_2_stages(self):
         return True
@@ -1885,8 +1883,7 @@ class _max_or_min_row_index(OptionalFieldReduction):
         # self.column is None but row index is passed as field argument to append functions
         # Doesn't yet support antialiasing
         if cuda:
-            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
-            #return self._append_cuda
+            return self._append_cuda
         else:
             return self._append
 
@@ -1918,7 +1915,8 @@ class _max_row_index(_max_or_min_row_index):
     def _combine(aggs):
         # Maximum ignoring -1 values
         if len(aggs) > 1:
-            row_max_in_place(aggs[0], aggs[1])
+            # Works with numpy or cupy arrays
+            np.maximum(aggs[0], aggs[1], out=aggs[0])
         return aggs[0]
 
 
@@ -1929,6 +1927,9 @@ class _min_row_index(_max_or_min_row_index):
     user code. It is primarily purpose is to support the use of ``first``
     reductions using dask and/or CUDA.
     """
+    def uses_cuda_mutex(self):
+        return True
+
     # CPU append functions
     @staticmethod
     @ngjit
@@ -1939,12 +1940,41 @@ class _min_row_index(_max_or_min_row_index):
             return 0
         return -1
 
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field, mutex):
+        # field is int64 row index
+        index = (y, x)
+        cuda_mutex_lock(mutex, index)
+        if field != -1 and (agg[y, x] == -1 or field < agg[y, x]):
+            agg[y, x] = field
+            cuda_mutex_unlock(mutex, index)
+            return 0
+        cuda_mutex_unlock(mutex, index)
+        return -1
+
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
+        if cuda:
+            return self._combine_cuda
+        else:
+            return self._combine
+
     @staticmethod
     def _combine(aggs):
         # Minimum ignoring -1 values
         if len(aggs) > 1:
             row_min_in_place(aggs[0], aggs[1])
         return aggs[0]
+
+    @staticmethod
+    def _combine_cuda(aggs):
+        ret = aggs[0]
+        if len(aggs) > 1:
+            kernel_args = cuda_args(ret.shape)
+            for i in range(1, len(aggs)):
+                cuda_row_min_in_place[kernel_args](ret, aggs[i])
+        return ret
 
 
 class _max_n_or_min_n_row_index(FloatingNReduction):
@@ -1961,6 +1991,9 @@ class _max_n_or_min_n_row_index(FloatingNReduction):
     def out_dshape(self, in_dshape, antialias, cuda, partitioned):
         return dshape(ct.int64)
 
+    def uses_cuda_mutex(self):
+        return True
+
     def uses_row_index(self, cuda, partitioned):
         return True
 
@@ -1968,8 +2001,7 @@ class _max_n_or_min_n_row_index(FloatingNReduction):
         # self.column is None but row index is passed as field argument to append functions
         # Doesn't yet support antialiasing
         if cuda:
-            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
-            #return self._append_cuda
+            return self._append_cuda
         else:
             return self._append
 

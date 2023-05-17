@@ -252,3 +252,14 @@ def cuda_nanmin_n_in_place(ret, other):
                     ret_pixel[i] = other_value
                     istart = i+1
                     break
+
+
+@cuda.jit
+def cuda_row_min_in_place(ret, other):
+    """CUDA equivalent of row_min_in_place.
+    """
+    ny, nx = ret.shape
+    x, y = cuda.grid(2)
+    if x < nx and y < ny:
+        if other[y, x] > -1 and (ret[y, x] == -1 or other[y, x] < ret[y, x]):
+            ret[y, x] = other[y, x]

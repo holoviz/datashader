@@ -219,7 +219,7 @@ def test_max(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f64')), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_min_row_index(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -228,7 +228,7 @@ def test_min_row_index(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds._min_row_index()), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_max_row_index(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -2006,9 +2006,7 @@ def test_canvas_size():
 
 @pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
 @pytest.mark.parametrize('reduction', [
-    ds.where(ds.first('f64')),
     ds.where(ds.first_n('f64')),
-    ds.where(ds.last('f64')),
     ds.where(ds.last_n('f64')),
     ds.where(ds.max_n('f64', n=3)),
     ds.where(ds.min_n('f64', n=3)),

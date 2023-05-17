@@ -827,6 +827,18 @@ def test_last_n(df):
 
 
 @pytest.mark.parametrize('df', dfs)
+def test_min_row_index(df):
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds._min_row_index()), out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_max_row_index(df):
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds._max_row_index()), out)
+
+
+@pytest.mark.parametrize('df', dfs)
 def test_multiple_aggregates(df):
     agg = c.points(df, 'x', 'y',
                    ds.summary(f64_mean=ds.mean('f64'),
@@ -2658,13 +2670,9 @@ def test_canvas_size():
 
 @pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
 @pytest.mark.parametrize('reduction', [
-    ds.first('f64'),
     ds.first_n('f64', n=3),
-    ds.last('f64'),
     ds.last_n('f64', n=3),
-    ds.where(ds.first('f64')),
     ds.where(ds.first_n('f64', n=3)),
-    ds.where(ds.last('f64')),
     ds.where(ds.last_n('f64', n=3)),
 ])
 def test_reduction_on_cuda_raises_error(reduction):
