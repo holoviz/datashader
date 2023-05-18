@@ -307,9 +307,9 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
         span = np.linspace(span[0], span[1], len(cmap))
-        r = interp(data, span, rspan, left=255).astype(np.uint8)
-        g = interp(data, span, gspan, left=255).astype(np.uint8)
-        b = interp(data, span, bspan, left=255).astype(np.uint8)
+        r = np.nan_to_num(interp(data, span, rspan, left=255), copy=False).astype(np.uint8)
+        g = np.nan_to_num(interp(data, span, gspan, left=255), copy=False).astype(np.uint8)
+        b = np.nan_to_num(interp(data, span, bspan, left=255), copy=False).astype(np.uint8)
         a = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
         rgba = np.dstack([r, g, b, a])
     elif isinstance(cmap, str) or isinstance(cmap, tuple):
@@ -319,7 +319,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
         r = np.full(data.shape, color[0], dtype=np.uint8)
         g = np.full(data.shape, color[1], dtype=np.uint8)
         b = np.full(data.shape, color[2], dtype=np.uint8)
-        a = interp(data, span, aspan, left=0, right=255).astype(np.uint8)
+        a = np.nan_to_num(interp(data, span, aspan, left=0, right=255), copy=False).astype(np.uint8)
         rgba = np.dstack([r, g, b, a])
     elif callable(cmap):
         # Assume callable is matplotlib colormap
@@ -494,8 +494,8 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_d
     norm_span = array_module.hstack(norm_span)
 
     # Interpolate the alpha values
-    a = interp(a_scaled, norm_span, array_module.array([min_alpha, alpha]),
-               left=0, right=255).astype(np.uint8)
+    a_float = interp(a_scaled, norm_span, array_module.array([min_alpha, alpha]), left=0, right=255)
+    a = np.nan_to_num(a_float, copy=False).astype(np.uint8)
     return a
 
 

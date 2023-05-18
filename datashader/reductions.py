@@ -199,7 +199,11 @@ class category_binning(category_modulo):
             values = df[self.column].to_numpy()
             nan_values = np.isnan(values)
 
-        index = ((values - self.bin0) / self.binsize).astype(int)
+        index_float = (values - self.bin0) / self.binsize
+        # NaN values are corrected below, so set them to zero to avoid warnings when
+        # converting from float to int.
+        index_float[nan_values] = 0
+        index = index_float.astype(int)
         index[index < 0] = self.bin_under
         index[index >= self.nbins] = self.bin_over
         index[nan_values] = self.nbins
