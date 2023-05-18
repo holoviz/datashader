@@ -9,6 +9,11 @@ import xarray as xr
 from .reductions import by, category_codes, summary, where
 from .utils import ngjit
 
+try:
+    from datashader.transfer_functions._cuda_utils import cuda_mutex_lock, cuda_mutex_unlock
+except ImportError:
+    cuda_mutex_lock, cuda_mutex_unlock = None, None
+
 
 __all__ = ['compile_components']
 
@@ -166,21 +171,24 @@ def make_info(cols, uses_cuda_mutex):
 def make_append(bases, cols, calls, glyph, categorical, antialias):
     names = ('_{0}'.format(i) for i in count())
     inputs = list(bases) + list(cols)
+    namespace = {}
     any_uses_cuda_mutex = any(call[6] for call in calls)
     if any_uses_cuda_mutex:
         # This adds an argument to the append() function that is the cuda mutex
         # generated in make_info.
         inputs += ["_cuda_mutex"]
+        namespace["cuda_mutex_lock"] = cuda_mutex_lock
+        namespace["cuda_mutex_unlock"] = cuda_mutex_unlock
     signature = [next(names) for i in inputs]
     arg_lk = dict(zip(inputs, signature))
     local_lk = {}
-    namespace = {}
     body = []
     ndims = glyph.ndims
     if ndims is not None:
         subscript = ', '.join(['i' + str(n) for n in range(ndims)])
     else:
         subscript = None
+    prev_cuda_mutex = False
 
     for func, bases, cols, nan_check_column, temps, _, uses_cuda_mutex in calls:
         local_lk.update(zip(temps, (next(names) for i in temps)))
@@ -202,8 +210,9 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         if antialias:
             args.append("aa_factor")
 
-        if uses_cuda_mutex:
-            args.append(arg_lk["_cuda_mutex"])
+        if uses_cuda_mutex and prev_cuda_mutex:
+            # Avoid unnecessary mutex unlock and lock cycle
+            body.pop()
 
         where_reduction = len(bases) == 1 and isinstance(bases[0], where)
         if where_reduction:
@@ -212,7 +221,10 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
 
             # where reduction needs access to the return of the contained
             # reduction, which is the preceding one here.
-            body[-1] = f'{update_index_arg_name} = {body[-1]}'
+            prev_body = body.pop()
+            if uses_cuda_mutex and not prev_cuda_mutex:
+                body.append(f'cuda_mutex_lock({arg_lk["_cuda_mutex"]}, (y, x))')
+            body.append(f'{update_index_arg_name} = {prev_body}')
 
             # If nan_check_column is defined then need to check if value of
             # correct row in that column is NaN and if so do nothing. This
@@ -227,11 +239,16 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
                 whitespace = '    '
 
             body.append(f'{whitespace}if {update_index_arg_name} >= 0:')
-            call  = f'    {whitespace}{func_name}(x, y, {", ".join(args)})'
+            body.append(f'    {whitespace}{func_name}(x, y, {", ".join(args)})')
         else:
-            call  = f'{func_name}(x, y, {", ".join(args)})'
+            if uses_cuda_mutex and not prev_cuda_mutex:
+                body.append(f'cuda_mutex_lock({arg_lk["_cuda_mutex"]}, (y, x))')
+            body.append(f'{func_name}(x, y, {", ".join(args)})')
 
-        body.append(call)
+        if uses_cuda_mutex:
+            body.append(f'cuda_mutex_unlock({arg_lk["_cuda_mutex"]}, (y, x))')
+
+        prev_cuda_mutex = uses_cuda_mutex
 
     body = ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
             for agg, name in local_lk.items()] + body
