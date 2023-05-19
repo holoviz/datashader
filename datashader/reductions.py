@@ -266,10 +266,17 @@ class Reduction(Expr):
             return None
 
     def uses_cuda_mutex(self):
+        """Return ``True`` if this Reduction needs to use a CUDA mutex to
+        ensure that it is threadsafe across CUDA threads.
+
+        If the CUDA append functions are all atomic (i.e. using functions from
+        the numba.cuda.atomic module) then this is ``False``, otherwise it is
+        ``True``.
+        """
         return False
 
     def uses_row_index(self, cuda, partitioned):
-        """Return True if this Reduction uses a row index virtual column.
+        """Return ``True`` if this Reduction uses a row index virtual column.
 
         For some reductions the order of the rows of supplied data is
         important. These include ``first`` and ``last`` reductions as well as
@@ -599,7 +606,7 @@ class by(Reduction):
     """
     def __init__(self, cat_column, reduction=count()):
         super().__init__()
-        
+
         # set basic categorizer
         if isinstance(cat_column, CategoryPreprocess):
             self.categorizer = cat_column
@@ -612,7 +619,7 @@ class by(Reduction):
             raise TypeError(
                 "'by' reduction does not support 'where' reduction for its first argument")
 
-        self.categorizer.column # for backwards compatibility with count_cat
+        self.column = self.categorizer.column # for backwards compatibility with count_cat
         self.columns = (self.categorizer.column, getattr(reduction, 'column', None))
         self.reduction = reduction
         # if a value column is supplied, set category_values preprocessor
@@ -1193,7 +1200,6 @@ class _first_or_last(Reduction):
 
     def _build_bases(self, cuda, partitioned):
         if self.uses_row_index(cuda, partitioned):
-            print("==> _first_or_last._build_bases -> 2")
             row_index_selector = self._create_row_index_selector()
             wrapper = where(selector=row_index_selector, lookup_column=self.column)
             wrapper._nan_check_column = self.column
@@ -1343,7 +1349,6 @@ class _first_n_or_last_n(FloatingNReduction):
 
     def _build_bases(self, cuda, partitioned):
         if self.uses_row_index(cuda, partitioned):
-            print("==> _first_n_or_last_n._build_bases -> 2")
             row_index_selector = self._create_row_index_selector()
             wrapper = where(selector=row_index_selector, lookup_column=self.column)
             wrapper._nan_check_column = self.column
@@ -1617,7 +1622,6 @@ class where(FloatingReduction):
         self.selector = selector
         # List of all column names that this reduction uses.
         self.columns = (selector.column, lookup_column)
-        print("WHERE COLUMNS", self.columns)
 
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.selector))
@@ -1632,7 +1636,7 @@ class where(FloatingReduction):
         return True
 
     def uses_row_index(self, cuda, partitioned):
-        return self.column is None or isinstance(self.selector, (_first_or_last, _first_n_or_last_n))
+        return self.column is None or self.selector.uses_row_index(cuda, partitioned)
 
     def validate(self, in_dshape):
         if self.column is not None:
@@ -1741,7 +1745,6 @@ class where(FloatingReduction):
         # Does not support categorical reductions.
         selector = self.selector
         if cuda:
-            print("get append_cuda from selector", selector)
             append = selector._append_cuda
         else:
             append = selector._append
@@ -1787,12 +1790,31 @@ class where(FloatingReduction):
                 if not invalid(value) and append(x, y, selector_aggs[0], value) >= 0:
                     aggs[0][y, x] = aggs[1][y, x]
 
+        @nb_cuda.jit
+        def combine_cuda_3d(aggs, selector_aggs):
+            ny, nx, n = aggs[0].shape
+            x, y = nb_cuda.grid(2)
+            if x < nx and y < ny:
+                for i in range(n):
+                    value = selector_aggs[1][y, x, i]
+                    if invalid(value):
+                        break
+                    update_index = append(x, y, selector_aggs[0], value)
+                    if update_index < 0:
+                        break
+                    # Bump values along in the same way that append() has done above.
+                    for j in range(n-1, update_index, -1):
+                        aggs[0][y, x, j] = aggs[0][y, x, j-1]
+                    aggs[0][y, x, update_index] = aggs[1][y, x, i]
+
         def wrapped_combine(aggs, selector_aggs):
-            print("==> calling where.wrapped_combine")
             if len(aggs) == 1:
                 pass
             elif cuda:
-                combine_cuda_2d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
+                if aggs[0].ndim == 3:
+                    combine_cuda_3d[cuda_args(aggs[0].shape[:2])](aggs, selector_aggs)
+                else:
+                    combine_cuda_2d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
             else:
                 if aggs[0].ndim == 3:
                     combine_cpu_3d(aggs, selector_aggs)
@@ -1826,10 +1848,6 @@ class where(FloatingReduction):
         def finalize(bases, cuda=False, **kwargs):
             if add_finalize_kwargs is not None:
                 kwargs = add_finalize_kwargs(**kwargs)
-
-            print("==> where.finalize", len(bases))
-            for i in range(len(bases)):
-                print(" ", i, bases[i].dtype, bases[i].tolist())
 
             return xr.DataArray(bases[-1], **kwargs)
 
@@ -1923,7 +1941,7 @@ class _max_row_index(_max_or_min_row_index):
     @ngjit
     def _append(x, y, agg, field):
         # field is int64 row index
-        if field != -1 and field > agg[y, x]:
+        if field > agg[y, x]:
             agg[y, x] = field
             return 0
         return -1
@@ -1933,7 +1951,11 @@ class _max_row_index(_max_or_min_row_index):
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         # field is int64 row index
-        return 0 if nb_cuda.atomic.max(agg, (y, x), field) != field else -1
+        if field != -1:
+            old = nb_cuda.atomic.max(agg, (y, x), field)
+            if old < field:
+                return 0
+        return -1
 
     @staticmethod
     def _combine(aggs):

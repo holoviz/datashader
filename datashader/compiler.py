@@ -193,13 +193,9 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         subscript = None
     prev_cuda_mutex = False
 
-    for k, v in arg_lk.items():
-        print("==> arg_lk:", v, getattr(k, "column", "-"), k)
-
     for func, bases, cols, nan_check_column, temps, _, uses_cuda_mutex in calls:
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
-        print("==> func:", func_name, "func", func)
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
         if categorical and isinstance(cols[0], category_codes):
@@ -224,7 +220,6 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         where_reduction = len(bases) == 1 and isinstance(bases[0], where)
         if where_reduction:
             update_index_arg_name = next(names)
-            print("==> update_index_arg_name", update_index_arg_name)
             args.append(update_index_arg_name)
 
             # where reduction needs access to the return of the contained
@@ -240,7 +235,6 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
             if nan_check_column is None:
                 whitespace = ''
             else:
-                print("==> nan_check_column", nan_check_column.column, nan_check_column)
                 var = f"{arg_lk[nan_check_column]}[{subscript}]"
                 prev_body = body[-1]
                 body[-1] = f'if not isnull({var}):'
@@ -253,7 +247,6 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
             if uses_cuda_mutex and not prev_cuda_mutex:
                 body.append(f'cuda_mutex_lock({arg_lk["_cuda_mutex"]}, (y, x))')
             if nan_check_column:
-                print("==> nan_check_column")
                 var = f"{arg_lk[nan_check_column]}[{subscript}]"
                 body.append(f'if not isnull({var}):')
                 body.append(f'    {func_name}(x, y, {", ".join(args)})')
@@ -285,8 +278,6 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         code = ('def append({0}, x, y, {1}):\n'
                 '    {2}'
                 ).format(subscript, ', '.join(signature), '\n    '.join(body))
-    print("==> code", code)
-    #import pdb; pdb.set_trace()
     exec(code, namespace)
     return ngjit(namespace['append']), any_uses_cuda_mutex
 
