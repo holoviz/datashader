@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 import os
 import re
@@ -174,7 +174,7 @@ def nansum_missing(array, axis):
 
 def calc_res(raster):
     """Calculate the resolution of xarray.DataArray raster and return it as the
-    two-tuple (xres, yres).
+    two-tuple (xres, yres). yres is positive if it is decreasing.
     """
     h, w = raster.shape[-2:]
     ydim, xdim = raster.dims[-2:]
@@ -251,6 +251,15 @@ def get_indices(start, end, coords, res):
     return sidx, eidx
 
 
+def _flip_array(array, xflip, yflip):
+    # array may have 2 or 3 dimensions, last one is x-dimension, last but one is y-dimension.
+    if yflip:
+        array = array[..., ::-1, :]
+    if xflip:
+        array = array[..., :, ::-1]
+    return array
+
+
 def orient_array(raster, res=None, layer=None):
     """
     Reorients the array to a canonical orientation depending on
@@ -277,51 +286,10 @@ def orient_array(raster, res=None, layer=None):
     if layer is not None: array = array[layer-1]
     r0zero = np.timedelta64(0, 'ns') if isinstance(res[0], np.timedelta64) else 0
     r1zero = np.timedelta64(0, 'ns') if isinstance(res[1], np.timedelta64) else 0
-    if array.ndim == 2:
-        if res[0] < r0zero: array = array[:, ::-1]
-        if res[1] > r1zero: array = array[::-1]
-    else:
-        if res[0] < r0zero: array = array[:, :, ::-1]
-        if res[1] > r1zero: array = array[:, ::-1]
+    xflip = res[0] < r0zero
+    yflip = res[1] > r1zero
+    array = _flip_array(array, xflip, yflip)
     return array
-
-
-def compute_coords(width, height, x_range, y_range, res):
-    """
-    Computes DataArray coordinates at bin centers
-
-    Parameters
-    ----------
-    width : int
-        Number of coordinates along the x-axis
-    height : int
-        Number of coordinates along the y-axis
-    x_range : tuple
-        Left and right edge of the coordinates
-    y_range : tuple
-        Bottom and top edges of the coordinates
-    res : tuple
-        Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
-        sizes"), respectively. Used to determine coordinate orientation.
-
-    Returns
-    -------
-    xs : numpy.ndarray
-        1D array of x-coordinates
-    ys : numpy.ndarray
-        1D array of y-coordinates
-    """
-    (x0, x1), (y0, y1) = x_range, y_range
-    xd = (x1-x0)/float(width)
-    yd = (y1-y0)/float(height)
-    xpad, ypad = abs(xd/2.), abs(yd/2.)
-    x0, x1 = x0+xpad, x1-xpad
-    y0, y1 = y0+ypad, y1-ypad
-    xs = np.linspace(x0, x1, width)
-    ys = np.linspace(y0, y1, height)
-    if res[0] < 0: xs = xs[::-1]
-    if res[1] > 0: ys = ys[::-1]
-    return xs, ys
 
 
 def downsample_aggregate(aggregate, factor, how='mean'):
@@ -625,3 +593,255 @@ def mesh(vertices, simplices):
         return _dd_mesh(vertices, simplices)
 
     return _pd_mesh(vertices, simplices)
+
+
+def apply(func, args, kwargs=None):
+    if kwargs:
+        return func(*args, **kwargs)
+    else:
+        return func(*args)
+
+
+@ngjit
+def isnull(val):
+    """
+    Equivalent to isnan for floats, but also numba compatible with integers
+    """
+    return not (val <= 0 or val > 0)
+
+
+@ngjit
+def isminus1(val):
+    """
+    Check for -1 which is equivalent to NaN for some integer aggregations
+    """
+    return val == -1
+
+
+@ngjit_parallel
+def nanfirst_in_place(ret, other):
+    """First of 2 arrays but taking nans into account.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]) and not isnull(other[i]):
+            ret[i] = other[i]
+
+
+@ngjit_parallel
+def nanlast_in_place(ret, other):
+    """Last of 2 arrays but taking nans into account.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if not isnull(other[i]):
+            ret[i] = other[i]
+
+
+@ngjit_parallel
+def nanmax_in_place(ret, other):
+    """Max of 2 arrays but taking nans into account.  Could use np.nanmax but
+    would need to replace zeros with nans where both arrays are nans.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]):
+            if not isnull(other[i]):
+                ret[i] = other[i]
+        elif not isnull(other[i]) and other[i] > ret[i]:
+            ret[i] = other[i]
+
+
+@ngjit_parallel
+def nanmin_in_place(ret, other):
+    """Min of 2 arrays but taking nans into account.  Could use np.nanmin but
+    would need to replace zeros with nans where both arrays are nans.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]):
+            if not isnull(other[i]):
+                ret[i] = other[i]
+        elif not isnull(other[i]) and other[i] < ret[i]:
+            ret[i] = other[i]
+
+
+@ngjit_parallel
+def nanmax_n_in_place(ret, other):
+    """Combine two max-n arrays, taking nans into account. Max-n arrays are 3D
+    with the last axis containing n values in descending order. If there are
+    fewer than n values it is padded with nans.
+    Return the first array.
+    """
+    ny, nx, n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            ret_pixel = ret[y, x]      # 1D array of n values for single pixel
+            other_pixel = other[y, x]  # ditto
+            # Walk along other_pixel array a value at a time, find insertion
+            # index in ret_pixel and bump values along to insert.  Next
+            # other_pixel value is inserted at a higher index, so this walks
+            # the two pixel arrays just once each.
+            istart = 0
+            for other_value in other_pixel:
+                if isnull(other_value):
+                    break
+                else:
+                    for i in range(istart, n):
+                        if isnull(ret_pixel[i]) or other_value > ret_pixel[i]:
+                            # Bump values along then insert.
+                            for j in range(n-1, i, -1):
+                                ret_pixel[j] = ret_pixel[j-1]
+                            ret_pixel[i] = other_value
+                            istart = i+1
+                            break
+
+
+@ngjit_parallel
+def nanmin_n_in_place(ret, other):
+    """Combine two min-n arrays, taking nans into account. Min-n arrays are 3D
+    with the last axis containing n values in descending order. If there are
+    fewer than n values it is padded with nans.
+    Return the first array.
+    """
+    ny, nx, n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            ret_pixel = ret[y, x]      # 1D array of n values for single pixel
+            other_pixel = other[y, x]  # ditto
+            # Walk along other_pixel array a value at a time, find insertion
+            # index in ret_pixel and bump values along to insert.  Next
+            # other_pixel value is inserted at a higher index, so this walks
+            # the two pixel arrays just once each.
+            istart = 0
+            for other_value in other_pixel:
+                if isnull(other_value):
+                    break
+                else:
+                    for i in range(istart, n):
+                        if isnull(ret_pixel[i]) or other_value < ret_pixel[i]:
+                            # Bump values along then insert.
+                            for j in range(n-1, i, -1):
+                                ret_pixel[j] = ret_pixel[j-1]
+                            ret_pixel[i] = other_value
+                            istart = i+1
+                            break
+
+
+@ngjit_parallel
+def nansum_in_place(ret, other):
+    """Sum of 2 arrays but taking nans into account.  Could use np.nansum but
+    would need to replace zeros with nans where both arrays are nans.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]):
+            if not isnull(other[i]):
+                ret[i] = other[i]
+        elif not isnull(other[i]):
+            ret[i] += other[i]
+
+
+@ngjit_parallel
+def parallel_fill(array, value):
+    """Parallel version of np.fill()"""
+    array = array.ravel()
+    for i in nb.prange(len(array)):
+        array[i] = value
+
+
+@ngjit
+def row_max_in_place(ret, other):
+    """Maximum of 2 arrays of row indexes.
+    Row indexes are integers from 0 upwards, missing data is -1,
+    so simple max suffices.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in range(len(ret)):
+        if other[i] > ret[i]:
+            ret[i] = other[i]
+
+
+@ngjit
+def row_min_in_place(ret, other):
+    """Minimum of 2 arrays of row indexes.
+    Row indexes are integers from 0 upwards, missing data is -1.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in range(len(ret)):
+        if other[i] > -1 and (ret[i] == -1 or other[i] < ret[i]):
+            ret[i] = other[i]
+
+
+@ngjit
+def row_max_n_in_place(ret, other):
+    """Combine two row_max_n signed integer arrays.
+    Equivalent to nanmax_n_in_place with -1 replacing NaN for missing data.
+    Return the first array.
+    """
+    ny, nx, n = ret.shape
+    for y in range(ny):
+        for x in range(nx):
+            ret_pixel = ret[y, x]      # 1D array of n values for single pixel
+            other_pixel = other[y, x]  # ditto
+            # Walk along other_pixel array a value at a time, find insertion
+            # index in ret_pixel and bump values along to insert.  Next
+            # other_pixel value is inserted at a higher index, so this walks
+            # the two pixel arrays just once each.
+            istart = 0
+            for other_value in other_pixel:
+                if other_value == -1:
+                    break
+                else:
+                    for i in range(istart, n):
+                        if ret_pixel[i] == -1 or other_value > ret_pixel[i]:
+                            # Bump values along then insert.
+                            for j in range(n-1, i, -1):
+                                ret_pixel[j] = ret_pixel[j-1]
+                            ret_pixel[i] = other_value
+                            istart = i+1
+                            break
+
+
+@ngjit
+def row_min_n_in_place(ret, other):
+    """Combine two row_min_n signed integer arrays.
+    Equivalent to nanmin_n_in_place with -1 replacing NaN for missing data.
+    Return the first array.
+    """
+    ny, nx, n = ret.shape
+    for y in range(ny):
+        for x in range(nx):
+            ret_pixel = ret[y, x]      # 1D array of n values for single pixel
+            other_pixel = other[y, x]  # ditto
+            # Walk along other_pixel array a value at a time, find insertion
+            # index in ret_pixel and bump values along to insert.  Next
+            # other_pixel value is inserted at a higher index, so this walks
+            # the two pixel arrays just once each.
+            istart = 0
+            for other_value in other_pixel:
+                if other_value == -1:
+                    break
+                else:
+                    for i in range(istart, n):
+                        if ret_pixel[i] == -1 or other_value < ret_pixel[i]:
+                            # Bump values along then insert.
+                            for j in range(n-1, i, -1):
+                                ret_pixel[j] = ret_pixel[j-1]
+                            ret_pixel[i] = other_value
+                            istart = i+1
+                            break

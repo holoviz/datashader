@@ -9,56 +9,55 @@ import pyct.build
 ########## dependencies ##########
 
 install_requires = [
-    # `conda install dask[complete]` happily gives you dask...which is
-    # happily like pip's dask[complete]. (conda's dask-core is more
-    # like pip's dask.)
-    'dask[complete] >=0.18.0',
-    'datashape >=0.5.1',
-    'numba >=0.51',
-    'numpy >=1.7',
-    'pandas >=0.24.1',
-    'pillow >=3.1.1',
-    'xarray >=0.9.6',
-    'colorcet >=0.9.0',
-    'param >=1.6.1',
-    'pyct >=0.4.5',
+    'colorcet',
+    'dask',
+    'datashape',
+    'numba',
+    'numpy',
+    'pandas',
+    'param',
+    'pillow',
+    'pyct',
+    'requests',
     'scipy',
+    'toolz',
+    'xarray',
 ]
 
 examples = [
-    'holoviews >=1.10.0',
-    'scikit-image',
-    'bokeh',
+    'bokeh <3.0',
+    'geopandas',
+    'holoviews',
     'matplotlib',
+    'scikit-image',
+    'spatialpandas',
 ]
 
 extras_require = {
     'tests': [
-        'pytest >=3.9.3,<6.0',
-        'pytest-benchmark >=3.0.0',
-        'pytest-cov',
         'codecov',
+        'fastparquet',  # optional dependency
         'flake8',
-        'nbconvert <6',
-        'nbsmoke[all] >=0.4.0',
-        'fastparquet >=0.1.6',  # optional dependency
-        'holoviews >=1.10.0',
-        'bokeh',
-        'pyarrow',
+        'nbconvert',
+        'nbformat',
+        'nbsmoke[verify] >0.5',
         'netcdf4',
-        'twine',   # required for pip packaging
-        'rfc3986', # required by twine
-        'keyring', # required by twine
-        'spatialpandas'
+        'pyarrow <11',
+        'pytest',
+        'pytest-benchmark',
+        'pytest-cov',
+        'rasterio',
+        'rioxarray',
+        'spatialpandas',
     ],
     'examples': examples,
     'examples_extra': examples + [
-        'networkx >=2.0',
-        'streamz >=0.2.0',
+        'networkx',
+        'streamz',
         ### conda only below here
+        'fastparquet',
         'graphviz',
         'python-graphviz',
-        'fastparquet',
         'python-snappy',
         'rasterio',
         'snappy',
@@ -66,14 +65,19 @@ extras_require = {
 }
 
 extras_require['doc'] = extras_require['examples_extra'] + [
-    'nbsite >=0.5.2',
-    'sphinx_holoviz_theme',
-    'numpydoc'
+    'nbsite >=0.7.1',
+    'numpydoc',
+    'pydata-sphinx-theme <0.9.0',
+    'sphinx-copybutton',
 ]
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
 
-
+extras_require['gpu_tests'] = [
+    "cupy",
+    "cudf",  # Install with conda install -c rapidsai
+    "dask-cudf",  # Install with conda install -c rapidsai
+]
 
 ########## metadata for setuptools ##########
 
@@ -84,9 +88,12 @@ setup_args = dict(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url='https://datashader.org',
+    project_urls={
+        'Source': 'https://github.com/holoviz/datashader',
+    },
     maintainer='Datashader developers',
     maintainer_email='dev@datashader.org',
-    python_requires=">=2.7",
+    python_requires=">=3.8",
     install_requires=install_requires,
     extras_require=extras_require,
     tests_require=extras_require['tests'],
@@ -98,6 +105,22 @@ setup_args = dict(
             'datashader = datashader.__main__:main'
         ]
     },
+    classifiers=[
+        "License :: OSI Approved :: BSD License",
+        "Development Status :: 5 - Production/Stable",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Operating System :: OS Independent",
+        "Intended Audience :: Science/Research",
+        "Intended Audience :: Developers",
+        "Natural Language :: English",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Visualization",
+        "Topic :: Software Development :: Libraries",
+    ]
 )
 
 if __name__ == '__main__':

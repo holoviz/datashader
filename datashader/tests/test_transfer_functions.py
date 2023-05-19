@@ -1,4 +1,4 @@
-from __future__ import division, absolute_import
+from __future__ import annotations
 
 from io import BytesIO
 
@@ -9,7 +9,7 @@ import PIL
 import pytest
 from collections import OrderedDict
 import datashader.transfer_functions as tf
-from datashader.tests.test_pandas import assert_eq_xr
+from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
 
 coords = OrderedDict([('x_axis', [3, 4, 5]), ('y_axis', [0, 1, 2])])
 dims = ['y_axis', 'x_axis']
@@ -25,7 +25,10 @@ def build_agg(array_module=np):
     c = array_module.arange(10, 19, dtype='f8').reshape((3, 3))
     c[[0, 1, 2], [0, 1, 2]] = array_module.nan
     s_c = xr.DataArray(c, coords=coords, dims=dims)
-    agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c))
+    d = array_module.arange(10, 19, dtype='u4').reshape((3, 3))
+    d[[0, 1, 2, 2], [0, 1, 2, 1]] = 1
+    s_d = xr.DataArray(d, coords=coords, dims=dims)
+    agg = xr.Dataset(dict(a=s_a, b=s_b, c=s_c, d=s_d))
     return agg
 
 
@@ -44,10 +47,12 @@ try:
     import cupy
     aggs = [build_agg(np), build_agg(cupy), build_agg_dask()]
     arrays = [np.array, cupy.array, create_dask_array_np]
+    array_modules = [np, cupy]
 except ImportError:
     cupy = None
     aggs = [build_agg(np), build_agg_dask()]
     arrays = [np.array, create_dask_array_np]
+    array_modules = [np]
 
 int_span = [11, 17]
 float_span = [11.0, 17.0]
@@ -71,13 +76,19 @@ solutions = {how: tf.Image(np.array(v, dtype='u4'),
                            coords=coords, dims=dims)
              for how, v in solution_lists.items()}
 
-eq_hist_sol = {'a': np.array([[0, 4291543295, 4288846335],
-                              [4286149631, 0, 4283518207],
-                              [4280821503, 4278190335, 0]], dtype='u4'),
-               'b': np.array([[0, 4291543295, 4288846335],
-                              [4286609919, 0, 4283518207],
-                              [4281281791, 4278190335, 0]], dtype='u4')}
-eq_hist_sol['c'] = eq_hist_sol['b']
+# Same result obtained regardless of data dtype (u4, f4, f8)
+eq_hist_sol = np.array([[0, 4291543295, 4288846335],
+                        [4286149631, 0, 4283518207],
+                        [4280821503, 4278190335, 0]], dtype='u4')
+
+eq_hist_sol_rescale_discrete_levels = {
+    'a': np.array([[0, 4289306879, 4287070463],
+                   [4284834047, 0, 4282597631],
+                   [4280361215, 4278190335, 0]], dtype='u4'),
+    'b': np.array([[0, 4289306879, 4287070207],
+                   [4284834047, 0, 4282597375],
+                   [4280361215, 4278190335, 0]], dtype='u4')}
+eq_hist_sol_rescale_discrete_levels['c'] = eq_hist_sol_rescale_discrete_levels['b']
 
 
 def check_span(x, cmap, how, sol):
@@ -153,9 +164,19 @@ def test_shade(agg, attr, span):
     assert_eq_xr(img, sol)
 
     # span option not supported with how='eq_hist'
-    img = tf.shade(x, cmap=cmap, how='eq_hist')
-    sol = tf.Image(eq_hist_sol[attr], coords=coords, dims=dims)
-    assert_eq_xr(img, sol)
+    if span is None:
+        img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=False)
+        sol = tf.Image(eq_hist_sol, coords=coords, dims=dims)
+        assert_eq_xr(img, sol)
+
+        img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=True)
+        sol = tf.Image(eq_hist_sol_rescale_discrete_levels[attr], coords=coords, dims=dims)
+        if cupy and attr=='a' and isinstance(agg.a.data, cupy.ndarray):
+            # cupy eq_hist has slightly different numerics hence slightly different RGBA results
+            sol = sol.copy(deep=True)
+            sol[2, 0] = sol[2, 0] - 0x100
+
+        assert_eq_xr(img, sol)
 
     img = tf.shade(x, cmap=cmap,
                    how=lambda x, mask: np.where(mask, np.nan, x ** 2))
@@ -169,12 +190,10 @@ def test_shade(agg, attr, span):
 @pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('attr', ['a', 'b', 'c'])
 @pytest.mark.parametrize('how', ['linear', 'log', 'cbrt'])
-def test_span_cmap_list(agg, attr, how):
+@pytest.mark.parametrize('cmap', [['pink', 'red'], ('#FFC0CB', '#FF0000')])
+def test_span_cmap_list(agg, attr, how, cmap):
     # Get input
     x = getattr(agg, attr).copy()
-
-    # Build colormap
-    cmap = ['pink', 'red']
 
     # Get expected solution for interpolation method
     sol = solutions[how]
@@ -461,6 +480,7 @@ def test_shade_category(array):
     assert ((img.data[1,0] >> 24) & 0xFF) == 20 # min alpha
     assert ((img.data[1,1] >> 24) & 0xFF) == 20 # min alpha
 
+
 @pytest.mark.parametrize('array', arrays)
 def test_shade_zeros(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
@@ -476,6 +496,64 @@ def test_shade_zeros(array):
                     [5584810, 5584810]], dtype='u4')
     sol = tf.Image(sol, coords=coords, dims=dims)
     assert_eq_xr(img, sol)
+
+
+@pytest.mark.parametrize('agg', aggs)
+@pytest.mark.parametrize('attr', ['d'])
+@pytest.mark.parametrize('rescale', [False, True])
+def test_shade_rescale_discrete_levels(agg, attr, rescale):
+    x = getattr(agg, attr)
+    cmap = ['pink', 'red']
+    img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=rescale)
+    if rescale:
+        sol = np.array([[0xff8981ff, 0xff6d67ff, 0xff524dff],
+                        [0xff3633ff, 0xff8981ff, 0xff1b19ff],
+                        [0xff0000ff, 0xff8981ff, 0xff8981ff]], dtype='uint32')
+    else:
+        sol = np.array([[0xffcbc0ff, 0xffa299ff, 0xff7973ff],
+                        [0xff514cff, 0xffcbc0ff, 0xff2826ff],
+                        [0xff0000ff, 0xffcbc0ff, 0xffcbc0ff]], dtype='uint32')
+    sol = tf.Image(sol, coords=coords, dims=dims)
+    assert_eq_xr(img, sol)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_shade_rescale_discrete_levels_categorical(array_module):
+    arr = array_module.array([[[1, 2], [0, 1]],
+                              [[0, 0], [0, 0]],
+                              [[1, 0], [3, 0]],
+                              [[1, 0], [2, 1]]], dtype='u4')
+    agg = xr.DataArray(data=arr, coords=dict(y=[0, 1, 2, 3], x=[0, 1], cat=['a', 'b']))
+    img = tf.shade(agg, how='eq_hist', rescale_discrete_levels=True)
+
+    sol = np.array([[0xff845c70, 0x6fb87e37],
+                    [0x006a4c8d, 0x006a4c8d],
+                    [0x6f1c1ae4, 0xff1c1ae4],
+                    [0x6f1c1ae4, 0xff503baa]])
+    assert_eq_ndarray(img.data, sol)
+
+
+empty_arrays = [
+    np.zeros((2, 2, 2), dtype=np.uint32),
+    np.full((2, 2, 2), np.nan, dtype=np.float64),
+]
+if cupy is not None:
+    empty_arrays += [
+        cupy.zeros((2, 2, 2), dtype=cupy.uint32),
+        cupy.full((2, 2, 2), cupy.nan, dtype=cupy.float64),
+    ]
+@pytest.mark.parametrize('empty_array', empty_arrays)
+def test_shade_all_masked(empty_array):
+    # Issue #1166, return early with array of all nans if all of data is masked out.
+    # Before the fix this test results in:
+    #   IndexError: index -1 is out of bounds for axis 0 with size 0
+    agg = xr.DataArray(
+        data=empty_array,
+        coords=dict(y=[0, 1], x=[0, 1], cat=['a', 'b']),
+    )
+    im = tf.shade(agg, how='eq_hist', cmap=["white", "white"])
+    assert isinstance(im.data, np.ndarray)
+    assert im.shape == (2, 2)
 
 
 coords2 = [np.array([0, 2]), np.array([3, 5])]
@@ -929,7 +1007,7 @@ def test_int_array_density():
     assert np.allclose(tf._array_density(data, float_type=False), 0.75)
     assert np.allclose(tf._array_density(data, float_type=False, px=3), 1)
 
-    
+
 def test_float_array_density():
     data = np.ones((4, 4), dtype='float32')
     assert tf._array_density(data, float_type=True) == 1.0
@@ -940,7 +1018,7 @@ def test_float_array_density():
     data[2, 0] = data[0, 2] = data[1, 1] = 1
     assert np.allclose(tf._array_density(data, float_type=True), 0.75)
     assert np.allclose(tf._array_density(data, float_type=True, px=3), 1)
-    
+
 
 def test_rgb_dynspread():
     b = 0xffff0000
@@ -1034,13 +1112,13 @@ def test_eq_hist():
     data[np.random.randint(300**2, size=100)] = np.nan
     data = (data - np.nanmin(data)).reshape((300, 300))
     mask = np.isnan(data)
-    eq = tf.eq_hist(data, mask)
+    eq, _ = tf.eq_hist(data, mask)
     check_eq_hist_cdf_slope(eq)
     assert (np.isnan(eq) == mask).all()
     # Integer
     data = np.random.normal(scale=100, size=(300, 300)).astype('i8')
     data = data - data.min()
-    eq = tf.eq_hist(data)
+    eq, _ = tf.eq_hist(data)
     check_eq_hist_cdf_slope(eq)
 
 
@@ -1064,3 +1142,44 @@ def test_shade_should_handle_zeros_array():
     arr = tf.Image(data, dims=['x', 'y'])
     img = tf.shade(arr, cmap=['white', 'black'], how='linear')
     assert img is not None
+
+
+def test_shade_with_discrete_color_key():
+    data = np.array([[0, 0, 0, 0, 0],
+                     [0, 1, 1, 1, 0],
+                     [0, 2, 2, 2, 0],
+                     [0, 3, 3, 3, 0],
+                     [0, 0, 0, 0, 0]], dtype='uint32')
+    color_key = {1: 'white', 2: 'purple', 3: 'yellow'}
+    result = np.array([[0, 0, 0, 0, 0],
+                       [0, 4294967295, 4294967295, 4294967295, 0],
+                       [0, 4286578816, 4286578816, 4286578816, 0],
+                       [0, 4278255615, 4278255615, 4278255615, 0],
+                       [0, 0, 0, 0, 0]],
+                      dtype='uint32')
+
+    # numpy case
+    arr_numpy = tf.Image(data, dims=['x', 'y'])
+    result_numpy = tf.shade(arr_numpy, color_key=color_key)
+    assert (result_numpy.data == result).all()
+
+    # dask with numpy backed case
+    arr_dask = tf.Image(da.from_array(data, chunks=(2, 2)), dims=['x', 'y'])
+    result_dask = tf.shade(arr_dask, color_key=color_key)
+    assert (result_dask.data == result).all()
+
+    # cupy case
+    try:
+        import cupy
+        arr_cupy = tf.Image(cupy.asarray(data), dims=['x', 'y'])
+        result_cupy = tf.shade(arr_cupy, color_key=color_key)
+        assert (result_cupy.data == result).all()
+    except ImportError:
+        cupy = None
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_interpolate_alpha_discrete_levels_None(array_module):
+    data = array_module.array([[0.0, 1.0], [1.0, 0.0]])
+    # Issue #1084: this raises a ValueError.
+    tf._interpolate_alpha(data, data, None, "eq_hist", 0.5, None, 0.4, True)

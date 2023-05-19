@@ -73,12 +73,12 @@
 #
 # The big difference between 005 and 006 is that in 005 each line is individual
 # line whereas for 006 it is a multi-segment line, and each vertex is listed
-# only a single time. Datasahder then "connects the dots" as it were.
+# only a single time. Datashader then "connects the dots" as it were.
 #
 # Test 007 tests the edge case, where we draw an almost staright line between
 # corners with only a single pixel offset. This is to ensure that anti-aliasing
 # does not try to draw pixels that  are out of bounds. Importantly, this needs
-# to be run with Numba disabled, since Numba does not do  OOB checking by
+# to be run with Numba disabled, since Numba does not do OOB checking by
 # default.
 #
 # +---------------------------------------------+
@@ -121,7 +121,6 @@
 
 
 import os
-import sys
 
 import xarray as xr
 import datashader as ds
@@ -129,8 +128,6 @@ import pandas as pd
 import numpy as np
 import pytest
 
-if sys.version_info.major < 3:
-    pytestmark = pytest.mark.skip('Anti-aliasing not supported in python 2.')
 
 cm = pytest.importorskip('matplotlib.cm')
 binary = cm.binary
@@ -171,7 +168,7 @@ def draw_line(cvs, p1, p2, antialias):
 
     Returns
     -------
-    agg: A Datasahder aggregator  (xarray)
+    agg: A Datashader aggregator (xarray)
 
     """
     xs, ys = np.array([p1[0], p2[0]]), np.array([p1[1], p2[1]])
@@ -189,14 +186,14 @@ def draw_lines(cvs, points, antialias):
       A Datashader canvas
     points: list of tuple of tuple
       The lines to render as a list of tuples, where each tuple represents a
-      line consisting of two tuples each containing two  scalars describing the
+      line consisting of two tuples each containing two scalars describing the
       two vertices of the line.
     antialias: boolean
       To anti-alias or not is the question
 
     Returns
     -------
-    agg: A Datasahder aggregator  (xarray)
+    agg: A Datashader aggregator (xarray)
     """
     aggs = []
     for ((x1, y1), (x2, y2)) in points:
@@ -219,7 +216,7 @@ def draw_multi_segment_line(cvs, points, antialias):
 
     Returns
     -------
-    agg: A Datasahder aggregator  (xarray)
+    agg: A Datashader aggregator (xarray)
     """
     x, y = [], []
     for (x1, y1) in points:
@@ -298,7 +295,7 @@ def load_from_netcdf(filename):
 
     """
     filename = os.path.join(datadir, filename + '.nc')
-    return xr.open_dataset(filename)
+    return xr.open_dataarray(filename)
 
 # All test generators return a 'points' list and the name of the point set
 
@@ -365,10 +362,10 @@ def generate_test_006():
 
 def generate_test_007():
     points = [
-        ((0,0),  (1, 49)),
-        ((0,0),  (49, 1)),
-        ((49,49),  (48, 0)),
-        ((49,49),  (0, 48)),
+        ((0.5, 0.5),  (1.5, 48.5)),
+        ((0.5, 0.5),  (48.5, 1.5)),
+        ((48.5, 48.5),  (47.5, 0.5)),
+        ((48.5, 48.5),  (0.5, 47.5)),
     ]
     return points, "test_007"
 
@@ -442,7 +439,7 @@ def test_antialiasing():
     loaded = load_test_images(images)
     print(list(loaded.keys()))
     for description in images.keys():
-        assert images[description] == loaded[description]
+        assert (images[description] == loaded[description]).all()
 
 if __name__ == '__main__':
     # Run this to generate the PNG and NetCDF files.

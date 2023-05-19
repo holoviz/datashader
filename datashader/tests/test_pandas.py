@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import annotations
 from collections import OrderedDict
 import os
 from numpy import nan
@@ -21,18 +21,18 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'i64': np.arange(20, dtype='i8'),
                       'f32': np.arange(20, dtype='f4'),
                       'f64': np.arange(20, dtype='f8'),
+                      'reverse': np.arange(20, 0, -1),
+                      'plusminus': np.arange(20, dtype='f8')*([1, -1]*10),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
 df_pd.cat = df_pd.cat.astype('category')
 df_pd.at[2,'f32'] = nan
 df_pd.at[2,'f64'] = nan
+df_pd.at[2,'plusminus'] = nan
 dfs_pd = [df_pd]
 
-if "DATASHADER_TEST_GPU" in os.environ:
-    test_gpu = bool(int(os.environ["DATASHADER_TEST_GPU"]))
-else:
-    test_gpu = None
+test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
 
 try:
@@ -103,12 +103,19 @@ def assert_eq_xr(agg, b, close=False):
     else:
         xr.testing.assert_equal(agg, b)
 
-def assert_eq_ndarray(data, b):
+def assert_eq_ndarray(data, b, close=False):
     """Assert that two ndarrays are equal, handling the possibility that the
     ndarrays are of different types"""
-    if cupy and isinstance(data, cupy.ndarray):
-        data = cupy.asnumpy(data)
-    np.testing.assert_equal(data, b)
+    if cupy:
+        if isinstance(data, cupy.ndarray):
+            data = cupy.asnumpy(data)
+        if isinstance(b, cupy.ndarray):
+            b = cupy.asnumpy(b)
+
+    if close:
+        np.testing.assert_array_almost_equal(data, b, decimal=5)
+    else:
+        np.testing.assert_equal(data, b)
 
 
 def floats(n):
@@ -122,14 +129,32 @@ def values(s):
     """Get numpy array of values from pandas-like Series, handling Series
     of different types"""
     if cudf and isinstance(s, cudf.Series):
-        return s.to_array(fillna=np.nan)
+        try:
+            return s.to_numpy(na_value=np.nan)
+        except AttributeError:
+            # to_array is deprecated from cudf 22.02
+            return s.to_array(fillna=np.nan)
     else:
         return s.values
 
 
 def test_gpu_dependencies():
-    if test_gpu is True and cudf is None:
+    if test_gpu and cudf is None:
         pytest.fail("cudf and/or cupy not available and DATASHADER_TEST_GPU=1")
+
+
+@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+def test_cudf_concat():
+    # Testing if a newer version of cuDF implements the possibility to
+    # concatenate multiple columns with the same name.
+    # Currently, a workaround for this is
+    # implemented in `datashader.glyphs.Glyph.to_cupy_array`.
+    # For details, see: https://github.com/holoviz/datashader/pull/1050
+
+    with pytest.raises(NotImplementedError):
+        dfp = pd.DataFrame({'y': [0, 1]})
+        dfc = cudf.from_pandas(dfp)
+        cudf.concat((dfc["y"], dfc["y"]), axis=1)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -189,6 +214,236 @@ def test_max(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f64')), out)
 
 
+@pytest.mark.parametrize('df', dfs_pd)
+def test_min_n(df):
+    solution = np.array([[[-3, -1, 0, 4, nan, nan], [-13, -11, 10, 12, 14, nan]],
+                         [[-9, -7, -5, 6, 8, nan], [-19, -17, -15, 16, 18, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.min_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.min('plusminus')).data)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_max_n(df):
+    solution = np.array([[[4, 0, -1, -3, nan, nan], [14, 12, 10, -11, -13, nan]],
+                         [[8, 6, -5, -7, -9, nan], [18, 16, -15, -17, -19, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.max_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.max('plusminus')).data)
+
+
+@pytest.mark.parametrize('df', [df_pd])
+def test_where_first(df):
+    # Note reductions like ds.where(ds.first('i32'), 'reverse') are supported,
+    # but the same results can be achieved using the simpler ds.first('reverse')
+    out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('i32'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('i64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('f64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('f32'))), out)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_where_last(df):
+    # Note reductions like ds.where(ds.last('i32'), 'reverse') are supported,
+    # but the same results can be achieved using the simpler ds.last('reverse')
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('i32'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('i64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('f64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('f32'))), out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_where_max(df):
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i32'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f32'))), out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_where_min(df):
+    out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i32'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f64'))), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'))), out)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_where_first_n(df):
+    sol_rowindex = np.array([[[ 0,  1,  3,  4, -1, -1],
+                              [10, 11, 12, 13, 14, -1]],
+                             [[ 5,  6,  7,  8,  9, -1],
+                              [15, 16, 17, 18, 19, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(df, 'x', 'y', ds.where(ds.first_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.first('plusminus'))).data)
+
+        # Using another column
+        agg = c.points(df, 'x', 'y', ds.where(ds.first_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.first('plusminus'), 'reverse')).data)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_where_last_n(df):
+    sol_rowindex = np.array([[[ 4,  3,  1,  0, -1, -1],
+                              [14, 13, 12, 11, 10, -1]],
+                             [[ 9,  8,  7,  6,  5, -1],
+                              [19, 18, 17, 16, 15, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(df, 'x', 'y', ds.where(ds.last_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.last('plusminus'))).data)
+
+        # Using another column
+        agg = c.points(df, 'x', 'y', ds.where(ds.last_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.last('plusminus'), 'reverse')).data)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_where_max_n(df):
+    sol_rowindex = np.array([[[ 4,  0,  1,  3, -1, -1],
+                              [14, 12, 10, 11, 13, -1]],
+                             [[ 8,  6,  5,  7,  9, -1],
+                              [18, 16, 15, 17, 19, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(df, 'x', 'y', ds.where(ds.max_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.max('plusminus'))).data)
+
+        # Using another column
+        agg = c.points(df, 'x', 'y', ds.where(ds.max_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.max('plusminus'), 'reverse')).data)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_where_min_n(df):
+    sol_rowindex = np.array([[[3,  1,  0,  4, -1, -1],
+                              [13, 11, 10, 12, 14, -1]],
+                             [[ 9,  7,  5,  6,  8, -1],
+                              [19, 17, 15, 16, 18, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(df, 'x', 'y', ds.where(ds.min_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.min('plusminus'))).data)
+
+        # Using another column
+        agg = c.points(df, 'x', 'y', ds.where(ds.min_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.min('plusminus'), 'reverse')).data)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_summary_where_n(df):
+    sol_min_n_rowindex = np.array([[[3,  1,  0,  4, -1],
+                                    [13, 11, 10, 12, 14]],
+                                   [[ 9,  7,  5,  6,  8],
+                                    [19, 17, 15, 16, 18]]])
+    sol_max_n_rowindex = np.array([[[ 4,  0,  1,  3, -1],
+                                    [14, 12, 10, 11, 13]],
+                                   [[ 8,  6,  5,  7,  9],
+                                    [18, 16, 15, 17, 19]]])
+    sol_max_n_reverse = np.where(sol_max_n_rowindex < 0, np.nan, 20 - sol_max_n_rowindex)
+
+    agg = c.points(df, 'x', 'y', ds.summary(
+        count=ds.count(),
+        min_n=ds.where(ds.min_n('plusminus', 5)),
+        max_n=ds.where(ds.max_n('plusminus', 5), 'reverse'),
+    ))
+    assert_eq_ndarray(agg.coords['n'], np.arange(5))
+
+    assert agg['count'].dims == ('y', 'x')
+    assert agg['min_n'].dims == ('y', 'x', 'n')
+    assert agg['max_n'].dims == ('y', 'x', 'n')
+
+    assert agg['count'].dtype == np.dtype('uint32')
+    assert agg['min_n'].dtype == np.dtype('int64')
+    assert agg['max_n'].dtype == np.dtype('float64')
+
+    assert_eq_ndarray(agg['count'].data, [[5, 5], [5, 5]])
+    assert_eq_ndarray(agg['min_n'].data, sol_min_n_rowindex)
+    assert_eq_ndarray(agg['max_n'].data, sol_max_n_reverse)
+
+
+@pytest.mark.parametrize('df', dfs_pd)
+def test_summary_different_n(df):
+    msg = 'Using multiple FloatingNReductions with different n values is not supported'
+    with pytest.raises(ValueError, match=msg):
+        c.points(df, 'x', 'y', ds.summary(
+            min_n=ds.where(ds.min_n('plusminus', 2)),
+            max_n=ds.where(ds.max_n('plusminus', 3)),
+        ))
+
+
 @pytest.mark.parametrize('df', dfs)
 def test_mean(df):
     out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
@@ -237,6 +492,9 @@ def test_count_cat(df):
         dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.count_cat('cat'))
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
+
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_count(df):
@@ -261,10 +519,6 @@ def test_categorical_count(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_count_binning(df):
-    if cudf and isinstance(df, cudf.DataFrame):
-        pytest.skip(
-            "The categorical binning of 'count' reduction is yet supported on the GPU"
-        )
     sol = np.array([[[5, 0, 0, 0],
                      [0, 0, 5, 0]],
                     [[0, 5, 0, 0],
@@ -337,10 +591,6 @@ def test_categorical_sum(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_sum_binning(df):
-    if cudf and isinstance(df, cudf.DataFrame):
-        pytest.skip(
-            "The categorical binning of 'sum' reduction is yet supported on the GPU"
-        )
     sol = np.array([[[8.0,  nan,  nan,  nan],
                      [nan,  nan, 60.0,  nan]],
                     [[nan, 35.0,  nan,  nan],
@@ -354,6 +604,8 @@ def test_categorical_sum_binning(df):
         )
         agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.sum(col)))
         assert_eq_xr(agg, out)
+        assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+        assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -383,10 +635,6 @@ def test_categorical_max(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_max_binning(df):
-    if cudf and isinstance(df, cudf.DataFrame):
-        pytest.skip(
-            "The categorical binning of 'max' reduction is yet supported on the GPU"
-        )
     sol = np.array([[[  4, nan, nan, nan],
                      [nan, nan,  14, nan]],
                     [[nan,   9, nan, nan],
@@ -433,10 +681,6 @@ def test_categorical_mean(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_mean_binning(df):
-    if cudf and isinstance(df, cudf.DataFrame):
-        pytest.skip(
-            "The categorical binning of 'mean' reduction is yet supported on the GPU"
-        )
     sol = np.array([[[  2, nan, nan, nan],
                      [nan, nan,  12, nan]],
                     [[nan,   7, nan, nan],
@@ -540,6 +784,48 @@ def test_categorical_std(df):
         assert_eq_xr(agg, out)
 
 
+@pytest.mark.parametrize('df', [df_pd])
+def test_first(df):
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.first('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.first('i64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.first('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.first('f64')), out)
+
+
+@pytest.mark.parametrize('df', [df_pd])
+def test_last(df):
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.last('i32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.last('i64')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.last('f32')), out)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.last('f64')), out)
+
+
+@pytest.mark.parametrize('df', [df_pd])
+def test_first_n(df):
+    solution = np.array([[[0, -1, -3, 4, nan, nan], [10, -11, 12, -13, 14, nan]],
+                         [[-5, 6, -7, 8, -9, nan], [-15, 16, -17, 18, -19, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.first_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.first('plusminus')).data)
+
+
+@pytest.mark.parametrize('df', [df_pd])
+def test_last_n(df):
+    solution = np.array([[[4, -3, -1, 0, nan, nan], [14, -13, 12, -11, 10, nan]],
+                         [[-9, 8, -7, 6, -5, nan], [-19, 18, -17, 16, -15, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.last_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.last('plusminus')).data)
+
+
 @pytest.mark.parametrize('df', dfs)
 def test_multiple_aggregates(df):
     agg = c.points(df, 'x', 'y',
@@ -566,6 +852,8 @@ def test_auto_range_points(DataFrame):
     sol = np.zeros((n, n), int)
     np.fill_diagonal(sol, 1)
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 9), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 9), close=True)
 
     cvs = ds.Canvas(plot_width=n+1, plot_height=n+1)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
@@ -573,6 +861,8 @@ def test_auto_range_points(DataFrame):
     np.fill_diagonal(sol, 1)
     sol[5, 5] = 0
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 9), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 9), close=True)
 
     n = 4
     data = np.arange(n, dtype='i4')
@@ -587,6 +877,8 @@ def test_auto_range_points(DataFrame):
     sol[np.array([tuple(range(1, 4, 2))])] = 0
     sol[np.array([tuple(range(4, 8, 2))])] = 0
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 3), close=True)
 
     cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
@@ -596,6 +888,8 @@ def test_auto_range_points(DataFrame):
     sol[6, 6] = 1
     sol[8, 8] = 1
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 3), close=True)
 
 
 def test_uniform_points():
@@ -609,6 +903,8 @@ def test_uniform_points():
     agg = cvs.points(df, 'x', 'y', ds.count('time'))
     sol = np.array([[10] * 9 + [11], [10] * 9 + [11]], dtype='i4')
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 100), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('high', [9, 10, 99, 100])
@@ -630,6 +926,9 @@ def test_uniform_diagonal_points(low, high):
     diagonal = agg.data.diagonal(0)
     assert sum(diagonal) == n
     assert abs(bounds[1] - bounds[0]) % 2 == abs(diagonal[1] / high - diagonal[0] / high)
+
+    assert_eq_ndarray(agg.x_range, (low, high), close=True)
+    assert_eq_ndarray(agg.y_range, (low, high), close=True)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -671,6 +970,8 @@ def test_points_geometry_point():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 2), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 2), close=True)
 
     # Aggregation should not have triggered calculation of spatial index
     assert df.geom.array._sindex is None
@@ -679,6 +980,8 @@ def test_points_geometry_point():
     df.geom.array.sindex
     agg = cvs.points(df, geometry='geom', agg=ds.sum('v'))
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 2), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 2), close=True)
 
 
 @pytest.mark.skipif(not sp, reason="spatialpandas not installed")
@@ -700,6 +1003,8 @@ def test_points_geometry_multipoint():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 2), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 2), close=True)
 
     # Aggregation should not have triggered calculation of spatial index
     assert df.geom.array._sindex is None
@@ -708,6 +1013,8 @@ def test_points_geometry_multipoint():
     df.geom.array.sindex
     agg = cvs.points(df, geometry='geom', agg=ds.sum('v'))
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 2), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 2), close=True)
 
 
 def test_line():
@@ -729,6 +1036,8 @@ def test_line():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (-3, 3), close=True)
 
 
 def test_points_on_edge():
@@ -827,6 +1136,8 @@ def test_auto_range_line():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-10, 10), close=True)
+    assert_eq_ndarray(agg.y_range, (-10, 10), close=True)
 
 
 @pytest.mark.skipif(not sp, reason="spatialpandas not installed")
@@ -860,6 +1171,8 @@ def test_closed_ring_line(geom_data, geom_type):
         out[0, 0] = 2
 
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 2), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 def test_trimesh_no_double_edge():
@@ -875,10 +1188,10 @@ def test_trimesh_no_double_edge():
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
-        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
@@ -892,17 +1205,17 @@ def test_trimesh_no_double_edge():
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
-    np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[10:20, :20], sol)
+    np.testing.assert_array_equal(np.flipud((agg.fillna(0) + 0.5).astype('i4').values)[10:20, :20], sol)
 
 def test_trimesh_interp():
     """Assert that triangles are interpolated when vertex values are provided.
@@ -915,15 +1228,15 @@ def test_trimesh_interp():
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
         [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-        [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
         [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
-        [0, 0, 0, 1, 1, 1, 1, 1, 0, 0],
+        [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
         [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
-        [0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
         [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values), sol)
 
@@ -934,15 +1247,15 @@ def test_trimesh_interp():
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 4, 0, 0, 0, 0],
         [0, 0, 0, 0, 4, 4, 0, 0, 0, 0],
-        [0, 0, 0, 0, 3, 4, 4, 0, 0, 0],
+        [0, 0, 0, 0, 4, 4, 0, 0, 0, 0],
+        [0, 0, 0, 3, 3, 4, 4, 0, 0, 0],
         [0, 0, 0, 3, 3, 3, 3, 0, 0, 0],
-        [0, 0, 0, 2, 3, 3, 3, 3, 0, 0],
+        [0, 0, 2, 3, 3, 3, 3, 3, 0, 0],
         [0, 0, 2, 2, 2, 3, 3, 3, 0, 0],
-        [0, 0, 2, 2, 2, 2, 2, 3, 3, 0],
-        [0, 1, 1, 1, 2, 2, 2, 2, 3, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 2, 2, 2, 2, 2, 3, 3, 3, 0],
+        [0, 1, 1, 2, 2, 2, 2, 2, 3, 0],
+        [1, 1, 1, 1, 2, 2, 2, 2, 2, 3],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values), sol)
 
@@ -956,10 +1269,10 @@ def test_trimesh_simplex_weights():
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
-        [0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 4, 4, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 4, 4],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 4, 4, 4],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
@@ -971,10 +1284,10 @@ def test_trimesh_simplex_weights():
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
-        [0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 4, 4, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 4, 4],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 4, 4, 4],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
@@ -990,10 +1303,10 @@ def test_trimesh_vertex_weights():
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
-        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='f8')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)
@@ -1006,10 +1319,10 @@ def test_trimesh_vertex_weights():
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
-        [0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 3, 3, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 3, 3],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 3, 3, 3],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
@@ -1024,10 +1337,10 @@ def test_trimesh_winding_detect():
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
-        [0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 4, 4, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 4, 4],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 4, 4, 4],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
@@ -1038,13 +1351,6 @@ def test_trimesh_winding_detect():
     tris = pd.DataFrame({'v0': [0, 3], 'v1': [2, 5], 'v2': [1, 4], 'val': [3., 4.]}) # floats
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
-    sol = np.array([
-        [0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 4, 4, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
 
 def test_trimesh_mesharg():
@@ -1059,10 +1365,10 @@ def test_trimesh_mesharg():
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
-        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='f8')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0.).values)[:5], sol)
@@ -1085,6 +1391,9 @@ def test_trimesh_agg_api():
     cvs = ds.Canvas(x_range=(0, 10), y_range=(0, 10))
     agg = cvs.trimesh(pts, tris, agg=ds.mean('weight'))
     assert agg.shape == (600, 600)
+
+    assert_eq_ndarray(agg.x_range, (0, 10), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 10), close=True)
 
 
 def test_bug_570():
@@ -1203,6 +1512,8 @@ def test_line_manual_range(DataFrame, df_args, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (-3, 3), close=True)
 
 
 line_autorange_params = [
@@ -1262,7 +1573,8 @@ if sp:
     )
 @pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_args,cvs_kwargs', line_autorange_params)
-def test_line_autorange(DataFrame, df_args, cvs_kwargs):
+@pytest.mark.parametrize('line_width', [0, 1])
+def test_line_autorange(DataFrame, df_args, cvs_kwargs, line_width):
     if cudf and DataFrame is cudf_DataFrame:
         if (isinstance(getattr(df_args[0].get('x', []), 'dtype', ''), RaggedDtype) or
                 sp and isinstance(
@@ -1270,6 +1582,9 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs):
                 )
         ):
             pytest.skip("cudf DataFrames do not support extension types")
+
+        if line_width > 0:
+            pytest.skip("cudf DataFrames do not support antialiased lines")
 
     df = DataFrame(geo='geometry' in cvs_kwargs, *df_args)
 
@@ -1279,21 +1594,36 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs):
 
     cvs = ds.Canvas(plot_width=9, plot_height=9)
 
-    agg = cvs.line(df, agg=ds.count(), **cvs_kwargs)
+    agg = cvs.line(df, agg=ds.count(), line_width=line_width, **cvs_kwargs)
 
-    sol = np.array([[0, 0, 0, 0, 2, 0, 0, 0, 0],
-                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
-                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
-                    [1, 0, 0, 0, 0, 0, 0, 0, 1],
-                    [0, 1, 0, 0, 0, 0, 0, 1, 0],
-                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
-                    [0, 0, 0, 1, 0, 1, 0, 0, 0],
-                    [0, 0, 0, 0, 2, 0, 0, 0, 0]], dtype='i4')
+    if line_width > 0:
+        sol = np.array([
+            [np.nan,   np.nan,   np.nan,   0.646447, 1.292893, 0.646447, np.nan,   np.nan,   np.nan  ],
+            [np.nan,   np.nan,   0.646447, 0.646447, np.nan,   0.646447, 0.646447, np.nan,   np.nan  ],
+            [np.nan,   0.646447, 0.646447, np.nan,   np.nan,   np.nan,   0.646447, 0.646447, np.nan  ],
+            [0.646447, 0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447, 0.646447],
+            [0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447],
+            [0.646447, 0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447, 0.646447],
+            [np.nan,   0.646447, 0.646447, np.nan,   np.nan,   np.nan,   0.646447, 0.646447, np.nan  ],
+            [np.nan,   np.nan,   0.646447, 0.646447, np.nan,   0.646447, 0.646447, np.nan,   np.nan  ],
+            [np.nan,   np.nan,   np.nan,   0.646447, 1.292893, 0.646447, np.nan,   np.nan,   np.nan  ]
+        ], dtype='f4')
+    else:
+        sol = np.array([[0, 0, 0, 0, 2, 0, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                        [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                        [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+                        [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                        [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                        [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 2, 0, 0, 0, 0]], dtype='i4')
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
-    assert_eq_xr(agg, out)
+    assert_eq_xr(agg, out, close=(line_width > 0))
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1401,6 +1731,8 @@ def test_line_autorange_axis1_ragged():
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1464,6 +1796,8 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3.75, 3.75), close=True)
+    assert_eq_ndarray(agg.y_range, (-2.25, 2.25), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1542,6 +1876,8 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 0), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1607,6 +1943,8 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1730,3 +2068,605 @@ def test_area_to_line_autorange_gap():
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y0', 'x'])
     assert_eq_xr(agg, out)
+
+
+# Using local versions of nan-aware combinations rather than those in
+# utils.py.  These versions are not always applicable, e.g. if summming
+# a positive and negative value to total exactly zero will be wrong here.
+def nanmax(arr0, arr1):
+    mask = np.logical_and(np.isnan(arr0), np.isnan(arr1))
+    ret = np.maximum(np.nan_to_num(arr0, nan=0.0), np.nan_to_num(arr1, nan=0.0))
+    ret[mask] = np.nan
+    return ret
+
+def nanmin(arr0, arr1):
+    mask = np.logical_and(np.isnan(arr0), np.isnan(arr1))
+    ret = np.minimum(np.nan_to_num(arr0, nan=1e10), np.nan_to_num(arr1, nan=1e10))
+    ret[mask] = np.nan
+    return ret
+
+def nansum(arr0, arr1):
+    mask = np.logical_and(np.isnan(arr0), np.isnan(arr1))
+    ret = np.nan_to_num(arr0, nan=0.0) + np.nan_to_num(arr1, nan=0.0)
+    ret[mask] = np.nan
+    return ret
+
+line_antialias_df = pd.DataFrame(dict(
+    # Self-intersecting line.
+    x0=np.asarray([0, 1, 1, 0]),
+    y0=np.asarray([0, 1, 0, 1]),
+    # Non-self-intersecting line.
+    x1=np.linspace(0.0, 1.0, 4),
+    y1=np.linspace(0.125, 0.2, 4),
+    value=[3, 3, 3, 3],
+))
+line_antialias_sol_0 = np.array([
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.292893, 1.0,      0.292893, np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      0.292893, np.nan,   np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.292893, 1.0,      0.292893, np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
+])
+line_antialias_sol_0_intersect = np.array([
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.585786, 1.0,      0.292893, np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   0.585786, 2.0,      0.585786, np.nan,   np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.585786, 1.0,      0.292893, np.nan,   1.0,    np.nan],
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
+])
+line_antialias_sol_1 = np.array([
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, 1.0,      0.92521,  0.85042,  0.77563,  0.70084, 0.62605, 0.55126 , 0.47647, 0.40168, np.nan],
+    [np.nan, 0.002801, 0.077591, 0.152381, 0.227171, 0.30196, 0.37675, 0.45154 , 0.52633, 0.6,     np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+])
+
+def test_line_antialias():
+    x_range = y_range = (-0.1875, 1.1875)
+    cvs = ds.Canvas(plot_width=11, plot_height=11, x_range=x_range, y_range=y_range)
+
+    # First line only, self-intersects
+    kwargs = dict(source=line_antialias_df, x="x0", y="y0", line_width=1)
+    agg = cvs.line(agg=ds.any(), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=False), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=True), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_0_intersect, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=False), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=True), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0_intersect, close=True)
+
+    agg = cvs.line(agg=ds.max("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.min("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.first("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.last("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
+
+    agg = cvs.line(agg=ds.mean("value"), **kwargs)
+    # Sum = 3*count so mean is 3 everywhere that there is any fraction of an antialiased line
+    sol = np.where(line_antialias_sol_0 > 0, 3.0, np.nan)
+    assert_eq_ndarray(agg.data, sol, close=True)
+
+    # Second line only, doesn't self-intersect
+    kwargs = dict(source=line_antialias_df, x="x1", y="y1", line_width=1)
+    agg = cvs.line(agg=ds.any(), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=False), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=True), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=False), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=True), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.max("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.min("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.first("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.last("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
+
+    agg = cvs.line(agg=ds.mean("value"), **kwargs)
+    sol_mean = np.where(line_antialias_sol_1 > 0, 3.0, np.nan)
+    assert_eq_ndarray(agg.data, sol_mean, close=True)
+
+    # Both lines.
+    kwargs = dict(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], line_width=1)
+    agg = cvs.line(agg=ds.any(), **kwargs)
+    sol_max = nanmax(line_antialias_sol_0, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, sol_max, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=False), **kwargs)
+    sol_count = nansum(line_antialias_sol_0, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, sol_count, close=True)
+
+    agg = cvs.line(agg=ds.count(self_intersect=True), **kwargs)
+    sol_count_intersect = nansum(line_antialias_sol_0_intersect, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, sol_count_intersect, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=False), **kwargs)
+    assert_eq_ndarray(agg.data, 3*sol_count, close=True)
+
+    agg = cvs.line(agg=ds.sum("value", self_intersect=True), **kwargs)
+    assert_eq_ndarray(agg.data, 3*sol_count_intersect, close=True)
+
+    agg = cvs.line(agg=ds.max("value"), **kwargs)
+    assert_eq_ndarray(agg.data, 3*sol_max, close=True)
+
+    agg = cvs.line(agg=ds.min("value"), **kwargs)
+    sol_min = nanmin(line_antialias_sol_0, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, 3*sol_min, close=True)
+
+    agg = cvs.line(agg=ds.first("value"), **kwargs)
+    sol_first = 3*np.where(np.isnan(line_antialias_sol_0), line_antialias_sol_1, line_antialias_sol_0)
+    assert_eq_ndarray(agg.data, sol_first, close=True)
+
+    agg = cvs.line(agg=ds.last("value"), **kwargs)
+    sol_last = 3*np.where(np.isnan(line_antialias_sol_1), line_antialias_sol_0, line_antialias_sol_1)
+    assert_eq_ndarray(agg.data, sol_last, close=True)
+
+    agg = cvs.line(agg=ds.mean("value"), **kwargs)
+    sol_mean = np.where(sol_count>0, 3.0, np.nan)
+    assert_eq_ndarray(agg.data, sol_mean, close=True)
+
+    assert_eq_ndarray(agg.x_range, x_range, close=True)
+    assert_eq_ndarray(agg.y_range, y_range, close=True)
+
+
+def test_line_antialias_summary():
+    kwargs = dict(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], line_width=1)
+
+    x_range = y_range = (-0.1875, 1.1875)
+    cvs = ds.Canvas(plot_width=11, plot_height=11, x_range=x_range, y_range=y_range)
+
+    # Precalculate expected solutions
+    sol_count = nansum(line_antialias_sol_0, line_antialias_sol_1)
+    sol_count_intersect = nansum(line_antialias_sol_0_intersect, line_antialias_sol_1)
+    sol_min = 3*nanmin(line_antialias_sol_0, line_antialias_sol_1)
+    sol_first = 3*np.where(np.isnan(line_antialias_sol_0), line_antialias_sol_1, line_antialias_sol_0)
+    sol_last = 3*np.where(np.isnan(line_antialias_sol_1), line_antialias_sol_0, line_antialias_sol_1)
+
+    # Summary of count and sum using self_intersect=True
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=True),
+            sum=ds.sum("value", self_intersect=True),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count_intersect, close=True)
+    assert_eq_ndarray(agg["sum"].data, 3*sol_count_intersect, close=True)
+
+    # Summary of count and sum using self_intersect=False
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=False),
+            sum=ds.sum("value", self_intersect=False),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+    assert_eq_ndarray(agg["sum"].data, 3*sol_count, close=True)
+
+    # Summary of count/sum with mix of self_intersect will force self_intersect=False for both
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=True),
+            sum=ds.sum("value", self_intersect=False),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+    assert_eq_ndarray(agg["sum"].data, 3*sol_count, close=True)
+
+    # min, first and last also force use of self_intersect=False
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=True),
+            min=ds.min("value"),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+    assert_eq_ndarray(agg["min"].data, sol_min, close=True)
+
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=True),
+            first=ds.first("value"),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+    assert_eq_ndarray(agg["first"].data, sol_first, close=True)
+
+    agg = cvs.line(
+        agg=ds.summary(
+            count=ds.count("value", self_intersect=True),
+            last=ds.last("value"),
+        ), **kwargs)
+    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+    assert_eq_ndarray(agg["last"].data, sol_last, close=True)
+
+    assert_eq_ndarray(agg.x_range, x_range, close=True)
+    assert_eq_ndarray(agg.y_range, y_range, close=True)
+
+
+line_antialias_nan_sol_intersect = np.array([
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan,      nan,      nan,      nan,      0.085786, 0.5,      0.085786],
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
+    [nan,      nan,      nan,      nan,      0.085786, 0.585786, 0.878679, 1.0,      0.792893, 0.085786, nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.585786, 1.792893, 1.792893, 0.878679, 0.085786, nan,      nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.585786, 1.792893, 1.792893, 0.878679, 0.085786, nan,      nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.085786, 0.585786, 0.878679, 1.0,      0.792893, 0.085786, nan,      nan     ],
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan,      nan,      nan,      nan,      0.085786, 0.5,      0.085786],
+])
+
+line_antialias_nan_sol_max = np.array([
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan, nan,      nan,      nan,      0.085786, 0.5,      0.085786],
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan, nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan, nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan, 0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
+    [nan,      nan,      nan,      nan,      0.085786, 0.5, 0.792893, 1.0,      0.792893, 0.085786, nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.5,      1.0, 1.0,      0.792893, 0.085786, nan,      nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.5,      1.0, 1.0,      0.792893, 0.085786, nan,      nan,      nan     ],
+    [nan,      nan,      nan,      nan,      0.085786, 0.5, 0.792893, 1.0,      0.792893, 0.085786, nan,      nan     ],
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan, 0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan, nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan, nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan, nan,      nan,      nan,      0.085786, 0.5,      0.085786],
+])
+
+line_antialias_nan_params = [
+    # LineAxis0
+    (dict(data=dict(
+        x=[0.5, 1.5, np.nan, 4.5, 9.5, np.nan, 0.5, 1.5, np.nan, 4.5, 9.5],
+        y=[0.5, 1.5, np.nan, 4.5, 9.5, np.nan, 9.5, 8.5, np.nan, 5.5, 0.5],
+    ), dtype='float32'),
+    dict(x='x', y='y', axis=0),
+    line_antialias_nan_sol_max, line_antialias_nan_sol_intersect),
+    # LineAxis0Multi
+    (dict(data=dict(
+        x0=[0.5, 1.5, np.nan, 4.5, 9.5],
+        x1=[0.5, 1.5, np.nan, 4.5, 9.5],
+        y0=[0.5, 1.5, np.nan, 4.5, 9.5],
+        y1=[9.5, 8.5, np.nan, 5.5, 0.5],
+    ), dtype='float32'),
+    dict(x=['x0', 'x1'], y=['y0', 'y1'], axis=0),
+    line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect),
+    # LinesAxis1
+    (dict(data=dict(
+        x0=[0.5, 0.5],
+        x1=[1.5, 1.5],
+        x2=[np.nan, np.nan],
+        x3=[4.5, 4.5],
+        x4=[9.5, 9.5],
+        y0=[0.5, 9.5],
+        y1=[1.5, 8.5],
+        y2=[np.nan, np.nan],
+        y3=[4.5, 5.5],
+        y4=[9.5, 0.5],
+    ), dtype='float32'),
+    dict(x=['x0', 'x1', 'x2', 'x3', 'x4'], y=['y0', 'y1', 'y2', 'y3', 'y4'], axis=1),
+    line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect),
+    # LinesAxis1XConstant
+    (dict(data=dict(
+        y0=[0.5, 9.5],
+        y1=[1.5, 8.5],
+        y2=[np.nan, np.nan],
+        y3=[4.5, 5.5],
+        y4=[9.5, 0.5],
+    ), dtype='float32'),
+    dict(x=np.array([0.5, 1.5, np.nan, 4.5, 9.5]), y=['y0', 'y1', 'y2', 'y3', 'y4'], axis=1),
+    line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect),
+   # LinesAxis1YConstant
+    (dict(data=dict(
+        x0=[0.5, 9.5],
+        x1=[1.5, 8.5],
+        x2=[np.nan, np.nan],
+        x3=[4.5, 5.5],
+        x4=[9.5, 0.5],
+    ), dtype='float32'),
+    dict(y=np.array([0.5, 1.5, np.nan, 4.5, 9.5]), x=['x0', 'x1', 'x2', 'x3', 'x4'], axis=1),
+    line_antialias_nan_sol_intersect.T, line_antialias_nan_sol_intersect.T),
+    # LineAxis1Ragged
+    (dict(data=dict(
+        x=pd.array([[0.5, 1.5, np.nan, 4.5, 9.5], [0.5, 1.5, np.nan, 4.5, 9.5]], dtype='Ragged[float32]'),
+        y=pd.array([[0.5, 1.5, np.nan, 4.5, 9.5], [9.5, 8.5, np.nan, 5.5, 0.5]], dtype='Ragged[float32]'),
+    )),
+    dict(x='x', y='y', axis=1),
+    line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect),
+]
+if sp:
+    line_antialias_nan_params.append(
+        # LineAxis1Geometry
+        (
+            dict(geom=pd.array(
+                [
+                    [0.5, 0.5, 1.5, 1.5, np.nan, np.nan, 4.5, 4.5, 9.5, 9.5],
+                    [0.5, 9.5, 1.5, 8.5, np.nan, np.nan, 4.5, 5.5, 9.5, 0.5],
+                ], dtype='Line[float32]')),
+            dict(geometry='geom'),
+            line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect,
+        )
+    )
+
+@pytest.mark.parametrize('df_kwargs, cvs_kwargs, sol_False, sol_True', line_antialias_nan_params)
+@pytest.mark.parametrize('self_intersect', [False, True])
+def test_line_antialias_nan(df_kwargs, cvs_kwargs, sol_False, sol_True, self_intersect):
+    # Canvas.line() with line_width > 0 has specific identification of start
+    # and end line segments from nan coordinates to draw end caps correctly.
+    x_range = y_range = (-1, 11)
+    cvs = ds.Canvas(plot_width=12, plot_height=12, x_range=x_range, y_range=y_range)
+
+    if 'geometry' in cvs_kwargs:
+        df = sp.GeoDataFrame(df_kwargs)
+    else:
+        df = pd.DataFrame(**df_kwargs)
+
+    agg = cvs.line(df, line_width=2, agg=ds.count(self_intersect=self_intersect), **cvs_kwargs)
+    sol = sol_True if self_intersect else sol_False
+    assert_eq_ndarray(agg.data, sol, close=True)
+    assert_eq_ndarray(agg.x_range, x_range, close=True)
+    assert_eq_ndarray(agg.y_range, y_range, close=True)
+
+
+def test_line_antialias_categorical():
+    df = pd.DataFrame(dict(
+        x=np.asarray([0, 1, 1, 0, np.nan, 0, 1/3.0, 2/3.0, 1]),
+        y=np.asarray([0, 1, 0, 1, np.nan, 0.125, 0.15, 0.175, 0.2]),
+        cat=[1, 1, 1, 1, 1, 2, 2, 2, 2],
+    ))
+    df["cat"] = df["cat"].astype("category")
+
+    x_range = y_range = (-0.1875, 1.1875)
+    cvs = ds.Canvas(plot_width=11, plot_height=11, x_range=x_range, y_range=y_range)
+
+    agg = cvs.line(source=df, x="x", y="y", line_width=1,
+                   agg=ds.by("cat", ds.count(self_intersect=False)))
+    assert_eq_ndarray(agg.data[:, :, 0], line_antialias_sol_0, close=True)
+    assert_eq_ndarray(agg.data[:, :, 1], line_antialias_sol_1, close=True)
+
+    agg = cvs.line(source=df, x="x", y="y", line_width=1,
+                   agg=ds.by("cat", ds.count(self_intersect=True)))
+    assert_eq_ndarray(agg.data[:, :, 0], line_antialias_sol_0_intersect, close=True)
+    assert_eq_ndarray(agg.data[:, :, 1], line_antialias_sol_1, close=True)
+
+
+@pytest.mark.parametrize('self_intersect', [False, True])
+def test_line_antialias_duplicate_points(self_intersect):
+    # Issue #1098. Duplicate points should not raise a divide by zero error and
+    # should produce same results as without duplicate points.
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(-0.1, 1.1), y_range=(0.9, 2.1))
+
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2]))
+    agg_no_duplicate = cvs.line(source=df, x="x", y="y", line_width=1,
+                                agg=ds.count(self_intersect=self_intersect))
+
+    df = pd.DataFrame(dict(x=[0, 0, 1], y=[1, 1, 2]))
+    agg_duplicate = cvs.line(source=df, x="x", y="y", line_width=1,
+                             agg=ds.count(self_intersect=self_intersect))
+
+    assert_eq_xr(agg_no_duplicate, agg_duplicate)
+
+
+@pytest.mark.parametrize('reduction', [
+    ds.std('value'),
+    ds.var('value'),
+    ds.where(ds.first('value')),
+    ds.where(ds.first_n('value')),
+    ds.where(ds.last('value')),
+    ds.where(ds.last_n('value')),
+    ds.where(ds.max('value')),
+    ds.where(ds.max_n('value')),
+    ds.where(ds.min('value')),
+    ds.where(ds.min_n('value')),
+])
+def test_line_antialias_reduction_not_implemented(reduction):
+    # Issue #1133, detect and report reductions that are not implemented.
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2]))
+
+    with pytest.raises(NotImplementedError):
+        cvs.line(df, 'x', 'y', line_width=1, agg=reduction)
+
+
+@pytest.mark.skip(reason='Antialised where reduction not yet supported')
+def test_line_antialias_where():
+    x = np.arange(3)
+    df = pd.DataFrame(dict(
+        y0 = [0.0, 0.5, 1.0],
+        y1 = [1.0, 0.0, 0.5],
+        y2 = [0.0, 1.0, 0.0],
+        value = [1.1, 2.2, 3.3],
+        other = [-9.0, -7.0, -5.0],
+    ))
+
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+
+    sol_where_max = np.array([
+       [-9., -7., -7., -7., -7., -5., -5.],
+       [-7., -7., -7., -5., -5., -5., -9.],
+       [-7., -9., -5., -5., -5., -7., nan],
+       [-5., -5., -5., -5., -9., -7., -7.],
+       [-5., -5., -9., -9., -9., -7., -7.],
+    ])
+
+    agg_where_max = cvs.line(
+        source=df, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
+        agg=ds.where(ds.max("value"), "other"),
+    )
+    assert_eq_ndarray(agg_where_max.data, sol_where_max)
+
+    sol_where_min = np.array([
+        [-9., -9., -7., -7., -7., -9., -9.],
+        [-9., -9., -7., -7., -7., -9., -9.],
+        [-7., -9., -9., -5., -9., -9., nan],
+        [-5., -9., -9., -9., -9., -9., -7.],
+        [-5.,  -5., -9., -9., -9., -7., -7.],
+    ])
+
+    agg_where_min = cvs.line(
+        source=df, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
+        agg=ds.where(ds.min("value"), "other"),
+    )
+    assert_eq_ndarray(agg_where_min.data, sol_where_min)
+
+
+@pytest.mark.parametrize('reduction,dtype,aa_dtype', [
+    (ds.any(), bool, np.float32),
+    (ds.count(), np.uint32, np.float32),
+    (ds.max("value"), np.float64, np.float64),
+    (ds.min("value"), np.float64, np.float64),
+    (ds.sum("value"), np.float64, np.float64),
+    (ds.where(ds.max("value")), np.int64, np.int64),
+    (ds.where(ds.max("value"), "other"), np.float64, np.float64),
+])
+def test_reduction_dtype(reduction, dtype, aa_dtype):
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], other=[1.2, 3.4]))
+
+    # Non-antialiased lines
+    agg = cvs.line(df, 'x', 'y', line_width=0, agg=reduction)
+    assert agg.dtype == dtype
+
+    # Antialiased lines
+    if not isinstance(reduction, ds.where):  # Antialiased ds.where not implemented")
+        agg = cvs.line(df, 'x', 'y', line_width=1, agg=reduction)
+        assert agg.dtype == aa_dtype
+
+
+@pytest.mark.parametrize('df', dfs)
+@pytest.mark.parametrize('canvas', [
+    ds.Canvas(x_axis_type='log'),
+    ds.Canvas(x_axis_type='log', x_range=(0, 1)),
+    ds.Canvas(y_axis_type='log'),
+    ds.Canvas(y_axis_type='log', y_range=(0, 1)),
+])
+def test_log_axis_not_positive(df, canvas):
+    with pytest.raises(ValueError, match='Range values must be >0 for logarithmic axes'):
+        canvas.line(df, 'x', 'y')
+
+
+@pytest.mark.parametrize('selector', [
+    ds.any(),
+    ds.count(),
+    ds.mean('value'),
+    ds.std('value'),
+    ds.sum('value'),
+    ds.summary(any=ds.any()),
+    ds.var('value'),
+    ds.where(ds.max('value'), 'other'),
+])
+def test_where_unsupported_selector(selector):
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], ))
+
+    with pytest.raises(TypeError, match='selector can only be a first, first_n, last, last_n, '
+                                        'max, max_n, min or min_n reduction'):
+        cvs.line(df, 'x', 'y', agg=ds.where(selector, 'value'))
+
+
+def test_by_cannot_use_where():
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    df = pd.DataFrame(dict(x=[0, 1], y=[1, 2], value=[1, 2], cat=['a', 'b']))
+    df["cat"] = df["cat"].astype("category")
+
+    msg = "'by' reduction does not support 'where' reduction for its first argument"
+    with pytest.raises(TypeError, match=msg):
+        cvs.line(df, 'x', 'y',agg=ds.by('cat', ds.where(ds.max('value'), 'other')))
+
+
+def test_line_coordinate_lengths():
+    # Issue #1159.
+    cvs = ds.Canvas(plot_width=10, plot_height=6)
+    msg = r'^x and y coordinate lengths do not match'
+
+    # LineAxis0Multi (axis=0) and LinesAxis1 (axis=1)
+    df = pd.DataFrame(
+        dict(x0=[0, 0.2, 1], y0=[0, 0.4, 1], x1=[0, 0.6, 1], y1=[1, 0.8, 1]))
+    for axis in (0, 1):
+        with pytest.raises(ValueError, match=msg):
+            cvs.line(source=df, x=["x0"], y=["y0", "y1"], axis=axis)
+        with pytest.raises(ValueError, match=msg):
+            cvs.line(source=df, x=["x0", "x1"], y=["y0"], axis=axis)
+
+    # LinesAxis1XConstant
+    df = pd.DataFrame(dict(y0=[0, 1, 0, 1], y1=[0, 1, 1, 0]))
+    for nx in (1, 3):
+        with pytest.raises(ValueError, match=msg):
+            cvs.line(source=df, x=np.arange(nx), y=["y0", "y1"], axis=1)
+
+    # LinesAxis1YConstant
+    df = pd.DataFrame(dict(x0=[0, 1, 0, 1], x1=[0, 1, 1, 0]))
+    for ny in (1, 3):
+        with pytest.raises(ValueError, match=msg):
+            cvs.line(source=df, x=["x0", "x1"], y=np.arange(ny), axis=1)
+
+
+def test_canvas_size():
+    cvs_list = [
+        ds.Canvas(plot_width=0, plot_height=6),
+        ds.Canvas(plot_width=5, plot_height=0),
+        ds.Canvas(plot_width=0, plot_height=0),
+        ds.Canvas(plot_width=-1, plot_height=1),
+        ds.Canvas(plot_width=10, plot_height=-1)
+    ]
+    msg = r'Invalid size: plot_width and plot_height must be bigger than 0'
+    df = pd.DataFrame(dict(x=[0, 0.2, 1], y=[0, 0.4, 1], z=[10, 20, 30]))
+
+    for cvs in cvs_list:
+        with pytest.raises(ValueError, match=msg):
+            cvs.points(df, "x", "y", ds.mean("z"))
+
+
+@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+@pytest.mark.parametrize('reduction', [
+    ds.first('f64'),
+    ds.first_n('f64', n=3),
+    ds.last('f64'),
+    ds.last_n('f64', n=3),
+    ds.where(ds.first('f64')),
+    ds.where(ds.first_n('f64', n=3)),
+    ds.where(ds.last('f64')),
+    ds.where(ds.last_n('f64', n=3)),
+])
+def test_reduction_on_cuda_raises_error(reduction):
+    with pytest.raises(ValueError, match="not supported on the GPU"):
+        c.points(df_cuda, 'x', 'y', reduction)

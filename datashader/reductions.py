@@ -1,26 +1,34 @@
-from __future__ import absolute_import, division, print_function
-
+from __future__ import annotations
+import copy
+from packaging.version import Version
 import numpy as np
 from datashape import dshape, isnumeric, Record, Option
 from datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 
-from datashader.glyphs.glyph import isnull
+from datashader.enums import AntialiasCombination
+from datashader.utils import isminus1, isnull
 from numba import cuda as nb_cuda
 
 try:
-    from datashader.transfer_functions._cuda_utils import (cuda_atomic_nanmin,
-                                                           cuda_atomic_nanmax)
+    from datashader.transfer_functions._cuda_utils import (
+        cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args, cuda_mutex_lock, cuda_mutex_unlock,
+        cuda_nanmax_n_in_place, cuda_nanmin_n_in_place)
 except ImportError:
-    cuda_atomic_nanmin, cuda_atomic_nanmmax = None, None
+    cuda_atomic_nanmin, cuda_atomic_nanmmax, cuda_args = None, None, None
 
 try:
     import cudf
+    import cupy as cp
 except Exception:
-    cudf = None
+    cudf = cp = None
 
-from .utils import Expr, ngjit, nansum_missing
+from .utils import (
+    Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place,
+    nanmax_n_in_place, nanmin_n_in_place, row_max_in_place, row_min_in_place,
+    row_max_n_in_place, row_min_n_in_place,
+)
 
 
 class Preprocess(Expr):
@@ -32,22 +40,38 @@ class Preprocess(Expr):
     def inputs(self):
         return (self.column,)
 
+    @property
+    def nan_check_column(self):
+        return None
+
 
 class extract(Preprocess):
     """Extract a column from a dataframe as a numpy array of values."""
     def apply(self, df):
+        if self.column is None:
+            # self.column of None means use virtual row index column.
+            attrs = getattr(df, "attrs", None)
+            row_offset = getattr(attrs or df, "_datashader_row_offset", 0)
+
         if cudf and isinstance(df, cudf.DataFrame):
-            import cupy
+            if self.column is None:
+                return cp.arange(row_offset, row_offset+len(df), dtype=np.int64)
+
             if df[self.column].dtype.kind == 'f':
                 nullval = np.nan
             else:
                 nullval = 0
-            return cupy.array(df[self.column].to_gpu_array(fillna=nullval))
+            if Version(cudf.__version__) >= Version("22.02"):
+                return df[self.column].to_cupy(na_value=nullval)
+            return cp.array(df[self.column].to_gpu_array(fillna=nullval))
         elif isinstance(df, xr.Dataset):
             # DataArray could be backed by numpy or cupy array
             return df[self.column].data
+        elif self.column is None:
+            return np.arange(row_offset, row_offset+len(df), dtype=np.int64)
         else:
             return df[self.column].values
+
 
 class CategoryPreprocess(Preprocess):
     """Base class for categorizing preprocessors."""
@@ -68,8 +92,18 @@ class CategoryPreprocess(Preprocess):
         """Applies preprocessor to DataFrame and returns array"""
         raise NotImplementedError("apply not implemented")
 
+
 class category_codes(CategoryPreprocess):
-    """Extract just the category codes from a categorical column."""
+    """
+    Extract just the category codes from a categorical column.
+
+    To create a new type of categorizer, derive a subclass from this
+    class or one of its subclasses, implementing ``__init__``,
+    ``_hashable_inputs``, ``categories``, ``validate``, and ``apply``.
+
+    See the implementation of ``category_modulo`` in ``reductions.py``
+    for an example.
+    """
     def categories(self, input_dshape):
         return input_dshape.measure[self.column].categories
 
@@ -81,6 +115,8 @@ class category_codes(CategoryPreprocess):
 
     def apply(self, df):
         if cudf and isinstance(df, cudf.DataFrame):
+            if Version(cudf.__version__) >= Version("22.02"):
+                return df[self.column].cat.codes.to_cupy()
             return df[self.column].cat.codes.to_gpu_array()
         else:
             return df[self.column].cat.codes.values
@@ -113,7 +149,9 @@ class category_modulo(category_codes):
 
     def apply(self, df):
         result = (df[self.column] - self.offset) % self.modulo
-        if cudf and isinstance(df, cudf.DataFrame):
+        if cudf and isinstance(df, cudf.Series):
+            if Version(cudf.__version__) >= Version("22.02"):
+                return result.to_cupy()
             return result.to_gpu_array()
         else:
             return result.values
@@ -152,15 +190,20 @@ class category_binning(category_modulo):
 
     def apply(self, df):
         if cudf and isinstance(df, cudf.DataFrame):
-            ## dunno how to do this in CUDA
-            raise NotImplementedError("this feature is not implemented in cuda")
+            if Version(cudf.__version__) >= Version("22.02"):
+                values = df[self.column].to_cupy(na_value=cp.nan)
+            else:
+                values = cp.array(df[self.column].to_gpu_array(fillna=True))
+            nan_values = cp.isnan(values)
         else:
-            value = df[self.column].values
-            index = ((value - self.bin0) / self.binsize).astype(int)
-            index[index < 0] = self.bin_under
-            index[index >= self.nbins] = self.bin_over
-            index[np.isnan(value)] = self.nbins
-            return index
+            values = df[self.column].to_numpy()
+            nan_values = np.isnan(values)
+
+        index = ((values - self.bin0) / self.binsize).astype(int)
+        index[index < 0] = self.bin_under
+        index[index >= self.nbins] = self.bin_over
+        index[nan_values] = self.nbins
+        return index
 
 
 class category_values(CategoryPreprocess):
@@ -193,12 +236,14 @@ class category_values(CategoryPreprocess):
             else:
                 nullval = 0
             a = cupy.asarray(a)
-            b = cupy.asarray(df[self.column].to_gpu_array(fillna=nullval))
+            if Version(cudf.__version__) >= Version("22.02"):
+                b = df[self.column].to_cupy(na_value=nullval)
+            else:
+                b = cupy.asarray(df[self.column].fillna(nullval))
             return cupy.stack((a, b), axis=-1)
         else:
             b = df[self.column].values
             return np.stack((a, b), axis=-1)
-
 
 
 class Reduction(Expr):
@@ -206,45 +251,143 @@ class Reduction(Expr):
     def __init__(self, column=None):
         self.column = column
 
+    @property
+    def nan_check_column(self):
+        return None
+
+    def uses_cuda_mutex(self):
+        return False
+
+    def uses_row_index(self, cuda, partitioned):
+        """Return True if this Reduction uses a row index virtual column.
+
+        For some reductions the order of the rows of supplied data is
+        important. These include ``first`` and ``last`` reductions as well as
+        ``where`` reductions that return a row index. In some situations the
+        order is intrinsic such as ``first`` reductions that are processed
+        sequentially (i.e. on a CPU without using Dask) and no extra column is
+        required. But in situations of parallel processing (using a GPU or
+        Dask) extra information is needed that is provided by a row index
+        virtual column.
+
+        Returning ``True`` from this function will cause a row index column to
+        be created and passed to the ``append`` functions in the usual manner.
+        """
+        return False
+
     def validate(self, in_dshape):
         if not self.column in in_dshape.dict:
             raise ValueError("specified column not found")
         if not isnumeric(in_dshape.measure[self.column]):
             raise ValueError("input must be numeric")
 
-    def out_dshape(self, in_dshape):
-        return self._dshape
-
     @property
     def inputs(self):
         return (extract(self.column),)
 
-    def _build_bases(self, cuda=False):
+    def _antialias_requires_2_stages(self):
+        # Return True if this Reduction must be processed with 2 stages,
+        # False if it doesn't matter.
+        # Overridden in derived classes as appropriate.
+        return False
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        # Only called if using antialiased lines. Overridden in derived classes.
+        # Returns a tuple containing an item for each constituent reduction.
+        # Each item is (AntialiasCombination, zero_value)).
+        raise NotImplementedError(f"{type(self)}._antialias_stage_2 is not defined")
+
+    def _build_bases(self, cuda, partitioned):
         return (self,)
 
-    def _build_temps(self, cuda=False):
+    def _build_combine_temps(self, cuda, partitioned):
+        # Temporaries (i.e. not returned to user) that are reductions, the
+        # aggs of which are passed to the combine() function but not the
+        # append() functions, as opposed to _build_temps() which are passed
+        # to both append() and combine().
         return ()
 
-    def _build_create(self, dshape):
-        return self._create
+    def _build_temps(self, cuda=False):
+        # Temporaries (i.e. not returned to user) that are reductions, the
+        # aggs of which are passed to both append() and combine() functions.
+        return ()
 
-    def _build_append(self, dshape, schema, cuda=False):
+    def _build_create(self, required_dshape):
+        fields = getattr(required_dshape.measure, "fields", None)
+        if fields is not None and len(required_dshape.measure.fields) > 1:
+            # If more than one field then they all have the same dtype so can just take the first.
+            first_field = required_dshape.measure.fields[0]
+            required_dshape = dshape(first_field[1])
+
+        if isinstance(required_dshape, Option):
+            required_dshape = dshape(required_dshape.ty)
+
+        if required_dshape == dshape(ct.bool_):
+            return self._create_bool
+        elif required_dshape == dshape(ct.float32):
+            return self._create_float32_nan
+        elif required_dshape == dshape(ct.float64):
+            return self._create_float64_nan
+        elif required_dshape == dshape(ct.int64):
+            return self._create_int64
+        elif required_dshape == dshape(ct.uint32):
+            return self._create_uint32
+        else:
+            raise NotImplementedError(f"Unexpected dshape {dshape}")
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         if cuda:
-            if self.column is None:
+            if antialias and self.column is None:
+                return self._append_no_field_antialias_cuda
+            elif antialias:
+                return self._append_antialias_cuda
+            elif self.column is None:
                 return self._append_no_field_cuda
             else:
                 return self._append_cuda
         else:
-            if self.column is None:
+            if antialias and self.column is None:
+                return self._append_no_field_antialias
+            elif antialias:
+                return self._append_antialias
+            elif self.column is None:
                 return self._append_no_field
             else:
                 return self._append
 
-    def _build_combine(self, dshape):
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
         return self._combine
 
     def _build_finalize(self, dshape):
         return self._finalize
+
+    @staticmethod
+    def _create_bool(shape, array_module):
+        return array_module.zeros(shape, dtype='bool')
+
+    @staticmethod
+    def _create_float32_nan(shape, array_module):
+        return array_module.full(shape, array_module.nan, dtype='f4')
+
+    @staticmethod
+    def _create_float64_nan(shape, array_module):
+        return array_module.full(shape, array_module.nan, dtype='f8')
+
+    @staticmethod
+    def _create_float64_empty(shape, array_module):
+        return array_module.empty(shape, dtype='f8')
+
+    @staticmethod
+    def _create_float64_zero(shape, array_module):
+        return array_module.zeros(shape, dtype='f8')
+
+    @staticmethod
+    def _create_int64(shape, array_module):
+        return array_module.full(shape, -1, dtype='i8')
+
+    @staticmethod
+    def _create_uint32(shape, array_module):
+        return array_module.zeros(shape, dtype='u4')
 
 
 class OptionalFieldReduction(Reduction):
@@ -257,14 +400,53 @@ class OptionalFieldReduction(Reduction):
         return (extract(self.column),) if self.column is not None else ()
 
     def validate(self, in_dshape):
-        pass
+        if self.column is not None:
+            super().validate(in_dshape)
 
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
         return xr.DataArray(bases[0], **kwargs)
 
-class count(OptionalFieldReduction):
-    """Count elements in each bin, returning the result as a uint32.
+
+class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
+    """
+    Base class for optional field reductions for which self-intersecting
+    geometry may or may not be desireable.
+    Ignored if not using antialiasing.
+    """
+    def __init__(self, column=None, self_intersect=True):
+        super().__init__(column)
+        self.self_intersect = self_intersect
+
+    def _antialias_requires_2_stages(self):
+        return not self.self_intersect
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if antialias and not self_intersect:
+            # append functions specific to antialiased lines without self_intersect
+            if cuda:
+                if self.column is None:
+                    return self._append_no_field_antialias_cuda_not_self_intersect
+                else:
+                    return self._append_antialias_cuda_not_self_intersect
+            else:
+                if self.column is None:
+                    return self._append_no_field_antialias_not_self_intersect
+                else:
+                    return self._append_antialias_not_self_intersect
+
+        # Fall back to base class implementation
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+    def _hashable_inputs(self):
+        # Reductions with different self_intersect attributes much have different hashes otherwise
+        # toolz.memoize will treat them as the same to give incorrect results.
+        return super()._hashable_inputs() + (self.self_intersect,)
+
+
+class count(SelfIntersectingOptionalFieldReduction):
+    """Count elements in each bin, returning the result as a uint32, or a
+    float32 if using antialiasing.
 
     Parameters
     ----------
@@ -272,44 +454,119 @@ class count(OptionalFieldReduction):
         If provided, only counts elements in ``column`` that are not ``NaN``.
         Otherwise, counts every element.
     """
-    _dshape = dshape(ct.uint32)
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(ct.float32) if antialias else dshape(ct.uint32)
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        if self_intersect:
+            return ((AntialiasCombination.SUM_1AGG, array_module.nan),)
+        else:
+            return ((AntialiasCombination.SUM_2AGG, array_module.nan),)
 
     # CPU append functions
-    @staticmethod
-    @ngjit
-    def _append_no_field(x, y, agg):
-        agg[y, x] += 1
-
-
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] += 1
+            return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        if not isnull(field):
+            if isnull(agg[y, x]):
+                agg[y, x] = aa_factor
+            else:
+                agg[y, x] += aa_factor
+            return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor):
+        if not isnull(field):
+            if isnull(agg[y, x]) or aa_factor > agg[y, x]:
+                agg[y, x] = aa_factor
+                return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_no_field(x, y, agg):
+        agg[y, x] += 1
+        return 0
+
+    @staticmethod
+    @ngjit
+    def _append_no_field_antialias(x, y, agg, aa_factor):
+        if isnull(agg[y, x]):
+            agg[y, x] = aa_factor
+        else:
+            agg[y, x] += aa_factor
+        return 0
+
+    @staticmethod
+    @ngjit
+    def _append_no_field_antialias_not_self_intersect(x, y, agg, aa_factor):
+        if isnull(agg[y, x]) or aa_factor > agg[y, x]:
+            agg[y, x] = aa_factor
+            return 0
+        return -1
 
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_no_field_cuda(x, y, agg):
-        nb_cuda.atomic.add(agg, (y, x), 1)
+    def _append_antialias_cuda(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        return 0 if cuda_atomic_nanmax(agg, (y, x), value) != value else -1
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_no_field_antialias_cuda_not_self_intersect(x, y, agg, aa_factor):
+        return 0 if cuda_atomic_nanmax(agg, (y, x), aa_factor) != aa_factor else -1
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         if not isnull(field):
             nb_cuda.atomic.add(agg, (y, x), 1)
+            return 0
+        return -1
 
     @staticmethod
-    def _create(shape, array_module):
-        return array_module.zeros(shape, dtype='u4')
+    @nb_cuda.jit(device=True)
+    def _append_no_field_antialias_cuda(x, y, agg, aa_factor):
+        return 0 if cuda_atomic_nanmax(agg, (y, x), aa_factor) != aa_factor else -1
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_no_field_cuda(x, y, agg):
+        nb_cuda.atomic.add(agg, (y, x), 1)
+        return 0
+
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
+        if antialias:
+            return self._combine_antialias
+        else:
+            return self._combine
 
     @staticmethod
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='u4')
 
+    @staticmethod
+    def _combine_antialias(aggs):
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nansum_in_place(ret, aggs[i])
+        return ret
+
 
 class by(Reduction):
     """Apply the provided reduction separately per category.
+
     Parameters
     ----------
     cats: str or CategoryPreprocess instance
@@ -326,6 +583,11 @@ class by(Reduction):
             self.categorizer = category_codes(cat_column)
         else:
             raise TypeError("first argument must be a column name or a CategoryPreprocess instance")
+
+        if isinstance(reduction, where):
+            raise TypeError(
+                "'by' reduction does not support 'where' reduction for its first argument")
+
         self.column = self.categorizer.column # for backwards compatibility with count_cat
         self.columns = (self.categorizer.column, getattr(reduction, 'column', None))
         self.reduction = reduction
@@ -353,31 +615,37 @@ class by(Reduction):
         self.preprocess.validate(in_dshape)
         self.reduction.validate(in_dshape)
 
-    def out_dshape(self, input_dshape):
+    def out_dshape(self, input_dshape, antialias, cuda, partitioned):
         cats = self.categorizer.categories(input_dshape)
-        red_shape = self.reduction.out_dshape(input_dshape)
+        red_shape = self.reduction.out_dshape(input_dshape, antialias, cuda, partitioned)
         return dshape(Record([(c, red_shape) for c in cats]))
 
     @property
     def inputs(self):
         return (self.preprocess, )
 
-    def _build_create(self, out_dshape):
-        n_cats = len(out_dshape.measure.fields)
-        return lambda shape, array_module: self.reduction._build_create(
-            out_dshape)(shape + (n_cats,), array_module)
+    def _antialias_requires_2_stages(self):
+        return self.reduction._antialias_requires_2_stages()
 
-    def _build_bases(self, cuda=False):
-        bases = self.reduction._build_bases(cuda)
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return self.reduction._antialias_stage_2(self_intersect, array_module)
+
+    def _build_create(self, required_dshape):
+        n_cats = len(required_dshape.measure.fields)
+        return lambda shape, array_module: self.reduction._build_create(
+            required_dshape)(shape + (n_cats,), array_module)
+
+    def _build_bases(self, cuda, partitioned):
+        bases = self.reduction._build_bases(cuda, partitioned)
         if len(bases) == 1 and bases[0] is self:
             return bases
         return tuple(by(self.categorizer, base) for base in bases)
 
-    def _build_append(self, dshape, schema, cuda=False):
-        return self.reduction._build_append(dshape, schema, cuda)
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        return self.reduction._build_append(dshape, schema, cuda, antialias, self_intersect)
 
-    def _build_combine(self, dshape):
-        return self.reduction._combine
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
+        return self.reduction._build_combine(dshape, antialias, cuda, partitioned)
 
     def _build_finalize(self, dshape):
         cats = list(self.categorizer.categories(dshape))
@@ -395,35 +663,72 @@ class any(OptionalFieldReduction):
     Parameters
     ----------
     column : str, optional
-        If provided, only elements in ``column`` that are ``NaN`` are skipped.
+        If provided, any elements in ``column`` that are ``NaN`` are skipped.
     """
-    _dshape = dshape(ct.bool_)
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(ct.float32) if antialias else dshape(ct.bool_)
 
-    @staticmethod
-    @ngjit
-    def _append_no_field(x, y, agg):
-        agg[y, x] = True
-    _append_no_field_cuda = _append_no_field
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.MAX, array_module.nan),)
 
+    # CPU append functions
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] = True
-    _append_cuda =_append
+            return 0
+        return -1
 
     @staticmethod
-    def _create(shape, array_module):
-        return array_module.zeros(shape, dtype='bool')
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        if not isnull(field):
+            if isnull(agg[y, x]) or aa_factor > agg[y, x]:
+                agg[y, x] = aa_factor
+                return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_no_field(x, y, agg):
+        agg[y, x] = True
+        return 0
+
+    @staticmethod
+    @ngjit
+    def _append_no_field_antialias(x, y, agg, aa_factor):
+        if isnull(agg[y, x]) or aa_factor > agg[y, x]:
+            agg[y, x] = aa_factor
+            return 0
+        return -1
+
+    # GPU append functions
+    _append_cuda =_append
+    _append_no_field_cuda = _append_no_field
+
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
+        if antialias:
+            return self._combine_antialias
+        else:
+            return self._combine
 
     @staticmethod
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='bool')
 
+    @staticmethod
+    def _combine_antialias(aggs):
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nanmax_in_place(ret, aggs[i])
+        return ret
+
 
 class _upsample(Reduction):
     """"Special internal class used for upsampling"""
-    _dshape = dshape(Option(ct.float64))
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(Option(ct.float64))
 
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
@@ -433,11 +738,10 @@ class _upsample(Reduction):
     def inputs(self):
         return (extract(self.column),)
 
-    @staticmethod
-    def _create(shape, array_module):
+    def _build_create(self, required_dshape):
         # Use uninitialized memory, the upsample function must explicitly set unused
         # values to nan
-        return array_module.empty(shape, dtype='f8')
+        return self._create_float64_empty
 
     @staticmethod
     @ngjit
@@ -446,7 +750,7 @@ class _upsample(Reduction):
         pass
 
     @staticmethod
-    @ngjit
+    @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         # not called, the upsample function must set agg directly
         pass
@@ -458,11 +762,8 @@ class _upsample(Reduction):
 
 class FloatingReduction(Reduction):
     """Base classes for reductions that always have floating-point dtype."""
-    _dshape = dshape(Option(ct.float64))
-
-    @staticmethod
-    def _create(shape, array_module):
-        return array_module.full(shape, np.nan, dtype='f8')
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(Option(ct.float64))
 
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
@@ -476,30 +777,92 @@ class _sum_zero(FloatingReduction):
     ----------
     column : str
         Name of the column to aggregate over. Column data type must be numeric.
-        ``NaN`` values in the column are skipped.
     """
+    def _antialias_stage_2(self, self_intersect, array_module):
+        if self_intersect:
+            return ((AntialiasCombination.SUM_1AGG, 0),)
+        else:
+            return ((AntialiasCombination.SUM_2AGG, 0),)
 
-    @staticmethod
-    def _create(shape, array_module):
-        return array_module.zeros(shape, dtype='f8')
+    def _build_create(self, required_dshape):
+        return self._create_float64_zero
 
+    # CPU append functions.
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
         if not isnull(field):
+            # agg[y, x] cannot be null as initialised to zero.
             agg[y, x] += field
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value):
+            # agg[y, x] cannot be null as initialised to zero.
+            agg[y, x] += value
+            return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value) and value > agg[y, x]:
+            # agg[y, x] cannot be null as initialised to zero.
+            agg[y, x] = value
+            return 0
+        return -1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         if not isnull(field):
             nb_cuda.atomic.add(agg, (y, x), field)
+            return 0
+        return -1
 
     @staticmethod
     def _combine(aggs):
         return aggs.sum(axis=0, dtype='f8')
 
-class sum(FloatingReduction):
+
+class SelfIntersectingFloatingReduction(FloatingReduction):
+    """
+    Base class fo floating reductions for which self-intersecting geometry
+    may or may not be desireable.
+    Ignored if not using antialiasing.
+    """
+    def __init__(self, column=None, self_intersect=True):
+        super().__init__(column)
+        self.self_intersect = self_intersect
+
+    def _antialias_requires_2_stages(self):
+        return not self.self_intersect
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if antialias and not self_intersect:
+            if cuda:
+                raise NotImplementedError("SelfIntersectingOptionalFieldReduction")
+            else:
+                if self.column is None:
+                    return self._append_no_field_antialias_not_self_intersect
+                else:
+                    return self._append_antialias_not_self_intersect
+
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+    def _hashable_inputs(self):
+        # Reductions with different self_intersect attributes much have different hashes otherwise
+        # toolz.memoize will treat them as the same to give incorrect results.
+        return super()._hashable_inputs() + (self.self_intersect,)
+
+
+class sum(SelfIntersectingFloatingReduction):
     """Sum of all elements in ``column``.
 
     Elements of resulting aggregate are nan if they are not updated.
@@ -510,14 +873,55 @@ class sum(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-    _dshape = dshape(Option(ct.float64))
+    def _antialias_stage_2(self, self_intersect, array_module):
+        if self_intersect:
+            return ((AntialiasCombination.SUM_1AGG, array_module.nan),)
+        else:
+            return ((AntialiasCombination.SUM_2AGG, array_module.nan),)
 
-    # Cuda implementation
-    def _build_bases(self, cuda=False):
+    def _build_bases(self, cuda, partitioned):
         if cuda:
             return (_sum_zero(self.column), any(self.column))
         else:
             return (self,)
+
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            if isnull(agg[y, x]):
+                agg[y, x] = field
+            else:
+                agg[y, x] += field
+            return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value):
+            if isnull(agg[y, x]):
+                agg[y, x] = value
+            else:
+                agg[y, x] += value
+            return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value):
+            if isnull(agg[y, x]) or value > agg[y, x]:
+                agg[y, x] = value
+                return 0
+        return -1
+
+    @staticmethod
+    def _combine(aggs):
+        return nansum_missing(aggs, axis=0)
 
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
@@ -527,21 +931,6 @@ class sum(FloatingReduction):
             return xr.DataArray(x, **kwargs)
         else:
             return xr.DataArray(bases[0], **kwargs)
-
-    # Single pass CPU implementation
-    # These methods will only be called if _build_bases returned (self,)
-    @staticmethod
-    @ngjit
-    def _append(x, y, agg, field):
-        if not isnull(field):
-            if isnull(agg[y, x]):
-                agg[y, x] = field
-            else:
-                agg[y, x] += field
-
-    @staticmethod
-    def _combine(aggs):
-        return nansum_missing(aggs, axis=0)
 
 
 class m2(FloatingReduction):
@@ -556,19 +945,17 @@ class m2(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-
-    @staticmethod
-    def _create(shape, array_module):
-        return array_module.full(shape, 0.0, dtype='f8')
-
-    def _build_temps(self, cuda=False):
-        return (_sum_zero(self.column), count(self.column))
-
-    def _build_append(self, dshape, schema, cuda=False):
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         if cuda:
             raise ValueError("""\
 The 'std' and 'var' reduction operations are not yet supported on the GPU""")
-        return super(m2, self)._build_append(dshape, schema, cuda)
+        return super(m2, self)._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+    def _build_create(self, required_dshape):
+        return self._create_float64_zero
+
+    def _build_temps(self, cuda=False):
+        return (_sum_zero(self.column), count(self.column))
 
     @staticmethod
     @ngjit
@@ -580,6 +967,8 @@ The 'std' and 'var' reduction operations are not yet supported on the GPU""")
                 u1 = np.float64(sum) / count
                 u = np.float64(sum + field) / (count + 1)
                 m2[y, x] += (field - u1) * (field - u)
+                return 0
+        return -1
 
     @staticmethod
     def _combine(Ms, sums, ns):
@@ -597,18 +986,35 @@ class min(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.MIN, array_module.nan),)
+
+    # CPU append functions
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if isnull(agg[y, x]):
+        if isnull(agg[y, x]) or agg[y, x] > field:
             agg[y, x] = field
-        elif agg[y, x] > field:
-            agg[y, x] = field
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if isnull(agg[y, x]) or value > agg[y, x]:
+            agg[y, x] = value
+            return 0
+        return -1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
-        cuda_atomic_nanmin(agg, (y, x), field)
+        return 0 if cuda_atomic_nanmin(agg, (y, x), field) != field else -1
 
     @staticmethod
     def _combine(aggs):
@@ -624,18 +1030,38 @@ class max(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.MAX, array_module.nan),)
+
+    # CPU append functions
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if isnull(agg[y, x]):
+        if isnull(agg[y, x]) or agg[y, x] < field:
             agg[y, x] = field
-        elif agg[y, x] < field:
-            agg[y, x] = field
+            return 0
+        return -1
 
     @staticmethod
     @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if isnull(agg[y, x]) or value > agg[y, x]:
+            agg[y, x] = value
+            return 0
+        return -1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_antialias_cuda(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        return 0 if cuda_atomic_nanmax(agg, (y, x), value) != value else -1
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
-        cuda_atomic_nanmax(agg, (y, x), field)
+        return 0 if cuda_atomic_nanmax(agg, (y, x), field) != field else -1
 
     @staticmethod
     def _combine(aggs):
@@ -666,9 +1092,7 @@ class mean(Reduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-    _dshape = dshape(Option(ct.float64))
-
-    def _build_bases(self, cuda=False):
+    def _build_bases(self, cuda, partitioned):
         return (_sum_zero(self.column), count(self.column))
 
     @staticmethod
@@ -688,9 +1112,7 @@ class var(Reduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-    _dshape = dshape(Option(ct.float64))
-
-    def _build_bases(self, cuda=False):
+    def _build_bases(self, cuda, partitioned):
         return (_sum_zero(self.column), count(self.column), m2(self.column))
 
     @staticmethod
@@ -710,9 +1132,7 @@ class std(Reduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
-    _dshape = dshape(Option(ct.float64))
-
-    def _build_bases(self, cuda=False):
+    def _build_bases(self, cuda, partitioned):
         return (_sum_zero(self.column), count(self.column), m2(self.column))
 
     @staticmethod
@@ -723,7 +1143,55 @@ class std(Reduction):
         return xr.DataArray(x, **kwargs)
 
 
-class first(Reduction):
+class _first_or_last(Reduction):
+    """Abstract base class of first and last reductions.
+    """
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(ct.float64)
+
+    def uses_row_index(self, cuda, partitioned):
+        if cuda:
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
+        return partitioned
+
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+    def _build_bases(self, cuda, partitioned):
+        if self.uses_row_index(cuda, partitioned):
+            row_index_selector = self._create_row_index_selector()
+            wrapper = where(selector=row_index_selector, lookup_column=self.column)
+            wrapper._nan_check_column = self.column
+            # where reduction is always preceded by its selector reduction
+            return row_index_selector._build_bases(cuda, partitioned) + (wrapper,)
+        else:
+            return super()._build_bases(cuda, partitioned)
+
+    @staticmethod
+    def _combine(aggs):
+        # Dask combine is handled by a where reduction using a row index.
+        # Hence this can only ever be called if npartitions == 1 in which case len(aggs) == 1.
+        if len(aggs) > 1:
+            raise RuntimeError("_combine should never be called with more than one agg")
+        return aggs[0]
+
+    def _create_row_index_selector(self):
+        pass
+
+    @staticmethod
+    def _finalize(bases, cuda=False, **kwargs):
+        # Note returning the last of the bases which is correct regardless of whether
+        # this is a simple reduction (with a single base) or a compound where reduction
+        # (with 2 bases, the second of which is the where reduction).
+        return xr.DataArray(bases[-1], **kwargs)
+
+
+class first(_first_or_last):
     """First value encountered in ``column``.
 
     Useful for categorical data where an actual value must always be returned,
@@ -737,27 +1205,31 @@ class first(Reduction):
         Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
-    _dshape = dshape(Option(ct.float64))
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.FIRST, array_module.nan),)
 
     @staticmethod
-    def _append(x, y, agg):
-        raise NotImplementedError("first is currently implemented only for rasters")
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field) and isnull(agg[y, x]):
+            agg[y, x] = field
+            return 0
+        return -1
 
     @staticmethod
-    def _create(shape, array_module):
-        raise NotImplementedError("first is currently implemented only for rasters")
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if isnull(agg[y, x]) or value > agg[y, x]:
+            agg[y, x] = value
+            return 0
+        return -1
 
-    @staticmethod
-    def _combine(aggs):
-        raise NotImplementedError("first is currently implemented only for rasters")
-
-    @staticmethod
-    def _finalize(bases, **kwargs):
-        raise NotImplementedError("first is currently implemented only for rasters")
+    def _create_row_index_selector(self):
+        return _min_row_index()
 
 
-
-class last(Reduction):
+class last(_first_or_last):
     """Last value encountered in ``column``.
 
     Useful for categorical data where an actual value must always be returned,
@@ -771,24 +1243,295 @@ class last(Reduction):
         Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
-    _dshape = dshape(Option(ct.float64))
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.LAST, array_module.nan),)
 
     @staticmethod
-    def _append(x, y, agg):
-        raise NotImplementedError("last is currently implemented only for rasters")
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            agg[y, x] = field
+            return 0
+        return -1
 
     @staticmethod
-    def _create(shape, array_module):
-        raise NotImplementedError("last is currently implemented only for rasters")
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if isnull(agg[y, x]) or value > agg[y, x]:
+            agg[y, x] = value
+            return 0
+        return -1
+
+    def _create_row_index_selector(self):
+        return _max_row_index()
+
+
+class FloatingNReduction(OptionalFieldReduction):
+    def __init__(self, column=None, n=1):
+        super().__init__(column)
+        self.n = n if n >= 1 else 1
+
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(ct.float64)
+
+    def _add_finalize_kwargs(self, **kwargs):
+        # Add the new dimension and coordinate.
+        n_name = "n"
+        n_values = np.arange(self.n)
+
+        # Return a modified copy of kwargs. Cannot modify supplied kwargs as it
+        # may be used by multiple reductions, e.g. if a summary reduction.
+        kwargs = copy.deepcopy(kwargs)
+        kwargs['dims'] += [n_name]
+        kwargs['coords'][n_name] = n_values
+        return kwargs
+
+    def _build_create(self, required_dshape):
+        return lambda shape, array_module: super(FloatingNReduction, self)._build_create(
+            required_dshape)(shape + (self.n,), array_module)
+
+    def _build_finalize(self, dshape):
+        def finalize(bases, cuda=False, **kwargs):
+            kwargs = self._add_finalize_kwargs(**kwargs)
+            return self._finalize(bases, cuda=cuda, **kwargs)
+
+        return finalize
+
+    def _hashable_inputs(self):
+        return super()._hashable_inputs() + (self.n,)
+
+
+class _first_n_or_last_n(FloatingNReduction):
+    """Abstract base class of first_n and last_n reductions.
+    """
+    def uses_row_index(self, cuda, partitioned):
+        if cuda:
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
+        return partitioned
+
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        if cuda:
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
+
+    def _build_bases(self, cuda, partitioned):
+        if self.uses_row_index(cuda, partitioned):
+            row_index_selector = self._create_row_index_selector()
+            wrapper = where(selector=row_index_selector, lookup_column=self.column)
+            wrapper._nan_check_column = self.column
+            # where reduction is always preceded by its selector reduction
+            return row_index_selector._build_bases(cuda, partitioned) + (wrapper,)
+        else:
+            return super()._build_bases(cuda, partitioned)
 
     @staticmethod
     def _combine(aggs):
-        raise NotImplementedError("last is currently implemented only for rasters")
+        # Dask combine is handled by a where reduction using a row index.
+        # Hence this can only ever be called if npartitions == 1 in which case len(aggs) == 1.
+        if len(aggs) > 1:
+            raise RuntimeError("_combine should never be called with more than one agg")
+        return aggs[0]
+
+    def _create_row_index_selector(self):
+        pass
 
     @staticmethod
-    def _finalize(bases, **kwargs):
-        raise NotImplementedError("last is currently implemented only for rasters")
+    def _finalize(bases, cuda=False, **kwargs):
+        # Note returning the last of the bases which is correct regardless of whether
+        # this is a simple reduction (with a single base) or a compound where reduction
+        # (with 2 bases, the second of which is the where reduction).
+        return xr.DataArray(bases[-1], **kwargs)
 
+
+class first_n(_first_n_or_last_n):
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.FIRST, array_module.nan),)
+
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            # Check final value first for quick abort.
+            n = agg.shape[2]
+            if not isnull(agg[y, x, n-1]):
+                return -1
+
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            for i in range(n):
+                if isnull(agg[y, x, i]):
+                    agg[y, x, i] = field
+                    return i
+        return -1
+
+    def _create_row_index_selector(self):
+        return _min_n_row_index(n=self.n)
+
+
+class last_n(_first_n_or_last_n):
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.LAST, array_module.nan),)
+
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            # Always inserts at front of agg's third dimension.
+            # Bump previous values along to make room for new value.
+            n = agg.shape[2]
+            for j in range(n-1, 0, -1):
+                agg[y, x, j] = agg[y, x, j-1]
+            agg[y, x, 0] = field
+            return 0
+        return -1
+
+    def _create_row_index_selector(self):
+        return _max_n_row_index(n=self.n)
+
+
+class max_n(FloatingNReduction):
+    def uses_cuda_mutex(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.MAX, array_module.nan),)
+
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if isnull(agg[y, x, i]) or field > agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+                    return i
+        return -1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field, mutex):
+        if not isnull(field):
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            index = (y, x)
+            cuda_mutex_lock(mutex, index)
+            for i in range(n):
+                if isnull(agg[y, x, i]) or field > agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+
+                    cuda_mutex_unlock(mutex, index)
+                    return i
+            cuda_mutex_unlock(mutex, index)
+        return -1
+
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
+        if cuda:
+            return self._combine_cuda
+        else:
+            return self._combine
+
+    @staticmethod
+    def _combine(aggs):
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nanmax_n_in_place(ret, aggs[i])
+        return ret
+
+    @staticmethod
+    def _combine_cuda(aggs):
+        ret = aggs[0]
+        kernel_args = cuda_args(ret.shape[:2])
+        for i in range(1, len(aggs)):
+            cuda_nanmax_n_in_place[kernel_args](ret, aggs[i])
+        return ret
+
+
+class min_n(FloatingNReduction):
+    def uses_cuda_mutex(self):
+        return True
+
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        return ((AntialiasCombination.MIN, array_module.nan),)
+
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        if not isnull(field):
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if isnull(agg[y, x, i]) or field < agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+                    return i
+        return -1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field, mutex):
+        if not isnull(field):
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            index = (y, x)
+            cuda_mutex_lock(mutex, index)
+            for i in range(n):
+                if isnull(agg[y, x, i]) or field < agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+
+                    cuda_mutex_unlock(mutex, index)
+                    return i
+            cuda_mutex_unlock(mutex, index)
+        return -1
+
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
+        if cuda:
+            return self._combine_cuda
+        else:
+            return self._combine
+
+    @staticmethod
+    def _combine(aggs):
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
+            nanmin_n_in_place(ret, aggs[i])
+        return ret
+
+    @staticmethod
+    def _combine_cuda(aggs):
+        ret = aggs[0]
+        kernel_args = cuda_args(ret.shape[:2])
+        for i in range(1, len(aggs)):
+            cuda_nanmin_n_in_place[kernel_args](ret, aggs[i])
+        return ret
 
 
 class mode(Reduction):
@@ -808,14 +1551,11 @@ class mode(Reduction):
         Name of the column to aggregate over. If the data type is floating point,
         ``NaN`` values in the column are skipped.
     """
-    _dshape = dshape(Option(ct.float64))
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(Option(ct.float64))
 
     @staticmethod
     def _append(x, y, agg):
-        raise NotImplementedError("mode is currently implemented only for rasters")
-
-    @staticmethod
-    def _create(shape, array_module):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
     @staticmethod
@@ -826,6 +1566,233 @@ class mode(Reduction):
     def _finalize(bases, **kwargs):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
+
+class where(FloatingReduction):
+    """
+    Returns values from a ``lookup_column`` corresponding to a ``selector``
+    reduction that is applied to some other column.
+
+    If ``lookup_column`` is ``None`` then it uses the index of the row in the
+    DataFrame instead of a named column. This is returned as an int64
+    aggregation with -1 used to denote no value.
+
+    Examples
+    --------
+    >>> canvas.line(df, 'x', 'y', agg=ds.where(ds.max("value"), "other"))  # doctest: +SKIP
+
+    This returns the values of the "other" column that correspond to the
+    maximum of the "value" column in each bin.
+
+    Parameters
+    ----------
+    selector: Reduction
+        Reduction used to select the values of the ``lookup_column`` which are
+        returned by this ``where`` reduction.
+
+    lookup_column : str | None
+        Column containing values that are returned from this ``where``
+        reduction, or ``None`` to return row indexes instead.
+    """
+    def __init__(self, selector: Reduction, lookup_column: str | None=None):
+        if not isinstance(selector, (first, first_n, last, last_n, max, max_n, min, min_n,
+                                     _max_or_min_row_index, _max_n_or_min_n_row_index)):
+            raise TypeError(
+                "selector can only be a first, first_n, last, last_n, "
+                "max, max_n, min or min_n reduction")
+        super().__init__(lookup_column)
+        self.selector = selector
+        # List of all column names that this reduction uses.
+        self.columns = (selector.column, lookup_column)
+        self._nan_check_column = None
+
+    def __hash__(self):
+        return hash((type(self), self._hashable_inputs(), self.selector))
+
+    @property
+    def nan_check_column(self):
+        if self._nan_check_column is not None:
+            return extract(self._nan_check_column)
+        else:
+            return None
+
+    def out_dshape(self, input_dshape, antialias, cuda, partitioned):
+        if self.column is None:
+            return dshape(ct.int64)
+        else:
+            return dshape(ct.float64)
+
+    def uses_cuda_mutex(self):
+        return self.selector.uses_cuda_mutex()
+
+    def uses_row_index(self, cuda, partitioned):
+        return self.column is None or isinstance(self.selector, (_first_or_last, _first_n_or_last_n))
+
+    def validate(self, in_dshape):
+        if self.column is not None:
+            super().validate(in_dshape)
+        self.selector.validate(in_dshape)
+        if self.column is not None and self.column == self.selector.column:
+            raise ValueError("where and its contained reduction cannot use the same column")
+
+    def _antialias_stage_2(self, self_intersect, array_module):
+        ret = self.selector._antialias_stage_2(self_intersect, array_module)
+        if self.column is None:
+            # Override antialiased zero value when returning integer row index.
+            ret = ((ret[0][0], -1),)
+        return ret
+
+    # CPU append functions
+    # All where._append* functions have an extra argument which is the update index.
+    # For 3D aggs like max_n, this is the index of insertion in the final dimension,
+    # and the previous values from this index upwards are bumped along to make room
+    # for the new value.
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field, update_index):
+        if agg.ndim > 2:
+            # Bump previous values along to make room for new value.
+            n = agg.shape[2]
+            for i in range(n-1, update_index, -1):
+                agg[y, x, i] = agg[y, x, i-1]
+            agg[y, x, update_index] = field
+        else:
+            agg[y, x] = field
+        return update_index
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor, update_index):
+        agg[y, x] = field
+        return update_index
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_antialias_cuda(x, y, agg, field, aa_factor, update_index):
+        agg[y, x] = field
+        return update_index
+
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field, update_index):
+        agg[y, x] = field
+        return update_index
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        # If self.column is None then append function is still passed a
+        # 'field' argument which is the row index.
+        if cuda:
+            if antialias:
+                return self._append_antialias_cuda
+            else:
+                return self._append_cuda
+        else:
+            if antialias:
+                return self._append_antialias
+            else:
+                return self._append
+
+    def _build_bases(self, cuda, partitioned):
+        selector = self.selector
+        if isinstance(selector, (_first_or_last, _first_n_or_last_n)) and selector.uses_row_index(cuda, partitioned):
+            row_index_selector = selector._create_row_index_selector()
+            new_where = where(row_index_selector, self.column)
+            new_where._nan_check_column = self.selector.column
+            return row_index_selector._build_bases(cuda, partitioned) + new_where._build_bases(cuda, partitioned)
+        else:
+            return selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
+
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
+        if cuda and self.uses_cuda_mutex():
+            raise NotImplementedError(
+                "'where' reduction does not support a selector that uses a CUDA mutex such as 'max_n'")
+
+        # Does not support categorical reductions.
+        selector = self.selector
+        append = selector._append
+
+        # If the selector uses a row_index then selector_aggs will be int64 with -1
+        # representing missing data. Otherwise missing data is NaN.
+        invalid = isminus1 if self.selector.uses_row_index(cuda, partitioned) else isnull
+
+        @ngjit
+        def combine_cpu_2d(aggs, selector_aggs):
+            ny, nx = aggs[0].shape
+            for y in range(ny):
+                for x in range(nx):
+                    value = selector_aggs[1][y, x]
+                    if not invalid(value) and append(x, y, selector_aggs[0], value) >= 0:
+                        aggs[0][y, x] = aggs[1][y, x]
+
+        @ngjit
+        def combine_cpu_3d(aggs, selector_aggs):
+            # Generic solution for combining dask partitions of a where
+            # reduction with a selector that is a FloatingNReduction.
+            ny, nx, n = aggs[0].shape
+            for y in range(ny):
+                for x in range(nx):
+                    for i in range(n):
+                        value = selector_aggs[1][y, x, i]
+                        if invalid(value):
+                            break
+                        update_index = append(x, y, selector_aggs[0], value)
+                        if update_index < 0:
+                            break
+                        # Bump values along in the same way that append() has done above.
+                        for j in range(n-1, update_index, -1):
+                            aggs[0][y, x, j] = aggs[0][y, x, j-1]
+                        aggs[0][y, x, update_index] = aggs[1][y, x, i]
+
+        @nb_cuda.jit
+        def combine_cuda_2d(aggs, selector_aggs):
+            ny, nx = aggs[0].shape
+            x, y = nb_cuda.grid(2)
+            if x < nx and y < ny:
+                value = selector_aggs[1][y, x]
+                if not invalid(value) and append(x, y, selector_aggs[0], value) >= 0:
+                    aggs[0][y, x] = aggs[1][y, x]
+
+        def wrapped_combine(aggs, selector_aggs):
+            if len(aggs) == 1:
+                pass
+            elif cuda:
+                combine_cuda_2d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
+            else:
+                if aggs[0].ndim == 3:
+                    combine_cpu_3d(aggs, selector_aggs)
+                else:
+                    combine_cpu_2d(aggs, selector_aggs)
+
+            return aggs[0], selector_aggs[0]
+
+        return wrapped_combine
+
+    def _build_combine_temps(self, cuda, partitioned):
+        return (self.selector,)
+
+    def _build_create(self, required_dshape):
+        # Return a function that when called with a shape creates an agg array
+        # of the required type (numpy/cupy) and dtype.
+        if isinstance(self.selector, FloatingNReduction):
+            # This specialisation isn't ideal but Reduction classes do not
+            # store information about the required extra dimension.
+            return lambda shape, array_module: super(where, self)._build_create(
+                required_dshape)(shape + (self.selector.n,), array_module)
+        else:
+            return super()._build_create(required_dshape)
+
+    def _build_finalize(self, dshape):
+        if isinstance(self.selector, FloatingNReduction):
+            add_finalize_kwargs = self.selector._add_finalize_kwargs
+        else:
+            add_finalize_kwargs = None
+
+        def finalize(bases, cuda=False, **kwargs):
+            if add_finalize_kwargs is not None:
+                kwargs = add_finalize_kwargs(**kwargs)
+
+            return xr.DataArray(bases[-1], **kwargs)
+
+        return finalize
 
 
 class summary(Expr):
@@ -841,6 +1808,15 @@ class summary(Expr):
 
     >>> import datashader as ds
     >>> red = ds.summary(mean_a=ds.mean('a'), sum_b=ds.sum('b'))
+
+    Notes
+    -----
+    A single pass of the source dataset using antialiased lines can either be
+    performed using a single-stage aggregation (e.g. ``self_intersect=True``)
+    or two stages (``self_intersect=False``). If a ``summary`` contains a
+    ``count`` or ``sum`` reduction with ``self_intersect=False``, or any of
+    ``first``, ``last`` or ``min``, then the antialiased line pass will be
+    performed in two stages.
     """
     def __init__(self, **kwargs):
         ks, vs = zip(*sorted(kwargs.items()))
@@ -850,18 +1826,195 @@ class summary(Expr):
     def __hash__(self):
         return hash((type(self), tuple(self.keys), tuple(self.values)))
 
+    def uses_row_index(self, cuda, partitioned):
+        return any(v.uses_row_index(cuda, partitioned) for v in self.values)
+
     def validate(self, input_dshape):
         for v in self.values:
             v.validate(input_dshape)
 
-    def out_dshape(self, in_dshape):
-        return dshape(Record([(k, v.out_dshape(in_dshape)) for (k, v)
-                              in zip(self.keys, self.values)]))
+        # Check that any included FloatingNReductions have the same n values.
+        n_values = []
+        for v in self.values:
+            if isinstance(v, where):
+                v = v.selector
+            if isinstance(v, FloatingNReduction):
+                n_values.append(v.n)
+        if len(np.unique(n_values)) > 1:
+            raise ValueError(
+                "Using multiple FloatingNReductions with different n values is not supported")
 
     @property
     def inputs(self):
         return tuple(unique(concat(v.inputs for v in self.values)))
 
+
+class _max_or_min_row_index(OptionalFieldReduction):
+    """Abstract base class of max and min row_index reductions.
+    """
+    @property
+    def inputs(self):
+        return (extract(None),)  # row index column
+
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(ct.int64)
+
+    def uses_row_index(self, cuda, partitioned):
+        return True
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        # self.column is None but row index is passed as field argument to append functions
+        # Doesn't yet support antialiasing
+        if cuda:
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
+            #return self._append_cuda
+        else:
+            return self._append
+
+
+class _max_row_index(_max_or_min_row_index):
+    """Max reduction operating on row index.
+
+    This is a private class as it is not intended to be used explicitly in
+    user code. It is primarily purpose is to support the use of ``last``
+    reductions using dask and/or CUDA.
+    """
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        # field is int64 row index
+        if field != -1 and field > agg[y, x]:
+            agg[y, x] = field
+            return 0
+        return -1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field):
+        # field is int64 row index
+        return 0 if nb_cuda.atomic.max(agg, (y, x), field) != field else -1
+
+    @staticmethod
+    def _combine(aggs):
+        # Maximum ignoring -1 values
+        if len(aggs) > 1:
+            row_max_in_place(aggs[0], aggs[1])
+        return aggs[0]
+
+
+class _min_row_index(_max_or_min_row_index):
+    """Min reduction operating on row index.
+
+    This is a private class as it is not intended to be used explicitly in
+    user code. It is primarily purpose is to support the use of ``first``
+    reductions using dask and/or CUDA.
+    """
+    # CPU append functions
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        # field is int64 row index
+        if field != -1 and (agg[y, x] == -1 or field < agg[y, x]):
+            agg[y, x] = field
+            return 0
+        return -1
+
+    @staticmethod
+    def _combine(aggs):
+        # Minimum ignoring -1 values
+        if len(aggs) > 1:
+            row_min_in_place(aggs[0], aggs[1])
+        return aggs[0]
+
+
+class _max_n_or_min_n_row_index(FloatingNReduction):
+    """Abstract base class of max_n and min_n row_index reductions.
+    """
+    def __init__(self, n=1):
+        super().__init__(column=None)
+        self.n = n if n >= 1 else 1
+
+    @property
+    def inputs(self):
+        return (extract(None),)  # row index column
+
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(ct.int64)
+
+    def uses_row_index(self, cuda, partitioned):
+        return True
+
+    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
+        # self.column is None but row index is passed as field argument to append functions
+        # Doesn't yet support antialiasing
+        if cuda:
+            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
+            #return self._append_cuda
+        else:
+            return self._append
+
+
+class _max_n_row_index(_max_n_or_min_n_row_index):
+    """Max_n reduction operating on row index.
+
+    This is a private class as it is not intended to be used explicitly in
+    user code. It is primarily purpose is to support the use of ``last_n``
+    reductions using dask and/or CUDA.
+    """
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        # field is int64 row index
+        if field != -1:
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if agg[y, x, i] == -1 or field > agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+                    return i
+        return -1
+
+    @staticmethod
+    def _combine(aggs):
+        if len(aggs) > 1:
+            row_max_n_in_place(aggs[0], aggs[1])
+        return aggs[0]
+
+
+class _min_n_row_index(_max_n_or_min_n_row_index):
+    """Min_n reduction operating on row index.
+
+    This is a private class as it is not intended to be used explicitly in
+    user code. It is primarily purpose is to support the use of ``first_n``
+    reductions using dask and/or CUDA.
+    """
+    @staticmethod
+    @ngjit
+    def _append(x, y, agg, field):
+        # field is int64 row index
+        if field != -1:
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if agg[y, x, i] == -1 or field < agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+                    return i
+        return -1
+
+    @staticmethod
+    def _combine(aggs):
+        if len(aggs) > 1:
+            row_min_n_in_place(aggs[0], aggs[1])
+        return aggs[0]
 
 
 __all__ = list(set([_k for _k,_v in locals().items()

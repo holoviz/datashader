@@ -86,18 +86,6 @@ class ExpandVarargTransformerStarred(ExpandVarargTransformer):
             return node
 
 
-class ExpandVarargTransformerCallArg(ExpandVarargTransformer):
-    # Python 2
-    def visit_Call(self, node):
-        if getattr(node, 'starargs', None) and node.starargs.id == self.starred_name:
-            node.starargs = None
-            node.args.extend([ast.Name(id=name, ctx=ast.Load())
-                              for name in self.expand_names])
-            return node
-        else:
-            return node
-
-
 def function_to_ast(fn):
     """
     Get the AST representation of a function
@@ -161,12 +149,7 @@ def function_ast_to_function(fn_ast, stacklevel=1):
 
 
 def _build_arg(name):
-    try:
-        # Python 3
-        return ast.arg(arg=name)
-    except AttributeError:
-        # Python 2
-        return ast.Name(id=name, ctx=ast.Param())
+    return ast.arg(arg=name)
 
 
 def expand_function_ast_varargs(fn_ast, expand_number):
@@ -238,12 +221,7 @@ Input function AST does not have a variable length positional argument
     expand_names = before_name_visitor.get_new_names(expand_number)
 
     # Replace use of *args in function body
-    if hasattr(ast, "Starred"):
-        # Python 3
-        expand_transformer = ExpandVarargTransformerStarred
-    else:
-        # Python 2
-        expand_transformer = ExpandVarargTransformerCallArg
+    expand_transformer = ExpandVarargTransformerStarred
 
     new_fn_ast = expand_transformer(
         vararg_name, expand_names

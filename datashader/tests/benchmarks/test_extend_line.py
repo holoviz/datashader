@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 import pytest
 
@@ -8,8 +6,6 @@ from datashader.glyphs.line import (
     _build_draw_segment, _build_extend_line_axis0, _build_map_onto_pixel_for_line
 )
 from datashader.utils import ngjit
-
-py2_skip = pytest.mark.skipif(sys.version_info.major < 3, reason="py2 not supported")
 
 
 @pytest.fixture
@@ -20,13 +16,12 @@ def extend_line():
 
     mapper = ngjit(lambda x: x)
     map_onto_pixel = _build_map_onto_pixel_for_line(mapper, mapper)
-    expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1)
+    expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1, False)
     draw_line = _build_draw_segment(append, map_onto_pixel,
-                                    expand_aggs_and_cols, False)
-    return _build_extend_line_axis0(draw_line, expand_aggs_and_cols)[0]
+                                    expand_aggs_and_cols, 0, False)
+    return _build_extend_line_axis0(draw_line, expand_aggs_and_cols, False)[0]
 
 
-@py2_skip
 @pytest.mark.parametrize('high', [0, 10**5])
 @pytest.mark.parametrize('low', [0, -10**5])
 @pytest.mark.benchmark(group="extend_line")
@@ -39,12 +34,12 @@ def test_extend_line_uniform(benchmark, extend_line, low, high):
     ys = np.random.uniform(xmax + low, ymax + high, n)
 
     agg = np.zeros((ymin, ymax), dtype='i4')
+    buffer = np.empty(0)
     benchmark(
-        extend_line, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg
+        extend_line, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, buffer, agg
     )
 
 
-@py2_skip
 @pytest.mark.benchmark(group="extend_line")
 def test_extend_line_normal(benchmark, extend_line):
     n = 10**6
@@ -60,6 +55,7 @@ def test_extend_line_normal(benchmark, extend_line):
     ys = signal + noise(1, 10*(np.random.random() - 0.5), n)
 
     agg = np.zeros((ymin, ymax), dtype='i4')
+    buffer = np.empty(0)
     benchmark(
-        extend_line, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, agg
+        extend_line, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, True, buffer, agg
     )

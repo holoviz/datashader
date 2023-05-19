@@ -1,4 +1,4 @@
-from __future__ import division, absolute_import
+from __future__ import annotations
 
 import os
 
@@ -11,6 +11,7 @@ from dask.context import config
 from numpy import nan
 
 import datashader as ds
+from datashader.datatypes import RaggedArray
 import datashader.utils as du
 
 import pytest
@@ -27,10 +28,7 @@ from datashader.tests.test_pandas import (
 
 config.set(scheduler='synchronous')
 
-if "DATASHADER_TEST_GPU" in os.environ:
-    test_gpu = bool(int(os.environ["DATASHADER_TEST_GPU"]))
-else:
-    test_gpu = None
+test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
 df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
@@ -40,12 +38,15 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'i64': np.arange(20, dtype='i8'),
                       'f32': np.arange(20, dtype='f4'),
                       'f64': np.arange(20, dtype='f8'),
+                      'reverse': np.arange(20, 0, -1),
+                      'plusminus': np.arange(20, dtype='f8')*([1, -1]*10),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
 df_pd.cat = df_pd.cat.astype('category')
-df_pd.at[2,'f32'] = np.nan
-df_pd.at[2,'f64'] = np.nan
+df_pd.at[2,'f32'] = nan
+df_pd.at[2,'f64'] = nan
+df_pd.at[2,'plusminus'] = nan
 
 _ddf = dd.from_pandas(df_pd, npartitions=2)
 
@@ -62,11 +63,12 @@ try:
     import cupy
     import dask_cudf
 
-    if test_gpu is False:
+    if not test_gpu:
         # GPU testing disabled even though cudf/cupy are available
         raise ImportError
 
-    ddfs = [_ddf, dask_cudf.from_dask_dataframe(_ddf)]
+    cudf_ddf = dask_cudf.from_dask_dataframe(_ddf)
+    ddfs = [_ddf, cudf_ddf]
 
     def dask_cudf_DataFrame(*args, **kwargs):
         assert not kwargs.pop("geo", False)
@@ -78,6 +80,7 @@ try:
     DataFrames = [dask_DataFrame, dask_cudf_DataFrame]
 except ImportError:
     cudf = cupy = dask_cudf = None
+    cudf_ddf = None
     ddfs = [_ddf]
     DataFrames = [dask_DataFrame]
     dask_cudf_DataFrame = None
@@ -109,14 +112,17 @@ def floats(n):
 
 
 def test_gpu_dependencies():
-    if test_gpu is True and cudf is None:
+    if test_gpu and cudf is None:
         pytest.fail(
             "cudf, cupy, and/or dask_cudf not available and DATASHADER_TEST_GPU=1"
         )
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_count(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_count(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     out = xr.DataArray(np.array([[5, 5], [5, 5]], dtype='i4'),
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.count('i32')), out)
@@ -129,7 +135,10 @@ def test_count(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_any(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_any(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     out = xr.DataArray(np.array([[True, True], [True, True]]),
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.any('i64')), out)
@@ -141,7 +150,10 @@ def test_any(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_sum(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_sum(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     out = xr.DataArray(
         values(df_pd.i32).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T,
         coords=coords, dims=dims)
@@ -155,8 +167,35 @@ def test_sum(ddf):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.sum('f64')), out)
 
 
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_first(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.first('i32')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.first('i64')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.first('f32')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.first('f64')), out)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_last(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.last('i32')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.last('i64')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.last('f32')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.last('f64')), out)
+
+
 @pytest.mark.parametrize('ddf', ddfs)
-def test_min(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_min(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     out = xr.DataArray(
         values(df_pd.i64).reshape((2, 2, 5)).min(axis=2).astype('f8').T,
         coords=coords, dims=dims)
@@ -167,7 +206,10 @@ def test_min(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_max(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_max(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     out = xr.DataArray(
         values(df_pd.i64).reshape((2, 2, 5)).max(axis=2).astype('f8').T,
         coords=coords, dims=dims)
@@ -177,8 +219,356 @@ def test_max(ddf):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f64')), out)
 
 
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_min_row_index(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds._min_row_index()), out)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_max_row_index(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds._max_row_index()), out)
+
+
 @pytest.mark.parametrize('ddf', ddfs)
-def test_mean(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_min_n(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    solution = np.array([[[-3, -1, 0, 4, nan, nan], [-13, -11, 10, 12, 14, nan]],
+                         [[-9, -7, -5, 6, 8, nan], [-19, -17, -15, 16, 18, nan]]])
+    for n in range(1, 7):
+        agg = c.points(ddf, 'x', 'y', ds.min_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.min('plusminus')).data)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_max_n(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    solution = np.array([[[4, 0, -1, -3, nan, nan], [14, 12, 10, -11, -13, nan]],
+                         [[8, 6, -5, -7, -9, nan], [18, 16, -15, -17, -19, nan]]])
+    for n in range(1, 7):
+        agg = c.points(ddf, 'x', 'y', ds.max_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.max('plusminus')).data)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_min_n_row_index(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    solution = np.array([[[0, 1, 2, 3, 4, -1], [10, 11, 12, 13, 14, -1]],
+                         [[5, 6, 7, 8, 9, -1], [15, 16, 17, 18, 19, -1]]])
+    for n in range(1, 7):
+        agg = c.points(ddf, 'x', 'y', ds._min_n_row_index(n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds._min_row_index()).data)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_max_n_row_index(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    solution = np.array([[[4, 3, 2, 1, 0, -1], [14, 13, 12, 11, 10, -1]],
+                         [[9, 8, 7, 6, 5, -1], [19, 18, 17, 16, 15, -1]]])
+    for n in range(1, 7):
+        agg = c.points(ddf, 'x', 'y', ds._max_n_row_index(n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds._max_row_index()).data)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_first_n(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    solution = np.array([[[0, -1, -3, 4, nan, nan], [10, -11, 12, -13, 14, nan]],
+                         [[-5, 6, -7, 8, -9, nan], [-15, 16, -17, 18, -19, nan]]])
+    for n in range(1, 7):
+        agg = c.points(ddf, 'x', 'y', ds.first_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.first('plusminus')).data)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_last_n(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    solution = np.array([[[4, -3, -1, 0, nan, nan], [14, -13, 12, -11, 10, nan]],
+                         [[-9, 8, -7, 6, -5, nan], [-19, 18, -17, 16, -15, nan]]])
+    for n in range(1, 7):
+        agg = c.points(ddf, 'x', 'y', ds.last_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.last('plusminus')).data)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_max(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i32'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('i64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.max('f32'))), out)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_min(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i32'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('i64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'))), out)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_max_n(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    sol_rowindex = np.array([[[ 4,  0,  1,  3, -1, -1],
+                              [14, 12, 10, 11, 13, -1]],
+                             [[ 8,  6,  5,  7,  9, -1],
+                              [18, 16, 15, 17, 19, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.max_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.max('plusminus'))).data)
+
+        # Using another column
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.max_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.max('plusminus'), 'reverse')).data)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_min_n(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    sol_rowindex = np.array([[[3,  1,  0,  4, -1, -1],
+                              [13, 11, 10, 12, 14, -1]],
+                             [[ 9,  7,  5,  6,  8, -1],
+                              [19, 17, 15, 16, 18, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.min_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.min('plusminus'))).data)
+
+        # Using another column
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.min_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.min('plusminus'), 'reverse')).data)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_first(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    # Note reductions like ds.where(ds.first('i32'), 'reverse') are supported,
+    # but the same results can be achieved using the simpler ds.first('reverse')
+    out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('i32'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('i64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('f64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('f32'))), out)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_last(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    # Note reductions like ds.where(ds.last('i32'), 'reverse') are supported,
+    # but the same results can be achieved using the simpler ds.last('reverse')
+    out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('i32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('i64'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('f32'), 'reverse')), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('f64'), 'reverse')), out)
+
+    # Using row index.
+    out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('i32'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('i64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('f64'))), out)
+    assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('f32'))), out)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_first_n(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    sol_rowindex = np.array([[[ 0,  1,  3,  4, -1, -1],
+                              [10, 11, 12, 13, 14, -1]],
+                             [[ 5,  6,  7,  8,  9, -1],
+                              [15, 16, 17, 18, 19, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.first_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.first('plusminus'))).data)
+
+        # Using another column
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.first_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.first('plusminus'), 'reverse')).data)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_where_last_n(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    sol_rowindex = np.array([[[ 4,  3,  1,  0, -1, -1],
+                              [14, 13, 12, 11, 10, -1]],
+                             [[ 9,  8,  7,  6,  5, -1],
+                              [19, 18, 17, 16, 15, -1]]])
+    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+
+    for n in range(1, 7):
+        # Using row index.
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.last_n('plusminus', n=n)))
+        out = sol_rowindex[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.last('plusminus'))).data)
+
+        # Using another column
+        agg = c.points(ddf, 'x', 'y', ds.where(ds.last_n('plusminus', n=n), 'reverse'))
+        out = sol_reverse[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.last('plusminus'), 'reverse')).data)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_summary_where_n(ddf, npartitions):
+    # Important to test with npartitions > 2 to have multiple combination stages.
+    # Identical results to equivalent pandas test.
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    sol_min_n_rowindex = np.array([[[3,  1,  0,  4, -1],
+                                    [13, 11, 10, 12, 14]],
+                                   [[ 9,  7,  5,  6,  8],
+                                    [19, 17, 15, 16, 18]]])
+    sol_max_n_rowindex = np.array([[[ 4,  0,  1,  3, -1],
+                                    [14, 12, 10, 11, 13]],
+                                   [[ 8,  6,  5,  7,  9],
+                                    [18, 16, 15, 17, 19]]])
+    sol_max_n_reverse = np.where(sol_max_n_rowindex < 0, np.nan, 20 - sol_max_n_rowindex)
+
+    agg = c.points(ddf, 'x', 'y', ds.summary(
+        count=ds.count(),
+        min_n=ds.where(ds.min_n('plusminus', 5)),
+        max_n=ds.where(ds.max_n('plusminus', 5), 'reverse'),
+    ))
+    assert_eq_ndarray(agg.coords['n'], np.arange(5))
+
+    assert agg['count'].dims == ('y', 'x')
+    assert agg['min_n'].dims == ('y', 'x', 'n')
+    assert agg['max_n'].dims == ('y', 'x', 'n')
+
+    assert agg['count'].dtype == np.dtype('uint32')
+    assert agg['min_n'].dtype == np.dtype('int64')
+    assert agg['max_n'].dtype == np.dtype('float64')
+
+    assert_eq_ndarray(agg['count'].data, [[5, 5], [5, 5]])
+    assert_eq_ndarray(agg['min_n'].data, sol_min_n_rowindex)
+    assert_eq_ndarray(agg['max_n'].data, sol_max_n_reverse)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_mean(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     out = xr.DataArray(
         values(df_pd.i32).reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
         coords=coords, dims=dims)
@@ -192,10 +582,13 @@ def test_mean(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_var(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_var(ddf, npartitions):
     if dask_cudf and isinstance(ddf, dask_cudf.DataFrame):
         pytest.skip("var not supported with cudf")
 
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     out = xr.DataArray(
         values(df_pd.i32).reshape((2, 2, 5)).var(axis=2, dtype='f8').T,
         coords=coords, dims=dims)
@@ -209,10 +602,13 @@ def test_var(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_std(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_std(ddf, npartitions):
     if dask_cudf and isinstance(ddf, dask_cudf.DataFrame):
         pytest.skip("std not supported with cudf")
 
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     out = xr.DataArray(
         values(df_pd.i32).reshape((2, 2, 5)).std(axis=2, dtype='f8').T,
         coords=coords, dims=dims)
@@ -226,7 +622,10 @@ def test_std(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_count_cat(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_count_cat(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     sol = np.array([[[5, 0, 0, 0],
                      [0, 0, 5, 0]],
                     [[0, 5, 0, 0],
@@ -236,6 +635,8 @@ def test_count_cat(ddf):
     )
     agg = c.points(ddf, 'x', 'y', ds.count_cat('cat'))
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
     # categorizing by (cat_int-10)%4 ought to give the same result
     out = xr.DataArray(
@@ -243,6 +644,8 @@ def test_count_cat(ddf):
     )
     agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.count()))
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
     # easier to write these tests in here, since we expect the same result with only slight tweaks
 
@@ -256,6 +659,8 @@ def test_count_cat(ddf):
         )
         agg = c.points(ddf, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
         assert_eq_xr(agg, out)
+        assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+        assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
     # as above, but for the float arange columns. Element 2 has a nan, so the first bin is one short, and the nan bin is +1
     sol[0, 0, 0] = 4
@@ -267,10 +672,15 @@ def test_count_cat(ddf):
         )
         agg = c.points(ddf, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
         assert_eq_xr(agg, out)
+        assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+        assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_categorical_sum(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_categorical_sum(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     sol = np.array([[[ 10, nan, nan, nan],
                      [nan, nan,  60, nan]],
                     [[nan,  35, nan, nan],
@@ -308,16 +718,19 @@ def test_categorical_sum(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_categorical_sum_binning(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_categorical_sum_binning(ddf, npartitions):
     if cudf and isinstance(ddf._meta, cudf.DataFrame):
         pytest.skip(
             "The categorical binning of 'sum' reduction is yet supported on the GPU"
         )
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     sol = np.array([[[8.0,  nan,  nan,  nan],
                      [nan,  nan, 60.0,  nan]],
                     [[nan, 35.0,  nan,  nan],
                      [nan,  nan,  nan, 85.0]]])
-    
+
     # add an extra category (this will count nans and out of bounds)
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
@@ -327,10 +740,15 @@ def test_categorical_sum_binning(ddf):
         )
         agg = c.points(ddf, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.sum(col)))
         assert_eq_xr(agg, out)
+        assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+        assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_categorical_mean(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_categorical_mean(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     sol = np.array([[[  2, nan, nan, nan],
                      [nan, nan,  12, nan]],
                     [[nan,   7, nan, nan],
@@ -357,11 +775,14 @@ def test_categorical_mean(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_categorical_mean_binning(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_categorical_mean_binning(ddf, npartitions):
     if cudf and isinstance(ddf._meta, cudf.DataFrame):
         pytest.skip(
             "The categorical binning of 'mean' reduction is yet supported on the GPU"
         )
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     sol = np.array([[[  2, nan, nan, nan],
                      [nan, nan,  12, nan]],
                     [[nan,   7, nan, nan],
@@ -379,12 +800,14 @@ def test_categorical_mean_binning(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_categorical_var(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_categorical_var(ddf, npartitions):
     if cudf and isinstance(ddf._meta, cudf.DataFrame):
         pytest.skip(
             "The 'var' reduction is yet supported on the GPU"
         )
-
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     sol = np.array([[[ 2.5,  nan,  nan,  nan],
                      [ nan,  nan,   2.,  nan]],
                     [[ nan,   2.,  nan,  nan],
@@ -420,14 +843,15 @@ def test_categorical_var(ddf):
         assert_eq_xr(agg, out)
 
 
-
 @pytest.mark.parametrize('ddf', ddfs)
-def test_categorical_std(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_categorical_std(ddf, npartitions):
     if cudf and isinstance(ddf._meta, cudf.DataFrame):
         pytest.skip(
             "The 'std' reduction is yet supported on the GPU"
         )
-
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     sol = np.sqrt(np.array([
         [[ 2.5,  nan,  nan,  nan],
          [ nan,  nan,   2.,  nan]],
@@ -466,10 +890,12 @@ def test_categorical_std(ddf):
 
 
 @pytest.mark.parametrize('ddf', ddfs)
-def test_multiple_aggregates(ddf):
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_multiple_aggregates(ddf, npartitions):
     if dask_cudf and isinstance(ddf, dask_cudf.DataFrame):
         pytest.skip("std not supported with cudf")
-
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
     agg = c.points(ddf, 'x', 'y',
                    ds.summary(f64_std=ds.std('f64'),
                               f64_mean=ds.mean('f64'),
@@ -481,6 +907,9 @@ def test_multiple_aggregates(ddf):
     assert_eq_xr(agg.f64_mean, f(np.nanmean(values(df_pd.f64).reshape((2, 2, 5)), axis=2).T))
     assert_eq_xr(agg.i32_sum, f(values(df_pd.i32).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
     assert_eq_xr(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
+
+    assert_eq_ndarray(agg.x_range, (0, 1), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -497,6 +926,8 @@ def test_auto_range_points(DataFrame):
     sol = np.zeros((n, n), int)
     np.fill_diagonal(sol, 1)
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 9), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 9), close=True)
 
     cvs = ds.Canvas(plot_width=n+1, plot_height=n+1)
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
@@ -504,6 +935,8 @@ def test_auto_range_points(DataFrame):
     np.fill_diagonal(sol, 1)
     sol[5, 5] = 0
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 9), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 9), close=True)
 
     n = 4
     data = np.arange(n, dtype='i4')
@@ -518,6 +951,8 @@ def test_auto_range_points(DataFrame):
     sol[np.array([tuple(range(1, 4, 2))])] = 0
     sol[np.array([tuple(range(4, 8, 2))])] = 0
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 3), close=True)
 
     cvs = ds.Canvas(plot_width=2*n+1, plot_height=2*n+1)
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
@@ -527,6 +962,8 @@ def test_auto_range_points(DataFrame):
     sol[6, 6] = 1
     sol[8, 8] = 1
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 3), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -541,6 +978,8 @@ def test_uniform_points(DataFrame):
     agg = cvs.points(ddf, 'x', 'y', ds.count('time'))
     sol = np.array([[10] * 9 + [11], [10] * 9 + [11]], dtype='i4')
     assert_eq_ndarray(agg.data, sol)
+    assert_eq_ndarray(agg.x_range, (0, 100), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -563,6 +1002,9 @@ def test_uniform_diagonal_points(DataFrame, low, high):
     diagonal = agg.data.diagonal(0)
     assert sum(diagonal) == n
     assert abs(bounds[1] - bounds[0]) % 2 == abs(diagonal[1] / high - diagonal[0] / high)
+
+    assert_eq_ndarray(agg.x_range, (low, high), close=True)
+    assert_eq_ndarray(agg.y_range, (low, high), close=True)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -626,6 +1068,8 @@ def test_line(DataFrame):
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (-3, 3), close=True)
 
 
 # # Line tests
@@ -673,8 +1117,8 @@ line_manual_range_params = [
 
     # axis1 RaggedArray
     (dict(data={
-        'x': [[4, 0, -4], [-4, 0, 4, 4, 0, -4]],
-        'y': [[0, -4, 0], [0, 4, 0, 0, 0, 0]],
+        'x': RaggedArray([[4, 0, -4], [-4, 0, 4, 4, 0, -4]]),
+        'y': RaggedArray([[0, -4, 0], [0, 4, 0, 0, 0, 0]]),
     }, dtype='Ragged[int64]'), dict(x='x', y='y', axis=1)),
 ]
 if sp:
@@ -685,8 +1129,8 @@ if sp:
                      [-4, 0, 0, 4, 4, 0, 4, 0, 0, 0, -4, 0]]
         }, dtype='Line[int64]'), dict(geometry='geom'))
     )
-@pytest.mark.parametrize('DataFrame', DataFrames)
-@pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_manual_range_params)
+@pytest.mark.parametrize('DataFrame', DataFrames[:1])
+@pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_manual_range_params[5:7])
 def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
         dtype = df_kwargs.get('dtype', '')
@@ -702,17 +1146,42 @@ def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs):
 
     agg = cvs.line(ddf, agg=ds.count(), **cvs_kwargs)
 
-    sol = np.array([[0, 0, 1, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 0, 1, 0],
-                    [1, 0, 0, 0, 0, 0, 1],
-                    [1, 1, 1, 1, 1, 1, 1],
-                    [1, 0, 0, 0, 0, 0, 1],
-                    [0, 1, 0, 0, 0, 1, 0],
-                    [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
+    if (ddf.npartitions == 2 and cvs_kwargs.get('axis') == 0 and
+            isinstance(cvs_kwargs['y'], (list, tuple))):
+        # Github issue #1106.
+        # When axis==0 we do not deal with dask splitting up our lines/areas,
+        # so the output has undesirable missing segments.
+        if isinstance(cvs_kwargs['x'], list):
+            sol = np.array([[0, 0, 0, 0, 1, 0, 0],
+                            [0, 0, 0, 0, 0, 1, 0],
+                            [0, 0, 0, 0, 0, 0, 1],
+                            [0, 0, 0, 1, 1, 1, 1],
+                            [1, 0, 0, 0, 0, 0, 0],
+                            [0, 1, 0, 0, 0, 0, 0],
+                            [0, 0, 1, 0, 0, 0, 0]], dtype='i4')
+        else:
+            sol = np.array([[0, 0, 1, 0, 0, 0, 0],
+                            [0, 1, 0, 0, 0, 0, 0],
+                            [1, 0, 0, 0, 0, 0, 0],
+                            [1, 1, 1, 1, 0, 0, 0],
+                            [1, 0, 0, 0, 0, 0, 0],
+                            [0, 1, 0, 0, 0, 0, 0],
+                            [0, 0, 1, 0, 0, 0, 0]], dtype='i4')
+    else:
+        # Ideally all tests would give this solution.
+        sol = np.array([[0, 0, 1, 0, 1, 0, 0],
+                        [0, 1, 0, 0, 0, 1, 0],
+                        [1, 0, 0, 0, 0, 0, 1],
+                        [1, 1, 1, 1, 1, 1, 1],
+                        [1, 0, 0, 0, 0, 0, 1],
+                        [0, 1, 0, 0, 0, 1, 0],
+                        [0, 0, 1, 0, 1, 0, 0]], dtype='i4')
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3, 3), close=True)
+    assert_eq_ndarray(agg.y_range, (-3, 3), close=True)
 
 
 line_autorange_params = [
@@ -790,19 +1259,47 @@ def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
 
     agg = cvs.line(ddf, agg=ds.count(), **cvs_kwargs)
 
-    sol = np.array([[0, 0, 0, 0, 3, 0, 0, 0, 0],
-                    [0, 0, 0, 1, 1, 1, 0, 0, 0],
-                    [0, 0, 1, 0, 1, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 1, 0, 0, 1, 0],
-                    [1, 0, 0, 0, 1, 0, 0, 0, 1],
-                    [0, 1, 0, 0, 1, 0, 0, 1, 0],
-                    [0, 0, 1, 0, 1, 0, 1, 0, 0],
-                    [0, 0, 0, 1, 1, 1, 0, 0, 0],
-                    [0, 0, 0, 0, 3, 0, 0, 0, 0]], dtype='i4')
+    if (ddf.npartitions == 2 and cvs_kwargs.get('axis') == 0 and
+            isinstance(cvs_kwargs['x'], (list, tuple))):
+        # Github issue #1106.
+        # When axis==0 we do not deal with dask splitting up our lines/areas,
+        # so the output has undesirable missing segments.
+        if isinstance(cvs_kwargs['y'], list):
+            sol = np.array([[0, 0, 0, 0, 2, 0, 0, 0, 0],
+                            [0, 0, 0, 1, 0, 1, 0, 0, 0],
+                            [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                            [0, 1, 0, 0, 0, 0, 0, 1, 0],
+                            [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                            [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 1, 0, 0, 0, 0]], dtype='i4')
+        else:
+            sol = np.array([[0, 0, 0, 0, 3, 0, 0, 0, 0],
+                            [0, 0, 0, 1, 1, 1, 0, 0, 0],
+                            [0, 0, 1, 0, 1, 0, 1, 0, 0],
+                            [0, 1, 0, 0, 1, 0, 0, 1, 0],
+                            [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype='i4')
+    else:
+        sol = np.array([[0, 0, 0, 0, 3, 0, 0, 0, 0],
+                        [0, 0, 0, 1, 1, 1, 0, 0, 0],
+                        [0, 0, 1, 0, 1, 0, 1, 0, 0],
+                        [0, 1, 0, 0, 1, 0, 0, 1, 0],
+                        [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                        [0, 1, 0, 0, 1, 0, 0, 1, 0],
+                        [0, 0, 1, 0, 1, 0, 1, 0, 0],
+                        [0, 0, 0, 1, 1, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 3, 0, 0, 0, 0]], dtype='i4')
 
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -880,6 +1377,8 @@ def test_auto_range_line(DataFrame):
     out = xr.DataArray(sol, coords=[lincoords, lincoords],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-10, 10), close=True)
+    assert_eq_ndarray(agg.y_range, (-10, 10), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -910,8 +1409,8 @@ def test_auto_range_line(DataFrame):
 
     # axis1 ragged arrays
     (dict(data={
-        'x': pd.array([[-4, -2, 0], [2, 4]]),
-        'y': pd.array([[0, -4, 0], [4, 0]])
+        'x': pd.array([[-4, -2, 0], [2, 4]], dtype='Ragged[float32]'),
+        'y': pd.array([[0, -4, 0], [4, 0]], dtype='Ragged[float32]')
     }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
@@ -933,16 +1432,30 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
 
     agg = cvs.area(ddf, agg=ds.count(), **cvs_kwargs)
 
-    sol = np.array([[0, 1, 1, 0, 0, 0, 0, 0, 0],
-                    [1, 1, 1, 1, 0, 0, 0, 0, 0],
-                    [1, 1, 1, 1, 1, 0, 1, 1, 1],
-                    [0, 0, 0, 0, 0, 0, 1, 1, 1],
-                    [0, 0, 0, 0, 0, 0, 1, 1, 0]],
-                   dtype='i4')
+    if (ddf.npartitions == 2 and cvs_kwargs.get('axis') == 0 and
+            isinstance(cvs_kwargs['x'], (list, tuple))):
+        # Github issue #1106.
+        # When axis==0 we do not deal with dask splitting up our lines/areas,
+        # so the output has undesirable missing segments.
+        sol = np.array([[0, 1, 1, 0, 0, 0, 0, 0, 0],
+                        [1, 1, 1, 0, 0, 0, 0, 0, 0],
+                        [1, 1, 1, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0]],
+                       dtype='i4')
+    else:
+        sol = np.array([[0, 1, 1, 0, 0, 0, 0, 0, 0],
+                        [1, 1, 1, 1, 0, 0, 0, 0, 0],
+                        [1, 1, 1, 1, 1, 0, 1, 1, 1],
+                        [0, 0, 0, 0, 0, 0, 1, 1, 1],
+                        [0, 0, 0, 0, 0, 0, 1, 1, 0]],
+                       dtype='i4')
 
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-3.75, 3.75), close=True)
+    assert_eq_ndarray(agg.y_range, (-2.25, 2.25), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1009,18 +1522,34 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     ddf = DataFrame(**df_kwargs)
     agg = cvs.area(ddf, agg=ds.count(), **cvs_kwargs)
 
-    sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-                    [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-                    [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
-                    [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
-                    [0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0],
-                    [0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0],
-                    [1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1]],
-                   dtype='i4')
+    if (ddf.npartitions == 2 and cvs_kwargs.get('axis') == 0 and
+            isinstance(cvs_kwargs['x'], (list, tuple))):
+        # Github issue #1106.
+        # When axis==0 we do not deal with dask splitting up our lines/areas,
+        # so the output has undesirable missing segments.
+        sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0],
+                        [0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0],
+                        [0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+                        [0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+                        [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0]],
+                       dtype='i4')
+    else:
+        sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
+                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
+                        [0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0],
+                        [0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0],
+                        [1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1]],
+                       dtype='i4')
 
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 0), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1072,14 +1601,28 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
 
     agg = cvs.area(ddf, agg=ds.count(), **cvs_kwargs)
 
-    sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]],
-                   dtype='i4')
+    if (ddf.npartitions == 2 and cvs_kwargs.get('axis') == 0 and
+            isinstance(cvs_kwargs['x'], (list, tuple))):
+        # Github issue #1106.
+        # When axis==0 we do not deal with dask splitting up our lines/areas,
+        # so the output has undesirable missing segments.
+        sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+                       dtype='i4')
+    else:
+        sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+                        [1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]],
+                       dtype='i4')
 
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
@@ -1161,18 +1704,34 @@ def test_area_to_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     ddf = DataFrame(**df_kwargs)
     agg = cvs.area(ddf, agg=ds.count(), **cvs_kwargs)
 
-    sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-                    [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-                    [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
-                    [0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
-                   dtype='i4')
+    if (ddf.npartitions == 2 and cvs_kwargs.get('axis') == 0 and
+            isinstance(cvs_kwargs['x'], (list, tuple))):
+        # Github issue #1106.
+        # When axis==0 we do not deal with dask splitting up our lines/areas,
+        # so the output has undesirable missing segments.
+        sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0],
+                        [0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+                        [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+                       dtype='i4')
+    else:
+        sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
+                        [0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0],
+                        [0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+                       dtype='i4')
 
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
     assert_eq_xr(agg, out)
+    assert_eq_ndarray(agg.x_range, (-4, 4), close=True)
+    assert_eq_ndarray(agg.y_range, (-4, 0), close=True)
 
 
 @pytest.mark.parametrize('DataFrame', DataFrames)
@@ -1236,14 +1795,28 @@ def test_area_to_line_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     # the fill.  So we expect the y=0 line to not be filled.
     agg = cvs.area(ddf, agg=ds.count(), **cvs_kwargs)
 
-    sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]],
-                   dtype='i4')
+    if (ddf.npartitions == 2 and cvs_kwargs.get('axis') == 0 and
+            isinstance(cvs_kwargs['x'], (list, tuple))):
+        # Github issue #1106.
+        # When axis==0 we do not deal with dask splitting up our lines/areas,
+        # so the output has undesirable missing segments.
+        sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+                       dtype='i4')
+    else:
+        sol = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]],
+                       dtype='i4')
 
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x],
                        dims=['y', 'x'])
@@ -1264,13 +1837,15 @@ def test_trimesh_no_double_edge():
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
     sol = np.array([
-        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
     np.testing.assert_array_equal(np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+    assert_eq_ndarray(agg.x_range, (0, 5), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 5), close=True)
 
 
 @pytest.mark.parametrize('npartitions', list(range(1, 6)))
@@ -1313,11 +1888,131 @@ def test_trimesh_dask_partitions(npartitions):
 
     agg = cvs.trimesh(verts, tris, mesh)
     sol = np.array([
-        [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
     np.testing.assert_array_equal(
         np.flipud(agg.fillna(0).astype('i4').values)[:5], sol)
+    assert_eq_ndarray(agg.x_range, (0, 5), close=True)
+    assert_eq_ndarray(agg.y_range, (0, 5), close=True)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('reduction,dtype,aa_dtype', [
+    (ds.any(), bool, np.float32),
+    (ds.count(), np.uint32, np.float32),
+    (ds.max("f64"), np.float64, np.float64),
+    (ds.min("f64"), np.float64, np.float64),
+    (ds.sum("f64"), np.float64, np.float64),
+])
+def test_combine_dtype(ddf, reduction, dtype, aa_dtype):
+    if dask_cudf and isinstance(ddf, dask_cudf.DataFrame):
+        pytest.skip("antialiased lines not supported with cudf")
+
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+
+    # Non-antialiased lines
+    agg = cvs.line(ddf, 'x', 'y', line_width=0, agg=reduction)
+    assert agg.dtype == dtype
+
+    # Antialiased lines
+    agg = cvs.line(ddf, 'x', 'y', line_width=1, agg=reduction)
+    assert agg.dtype == aa_dtype
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('canvas', [
+    ds.Canvas(x_axis_type='log'),
+    ds.Canvas(x_axis_type='log', x_range=(0, 1)),
+    ds.Canvas(y_axis_type='log'),
+    ds.Canvas(y_axis_type='log', y_range=(0, 1)),
+])
+def test_log_axis_not_positive(ddf, canvas):
+    with pytest.raises(ValueError, match='Range values must be >0 for logarithmic axes'):
+        canvas.line(ddf, 'x', 'y')
+
+
+@pytest.mark.skip(reason='Antialised where reduction not yet supported')
+@pytest.mark.parametrize('npartitions', [1, 2, 3])
+def test_line_antialias_where(npartitions):
+    x = np.arange(3)
+    df = pd.DataFrame(dict(
+        y0 = [0.0, 0.5, 1.0],
+        y1 = [1.0, 0.0, 0.5],
+        y2 = [0.0, 1.0, 0.0],
+        value = [1.1, 2.2, 3.3],
+        other = [-9.0, -7.0, -5.0],
+    ))
+    ddf = dd.from_pandas(df, npartitions=npartitions)
+    if ddf.npartitions != npartitions:
+        pytest.skip("Dask partitioning not as expected")
+
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+
+    sol_where_max = np.array([
+        [-9., -7., -7., -7., -7., -5., -5.],
+        [-7., -7., -7., -5., -5., -5., -9.],
+        [-7., -9., -5., -5., -5., -7., nan],
+        [-5., -5., -5., -5., -9., -7., -7.],
+        [-5., -5., -9., -9., -9., -7., -7.],
+    ])
+    agg_where_max = cvs.line(
+        source=ddf, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
+        agg=ds.where(ds.max("value"), "other"),
+    )
+    assert_eq_ndarray(agg_where_max.data, sol_where_max)
+
+    sol_where_min = np.array([
+        [-9., -9., -7., -7., -7., -9., -9.],
+        [-9., -9., -7., -7., -7., -9., -9.],
+        [-7., -9., -9., -5., -9., -9., nan],
+        [-5., -9., -9., -9., -9., -9., -7.],
+        [-5., -5., -9., -9., -9., -7., -7.],
+    ])
+    agg_where_min = cvs.line(
+        source=ddf, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
+        agg=ds.where(ds.min("value"), "other"),
+    )
+    # dask solution differs slightly depending on number of partitions.
+    # Exclude array elements that may differ from comparison.
+    if npartitions == 2:
+        sol_where_min[1, 6] = agg_where_min[1, 6] = nan
+    elif npartitions == 3:
+        for j, i in ((1, 5), (1, 6), (2, 1)):
+            sol_where_min[j, i] = agg_where_min[j, i] = nan
+
+    assert_eq_ndarray(agg_where_min.data, sol_where_min)
+
+
+def test_canvas_size():
+    cvs_list = [
+        ds.Canvas(plot_width=0, plot_height=6),
+        ds.Canvas(plot_width=5, plot_height=0),
+        ds.Canvas(plot_width=0, plot_height=0),
+        ds.Canvas(plot_width=-1, plot_height=1),
+        ds.Canvas(plot_width=10, plot_height=-1)
+    ]
+    msg = r'Invalid size: plot_width and plot_height must be bigger than 0'
+    df = pd.DataFrame(dict(x=[0, 0.2, 1], y=[0, 0.4, 1], z=[10, 20, 30]))
+    ddf = dd.from_pandas(df, 1)
+
+    for cvs in cvs_list:
+        with pytest.raises(ValueError, match=msg):
+            cvs.points(ddf, "x", "y", ds.mean("z"))
+
+
+@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+@pytest.mark.parametrize('reduction', [
+    ds.where(ds.first('f64')),
+    ds.where(ds.first_n('f64')),
+    ds.where(ds.last('f64')),
+    ds.where(ds.last_n('f64')),
+    ds.where(ds.max_n('f64', n=3)),
+    ds.where(ds.min_n('f64', n=3)),
+])
+def test_reduction_on_cuda_dask_raises_error(reduction):
+    with pytest.raises((NotImplementedError, ValueError)):
+        c.points(cudf_ddf, 'x', 'y', reduction)

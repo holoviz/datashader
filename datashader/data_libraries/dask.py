@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division
+from __future__ import annotations
 
 from collections import OrderedDict
 import numpy as np
@@ -9,7 +9,7 @@ import dask.dataframe as dd
 from dask.base import tokenize, compute
 
 from datashader.core import bypixel
-from datashader.compatibility import apply
+from datashader.utils import apply
 from datashader.compiler import compile_components
 from datashader.glyphs import Glyph, LineAxis0
 from datashader.utils import Dispatcher
@@ -18,8 +18,8 @@ __all__ = ()
 
 
 @bypixel.pipeline.register(dd.DataFrame)
-def dask_pipeline(df, schema, canvas, glyph, summary, cuda=False):
-    dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary, cuda=cuda)
+def dask_pipeline(df, schema, canvas, glyph, summary, *, antialias=False, cuda=False):
+    dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary, antialias=antialias, cuda=cuda)
 
     # Get user configured scheduler (if any), or fall back to default
     # scheduler for dask DataFrame
@@ -46,6 +46,7 @@ def shape_bounds_st_and_axis(df, canvas, glyph):
     y_range = canvas.y_range or y_extents
     x_min, x_max, y_min, y_max = bounds = compute(*(x_range + y_range))
     x_range, y_range = (x_min, x_max), (y_min, y_max)
+    canvas.validate_ranges(x_range, y_range)
 
     width = canvas.plot_width
     height = canvas.plot_height
@@ -66,15 +67,35 @@ glyph_dispatch = Dispatcher()
 
 
 @glyph_dispatch.register(Glyph)
-def default(glyph, df, schema, canvas, summary, cuda=False):
+def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize = \
-        compile_components(summary, schema, glyph, cuda=cuda)
+    partitioned = isinstance(df, dd.DataFrame) and df.npartitions > 1
+    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+        summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=partitioned)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
+
+    if summary.uses_row_index(cuda, partitioned):
+        def func(partition: pd.DataFrame, cumulative_lens, partition_info=None):
+            # This function is called once for each dask dataframe partition.
+            # It sets the _datashader_row_offset attribute so that row indexes
+            # can be calculated correctly in the reductions.extract class.
+            if partition_info is not None:
+                partition_index = partition_info["number"]
+                row_offset = cumulative_lengths[partition_index-1] if partition_index > 0 else 0
+                # Try to add new attribute to attrs if they exist, otherwise
+                # just set the attribute directly.
+                attrs = getattr(partition, "attrs", None)
+                setattr(attrs or partition, "_datashader_row_offset", row_offset)
+            return partition
+
+        cumulative_lengths = df.map_partitions(len).compute().cumsum().to_numpy()
+        df = df.map_partitions(func, cumulative_lengths)
 
     # Here be dragons
     # Get the dataframe graph
@@ -125,6 +146,7 @@ def default(glyph, df, schema, canvas, summary, cuda=False):
 
     def chunk(df, axis, keepdims):
         """ used in the dask.array.reduction chunk step """
+        # df is a pandas.DataFrame computed from one dask.DataFrame partition
         aggs = create(shape)
         extend(aggs, df, st, bounds)
         return aggs
@@ -151,7 +173,8 @@ def default(glyph, df, schema, canvas, summary, cuda=False):
         """ Wrap datashader finalize in dask.array.reduction aggregate """
         return finalize(wrapped_combine(x, axis, keepdims),
                         cuda=cuda, coords=local_axis,
-                        dims=[glyph.y_label, glyph.x_label])
+                        dims=[glyph.y_label, glyph.x_label],
+                        attrs=dict(x_range=x_range, y_range=y_range))
 
     R = da.reduction(df_array,
                      aggregate=aggregate,
@@ -176,7 +199,7 @@ def default(glyph, df, schema, canvas, summary, cuda=False):
 
 
 @glyph_dispatch.register(LineAxis0)
-def line(glyph, df, schema, canvas, summary, cuda=False):
+def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     if cuda:
         from cudf import concat
     else:
@@ -185,11 +208,14 @@ def line(glyph, df, schema, canvas, summary, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize = \
-        compile_components(summary, schema, glyph, cuda=cuda)
+    partitioned = isinstance(df, dd.DataFrame) and df.npartitions > 1
+    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+        summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=partitioned)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
 
     def chunk(df, df2=None):
         plot_start = True
@@ -207,5 +233,6 @@ def line(glyph, df, schema, canvas, summary, cuda=False):
         dsk[(name, i)] = (chunk, (old_name, i - 1), (old_name, i))
     keys2 = [(name, i) for i in range(df.npartitions)]
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label]))
+                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+                      attrs=dict(x_range=x_range, y_range=y_range)))
     return dsk, name

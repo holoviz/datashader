@@ -1,4 +1,5 @@
-from __future__ import absolute_import, division
+from __future__ import annotations
+from packaging.version import Version
 import inspect
 import warnings
 import os
@@ -12,20 +13,16 @@ from datashader.macros import expand_varargs
 
 try:
     import cudf
+    import cupy as cp
 except Exception:
     cudf = None
-
-
-@ngjit
-def isnull(val):
-    """
-    Equivalent to isnan for floats, but also numba compatible with integers
-    """
-    return not (val <= 0 or val > 0)
+    cp = None
 
 
 class Glyph(Expr):
     """Base class for glyphs."""
+
+    antialiased = False
 
     @property
     def ndims(self):
@@ -91,13 +88,22 @@ class Glyph(Expr):
         return minval, maxval
 
     @staticmethod
-    def to_gpu_matrix(df, columns):
-        if not isinstance(columns, (list, tuple)):
-            return df[columns].to_gpu_array()
+    def to_cupy_array(df, columns):
+        if isinstance(columns, tuple):
+            columns = list(columns)
+
+        # Pandas extracts the column name multiple times, but
+        # cuDF only extracts each name a single time. For details, see:
+        # https://github.com/holoviz/datashader/pull/1050
+        if isinstance(columns, list) and (len(columns) != len(set(columns))):
+            return cp.stack([cp.array(df[c]) for c in columns], axis=1)
+
+        if Version(cudf.__version__) >= Version("22.02"):
+            return df[columns].to_cupy()
         else:
-            return cudf.concat([
-                df[name].rename(str(i)) for i, name in enumerate(columns)
-            ], axis=1).as_gpu_matrix()
+            if not isinstance(columns, list):
+                return df[columns].to_gpu_array()
+            return df[columns].as_gpu_matrix()
 
     def expand_aggs_and_cols(self, append):
         """
@@ -126,10 +132,10 @@ class Glyph(Expr):
         function
             Decorator function
         """
-        return self._expand_aggs_and_cols(append, self.ndims)
+        return self._expand_aggs_and_cols(append, self.ndims, self.antialiased)
 
     @staticmethod
-    def _expand_aggs_and_cols(append, ndims):
+    def _expand_aggs_and_cols(append, ndims, antialiased):
         if os.environ.get('NUMBA_DISABLE_JIT', None):
             # If the NUMBA_DISABLE_JIT environment is set, then we return an
             # identity decorator (one that return function unchanged).
@@ -142,10 +148,10 @@ class Glyph(Expr):
             warnings.simplefilter("ignore")
             try:
                 # Numba keeps original function around as append.py_func
-                append_args = inspect.getargspec(append.py_func).args
+                append_args = inspect.getfullargspec(append.py_func).args
             except (TypeError, AttributeError):
                 # Treat append as a normal python function
-                append_args = inspect.getargspec(append).args
+                append_args = inspect.getfullargspec(append).args
 
         # Get number of arguments accepted by append
         append_arglen = len(append_args)
@@ -154,10 +160,14 @@ class Glyph(Expr):
         xy_arglen = 2
 
         # We will also subtract the number of dimensions in this glyph,
-        # becuase that's how many data index arguments are passed to append
+        # because that's how many data index arguments are passed to append
         dim_arglen = (ndims or 0)
 
         # The remaining arguments are for aggregates and columns
         aggs_and_cols_len = append_arglen - xy_arglen - dim_arglen
+
+        # Antialiased append() calls also take aa_factor argument
+        if antialiased:
+            aggs_and_cols_len -= 1
 
         return expand_varargs(aggs_and_cols_len)

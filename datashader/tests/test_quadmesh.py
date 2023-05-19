@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import annotations
 import numpy as np
 from numpy import nan
 import xarray as xr
@@ -7,7 +7,7 @@ import pytest
 from collections import OrderedDict
 
 import dask.array
-from datashader.tests.test_pandas import assert_eq_xr
+from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
 
 array_modules = [np, dask.array]
 try:
@@ -81,10 +81,14 @@ def test_raster_quadmesh_autorange(array_module):
 
     res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    assert_eq_ndarray(res.x_range, (0.5, 4.5), close=True)
+    assert_eq_ndarray(res.y_range, (0.5, 2.5), close=True)
 
     # Check transpose gives same answer
     res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    assert_eq_ndarray(res.x_range, (0.5, 4.5), close=True)
+    assert_eq_ndarray(res.y_range, (0.5, 2.5), close=True)
 
 
 def test_raster_quadmesh_autorange_chunked():
@@ -246,10 +250,14 @@ def test_raster_quadmesh_manual_range(array_module):
 
     res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    assert_eq_ndarray(res.x_range, (1, 3), close=True)
+    assert_eq_ndarray(res.y_range, (-1, 3), close=True)
 
     # Check transpose gives same answer
     res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    assert_eq_ndarray(res.x_range, (1, 3), close=True)
+    assert_eq_ndarray(res.y_range, (-1, 3), close=True)
 
 
 @pytest.mark.parametrize('array_module', array_modules)
@@ -314,10 +322,14 @@ def test_rectilinear_quadmesh_autorange(array_module):
 
     res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out, close=True)
+    assert_eq_ndarray(res.x_range, (0.5, 10.5), close=True)
+    assert_eq_ndarray(res.y_range, (0.5, 2.5), close=True)
 
     # Check transpose gives same answer
     res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out, close=True)
+    assert_eq_ndarray(res.x_range, (0.5, 10.5), close=True)
+    assert_eq_ndarray(res.y_range, (0.5, 2.5), close=True)
 
 
 def test_rectilinear_quadmesh_autorange_chunked():
@@ -348,10 +360,14 @@ def test_rectilinear_quadmesh_autorange_chunked():
 
     res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out, close=True)
+    assert_eq_ndarray(res.x_range, (0.5, 10.5), close=True)
+    assert_eq_ndarray(res.y_range, (0.5, 3.5), close=True)
 
     # Check transpose gives same answer
     res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out, close=True)
+    assert_eq_ndarray(res.x_range, (0.5, 10.5), close=True)
+    assert_eq_ndarray(res.y_range, (0.5, 3.5), close=True)
 
 
 @pytest.mark.parametrize('array_module', array_modules)
@@ -380,10 +396,14 @@ def test_rect_quadmesh_autorange_reversed(array_module):
 
     res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out, close=True)
+    assert_eq_ndarray(res.x_range, (-10.5, -0.5), close=True)
+    assert_eq_ndarray(res.y_range, (-2.5, -0.5), close=True)
 
     # Check transpose gives same answer
     res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out, close=True)
+    assert_eq_ndarray(res.x_range, (-10.5, -0.5), close=True)
+    assert_eq_ndarray(res.y_range, (-2.5, -0.5), close=True)
 
 
 @pytest.mark.parametrize('array_module', array_modules)
@@ -415,10 +435,14 @@ def test_rect_quadmesh_manual_range(array_module):
 
     res = c.quadmesh(da, x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out, close=True)
+    assert_eq_ndarray(res.x_range, (1, 3), close=True)
+    assert_eq_ndarray(res.y_range, (-1, 3), close=True)
 
     # Check transpose gives same answer
     res = c.quadmesh(da.transpose('a', 'b'), x='a', y='b', agg=ds.sum('Z'))
     assert_eq_xr(res, out, close=True)
+    assert_eq_ndarray(res.x_range, (1, 3), close=True)
+    assert_eq_ndarray(res.y_range, (-1, 3), close=True)
 
 
 @pytest.mark.parametrize('array_module', array_modules)
@@ -541,9 +565,13 @@ def test_curve_quadmesh_autorange(array_module):
 
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    assert_eq_ndarray(res.x_range, (0.5, 2.5), close=True)
+    assert_eq_ndarray(res.y_range, (-1, 7), close=True)
 
     res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=True), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    assert_eq_ndarray(res.x_range, (0.5, 2.5), close=True)
+    assert_eq_ndarray(res.y_range, (-1, 7), close=True)
 
 
 def test_curve_quadmesh_autorange_chunked():
@@ -586,9 +614,13 @@ def test_curve_quadmesh_autorange_chunked():
 
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    assert_eq_ndarray(res.x_range, (0.5, 2.5), close=True)
+    assert_eq_ndarray(res.y_range, (-1, 7), close=True)
 
     res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=True), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    assert_eq_ndarray(res.x_range, (0.5, 2.5), close=True)
+    assert_eq_ndarray(res.y_range, (-1, 7), close=True)
 
 
 @pytest.mark.parametrize('array_module', array_modules)
@@ -633,9 +665,13 @@ def test_curve_quadmesh_manual_range(array_module):
 
     res = c.quadmesh(da, x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    assert_eq_ndarray(res.x_range, (1, 2), close=True)
+    assert_eq_ndarray(res.y_range, (1, 3), close=True)
 
     res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=True), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+    assert_eq_ndarray(res.x_range, (1, 2), close=True)
+    assert_eq_ndarray(res.y_range, (1, 3), close=True)
 
 
 @pytest.mark.parametrize('array_module', array_modules)

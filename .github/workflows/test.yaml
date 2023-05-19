@@ -2,10 +2,17 @@ name: tests
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
     - '*'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 16 * * SUN'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test_suite:
@@ -15,77 +22,91 @@ jobs:
       fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-        python-version: [3.6, 3.7, 3.8]
-    timeout-minutes: 40
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+    timeout-minutes: 180
     defaults:
       run:
-        shell: bash -l {0} 
+        shell: bash -l {0}
     env:
-      DESC: "Python ${{ matrix.python-version }} tests"
-      HV_REQUIREMENTS: "unit_tests"
-      PYTHON_VERSION: ${{ matrix.python-version }}
-      CHANS_DEV: "-c pyviz/label/dev"
-      CHANS: "-c pyviz -c bokeh -c conda-forge"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: pyviz-dev/holoviz_tasks/install@v0.1a9
         with:
-          fetch-depth: "100"
-      - uses: actions/setup-python@v2
-        with:
+          name: unit_test_suite
           python-version: ${{ matrix.python-version }}
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniconda-version: "latest"
-      - name: Fetch unshallow
-        run: git fetch --prune --tags --unshallow
-      - name: conda setup
-        run: |
-          conda config --set always_yes True
-          conda update -n base -c defaults conda
-          conda install -c pyviz "pyctdev>=0.5"
-          doit ecosystem_setup
-          doit env_create ${{ env.CHANS_DEV}} --python=${{ matrix.python-version }}
-      - name: doit develop_install
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit develop_install ${{ env.CHANS_DEV}} -o tests -o examples
-      - name: Patch with latest dask from conda-forge
-        if: (!contains(matrix.python-version, '3.6'))
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          conda install -c conda-forge "dask>=2021.05.0"
-      - name: doit env_capture
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit env_capture
+          channel-priority: strict
+          channels: pyviz/label/dev,numba,conda-forge,nodefaults
+          envs: "-o tests -o examples"
+          cache: true
+          conda-update: true
+          conda-mamba: mamba
+        id: install
       - name: doit test_lint
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit test_lint
-      - name: doit test_unit_deploy
+      - name: doit test_unit
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
-          doit test_unit_deploy
+          doit test_unit
       - name: doit test_unit_nojit
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit test_unit_nojit
         env:
           NUMBA_DISABLE_JIT: 1
       - name: doit test_examples
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           doit test_examples
       - name: codecov
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
+          codecov
+
+  test_pip:
+    name: Pip tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest']
+        python-version: ["3.10"]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Update setuptools
+        run: |
+          pip install --upgrade setuptools
+      - name: Install pyctdev
+        run: |
+          pip install pyctdev
+      - name: doit develop_install
+        run: |
+          doit ecosystem=pip develop_install -o tests -o examples
+      - name: doit env_capture
+        run: |
+          doit ecosystem=pip env_capture
+      - name: doit test_lint
+        run: |
+          doit ecosystem=pip test_lint
+      - name: doit test_unit
+        run: |
+          doit ecosystem=pip test_unit
+      - name: doit test_unit_nojit
+        run: |
+          doit ecosystem=pip test_unit_nojit
+        env:
+          NUMBA_DISABLE_JIT: 1
+      - name: doit test_examples
+        run: |
+          doit ecosystem=pip test_examples
+      - name: codecov
+        run: |
           codecov

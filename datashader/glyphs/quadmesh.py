@@ -105,7 +105,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
         return infer_interval_breaks(centers)
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         x_name = self.x
         y_name = self.y
         name = self.name
@@ -204,7 +204,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
             ys = (yscaled[ym0:ym1 + 1] * plot_height).astype(int).clip(0, plot_height)
 
             # For input "column", down select to valid range
-            cols_full = info(xr_ds.transpose(y_name, x_name))
+            cols_full = info(xr_ds.transpose(y_name, x_name), aggs[0].shape[:2])
             cols = tuple([c[ym0:ym1, xm0:xm1] for c in cols_full])
 
             aggs_and_cols = aggs + cols
@@ -257,7 +257,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
         return upsample_width, upsample_height
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         x_name = self.x
         y_name = self.y
         name = self.name
@@ -378,7 +378,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 offset_x = offset_y = 0
 
             # Build aggs_and_cols tuple
-            cols = info(xr_ds)
+            cols = info(xr_ds, aggs[0].shape[:2])
             aggs_and_cols = tuple(aggs) + tuple(cols)
 
             if src_h == 0 or src_w == 0 or out_h == 0 or out_w == 0:
@@ -431,7 +431,7 @@ class QuadMeshCurvilinear(_QuadMeshLike):
         return breaks
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         x_name = self.x
         y_name = self.y
         name = self.name
@@ -660,7 +660,7 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             ys = (yscaled * plot_height).astype(int)
 
             coord_dims = xr_ds.coords[x_name].dims
-            aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims))
+            aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims), aggs[0].shape[:2])
             if use_cuda:
                 do_extend = extend_cuda[cuda_args(xr_ds[name].shape)]
             else:

@@ -24,10 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
-import sys
-import datetime as dt
 from itertools import groupby
 from math import floor, ceil
 
@@ -328,6 +326,9 @@ def resample_2d(src, w, h, ds_method='mean', us_method='linear',
 
     us_method=upsample_methods[us_method]
     ds_method=downsample_methods[ds_method]
+
+    if isinstance(src, np.ma.MaskedArray):
+        src = src.data
 
     resampled = _resample_2d(src, mask, use_mask, ds_method, us_method,
                              fill_value, mode_rank, x_offset, y_offset, out)
@@ -967,9 +968,6 @@ def infer_interval_breaks(coord, axis=0):
         pass
     else:
         coord = np.asarray(coord)
-    if sys.version_info.major == 2 and len(coord) and isinstance(coord[0], (dt.datetime, dt.date)):
-        # np.diff does not work on datetimes in python 2
-        coord = coord.astype('datetime64')
     if len(coord) == 0:
         return np.array([], dtype=coord.dtype)
     deltas = 0.5 * np.diff(coord, axis=axis)

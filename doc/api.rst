@@ -16,6 +16,9 @@ Entry Points
    Canvas.raster
    Canvas.trimesh
    Canvas.validate
+   Canvas.area
+   Canvas.polygons
+   Canvas.quadmesh
 
 .. currentmodule:: datashader
 
@@ -39,23 +42,33 @@ Glyphs
 
 .. currentmodule:: datashader.glyphs
 
-**Point**
-
 .. autosummary::
 
    Point
-   Point.inputs
-   Point.validate
-
-.. currentmodule:: datashader.glyphs
-
-**Line**
-
-.. autosummary::
-
-   Line
-   Line.inputs
-   Line.validate
+   Triangles
+   PolygonGeom
+   QuadMeshRaster
+   QuadMeshRectilinear
+   QuadMeshCurvilinear
+   LineAxis0
+   LineAxis0Multi
+   LinesAxis1
+   LinesAxis1XConstant
+   LinesAxis1YConstant
+   LinesAxis1Ragged
+   LineAxis1Geometry
+   AreaToZeroAxis0
+   AreaToZeroAxis0Multi
+   AreaToZeroAxis1
+   AreaToZeroAxis1XConstant
+   AreaToZeroAxis1YConstant
+   AreaToZeroAxis1Ragged
+   AreaToLineAxis0
+   AreaToLineAxis0Multi
+   AreaToLineAxis1
+   AreaToLineAxis1XConstant
+   AreaToLineAxis1YConstant
+   AreaToLineAxis1Ragged
 
 Reductions
 ----------
@@ -65,7 +78,6 @@ Reductions
 
    any
    count
-   count_cat
    by
    first
    last
@@ -78,6 +90,28 @@ Reductions
    sum
    summary
    var
+   where
+
+The table below indicates which ``Reduction`` classes are supported on the CPU (e.g. using
+``pandas``), on CPU with Dask (e.g. using ``dask.dataframe``), on the GPU (e.g. using ``cudf``),
+and on the GPU with Dask (e.g. using ``dask-cudf``). The final two columns indicate which reductions
+support antialiased lines and which can be used as the ``selector`` in a
+:class:`~datashader.reductions.where` reduction.
+
+.. csv-table::
+   :file: reduction.csv
+   :header-rows: 1
+
+The :class:`~datashader.reductions.mode` reduction is not listed in the table and can only be used
+with ``Canvas.raster``. A :class:`~datashader.reductions.by` reduction supports anything that its
+contained reduction (that is applied separately to each category) supports.
+
+**Categorizers**
+
+.. autosummary::
+
+   category_binning
+   category_modulo
 
 Transfer Functions
 ------------------
@@ -91,7 +125,7 @@ Transfer Functions
    Image
    Image.to_bytesio
    Image.to_pil
-   
+
 .. currentmodule:: datashader.transfer_functions
 
 **Images**
@@ -126,7 +160,30 @@ Definitions
 
 .. currentmodule:: datashader.glyphs
 .. autoclass:: Point
-.. autoclass:: Line
+.. autoclass:: Triangles
+.. autoclass:: PolygonGeom
+.. autoclass:: QuadMeshRaster
+.. autoclass:: QuadMeshRectilinear
+.. autoclass:: QuadMeshCurvilinear
+.. autoclass:: LineAxis0
+.. autoclass:: LineAxis0Multi
+.. autoclass:: LinesAxis1
+.. autoclass:: LinesAxis1XConstant
+.. autoclass:: LinesAxis1YConstant
+.. autoclass:: LinesAxis1Ragged
+.. autoclass:: LineAxis1Geometry
+.. autoclass:: AreaToZeroAxis0
+.. autoclass:: AreaToZeroAxis0Multi
+.. autoclass:: AreaToZeroAxis1
+.. autoclass:: AreaToZeroAxis1XConstant
+.. autoclass:: AreaToZeroAxis1YConstant
+.. autoclass:: AreaToZeroAxis1Ragged
+.. autoclass:: AreaToLineAxis0
+.. autoclass:: AreaToLineAxis0Multi
+.. autoclass:: AreaToLineAxis1
+.. autoclass:: AreaToLineAxis1XConstant
+.. autoclass:: AreaToLineAxis1YConstant
+.. autoclass:: AreaToLineAxis1Ragged
 
 .. currentmodule:: datashader.reductions
 .. autoclass:: any
@@ -143,6 +200,7 @@ Definitions
 .. autoclass:: sum
 .. autoclass:: summary
 .. autoclass:: var
+.. autoclass:: where
 
 .. automodule:: datashader.transfer_functions
    :members:

@@ -4,7 +4,7 @@ from datashader.utils import Dispatcher
 from datashader.glyphs.quadmesh import (
     QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvilinear, build_scale_translate
 )
-from datashader.compatibility import apply
+from datashader.utils import apply
 import dask
 import numpy as np
 import xarray as xr
@@ -13,8 +13,9 @@ from dask.array.overlap import overlap
 dask_glyph_dispatch = Dispatcher()
 
 
-def dask_xarray_pipeline(glyph, xr_ds, schema, canvas, summary, cuda):
-    dsk, name = dask_glyph_dispatch(glyph, xr_ds, schema, canvas, summary, cuda=cuda)
+def dask_xarray_pipeline(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=False):
+    dsk, name = dask_glyph_dispatch(
+        glyph, xr_ds, schema, canvas, summary, antialias=antialias, cuda=cuda)
 
     # Get user configured scheduler (if any), or fall back to default
     # scheduler for dask DataFrame
@@ -54,15 +55,17 @@ def shape_bounds_st_and_axis(xr_ds, canvas, glyph):
     return shape, bounds, st, axis
 
 
-def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, cuda):
+def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize = \
-        compile_components(summary, schema, glyph, cuda=cuda)
+    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+        summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
 
     # Build chunk indices for coordinates
     chunk_inds = {}
@@ -129,19 +132,22 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, cuda):
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k, k[1], k[2])) for (k2, k) in zip(keys2, keys))
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label]))
+                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+                      attrs=dict(x_range=x_range, y_range=y_range)))
     return dsk, name
 
 
-def dask_raster(glyph, xr_ds, schema, canvas, summary, cuda):
+def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize = \
-        compile_components(summary, schema, glyph, cuda=cuda)
+    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+        summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
 
     # Build chunk indices for coordinates
     chunk_inds = {}
@@ -220,19 +226,22 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, cuda):
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k, k[1], k[2])) for (k2, k) in zip(keys2, keys))
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label]))
+                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+                      attrs=dict(x_range=x_range, y_range=y_range)))
     return dsk, name
 
 
-def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, cuda):
+def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize = \
-        compile_components(summary, schema, glyph, cuda=cuda)
+    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+        summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append)
+    extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
 
     x_coord_name = glyph.x
     y_coord_name = glyph.y
@@ -327,7 +336,8 @@ def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, cuda):
 
     dsk[result_name] = (
         apply, finalize, [(combine, result_keys)],
-        dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label])
+        dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+             attrs=dict(x_range=x_range, y_range=y_range))
     )
 
     # Add x/y coord tasks to task graph

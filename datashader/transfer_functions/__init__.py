@@ -1,12 +1,11 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
-try:
-    from collections.abc import Iterator
-except ImportError: # py2.7
-    from collections import Iterator
+from collections.abc import Iterator
 
 from collections import OrderedDict
 from io import BytesIO
+
+import warnings
 
 import numpy as np
 import numba as nb
@@ -17,7 +16,7 @@ from PIL.Image import fromarray
 
 from datashader.colors import rgb, Sets1to3
 from datashader.composite import composite_op_lookup, over, validate_operator
-from datashader.utils import nansum_missing, ngjit, orient_array
+from datashader.utils import nansum_missing, ngjit
 
 try:
     import cupy
@@ -149,8 +148,9 @@ def eq_hist(data, mask=None, nbins=256*256):
     mask : ndarray, optional
        Boolean array of missing points. Where True, the output will be `NaN`.
     nbins : int, optional
-        Number of bins to use. Note that this argument is ignored for integer
-        arrays, which bin by the integer values directly.
+        Maximum number of bins to use. If data is of type boolean or integer
+        this will determine when to switch from exact unique value counts to
+        a binned histogram.
 
     Notes
     -----
@@ -162,26 +162,45 @@ def eq_hist(data, mask=None, nbins=256*256):
     """
     if cupy and isinstance(data, cupy.ndarray):
         from._cuda_utils import interp
+        array_module = cupy
     elif not isinstance(data, np.ndarray):
         raise TypeError("data must be an ndarray")
     else:
         interp = np.interp
+        array_module = np
+
+    if mask is not None and array_module.all(mask):
+        # Issue #1166, return early with array of all nans if all of data is masked out.
+        return array_module.full_like(data, np.nan), 0
 
     data2 = data if mask is None else data[~mask]
-    if data2.dtype == bool or np.issubdtype(data2.dtype, np.integer):
-        if data2.dtype.kind == 'u':
-             data2 = data2.astype('i8')
-        hist = np.bincount(data2.ravel())
-        bin_centers = np.arange(len(hist))
-        idx = int(np.nonzero(hist)[0][0])
-        hist, bin_centers = hist[idx:], bin_centers[idx:]
+
+    # Run more accurate value counting if data is of boolean or integer type
+    # and unique value array is smaller than nbins.
+    if data2.dtype == bool or (array_module.issubdtype(data2.dtype, array_module.integer) and
+                               data2.ptp() < nbins):
+        values, counts = array_module.unique(data2, return_counts=True)
+        vmin, vmax = values[0].item(), values[-1].item()  # Convert from arrays to scalars.
+        interval = vmax-vmin
+        bin_centers = array_module.arange(vmin, vmax+1)
+        hist = array_module.zeros(interval+1, dtype='uint64')
+        hist[values-vmin] = counts
+        discrete_levels = len(values)
     else:
-        hist, bin_edges = np.histogram(data2, bins=nbins)
+        hist, bin_edges = array_module.histogram(data2, bins=nbins)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        keep_mask = (hist > 0)
+        discrete_levels = array_module.count_nonzero(keep_mask)
+        if discrete_levels != len(hist):
+            # Remove empty histogram bins.
+            hist = hist[keep_mask]
+            bin_centers = bin_centers[keep_mask]
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
     out = interp(data, bin_centers, cdf).reshape(data.shape)
-    return out if mask is None else np.where(mask, np.nan, out)
+    return out if mask is None else array_module.where(mask, array_module.nan, out), discrete_levels
+
+
 
 
 _interpolate_lookup = {'log': lambda d, m: np.log1p(np.where(m, np.nan, d)),
@@ -198,7 +217,24 @@ def _normalize_interpolate_how(how):
     raise ValueError("Unknown interpolation method: {0}".format(how))
 
 
-def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
+def _rescale_discrete_levels(discrete_levels, span):
+    if discrete_levels is None:
+        raise ValueError("interpolator did not return a valid discrete_levels")
+
+    # Straight line y = mx + c through (2, 1.5) and (100, 1) where
+    # x is number of discrete_levels and y is lower span limit.
+    m = -0.5/98.0  # (y[1] - y[0]) / (x[1] - x[0])
+    c = 1.5 - 2*m  # y[0] - m*x[0]
+    multiple = m*discrete_levels + c
+
+    if multiple > 1:
+        lower_span = max(span[1] - multiple*(span[1] - span[0]), 0)
+        span = (lower_span, 1)
+
+    return span
+
+
+def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_levels):
     if cupy and isinstance(agg.data, cupy.ndarray):
         from ._cuda_utils import masked_clip_2d, interp
     else:
@@ -209,7 +245,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
         raise ValueError("agg must be 2D")
     interpolater = _normalize_interpolate_how(how)
 
-    data = orient_array(agg)
+    data = agg.data
     if isinstance(data, da.Array):
         data = data.compute()
     else:
@@ -245,14 +281,20 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     with np.errstate(invalid="ignore", divide="ignore"):
         # Transform data (log, eq_hist, etc.)
         data = interpolater(data, mask)
+        discrete_levels = None
+        if isinstance(data, (list, tuple)):
+            data, discrete_levels = data
 
         # Transform span
         if span is None:
             masked_data = np.where(~mask, data, np.nan)
             span = np.nanmin(masked_data), np.nanmax(masked_data)
+
+            if rescale_discrete_levels and discrete_levels is not None:  # Only valid for how='eq_hist'
+                span = _rescale_discrete_levels(discrete_levels, span)
         else:
             if how == 'eq_hist':
-                # For eq_hist to work with span, we'll need to compute the histogram
+                # For eq_hist to work with span, we'd need to compute the histogram
                 # only on the specified span's range.
                 raise ValueError("span is not (yet) valid to use with eq_hist")
 
@@ -260,6 +302,8 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
 
     if isinstance(cmap, Iterator):
         cmap = list(cmap)
+    if isinstance(cmap, tuple) and isinstance(cmap[0], str):
+        cmap = list(cmap)  # Tuple of hex values or color names, as produced by Bokeh
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
         span = np.linspace(span[0], span[1], len(cmap))
@@ -299,25 +343,22 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name):
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
-def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline):
+def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline, rescale_discrete_levels):
     if cupy and isinstance(agg.data, cupy.ndarray):
-        from ._cuda_utils import interp, masked_clip_2d 
         array = cupy.array
     else:
-        from ._cpu_utils import masked_clip_2d
-        interp = np.interp
         array = np.array
 
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
-    
+
     cats = agg.indexes[agg.dims[-1]]
     if not len(cats): # No categories and therefore no data; return an empty image
         return Image(np.zeros(agg.shape[0:2], dtype=np.uint32), dims=agg.dims[:-1],
                      coords=OrderedDict([
                          (agg.dims[1], agg.coords[agg.dims[1]]),
                          (agg.dims[0], agg.coords[agg.dims[0]]) ]), name=name)
-    
+
     if color_key is None:
         raise ValueError("Color key must be provided, with at least as many " +
                          "colors as there are categorical fields")
@@ -329,9 +370,10 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
 
     colors = [rgb(color_key[c]) for c in cats]
     rs, gs, bs = map(array, zip(*colors))
+
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
-    data = orient_array(agg_t).transpose([1, 2, 0])
+    data = agg_t.data.transpose([1, 2, 0])
     if isinstance(data, da.Array):
         data = data.compute()
     color_data = data.copy()
@@ -347,9 +389,9 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
             color_data[color_data<0]=0
 
     color_total = nansum_missing(color_data, axis=2)
-
     # dot does not handle nans, so replace with zeros
     color_data[np.isnan(data)] = 0
+
     # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
     with np.errstate(divide='ignore', invalid='ignore'):
         r = (color_data.dot(rs)/color_total).astype(np.uint8)
@@ -360,6 +402,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     # take avg color of all non-nan categories
     color_mask = ~np.isnan(data)
     cmask_sum = np.sum(color_mask, axis=2)
+
     with np.errstate(divide='ignore', invalid='ignore'):
         r2 = (color_mask.dot(rs)/cmask_sum).astype(np.uint8)
         g2 = (color_mask.dot(gs)/cmask_sum).astype(np.uint8)
@@ -369,43 +412,12 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
     r = np.where(missing_colors, r2, r)
     g = np.where(missing_colors, g2, g)
     b = np.where(missing_colors, b2, b)
-        
+
     total = nansum_missing(data, axis=2)
     mask = np.isnan(total)
-    # if span is provided, use it, otherwise produce a span based off the
-    # min/max of the data
-    if span is None:
-        offset = np.nanmin(total)
-        if total.dtype.kind == 'u' and offset == 0:
-            mask = mask | (total == 0)
-            # If at least one element is not masked, use the minimum as the offset
-            # otherwise the offset remains at zero
-            if not np.all(mask):
-                offset = total[total > 0].min()
-            total = np.where(~mask, total, np.nan)
-        a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
-        norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
-    else:
-        if how == 'eq_hist':
-            # For eq_hist to work with span, we'll need to compute the histogram
-            # only on the specified span's range.
-            raise ValueError("span is not (yet) valid to use with eq_hist")
-        # even in fixed-span mode cells with 0 should remain fully transparent
-        # i.e. a 0 will be fully transparent, but any non-zero number will
-        # be clipped to the span range and have min-alpha applied
-        offset = np.array(span, dtype=data.dtype)[0]
-        if total.dtype.kind == 'u' and np.nanmin(total) == 0:
-            mask = mask | (total <= 0)
-            total = np.where(~mask, total, np.nan)
-        masked_clip_2d(total, mask, *span)
-        a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
-        norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
-    # Interpolate the alpha values
-    a = interp(a_scaled, array(norm_span), array([min_alpha, alpha]),
-               left=0, right=255).astype(np.uint8)
+    a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels)
 
     values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
-
     if cupy and isinstance(values, cupy.ndarray):
         # Convert cupy array to numpy for final image
         values = cupy.asnumpy(values)
@@ -419,9 +431,158 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
                  name=name)
 
 
+def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels):
+
+    if cupy and isinstance(data, cupy.ndarray):
+        from ._cuda_utils import interp, masked_clip_2d
+        array_module = cupy
+    else:
+        from ._cpu_utils import masked_clip_2d
+        interp = np.interp
+        array_module = np
+
+    # if span is provided, use it, otherwise produce a span based off the
+    # min/max of the data
+    if span is None:
+        offset = np.nanmin(total)
+        if total.dtype.kind == 'u' and offset == 0:
+            mask = mask | (total == 0)
+            # If at least one element is not masked, use the minimum as the offset
+            # otherwise the offset remains at zero
+            if not np.all(mask):
+                offset = total[total > 0].min()
+            total = np.where(~mask, total, np.nan)
+
+        a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
+        discrete_levels = None
+        if isinstance(a_scaled, (list, tuple)):
+            a_scaled, discrete_levels = a_scaled
+
+        # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+            norm_span = [np.nanmin(a_scaled).item(), np.nanmax(a_scaled).item()]
+
+        if rescale_discrete_levels and discrete_levels is not None:  # Only valid for how='eq_hist'
+            norm_span = _rescale_discrete_levels(discrete_levels, norm_span)
+
+    else:
+        if how == 'eq_hist':
+            # For eq_hist to work with span, we'll need to compute the histogram
+            # only on the specified span's range.
+            raise ValueError("span is not (yet) valid to use with eq_hist")
+        # even in fixed-span mode cells with 0 should remain fully transparent
+        # i.e. a 0 will be fully transparent, but any non-zero number will
+        # be clipped to the span range and have min-alpha applied
+        offset = np.array(span, dtype=data.dtype)[0]
+        if total.dtype.kind == 'u' and np.nanmin(total) == 0:
+            mask = mask | (total <= 0)
+            total = np.where(~mask, total, np.nan)
+        masked_clip_2d(total, mask, *span)
+
+        a_scaled = _normalize_interpolate_how(how)(total - offset, mask)
+        if isinstance(a_scaled, (list, tuple)):
+            a_scaled = a_scaled[0]  # Ignore discrete_levels
+
+        norm_span = _normalize_interpolate_how(how)([0, span[1] - span[0]], 0)
+        if isinstance(norm_span, (list, tuple)):
+            norm_span = norm_span[0]  # Ignore discrete_levels
+
+    # Issue 1178. Convert norm_span from 2-tuple to numpy/cupy array.
+    # array_module.hstack() tolerates tuple of one float and one cupy array,
+    # whereas array_module.array() does not.
+    norm_span = array_module.hstack(norm_span)
+
+    # Interpolate the alpha values
+    a = interp(a_scaled, norm_span, array_module.array([min_alpha, alpha]),
+               left=0, right=255).astype(np.uint8)
+    return a
+
+
+def _apply_discrete_colorkey(agg, color_key, alpha, name, color_baseline):
+    # use the same approach as 3D case
+
+    if cupy and isinstance(agg.data, cupy.ndarray):
+        module = cupy
+        array = cupy.array
+    else:
+        module = np
+        array = np.array
+
+    if not agg.ndim == 2:
+        raise ValueError("agg must be 2D")
+
+    # validate color_key
+    if (color_key is None) or (not isinstance(color_key, dict)):
+        raise ValueError("Color key must be provided as a dictionary")
+
+    agg_data = agg.data
+    if isinstance(agg_data, da.Array):
+        agg_data = agg_data.compute()
+
+    cats = color_key.keys()
+    colors = [rgb(color_key[c]) for c in cats]
+    rs, gs, bs = map(array, zip(*colors))
+
+    data = module.empty_like(agg_data) * module.nan
+
+    r = module.zeros_like(data, dtype=module.uint8)
+    g = module.zeros_like(data, dtype=module.uint8)
+    b = module.zeros_like(data, dtype=module.uint8)
+
+    r2 = module.zeros_like(data, dtype=module.uint8)
+    g2 = module.zeros_like(data, dtype=module.uint8)
+    b2 = module.zeros_like(data, dtype=module.uint8)
+
+    for i, c in enumerate(cats):
+        value_mask = agg_data == c
+        data[value_mask] = 1
+        r2[value_mask] = rs[i]
+        g2[value_mask] = gs[i]
+        b2[value_mask] = bs[i]
+
+    color_data = data.copy()
+
+    # subtract color_baseline if needed
+    baseline = module.nanmin(color_data) if color_baseline is None else color_baseline
+    with np.errstate(invalid='ignore'):
+        if baseline > 0:
+            color_data -= baseline
+        elif baseline < 0:
+            color_data += -baseline
+        if color_data.dtype.kind != 'u' and color_baseline is not None:
+            color_data[color_data < 0] = 0
+
+    color_data[module.isnan(data)] = 0
+    if not color_data.any():
+        r[:] = r2
+        g[:] = g2
+        b[:] = b2
+
+    missing_colors = color_data == 0
+    r = module.where(missing_colors, r2, r)
+    g = module.where(missing_colors, g2, g)
+    b = module.where(missing_colors, b2, b)
+
+    # alpha channel
+    a = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
+
+    values = module.dstack([r, g, b, a]).view(module.uint32).reshape(a.shape)
+
+    if cupy and isinstance(agg.data, cupy.ndarray):
+        # Convert cupy array to numpy for final image
+        values = cupy.asnumpy(values)
+
+    return Image(values,
+                 dims=agg.dims,
+                 coords=agg.coords,
+                 name=name
+                 )
+
+
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
           how='eq_hist', alpha=255, min_alpha=40, span=None, name=None,
-          color_baseline=None):
+          color_baseline=None, rescale_discrete_levels=False):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
 
     Requires a DataArray with a single data dimension, here called the
@@ -431,15 +592,21 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     from the values by interpolated lookup into the given colormap
     ``cmap``.  The A channel is then set to the given fixed ``alpha``
     value for all non-zero values, and to zero for all zero values.
+    A dictionary ``color_key`` that specifies categories (values in ``agg``)
+    and corresponding colors can be provided to support discrete coloring
+    2D aggregates, i.e aggregates with a single category per pixel,
+    with no mixing. The A channel is set the given ``alpha`` value for all
+    pixels in the categories specified in ``color_key``, and to zero otherwise.
 
     DataArrays with 3D coordinates are expected to contain values
     distributed over different categories that are indexed by the
-    additional coordinate.  Such an array would reduce to the
+    additional coordinate. Such an array would reduce to the
     2D-coordinate case if collapsed across the categories (e.g. if one
     did ``aggc.sum(dim='cat')`` for a categorical dimension ``cat``).
-    The RGB channels for the uncollapsed, 3D case are computed by
-    averaging the colors in the provided ``color_key`` (with one color
-    per category), weighted by the array's value for that category.
+    The RGB channels for the uncollapsed, 3D case are mixed from separate
+    values over all categories. They are computed by averaging the colors
+    in the provided ``color_key`` (with one color per category),
+    weighted by the array's value for that category.
     The A channel is then computed from the array's total value
     collapsed across all categories at that location, ranging from the
     specified ``min_alpha`` to the maximum alpha value (255).
@@ -453,10 +620,13 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         of ``(red, green, blue)`` values.), or a matplotlib colormap
         object.  Default is ``["lightblue", "darkblue"]``.
     color_key : dict or iterable
-        The colors to use for a 3D (categorical) agg array.  Can be
+        The colors to use for a categorical agg array. In 3D case, it can be
         either a ``dict`` mapping from field name to colors, or an
         iterable of colors in the same order as the record fields,
-        and including at least that many distinct colors.
+        and including at least that many distinct colors. In 2D case,
+        ``color_key`` must be a ``dict`` where all keys are categories,
+        and values are corresponding colors. Number of categories does not
+        necessarily equal to the number of unique values in the agg DataArray.
     how : str or callable, optional
         The interpolation method to use, for the ``cmap`` of a 2D
         DataArray or the alpha channel of a 3D DataArray. Valid
@@ -474,13 +644,16 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         Regardless of this value, ``NaN`` values are set to be fully
         transparent when doing colormapping.
     min_alpha : float, optional
-        The minimum alpha value to use for non-empty pixels when 
+        The minimum alpha value to use for non-empty pixels when
         alpha is indicating data value, in [0, 255].  Use a higher value
         to avoid undersaturation, i.e. poorly visible low-value datapoints,
-        at the expense of the overall dynamic range.
+        at the expense of the overall dynamic range. Note that ``min_alpha``
+        will not take any effect when doing discrete categorical coloring
+        for 2D case as the aggregate can have only a single value to denote
+        the category.
     span : list of min-max range, optional
-        Min and max data values to use for colormap/alpha interpolation, when
-        wishing to override autoranging.
+        Min and max data values to use for 2D colormapping,
+        and 3D alpha interpolation, when wishing to override autoranging.
     name : string name, optional
         Optional string name to give to the Image object to return,
         to label results for display.
@@ -506,6 +679,13 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         color will be an evenly weighted average of all such
         categories with data (to avoid the color being undefined in
         this case).
+    rescale_discrete_levels : boolean, optional
+        If ``how='eq_hist`` and there are only a few discrete values,
+        then ``rescale_discrete_levels=True`` decreases the lower
+        limit of the autoranged span so that the values are rendering
+        towards the (more visible) top of the ``cmap`` range, thus
+        avoiding washout of the lower values.  Has no effect if
+        ``how!=`eq_hist``. Default is False.
     """
     if not isinstance(agg, xr.DataArray):
         raise TypeError("agg must be instance of DataArray")
@@ -514,10 +694,18 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     if not ((0 <= min_alpha <= 255) and (0 <= alpha <= 255)):
         raise ValueError("min_alpha ({}) and alpha ({}) must be between 0 and 255".format(min_alpha,alpha))
 
+    if rescale_discrete_levels and how != 'eq_hist':
+        rescale_discrete_levels = False
+
     if agg.ndim == 2:
-        return _interpolate(agg, cmap, how, alpha, span, min_alpha, name)
+        if color_key is not None and isinstance(color_key, dict):
+            return _apply_discrete_colorkey(
+                agg, color_key, alpha, name, color_baseline
+            )
+        else:
+            return _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_levels)
     elif agg.ndim == 3:
-        return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline)
+        return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline, rescale_discrete_levels)
     else:
         raise ValueError("agg must use 2D or 3D coordinates")
 
@@ -526,7 +714,7 @@ def set_background(img, color=None, name=None):
     """Return a new image, with the background set to `color`.
 
     Parameters
-    -----------------
+    ----------
     img : Image
     color : color name or tuple, optional
         The background color. Can be specified either by name, hexcode, or as a
@@ -593,6 +781,9 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
     padded_shape = (M + 2*extra, N + 2*extra)
     float_type = img.dtype in [np.float32, np.float64]
     fill_value = np.nan if float_type else 0
+    if cupy and isinstance(img.data, cupy.ndarray):
+        # Convert img.data to numpy array before passing to nb.jit kernels
+        img.data = cupy.asnumpy(img.data)
 
     if is_image:
         kernel = _build_spread_kernel(how, is_image)
@@ -744,6 +935,10 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         raise ValueError("max_px must be >= 0")
     # Simple linear search. Not super efficient, but max_px is usually small.
     float_type = img.dtype in [np.float32, np.float64]
+    if cupy and isinstance(img.data, cupy.ndarray):
+        # Convert img.data to numpy array before passing to nb.jit kernels
+        img.data = cupy.asnumpy(img.data)
+
     px_=0
     for px in range(1, max_px + 1):
         px_=px
@@ -758,7 +953,7 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         if density > threshold:
             px_=px_-1
             break
-        
+
     if px_>=1:
         return spread(img, px_, shape=shape, how=how, name=name)
     else:

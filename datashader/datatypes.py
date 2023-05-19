@@ -1,9 +1,9 @@
-from __future__ import absolute_import
+from __future__ import annotations
 
 import re
 
-from distutils.version import LooseVersion
 from functools import total_ordering
+from packaging.version import Version
 
 import numpy as np
 import pandas as pd
@@ -336,7 +336,7 @@ Cannot check equality of RaggedArray values of unequal length
                 self.start_indices, self.flat_array,
                 other.start_indices, other.flat_array)
         else:
-            # Convert other to numpy arrauy
+            # Convert other to numpy array
             if not isinstance(other, np.ndarray):
                 other_array = np.asarray(other)
             else:
@@ -449,7 +449,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
                 # check for NA values
                 isna = pd.isna(item)
                 if isna.any():
-                    if LooseVersion(pd.__version__) > '1.0.1':
+                    if Version(pd.__version__) > Version('1.0.1'):
                         item[isna] = False
                     else:
                         raise ValueError(
@@ -585,7 +585,7 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         else:
             if len(self) == 0 and len(indices) > 0:
                 raise IndexError(
-                    "Cannot do a non-empty take from an empty axis"
+                    "cannot do a non-empty take from an empty axis|out of bounds"
                 )
 
             sequence = [self[i] for i in indices]
@@ -637,6 +637,17 @@ Invalid indices for take with allow_fill True: {inds}""".format(
                 np.asarray(self))
 
         return np.array([v for v in self], dtype=dtype, copy=copy)
+
+    def tolist(self):
+        # Based on pandas ExtensionArray.tolist
+        if self.ndim > 1:
+            return [item.tolist() for item in self]
+        else:
+            return list(self)
+
+    def __array__(self, dtype=None):
+        dtype = np.dtype(object) if dtype is None else np.dtype(dtype)
+        return np.asarray(self.tolist(), dtype=dtype)
 
 
 @jit(nopython=True, nogil=True)

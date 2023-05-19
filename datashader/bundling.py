@@ -11,7 +11,7 @@ algorithm.
    https://gitlab.com/ianjcalvert/edgehammer
 """
 
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 from math import ceil
 
@@ -24,7 +24,6 @@ try:
 except Exception:
     skimage = None
 
-import numba as nb
 import numpy as np
 import pandas as pd
 import param
@@ -38,7 +37,7 @@ def distance_between(a, b):
     return (((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2))**(0.5)
 
 
-@nb.jit
+@ngjit
 def resample_segment(segments, new_segments, min_segment_length, max_segment_length, ndims):
     next_point = np.zeros(ndims, dtype=segments.dtype)
     current_point = segments[0]
@@ -71,7 +70,7 @@ def resample_segment(segments, new_segments, min_segment_length, max_segment_len
     return new_segments
 
 
-@nb.jit
+@ngjit
 def calculate_length(segments, min_segment_length, max_segment_length):
     current_point = segments[0]
     index = 1
@@ -118,7 +117,7 @@ def resample_edges(edge_segments, min_segment_length, max_segment_length, ndims)
     return replaced_edges
 
 
-@nb.jit
+@ngjit
 def smooth_segment(segments, tension, idx, idy):
     seg_length = len(segments) - 2
     for i in range(1, seg_length):
@@ -205,7 +204,7 @@ class UnweightedSegment(BaseSegment):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
-    @nb.jit
+    @ngjit
     def create_segment(edge):
         return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]])
 
@@ -228,7 +227,7 @@ class EdgelessUnweightedSegment(BaseSegment):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
-    @nb.jit
+    @ngjit
     def create_segment(edge):
         return np.array([[edge[0], edge[1]], [edge[2], edge[3]]])
 
@@ -251,7 +250,7 @@ class WeightedSegment(BaseSegment):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', params.weight]
 
     @staticmethod
-    @nb.jit
+    @ngjit
     def create_segment(edge):
         return np.array([[edge[0], edge[1], edge[2], edge[5]], [edge[0], edge[3], edge[4], edge[5]]])
 
@@ -274,7 +273,7 @@ class EdgelessWeightedSegment(BaseSegment):
         return ['src_x', 'src_y', 'dst_x', 'dst_y', params.weight]
 
     @staticmethod
-    @nb.jit
+    @ngjit
     def create_segment(edge):
         return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]])
 

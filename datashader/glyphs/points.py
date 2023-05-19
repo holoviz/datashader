@@ -1,4 +1,5 @@
-from __future__ import absolute_import, division
+from __future__ import annotations
+from packaging.version import Version
 import numpy as np
 from toolz import memoize
 
@@ -14,10 +15,19 @@ except Exception:
     cudf = None
     cuda_args = None
 
+try:
+    import spatialpandas
+except Exception:
+    spatialpandas = None
+
 
 def values(s):
     if isinstance(s, cudf.Series):
-        return s.to_gpu_array(fillna=np.nan)
+        if Version(cudf.__version__) >= Version("22.02"):
+            return s.to_cupy(na_value=np.nan)
+        else:
+            return s.to_gpu_array(fillna=np.nan)
+
     else:
         return s.values
 
@@ -36,8 +46,11 @@ class _GeometryLike(Glyph):
 
     @property
     def geom_dtypes(self):
-        from spatialpandas.geometry import GeometryDtype
-        return (GeometryDtype,)
+        if spatialpandas:
+            from spatialpandas.geometry import GeometryDtype
+            return (GeometryDtype,)
+        else:
+            return ()  # Empty tuple
 
     def validate(self, in_dshape):
         if not isinstance(in_dshape[str(self.geometry)], self.geom_dtypes):
@@ -145,7 +158,7 @@ class Point(_PointLike):
         Column names for the x and y coordinates of each point.
     """
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         x_name = self.x
         y_name = self.y
 
@@ -186,13 +199,13 @@ class Point(_PointLike):
 
         def extend(aggs, df, vt, bounds):
             yymax, xxmax = aggs[0].shape[:2]
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
 
             if cudf and isinstance(df, cudf.DataFrame):
-                xs = df[x_name].to_gpu_array(fillna=np.nan)
-                ys = df[y_name].to_gpu_array(fillna=np.nan)
+                xs = values(df[x_name])
+                ys = values(df[y_name])
                 do_extend = extend_cuda[cuda_args(xs.shape[0])]
             else:
                 xs = df[x_name].values
@@ -207,6 +220,7 @@ class Point(_PointLike):
 
 
 class MultiPointGeometry(_GeometryLike):
+    # spatialpandas must be available if a MultiPointGeometry object is created.
 
     @property
     def geom_dtypes(self):
@@ -214,7 +228,7 @@ class MultiPointGeometry(_GeometryLike):
         return PointDtype, MultiPointDtype
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
         geometry_name = self.geometry
 
         @ngjit
@@ -268,7 +282,7 @@ class MultiPointGeometry(_GeometryLike):
         def extend(aggs, df, vt, bounds):
             from spatialpandas.geometry import PointArray
 
-            aggs_and_cols = aggs + info(df)
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
             sx, tx, sy, ty = vt
             xmin, xmax, ymin, ymax = bounds
 

@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 from numbers import Number
 from math import log10
@@ -8,12 +8,11 @@ import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 import dask.array as da
-from six import string_types
 from xarray import DataArray, Dataset
 from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
-    compute_coords, dshape_from_xarray_dataset
+    dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
@@ -28,6 +27,11 @@ try:
     import dask_cudf
 except Exception:
     dask_cudf = None
+
+try:
+    import spatialpandas
+except Exception:
+    spatialpandas = None
 
 class Axis(object):
     """Interface for implementing axis transformations.
@@ -125,9 +129,11 @@ class LogAxis(Axis):
         return y**val
 
     def validate(self, range):
-        low, high = map(self.mapper, range)
-        if not (np.isfinite(low) and np.isfinite(high)):
-            raise ValueError('Range values must be >0 for a LogAxis')
+        if range is None:
+            # Nothing to check if no range
+            return
+        if range[0] <= 0 or range[1] <= 0:
+            raise ValueError('Range values must be >0 for logarithmic axes')
 
 
 _axis_lookup = {'linear': LinearAxis(), 'log': LogAxis()}
@@ -196,14 +202,14 @@ class Canvas(object):
         if geometry is None:
             glyph = Point(x, y)
         else:
-            from spatialpandas import GeoDataFrame
-            from spatialpandas.dask import DaskGeoDataFrame
-            if isinstance(source, DaskGeoDataFrame):
+            if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
                 # Downselect partitions to those that may contain points in viewport
                 x_range = self.x_range if self.x_range is not None else (None, None)
                 y_range = self.y_range if self.y_range is not None else (None, None)
                 source = source.cx_partitions[slice(*x_range), slice(*y_range)]
-            elif not isinstance(source, GeoDataFrame):
+            elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
+                pass
+            else:
                 raise ValueError(
                     "source must be an instance of spatialpandas.GeoDataFrame or \n"
                     "spatialpandas.dask.DaskGeoDataFrame.\n"
@@ -214,7 +220,7 @@ class Canvas(object):
         return bypixel(source, self, glyph, agg)
 
     def line(self, source, x=None, y=None, agg=None, axis=0, geometry=None,
-             antialias=False):
+             line_width=0, antialias=False):
         """Compute a reduction by pixel, mapping data to pixels as one or
         more lines.
 
@@ -248,13 +254,25 @@ class Canvas(object):
         geometry : str
             Column name of a LinesArray of the coordinates of each line. If provided,
             the x and y arguments may not also be provided.
-        antialias : bool
-            If True, draw anti-aliased lines, distributing the aggregate value
-            across neighboring pixels to more closely approximate the line
-            shape. If False, each position on the line affects only a single
-            pixel, resulting in line shapes that are blocky but easier to
-            reason about. Needs at least Numba 0.51.2 to work and can only
-            operate on the 'sum' or 'max' aggregators.
+        line_width : number, optional
+            Width of the line to draw, in pixels. If zero, the
+            default, lines are drawn using a simple algorithm with a
+            blocky single-pixel width based on whether the line passes
+            through each pixel or does not. If greater than one, lines
+            are drawn with the specified width using a slower and
+            more complex antialiasing algorithm with fractional values
+            along each edge, so that lines have a more uniform visual
+            appearance across all angles. Line widths between 0 and 1
+            effectively use a line_width of 1 pixel but with a
+            proportionate reduction in the strength of each pixel,
+            approximating the visual appearance of a subpixel line
+            width.
+        antialias : bool, optional
+            This option is kept for backward compatibility only.
+            ``True`` is equivalent to ``line_width=1`` and
+            ``False`` (the default) to ``line_width=0``. Do not specify
+            both ``antialias`` and ``line_width`` in the same call as a
+            ``ValueError`` will be raised if they disagree.
 
         Examples
         --------
@@ -331,15 +349,26 @@ class Canvas(object):
         if agg is None:
             agg = rd.any()
 
+        if line_width is None:
+            line_width = 0
+
+        # Check and convert antialias kwarg to line_width.
+        if antialias and line_width != 0:
+            raise ValueError(
+                "Do not specify values for both the line_width and \n"
+                "antialias keyword arguments; use line_width instead.")
+        if antialias:
+            line_width = 1.0
+
         if geometry is not None:
-            from spatialpandas import GeoDataFrame
-            from spatialpandas.dask import DaskGeoDataFrame
-            if isinstance(source, DaskGeoDataFrame):
+            if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
                 # Downselect partitions to those that may contain lines in viewport
                 x_range = self.x_range if self.x_range is not None else (None, None)
                 y_range = self.y_range if self.y_range is not None else (None, None)
                 source = source.cx_partitions[slice(*x_range), slice(*y_range)]
-            elif not isinstance(source, GeoDataFrame):
+            elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
+                pass
+            else:
                 raise ValueError(
                     "source must be an instance of spatialpandas.GeoDataFrame or \n"
                     "spatialpandas.dask.DaskGeoDataFrame.\n"
@@ -353,8 +382,8 @@ class Canvas(object):
             x, y = _broadcast_column_specifications(x, y)
 
             if axis == 0:
-                if (isinstance(x, (Number, string_types)) and
-                        isinstance(y, (Number, string_types))):
+                if (isinstance(x, (Number, str)) and
+                        isinstance(y, (Number, str))):
                     glyph = LineAxis0(x, y)
                 elif (isinstance(x, (list, tuple)) and
                         isinstance(y, (list, tuple))):
@@ -377,8 +406,8 @@ See docstring for more information on valid usage""".format(
                 elif (isinstance(x, (list, tuple)) and
                       isinstance(y, np.ndarray)):
                     glyph = LinesAxis1YConstant(tuple(x), y)
-                elif (isinstance(x, (Number, string_types)) and
-                        isinstance(y, (Number, string_types))):
+                elif (isinstance(x, (Number, str)) and
+                        isinstance(y, (Number, str))):
                     glyph = LinesAxis1Ragged(x, y)
                 else:
                     raise ValueError("""
@@ -394,15 +423,30 @@ See docstring for more information on valid usage""".format(
 The axis argument to Canvas.line must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
-        # Enable antialias if requested and if the reduction will allow it.
-        if antialias:
-            if isinstance(agg, (rd.sum, rd.max)):
-                glyph.enable_antialias()
-            else:
-                message = ("Aggresgation: '{}' is not supported by antialias".
-                           format(agg))
-                warnings.warn(message)
-        return bypixel(source, self, glyph, agg)
+        if (line_width > 0 and ((cudf and isinstance(source, cudf.DataFrame)) or
+                               (dask_cudf and isinstance(source, dask_cudf.DataFrame)))):
+            warnings.warn(
+                "Antialiased lines are not supported for CUDA-backed sources, "
+                "so reverting to line_width=0")
+            line_width = 0
+
+        glyph.set_line_width(line_width)
+
+        if glyph.antialiased:
+            # This is required to identify and report use of reductions that do
+            # not yet support antialiasing.
+            non_cat_agg = agg
+            if isinstance(non_cat_agg, rd.by):
+                non_cat_agg = non_cat_agg.reduction
+
+            if not isinstance(non_cat_agg, (
+                rd.any, rd.count, rd.max, rd.min, rd.sum, rd.summary, rd._sum_zero,
+                rd.first, rd.last, rd.mean
+            )):
+                raise NotImplementedError(
+                    f"{type(non_cat_agg)} reduction not implemented for antialiased lines")
+
+        return bypixel(source, self, glyph, agg, antialias=glyph.antialiased)
 
     def area(self, source, x, y, agg=None, axis=0, y_stack=None):
         """Compute a reduction by pixel, mapping data to pixels as a filled
@@ -544,8 +588,8 @@ The axis argument to Canvas.line must be 0 or 1
 
         if axis == 0:
             if y_stack is None:
-                if (isinstance(x, (Number, string_types)) and
-                        isinstance(y, (Number, string_types))):
+                if (isinstance(x, (Number, str)) and
+                        isinstance(y, (Number, str))):
                     glyph = AreaToZeroAxis0(x, y)
                 elif (isinstance(x, (list, tuple)) and
                       isinstance(y, (list, tuple))):
@@ -560,9 +604,9 @@ See docstring for more information on valid usage""".format(
                         x=repr(x), y=repr(y)))
             else:
                 # y_stack is not None
-                if (isinstance(x, (Number, string_types)) and
-                        isinstance(y, (Number, string_types)) and
-                        isinstance(y_stack, (Number, string_types))):
+                if (isinstance(x, (Number, str)) and
+                        isinstance(y, (Number, str)) and
+                        isinstance(y_stack, (Number, str))):
 
                     glyph = AreaToLineAxis0(x, y, y_stack)
                 elif (isinstance(x, (list, tuple)) and
@@ -593,8 +637,8 @@ See docstring for more information on valid usage""".format(
                 elif (isinstance(x, (list, tuple)) and
                       isinstance(y, np.ndarray)):
                     glyph = AreaToZeroAxis1YConstant(tuple(x), y)
-                elif (isinstance(x, (Number, string_types)) and
-                      isinstance(y, (Number, string_types))):
+                elif (isinstance(x, (Number, str)) and
+                      isinstance(y, (Number, str))):
                     glyph = AreaToZeroAxis1Ragged(x, y)
                 else:
                     raise ValueError("""
@@ -619,9 +663,9 @@ See docstring for more information on valid usage""".format(
                       isinstance(y, np.ndarray) and
                       isinstance(y_stack, np.ndarray)):
                     glyph = AreaToLineAxis1YConstant(tuple(x), y, y_stack)
-                elif (isinstance(x, (Number, string_types)) and
-                      isinstance(y, (Number, string_types)) and
-                      isinstance(y_stack, (Number, string_types))):
+                elif (isinstance(x, (Number, str)) and
+                      isinstance(y, (Number, str)) and
+                      isinstance(y_stack, (Number, str))):
                     glyph = AreaToLineAxis1Ragged(x, y, y_stack)
                 else:
                     raise ValueError("""
@@ -636,7 +680,7 @@ See docstring for more information on valid usage""".format(
                         y_stack=repr(orig_y_stack)))
         else:
             raise ValueError("""
-The axis argument to Canvas.line must be 0 or 1
+The axis argument to Canvas.area must be 0 or 1
     Received: {axis}""".format(axis=axis))
 
         return bypixel(source, self, glyph, agg)
@@ -689,14 +733,14 @@ The axis argument to Canvas.line must be 0 or 1
         """
         from .glyphs import PolygonGeom
         from .reductions import any as any_rdn
-        from spatialpandas import GeoDataFrame
-        from spatialpandas.dask import DaskGeoDataFrame
-        if isinstance(source, DaskGeoDataFrame):
+        if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
             # Downselect partitions to those that may contain polygons in viewport
             x_range = self.x_range if self.x_range is not None else (None, None)
             y_range = self.y_range if self.y_range is not None else (None, None)
             source = source.cx_partitions[slice(*x_range), slice(*y_range)]
-        elif not isinstance(source, GeoDataFrame):
+        elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
+            pass
+        else:
             raise ValueError(
                 "source must be an instance of spatialpandas.GeoDataFrame or \n"
                 "spatialpandas.dask.DaskGeoDataFrame.\n"
@@ -709,6 +753,7 @@ The axis argument to Canvas.line must be 0 or 1
 
     def quadmesh(self, source, x=None, y=None, agg=None):
         """Samples a recti- or curvi-linear quadmesh by canvas size and bounds.
+
         Parameters
         ----------
         source : xarray.DataArray or Dataset
@@ -718,6 +763,7 @@ The axis argument to Canvas.line must be 0 or 1
         agg : Reduction, optional
             Reduction to compute. Default is ``mean()``. Note that agg is ignored when
             upsampling.
+
         Returns
         -------
         data : xarray.DataArray
@@ -1019,7 +1065,6 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         if layer is not None:
             source=source.sel(**{source.dims[0]: layer})
         array = orient_array(source, res)
-        dtype = array.dtype
 
         if nan_value is not None:
             mask = array==nan_value
@@ -1041,7 +1086,9 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         height_ratio = min((ymax - ymin) / (self.y_range[1] - self.y_range[0]), 1)
 
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
-            raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
+            raise ValueError('Canvas x_range or y_range values do not match closely enough '
+                             'with the data source to be able to accurately rasterize. '
+                             'Please provide ranges that are more accurate.')
 
         w = max(int(round(self.plot_width * width_ratio)), 1)
         h = max(int(round(self.plot_height * height_ratio)), 1)
@@ -1117,19 +1164,33 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         if res[1] > 0: data = data[::-1]
         if res[0] < 0: data = data[:, ::-1]
 
-        # Restore nan_value from masked array
-        if nan_value is not None:
-            data = data.filled()
-
-        # Restore original dtype
-        if dtype != data.dtype:
-            data = data.astype(dtype)
-
         # Compute DataArray metadata
-        xs, ys = compute_coords(self.plot_width, self.plot_height, self.x_range, self.y_range, res)
+
+        # To avoid floating point representation error,
+        # do not recompute x coords if same x_range and same plot_width,
+        # do not recompute y coords if same y_range and same plot_height
+        close_x = np.allclose([left, right], self.x_range) and np.size(xvals) == self.plot_width
+        close_y = np.allclose([bottom, top], self.y_range) and np.size(yvals) == self.plot_height
+
+        if close_x:
+            xs = xvals
+        else:
+            x_st = self.x_axis.compute_scale_and_translate(self.x_range, self.plot_width)
+            xs = self.x_axis.compute_index(x_st, self.plot_width)
+            if res[0] < 0:
+                xs = xs[::-1]
+
+        if close_y:
+            ys = yvals
+        else:
+            y_st = self.y_axis.compute_scale_and_translate(self.y_range, self.plot_height)
+            ys = self.y_axis.compute_index(y_st, self.plot_height)
+            if res[1] > 0:
+                ys = ys[::-1]
+
         coords = {xdim: xs, ydim: ys}
         dims = [ydim, xdim]
-        attrs = dict(res=res[0])
+        attrs = dict(res=res[0], x_range=self.x_range, y_range=self.y_range)
 
         # Find nodata value if available in any of the common conventional locations
         # See https://corteva.github.io/rioxarray/stable/getting_started/nodata_management.html
@@ -1152,13 +1213,21 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             dims = [layer_dim]+dims
         return DataArray(data, coords=coords, dims=dims, attrs=attrs)
 
+    def validate_ranges(self, x_range, y_range):
+        self.x_axis.validate(x_range)
+        self.y_axis.validate(y_range)
+
+    def validate_size(self, width, height):
+        if width <= 0 or height <= 0:
+            raise ValueError("Invalid size: plot_width and plot_height must be bigger than 0")
+
     def validate(self):
         """Check that parameter settings are valid for this object"""
-        self.x_axis.validate(self.x_range)
-        self.y_axis.validate(self.y_range)
+        self.validate_ranges(self.x_range, self.y_range)
+        self.validate_size(self.plot_width, self.plot_height)
 
 
-def bypixel(source, canvas, glyph, agg):
+def bypixel(source, canvas, glyph, agg, *, antialias=False):
     """Compute an aggregate grouped by pixel sized bins.
 
     Aggregate input data ``source`` into a grid with shape and axis matching
@@ -1173,7 +1242,20 @@ def bypixel(source, canvas, glyph, agg):
     glyph : Glyph
     agg : Reduction
     """
+    source, dshape = _bypixel_sanitise(source, glyph, agg)
 
+    schema = dshape.measure
+    glyph.validate(schema)
+    agg.validate(schema)
+    canvas.validate()
+
+    # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+        return bypixel.pipeline(source, schema, canvas, glyph, agg, antialias=antialias)
+
+
+def _bypixel_sanitise(source, glyph, agg):
     # Convert 1D xarray DataArrays and DataSets into Dask DataFrames
     if isinstance(source, DataArray) and source.ndim == 1:
         if not source.name:
@@ -1182,7 +1264,7 @@ def bypixel(source, canvas, glyph, agg):
     if isinstance(source, Dataset) and len(source.dims) == 1:
         columns = list(source.coords.keys()) + list(source.data_vars.keys())
         cols_to_keep = _cols_to_keep(columns, glyph, agg)
-        source = source.drop([col for col in columns if col not in cols_to_keep])
+        source = source.drop_vars([col for col in columns if col not in cols_to_keep])
         source = source.to_dask_dataframe()
 
     if (isinstance(source, pd.DataFrame) or
@@ -1191,9 +1273,18 @@ def bypixel(source, canvas, glyph, agg):
         # by only retaining the necessary columns:
         # https://github.com/bokeh/datashader/issues/396
         # Preserve column ordering without duplicates
+
         cols_to_keep = _cols_to_keep(source.columns, glyph, agg)
         if len(cols_to_keep) < len(source.columns):
+            # If _sindex is set, ensure it is not dropped
+            # https://github.com/holoviz/datashader/issues/1121
+            sindex = None
+            from .glyphs.polygon import PolygonGeom
+            if isinstance(glyph, PolygonGeom):
+                sindex = getattr(source[glyph.geometry].array, "_sindex", None)
             source = source[cols_to_keep]
+            if sindex is not None and getattr(source[glyph.geometry].array, "_sindex", None) is None:
+                source[glyph.geometry].array._sindex = sindex
         dshape = dshape_from_pandas(source)
     elif isinstance(source, dd.DataFrame):
         dshape = dshape_from_dask(source)
@@ -1202,15 +1293,8 @@ def bypixel(source, canvas, glyph, agg):
         dshape = dshape_from_xarray_dataset(source)
     else:
         raise ValueError("source must be a pandas or dask DataFrame")
-    schema = dshape.measure
-    glyph.validate(schema)
-    agg.validate(schema)
-    canvas.validate()
 
-    # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
-    with np.warnings.catch_warnings():
-        np.warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
-        return bypixel.pipeline(source, schema, canvas, glyph, agg)
+    return source, dshape
 
 
 def _cols_to_keep(columns, glyph, agg):
@@ -1218,16 +1302,19 @@ def _cols_to_keep(columns, glyph, agg):
     for col in glyph.required_columns():
         cols_to_keep[col] = True
 
-    if hasattr(agg, 'values'):
-        for subagg in agg.values:
-            if subagg.column is not None:
-                cols_to_keep[subagg.column] = True
-    elif hasattr(agg, 'columns'):
-        for column in agg.columns:
-            if column is not None:
-                cols_to_keep[column] = True
-    elif agg.column is not None:
-        cols_to_keep[agg.column] = True
+    def recurse(cols_to_keep, agg):
+        if hasattr(agg, 'values'):
+            for subagg in agg.values:
+                recurse(cols_to_keep, subagg)
+        elif hasattr(agg, 'columns'):
+            for column in agg.columns:
+                if column is not None:
+                    cols_to_keep[column] = True
+        elif agg.column is not None:
+            cols_to_keep[agg.column] = True
+
+    recurse(cols_to_keep, agg)
+
     return [col for col, keepit in cols_to_keep.items() if keepit]
 
 
@@ -1239,7 +1326,7 @@ def _broadcast_column_specifications(*args):
     else:
         n = lengths.pop()
         return tuple(
-            (arg,) * n if isinstance(arg, (Number, string_types)) else arg
+            (arg,) * n if isinstance(arg, (Number, str)) else arg
             for arg in args
         )
 

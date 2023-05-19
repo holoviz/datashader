@@ -5,7 +5,7 @@ Getting Started
 Installation
 ------------
 
-Datashader supports Python 2.7, 3.5, 3.6, and 3.7 on Linux, Windows, or Mac
+Datashader supports Python 3.7, 3.8, 3.9 and 3.10 on Linux, Windows, or Mac
 and can be installed with conda::
 
     conda install datashader
@@ -50,10 +50,6 @@ Usage
 .. toctree::
     :titlesonly:
     :maxdepth: 2
-
-    1 Introduction <Introduction>
-    2 Pipeline <Pipeline>
-    3 Interactivity <Interactivity>
 
 If you have any questions, please refer to `FAQ <../FAQ>`_
 and if that doesn't help, feel free to post an

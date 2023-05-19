@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import annotations
 import datashader as ds
 import datashader.transfer_functions as tf
 

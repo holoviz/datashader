@@ -8,7 +8,7 @@ Test files may be generated starting from any file format supported by Pandas:
   python -c "import filetimes ; filetimes.base='<hdf5base>' ; filetimes.categories=['<cat1>','<cat2>']; filetimes.timed_write('<file>')"
 """
 
-from __future__ import print_function
+from __future__ import annotations
 
 import time
 global_start = time.time()
@@ -18,7 +18,6 @@ import pandas as pd
 import dask.dataframe as dd
 import numpy as np
 import datashader as ds
-import bcolz
 import feather
 import fastparquet as fp
 
@@ -108,7 +107,7 @@ def benchmark(fn, args, filetype=None):
 
 
 
-read = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","h5","csv"]])
+read = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","feather","h5","csv"]])
 
 def read_csv_dask(filepath, usecols=None):
     # Pandas writes CSV files out as a single file
@@ -123,7 +122,6 @@ def read_feather_dask(filepath):
     df = feather.read_dataframe(filepath, columns=p.columns)
     return dd.from_pandas(df, npartitions=p.n_workers)
 read["feather"]      ["dask"] = lambda filepath,p,filetype:  benchmark(read_feather_dask, (filepath,), filetype)
-read["bcolz"]        ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), filetype)
 read["parq"]         ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
 read["gz.parq"]      ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
 read["snappy.parq"]  ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
@@ -138,9 +136,6 @@ def read_csv_pandas(filepath, usecols=None):
 read["csv"]         ["pandas"] = lambda filepath,p,filetype:  benchmark(read_csv_pandas, (filepath, Kwargs(usecols=p.columns)), filetype)
 read["h5"]          ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)), filetype)
 read["feather"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(feather.read_dataframe, (filepath,), filetype)
-def read_bcolz_pandas(filepath, chunksize=None):
-    return bcolz.ctable(rootdir=filepath).todataframe(columns=p.columns)
-read["bcolz"]       ["pandas"]   = lambda filepath,p,filetype:  benchmark(read_bcolz_pandas, (filepath, Kwargs(chunksize=1000000)), filetype)
 def read_parq_pandas(filepath):
     return fp.ParquetFile(filepath).to_pandas()
 read["parq"]        ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
@@ -148,13 +143,10 @@ read["gz.parq"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(read_par
 read["snappy.parq"] ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
 
 
-write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","h5","csv"]])
+write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","feather","h5","csv"]])
 
 write["csv"]          ["dask"]   = lambda df,filepath,p:  benchmark(df.to_csv, (filepath.replace(".csv","*.csv"), Kwargs(index=False)))
 write["h5"]           ["dask"]   = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, p.base))
-def write_bcolz_dask(filepath, df):
-    return bcolz.ctable.fromdataframe(df.compute(), rootdir=filepath)
-write["bcolz"]        ["dask"] = lambda df,filepath,p:  benchmark(write_bcolz_dask, (filepath, df))
 def write_feather_dask(filepath, df):
     return feather.write_dataframe(df.compute(), filepath)
 write["feather"]      ["dask"] = lambda df,filepath,p:  benchmark(write_feather_dask, (filepath, df))
@@ -164,7 +156,6 @@ write["gz.parq"]      ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parque
 
 write["csv"]          ["pandas"] = lambda df,filepath,p:  benchmark(df.to_csv, (filepath, Kwargs(index=False)))
 write["h5"]           ["pandas"] = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, Kwargs(key=p.base, format='table')))
-write["bcolz"]        ["pandas"] = lambda df,filepath,p:  benchmark(bcolz.ctable.fromdataframe, (df, Kwargs(rootdir=filepath)))
 write["feather"]      ["pandas"] = lambda df,filepath,p:  benchmark(feather.write_dataframe, (df, filepath))
 write["parq"]         ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(**p.parq_opts)))
 write["gz.parq"]      ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(compression='GZIP', **p.parq_opts)))
