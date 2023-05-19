@@ -14,7 +14,8 @@ from numba import cuda as nb_cuda
 try:
     from datashader.transfer_functions._cuda_utils import (
         cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args,
-        cuda_nanmax_n_in_place, cuda_nanmin_n_in_place, cuda_row_min_in_place)
+        cuda_nanmax_n_in_place, cuda_nanmin_n_in_place, cuda_row_min_in_place,
+        cuda_row_max_n_in_place, cuda_row_min_n_in_place)
 except ImportError:
     (cuda_atomic_nanmin, cuda_atomic_nanmmax, cuda_args, cuda_nanmax_n_in_place,
      cuda_nanmin_n_in_place) = None, None, None, None, None
@@ -1679,19 +1680,41 @@ class where(FloatingReduction):
     @staticmethod
     @ngjit
     def _append_antialias(x, y, agg, field, aa_factor, update_index):
-        agg[y, x] = field
-        return update_index
+        # Ignore aa_factor.
+        if agg.ndim > 2:
+            # Bump previous values along to make room for new value.
+            n = agg.shape[2]
+            for i in range(n-1, update_index, -1):
+                agg[y, x, i] = agg[y, x, i-1]
+            agg[y, x, update_index] = field
+        else:
+            agg[y, x] = field
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_antialias_cuda(x, y, agg, field, aa_factor, update_index):
-        agg[y, x] = field
+        # Ignore aa_factor
+        if agg.ndim > 2:
+            # Bump previous values along to make room for new value.
+            n = agg.shape[2]
+            for i in range(n-1, update_index, -1):
+                agg[y, x, i] = agg[y, x, i-1]
+            agg[y, x, update_index] = field
+        else:
+            agg[y, x] = field
         return update_index
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field, update_index):
-        agg[y, x] = field
+        if agg.ndim > 2:
+            # Bump previous values along to make room for new value.
+            n = agg.shape[2]
+            for i in range(n-1, update_index, -1):
+                agg[y, x, i] = agg[y, x, i-1]
+            agg[y, x, update_index] = field
+        else:
+            agg[y, x] = field
         return update_index
 
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
@@ -1719,13 +1742,13 @@ class where(FloatingReduction):
             return selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
 
     def _build_combine(self, dshape, antialias, cuda, partitioned):
-        if cuda and self.selector.uses_cuda_mutex():
-            raise NotImplementedError(
-                "'where' reduction does not support a selector that uses a CUDA mutex such as 'max_n'")
-
         # Does not support categorical reductions.
         selector = self.selector
-        append = selector._append
+        if cuda:
+            print("get append_cuda from selector", selector)
+            append = selector._append_cuda
+        else:
+            append = selector._append
 
         # If the selector uses a row_index then selector_aggs will be int64 with -1
         # representing missing data. Otherwise missing data is NaN.
@@ -1769,6 +1792,7 @@ class where(FloatingReduction):
                     aggs[0][y, x] = aggs[1][y, x]
 
         def wrapped_combine(aggs, selector_aggs):
+            print("==> calling where.wrapped_combine")
             if len(aggs) == 1:
                 pass
             elif cuda:
@@ -1806,6 +1830,10 @@ class where(FloatingReduction):
         def finalize(bases, cuda=False, **kwargs):
             if add_finalize_kwargs is not None:
                 kwargs = add_finalize_kwargs(**kwargs)
+
+            print("==> where.finalize", len(bases))
+            for i in range(len(bases)):
+                print(" ", i, bases[i].dtype, bases[i].tolist())
 
             return xr.DataArray(bases[-1], **kwargs)
 
@@ -1943,15 +1971,11 @@ class _min_row_index(_max_or_min_row_index):
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_cuda(x, y, agg, field, mutex):
+    def _append_cuda(x, y, agg, field):
         # field is int64 row index
-        index = (y, x)
-        cuda_mutex_lock(mutex, index)
         if field != -1 and (agg[y, x] == -1 or field < agg[y, x]):
             agg[y, x] = field
-            cuda_mutex_unlock(mutex, index)
             return 0
-        cuda_mutex_unlock(mutex, index)
         return -1
 
     def _build_combine(self, dshape, antialias, cuda, partitioned):
@@ -2005,6 +2029,12 @@ class _max_n_or_min_n_row_index(FloatingNReduction):
         else:
             return self._append
 
+    def _build_combine(self, dshape, antialias, cuda, partitioned):
+        if cuda:
+            return self._combine_cuda
+        else:
+            return self._combine
+
 
 class _max_n_row_index(_max_n_or_min_n_row_index):
     """Max_n reduction operating on row index.
@@ -2030,11 +2060,38 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
                     return i
         return -1
 
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field):
+        # field is int64 row index
+        if field != -1:
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if agg[y, x, i] == -1 or field > agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+                    return i
+        return -1
+
     @staticmethod
     def _combine(aggs):
         if len(aggs) > 1:
             row_max_n_in_place(aggs[0], aggs[1])
         return aggs[0]
+
+    @staticmethod
+    def _combine_cuda(aggs):
+        ret = aggs[0]
+        if len(aggs) > 1:
+            kernel_args = cuda_args(ret.shape[:2])
+            for i in range(1, len(aggs)):
+                cuda_row_max_n_in_place[kernel_args](ret, aggs[i])
+        return ret
 
 
 class _min_n_row_index(_max_n_or_min_n_row_index):
@@ -2062,10 +2119,36 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
         return -1
 
     @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, agg, field):
+        # field is int64 row index
+        if field != -1:
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if agg[y, x, i] == -1 or field < agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
+                    return i
+        return -1
+
+    @staticmethod
     def _combine(aggs):
         if len(aggs) > 1:
             row_min_n_in_place(aggs[0], aggs[1])
         return aggs[0]
+
+    @staticmethod
+    def _combine_cuda(aggs):
+        ret = aggs[0]
+        if len(aggs) > 1:
+            kernel_args = cuda_args(ret.shape[:2])
+            for i in range(1, len(aggs)):
+                cuda_row_min_n_in_place[kernel_args](ret, aggs[i])
+        return ret
 
 
 __all__ = list(set([_k for _k,_v in locals().items()

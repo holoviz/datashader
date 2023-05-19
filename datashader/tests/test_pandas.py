@@ -30,7 +30,6 @@ df_pd.cat = df_pd.cat.astype('category')
 df_pd.at[2,'f32'] = nan
 df_pd.at[2,'f64'] = nan
 df_pd.at[2,'plusminus'] = nan
-dfs_pd = [df_pd]
 
 test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
@@ -214,7 +213,7 @@ def test_max(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', dfs)
 def test_min_n(df):
     solution = np.array([[[-3, -1, 0, 4, nan, nan], [-13, -11, 10, 12, 14, nan]],
                          [[-9, -7, -5, 6, 8, nan], [-19, -17, -15, 16, 18, nan]]])
@@ -226,7 +225,7 @@ def test_min_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.min('plusminus')).data)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', dfs)
 def test_max_n(df):
     solution = np.array([[[4, 0, -1, -3, nan, nan], [14, 12, 10, -11, -13, nan]],
                          [[8, 6, -5, -7, -9, nan], [18, 16, -15, -17, -19, nan]]])
@@ -236,6 +235,50 @@ def test_max_n(df):
         assert_eq_ndarray(agg.data, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.max('plusminus')).data)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_where_min_row_index(df):
+    out = xr.DataArray([[0, 10], [-5, -15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds._min_row_index(), 'plusminus')), out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_where_max_row_index(df):
+    out = xr.DataArray([[4, 14], [-9, -19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds._max_row_index(), 'plusminus')), out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_where_min_n_row_index(df):
+    sol = np.array([[[  0,  -1, nan,  -3,   4, nan],
+                     [ 10, -11,  12, -13,  14, nan]],
+                    [[ -5,   6,  -7,   8,  -9, nan],
+                     [-15,  16, -17,  18, -19, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.where(ds._min_n_row_index(n=n), 'plusminus'))
+        out = sol[:, :, :n]
+        print(n, agg.data.tolist())
+        print(' ', out.tolist())
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds._min_row_index(), 'plusminus')).data)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_where_max_n_row_index(df):
+    sol = np.array([[[  4,  -3, nan,  -1,   0, nan],
+                     [ 14, -13,  12, -11,  10, nan]],
+                    [[ -9,   8,  -7,   6,  -5, nan],
+                     [-19,  18, -17,  16, -15, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.where(ds._max_n_row_index(n=n), 'plusminus'))
+        out = sol[:, :, :n]
+        print(n, agg.data.tolist())
+        print(' ', out.tolist())
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds._max_row_index(), 'plusminus')).data)
 
 
 @pytest.mark.parametrize('df', [df_pd])
@@ -256,7 +299,7 @@ def test_where_first(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('f32'))), out)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', dfs)
 def test_where_last(df):
     # Note reductions like ds.where(ds.last('i32'), 'reverse') are supported,
     # but the same results can be achieved using the simpler ds.last('reverse')
@@ -306,7 +349,7 @@ def test_where_min(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'))), out)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', [df_pd])
 def test_where_first_n(df):
     sol_rowindex = np.array([[[ 0,  1,  3,  4, -1, -1],
                               [10, 11, 12, 13, 14, -1]],
@@ -330,7 +373,7 @@ def test_where_first_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.first('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', [df_pd])
 def test_where_last_n(df):
     sol_rowindex = np.array([[[ 4,  3,  1,  0, -1, -1],
                               [14, 13, 12, 11, 10, -1]],
@@ -354,7 +397,7 @@ def test_where_last_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.last('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', dfs)
 def test_where_max_n(df):
     sol_rowindex = np.array([[[ 4,  0,  1,  3, -1, -1],
                               [14, 12, 10, 11, 13, -1]],
@@ -378,7 +421,7 @@ def test_where_max_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.max('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', dfs)
 def test_where_min_n(df):
     sol_rowindex = np.array([[[3,  1,  0,  4, -1, -1],
                               [13, 11, 10, 12, 14, -1]],
@@ -402,9 +445,9 @@ def test_where_min_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.min('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', dfs)
 def test_summary_where_n(df):
-    sol_min_n_rowindex = np.array([[[3,  1,  0,  4, -1],
+    sol_min_n_rowindex = np.array([[[ 3,  1,  0,  4, -1],
                                     [13, 11, 10, 12, 14]],
                                    [[ 9,  7,  5,  6,  8],
                                     [19, 17, 15, 16, 18]]])
@@ -434,7 +477,7 @@ def test_summary_where_n(df):
     assert_eq_ndarray(agg['max_n'].data, sol_max_n_reverse)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', dfs)
 def test_summary_different_n(df):
     msg = 'Using multiple FloatingNReductions with different n values is not supported'
     with pytest.raises(ValueError, match=msg):
@@ -829,13 +872,43 @@ def test_last_n(df):
 @pytest.mark.parametrize('df', dfs)
 def test_min_row_index(df):
     out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
-    assert_eq_xr(c.points(df, 'x', 'y', ds._min_row_index()), out)
+    agg = c.points(df, 'x', 'y', ds._min_row_index())
+    assert agg.dtype == np.int64
+    assert_eq_xr(agg, out)
 
 
 @pytest.mark.parametrize('df', dfs)
 def test_max_row_index(df):
     out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
-    assert_eq_xr(c.points(df, 'x', 'y', ds._max_row_index()), out)
+    agg = c.points(df, 'x', 'y', ds._max_row_index())
+    assert agg.dtype == np.int64
+    assert_eq_xr(agg, out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_min_n_row_index(df):
+    solution = np.array([[[0, 1, 2, 3, 4, -1], [10, 11, 12, 13, 14, -1]],
+                         [[5, 6, 7, 8, 9, -1], [15, 16, 17, 18, 19, -1]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds._min_n_row_index(n=n))
+        assert agg.dtype == np.int64
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds._min_row_index()).data)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_max_n_row_index(df):
+    solution = np.array([[[4, 3, 2, 1, 0, -1], [14, 13, 12, 11, 10, -1]],
+                         [[9, 8, 7, 6, 5, -1], [19, 18, 17, 16, 15, -1]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds._max_n_row_index(n=n))
+        assert agg.dtype == np.int64
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds._max_row_index()).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -1092,7 +1165,7 @@ def test_lines_on_edge():
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs_pd)
+@pytest.mark.parametrize('df', dfs)
 def test_log_axis_line(df):
     axis = ds.core.LogAxis()
     logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
