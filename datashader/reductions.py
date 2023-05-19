@@ -256,10 +256,14 @@ class Reduction(Expr):
     """Base class for per-bin reductions."""
     def __init__(self, column=None):
         self.column = column
+        self._nan_check_column = None
 
     @property
     def nan_check_column(self):
-        return None
+        if self._nan_check_column is not None:
+            return extract(self._nan_check_column)
+        else:
+            return None
 
     def uses_cuda_mutex(self):
         return False
@@ -399,7 +403,7 @@ class Reduction(Expr):
 class OptionalFieldReduction(Reduction):
     """Base class for things like ``count`` or ``any`` for which the field is optional"""
     def __init__(self, column=None):
-        self.column = column
+        super().__init__(column)
 
     @property
     def inputs(self):
@@ -594,6 +598,8 @@ class by(Reduction):
         Per-category reduction function.
     """
     def __init__(self, cat_column, reduction=count()):
+        super().__init__()
+        
         # set basic categorizer
         if isinstance(cat_column, CategoryPreprocess):
             self.categorizer = cat_column
@@ -606,7 +612,7 @@ class by(Reduction):
             raise TypeError(
                 "'by' reduction does not support 'where' reduction for its first argument")
 
-        self.column = self.categorizer.column # for backwards compatibility with count_cat
+        self.categorizer.column # for backwards compatibility with count_cat
         self.columns = (self.categorizer.column, getattr(reduction, 'column', None))
         self.reduction = reduction
         # if a value column is supplied, set category_values preprocessor
@@ -1187,6 +1193,7 @@ class _first_or_last(Reduction):
 
     def _build_bases(self, cuda, partitioned):
         if self.uses_row_index(cuda, partitioned):
+            print("==> _first_or_last._build_bases -> 2")
             row_index_selector = self._create_row_index_selector()
             wrapper = where(selector=row_index_selector, lookup_column=self.column)
             wrapper._nan_check_column = self.column
@@ -1336,6 +1343,7 @@ class _first_n_or_last_n(FloatingNReduction):
 
     def _build_bases(self, cuda, partitioned):
         if self.uses_row_index(cuda, partitioned):
+            print("==> _first_n_or_last_n._build_bases -> 2")
             row_index_selector = self._create_row_index_selector()
             wrapper = where(selector=row_index_selector, lookup_column=self.column)
             wrapper._nan_check_column = self.column
@@ -1609,17 +1617,10 @@ class where(FloatingReduction):
         self.selector = selector
         # List of all column names that this reduction uses.
         self.columns = (selector.column, lookup_column)
-        self._nan_check_column = None
+        print("WHERE COLUMNS", self.columns)
 
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.selector))
-
-    @property
-    def nan_check_column(self):
-        if self._nan_check_column is not None:
-            return extract(self._nan_check_column)
-        else:
-            return None
 
     def out_dshape(self, input_dshape, antialias, cuda, partitioned):
         if self.column is None:
@@ -1722,10 +1723,17 @@ class where(FloatingReduction):
     def _build_bases(self, cuda, partitioned):
         selector = self.selector
         if isinstance(selector, (_first_or_last, _first_n_or_last_n)) and selector.uses_row_index(cuda, partitioned):
+            # Need to swap out the selector with an equivalent row index selector
             row_index_selector = selector._create_row_index_selector()
-            new_where = where(row_index_selector, self.column)
-            new_where._nan_check_column = self.selector.column
-            return row_index_selector._build_bases(cuda, partitioned) + new_where._build_bases(cuda, partitioned)
+            if self.column is None:
+                # If selector uses a row index and this where returns the same row index,
+                # can just swap out this where reduction with the row_index_selector.
+                row_index_selector._nan_check_column = self.selector.column
+                return row_index_selector._build_bases(cuda, partitioned)
+            else:
+                new_where = where(row_index_selector, self.column)
+                new_where._nan_check_column = self.selector.column
+                return row_index_selector._build_bases(cuda, partitioned) + new_where._build_bases(cuda, partitioned)
         else:
             return selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
 

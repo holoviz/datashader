@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 
 from .reductions import by, category_codes, summary, where
-from .utils import ngjit
+from .utils import isnull, ngjit
 
 try:
     from datashader.transfer_functions._cuda_utils import cuda_mutex_lock, cuda_mutex_unlock
@@ -172,6 +172,9 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
     names = ('_{0}'.format(i) for i in count())
     inputs = list(bases) + list(cols)
     namespace = {}
+    need_isnull = any(call[3] for call in calls)
+    if need_isnull:
+        namespace["isnull"] = isnull
     any_uses_cuda_mutex = any(call[6] for call in calls)
     if any_uses_cuda_mutex:
         # This adds an argument to the append() function that is the cuda mutex
@@ -240,7 +243,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
                 print("==> nan_check_column", nan_check_column.column, nan_check_column)
                 var = f"{arg_lk[nan_check_column]}[{subscript}]"
                 prev_body = body[-1]
-                body[-1] = f'if {var}<=0 or {var}>0:'  # Inline CUDA-friendly 'is not nan' test
+                body[-1] = f'if not isnull({var}):'
                 body.append(f'    {prev_body}')
                 whitespace = '    '
 
@@ -249,7 +252,13 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         else:
             if uses_cuda_mutex and not prev_cuda_mutex:
                 body.append(f'cuda_mutex_lock({arg_lk["_cuda_mutex"]}, (y, x))')
-            body.append(f'{func_name}(x, y, {", ".join(args)})')
+            if nan_check_column:
+                print("==> nan_check_column")
+                var = f"{arg_lk[nan_check_column]}[{subscript}]"
+                body.append(f'if not isnull({var}):')
+                body.append(f'    {func_name}(x, y, {", ".join(args)})')
+            else:
+                body.append(f'{func_name}(x, y, {", ".join(args)})')
 
         if uses_cuda_mutex:
             body.append(f'cuda_mutex_unlock({arg_lk["_cuda_mutex"]}, (y, x))')
