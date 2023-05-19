@@ -1014,7 +1014,7 @@ class min(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if isnull(agg[y, x]) or agg[y, x] > field:
+        if not isnull(field) and (isnull(agg[y, x]) or agg[y, x] > field):
             agg[y, x] = field
             return 0
         return -1
@@ -1023,7 +1023,7 @@ class min(FloatingReduction):
     @ngjit
     def _append_antialias(x, y, agg, field, aa_factor):
         value = field*aa_factor
-        if isnull(agg[y, x]) or value > agg[y, x]:
+        if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
             agg[y, x] = value
             return 0
         return -1
@@ -1059,7 +1059,7 @@ class max(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if isnull(agg[y, x]) or agg[y, x] < field:
+        if not isnull(field) and (isnull(agg[y, x]) or agg[y, x] < field):
             agg[y, x] = field
             return 0
         return -1
@@ -1068,7 +1068,7 @@ class max(FloatingReduction):
     @ngjit
     def _append_antialias(x, y, agg, field, aa_factor):
         value = field*aa_factor
-        if isnull(agg[y, x]) or value > agg[y, x]:
+        if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
             agg[y, x] = value
             return 0
         return -1
@@ -1243,7 +1243,7 @@ class first(_first_or_last):
     @ngjit
     def _append_antialias(x, y, agg, field, aa_factor):
         value = field*aa_factor
-        if isnull(agg[y, x]) or value > agg[y, x]:
+        if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
             agg[y, x] = value
             return 0
         return -1
@@ -1281,7 +1281,7 @@ class last(_first_or_last):
     @ngjit
     def _append_antialias(x, y, agg, field, aa_factor):
         value = field*aa_factor
-        if isnull(agg[y, x]) or value > agg[y, x]:
+        if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
             agg[y, x] = value
             return 0
         return -1
@@ -1961,6 +1961,7 @@ class _min_row_index(_max_or_min_row_index):
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         # field is int64 row index
+        # Always uses cuda mutex so this does not need to be atomic
         if field != -1 and (agg[y, x] == -1 or field < agg[y, x]):
             agg[y, x] = field
             return 0
@@ -2053,6 +2054,7 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         # field is int64 row index
+        # Always uses cuda mutex so this does not need to be atomic
         if field != -1:
             # Linear walk along stored values.
             # Could do binary search instead but not expecting n to be large.
@@ -2110,6 +2112,7 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
         # field is int64 row index
+        # Always uses cuda mutex so this does not need to be atomic
         if field != -1:
             # Linear walk along stored values.
             # Could do binary search instead but not expecting n to be large.
