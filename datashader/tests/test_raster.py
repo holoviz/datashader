@@ -11,6 +11,10 @@ try:
 except ImportError:
     rioxarray = None
 
+from dask.context import config
+
+config.set(scheduler='synchronous')
+
 open_rasterio_available = pytest.mark.skipif(rioxarray is None and rasterio is None, reason="requires rioxarray or rasterio")
 
 from os import path
