@@ -1185,11 +1185,6 @@ class _first_or_last(Reduction):
     def _antialias_requires_2_stages(self):
         return True
 
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        if cuda:
-            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
-        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
-
     def _build_bases(self, cuda, partitioned):
         if self.uses_row_index(cuda, partitioned):
             row_index_selector = self._create_row_index_selector()
@@ -1334,17 +1329,10 @@ class _first_n_or_last_n(FloatingNReduction):
     """Abstract base class of first_n and last_n reductions.
     """
     def uses_row_index(self, cuda, partitioned):
-        if cuda:
-            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
-        return partitioned
+        return cuda or partitioned
 
     def _antialias_requires_2_stages(self):
         return True
-
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        if cuda:
-            raise ValueError(f"'{type(self).__name__}' reduction is not supported on the GPU")
-        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     def _build_bases(self, cuda, partitioned):
         if self.uses_row_index(cuda, partitioned):

@@ -281,7 +281,7 @@ def test_where_max_n_row_index(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds._max_row_index(), 'plusminus')).data)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs)
 def test_where_first(df):
     # Note reductions like ds.where(ds.first('i32'), 'reverse') are supported,
     # but the same results can be achieved using the simpler ds.first('reverse')
@@ -349,7 +349,7 @@ def test_where_min(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'))), out)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs)
 def test_where_first_n(df):
     sol_rowindex = np.array([[[ 0,  1,  3,  4, -1, -1],
                               [10, 11, 12, 13, 14, -1]],
@@ -373,7 +373,7 @@ def test_where_first_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.first('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs)
 def test_where_last_n(df):
     sol_rowindex = np.array([[[ 4,  3,  1,  0, -1, -1],
                               [14, 13, 12, 11, 10, -1]],
@@ -827,7 +827,7 @@ def test_categorical_std(df):
         assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs)
 def test_first(df):
     out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.first('i32')), out)
@@ -836,7 +836,7 @@ def test_first(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.first('f64')), out)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs)
 def test_last(df):
     out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.last('i32')), out)
@@ -845,7 +845,7 @@ def test_last(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.last('f64')), out)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs)
 def test_first_n(df):
     solution = np.array([[[0, -1, -3, 4, nan, nan], [10, -11, 12, -13, 14, nan]],
                          [[-5, 6, -7, 8, -9, nan], [-15, 16, -17, 18, -19, nan]]])
@@ -857,7 +857,7 @@ def test_first_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.first('plusminus')).data)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs)
 def test_last_n(df):
     solution = np.array([[[4, -3, -1, 0, nan, nan], [14, -13, 12, -11, 10, nan]],
                          [[-9, 8, -7, 6, -5, nan], [-19, 18, -17, 16, -15, nan]]])
@@ -2739,15 +2739,3 @@ def test_canvas_size():
     for cvs in cvs_list:
         with pytest.raises(ValueError, match=msg):
             cvs.points(df, "x", "y", ds.mean("z"))
-
-
-@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
-@pytest.mark.parametrize('reduction', [
-    ds.first_n('f64', n=3),
-    ds.last_n('f64', n=3),
-    ds.where(ds.first_n('f64', n=3)),
-    ds.where(ds.last_n('f64', n=3)),
-])
-def test_reduction_on_cuda_raises_error(reduction):
-    with pytest.raises(ValueError, match="not supported on the GPU"):
-        c.points(df_cuda, 'x', 'y', reduction)
