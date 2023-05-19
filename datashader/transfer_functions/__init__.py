@@ -379,7 +379,9 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     color_data = data.copy()
 
     # subtract color_baseline if needed
-    baseline = np.nanmin(color_data) if color_baseline is None else color_baseline
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', r'All-NaN slice encountered')
+        baseline = np.nanmin(color_data) if color_baseline is None else color_baseline
     with np.errstate(invalid='ignore'):
         if baseline > 0:
             color_data -= baseline
@@ -444,7 +446,9 @@ def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_d
     # if span is provided, use it, otherwise produce a span based off the
     # min/max of the data
     if span is None:
-        offset = np.nanmin(total)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'All-NaN slice encountered')
+            offset = np.nanmin(total)
         if total.dtype.kind == 'u' and offset == 0:
             mask = mask | (total == 0)
             # If at least one element is not masked, use the minimum as the offset
