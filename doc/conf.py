@@ -13,8 +13,7 @@ version = release  = base_version(__version__)
 html_static_path += ['_static']
 html_theme = 'pydata_sphinx_theme'
 
-html_css_files = [
-    'nbsite.css',
+html_css_files += [
     'css/custom.css'
 ]
 
@@ -27,12 +26,12 @@ html_theme_options.update({
         {
             'name': 'Twitter',
             'url': 'https://twitter.com/datashader',
-            'icon': 'fab fa-twitter-square',
+            'icon': 'fa-brands fa-twitter-square',
         },
         {
             'name': 'Discourse',
             'url': 'https://discourse.holoviz.org/c/datashader/',
-            'icon': 'fab fa-discourse',
+            'icon': 'fa-brands fa-discourse',
         },
         {
             "name": "HoloViz",
@@ -40,13 +39,15 @@ html_theme_options.update({
             "icon": "_static/holoviz-icon-white.svg",
             "type": "local",
         },
+        {
+            "name": "Discord",
+            "url": "https://discord.gg/AXRHnJU6sP",
+            "icon": "fa-brands fa-discord",
+        },
     ],
-    'google_analytics_id': 'UA-154795830-1',
+    "analytics": {"google_analytics_id": "UA-154795830-1"},
+    "pygment_dark_style": "material"
 })
-
-templates_path += [
-    '_templates'
-]
 
 html_context.update({
     # Used to add binder links to the latest released tag.
@@ -58,8 +59,7 @@ html_context.update({
 
 extensions += [
     'sphinx.ext.autosummary',
-    'numpydoc',
-    'sphinx_copybutton',
+    'numpydoc'
 ]
 
 nbbuild_cell_timeout = 2000
