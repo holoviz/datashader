@@ -1070,6 +1070,8 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             mask = array==nan_value
             array = np.ma.masked_array(array, mask=mask, fill_value=nan_value)
             fill_value = nan_value
+        elif np.issubdtype(source.dtype, np.integer):
+            fill_value = 0
         else:
             fill_value = np.NaN
 
