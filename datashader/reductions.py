@@ -13,10 +13,11 @@ from numba import cuda as nb_cuda
 
 try:
     from datashader.transfer_functions._cuda_utils import (
-        cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args, cuda_mutex_lock, cuda_mutex_unlock,
+        cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args,
         cuda_nanmax_n_in_place, cuda_nanmin_n_in_place)
 except ImportError:
-    cuda_atomic_nanmin, cuda_atomic_nanmmax, cuda_args = None, None, None
+    (cuda_atomic_nanmin, cuda_atomic_nanmmax, cuda_args, cuda_nanmax_n_in_place,
+     cuda_nanmin_n_in_place) = None, None, None, None, None
 
 try:
     import cudf
@@ -524,12 +525,20 @@ class count(SelfIntersectingOptionalFieldReduction):
     @nb_cuda.jit(device=True)
     def _append_antialias_cuda(x, y, agg, field, aa_factor):
         value = field*aa_factor
-        return 0 if cuda_atomic_nanmax(agg, (y, x), value) != value else -1
+        if not isnull(value):
+            old = cuda_atomic_nanmax(agg, (y, x), value)
+            if isnull(old) or old < value:
+                return 0
+        return -1
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_no_field_antialias_cuda_not_self_intersect(x, y, agg, aa_factor):
-        return 0 if cuda_atomic_nanmax(agg, (y, x), aa_factor) != aa_factor else -1
+        if not isnull(aa_factor):
+            old = cuda_atomic_nanmax(agg, (y, x), aa_factor)
+            if isnull(old) or old < aa_factor:
+                return 0
+        return -1
 
     @staticmethod
     @nb_cuda.jit(device=True)
@@ -542,7 +551,11 @@ class count(SelfIntersectingOptionalFieldReduction):
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_no_field_antialias_cuda(x, y, agg, aa_factor):
-        return 0 if cuda_atomic_nanmax(agg, (y, x), aa_factor) != aa_factor else -1
+        if not isnull(aa_factor):
+            old = cuda_atomic_nanmax(agg, (y, x), aa_factor)
+            if isnull(old) or old < aa_factor:
+                return 0
+        return -1
 
     @staticmethod
     @nb_cuda.jit(device=True)
@@ -1018,7 +1031,11 @@ class min(FloatingReduction):
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
-        return 0 if cuda_atomic_nanmin(agg, (y, x), field) != field else -1
+        if not isnull(field):
+            old = cuda_atomic_nanmin(agg, (y, x), field)
+            if isnull(old) or old > field:
+                return 0
+        return -1
 
     @staticmethod
     def _combine(aggs):
@@ -1060,12 +1077,20 @@ class max(FloatingReduction):
     @nb_cuda.jit(device=True)
     def _append_antialias_cuda(x, y, agg, field, aa_factor):
         value = field*aa_factor
-        return 0 if cuda_atomic_nanmax(agg, (y, x), value) != value else -1
+        if not isnull(value):
+            old = cuda_atomic_nanmax(agg, (y, x), value)
+            if isnull(old) or old < value:
+                return 0
+        return -1
 
     @staticmethod
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field):
-        return 0 if cuda_atomic_nanmax(agg, (y, x), field) != field else -1
+        if not isnull(field):
+            old = cuda_atomic_nanmax(agg, (y, x), field)
+            if isnull(old) or old < field:
+                return 0
+        return -1
 
     @staticmethod
     def _combine(aggs):
@@ -1426,23 +1451,18 @@ class max_n(FloatingNReduction):
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_cuda(x, y, agg, field, mutex):
+    def _append_cuda(x, y, agg, field):
         if not isnull(field):
             # Linear walk along stored values.
             # Could do binary search instead but not expecting n to be large.
             n = agg.shape[2]
-            index = (y, x)
-            cuda_mutex_lock(mutex, index)
             for i in range(n):
                 if isnull(agg[y, x, i]) or field > agg[y, x, i]:
                     # Bump previous values along to make room for new value.
                     for j in range(n-1, i, -1):
                         agg[y, x, j] = agg[y, x, j-1]
                     agg[y, x, i] = field
-
-                    cuda_mutex_unlock(mutex, index)
                     return i
-            cuda_mutex_unlock(mutex, index)
         return -1
 
     def _build_combine(self, dshape, antialias, cuda, partitioned):
@@ -1497,23 +1517,18 @@ class min_n(FloatingNReduction):
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_cuda(x, y, agg, field, mutex):
+    def _append_cuda(x, y, agg, field):
         if not isnull(field):
             # Linear walk along stored values.
             # Could do binary search instead but not expecting n to be large.
             n = agg.shape[2]
-            index = (y, x)
-            cuda_mutex_lock(mutex, index)
             for i in range(n):
                 if isnull(agg[y, x, i]) or field < agg[y, x, i]:
                     # Bump previous values along to make room for new value.
                     for j in range(n-1, i, -1):
                         agg[y, x, j] = agg[y, x, j-1]
                     agg[y, x, i] = field
-
-                    cuda_mutex_unlock(mutex, index)
                     return i
-            cuda_mutex_unlock(mutex, index)
         return -1
 
     def _build_combine(self, dshape, antialias, cuda, partitioned):
@@ -1626,7 +1641,7 @@ class where(FloatingReduction):
             return dshape(ct.float64)
 
     def uses_cuda_mutex(self):
-        return self.selector.uses_cuda_mutex()
+        return True
 
     def uses_row_index(self, cuda, partitioned):
         return self.column is None or isinstance(self.selector, (_first_or_last, _first_n_or_last_n))
@@ -1706,7 +1721,7 @@ class where(FloatingReduction):
             return selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
 
     def _build_combine(self, dshape, antialias, cuda, partitioned):
-        if cuda and self.uses_cuda_mutex():
+        if cuda and self.selector.uses_cuda_mutex():
             raise NotImplementedError(
                 "'where' reduction does not support a selector that uses a CUDA mutex such as 'max_n'")
 
