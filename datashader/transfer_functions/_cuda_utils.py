@@ -252,3 +252,70 @@ def cuda_nanmin_n_in_place(ret, other):
                     ret_pixel[i] = other_value
                     istart = i+1
                     break
+
+
+@cuda.jit
+def cuda_row_min_in_place(ret, other):
+    """CUDA equivalent of row_min_in_place.
+    """
+    ny, nx = ret.shape
+    x, y = cuda.grid(2)
+    if x < nx and y < ny:
+        if other[y, x] > -1 and (ret[y, x] == -1 or other[y, x] < ret[y, x]):
+            ret[y, x] = other[y, x]
+
+
+@cuda.jit
+def cuda_row_max_n_in_place(ret, other):
+    """CUDA equivalent of row_max_n_in_place.
+    """
+    ny, nx, n = ret.shape
+    x, y = cuda.grid(2)
+    if x < nx and y < ny:
+        ret_pixel = ret[y, x]      # 1D array of n values for single pixel
+        other_pixel = other[y, x]  # ditto
+        # Walk along other_pixel array a value at a time, find insertion
+        # index in ret_pixel and bump values along to insert.  Next
+        # other_pixel value is inserted at a higher index, so this walks
+        # the two pixel arrays just once each.
+        istart = 0
+        for other_value in other_pixel:
+            if other_value == -1:
+                break
+
+            for i in range(istart, n):
+                if ret_pixel[i] == -1 or other_value > ret_pixel[i]:
+                    # Bump values along then insert.
+                    for j in range(n-1, i, -1):  # fails
+                        ret_pixel[j] = ret_pixel[j-1]
+                    ret_pixel[i] = other_value
+                    istart = i+1
+                    break
+
+
+@cuda.jit
+def cuda_row_min_n_in_place(ret, other):
+    """CUDA equivalent of row_min_n_in_place.
+    """
+    ny, nx, n = ret.shape
+    x, y = cuda.grid(2)
+    if x < nx and y < ny:
+        ret_pixel = ret[y, x]      # 1D array of n values for single pixel
+        other_pixel = other[y, x]  # ditto
+        # Walk along other_pixel array a value at a time, find insertion
+        # index in ret_pixel and bump values along to insert.  Next
+        # other_pixel value is inserted at a higher index, so this walks
+        # the two pixel arrays just once each.
+        istart = 0
+        for other_value in other_pixel:
+            if other_value == -1:
+                break
+
+            for i in range(istart, n):
+                if ret_pixel[i] == -1 or other_value < ret_pixel[i]:
+                    # Bump values along then insert.
+                    for j in range(n-1, i, -1):
+                        ret_pixel[j] = ret_pixel[j-1]
+                    ret_pixel[i] = other_value
+                    istart = i+1
+                    break

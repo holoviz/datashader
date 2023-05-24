@@ -735,20 +735,6 @@ def parallel_fill(array, value):
 
 
 @ngjit
-def row_max_in_place(ret, other):
-    """Maximum of 2 arrays of row indexes.
-    Row indexes are integers from 0 upwards, missing data is -1,
-    so simple max suffices.
-    Return the first array.
-    """
-    ret = ret.ravel()
-    other = other.ravel()
-    for i in range(len(ret)):
-        if other[i] > ret[i]:
-            ret[i] = other[i]
-
-
-@ngjit
 def row_min_in_place(ret, other):
     """Minimum of 2 arrays of row indexes.
     Row indexes are integers from 0 upwards, missing data is -1.

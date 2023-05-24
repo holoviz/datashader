@@ -167,7 +167,7 @@ def test_sum(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.sum('f64')), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_first(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -179,7 +179,7 @@ def test_first(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.first('f64')), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_last(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -219,7 +219,7 @@ def test_max(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.max('f64')), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_min_row_index(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -228,7 +228,7 @@ def test_min_row_index(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds._min_row_index()), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_max_row_index(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -267,7 +267,7 @@ def test_max_n(ddf, npartitions):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.max('plusminus')).data)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_min_n_row_index(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -282,7 +282,7 @@ def test_min_n_row_index(ddf, npartitions):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds._min_row_index()).data)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_max_n_row_index(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -297,7 +297,7 @@ def test_max_n_row_index(ddf, npartitions):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds._max_row_index()).data)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_first_n(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -312,7 +312,7 @@ def test_first_n(ddf, npartitions):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.first('plusminus')).data)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_last_n(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -369,7 +369,7 @@ def test_where_min(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.min('f32'))), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_max_n(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
@@ -398,7 +398,7 @@ def test_where_max_n(ddf, npartitions):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.max('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_min_n(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
@@ -427,7 +427,7 @@ def test_where_min_n(ddf, npartitions):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.min('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_first(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -448,7 +448,7 @@ def test_where_first(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.first('f32'))), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_last(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
@@ -469,7 +469,7 @@ def test_where_last(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.where(ds.last('f32'))), out)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_first_n(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
@@ -498,7 +498,7 @@ def test_where_first_n(ddf, npartitions):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.first('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_where_last_n(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
@@ -2002,17 +2002,3 @@ def test_canvas_size():
     for cvs in cvs_list:
         with pytest.raises(ValueError, match=msg):
             cvs.points(ddf, "x", "y", ds.mean("z"))
-
-
-@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
-@pytest.mark.parametrize('reduction', [
-    ds.where(ds.first('f64')),
-    ds.where(ds.first_n('f64')),
-    ds.where(ds.last('f64')),
-    ds.where(ds.last_n('f64')),
-    ds.where(ds.max_n('f64', n=3)),
-    ds.where(ds.min_n('f64', n=3)),
-])
-def test_reduction_on_cuda_dask_raises_error(reduction):
-    with pytest.raises((NotImplementedError, ValueError)):
-        c.points(cudf_ddf, 'x', 'y', reduction)
