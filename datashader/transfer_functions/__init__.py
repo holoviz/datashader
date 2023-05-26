@@ -15,7 +15,6 @@ import dask.array as da
 from PIL.Image import fromarray
 
 from datashader.colors import rgb, Sets1to3
-from datashader.composite import composite_op_lookup, over, validate_operator
 from datashader.utils import nansum_missing, ngjit
 
 try:
@@ -116,6 +115,8 @@ def stack(*imgs, **kwargs):
     how : str, optional
         The compositing operator to combine pixels. Default is `'over'`.
     """
+    from datashader.composite import composite_op_lookup
+
     if not imgs:
         raise ValueError("No images passed in")
     shapes = []
@@ -724,6 +725,8 @@ def set_background(img, color=None, name=None):
         The background color. Can be specified either by name, hexcode, or as a
         tuple of ``(red, green, blue)`` values.
     """
+    from datashader.composite import over
+
     if not isinstance(img, Image):
         raise TypeError("Expected `Image`, got: `{0}`".format(type(img)))
     name = img.name if name is None else name
@@ -813,6 +816,8 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
 @tz.memoize
 def _build_int_kernel(how, mask_size, ignore_zeros):
     """Build a spreading kernel for a given composite operator"""
+    from datashader.composite import composite_op_lookup, validate_operator
+
     validate_operator(how, is_image=False)
     op = composite_op_lookup[how + "_arr"]
     @ngjit
@@ -837,6 +842,8 @@ def _build_int_kernel(how, mask_size, ignore_zeros):
 @tz.memoize
 def _build_float_kernel(how, mask_size):
     """Build a spreading kernel for a given composite operator"""
+    from datashader.composite import composite_op_lookup, validate_operator
+
     validate_operator(how, is_image=False)
     op = composite_op_lookup[how + "_arr"]
     @ngjit
@@ -861,6 +868,8 @@ def _build_float_kernel(how, mask_size):
 @tz.memoize
 def _build_spread_kernel(how, is_image):
     """Build a spreading kernel for a given composite operator"""
+    from datashader.composite import composite_op_lookup, validate_operator
+
     validate_operator(how, is_image=True)
     op = composite_op_lookup[how + ("" if is_image else "_arr")]
 
