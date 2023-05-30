@@ -9,40 +9,40 @@ Enhancements:
 
 * Inspection reductions:
 
-  - Reduction append functions return index not boolean (#1180)
-  - ``first_n``, ``last_n``, ``max_n`` and ``min_n`` reductions (#1184)
-  - Add ``cuda`` argument to ``_build_combine`` (#1194)
-  - Support ``max_n`` and ``min_n`` reductions on GPU (#1196)
-  - Use fast cuda mutex available in numba 0.57 (#1212)
-  - Dask support for ``first``, ``last``, ``first_n`` and ``last_n`` reductions (#1214)
-  - Wrap use of cuda mutex in ``where`` reductions (#1217)
-  - Cuda and cuda-with-dask support for inspection reductions (#1219)
+  - Reduction append functions return index not boolean (`#1180 <https://github.com/holoviz/datashader/pull/1180>`_)
+  - ``first_n``, ``last_n``, ``max_n`` and ``min_n`` reductions (`#1184 <https://github.com/holoviz/datashader/pull/1184>`_)
+  - Add ``cuda`` argument to ``_build_combine`` (`#1194 <https://github.com/holoviz/datashader/pull/1194>`_)
+  - Support ``max_n`` and ``min_n`` reductions on GPU (`#1196 <https://github.com/holoviz/datashader/pull/1196>`_)
+  - Use fast cuda mutex available in numba 0.57 (`#1212 <https://github.com/holoviz/datashader/pull/1212>`_)
+  - Dask support for ``first``, ``last``, ``first_n`` and ``last_n`` reductions (`#1214 <https://github.com/holoviz/datashader/pull/1214>`_)
+  - Wrap use of cuda mutex in ``where`` reductions (`#1217 <https://github.com/holoviz/datashader/pull/1217>`_)
+  - Cuda and cuda-with-dask support for inspection reductions (`#1219 <https://github.com/holoviz/datashader/pull/1219>`_)
 
-* x and y range attributes on returned aggregations (#1198)
+* x and y range attributes on returned aggregations (`#1198 <https://github.com/holoviz/datashader/pull/1198>`_)
 
-* Make ``datashader.composite`` imports lazy for faster import time (#1222)
+* Make ``datashader.composite`` imports lazy for faster import time (`#1222 <https://github.com/holoviz/datashader/pull/1222>`_)
 
 * Improvements to CI:
 
-  - Cancel concurrent test workflows (#1208)
+  - Cancel concurrent test workflows (`#1208 <https://github.com/holoviz/datashader/pull/1208>`_)
 
 * Improvements to documentation:
 
-  - Inspection reduction documentation (#1186, #1190)
-  - Upgrade to latest nbsite and pydata-sphinx-theme (#1221)
+  - Inspection reduction documentation (`#1186 <https://github.com/holoviz/datashader/pull/1186>`_, `#1190 <https://github.com/holoviz/datashader/pull/1190>`_)
+  - Upgrade to latest nbsite and pydata-sphinx-theme (`#1221 <https://github.com/holoviz/datashader/pull/1221>`_)
   - Use geodatasets in example data
 
 Bug fixes:
 
-* Fix conversion from ``cupy`` in categorical ``rescale_discrete_levels`` (#1179)
-* Validate canvas ``width``, ``height`` (#1183)
-* Support antialiasing in pipeline API (#1213)
+* Fix conversion from ``cupy`` in categorical ``rescale_discrete_levels`` (`#1179 <https://github.com/holoviz/datashader/pull/1179>`_)
+* Validate canvas ``width``, ``height`` (`#1183 <https://github.com/holoviz/datashader/pull/1183>`_)
+* Support antialiasing in pipeline API (`#1213 <https://github.com/holoviz/datashader/pull/1213>`_)
 
 Compatibility:
 
-* NumPy 1.24 compatibility (#1176, #1185, #1218)
+* NumPy 1.24 compatibility (`#1176 <https://github.com/holoviz/datashader/pull/1176>`_, `#1185 <https://github.com/holoviz/datashader/pull/1185>`_, `#1218 <https://github.com/holoviz/datashader/pull/1218>`_)
 
-* Numba 0.57 compatibility (#1205)
+* Numba 0.57 compatibility (`#1205 <https://github.com/holoviz/datashader/pull/1205>`_)
 
 Version 0.14.4 (2023-02-02)
 ---------------------------
