@@ -1,3 +1,49 @@
+Version 0.15.0 (2023-05-26)
+---------------------------
+
+This release provides significant improvements for inspection reductions by adding new ``first_n``, ``last_n``, ``max_n`` and ``min_n`` reductions, and providing Dask and CUDA support for all existing and new inspection reductions including ``where``. It also provides support for Numba 0.57, NumPy 1.24 and Python 3.11, and drops support for Python 3.7.
+
+Thanks to first-time contributors `@danigm <https://github.com/danigm>`_ and `@Jap8nted <https://github.com/Jap8nted>`_, and also regulars `@Hoxbro <https://github.com/Hoxbro>`_, `@philippjfr <https://github.com/philippjfr>`_ and `@ianthomas23 <https://github.com/ianthomas23>`_
+
+Enhancements:
+
+* Inspection reductions:
+
+  - Reduction append functions return index not boolean (#1180)
+  - ``first_n``, ``last_n``, ``max_n`` and ``min_n`` reductions (#1184)
+  - Add ``cuda`` argument to ``_build_combine`` (#1194)
+  - Support ``max_n`` and ``min_n`` reductions on GPU (#1196)
+  - Use fast cuda mutex available in numba 0.57 (#1212)
+  - Dask support for ``first``, ``last``, ``first_n`` and ``last_n`` reductions (#1214)
+  - Wrap use of cuda mutex in ``where`` reductions (#1217)
+  - Cuda and cuda-with-dask support for inspection reductions (#1219)
+
+* x and y range attributes on returned aggregations (#1198)
+
+* Make ``datashader.composite`` imports lazy for faster import time (#1222)
+
+* Improvements to CI:
+
+  - Cancel concurrent test workflows (#1208)
+
+* Improvements to documentation:
+
+  - Inspection reduction documentation (#1186, #1190)
+  - Upgrade to latest nbsite and pydata-sphinx-theme (#1221)
+  - Use geodatasets in example data
+
+Bug fixes:
+
+* Fix conversion from ``cupy`` in categorical ``rescale_discrete_levels`` (#1179)
+* Validate canvas ``width``, ``height`` (#1183)
+* Support antialiasing in pipeline API (#1213)
+
+Compatibility:
+
+* NumPy 1.24 compatibility (#1176, #1185, #1218)
+
+* Numba 0.57 compatibility (#1205)
+
 Version 0.14.4 (2023-02-02)
 ---------------------------
 

@@ -1,4 +1,4 @@
-<img src="https://github.com/holoviz/datashader/raw/main/doc/_static/logo_stacked.png" data-canonical-src="https://github.com/holoviz/datashader/raw/main/doc/_static/logo_stacked.png" width="200"/><br>
+<img src="https://github.com/holoviz/datashader/raw/main/doc/_static/logo_horizontal.svg" data-canonical-src="https://github.com/holoviz/datashader/raw/main/doc/_static/logo_horizontal.svg" width="400"/><br>
 
 -----------------
 
