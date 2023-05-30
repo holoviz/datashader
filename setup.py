@@ -60,12 +60,11 @@ extras_require = {
         'python-graphviz',
         'python-snappy',
         'rasterio',
-        'snappy',
     ]
 }
 
 extras_require['doc'] = extras_require['examples_extra'] + [
-    'nbsite >=0.8.0rc37',
+    'nbsite ==0.8.0',
     'numpydoc',
 ]
 

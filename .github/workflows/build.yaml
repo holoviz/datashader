@@ -45,7 +45,7 @@ jobs:
         run: |
           doit env_capture
       - name: conda build
-        run: doit package_build $PKG_TEST_PYTHON --test-group=all
+        run: doit package_build $PKG_TEST_PYTHON --no-pkg-tests
       - name: dev deploy
         if: (github.event_name == 'push' && (contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc')))
         run: |

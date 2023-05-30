@@ -2,7 +2,7 @@
 
 .. raw:: html
 
-  <h1><img src="_static/logo_horizontal.png" style="width: 50%;"></h1>
+  <h1><img class="dark-light" src="_static/logo_horizontal.svg" style="width: 50%;"></h1>
 
 **Accurately render even the largest data**
 
