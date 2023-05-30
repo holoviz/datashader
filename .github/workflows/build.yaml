@@ -41,6 +41,9 @@ jobs:
         run: |
           conda install "pyctdev>=0.5"
           doit ecosystem_setup
+          # FIXME: downgrade urllib3 until this issue is fixed:
+          # https://github.com/Anaconda-Platform/anaconda-client/issues/654
+          conda install -c conda-forge "urllib3<2.0.0"
       - name: doit env_capture
         run: |
           doit env_capture
