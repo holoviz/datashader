@@ -1,4 +1,4 @@
-Version 0.15.0 (2023-05-26)
+Version 0.15.0 (2023-05-30)
 ---------------------------
 
 This release provides significant improvements for inspection reductions by adding new ``first_n``, ``last_n``, ``max_n`` and ``min_n`` reductions, and providing Dask and CUDA support for all existing and new inspection reductions including ``where``. It also provides support for Numba 0.57, NumPy 1.24 and Python 3.11, and drops support for Python 3.7.
