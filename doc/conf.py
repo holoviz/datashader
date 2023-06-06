@@ -45,7 +45,7 @@ html_theme_options.update({
             "icon": "fa-brands fa-discord",
         },
     ],
-    "analytics": {"google_analytics_id": "UA-154795830-1"},
+    "analytics": {"google_analytics_id": "G-M7369XC3Y3"},
     "pygment_dark_style": "material"
 })
 
