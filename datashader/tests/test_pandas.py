@@ -25,11 +25,19 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'plusminus': np.arange(20, dtype='f8')*([1, -1]*10),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
+                      'cat2': ['a', 'b', 'c', 'd']*5,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
 df_pd.cat = df_pd.cat.astype('category')
+df_pd.cat2 = df_pd.cat2.astype('category')
 df_pd.at[2,'f32'] = nan
 df_pd.at[2,'f64'] = nan
 df_pd.at[2,'plusminus'] = nan
+# x          0  0   0  0 0   0 0  0 0  0   1   1  1   1  1    1  1   1  1   1
+# y          0  0   0  0 0   1 1  1 1  1   0   0  0   0  0    1  1   1  1   1
+# i32        0  1   2  3 4   5 6  7 8  9  10  11 12  13 14   15 16  17 18  19
+# f32        0  1 nan  3 4   5 6  7 8  9  10  11 12  13 14   15 16  17 18  19
+# plusminus  0 -1 nan -3 4  -5 6 -7 8 -9  10 -11 12 -13 14  -15 16 -17 18 -19
+# cat2       a  b   c  d a   b c  d a  b   c   d  a   b  c    d  a   b  c   d
 
 test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
@@ -235,6 +243,54 @@ def test_max_n(df):
         assert_eq_ndarray(agg.data, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.max('plusminus')).data)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_min(df):
+    sol_int = np.array([[[0, 1, 2, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]], dtype=np.float64)
+    sol_float = np.array([[[0, 1, nan, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]])
+    assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.min('i32'))).data, sol_int)
+    assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.min('i64'))).data, sol_int)
+    assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.min('f32'))).data, sol_float)
+    assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.min('f64'))).data, sol_float)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_max(df):
+    sol_int = np.array([[[4, 1, 2, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]], dtype=np.float64)
+    sol_float = np.array([[[4, 1, nan, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]])
+    assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.max('i32'))).data, sol_int)
+    assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.max('i64'))).data, sol_int)
+    assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.max('f32'))).data, sol_float)
+    assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.max('f64'))).data, sol_float)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_min_n(df):
+    solution = np.array([[[[0, 4, nan], [1, nan, nan], [nan, nan, nan], [3, nan, nan]],
+                          [[12, nan, nan], [13, nan, nan], [10, 14, nan], [11, nan, nan]]],
+                         [[[8, nan, nan], [5, 9, nan], [6, nan, nan], [7, nan, nan]],
+                          [[16, nan, nan], [17, nan, nan], [18, nan, nan], [15, 19, nan]]]])
+    for n in range(1, 3):
+        agg = c.points(df, 'x', 'y', ds.by('cat2', ds.min_n('f32', n=n)))
+        out = solution[:, :, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[..., 0].data, c.points(df, 'x', 'y', ds.by('cat2', ds.min('f32'))).data)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_max_n(df):
+    solution = np.array([[[[4, 0, nan], [1, nan, nan], [nan, nan, nan], [3, nan, nan]],
+                          [[12, nan, nan], [13, nan, nan], [14, 10, nan], [11, nan, nan]]],
+                         [[[8, nan, nan], [9, 5, nan], [6, nan, nan], [7, nan, nan]],
+                          [[16, nan, nan], [17, nan, nan], [18, nan, nan], [19, 15, nan]]]])
+    for n in range(1, 3):
+        agg = c.points(df, 'x', 'y', ds.by('cat2', ds.max_n('f32', n=n)))
+        out = solution[:, :, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[..., 0].data, c.points(df, 'x', 'y', ds.by('cat2', ds.max('f32'))).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -652,7 +708,7 @@ def test_categorical_sum_binning(df):
 
 
 @pytest.mark.parametrize('df', dfs)
-def test_categorical_max(df):
+def test_categorical_max2(df):
     sol = np.array([[[  4, nan, nan, nan],
                      [nan, nan,  14, nan]],
                     [[nan,   9, nan, nan],

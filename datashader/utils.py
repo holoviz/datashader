@@ -650,64 +650,70 @@ def nanmin_in_place(ret, other):
 
 @ngjit_parallel
 def nanmax_n_in_place(ret, other):
-    """Combine two max-n arrays, taking nans into account. Max-n arrays are 3D
-    with the last axis containing n values in descending order. If there are
-    fewer than n values it is padded with nans.
+    """Combine two max-n arrays, taking nans into account. Max-n arrays are 4D
+    with shape (ny, nx, ncat, n) where ny and nx are the number of pixels,
+    ncat the number of categories (will be 1 if not using a categorical
+    reduction) and the last axis containing n values in descending order.
+    If there are fewer than n values it is padded with nans.
     Return the first array.
     """
-    ny, nx, n = ret.shape
+    ny, nx, ncat, n = ret.shape
     for y in nb.prange(ny):
         for x in range(nx):
-            ret_pixel = ret[y, x]      # 1D array of n values for single pixel
-            other_pixel = other[y, x]  # ditto
-            # Walk along other_pixel array a value at a time, find insertion
-            # index in ret_pixel and bump values along to insert.  Next
-            # other_pixel value is inserted at a higher index, so this walks
-            # the two pixel arrays just once each.
-            istart = 0
-            for other_value in other_pixel:
-                if isnull(other_value):
-                    break
-                else:
-                    for i in range(istart, n):
-                        if isnull(ret_pixel[i]) or other_value > ret_pixel[i]:
-                            # Bump values along then insert.
-                            for j in range(n-1, i, -1):
-                                ret_pixel[j] = ret_pixel[j-1]
-                            ret_pixel[i] = other_value
-                            istart = i+1
-                            break
+            for cat in range(ncat):
+                ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
+                other_pixel = other[y, x, cat]  # ditto
+                # Walk along other_pixel array a value at a time, find insertion
+                # index in ret_pixel and bump values along to insert.  Next
+                # other_pixel value is inserted at a higher index, so this walks
+                # the two pixel arrays just once each.
+                istart = 0
+                for other_value in other_pixel:
+                    if isnull(other_value):
+                        break
+                    else:
+                        for i in range(istart, n):
+                            if isnull(ret_pixel[i]) or other_value > ret_pixel[i]:
+                                # Bump values along then insert.
+                                for j in range(n-1, i, -1):
+                                    ret_pixel[j] = ret_pixel[j-1]
+                                ret_pixel[i] = other_value
+                                istart = i+1
+                                break
 
 
 @ngjit_parallel
 def nanmin_n_in_place(ret, other):
-    """Combine two min-n arrays, taking nans into account. Min-n arrays are 3D
-    with the last axis containing n values in descending order. If there are
-    fewer than n values it is padded with nans.
+    """Combine two min-n arrays, taking nans into account. Min-n arrays are 4D
+    with shape (ny, nx, ncat, n) where ny and nx are the number of pixels,
+    ncat the number of categories (will be 1 if not using a categorical
+    reduction) and the last axis containing n values in ascending order.
+    If there are fewer than n values it is padded with nans.
     Return the first array.
     """
-    ny, nx, n = ret.shape
+    ny, nx, ncat, n = ret.shape
     for y in nb.prange(ny):
         for x in range(nx):
-            ret_pixel = ret[y, x]      # 1D array of n values for single pixel
-            other_pixel = other[y, x]  # ditto
-            # Walk along other_pixel array a value at a time, find insertion
-            # index in ret_pixel and bump values along to insert.  Next
-            # other_pixel value is inserted at a higher index, so this walks
-            # the two pixel arrays just once each.
-            istart = 0
-            for other_value in other_pixel:
-                if isnull(other_value):
-                    break
-                else:
-                    for i in range(istart, n):
-                        if isnull(ret_pixel[i]) or other_value < ret_pixel[i]:
-                            # Bump values along then insert.
-                            for j in range(n-1, i, -1):
-                                ret_pixel[j] = ret_pixel[j-1]
-                            ret_pixel[i] = other_value
-                            istart = i+1
-                            break
+            for cat in range(ncat):
+                ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
+                other_pixel = other[y, x, cat]  # ditto
+                # Walk along other_pixel array a value at a time, find insertion
+                # index in ret_pixel and bump values along to insert.  Next
+                # other_pixel value is inserted at a higher index, so this walks
+                # the two pixel arrays just once each.
+                istart = 0
+                for other_value in other_pixel:
+                    if isnull(other_value):
+                        break
+                    else:
+                        for i in range(istart, n):
+                            if isnull(ret_pixel[i]) or other_value < ret_pixel[i]:
+                                # Bump values along then insert.
+                                for j in range(n-1, i, -1):
+                                    ret_pixel[j] = ret_pixel[j-1]
+                                ret_pixel[i] = other_value
+                                istart = i+1
+                                break
 
 
 @ngjit_parallel

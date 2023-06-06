@@ -264,7 +264,8 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
     # Categorical aggregate arrays need to be unpacked
     if categorical:
         col_index = '' if isinstance(cols[0], category_codes) else '[0]'
-        cat_var = 'cat = int({0}[{1}]{2})'.format(signature[-1], subscript, col_index)
+        signature_index = -2 if any_uses_cuda_mutex else -1
+        cat_var = 'cat = int({0}[{1}]{2})'.format(signature[signature_index], subscript, col_index)
         aggs = ['{0} = {0}[:, :, cat]'.format(s) for s in signature[:len(calls)]]
         body = [cat_var] + aggs + body
 
