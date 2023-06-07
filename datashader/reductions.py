@@ -655,6 +655,9 @@ class by(Reduction):
     def inputs(self):
         return (self.preprocess, )
 
+    def uses_cuda_mutex(self):
+        return self.reduction.uses_cuda_mutex()
+
     def _antialias_requires_2_stages(self):
         return self.reduction._antialias_requires_2_stages()
 
@@ -684,7 +687,7 @@ class by(Reduction):
         def finalize(bases, cuda=False, **kwargs):
             kwargs['dims'] += [self.cat_column]
             kwargs['coords'][self.cat_column] = cats
-            return self.reduction._finalize(bases, cuda=cuda, **kwargs)
+            return self.reduction._build_finalize(dshape)(bases, cuda=cuda, **kwargs)
 
         return finalize
 
@@ -1474,16 +1477,22 @@ class max_n(FloatingNReduction):
     @staticmethod
     def _combine(aggs):
         ret = aggs[0]
+        if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+            # 4d view of each agg
+            aggs = [np.expand_dims(agg, 2) for agg in aggs]
         for i in range(1, len(aggs)):
-            nanmax_n_in_place(ret, aggs[i])
+            nanmax_n_in_place(aggs[0], aggs[i])
         return ret
 
     @staticmethod
     def _combine_cuda(aggs):
         ret = aggs[0]
-        kernel_args = cuda_args(ret.shape[:2])
+        if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+            # 4d view of each agg
+            aggs = [cp.expand_dims(agg, 2) for agg in aggs]
+        kernel_args = cuda_args(aggs[0].shape[:3])
         for i in range(1, len(aggs)):
-            cuda_nanmax_n_in_place[kernel_args](ret, aggs[i])
+            cuda_nanmax_n_in_place[kernel_args](aggs[0], aggs[i])
         return ret
 
 
@@ -1540,16 +1549,22 @@ class min_n(FloatingNReduction):
     @staticmethod
     def _combine(aggs):
         ret = aggs[0]
+        if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+            # 4d view of each agg
+            aggs = [np.expand_dims(agg, 2) for agg in aggs]
         for i in range(1, len(aggs)):
-            nanmin_n_in_place(ret, aggs[i])
+            nanmin_n_in_place(aggs[0], aggs[i])
         return ret
 
     @staticmethod
     def _combine_cuda(aggs):
         ret = aggs[0]
-        kernel_args = cuda_args(ret.shape[:2])
+        if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+            # 4d view of each agg
+            aggs = [cp.expand_dims(agg, 2) for agg in aggs]
+        kernel_args = cuda_args(aggs[0].shape[:3])
         for i in range(1, len(aggs)):
-            cuda_nanmin_n_in_place[kernel_args](ret, aggs[i])
+            cuda_nanmin_n_in_place[kernel_args](aggs[0], aggs[i])
         return ret
 
 

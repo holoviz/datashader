@@ -202,11 +202,11 @@ else:
 def cuda_nanmax_n_in_place(ret, other):
     """CUDA equivalent of nanmax_n_in_place.
     """
-    ny, nx, n = ret.shape
-    x, y = cuda.grid(2)
-    if x < nx and y < ny:
-        ret_pixel = ret[y, x]      # 1D array of n values for single pixel
-        other_pixel = other[y, x]  # ditto
+    ny, nx, ncat, n = ret.shape
+    x, y, cat = cuda.grid(3)
+    if x < nx and y < ny and cat < ncat:
+        ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
+        other_pixel = other[y, x, cat]  # ditto
         # Walk along other_pixel array a value at a time, find insertion
         # index in ret_pixel and bump values along to insert.  Next
         # other_pixel value is inserted at a higher index, so this walks
@@ -230,11 +230,11 @@ def cuda_nanmax_n_in_place(ret, other):
 def cuda_nanmin_n_in_place(ret, other):
     """CUDA equivalent of nanmin_n_in_place.
     """
-    ny, nx, n = ret.shape
-    x, y = cuda.grid(2)
-    if x < nx and y < ny:
-        ret_pixel = ret[y, x]      # 1D array of n values for single pixel
-        other_pixel = other[y, x]  # ditto
+    ny, nx, ncat, n = ret.shape
+    x, y, cat = cuda.grid(3)
+    if x < nx and y < ny and cat < ncat:
+        ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
+        other_pixel = other[y, x, cat]  # ditto
         # Walk along other_pixel array a value at a time, find insertion
         # index in ret_pixel and bump values along to insert.  Next
         # other_pixel value is inserted at a higher index, so this walks
