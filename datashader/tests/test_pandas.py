@@ -26,9 +26,11 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
                       'cat2': ['a', 'b', 'c', 'd']*5,
+                      'onecat': ['one']*20,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
 df_pd.cat = df_pd.cat.astype('category')
 df_pd.cat2 = df_pd.cat2.astype('category')
+df_pd.onecat = df_pd.onecat.astype('category')
 df_pd.at[2,'f32'] = nan
 df_pd.at[2,'f64'] = nan
 df_pd.at[2,'plusminus'] = nan
@@ -613,6 +615,20 @@ def test_categorical_count(df):
         sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
     )
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.count()))
+    assert_eq_xr(agg, out)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_one_category(df):
+    # Issue #1142.
+    assert len(df['onecat'].unique()) == 1
+    sol = np.array([[[5], [5]], [[5], [5]]])
+    out = xr.DataArray(
+        sol,
+        coords=OrderedDict(coords, onecat=['one']),
+        dims=(dims + ['onecat']))
+    agg = c.points(df, 'x', 'y', ds.by('onecat', ds.count('i32')))
+    assert agg.shape == (2, 2, 1)
     assert_eq_xr(agg, out)
 
 
