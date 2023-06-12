@@ -331,7 +331,7 @@ class Reduction(Expr):
 
     def _build_create(self, required_dshape):
         fields = getattr(required_dshape.measure, "fields", None)
-        if fields is not None and len(required_dshape.measure.fields) > 1:
+        if fields is not None and len(required_dshape.measure.fields) > 0:
             # If more than one field then they all have the same dtype so can just take the first.
             first_field = required_dshape.measure.fields[0]
             required_dshape = dshape(first_field[1])
