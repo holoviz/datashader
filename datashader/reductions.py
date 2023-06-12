@@ -653,10 +653,18 @@ class by(Reduction):
 
     @property
     def inputs(self):
-        return (self.preprocess, )
+        ret = (self.preprocess, )
+        # val_column of None here could mean None (e.g. by(any) or could be row index column.
+        if self.val_column is None and isinstance(self.reduction, (_max_or_min_row_index, _max_n_or_min_n_row_index)):
+            # Row index column
+            ret += self.reduction.inputs
+        return ret
 
     def uses_cuda_mutex(self):
         return self.reduction.uses_cuda_mutex()
+
+    def uses_row_index(self, cuda, partitioned):
+        return self.reduction.uses_row_index(cuda, partitioned)
 
     def _antialias_requires_2_stages(self):
         return self.reduction._antialias_requires_2_stages()
@@ -2115,9 +2123,13 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
 
     @staticmethod
     def _combine(aggs):
+        ret = aggs[0]
         if len(aggs) > 1:
+            if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+                # 4d view of each agg
+                aggs = [np.expand_dims(agg, 2) for agg in aggs]
             row_max_n_in_place(aggs[0], aggs[1])
-        return aggs[0]
+        return ret
 
     @staticmethod
     def _combine_cuda(aggs):
@@ -2173,9 +2185,13 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
 
     @staticmethod
     def _combine(aggs):
+        ret = aggs[0]
         if len(aggs) > 1:
+            if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+                # 4d view of each agg
+                aggs = [np.expand_dims(agg, 2) for agg in aggs]
             row_min_n_in_place(aggs[0], aggs[1])
-        return aggs[0]
+        return ret
 
     @staticmethod
     def _combine_cuda(aggs):
