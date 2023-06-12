@@ -1983,6 +1983,7 @@ class _max_row_index(_max_or_min_row_index):
     @staticmethod
     def _combine(aggs):
         # Maximum ignoring -1 values
+        # Works for CPU and GPU
         if len(aggs) > 1:
             # Works with numpy or cupy arrays
             np.maximum(aggs[0], aggs[1], out=aggs[0])
@@ -2029,17 +2030,22 @@ class _min_row_index(_max_or_min_row_index):
     @staticmethod
     def _combine(aggs):
         # Minimum ignoring -1 values
+        ret = aggs[0]
         if len(aggs) > 1:
+            # Can take 2d (ny, nx) or 3d (ny, nx, ncat) arrays.
             row_min_in_place(aggs[0], aggs[1])
-        return aggs[0]
+        return ret
 
     @staticmethod
     def _combine_cuda(aggs):
         ret = aggs[0]
         if len(aggs) > 1:
-            kernel_args = cuda_args(ret.shape)
+            if ret.ndim == 2:  # ndim is either 2 (ny, nx) or 3 (ny, nx, ncat)
+                # 3d view of each agg
+                aggs = [cp.expand_dims(agg, 2) for agg in aggs]
+            kernel_args = cuda_args(ret.shape[:3])
             for i in range(1, len(aggs)):
-                cuda_row_min_in_place[kernel_args](ret, aggs[i])
+                cuda_row_min_in_place[kernel_args](aggs[0], aggs[i])
         return ret
 
 
@@ -2135,9 +2141,12 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
     def _combine_cuda(aggs):
         ret = aggs[0]
         if len(aggs) > 1:
-            kernel_args = cuda_args(ret.shape[:2])
+            if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+                # 4d view of each agg
+                aggs = [cp.expand_dims(agg, 2) for agg in aggs]
+            kernel_args = cuda_args(aggs[0].shape[:3])
             for i in range(1, len(aggs)):
-                cuda_row_max_n_in_place[kernel_args](ret, aggs[i])
+                cuda_row_max_n_in_place[kernel_args](aggs[0], aggs[i])
         return ret
 
 
@@ -2197,9 +2206,12 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
     def _combine_cuda(aggs):
         ret = aggs[0]
         if len(aggs) > 1:
-            kernel_args = cuda_args(ret.shape[:2])
+            if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+                # 4d view of each agg
+                aggs = [cp.expand_dims(agg, 2) for agg in aggs]
+            kernel_args = cuda_args(aggs[0].shape[:3])
             for i in range(1, len(aggs)):
-                cuda_row_min_n_in_place[kernel_args](ret, aggs[i])
+                cuda_row_min_n_in_place[kernel_args](aggs[0], aggs[i])
         return ret
 
 

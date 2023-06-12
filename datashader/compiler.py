@@ -198,7 +198,6 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
         namespace[func_name] = func
-
         args = [arg_lk[i] for i in bases]
         if categorical and isinstance(cols[0], category_codes):
             categorical_arg = arg_lk[cols[0]]
