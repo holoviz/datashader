@@ -1300,6 +1300,10 @@ def _bypixel_sanitise(source, glyph, agg):
 
 
 def _cols_to_keep(columns, glyph, agg):
+    """
+    Return which columns from the supplied data source are kept as they are
+    needed by the specified agg. Excludes any SpecialColumn.
+    """
     cols_to_keep = OrderedDict({col: False for col in columns})
     for col in glyph.required_columns():
         cols_to_keep[col] = True
@@ -1310,9 +1314,9 @@ def _cols_to_keep(columns, glyph, agg):
                 recurse(cols_to_keep, subagg)
         elif hasattr(agg, 'columns'):
             for column in agg.columns:
-                if column is not None:
+                if column not in (None, rd.SpecialColumn.RowIndex):
                     cols_to_keep[column] = True
-        elif agg.column is not None:
+        elif agg.column not in (None, rd.SpecialColumn.RowIndex):
             cols_to_keep[agg.column] = True
 
     recurse(cols_to_keep, agg)
