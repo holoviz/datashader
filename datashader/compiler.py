@@ -192,6 +192,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
     else:
         subscript = None
     prev_cuda_mutex = False
+    categorical_arg = None
 
     for func, bases, cols, nan_check_column, temps, _, uses_cuda_mutex in calls:
         local_lk.update(zip(temps, (next(names) for i in temps)))
@@ -199,10 +200,12 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
         if categorical and isinstance(cols[0], category_codes):
-            pass
+            categorical_arg = arg_lk[cols[0]]
+            args.extend('{0}[{1}]'.format(arg_lk[col], subscript) for col in cols[1:])
         elif ndims is None:
             args.extend('{0}'.format(arg_lk[i]) for i in cols)
         elif categorical:
+            categorical_arg = arg_lk[cols[0]]
             args.extend('{0}[{1}][1]'.format(arg_lk[i], subscript)
                         for i in cols)
         else:
@@ -264,8 +267,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
     # Categorical aggregate arrays need to be unpacked
     if categorical:
         col_index = '' if isinstance(cols[0], category_codes) else '[0]'
-        signature_index = -2 if any_uses_cuda_mutex else -1
-        cat_var = 'cat = int({0}[{1}]{2})'.format(signature[signature_index], subscript, col_index)
+        cat_var = 'cat = int({0}[{1}]{2})'.format(categorical_arg, subscript, col_index)
         aggs = ['{0} = {0}[:, :, cat]'.format(s) for s in signature[:len(calls)]]
         body = [cat_var] + aggs + body
 

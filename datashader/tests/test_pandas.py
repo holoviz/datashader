@@ -296,6 +296,48 @@ def test_categorical_max_n(df):
 
 
 @pytest.mark.parametrize('df', dfs)
+def test_categorical_min_row_index(df):
+    solution = np.array([[[0, 1, 2, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]])
+    agg = c.points(df, 'x', 'y', ds.by('cat2', ds._min_row_index()))
+    assert_eq_ndarray(agg.data, solution)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_max_row_index(df):
+    solution = np.array([[[4, 1, 2, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]])
+    agg = c.points(df, 'x', 'y', ds.by('cat2', ds._max_row_index()))
+    assert_eq_ndarray(agg.data, solution)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_min_n_row_index(df):
+    solution = np.array([[[[0, 4, -1], [1, -1, -1], [2, -1, -1], [3, -1, -1]],
+                          [[12, -1, -1], [13, -1, -1], [10, 14, -1], [11, -1, -1]]],
+                         [[[8, -1, -1], [5, 9, -1], [6, -1, -1], [7, -1, -1]],
+                          [[16, -1, -1], [17, -1, -1], [18, -1, -1], [15, 19, -1]]]])
+    for n in range(1, 3):
+        agg = c.points(df, 'x', 'y', ds.by('cat2', ds._min_n_row_index(n=n)))
+        out = solution[:, :, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[..., 0].data, c.points(df, 'x', 'y', ds.by('cat2', ds._min_row_index())).data)
+
+
+@pytest.mark.parametrize('df', dfs)
+def test_categorical_max_n_row_index(df):
+    solution = np.array([[[[4, 0, -1], [1, -1, -1], [2, -1, -1], [3, -1, -1]],
+                          [[12, -1, -1], [13, -1, -1], [14, 10, -1], [11, -1, -1]]],
+                         [[[8, -1, -1], [9, 5, -1], [6, -1, -1], [7, -1, -1]],
+                          [[16, -1, -1], [17, -1, -1], [18, -1, -1], [19, 15, -1]]]])
+    for n in range(1, 3):
+        agg = c.points(df, 'x', 'y', ds.by('cat2', ds._max_n_row_index(n=n)))
+        out = solution[:, :, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[..., 0].data, c.points(df, 'x', 'y', ds.by('cat2', ds._max_row_index())).data)
+
+
+@pytest.mark.parametrize('df', dfs)
 def test_where_min_row_index(df):
     out = xr.DataArray([[0, 10], [-5, -15]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds._min_row_index(), 'plusminus')), out)
