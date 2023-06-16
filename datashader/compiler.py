@@ -6,7 +6,7 @@ from toolz import unique, concat, pluck, get, memoize
 import numpy as np
 import xarray as xr
 
-from .reductions import by, category_codes, summary, where
+from .reductions import SpecialColumn, by, category_codes, summary, where
 from .utils import isnull, ngjit
 
 try:
@@ -46,33 +46,37 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
 
     Returns
     -------
-    A tuple of the following functions:
+    A tuple of the following:
 
     ``create(shape)``
-        Takes the aggregate shape, and returns a tuple of initialized numpy
-        arrays.
+        Function that takes the aggregate shape, and returns a tuple of
+        initialized numpy arrays.
 
     ``info(df, canvas_shape)``
-        Takes a dataframe, and returns preprocessed 1D numpy arrays of the
-        needed columns.
+        Function that takes a dataframe, and returns preprocessed 1D numpy
+        arrays of the needed columns.
 
     ``append(i, x, y, *aggs_and_cols)``
-        Appends the ``i``th row of the table to the ``(x, y)`` bin, given the
-        base arrays and columns in ``aggs_and_cols``. This does the bulk of the
-        work.
+        Function that appends the ``i``th row of the table to the ``(x, y)``
+        bin, given the base arrays and columns in ``aggs_and_cols``. This does
+        the bulk of the work.
 
     ``combine(base_tuples)``
-        Combine a list of base tuples into a single base tuple. This forms the
-        reducing step in a reduction tree.
+        Function that combines a list of base tuples into a single base tuple.
+        This forms the reducing step in a reduction tree.
 
     ``finalize(aggs, cuda)``
-        Given a tuple of base numpy arrays, returns the finalized ``DataArray``
-        or ``Dataset``.
+        Function that is given a tuple of base numpy arrays and returns the
+        finalized ``DataArray`` or ``Dataset``.
 
     ``antialias_stage_2``
         If using antialiased lines this is a tuple of the ``AntialiasCombination``
         values corresponding to the aggs. If not using antialiased lines then
         this is False.
+
+    ``column_names``
+        Names of DataFrame columns or DataArray variables that are used by the
+        agg.
     """
     reds = list(traverse_aggregation(agg))
 
@@ -115,7 +119,9 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
     combine = make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned)
     finalize = make_finalize(bases, agg, schema, cuda, partitioned)
 
-    return create, info, append, combine, finalize, antialias_stage_2
+    column_names = [c.column for c in cols if c.column != SpecialColumn.RowIndex]
+
+    return create, info, append, combine, finalize, antialias_stage_2, column_names
 
 
 def traverse_aggregation(agg):

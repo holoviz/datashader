@@ -59,7 +59,7 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+    create, info, append, combine, finalize, antialias_stage_2, _ = compile_components(
         summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
@@ -141,7 +141,7 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+    create, info, append, combine, finalize, antialias_stage_2, _ = compile_components(
         summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
@@ -235,7 +235,7 @@ def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+    create, info, append, combine, finalize, antialias_stage_2, _ = compile_components(
         summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
