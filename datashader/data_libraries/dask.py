@@ -72,7 +72,7 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
 
     # Compile functions
     partitioned = isinstance(df, dd.DataFrame) and df.npartitions > 1
-    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+    create, info, append, combine, finalize, antialias_stage_2, column_names = compile_components(
         summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=partitioned)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
@@ -102,9 +102,10 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     graph = df.__dask_graph__()
 
     # Guess a reasonable output dtype from combination of dataframe dtypes
+    # Only consider columns used, not all columns in dataframe (issue #1235)
     dtypes = []
 
-    for dt in df.dtypes:
+    for dt in df.dtypes[column_names]:
         if isinstance(dt, pd.CategoricalDtype):
             continue
         elif isinstance(dt, pd.api.extensions.ExtensionDtype):
@@ -119,7 +120,7 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
         else:
             dtypes.append(dt)
 
-    dtype = np.result_type(*dtypes)
+    dtype = np.result_type(*dtypes) if dtypes else np.float64
     # Create a meta object so that dask.array doesn't try to look
     # too closely at the type of the chunks it's wrapping
     # they're actually dataframes, tell dask they're ndarrays
@@ -209,7 +210,7 @@ def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
 
     # Compile functions
     partitioned = isinstance(df, dd.DataFrame) and df.npartitions > 1
-    create, info, append, combine, finalize, antialias_stage_2 = compile_components(
+    create, info, append, combine, finalize, antialias_stage_2, _ = compile_components(
         summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=partitioned)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper

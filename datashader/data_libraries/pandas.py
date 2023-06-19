@@ -24,7 +24,7 @@ glyph_dispatch = Dispatcher()
 @glyph_dispatch.register(_GeometryLike)
 @glyph_dispatch.register(_AreaToLineLike)
 def default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=False):
-    create, info, append, _, finalize, antialias_stage_2 = compile_components(
+    create, info, append, _, finalize, antialias_stage_2, _ = compile_components(
         summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=False)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper

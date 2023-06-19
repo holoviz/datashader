@@ -2118,3 +2118,13 @@ def test_canvas_size():
     for cvs in cvs_list:
         with pytest.raises(ValueError, match=msg):
             cvs.points(ddf, "x", "y", ds.mean("z"))
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3])
+def test_dataframe_dtypes(ddf, npartitions):
+    # Issue #1235.
+    ddf['dates'] = pd.Series(['2007-07-13']*20, dtype='datetime64[ns]')
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    ds.Canvas(2, 2).points(ddf, 'x', 'y', ds.count())
