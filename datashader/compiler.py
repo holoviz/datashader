@@ -6,7 +6,7 @@ from toolz import unique, concat, pluck, get, memoize
 import numpy as np
 import xarray as xr
 
-from .reductions import SpecialColumn, by, category_codes, summary, where
+from .reductions import SpecialColumn, by, category_codes, summary
 from .utils import isnull, ngjit
 
 try:
