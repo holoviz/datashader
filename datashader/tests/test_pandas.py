@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections import OrderedDict
 import os
 from numpy import nan
 
@@ -92,7 +91,7 @@ c_logxy = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
 
 axis = ds.core.LinearAxis()
 lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
-coords = OrderedDict([('x', lincoords), ('y', lincoords)])
+coords = [lincoords, lincoords]
 dims = ['y', 'x']
 
 
@@ -680,10 +679,7 @@ def test_count_cat(df):
                      [0, 0, 5, 0]],
                     [[0, 5, 0, 0],
                      [0, 0, 0, 5]]])
-    out = xr.DataArray(
-        sol,
-        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
-        dims=(dims + ['cat']))
+    out = xr.DataArray(sol, coords=coords + [['a', 'b', 'c', 'd']], dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.count_cat('cat'))
     assert_eq_xr(agg, out)
     assert_eq_ndarray(agg.x_range, (0, 1), close=True)
@@ -696,17 +692,12 @@ def test_categorical_count(df):
                      [0, 0, 5, 0]],
                     [[0, 5, 0, 0],
                      [0, 0, 0, 5]]])
-    out = xr.DataArray(
-        sol,
-        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
-        dims=(dims + ['cat']))
+    out = xr.DataArray(sol, coords=coords + [['a', 'b', 'c', 'd']], dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.count('i32')))
     assert_eq_xr(agg, out)
 
     # categorizing by (cat_int-10)%4 ought to give the same result
-    out = xr.DataArray(
-        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
-    )
+    out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.count()))
     assert_eq_xr(agg, out)
 
@@ -716,10 +707,7 @@ def test_one_category(df):
     # Issue #1142.
     assert len(df['onecat'].unique()) == 1
     sol = np.array([[[5], [5]], [[5], [5]]])
-    out = xr.DataArray(
-        sol,
-        coords=OrderedDict(coords, onecat=['one']),
-        dims=(dims + ['onecat']))
+    out = xr.DataArray(sol, coords=coords + [['one']], dims=(dims + ['onecat']))
     agg = c.points(df, 'x', 'y', ds.by('onecat', ds.count('i32')))
     assert agg.shape == (2, 2, 1)
     assert_eq_xr(agg, out)
@@ -737,9 +725,7 @@ def test_categorical_count_binning(df):
 
     # categorizing by binning the integer arange columns using [0,20] into 4 bins. Same result as for count_cat
     for col in 'i32', 'i64':
-        out = xr.DataArray(
-            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
-        )
+        out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
         agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
         assert_eq_xr(agg, out)
 
@@ -748,9 +734,7 @@ def test_categorical_count_binning(df):
     sol[0, 0, 4] = 1
 
     for col in 'f32', 'f64':
-        out = xr.DataArray(
-            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
-        )
+        out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
         agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
         assert_eq_xr(agg, out)
 
@@ -761,10 +745,7 @@ def test_categorical_sum(df):
                      [nan, nan,  60, nan]],
                     [[nan,  35, nan, nan],
                      [nan, nan, nan,  85]]])
-    out = xr.DataArray(
-        sol,
-        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
-        dims=(dims + ['cat']))
+    out = xr.DataArray(sol, coords=coords + [['a', 'b', 'c', 'd']], dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.sum('i32')))
     assert_eq_xr(agg, out)
 
@@ -772,9 +753,7 @@ def test_categorical_sum(df):
     assert_eq_xr(agg, out)
 
     # categorizing by (cat_int-10)%4 ought to give the same result
-    out = xr.DataArray(
-        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
-    )
+    out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
 
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.sum('i32')))
     assert_eq_xr(agg, out)
@@ -786,10 +765,7 @@ def test_categorical_sum(df):
                      [nan,  nan, 60.0,  nan]],
                     [[nan, 35.0,  nan,  nan],
                      [nan,  nan,  nan, 85.0]]])
-    out = xr.DataArray(
-        sol,
-        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
-        dims=(dims + ['cat']))
+    out = xr.DataArray(sol, coords=coords + [['a', 'b', 'c', 'd']], dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.sum('f32')))
     assert_eq_xr(agg, out)
 
@@ -807,9 +783,7 @@ def test_categorical_sum_binning(df):
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
     for col in 'f32', 'f64':
-        out = xr.DataArray(
-            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
-        )
+        out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
         agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.sum(col)))
         assert_eq_xr(agg, out)
         assert_eq_ndarray(agg.x_range, (0, 1), close=True)
@@ -822,17 +796,12 @@ def test_categorical_max2(df):
                      [nan, nan,  14, nan]],
                     [[nan,   9, nan, nan],
                      [nan, nan, nan,  19]]])
-    out = xr.DataArray(
-        sol,
-        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
-        dims=(dims + ['cat']))
+    out = xr.DataArray(sol, coords=coords + [['a', 'b', 'c', 'd']], dims=(dims + ['cat']))
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.max('i32')))
     assert_eq_xr(agg, out)
 
     # categorizing by (cat_int-10)%4 ought to give the same result
-    out = xr.DataArray(
-        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
-    )
+    out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
 
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.max('i32')))
     assert_eq_xr(agg, out)
@@ -851,9 +820,7 @@ def test_categorical_max_binning(df):
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
     for col in 'f32', 'f64':
-        out = xr.DataArray(
-            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
-        )
+        out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
         agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.max(col)))
         assert_eq_xr(agg, out)
 
@@ -864,10 +831,7 @@ def test_categorical_mean(df):
                      [nan, nan,  12, nan]],
                     [[nan,   7, nan, nan],
                      [nan, nan, nan,  17]]])
-    out = xr.DataArray(
-        sol,
-        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
-        dims=(dims + ['cat']))
+    out = xr.DataArray(sol, coords=coords + [['a', 'b', 'c', 'd']], dims=(dims + ['cat']))
 
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.mean('f32')))
     assert_eq_xr(agg, out)
@@ -876,9 +840,7 @@ def test_categorical_mean(df):
     assert_eq_xr(agg, out)
 
     # categorizing by (cat_int-10)%4 ought to give the same result
-    out = xr.DataArray(
-        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
-    )
+    out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
 
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('i32')))
     assert_eq_xr(agg, out)
@@ -897,9 +859,7 @@ def test_categorical_mean_binning(df):
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
     for col in 'f32', 'f64':
-        out = xr.DataArray(
-            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
-        )
+        out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
         agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.mean(col)))
         assert_eq_xr(agg, out)
 
@@ -915,10 +875,7 @@ def test_categorical_var(df):
                      [ nan,  nan,   2.,  nan]],
                     [[ nan,   2.,  nan,  nan],
                      [ nan,  nan,  nan,   2.]]])
-    out = xr.DataArray(
-        sol,
-        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
-        dims=(dims + ['cat']))
+    out = xr.DataArray(sol, coords=coords + [['a', 'b', 'c', 'd']], dims=(dims + ['cat']))
 
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.var('f32')))
     assert_eq_xr(agg, out, True)
@@ -927,9 +884,7 @@ def test_categorical_var(df):
     assert_eq_xr(agg, out, True)
 
         # categorizing by (cat_int-10)%4 ought to give the same result
-    out = xr.DataArray(
-        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
-    )
+    out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
 
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.var('f32')))
     assert_eq_xr(agg, out)
@@ -940,9 +895,7 @@ def test_categorical_var(df):
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
     for col in 'f32', 'f64':
-        out = xr.DataArray(
-            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
-        )
+        out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
         agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.var(col)))
         assert_eq_xr(agg, out)
 
@@ -960,10 +913,7 @@ def test_categorical_std(df):
         [[ nan,   2.,  nan,  nan],
          [ nan,  nan,  nan,   2.]]])
     )
-    out = xr.DataArray(
-        sol,
-        coords=OrderedDict(coords, cat=['a', 'b', 'c', 'd']),
-        dims=(dims + ['cat']))
+    out = xr.DataArray(sol, coords=coords + [['a', 'b', 'c', 'd']], dims=(dims + ['cat']))
 
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.std('f32')))
     assert_eq_xr(agg, out, True)
@@ -971,10 +921,8 @@ def test_categorical_std(df):
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.std('f64')))
     assert_eq_xr(agg, out, True)
 
-        # categorizing by (cat_int-10)%4 ought to give the same result
-    out = xr.DataArray(
-        sol, coords=OrderedDict(coords, cat_int=range(4)), dims=(dims + ['cat_int'])
-    )
+    # categorizing by (cat_int-10)%4 ought to give the same result
+    out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
 
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.std('f32')))
     assert_eq_xr(agg, out)
@@ -985,9 +933,7 @@ def test_categorical_std(df):
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
 
     for col in 'f32', 'f64':
-        out = xr.DataArray(
-            sol, coords=OrderedDict(coords, **{col: range(5)}), dims=(dims + [col])
-        )
+        out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
         agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.std(col)))
         assert_eq_xr(agg, out)
 
@@ -2899,7 +2845,7 @@ def test_canvas_size():
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_where_max(df):
     sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
-                                coords=coords | dict(cat2=['a', 'b', 'c', 'd']), dims=dims + ['cat2'])
+                                coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
     sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
 
     # Using row index
@@ -2914,7 +2860,7 @@ def test_categorical_where_max(df):
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_where_min(df):
     sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
-                                coords=coords | dict(cat2=['a', 'b', 'c', 'd']), dims=dims + ['cat2'])
+                                coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
     sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
 
     # Using row index
@@ -2929,7 +2875,7 @@ def test_categorical_where_min(df):
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_where_first(df):
     sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
-                                coords=coords | dict(cat2=['a', 'b', 'c', 'd']), dims=dims + ['cat2'])
+                                coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
     sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
 
     # Using row index
@@ -2944,7 +2890,7 @@ def test_categorical_where_first(df):
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_where_last(df):
     sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
-                                coords=coords | dict(cat2=['a', 'b', 'c', 'd']), dims=dims + ['cat2'])
+                                coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
     sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
 
     # Using row index
@@ -2963,7 +2909,7 @@ def test_categorical_where_max_n(df):
           [[12, -1, -1], [13, -1, -1], [14, 10, -1], [11, -1, -1]]],
          [[[8, -1, -1], [5, 9, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [15, 19, -1]]]],
-        coords=coords | dict(cat2=['a', 'b', 'c', 'd'], n=[0, 1, 2]), dims=dims + ['cat2', 'n'])
+        coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
     sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
 
     for n in range(1, 4):
@@ -2991,7 +2937,7 @@ def test_categorical_where_min_n(df):
           [[12, -1, -1], [13, -1, -1], [10, 14, -1], [11, -1, -1]]],
          [[[8, -1, -1], [9, 5, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [19, 15, -1]]]],
-        coords=coords | dict(cat2=['a', 'b', 'c', 'd'], n=[0, 1, 2]), dims=dims + ['cat2', 'n'])
+        coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
     sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
 
     for n in range(1, 4):
@@ -3019,7 +2965,7 @@ def test_categorical_where_first_n(df):
           [[12, -1, -1], [13, -1, -1], [10, 14, -1], [11, -1, -1]]],
          [[[8, -1, -1], [5, 9, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [15, 19, -1]]]],
-        coords=coords | dict(cat2=['a', 'b', 'c', 'd'], n=[0, 1, 2]), dims=dims + ['cat2', 'n'])
+        coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
     sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
 
     for n in range(1, 4):
@@ -3047,7 +2993,7 @@ def test_categorical_where_last_n(df):
           [[12, -1, -1], [13, -1, -1], [14, 10, -1], [11, -1, -1]]],
          [[[8, -1, -1], [9, 5, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [19, 15, -1]]]],
-        coords=coords | dict(cat2=['a', 'b', 'c', 'd'], n=[0, 1, 2]), dims=dims + ['cat2', 'n'])
+        coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
     sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
 
     for n in range(1, 4):
