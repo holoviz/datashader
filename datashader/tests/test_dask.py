@@ -2128,3 +2128,36 @@ def test_dataframe_dtypes(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
     ds.Canvas(2, 2).points(ddf, 'x', 'y', ds.count())
+
+
+@pytest.mark.parametrize('on_gpu', [False, True])
+def test_dask_categorical_counts(on_gpu):
+    # Issue 1202
+    if on_gpu and not test_gpu:
+        pytest.skip('gpu tests not enabled')
+
+    df = pd.DataFrame(
+        data=dict(
+            x = [0, 1, 2, 0, 1, 2, 1, 1, 1, 1, 1, 1],
+            y = [0]*12,
+            cat = ['a', 'b', 'c', 'a', 'b', 'c', 'b', 'b', 'b', 'b', 'b', 'c'],
+        )
+    )
+    ddf = dd.from_pandas(df, npartitions=2)
+    assert ddf.npartitions == 2
+    ddf.cat = ddf.cat.astype('category')
+
+    # Categorical counts at the dataframe level to confirm test is reasonable.
+    cat_totals = ddf.cat.value_counts().compute()
+    assert cat_totals['a'] == 2
+    assert cat_totals['b'] == 7
+    assert cat_totals['c'] == 3
+
+    canvas = ds.Canvas(3, 1, x_range=(0, 2), y_range=(-1, 1))
+    agg = canvas.points(ddf, 'x', 'y', ds.by("cat", ds.count()))
+    assert all(agg.cat == ['a', 'b', 'c'])
+
+    # Prior to fix, this gives [7, 3, 2]
+    sum_cat = agg.sum(dim=['x', 'y'])
+    assert all(sum_cat.cat == ['a', 'b', 'c'])
+    assert all(sum_cat.values == [2, 7, 3])

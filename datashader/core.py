@@ -1289,7 +1289,7 @@ def _bypixel_sanitise(source, glyph, agg):
                 source[glyph.geometry].array._sindex = sindex
         dshape = dshape_from_pandas(source)
     elif isinstance(source, dd.DataFrame):
-        dshape = dshape_from_dask(source)
+        dshape, source = dshape_from_dask(source)
     elif isinstance(source, Dataset):
         # Multi-dimensional Dataset
         dshape = dshape_from_xarray_dataset(source)

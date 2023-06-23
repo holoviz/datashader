@@ -456,7 +456,7 @@ def dshape_from_dask(df):
     # for dask-cudf DataFrames with multiple partitions
     return datashape.var * datashape.Record([
         (k, dshape_from_pandas_helper(df[k].get_partition(0))) for k in df.columns
-    ])
+    ]), df
 
 
 def dshape_from_xarray_dataset(xr_ds):
