@@ -4,7 +4,6 @@ from numpy import nan
 import xarray as xr
 import datashader as ds
 import pytest
-from collections import OrderedDict
 
 import dask.array
 from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
@@ -557,7 +556,7 @@ def test_curve_quadmesh_autorange(array_module):
          [2.,  2.,  nan, nan],
          [2.,  nan, nan, nan]]
         ),
-        coords=OrderedDict([
+        coords=dict([
             ('Qx', x_coords),
             ('Qy', y_coords)]),
         dims=['Qy', 'Qx']
@@ -606,7 +605,7 @@ def test_curve_quadmesh_autorange_chunked():
          [2.,  2.,  nan, nan],
          [2.,  nan, nan, nan]]
         ),
-        coords=OrderedDict([
+        coords=dict([
             ('Qx', x_coords),
             ('Qy', y_coords)]),
         dims=['Qy', 'Qx']
@@ -657,7 +656,7 @@ def test_curve_quadmesh_manual_range(array_module):
          [2., 2., 3., 3.],
          [2., 2., 3., 3.]]
         ),
-        coords=OrderedDict([
+        coords=dict([
             ('Qx', x_coords),
             ('Qy', y_coords)]),
         dims=['Qy', 'Qx']
@@ -706,7 +705,7 @@ def test_curve_quadmesh_manual_range_subpixel(array_module):
          [nan, nan, nan],
          [nan, nan, nan]]
         ),
-        coords=OrderedDict([
+        coords=dict([
             ('Qx', x_coords),
             ('Qy', y_coords)]),
         dims=['Qy', 'Qx']

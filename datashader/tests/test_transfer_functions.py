@@ -7,11 +7,10 @@ import xarray as xr
 import dask.array as da
 import PIL
 import pytest
-from collections import OrderedDict
 import datashader.transfer_functions as tf
 from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
 
-coords = OrderedDict([('x_axis', [3, 4, 5]), ('y_axis', [0, 1, 2])])
+coords = dict([('x_axis', [3, 4, 5]), ('y_axis', [0, 1, 2])])
 dims = ['y_axis', 'x_axis']
 
 # CPU

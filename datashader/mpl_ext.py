@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import warnings
 
 from matplotlib.image import _ImageBase
@@ -32,7 +31,7 @@ def to_ds_image(binned, rgba):
         return tf.Image(
             uint8_to_uint32(rgba),
             dims=binned.dims[:-1],
-            coords=OrderedDict(
+            coords=dict(
                 [
                     (binned.dims[1], binned.coords[binned.dims[1]]),
                     (binned.dims[0], binned.coords[binned.dims[0]]),
