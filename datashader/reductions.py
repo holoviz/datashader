@@ -11,6 +11,7 @@ import xarray as xr
 from datashader.enums import AntialiasCombination
 from datashader.utils import isminus1, isnull
 from numba import cuda as nb_cuda
+from numba.typed import List
 
 try:
     from datashader.transfer_functions._cuda_utils import (
@@ -322,6 +323,11 @@ class Reduction(Expr):
     @property
     def inputs(self):
         return (extract(self.column),)
+
+    def is_where(self):
+        """Return ``True`` if this is a ``where`` reduction or directly wraps
+        a where reduction."""
+        return False
 
     def _antialias_requires_2_stages(self):
         # Return True if this Reduction must be processed with 2 stages,
@@ -636,12 +642,16 @@ class by(Reduction):
         else:
             raise TypeError("first argument must be a column name or a CategoryPreprocess instance")
 
-        if isinstance(reduction, where):
-            raise TypeError(
-                "'by' reduction does not support 'where' reduction for its first argument")
-
         self.column = self.categorizer.column # for backwards compatibility with count_cat
-        self.columns = (self.categorizer.column, getattr(reduction, 'column', None))
+
+        self.columns = (self.categorizer.column,)
+        if (columns := getattr(reduction, 'columns', None)) is not None:
+            # Must reverse columns (from where reduction) so that val_column property
+            # is the column that is returned to the user.
+            self.columns += columns[::-1]
+        else:
+            self.columns += (getattr(reduction, 'column', None),)
+
         self.reduction = reduction
         # if a value column is supplied, set category_values preprocessor
         if self.val_column is not None:
@@ -676,6 +686,13 @@ class by(Reduction):
     def inputs(self):
         return (self.preprocess,)
 
+    def is_where(self):
+        return self.reduction.is_where()
+
+    @property
+    def nan_check_column(self):
+        return self.reduction.nan_check_column
+
     def uses_cuda_mutex(self):
         return self.reduction.uses_cuda_mutex()
 
@@ -704,6 +721,9 @@ class by(Reduction):
 
     def _build_combine(self, dshape, antialias, cuda, partitioned):
         return self.reduction._build_combine(dshape, antialias, cuda, partitioned)
+
+    def _build_combine_temps(self, cuda, partitioned):
+        return self.reduction._build_combine_temps(cuda, partitioned)
 
     def _build_finalize(self, dshape):
         cats = list(self.categorizer.categories(dshape))
@@ -1657,13 +1677,18 @@ class where(FloatingReduction):
             raise TypeError(
                 "selector can only be a first, first_n, last, last_n, "
                 "max, max_n, min or min_n reduction")
-        super().__init__(SpecialColumn.RowIndex if lookup_column is None else lookup_column)
+        if lookup_column is None:
+            lookup_column = SpecialColumn.RowIndex
+        super().__init__(lookup_column)
         self.selector = selector
         # List of all column names that this reduction uses.
         self.columns = (selector.column, lookup_column)
 
     def __hash__(self):
         return hash((type(self), self._hashable_inputs(), self.selector))
+
+    def is_where(self):
+        return True
 
     def out_dshape(self, input_dshape, antialias, cuda, partitioned):
         if self.column == SpecialColumn.RowIndex:
@@ -1781,8 +1806,8 @@ class where(FloatingReduction):
             return selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
 
     def _build_combine(self, dshape, antialias, cuda, partitioned):
-        # Does not support categorical reductions.
         selector = self.selector
+        is_n_reduction = isinstance(selector, FloatingNReduction)
         if cuda:
             append = selector._append_cuda
         else:
@@ -1793,32 +1818,34 @@ class where(FloatingReduction):
         invalid = isminus1 if self.selector.uses_row_index(cuda, partitioned) else isnull
 
         @ngjit
-        def combine_cpu_2d(aggs, selector_aggs):
-            ny, nx = aggs[0].shape
+        def combine_cpu(aggs, selector_aggs):
+            ny, nx, ncat = aggs[0].shape
             for y in range(ny):
                 for x in range(nx):
-                    value = selector_aggs[1][y, x]
-                    if not invalid(value) and append(x, y, selector_aggs[0], value) >= 0:
-                        aggs[0][y, x] = aggs[1][y, x]
+                    for cat in range(ncat):
+                        value = selector_aggs[1][y, x, cat]
+                        if not invalid(value) and append(x, y, selector_aggs[0][:, :, cat], value) >= 0:
+                            aggs[0][y, x, cat] = aggs[1][y, x, cat]
 
         @ngjit
-        def combine_cpu_3d(aggs, selector_aggs):
+        def combine_cpu_n(aggs, selector_aggs):
             # Generic solution for combining dask partitions of a where
             # reduction with a selector that is a FloatingNReduction.
-            ny, nx, n = aggs[0].shape
+            ny, nx, ncat, n = aggs[0].shape
             for y in range(ny):
                 for x in range(nx):
-                    for i in range(n):
-                        value = selector_aggs[1][y, x, i]
-                        if invalid(value):
-                            break
-                        update_index = append(x, y, selector_aggs[0], value)
-                        if update_index < 0:
-                            break
-                        # Bump values along in the same way that append() has done above.
-                        for j in range(n-1, update_index, -1):
-                            aggs[0][y, x, j] = aggs[0][y, x, j-1]
-                        aggs[0][y, x, update_index] = aggs[1][y, x, i]
+                    for cat in range(ncat):
+                        for i in range(n):
+                            value = selector_aggs[1][y, x, cat, i]
+                            if invalid(value):
+                                break
+                            update_index = append(x, y, selector_aggs[0][:, :, cat, :], value)
+                            if update_index < 0:
+                                break
+                            # Bump values along in the same way that append() has done above.
+                            for j in range(n-1, update_index, -1):
+                                aggs[0][y, x, cat, j] = aggs[0][y, x, cat, j-1]
+                            aggs[0][y, x, cat, update_index] = aggs[1][y, x, cat, i]
 
         @nb_cuda.jit
         def combine_cuda_2d(aggs, selector_aggs):
@@ -1831,6 +1858,15 @@ class where(FloatingReduction):
 
         @nb_cuda.jit
         def combine_cuda_3d(aggs, selector_aggs):
+            ny, nx, ncat = aggs[0].shape
+            x, y, cat = nb_cuda.grid(3)
+            if x < nx and y < ny and cat < ncat:
+                value = selector_aggs[1][y, x, cat]
+                if not invalid(value) and append(x, y, selector_aggs[0][:, :, cat], value) >= 0:
+                    aggs[0][y, x, cat] = aggs[1][y, x, cat]
+
+        @nb_cuda.jit
+        def combine_cuda_n_3d(aggs, selector_aggs):
             ny, nx, n = aggs[0].shape
             x, y = nb_cuda.grid(2)
             if x < nx and y < ny:
@@ -1846,21 +1882,57 @@ class where(FloatingReduction):
                         aggs[0][y, x, j] = aggs[0][y, x, j-1]
                     aggs[0][y, x, update_index] = aggs[1][y, x, i]
 
+        @nb_cuda.jit
+        def combine_cuda_n_4d(aggs, selector_aggs):
+            ny, nx, ncat, n = aggs[0].shape
+            x, y, cat = nb_cuda.grid(3)
+            if x < nx and y < ny and cat < ncat:
+                for i in range(n):
+                    value = selector_aggs[1][y, x, cat, i]
+                    if invalid(value):
+                        break
+                    update_index = append(x, y, selector_aggs[0][:, :, cat, :], value)
+                    if update_index < 0:
+                        break
+                    # Bump values along in the same way that append() has done above.
+                    for j in range(n-1, update_index, -1):
+                        aggs[0][y, x, cat, j] = aggs[0][y, x, cat, j-1]
+                    aggs[0][y, x, cat, update_index] = aggs[1][y, x, cat, i]
+
         def wrapped_combine(aggs, selector_aggs):
+            ret = aggs[0], selector_aggs[0]
+            ndim = aggs[0].ndim
+
             if len(aggs) == 1:
                 pass
-            elif cuda:
-                if aggs[0].ndim == 3:
-                    combine_cuda_3d[cuda_args(aggs[0].shape[:2])](aggs, selector_aggs)
+            elif is_n_reduction:
+                # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+                if cuda:
+                    if ndim == 3:
+                        combine_cuda_n_3d[cuda_args(aggs[0].shape[:2])](aggs, selector_aggs)
+                    else:
+                        combine_cuda_n_4d[cuda_args(aggs[0].shape[:3])](aggs, selector_aggs)
                 else:
-                    combine_cuda_2d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
+                    if ndim == 3:
+                        # 4d view of each agg, note use of numba typed list.
+                        aggs = List([np.expand_dims(agg, 2) for agg in aggs])
+                        selector_aggs = List([np.expand_dims(agg, 2) for agg in selector_aggs])
+                    combine_cpu_n(aggs, selector_aggs)
             else:
-                if aggs[0].ndim == 3:
-                    combine_cpu_3d(aggs, selector_aggs)
+                # ndim is either 2 (ny, nx) or 3 (ny, nx, ncat)
+                if cuda:
+                    if ndim == 2:
+                        combine_cuda_2d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
+                    else:
+                        combine_cuda_3d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
                 else:
-                    combine_cpu_2d(aggs, selector_aggs)
+                    if ndim == 2:
+                        # 3d view of each agg, note use of numba typed list.
+                        aggs = List([np.expand_dims(agg, 2) for agg in aggs])
+                        selector_aggs = List([np.expand_dims(agg, 2) for agg in selector_aggs])
+                    combine_cpu(aggs, selector_aggs)
 
-            return aggs[0], selector_aggs[0]
+            return ret
 
         return wrapped_combine
 

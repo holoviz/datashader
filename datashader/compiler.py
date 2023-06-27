@@ -6,7 +6,7 @@ from toolz import unique, concat, pluck, get, memoize
 import numpy as np
 import xarray as xr
 
-from .reductions import SpecialColumn, by, category_codes, summary, where
+from .reductions import SpecialColumn, by, category_codes, summary
 from .utils import isnull, ngjit
 
 try:
@@ -206,12 +206,12 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
         if categorical and isinstance(cols[0], category_codes):
-            categorical_arg = arg_lk[cols[0]]
+            categorical_arg = categorical_arg or arg_lk[cols[0]]
             args.extend('{0}[{1}]'.format(arg_lk[col], subscript) for col in cols[1:])
         elif ndims is None:
             args.extend('{0}'.format(arg_lk[i]) for i in cols)
         elif categorical:
-            categorical_arg = arg_lk[cols[0]]
+            categorical_arg = categorical_arg or arg_lk[cols[0]]
             args.extend('{0}[{1}][1]'.format(arg_lk[i], subscript)
                         for i in cols)
         else:
@@ -226,7 +226,7 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
             # Avoid unnecessary mutex unlock and lock cycle
             body.pop()
 
-        where_reduction = len(bases) == 1 and isinstance(bases[0], where)
+        where_reduction = len(bases) == 1 and bases[0].is_where()
         if where_reduction:
             update_index_arg_name = next(names)
             args.append(update_index_arg_name)
@@ -292,11 +292,14 @@ def make_append(bases, cols, calls, glyph, categorical, antialias):
 
 
 def make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned):
+    # Lookup of base Reduction to argument index.
     arg_lk = dict((k, v) for (v, k) in enumerate(bases))
+    # Also need lookup of by.reduction as the contained reduction is not aware of its wrapper.
+    arg_lk.update(dict((k.reduction, v) for (v, k) in enumerate(bases) if isinstance(k, by)))
 
     # where._combine() deals with combine of preceding reduction so exclude
     # it from explicit combine calls.
-    base_is_where = [isinstance(b, where) for b in bases]
+    base_is_where = [b.is_where() for b in bases]
     next_base_is_where = base_is_where[1:] + [False]
     calls = [(None if n else b._build_combine(d, antialias, cuda, partitioned), [arg_lk[i] for i in (b,) + t + ct])
              for (b, d, t, ct, n) in zip(bases, dshapes, temps, combine_temps, next_base_is_where)]
