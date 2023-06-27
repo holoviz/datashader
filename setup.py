@@ -29,6 +29,7 @@ examples = [
     'geopandas',
     'holoviews',
     'matplotlib',
+    'panel >1.1',
     'scikit-image',
     'spatialpandas',
 ]
