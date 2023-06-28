@@ -30,16 +30,17 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
 df_pd.cat = df_pd.cat.astype('category')
 df_pd.cat2 = df_pd.cat2.astype('category')
 df_pd.onecat = df_pd.onecat.astype('category')
-df_pd.at[2,'f32'] = nan
-df_pd.at[2,'f64'] = nan
-df_pd.at[2,'plusminus'] = nan
-# x          0  0   0  0  0   0  0  0  0  0   1   1  1   1  1    1  1   1  1   1
-# y          0  0   0  0  0   1  1  1  1  1   0   0  0   0  0    1  1   1  1   1
-# i32        0  1   2  3  4   5  6  7  8  9  10  11 12  13 14   15 16  17 18  19
-# f32        0  1 nan  3  4   5  6  7  8  9  10  11 12  13 14   15 16  17 18  19
-# reverse   20 19  18 17 16  15 14 13 12 11  10   9  8   7  6    5  4   3  2   1
-# plusminus  0 -1 nan -3  4  -5  6 -7  8 -9  10 -11 12 -13 14  -15 16 -17 18 -19
-# cat2       a  b   c  d  a   b  c  d  a  b   c   d  a   b  c    d  a   b  c   d
+df_pd.at[2, 'f32'] = nan
+df_pd.at[2, 'f64'] = nan
+df_pd.at[6, 'reverse'] = nan
+df_pd.at[2, 'plusminus'] = nan
+# x          0  0   0  0  0   0   0  0  0  0   1   1  1   1  1    1  1   1  1   1
+# y          0  0   0  0  0   1   1  1  1  1   0   0  0   0  0    1  1   1  1   1
+# i32        0  1   2  3  4   5   6  7  8  9  10  11 12  13 14   15 16  17 18  19
+# f32        0  1 nan  3  4   5   6  7  8  9  10  11 12  13 14   15 16  17 18  19
+# reverse   20 19  18 17 16  15 nan 13 12 11  10   9  8   7  6    5  4   3  2   1
+# plusminus  0 -1 nan -3  4  -5   6 -7  8 -9  10 -11 12 -13 14  -15 16 -17 18 -19
+# cat2       a  b   c  d  a   b   c  d  a  b   c   d  a   b  c    d  a   b  c   d
 
 test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
@@ -505,7 +506,7 @@ def test_where_first_n(df):
                               [10, 11, 12, 13, 14, -1]],
                              [[ 5,  6,  7,  8,  9, -1],
                               [15, 16, 17, 18, 19, -1]]])
-    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -529,7 +530,7 @@ def test_where_last_n(df):
                               [14, 13, 12, 11, 10, -1]],
                              [[ 9,  8,  7,  6,  5, -1],
                               [19, 18, 17, 16, 15, -1]]])
-    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -553,7 +554,7 @@ def test_where_max_n(df):
                               [14, 12, 10, 11, 13, -1]],
                              [[ 8,  6,  5,  7,  9, -1],
                               [18, 16, 15, 17, 19, -1]]])
-    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -577,7 +578,7 @@ def test_where_min_n(df):
                               [13, 11, 10, 12, 14, -1]],
                              [[ 9,  7,  5,  6,  8, -1],
                               [19, 17, 15, 16, 18, -1]]])
-    sol_reverse = np.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -605,7 +606,8 @@ def test_summary_where_n(df):
                                     [14, 12, 10, 11, 13]],
                                    [[ 8,  6,  5,  7,  9],
                                     [18, 16, 15, 17, 19]]])
-    sol_max_n_reverse = np.where(sol_max_n_rowindex < 0, np.nan, 20 - sol_max_n_rowindex)
+    sol_max_n_reverse = np.where(np.logical_or(sol_max_n_rowindex < 0, sol_max_n_rowindex == 6),
+                                 np.nan, 20 - sol_max_n_rowindex)
 
     agg = c.points(df, 'x', 'y', ds.summary(
         count=ds.count(),
@@ -2846,7 +2848,7 @@ def test_canvas_size():
 def test_categorical_where_max(df):
     sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     # Using row index
     agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.max('plusminus'))))
@@ -2861,7 +2863,7 @@ def test_categorical_where_max(df):
 def test_categorical_where_min(df):
     sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     # Using row index
     agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.min('plusminus'))))
@@ -2876,7 +2878,7 @@ def test_categorical_where_min(df):
 def test_categorical_where_first(df):
     sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     # Using row index
     agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.first('plusminus'))))
@@ -2891,7 +2893,7 @@ def test_categorical_where_first(df):
 def test_categorical_where_last(df):
     sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     # Using row index
     agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'))))
@@ -2910,7 +2912,7 @@ def test_categorical_where_max_n(df):
          [[[8, -1, -1], [5, 9, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [15, 19, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -2938,7 +2940,7 @@ def test_categorical_where_min_n(df):
          [[[8, -1, -1], [9, 5, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [19, 15, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -2966,7 +2968,7 @@ def test_categorical_where_first_n(df):
          [[[8, -1, -1], [5, 9, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [15, 19, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -2994,7 +2996,7 @@ def test_categorical_where_last_n(df):
          [[[8, -1, -1], [9, 5, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [19, 15, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(sol_rowindex < 0, np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
