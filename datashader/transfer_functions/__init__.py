@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from collections import OrderedDict
 from io import BytesIO
 
 import warnings
@@ -356,7 +355,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     cats = agg.indexes[agg.dims[-1]]
     if not len(cats): # No categories and therefore no data; return an empty image
         return Image(np.zeros(agg.shape[0:2], dtype=np.uint32), dims=agg.dims[:-1],
-                     coords=OrderedDict([
+                     coords=dict([
                          (agg.dims[1], agg.coords[agg.dims[1]]),
                          (agg.dims[0], agg.coords[agg.dims[0]]) ]), name=name)
 
@@ -427,7 +426,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
 
     return Image(values,
                  dims=agg.dims[:-1],
-                 coords=OrderedDict([
+                 coords=dict([
                      (agg.dims[1], agg.coords[agg.dims[1]]),
                      (agg.dims[0], agg.coords[agg.dims[0]]),
                  ]),

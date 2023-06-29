@@ -7,7 +7,6 @@ from datashader.compiler import compile_components
 from datashader.glyphs.points import _PointLike, _GeometryLike
 from datashader.glyphs.area import _AreaToLineLike
 from datashader.utils import Dispatcher
-from collections import OrderedDict
 
 __all__ = ()
 
@@ -49,7 +48,7 @@ def default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=Fal
 
     return finalize(bases,
                     cuda=cuda,
-                    coords=OrderedDict([(glyph.x_label, x_axis),
-                                        (glyph.y_label, y_axis)]),
+                    coords=dict([(glyph.x_label, x_axis),
+                                 (glyph.y_label, y_axis)]),
                     dims=[glyph.y_label, glyph.x_label],
                     attrs=dict(x_range=x_range, y_range=y_range))

@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from datashader.compiler import compile_components
 from datashader.utils import Dispatcher
 from datashader.glyphs.quadmesh import (
@@ -50,7 +49,7 @@ def shape_bounds_st_and_axis(xr_ds, canvas, glyph):
 
     x_axis = canvas.x_axis.compute_index(x_st, width)
     y_axis = canvas.y_axis.compute_index(y_st, height)
-    axis = OrderedDict([(glyph.x_label, x_axis), (glyph.y_label, y_axis)])
+    axis = dict([(glyph.x_label, x_axis), (glyph.y_label, y_axis)])
 
     return shape, bounds, st, axis
 
@@ -99,7 +98,7 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
             )
             chunk_coords_list.append([coord_name, coords[coord_name][coord_slice]])
 
-        chunk_coords = OrderedDict(chunk_coords_list)
+        chunk_coords = dict(chunk_coords_list)
         chunk_ds = xr.DataArray(
             np_arr, coords=chunk_coords, dims=coord_dims, name=var_name
         ).to_dataset()
@@ -197,7 +196,7 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
             )
             chunk_coords_list.append([coord_name, coords[coord_name][coord_slice]])
 
-        chunk_coords = OrderedDict(chunk_coords_list)
+        chunk_coords = dict(chunk_coords_list)
         chunk_ds = xr.DataArray(
             np_arr, coords=chunk_coords, dims=coord_dims, name=var_name
         ).to_dataset()

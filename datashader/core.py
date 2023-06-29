@@ -9,7 +9,6 @@ import pandas as pd
 import dask.dataframe as dd
 import dask.array as da
 from xarray import DataArray, Dataset
-from collections import OrderedDict
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
@@ -1304,7 +1303,7 @@ def _cols_to_keep(columns, glyph, agg):
     Return which columns from the supplied data source are kept as they are
     needed by the specified agg. Excludes any SpecialColumn.
     """
-    cols_to_keep = OrderedDict({col: False for col in columns})
+    cols_to_keep = dict({col: False for col in columns})
     for col in glyph.required_columns():
         cols_to_keep[col] = True
 

@@ -23,7 +23,6 @@ import fastparquet as fp
 
 from datashader.utils import export_image
 from datashader import transfer_functions as tf
-from collections import OrderedDict as odict
 
 #from multiprocessing.pool import ThreadPool
 #dask.set_options(pool=ThreadPool(3)) # select a pecific number of threads
@@ -51,7 +50,7 @@ p=Parameters()
 filetypes_storing_categories = {'parq'}
 
 
-class Kwargs(odict):
+class Kwargs(dict):
     """Used to distinguish between dictionary argument values, and
     keyword-arguments.
     """
@@ -82,7 +81,7 @@ def benchmark(fn, args, filetype=None):
     # If we're loading data
     if filetype is not None:
         if filetype not in filetypes_storing_categories:
-            opts=odict()
+            opts = dict()
             if p.dftype == 'pandas':
                 opts['copy']=False
             for c in p.categories:
@@ -107,7 +106,7 @@ def benchmark(fn, args, filetype=None):
 
 
 
-read = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","feather","h5","csv"]])
+read = dict([(f, dict()) for f in ["parq","snappy.parq","gz.parq","feather","h5","csv"]])
 
 def read_csv_dask(filepath, usecols=None):
     # Pandas writes CSV files out as a single file
@@ -143,7 +142,7 @@ read["gz.parq"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(read_par
 read["snappy.parq"] ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
 
 
-write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","feather","h5","csv"]])
+write = dict([(f, dict()) for f in ["parq","snappy.parq","gz.parq","feather","h5","csv"]])
 
 write["csv"]          ["dask"]   = lambda df,filepath,p:  benchmark(df.to_csv, (filepath.replace(".csv","*.csv"), Kwargs(index=False)))
 write["h5"]           ["dask"]   = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, p.base))
