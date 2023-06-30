@@ -29,9 +29,9 @@ except Exception:
     cudf = cp = None
 
 from .utils import (
-    Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place,
-    nanmax_n_in_place, nanmin_n_in_place, row_min_in_place,
-    row_max_n_in_place, row_min_n_in_place,
+    Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place, row_min_in_place,
+    nanmax_n_in_place_4d, nanmax_n_in_place_3d, nanmin_n_in_place_4d, nanmin_n_in_place_3d,
+    row_max_n_in_place_4d, row_max_n_in_place_3d, row_min_n_in_place_4d, row_min_n_in_place_3d,
 )
 
 
@@ -1521,11 +1521,11 @@ class max_n(FloatingNReduction):
     @staticmethod
     def _combine(aggs):
         ret = aggs[0]
-        if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
-            # 4d view of each agg
-            aggs = [np.expand_dims(agg, 2) for agg in aggs]
         for i in range(1, len(aggs)):
-            nanmax_n_in_place(aggs[0], aggs[i])
+            if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+                nanmax_n_in_place_3d(aggs[0], aggs[i])
+            else:
+                nanmax_n_in_place_4d(aggs[0], aggs[i])
         return ret
 
     @staticmethod
@@ -1593,11 +1593,11 @@ class min_n(FloatingNReduction):
     @staticmethod
     def _combine(aggs):
         ret = aggs[0]
-        if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
-            # 4d view of each agg
-            aggs = [np.expand_dims(agg, 2) for agg in aggs]
         for i in range(1, len(aggs)):
-            nanmin_n_in_place(aggs[0], aggs[i])
+            if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+                nanmin_n_in_place_3d(aggs[0], aggs[i])
+            else:
+                nanmin_n_in_place_4d(aggs[0], aggs[i])
         return ret
 
     @staticmethod
@@ -2213,9 +2213,9 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
         ret = aggs[0]
         if len(aggs) > 1:
             if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
-                # 4d view of each agg
-                aggs = [np.expand_dims(agg, 2) for agg in aggs]
-            row_max_n_in_place(aggs[0], aggs[1])
+                row_max_n_in_place_3d(aggs[0], aggs[1])
+            else:
+                row_max_n_in_place_4d(aggs[0], aggs[1])
         return ret
 
     @staticmethod
@@ -2278,9 +2278,9 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
         ret = aggs[0]
         if len(aggs) > 1:
             if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
-                # 4d view of each agg
-                aggs = [np.expand_dims(agg, 2) for agg in aggs]
-            row_min_n_in_place(aggs[0], aggs[1])
+                row_min_n_in_place_3d(aggs[0], aggs[1])
+            else:
+                row_min_n_in_place_4d(aggs[0], aggs[1])
         return ret
 
     @staticmethod
