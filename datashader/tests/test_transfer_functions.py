@@ -8,7 +8,7 @@ import dask.array as da
 import PIL
 import pytest
 import datashader.transfer_functions as tf
-from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
+from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr, assert_image_close
 
 coords = dict([('x_axis', [3, 4, 5]), ('y_axis', [0, 1, 2])])
 dims = ['y_axis', 'x_axis']
@@ -170,12 +170,7 @@ def test_shade(agg, attr, span):
 
         img = tf.shade(x, cmap=cmap, how='eq_hist', rescale_discrete_levels=True)
         sol = tf.Image(eq_hist_sol_rescale_discrete_levels[attr], coords=coords, dims=dims)
-        if cupy and attr=='a' and isinstance(agg.a.data, cupy.ndarray):
-            # cupy eq_hist has slightly different numerics hence slightly different RGBA results
-            sol = sol.copy(deep=True)
-            sol[2, 0] = sol[2, 0] - 0x100
-
-        assert_eq_xr(img, sol)
+        assert_image_close(img, sol, tolerance=1)
 
     img = tf.shade(x, cmap=cmap,
                    how=lambda x, mask: np.where(mask, np.nan, x ** 2))
