@@ -1,6 +1,6 @@
 from __future__ import annotations
 from enum import Enum
-from typing import NamedTuple
+from typing import NamedTuple, TYPE_CHECKING
 
 from datashader.utils import (
     nanfirst_in_place, nanlast_in_place, nanmax_in_place,
@@ -25,7 +25,8 @@ class AntialiasStage2(NamedTuple):
     zero: float
 
 
-UnzippedAntialiasStage2 = tuple[tuple[AntialiasCombination], tuple[float]]
+if TYPE_CHECKING:
+    UnzippedAntialiasStage2 = tuple[tuple[AntialiasCombination], tuple[float]]
 
 
 def two_stage_agg(antialias_stage_2: UnzippedAntialiasStage2 | None):

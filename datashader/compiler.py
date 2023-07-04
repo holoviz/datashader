@@ -1,12 +1,11 @@
 from __future__ import annotations
-
 from itertools import count
+from typing import TYPE_CHECKING
 
 from toolz import unique, concat, pluck, get, memoize
 import numpy as np
 import xarray as xr
 
-from datashader.antialias import UnzippedAntialiasStage2
 from .reductions import SpecialColumn, by, category_codes, summary
 from .utils import isnull, ngjit
 
@@ -14,6 +13,9 @@ try:
     from datashader.transfer_functions._cuda_utils import cuda_mutex_lock, cuda_mutex_unlock
 except ImportError:
     cuda_mutex_lock, cuda_mutex_unlock = None, None
+
+if TYPE_CHECKING:
+    from datashader.antialias import UnzippedAntialiasStage2
 
 
 __all__ = ['compile_components']
