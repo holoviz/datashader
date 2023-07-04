@@ -1,7 +1,6 @@
 from __future__ import annotations
 from .points import Point, MultiPointGeometry   # noqa (API import)
 from .line import (  # noqa (API import)
-    AntialiasCombination,
     LineAxis0,
     LineAxis0Multi,
     LinesAxis1,

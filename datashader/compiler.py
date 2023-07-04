@@ -1,6 +1,6 @@
 from __future__ import annotations
-
 from itertools import count
+from typing import TYPE_CHECKING
 
 from toolz import unique, concat, pluck, get, memoize
 import numpy as np
@@ -13,6 +13,9 @@ try:
     from datashader.transfer_functions._cuda_utils import cuda_mutex_lock, cuda_mutex_unlock
 except ImportError:
     cuda_mutex_lock, cuda_mutex_unlock = None, None
+
+if TYPE_CHECKING:
+    from datashader.antialias import UnzippedAntialiasStage2
 
 
 __all__ = ['compile_components']
@@ -362,7 +365,7 @@ def make_antialias_stage_2(reds, bases):
             self_intersect = False
             break
 
-    def antialias_stage_2(array_module):
+    def antialias_stage_2(array_module) -> UnzippedAntialiasStage2:
         return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module) for b in bases)))
 
     return self_intersect, antialias_stage_2
