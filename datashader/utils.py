@@ -648,8 +648,34 @@ def nanmin_in_place(ret, other):
             ret[i] = other[i]
 
 
+@ngjit
+def _nanmax_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of nanmax_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if isnull(other_value):
+            break
+        else:
+            for i in range(istart, n):
+                if isnull(ret_pixel[i]) or other_value > ret_pixel[i]:
+                    # Shift values along then insert.
+                    for j in range(n-1, i, -1):
+                        ret_pixel[j] = ret_pixel[j-1]
+                    ret_pixel[i] = other_value
+                    istart = i+1
+                    break
+
+
 @ngjit_parallel
-def nanmax_n_in_place(ret, other):
+def nanmax_n_in_place_4d(ret, other):
     """Combine two max-n arrays, taking nans into account. Max-n arrays are 4D
     with shape (ny, nx, ncat, n) where ny and nx are the number of pixels,
     ncat the number of categories (will be 1 if not using a categorical
@@ -657,33 +683,51 @@ def nanmax_n_in_place(ret, other):
     If there are fewer than n values it is padded with nans.
     Return the first array.
     """
-    ny, nx, ncat, n = ret.shape
+    ny, nx, ncat, _n = ret.shape
     for y in nb.prange(ny):
         for x in range(nx):
             for cat in range(ncat):
-                ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
-                other_pixel = other[y, x, cat]  # ditto
-                # Walk along other_pixel array a value at a time, find insertion
-                # index in ret_pixel and bump values along to insert.  Next
-                # other_pixel value is inserted at a higher index, so this walks
-                # the two pixel arrays just once each.
-                istart = 0
-                for other_value in other_pixel:
-                    if isnull(other_value):
-                        break
-                    else:
-                        for i in range(istart, n):
-                            if isnull(ret_pixel[i]) or other_value > ret_pixel[i]:
-                                # Bump values along then insert.
-                                for j in range(n-1, i, -1):
-                                    ret_pixel[j] = ret_pixel[j-1]
-                                ret_pixel[i] = other_value
-                                istart = i+1
-                                break
+                _nanmax_n_impl(ret[y, x, cat], other[y, x, cat])
 
 
 @ngjit_parallel
-def nanmin_n_in_place(ret, other):
+def nanmax_n_in_place_3d(ret, other):
+    """3d version of nanmax_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            _nanmax_n_impl(ret[y, x], other[y, x])
+
+
+@ngjit
+def _nanmin_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of nanmin_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if isnull(other_value):
+            break
+        else:
+            for i in range(istart, n):
+                if isnull(ret_pixel[i]) or other_value < ret_pixel[i]:
+                    # Shift values along then insert.
+                    for j in range(n-1, i, -1):
+                        ret_pixel[j] = ret_pixel[j-1]
+                    ret_pixel[i] = other_value
+                    istart = i+1
+                    break
+
+
+@ngjit_parallel
+def nanmin_n_in_place_4d(ret, other):
     """Combine two min-n arrays, taking nans into account. Min-n arrays are 4D
     with shape (ny, nx, ncat, n) where ny and nx are the number of pixels,
     ncat the number of categories (will be 1 if not using a categorical
@@ -691,29 +735,21 @@ def nanmin_n_in_place(ret, other):
     If there are fewer than n values it is padded with nans.
     Return the first array.
     """
-    ny, nx, ncat, n = ret.shape
+    ny, nx, ncat, _n = ret.shape
     for y in nb.prange(ny):
         for x in range(nx):
             for cat in range(ncat):
-                ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
-                other_pixel = other[y, x, cat]  # ditto
-                # Walk along other_pixel array a value at a time, find insertion
-                # index in ret_pixel and bump values along to insert.  Next
-                # other_pixel value is inserted at a higher index, so this walks
-                # the two pixel arrays just once each.
-                istart = 0
-                for other_value in other_pixel:
-                    if isnull(other_value):
-                        break
-                    else:
-                        for i in range(istart, n):
-                            if isnull(ret_pixel[i]) or other_value < ret_pixel[i]:
-                                # Bump values along then insert.
-                                for j in range(n-1, i, -1):
-                                    ret_pixel[j] = ret_pixel[j-1]
-                                ret_pixel[i] = other_value
-                                istart = i+1
-                                break
+                _nanmin_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@ngjit_parallel
+def nanmin_n_in_place_3d(ret, other):
+    """3d version of nanmin_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            _nanmin_n_impl(ret[y, x], other[y, x])
 
 
 @ngjit_parallel
@@ -754,62 +790,94 @@ def row_min_in_place(ret, other):
 
 
 @ngjit
-def row_max_n_in_place(ret, other):
+def _row_max_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of row_max_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if other_value == -1:
+            break
+        else:
+            for i in range(istart, n):
+                if ret_pixel[i] == -1 or other_value > ret_pixel[i]:
+                    # Shift values along then insert.
+                    for j in range(n-1, i, -1):
+                        ret_pixel[j] = ret_pixel[j-1]
+                    ret_pixel[i] = other_value
+                    istart = i+1
+                    break
+
+
+@ngjit
+def row_max_n_in_place_4d(ret, other):
     """Combine two row_max_n signed integer arrays.
     Equivalent to nanmax_n_in_place with -1 replacing NaN for missing data.
     Return the first array.
     """
-    ny, nx, ncat, n = ret.shape
+    ny, nx, ncat, _n = ret.shape
     for y in range(ny):
         for x in range(nx):
             for cat in range(ncat):
-                ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
-                other_pixel = other[y, x, cat]  # ditto
-                # Walk along other_pixel array a value at a time, find insertion
-                # index in ret_pixel and bump values along to insert.  Next
-                # other_pixel value is inserted at a higher index, so this walks
-                # the two pixel arrays just once each.
-                istart = 0
-                for other_value in other_pixel:
-                    if other_value == -1:
-                        break
-                    else:
-                        for i in range(istart, n):
-                            if ret_pixel[i] == -1 or other_value > ret_pixel[i]:
-                                # Bump values along then insert.
-                                for j in range(n-1, i, -1):
-                                    ret_pixel[j] = ret_pixel[j-1]
-                                ret_pixel[i] = other_value
-                                istart = i+1
-                                break
+                _row_max_n_impl(ret[y, x, cat], other[y, x, cat])
 
 
 @ngjit
-def row_min_n_in_place(ret, other):
+def row_max_n_in_place_3d(ret, other):
+    ny, nx, _n = ret.shape
+    for y in range(ny):
+        for x in range(nx):
+            _row_max_n_impl(ret[y, x], other[y, x])
+
+
+@ngjit
+def _row_min_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of row_min_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if other_value == -1:
+            break
+        else:
+            for i in range(istart, n):
+                if ret_pixel[i] == -1 or other_value < ret_pixel[i]:
+                    # Shift values along then insert.
+                    for j in range(n-1, i, -1):
+                        ret_pixel[j] = ret_pixel[j-1]
+                    ret_pixel[i] = other_value
+                    istart = i+1
+                    break
+
+
+@ngjit
+def row_min_n_in_place_4d(ret, other):
     """Combine two row_min_n signed integer arrays.
     Equivalent to nanmin_n_in_place with -1 replacing NaN for missing data.
     Return the first array.
     """
-    ny, nx, ncat, n = ret.shape
+    ny, nx, ncat, _n = ret.shape
     for y in range(ny):
         for x in range(nx):
             for cat in range(ncat):
-                ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
-                other_pixel = other[y, x, cat]  # ditto
-                # Walk along other_pixel array a value at a time, find insertion
-                # index in ret_pixel and bump values along to insert.  Next
-                # other_pixel value is inserted at a higher index, so this walks
-                # the two pixel arrays just once each.
-                istart = 0
-                for other_value in other_pixel:
-                    if other_value == -1:
-                        break
-                    else:
-                        for i in range(istart, n):
-                            if ret_pixel[i] == -1 or other_value < ret_pixel[i]:
-                                # Bump values along then insert.
-                                for j in range(n-1, i, -1):
-                                    ret_pixel[j] = ret_pixel[j-1]
-                                ret_pixel[i] = other_value
-                                istart = i+1
-                                break
+                _row_min_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@ngjit
+def row_min_n_in_place_3d(ret, other):
+    ny, nx, _n = ret.shape
+    for y in range(ny):
+        for x in range(nx):
+            _row_min_n_impl(ret[y, x], other[y, x])
