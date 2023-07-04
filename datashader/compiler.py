@@ -6,6 +6,7 @@ from toolz import unique, concat, pluck, get, memoize
 import numpy as np
 import xarray as xr
 
+from datashader.antialias import UnzippedAntialiasStage2
 from .reductions import SpecialColumn, by, category_codes, summary
 from .utils import isnull, ngjit
 
@@ -362,7 +363,7 @@ def make_antialias_stage_2(reds, bases):
             self_intersect = False
             break
 
-    def antialias_stage_2(array_module):
+    def antialias_stage_2(array_module) -> UnzippedAntialiasStage2:
         return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module) for b in bases)))
 
     return self_intersect, antialias_stage_2
