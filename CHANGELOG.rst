@@ -1,3 +1,42 @@
+Version 0.15.1 (2023-07-05)
+---------------------------
+
+This release contains an important bug fix to ensure that categorical column order in maintained across dask partitions. It also adds support for categorical inspection reductions such as ``by(max_n)``. The only missing functionality for inspection reductions is now antialiased lines, which in planned for the next release.
+
+Thanks to contributors `@ianthomas23 <https://github.com/ianthomas23>`_, `@maximlt <https://github.com/maximlt>`_ and `@philippjfr <https://github.com/philippjfr>`_.
+
+Bug fixes:
+
+- Fix single category reductions (`#1231 <https://github.com/holoviz/datashader/pull/1231>`_)
+- Ensure categorical column order is the same across dask partitions (`#1239 <https://github.com/holoviz/datashader/pull/1239>`_)
+
+Enhancements:
+
+* Categorical inspection reductions:
+
+  - Support ``by(max_n)`` and ``by(min_n)`` (`#1229 <https://github.com/holoviz/datashader/pull/1229>`_)
+  - Categorical ``max_row_index``, ``max_n_row_index`` and ``min`` equivalents (`#1233 <https://github.com/holoviz/datashader/pull/1233>`_)
+  - Use enum for row index column rather than ``None`` (`#1234 <https://github.com/holoviz/datashader/pull/1234>`_)
+  - Add support for categorical ``where`` reductions (`#1237 <https://github.com/holoviz/datashader/pull/1237>`_)
+  - Add tests for handling of NaNs in ``where`` reductions (`#1241 <https://github.com/holoviz/datashader/pull/1241>`_)
+
+* General code improvements:
+
+  - Only check ``dask.DataFrame`` ``dtypes`` of columns actually used (`#1236 <https://github.com/holoviz/datashader/pull/1236>`_)
+  - Remove all use of ``OrderedDict`` (`#1242 <https://github.com/holoviz/datashader/pull/1242>`_)
+  - Separate out 3d and 4d combine functions (`#1243 <https://github.com/holoviz/datashader/pull/1243>`_)
+  - Reorganise antialiasing code (`#1245 <https://github.com/holoviz/datashader/pull/1245>`_)
+
+Improvements to CI:
+
+- Bump holoviz tasks (`#1240 <https://github.com/holoviz/datashader/pull/1240>`_)
+- Add image is close test helper (`#1244 <https://github.com/holoviz/datashader/pull/1244>`_)
+
+Improvements to documentation:
+
+- Update to Google Analytics 4 (`#1228 <https://github.com/holoviz/datashader/pull/1228>`_)
+- Rename pyviz-dev as holoviz-dev (`#1232 <https://github.com/holoviz/datashader/pull/1232>`_)
+
 Version 0.15.0 (2023-05-30)
 ---------------------------
 
