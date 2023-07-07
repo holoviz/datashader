@@ -43,7 +43,7 @@ extras_require = {
         'nbformat',
         'nbsmoke[verify] >0.5',
         'netcdf4',
-        'pyarrow <11',
+        'pyarrow',
         'pytest',
         'pytest-benchmark',
         'pytest-cov',
