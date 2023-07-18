@@ -519,7 +519,7 @@ def test_equality_validation(other):
 
 # Pandas-provided extension array tests
 # -------------------------------------
-# See http://pandas-docs.github.io/pandas-docs-travis/extending.html
+# See https://pandas.pydata.org/docs/development/extending.html
 @pytest.fixture
 def dtype():
     """A fixture providing the ExtensionDtype to validate."""
