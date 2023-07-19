@@ -16,7 +16,7 @@ install_requires = [
     'numpy',
     'pandas',
     'param',
-    'pillow <10',
+    'pillow',
     'pyct',
     'requests',
     'scipy',
@@ -29,7 +29,7 @@ examples = [
     'geopandas',
     'holoviews',
     'matplotlib >=3.3',
-    'panel >=1.2',
+    'panel >1.1',
     'scikit-image',
     'spatialpandas',
 ]
