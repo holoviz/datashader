@@ -2004,10 +2004,16 @@ class summary(Expr):
         return hash((type(self), tuple(self.keys), tuple(self.values)))
 
     def is_categorical(self):
-        return any(v.is_categorical() for v in self.values)
+        for v in self.values:
+            if v.is_categorical():
+                return True
+        return False
 
     def uses_row_index(self, cuda, partitioned):
-        return any(v.uses_row_index(cuda, partitioned) for v in self.values)
+        for v in self.values:
+            if v.uses_row_index(cuda, partitioned):
+                return True
+        return False
 
     def validate(self, input_dshape):
         for v in self.values:
