@@ -3,11 +3,15 @@ from itertools import count
 from typing import TYPE_CHECKING
 
 from toolz import unique, concat, pluck, get, memoize
+from numba import literal_unroll
 import numpy as np
 import xarray as xr
 
+from .antialias import AntialiasCombination
 from .reductions import SpecialColumn, by, category_codes, summary
-from .utils import isnull, ngjit
+from .utils import (isnull, ngjit, parallel_fill, nanmax_in_place, nanmin_in_place, nansum_in_place,
+    nanfirst_in_place, nanlast_in_place,
+)
 
 try:
     from datashader.transfer_functions._cuda_utils import cuda_mutex_lock, cuda_mutex_unlock
@@ -99,9 +103,11 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
         else:
             array_module = np
         antialias_stage_2 = antialias_stage_2(array_module)
+        aa_3_funcs = make_aa(antialias_stage_2)
     else:
         self_intersect = False
         antialias_stage_2 = False
+        aa_3_funcs = None  #None, None, None
 
     # List of tuples of
     # (append, base, input columns, temps, combine temps, uses cuda mutex, is_categorical)
@@ -125,7 +131,72 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
 
     column_names = [c.column for c in cols if c.column != SpecialColumn.RowIndex]
 
-    return create, info, append, combine, finalize, antialias_stage_2, column_names
+    return create, info, append, combine, finalize, antialias_stage_2, aa_3_funcs, column_names
+
+
+def _get_combine_func(combination: AntialiasCombination, zero: float, n_reduction: bool, categorical: bool):
+    if not n_reduction and not categorical:
+        if combination == AntialiasCombination.MAX:
+            return nanmax_in_place
+        elif combination == AntialiasCombination.MIN:
+            return nanmin_in_place
+        elif combination == AntialiasCombination.FIRST:
+            return nanfirst_in_place
+        elif combination == AntialiasCombination.LAST:
+            return nanlast_in_place
+        else:
+            return nansum_in_place
+
+    if not n_reduction and categorical:
+        if combination == AntialiasCombination.MAX:
+            raise NotImplementedError
+        elif combination == AntialiasCombination.MIN:
+            raise NotImplementedError
+        elif combination == AntialiasCombination.FIRST:
+            raise NotImplementedError
+        elif combination == AntialiasCombination.LAST:
+            raise NotImplementedError
+        else:
+            return nansum_in_place
+
+    raise NotImplementedError
+
+
+def make_aa(antialias_stage_2):
+    aa_combinations, aa_zeroes, aa_n_reductions, aa_categorical = antialias_stage_2
+
+    # Accumulate functions.
+    funcs = [_get_combine_func(comb, zero, n_red, cat) for comb, zero, n_red, cat
+             in zip(aa_combinations, aa_zeroes, aa_n_reductions, aa_categorical)]
+
+    namespace = {}
+    namespace["literal_unroll"] = literal_unroll
+    for func in set(funcs):
+        namespace[func.__name__] = func
+
+    lines = ["def aa_stage_2_accumulate(aggs_and_copies):"]
+    for i, func in enumerate(funcs):
+        lines.append(f"    {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
+
+    code = "\n".join(lines)
+    exec(code, namespace)
+    aa_stage_2_accumulate = ngjit(namespace["aa_stage_2_accumulate"])
+
+    @ngjit
+    def aa_stage_2_clear(aggs_and_copies):
+        k = 0
+        # Numba access to heterogeneous tuples is only permitted using literal_unroll.
+        for agg_and_copy in literal_unroll(aggs_and_copies):
+            parallel_fill(agg_and_copy[0], aa_zeroes[k])
+            k += 1
+
+    @ngjit
+    def aa_stage_2_copy_back(aggs_and_copies):
+        # Numba access to heterogeneous tuples is only permitted using literal_unroll.
+        for agg_and_copy in literal_unroll(aggs_and_copies):
+            agg_and_copy[0][:] = agg_and_copy[1][:]
+
+    return aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back
 
 
 def traverse_aggregation(agg):

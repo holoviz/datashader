@@ -710,7 +710,13 @@ class by(Reduction):
         return self.reduction._antialias_requires_2_stages()
 
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
-        return self.reduction._antialias_stage_2(self_intersect, array_module)
+        ret = self.reduction._antialias_stage_2(self_intersect, array_module)
+        if len(ret) != 1:
+            raise NotImplementedError
+        return (AntialiasStage2(combination=ret[0].combination,
+                                zero=ret[0].zero,
+                                n_reduction=ret[0].n_reduction,
+                                categorical=True),)
 
     def _build_create(self, required_dshape):
         n_cats = len(required_dshape.measure.fields)
@@ -1435,7 +1441,7 @@ class _first_n_or_last_n(FloatingNReduction):
 
 class first_n(_first_n_or_last_n):
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
-        return (AntialiasStage2(AntialiasCombination.FIRST, array_module.nan),)
+        return (AntialiasStage2(AntialiasCombination.FIRST, array_module.nan, n_reduction=True),)
 
     # CPU append functions
     @staticmethod
@@ -1461,7 +1467,7 @@ class first_n(_first_n_or_last_n):
 
 class last_n(_first_n_or_last_n):
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
-        return (AntialiasStage2(AntialiasCombination.LAST, array_module.nan),)
+        return (AntialiasStage2(AntialiasCombination.LAST, array_module.nan, n_reduction=True),)
 
     # CPU append functions
     @staticmethod
@@ -1486,7 +1492,7 @@ class max_n(FloatingNReduction):
         return True
 
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
-        return (AntialiasStage2(AntialiasCombination.MAX, array_module.nan),)
+        return (AntialiasStage2(AntialiasCombination.MAX, array_module.nan, n_reduction=True),)
 
     # CPU append functions
     @staticmethod
@@ -1558,7 +1564,7 @@ class min_n(FloatingNReduction):
         return True
 
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
-        return (AntialiasStage2(AntialiasCombination.MIN, array_module.nan),)
+        return (AntialiasStage2(AntialiasCombination.MIN, array_module.nan, n_reduction=True),)
 
     # CPU append functions
     @staticmethod
@@ -1723,7 +1729,9 @@ class where(FloatingReduction):
         ret = self.selector._antialias_stage_2(self_intersect, array_module)
         if self.column == SpecialColumn.RowIndex:
             # Override antialiased zero value when returning integer row index.
-            ret = (AntialiasStage2(combination=ret[0].combination, zero=-1),)
+            ret = (AntialiasStage2(combination=ret[0].combination,
+                                   zero=-1,
+                                   n_reduction=ret[0].n_reduction),)
         return ret
 
     # CPU append functions

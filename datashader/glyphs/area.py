@@ -98,7 +98,7 @@ class AreaToZeroAxis0(_PointLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -182,7 +182,7 @@ class AreaToLineAxis0(_AreaToLineLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -274,7 +274,7 @@ class AreaToZeroAxis0Multi(_PointLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -365,7 +365,7 @@ class AreaToLineAxis0Multi(_AreaToLineLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -472,7 +472,7 @@ class AreaToZeroAxis1(_PointLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -580,7 +580,7 @@ class AreaToLineAxis1(_AreaToLineLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -649,7 +649,7 @@ class AreaToZeroAxis1XConstant(AreaToZeroAxis1):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -728,7 +728,7 @@ class AreaToLineAxis1XConstant(AreaToLineAxis1):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -797,7 +797,7 @@ class AreaToZeroAxis1YConstant(AreaToZeroAxis1):
                 self.compute_y_bounds())
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -865,7 +865,7 @@ class AreaToLineAxis1YConstant(AreaToLineAxis1):
                 self.compute_y_bounds())
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -950,7 +950,7 @@ class AreaToZeroAxis1Ragged(_PointLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(
@@ -1030,7 +1030,7 @@ class AreaToLineAxis1Ragged(_AreaToLineLike):
                 self.maybe_expand_bounds(y_extents))
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _aa_3_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
         draw_trapezoid_y = _build_draw_trapezoid_y(

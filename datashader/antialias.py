@@ -23,10 +23,12 @@ class AntialiasStage2(NamedTuple):
     """Configuration for second-stage combination of a single antialiased reduction."""
     combination: AntialiasCombination
     zero: float
+    n_reduction: bool = False
+    categorical: bool = False
 
 
 if TYPE_CHECKING:
-    UnzippedAntialiasStage2 = tuple[tuple[AntialiasCombination], tuple[float]]
+    UnzippedAntialiasStage2 = tuple[tuple[AntialiasCombination], tuple[float], tuple[bool], tuple[bool]]
 
 
 def two_stage_agg(antialias_stage_2: UnzippedAntialiasStage2 | None):
@@ -73,20 +75,20 @@ def _combine_in_place(accum_agg, other_agg, antialias_combination):
 
 
 @ngjit
-def aa_stage_2_accumulate(aggs_and_copies, antialias_combinations):
+def aa_stage_2_accumulate(aggs_and_copies, aa_combinations):
     k = 0
     # Numba access to heterogeneous tuples is only permitted using literal_unroll.
     for agg_and_copy in literal_unroll(aggs_and_copies):
-        _combine_in_place(agg_and_copy[1], agg_and_copy[0], antialias_combinations[k])
+        _combine_in_place(agg_and_copy[1], agg_and_copy[0], aa_combinations[k])
         k += 1
 
 
 @ngjit
-def aa_stage_2_clear(aggs_and_copies, antialias_zeroes):
+def aa_stage_2_clear(aggs_and_copies, aa_zeroes):
     k = 0
     # Numba access to heterogeneous tuples is only permitted using literal_unroll.
     for agg_and_copy in literal_unroll(aggs_and_copies):
-        parallel_fill(agg_and_copy[0], antialias_zeroes[k])
+        parallel_fill(agg_and_copy[0], aa_zeroes[k])
         k += 1
 
 
