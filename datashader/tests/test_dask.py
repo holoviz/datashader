@@ -332,6 +332,19 @@ def test_last_n(ddf, npartitions):
 
 @pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_categorical_count(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+    sol = np.array([[[2, 1, 1, 1], [1, 1, 2, 1]], [[1, 2, 1, 1], [1, 1, 1, 2]]], dtype=np.uint32)
+    assert_eq_ndarray(c.points(ddf, 'x', 'y', ds.by('cat2')).data, sol)
+
+    # ds.summary(name=ds.by("cat2")) should give same result as ds.by("cat2"). Issue 1252
+    dataset = c.points(ddf, 'x', 'y', ds.summary(name=ds.by('cat2')))
+    assert_eq_ndarray(dataset["name"].data, sol)
+
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_categorical_min(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
