@@ -39,10 +39,8 @@ jobs:
           envs: "-o tests -o examples"
           cache: true
           conda-update: true
-          conda-mamba: mamba
         id: install
       - name: doit test_lint
-        if: runner.os != 'Windows'
         run: |
           conda activate test-environment
           doit test_lint
