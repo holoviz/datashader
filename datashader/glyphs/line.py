@@ -54,11 +54,13 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
         map_onto_pixel = _build_map_onto_pixel_for_line(
             x_mapper, y_mapper, antialias)
         overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
+        if not use_2_stage_agg:
+            aa_3_funcs = None
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
         )
         extend_cpu, extend_cuda = _build_extend_line_axis0(
-            draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs,
+            draw_segment, expand_aggs_and_cols, aa_3_funcs,
         )
         x_name = self.x
         y_name = self.y
@@ -147,11 +149,13 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
         map_onto_pixel = _build_map_onto_pixel_for_line(
             x_mapper, y_mapper, antialias)
         overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
+        if not use_2_stage_agg:
+            aa_3_funcs = None
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
         )
         extend_cpu, extend_cuda = _build_extend_line_axis0_multi(
-            draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs,
+            draw_segment, expand_aggs_and_cols, aa_3_funcs,
         )
 
         x_names = self.x
@@ -263,11 +267,13 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
         map_onto_pixel = _build_map_onto_pixel_for_line(
             x_mapper, y_mapper, antialias)
         overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
+        if not use_2_stage_agg:
+            aa_3_funcs = None
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_none_constant(
-            draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs,
+            draw_segment, expand_aggs_and_cols, aa_3_funcs,
         )
         x_names = self.x
         y_names = self.y
@@ -338,11 +344,13 @@ class LinesAxis1XConstant(LinesAxis1):
         map_onto_pixel = _build_map_onto_pixel_for_line(
             x_mapper, y_mapper, antialias)
         overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
+        if not use_2_stage_agg:
+            aa_3_funcs = None
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_x_constant(
-            draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs,
+            draw_segment, expand_aggs_and_cols, aa_3_funcs,
         )
 
         x_values = self.x
@@ -414,11 +422,13 @@ class LinesAxis1YConstant(LinesAxis1):
         map_onto_pixel = _build_map_onto_pixel_for_line(
             x_mapper, y_mapper, antialias)
         overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
+        if not use_2_stage_agg:
+            aa_3_funcs = None
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_y_constant(
-            draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs,
+            draw_segment, expand_aggs_and_cols, aa_3_funcs,
         )
 
         x_names = self.x
@@ -492,11 +502,13 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
         map_onto_pixel = _build_map_onto_pixel_for_line(
             x_mapper, y_mapper, antialias)
         overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
+        if not use_2_stage_agg:
+            aa_3_funcs = None
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
         )
         extend_cpu = _build_extend_line_axis1_ragged(
-            draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs,
+            draw_segment, expand_aggs_and_cols, aa_3_funcs,
         )
         x_name = self.x
         y_name = self.y
@@ -539,11 +551,13 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
         map_onto_pixel = _build_map_onto_pixel_for_line(
             x_mapper, y_mapper, antialias)
         overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
+        if not use_2_stage_agg:
+            aa_3_funcs = None
         draw_segment = _build_draw_segment(
             append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
         )
         perform_extend_cpu = _build_extend_line_axis1_geometry(
-            draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs,
+            draw_segment, expand_aggs_and_cols, aa_3_funcs,
         )
         geometry_name = self.geometry
 
@@ -981,7 +995,9 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, line_width
 
     return draw_segment
 
-def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, use_2_stage_agg, _aa_3_funcs):
+def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, aa_3_funcs):
+    use_2_stage_agg = aa_3_funcs is not None
+
     @ngjit
     @expand_aggs_and_cols
     def perform_extend_line(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1032,9 +1048,10 @@ def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, use_2_stage_agg
     return extend_cpu, extend_cuda
 
 
-def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs):
+def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, aa_3_funcs):
     if aa_3_funcs is not None:
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = aa_3_funcs
+    use_2_stage_agg = aa_3_funcs is not None
 
     @ngjit
     @expand_aggs_and_cols
@@ -1123,9 +1140,10 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, use_2_sta
         return extend_cpu, extend_cuda
 
 
-def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs):
+def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, aa_3_funcs):
     if aa_3_funcs is not None:
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = aa_3_funcs
+    use_2_stage_agg = aa_3_funcs is not None
 
     @ngjit
     @expand_aggs_and_cols
@@ -1215,9 +1233,10 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, u
         return extend_cpu, extend_cuda
 
 
-def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs):
+def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols, aa_3_funcs):
     if aa_3_funcs is not None:
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = aa_3_funcs
+    use_2_stage_agg = aa_3_funcs is not None
 
     @ngjit
     @expand_aggs_and_cols
@@ -1308,9 +1327,10 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols, use_
         return extend_cpu, extend_cuda
 
 
-def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs):
+def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols, aa_3_funcs):
     if aa_3_funcs is not None:
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = aa_3_funcs
+    use_2_stage_agg = aa_3_funcs is not None
 
     @ngjit
     @expand_aggs_and_cols
@@ -1403,9 +1423,10 @@ def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols, use_
         return extend_cpu, extend_cuda
 
 
-def _build_extend_line_axis1_ragged(draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs):
+def _build_extend_line_axis1_ragged(draw_segment, expand_aggs_and_cols, aa_3_funcs):
     if aa_3_funcs is not None:
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = aa_3_funcs
+    use_2_stage_agg = aa_3_funcs is not None
 
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2, *aggs_and_cols
@@ -1566,9 +1587,10 @@ def _build_extend_line_axis1_ragged(draw_segment, expand_aggs_and_cols, use_2_st
         return extend_cpu
 
 
-def _build_extend_line_axis1_geometry(draw_segment, expand_aggs_and_cols, use_2_stage_agg, aa_3_funcs):
+def _build_extend_line_axis1_geometry(draw_segment, expand_aggs_and_cols, aa_3_funcs):
     if aa_3_funcs is not None:
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = aa_3_funcs
+    use_2_stage_agg = aa_3_funcs is not None
 
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax,
