@@ -66,7 +66,10 @@ extras_require = {
 }
 
 if sys.platform == 'win32':
-    extras_require['tests'] += ['pandas <2']
+    extras_require['tests'] += [
+        'pandas <2',
+        'dask ==2023.5',
+    ]
 
 
 extras_require['doc'] = extras_require['examples_extra'] + [
