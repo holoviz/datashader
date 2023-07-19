@@ -32,6 +32,7 @@ examples = [
     'panel >1.1',
     'scikit-image',
     'spatialpandas',
+    'pillow <10',
 ]
 
 extras_require = {
