@@ -29,6 +29,12 @@ jobs:
         shell: bash -l {0}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OMP_NUM_THREADS: 1
+      OPENBLAS_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      VECLIB_MAXIMUM_THREADS: 1
+      NUMEXPR_NUM_THREADS: 1
+      PYDEVD_DISABLE_FILE_VALIDATION: 1
     steps:
       - uses: holoviz-dev/holoviz_tasks/install@v0.1a15
         with:
