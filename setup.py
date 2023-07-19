@@ -65,6 +65,10 @@ extras_require = {
     ]
 }
 
+if sys.platform == 'win32':
+    extras_require['tests'] += ['pandas <2']
+
+
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.8.2,<0.9.0',
     'numpydoc',
