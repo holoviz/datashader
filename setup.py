@@ -29,7 +29,7 @@ examples = [
     'geopandas',
     'holoviews',
     'matplotlib >=3.3',
-    'panel ==1.2.0',
+    'panel >1.1',
     'scikit-image',
     'spatialpandas',
     'pillow <10',
@@ -64,6 +64,19 @@ extras_require = {
         'rasterio',
     ]
 }
+
+if sys.platform == 'win32':
+    extras_require['tests'] += [
+        'holoviews==1.16.2',
+        'nbconvert==7.6.0',
+        'pip==23.1.2',
+        'platformdirs==3.8.1',
+        'referencing==0.29.1',
+        'rpds-py==0.8.10',
+        'threadpoolctl==3.1.0',
+        'tifffile==2023.7.4',
+        'xarray==2023.6.0',
+    ]
 
 
 extras_require['doc'] = extras_require['examples_extra'] + [
