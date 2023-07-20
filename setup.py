@@ -69,6 +69,10 @@ if sys.platform == 'win32':
     extras_require['tests'] += [
         'pandas <2',
         'dask ==2023.5',
+        'xarray ==2023.1.0',
+        'scipy ==1.10.1',
+        'rioxarray ==0.13.4',
+
     ]
 
 
