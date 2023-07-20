@@ -67,16 +67,17 @@ extras_require = {
 
 if sys.platform == 'win32':
     extras_require['tests'] += [
-        'holoviews==1.16.2',
+        # 'holoviews==1.16.2',
         'nbconvert==7.6.0',
-        'pip==23.1.2',
-        'platformdirs==3.8.1',
-        'referencing==0.29.1',
-        'rpds-py==0.8.10',
+        # 'pip==23.1.2',
+        # 'platformdirs==3.8.1',
+        # 'referencing==0.29.1',
+        # 'rpds-py==0.8.10',
         'threadpoolctl==3.1.0',
         'tifffile==2023.7.4',
-        'xarray==2023.6.0',
+        # 'xarray==2023.6.0',
         'pyarrow <12',
+        'python-libarchive-c==4.0',
     ]
 
 
