@@ -76,6 +76,7 @@ if sys.platform == 'win32':
         'threadpoolctl==3.1.0',
         'tifffile==2023.7.4',
         'xarray==2023.6.0',
+        'pyarrow <12',
     ]
 
 
