@@ -29,7 +29,7 @@ examples = [
     'geopandas',
     'holoviews',
     'matplotlib >=3.3',
-    'panel >1.1',
+    'panel ==1.2.0',
     'scikit-image',
     'spatialpandas',
     'pillow <10',
@@ -64,16 +64,6 @@ extras_require = {
         'rasterio',
     ]
 }
-
-if sys.platform == 'win32':
-    extras_require['tests'] += [
-        'pandas <2',
-        'dask ==2023.5',
-        'xarray ==2023.1.0',
-        'scipy ==1.10.1',
-        'rioxarray ==0.13.4',
-
-    ]
 
 
 extras_require['doc'] = extras_require['examples_extra'] + [
