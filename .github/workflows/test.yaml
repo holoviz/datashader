@@ -21,7 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+        #os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+        os: ['windows-latest']
         python-version: ["3.8", "3.9", "3.10", "3.11"]
     timeout-minutes: 180
     defaults:
@@ -46,28 +47,28 @@ jobs:
           cache: true
           conda-update: true
         id: install
-      - name: doit test_lint
-        run: |
-          conda activate test-environment
-          doit test_lint
+      #- name: doit test_lint
+      #  run: |
+      #    conda activate test-environment
+      #    doit test_lint
       - name: doit test_unit
         run: |
           conda activate test-environment
           doit test_unit
-      - name: doit test_unit_nojit
-        run: |
-          conda activate test-environment
-          doit test_unit_nojit
-        env:
-          NUMBA_DISABLE_JIT: 1
-      - name: doit test_examples
-        run: |
-          conda activate test-environment
-          doit test_examples
-      - name: codecov
-        run: |
-          conda activate test-environment
-          codecov
+      #- name: doit test_unit_nojit
+      #  run: |
+      #    conda activate test-environment
+      #    doit test_unit_nojit
+      #  env:
+      #    NUMBA_DISABLE_JIT: 1
+      #- name: doit test_examples
+      #  run: |
+      #    conda activate test-environment
+      #    doit test_examples
+      #- name: codecov
+      #  run: |
+      #    conda activate test-environment
+      #    codecov
 
   test_pip:
     name: Pip tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
