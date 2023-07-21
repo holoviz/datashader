@@ -21,10 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-        os: ['windows-latest']
-        #python-version: ["3.8", "3.9", "3.10", "3.11"]
-        python-version: ["3.8", "3.11"]
+        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     timeout-minutes: 180
     defaults:
       run:
@@ -79,8 +77,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #os: ['ubuntu-latest', 'macos-latest']
-        os: ['ubuntu-latest']
+        os: ['ubuntu-latest', 'macos-latest']
         python-version: ["3.10"]
     steps:
       - name: Checkout source
