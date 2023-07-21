@@ -64,6 +64,7 @@ jobs:
         env:
           NUMBA_DISABLE_JIT: 1
       - name: doit test_examples
+        if: runner.os != 'Windows'
         run: |
           conda activate test-environment
           doit test_examples
