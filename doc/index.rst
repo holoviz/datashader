@@ -6,12 +6,6 @@
 
 **Accurately render even the largest data**
 
-.. raw:: html
-
-  <div style="display: flex">
-    <div style="width: 70%">
-
-
 New to Datashader? Check out this
 `quick video introduction to what it does and how it works <https://youtu.be/U6dyIRolIhI>`_!
 
@@ -31,14 +25,6 @@ hardware, while exploiting distributed and GPU systems when available.
 
 .. raw:: html
 
-  </div>
-
-.. raw:: html
-    :file: latest_news.html
-
-.. raw:: html
-
-  </div>
   <hr width='100%'></hr>
 
 .. notebook:: datashader ../examples/index.ipynb
