@@ -29,8 +29,14 @@ jobs:
         shell: bash -l {0}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OMP_NUM_THREADS: 1
+      OPENBLAS_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      VECLIB_MAXIMUM_THREADS: 1
+      NUMEXPR_NUM_THREADS: 1
+      PYDEVD_DISABLE_FILE_VALIDATION: 1
     steps:
-      - uses: holoviz-dev/holoviz_tasks/install@v0.1a14
+      - uses: holoviz-dev/holoviz_tasks/install@v0.1a15
         with:
           name: unit_test_suite
           python-version: ${{ matrix.python-version }}
@@ -39,9 +45,9 @@ jobs:
           envs: "-o tests -o examples"
           cache: true
           conda-update: true
-          conda-mamba: mamba
         id: install
       - name: doit test_lint
+        if: runner.os == 'Linux'
         run: |
           conda activate test-environment
           doit test_lint
@@ -94,6 +100,7 @@ jobs:
         run: |
           doit ecosystem=pip env_capture
       - name: doit test_lint
+        if: runner.os == 'Linux'
         run: |
           doit ecosystem=pip test_lint
       - name: doit test_unit

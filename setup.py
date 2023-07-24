@@ -25,10 +25,10 @@ install_requires = [
 ]
 
 examples = [
-    'bokeh',
+    'bokeh >3.1',
     'geopandas',
     'holoviews',
-    'matplotlib',
+    'matplotlib >=3.3',
     'panel >1.1',
     'scikit-image',
     'spatialpandas',
@@ -64,8 +64,9 @@ extras_require = {
     ]
 }
 
+
 extras_require['doc'] = extras_require['examples_extra'] + [
-    'nbsite ==0.8.0',
+    'nbsite >=0.8.2,<0.9.0',
     'numpydoc',
 ]
 
