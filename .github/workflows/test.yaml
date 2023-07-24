@@ -47,7 +47,7 @@ jobs:
           conda-update: true
         id: install
       - name: doit test_lint
-        if: runner.os != 'Windows'
+        if: runner.os == 'Linux'
         run: |
           conda activate test-environment
           doit test_lint
@@ -100,6 +100,7 @@ jobs:
         run: |
           doit ecosystem=pip env_capture
       - name: doit test_lint
+        if: runner.os == 'Linux'
         run: |
           doit ecosystem=pip test_lint
       - name: doit test_unit
