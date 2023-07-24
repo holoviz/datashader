@@ -324,6 +324,10 @@ class Reduction(Expr):
     def inputs(self):
         return (extract(self.column),)
 
+    def is_categorical(self):
+        """Return ``True`` if this is or contains a categorical reduction."""
+        return False
+
     def is_where(self):
         """Return ``True`` if this is a ``where`` reduction or directly wraps
         a where reduction."""
@@ -685,6 +689,9 @@ class by(Reduction):
     @property
     def inputs(self):
         return (self.preprocess,)
+
+    def is_categorical(self):
+        return True
 
     def is_where(self):
         return self.reduction.is_where()
@@ -1996,8 +2003,17 @@ class summary(Expr):
     def __hash__(self):
         return hash((type(self), tuple(self.keys), tuple(self.values)))
 
+    def is_categorical(self):
+        for v in self.values:
+            if v.is_categorical():
+                return True
+        return False
+
     def uses_row_index(self, cuda, partitioned):
-        return any(v.uses_row_index(cuda, partitioned) for v in self.values)
+        for v in self.values:
+            if v.uses_row_index(cuda, partitioned):
+                return True
+        return False
 
     def validate(self, input_dshape):
         for v in self.values:

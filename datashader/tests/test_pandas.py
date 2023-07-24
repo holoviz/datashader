@@ -712,6 +712,10 @@ def test_categorical_count(df):
     agg = c.points(df, 'x', 'y', ds.by('cat', ds.count('i32')))
     assert_eq_xr(agg, out)
 
+    # ds.summary(name=ds.by("cat")) should give same result as ds.by("cat"). Issue 1252
+    dataset = c.points(df, 'x', 'y', ds.summary(name=ds.by('cat', ds.count('i32'))))
+    assert_eq_xr(dataset["name"], out)
+
     # categorizing by (cat_int-10)%4 ought to give the same result
     out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
     agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.count()))

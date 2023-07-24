@@ -116,8 +116,9 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
     temps = list(pluck(4, calls))
     combine_temps = list(pluck(5, calls))
 
+    categorical = agg.is_categorical()
     create = make_create(bases, dshapes, cuda)
-    append, uses_cuda_mutex = make_append(bases, cols, calls, glyph, isinstance(agg, by), antialias)
+    append, uses_cuda_mutex = make_append(bases, cols, calls, glyph, categorical, antialias)
     info = make_info(cols, uses_cuda_mutex)
     combine = make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned)
     finalize = make_finalize(bases, agg, schema, cuda, partitioned)
