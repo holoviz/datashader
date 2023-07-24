@@ -721,6 +721,41 @@ def test_where_last_n(ddf, npartitions):
 
 @pytest.mark.parametrize('ddf', [_ddf])
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_summary_by(ddf, npartitions):
+    ddf = ddf.repartition(npartitions)
+    assert ddf.npartitions == npartitions
+
+    # summary(by)
+    agg_summary = c.points(ddf, 'x', 'y', ds.summary(by=ds.by("cat")))
+    agg_by = c.points(ddf, 'x', 'y', ds.by("cat"))
+    assert_eq_xr(agg_summary["by"], agg_by)
+
+    # summary(by, other_reduction)
+    agg_summary = c.points(ddf, 'x', 'y', ds.summary(by=ds.by("cat"), max=ds.max("plusminus")))
+    agg_max = c.points(ddf, 'x', 'y', ds.max("plusminus"))
+    assert_eq_xr(agg_summary["by"], agg_by)
+    assert_eq_xr(agg_summary["max"], agg_max)
+
+    # summary(other_reduction, by)
+    agg_summary = c.points(ddf, 'x', 'y', ds.summary(max=ds.max("plusminus"), by=ds.by("cat")))
+    assert_eq_xr(agg_summary["by"], agg_by)
+    assert_eq_xr(agg_summary["max"], agg_max)
+
+    # summary(by, by)
+    agg_summary = c.points(ddf, 'x', 'y', ds.summary(by=ds.by("cat"), by_any=ds.by("cat", ds.any())))
+    agg_by_any = c.points(ddf, 'x', 'y', ds.by("cat", ds.any()))
+    assert_eq_xr(agg_summary["by"], agg_by)
+    assert_eq_xr(agg_summary["by_any"], agg_by_any)
+
+    # summary(by("cat1"), by("cat2"))
+    agg_summary = c.points(ddf, 'x', 'y', ds.summary(by=ds.by("cat"), by2=ds.by("cat2")))
+    agg_by2 = c.points(ddf, 'x', 'y', ds.by("cat2"))
+    assert_eq_xr(agg_summary["by"], agg_by)
+    assert_eq_xr(agg_summary["by2"], agg_by2)
+
+
+@pytest.mark.parametrize('ddf', [_ddf])
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_summary_where_n(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
     # Identical results to equivalent pandas test.
