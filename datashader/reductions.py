@@ -736,6 +736,9 @@ class by(Reduction):
         cats = list(self.categorizer.categories(dshape))
 
         def finalize(bases, cuda=False, **kwargs):
+            # Return a modified copy of kwargs. Cannot modify supplied kwargs as it
+            # may be used by multiple reductions, e.g. if a summary reduction.
+            kwargs = copy.deepcopy(kwargs)
             kwargs['dims'] += [self.cat_column]
             kwargs['coords'][self.cat_column] = cats
             return self.reduction._build_finalize(dshape)(bases, cuda=cuda, **kwargs)
