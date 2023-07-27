@@ -711,8 +711,6 @@ class by(Reduction):
 
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
         ret = self.reduction._antialias_stage_2(self_intersect, array_module)
-        if len(ret) != 1:
-            raise NotImplementedError
         return (AntialiasStage2(combination=ret[0].combination,
                                 zero=ret[0].zero,
                                 n_reduction=ret[0].n_reduction,

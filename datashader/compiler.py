@@ -79,7 +79,13 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
     ``antialias_stage_2``
         If using antialiased lines this is a tuple of the ``AntialiasCombination``
         values corresponding to the aggs. If not using antialiased lines then
-        this is False.
+        this is ``False``.
+
+    ``antialias_stage_2_funcs``
+        If using antialiased lines which require a second stage combine, this
+        is a tuple of the three combine functions which are the accumulate,
+        clear and copy_back functions. If not using antialiased lines then this
+        is ``None``.
 
     ``column_names``
         Names of DataFrame columns or DataArray variables that are used by the
@@ -103,11 +109,11 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
         else:
             array_module = np
         antialias_stage_2 = antialias_stage_2(array_module)
-        aa_3_funcs = make_aa(antialias_stage_2)
+        antialias_stage_2_funcs = make_antialias_stage_2_functions(antialias_stage_2)
     else:
         self_intersect = False
         antialias_stage_2 = False
-        aa_3_funcs = None  #None, None, None
+        antialias_stage_2_funcs = None
 
     # List of tuples of
     # (append, base, input columns, temps, combine temps, uses cuda mutex, is_categorical)
@@ -131,11 +137,15 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
 
     column_names = [c.column for c in cols if c.column != SpecialColumn.RowIndex]
 
-    return create, info, append, combine, finalize, antialias_stage_2, aa_3_funcs, column_names
+    return create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, column_names
 
 
-def _get_combine_func(combination: AntialiasCombination, zero: float, n_reduction: bool, categorical: bool):
-    if not n_reduction and not categorical:
+def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero: float,
+                                        n_reduction: bool, categorical: bool):
+    if not n_reduction:
+        # The aggs to combine here are either 3D (ny, nx, ncat) if categorical is True or
+        # 2D (ny, nx) if categorical is False. The same combination functions can be for both
+        # as all elements are independent.
         if combination == AntialiasCombination.MAX:
             return nanmax_in_place
         elif combination == AntialiasCombination.MIN:
@@ -147,26 +157,14 @@ def _get_combine_func(combination: AntialiasCombination, zero: float, n_reductio
         else:
             return nansum_in_place
 
-    if not n_reduction and categorical:
-        if combination == AntialiasCombination.MAX:
-            raise NotImplementedError
-        elif combination == AntialiasCombination.MIN:
-            raise NotImplementedError
-        elif combination == AntialiasCombination.FIRST:
-            raise NotImplementedError
-        elif combination == AntialiasCombination.LAST:
-            raise NotImplementedError
-        else:
-            return nansum_in_place
-
     raise NotImplementedError
 
 
-def make_aa(antialias_stage_2):
+def make_antialias_stage_2_functions(antialias_stage_2):
     aa_combinations, aa_zeroes, aa_n_reductions, aa_categorical = antialias_stage_2
 
     # Accumulate functions.
-    funcs = [_get_combine_func(comb, zero, n_red, cat) for comb, zero, n_red, cat
+    funcs = [_get_antialias_stage_2_combine_func(comb, zero, n_red, cat) for comb, zero, n_red, cat
              in zip(aa_combinations, aa_zeroes, aa_n_reductions, aa_categorical)]
 
     namespace = {}

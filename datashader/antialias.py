@@ -2,11 +2,6 @@ from __future__ import annotations
 from enum import Enum
 from typing import NamedTuple, TYPE_CHECKING
 
-from datashader.utils import (
-    nanfirst_in_place, nanlast_in_place, nanmax_in_place,
-    nanmin_in_place, nansum_in_place, ngjit, parallel_fill)
-from numba import literal_unroll
-
 
 # Enum used to specify how the second stage aggregation is performed
 # for 2-stage antialiased lines.
