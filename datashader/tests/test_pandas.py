@@ -2338,6 +2338,17 @@ def nansum(arr0, arr1):
     ret[mask] = np.nan
     return ret
 
+def rowmax(arr0, arr1):
+    return np.maximum(arr0, arr1)
+
+def rowmin(arr0, arr1):
+    bigint = np.max([np.max(arr0), np.max(arr1)]) + 1
+    arr0[arr0 < 0] = bigint
+    arr1[arr1 < 0] = bigint
+    ret = np.minimum(arr0, arr1)
+    ret[ret == bigint] = -1
+    return ret
+
 line_antialias_df = pd.DataFrame(dict(
     # Self-intersecting line.
     x0=np.asarray([0, 1, 1, 0]),
@@ -2386,6 +2397,58 @@ line_antialias_sol_1 = np.array([
     [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
     [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
 ])
+line_antialias_sol_min_index_0 = np.array([
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1,  0,  0, -1, -1, -1, -1, -1,  2,  1, -1],
+    [-1,  0,  0,  0, -1, -1, -1,  2,  2,  1, -1],
+    [-1, -1,  0,  0,  0, -1,  2,  2,  2,  1, -1],
+    [-1, -1, -1,  0,  0,  0,  2,  2, -1,  1, -1],
+    [-1, -1, -1, -1,  0,  0,  0, -1, -1,  1, -1],
+    [-1, -1, -1,  2,  2,  0,  0,  0, -1,  1, -1],
+    [-1, -1,  2,  2,  2, -1,  0,  0,  0,  1, -1],
+    [-1,  2,  2,  2, -1, -1, -1,  0,  0,  0, -1],
+    [-1,  2,  2, -1, -1, -1, -1, -1,  0,  0, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+], dtype=np.int64)
+line_antialias_sol_max_index_0 = np.array([
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1,  0,  0, -1, -1, -1, -1, -1,  2,  2, -1],
+    [-1,  0,  0,  0, -1, -1, -1,  2,  2,  2, -1],
+    [-1, -1,  0,  0,  0, -1,  2,  2,  2,  1, -1],
+    [-1, -1, -1,  0,  0,  2,  2,  2, -1,  1, -1],
+    [-1, -1, -1, -1,  2,  2,  2, -1, -1,  1, -1],
+    [-1, -1, -1,  2,  2,  2,  0,  0, -1,  1, -1],
+    [-1, -1,  2,  2,  2, -1,  0,  0,  0,  1, -1],
+    [-1,  2,  2,  2, -1, -1, -1,  0,  0,  1, -1],
+    [-1,  2,  2, -1, -1, -1, -1, -1,  0,  1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+], dtype=np.int64)
+line_antialias_sol_min_index_1 = np.array([
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1,  0,  0,  0,  0,  1,  1,  1,  2,  2, -1],
+    [-1,  0,  0,  0,  0,  1,  1,  1,  2,  2, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+], dtype=np.int64)
+line_antialias_sol_max_index_1 = np.array([
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1,  0,  0,  1,  1,  1,  2,  2,  2,  2, -1],
+    [-1,  0,  0,  0,  1,  1,  2,  2,  2,  2, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+], dtype=np.int64)
 
 def test_line_antialias():
     x_range = y_range = (-0.1875, 1.1875)
@@ -2425,6 +2488,12 @@ def test_line_antialias():
     sol = np.where(line_antialias_sol_0 > 0, 3.0, np.nan)
     assert_eq_ndarray(agg.data, sol, close=True)
 
+    agg = cvs.line(agg=ds._min_row_index(), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_min_index_0)
+
+    agg = cvs.line(agg=ds._max_row_index(), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_max_index_0)
+
     # Second line only, doesn't self-intersect
     kwargs = dict(source=line_antialias_df, x="x1", y="y1", line_width=1)
     agg = cvs.line(agg=ds.any(), **kwargs)
@@ -2457,6 +2526,12 @@ def test_line_antialias():
     agg = cvs.line(agg=ds.mean("value"), **kwargs)
     sol_mean = np.where(line_antialias_sol_1 > 0, 3.0, np.nan)
     assert_eq_ndarray(agg.data, sol_mean, close=True)
+
+    agg = cvs.line(agg=ds._min_row_index(), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_min_index_1)
+
+    agg = cvs.line(agg=ds._max_row_index(), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_max_index_1)
 
     # Both lines.
     kwargs = dict(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], line_width=1)
@@ -2496,6 +2571,14 @@ def test_line_antialias():
     agg = cvs.line(agg=ds.mean("value"), **kwargs)
     sol_mean = np.where(sol_count>0, 3.0, np.nan)
     assert_eq_ndarray(agg.data, sol_mean, close=True)
+
+    agg = cvs.line(agg=ds._min_row_index(), **kwargs)
+    sol_min_row = rowmin(line_antialias_sol_min_index_0, line_antialias_sol_min_index_1)
+    assert_eq_ndarray(agg.data, sol_min_row)
+
+    agg = cvs.line(agg=ds._max_row_index(), **kwargs)
+    sol_max_row = rowmax(line_antialias_sol_max_index_0, line_antialias_sol_max_index_1)
+    assert_eq_ndarray(agg.data, sol_max_row)
 
     assert_eq_ndarray(agg.x_range, x_range, close=True)
     assert_eq_ndarray(agg.y_range, y_range, close=True)
