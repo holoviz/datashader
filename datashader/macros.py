@@ -4,7 +4,7 @@ import inspect
 import ast
 import textwrap
 """
-Utilities for manipulating the Abstract Syntax Tree of Python constructs 
+Utilities for manipulating the Abstract Syntax Tree of Python constructs
 """
 
 

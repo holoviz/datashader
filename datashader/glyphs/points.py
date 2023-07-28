@@ -158,7 +158,7 @@ class Point(_PointLike):
         Column names for the x and y coordinates of each point.
     """
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _antialias_stage_2_funcs):
         x_name = self.x
         y_name = self.y
 
@@ -228,7 +228,7 @@ class MultiPointGeometry(_GeometryLike):
         return PointDtype, MultiPointDtype
 
     @memoize
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2):
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _antialias_stage_2_funcs):
         geometry_name = self.geometry
 
         @ngjit

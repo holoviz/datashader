@@ -58,11 +58,12 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2, _ = compile_components(
-        summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
+    create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
+        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    extend = glyph._build_extend(
+        x_mapper, y_mapper, info, append, antialias_stage_2, antialias_stage_2_funcs)
     x_range = bounds[:2]
     y_range = bounds[2:]
 
@@ -140,11 +141,12 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2, _ = compile_components(
-        summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
+    create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
+        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    extend = glyph._build_extend(
+        x_mapper, y_mapper, info, append, antialias_stage_2, antialias_stage_2_funcs)
     x_range = bounds[:2]
     y_range = bounds[2:]
 
@@ -234,11 +236,12 @@ def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2, _ = compile_components(
-        summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
+    create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
+        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
-    extend = glyph._build_extend(x_mapper, y_mapper, info, append, antialias_stage_2)
+    extend = glyph._build_extend(
+        x_mapper, y_mapper, info, append, antialias_stage_2, antialias_stage_2_funcs)
     x_range = bounds[:2]
     y_range = bounds[2:]
 

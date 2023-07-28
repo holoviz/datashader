@@ -19,7 +19,7 @@ def extend_line():
     expand_aggs_and_cols = Glyph._expand_aggs_and_cols(append, 1, False)
     draw_line = _build_draw_segment(append, map_onto_pixel,
                                     expand_aggs_and_cols, 0, False)
-    return _build_extend_line_axis0(draw_line, expand_aggs_and_cols, False)[0]
+    return _build_extend_line_axis0(draw_line, expand_aggs_and_cols, None)[0]
 
 
 @pytest.mark.parametrize('high', [0, 10**5])
