@@ -10,7 +10,7 @@ import xarray as xr
 from .antialias import AntialiasCombination
 from .reductions import SpecialColumn, by, category_codes, summary
 from .utils import (isnull, ngjit, parallel_fill, nanmax_in_place, nanmin_in_place, nansum_in_place,
-    nanfirst_in_place, nanlast_in_place,
+    nanfirst_in_place, nanlast_in_place, row_max_in_place, row_min_in_place
 )
 
 try:
@@ -146,16 +146,22 @@ def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero:
         # The aggs to combine here are either 3D (ny, nx, ncat) if categorical is True or
         # 2D (ny, nx) if categorical is False. The same combination functions can be for both
         # as all elements are independent.
-        if combination == AntialiasCombination.MAX:
-            return nanmax_in_place
-        elif combination == AntialiasCombination.MIN:
-            return nanmin_in_place
-        elif combination == AntialiasCombination.FIRST:
-            return nanfirst_in_place
-        elif combination == AntialiasCombination.LAST:
-            return nanlast_in_place
+        if zero == -1:
+            if combination == AntialiasCombination.MAX:
+                return row_max_in_place
+            elif combination == AntialiasCombination.MIN:
+                return row_min_in_place
         else:
-            return nansum_in_place
+            if combination == AntialiasCombination.MAX:
+                return nanmax_in_place
+            elif combination == AntialiasCombination.MIN:
+                return nanmin_in_place
+            elif combination == AntialiasCombination.FIRST:
+                return nanfirst_in_place
+            elif combination == AntialiasCombination.LAST:
+                return nanlast_in_place
+            else:
+                return nansum_in_place
 
     raise NotImplementedError
 
