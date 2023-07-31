@@ -32,6 +32,7 @@ from .utils import (
     Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place, row_min_in_place,
     nanmax_n_in_place_4d, nanmax_n_in_place_3d, nanmin_n_in_place_4d, nanmin_n_in_place_3d,
     row_max_n_in_place_4d, row_max_n_in_place_3d, row_min_n_in_place_4d, row_min_n_in_place_3d,
+    shift_and_insert,
 )
 
 
@@ -1473,11 +1474,7 @@ class last_n(_first_n_or_last_n):
     def _append(x, y, agg, field):
         if not isnull(field):
             # Always inserts at front of agg's third dimension.
-            # Bump previous values along to make room for new value.
-            n = agg.shape[2]
-            for j in range(n-1, 0, -1):
-                agg[y, x, j] = agg[y, x, j-1]
-            agg[y, x, 0] = field
+            shift_and_insert(agg[y, x], field, 0)
             return 0
         return -1
 
@@ -1502,10 +1499,7 @@ class max_n(FloatingNReduction):
             n = agg.shape[2]
             for i in range(n):
                 if isnull(agg[y, x, i]) or field > agg[y, x, i]:
-                    # Bump previous values along to make room for new value.
-                    for j in range(n-1, i, -1):
-                        agg[y, x, j] = agg[y, x, j-1]
-                    agg[y, x, i] = field
+                    shift_and_insert(agg[y, x], field, i)
                     return i
         return -1
 
@@ -1574,10 +1568,7 @@ class min_n(FloatingNReduction):
             n = agg.shape[2]
             for i in range(n):
                 if isnull(agg[y, x, i]) or field < agg[y, x, i]:
-                    # Bump previous values along to make room for new value.
-                    for j in range(n-1, i, -1):
-                        agg[y, x, j] = agg[y, x, j-1]
-                    agg[y, x, i] = field
+                    shift_and_insert(agg[y, x], field, i)
                     return i
         return -1
 
@@ -1735,17 +1726,13 @@ class where(FloatingReduction):
     # CPU append functions
     # All where._append* functions have an extra argument which is the update index.
     # For 3D aggs like max_n, this is the index of insertion in the final dimension,
-    # and the previous values from this index upwards are bumped along to make room
+    # and the previous values from this index upwards are shifted along to make room
     # for the new value.
     @staticmethod
     @ngjit
     def _append(x, y, agg, field, update_index):
         if agg.ndim > 2:
-            # Bump previous values along to make room for new value.
-            n = agg.shape[2]
-            for i in range(n-1, update_index, -1):
-                agg[y, x, i] = agg[y, x, i-1]
-            agg[y, x, update_index] = field
+            shift_and_insert(agg[y, x], field, update_index)
         else:
             agg[y, x] = field
         return update_index
@@ -1755,11 +1742,7 @@ class where(FloatingReduction):
     def _append_antialias(x, y, agg, field, aa_factor, update_index):
         # Ignore aa_factor.
         if agg.ndim > 2:
-            # Bump previous values along to make room for new value.
-            n = agg.shape[2]
-            for i in range(n-1, update_index, -1):
-                agg[y, x, i] = agg[y, x, i-1]
-            agg[y, x, update_index] = field
+            shift_and_insert(agg[y, x], field, update_index)
         else:
             agg[y, x] = field
 
@@ -1858,10 +1841,7 @@ class where(FloatingReduction):
                             update_index = append(x, y, selector_aggs[0][:, :, cat, :], value)
                             if update_index < 0:
                                 break
-                            # Bump values along in the same way that append() has done above.
-                            for j in range(n-1, update_index, -1):
-                                aggs[0][y, x, cat, j] = aggs[0][y, x, cat, j-1]
-                            aggs[0][y, x, cat, update_index] = aggs[1][y, x, cat, i]
+                            shift_and_insert(aggs[0][y, x, cat], aggs[1][y, x, cat, i], update_index)
 
         @nb_cuda.jit
         def combine_cuda_2d(aggs, selector_aggs):
@@ -2229,10 +2209,7 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
             n = agg.shape[2]
             for i in range(n):
                 if agg[y, x, i] == -1 or field > agg[y, x, i]:
-                    # Bump previous values along to make room for new value.
-                    for j in range(n-1, i, -1):
-                        agg[y, x, j] = agg[y, x, j-1]
-                    agg[y, x, i] = field
+                    shift_and_insert(agg[y, x], field, i)
                     return i
         return -1
 
@@ -2295,10 +2272,7 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
             n = agg.shape[2]
             for i in range(n):
                 if agg[y, x, i] == -1 or field < agg[y, x, i]:
-                    # Bump previous values along to make room for new value.
-                    for j in range(n-1, i, -1):
-                        agg[y, x, j] = agg[y, x, j-1]
-                    agg[y, x, i] = field
+                    shift_and_insert(agg[y, x], field, i)
                     return i
         return -1
 
