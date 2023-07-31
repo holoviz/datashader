@@ -790,6 +790,19 @@ def row_min_in_place(ret, other):
 
 
 @ngjit
+def row_max_in_place(ret, other):
+    """Maximum of 2 arrays of row indexes.
+    Row indexes are integers from 0 upwards, missing data is -1.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in range(len(ret)):
+        if other[i] > -1 and (ret[i] == -1 or other[i] > ret[i]):
+            ret[i] = other[i]
+
+
+@ngjit
 def _row_max_n_impl(ret_pixel, other_pixel):
     """Single pixel implementation of row_max_n_in_place.
     ret_pixel and other_pixel are both 1D arrays of the same length.

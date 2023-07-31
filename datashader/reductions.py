@@ -2056,13 +2056,6 @@ class _max_or_min_row_index(OptionalFieldReduction):
     def uses_row_index(self, cuda, partitioned):
         return True
 
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        # Doesn't yet support antialiasing
-        if cuda:
-            return self._append_cuda
-        else:
-            return self._append
-
 
 class _max_row_index(_max_or_min_row_index):
     """Max reduction operating on row index.
@@ -2071,10 +2064,23 @@ class _max_row_index(_max_or_min_row_index):
     user code. It is primarily purpose is to support the use of ``last``
     reductions using dask and/or CUDA.
     """
+    def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
+        return (AntialiasStage2(AntialiasCombination.MAX, -1),)
+
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
         # field is int64 row index
+        if field > agg[y, x]:
+            agg[y, x] = field
+            return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        # field is int64 row index
+        # Ignore aa_factor
         if field > agg[y, x]:
             agg[y, x] = field
             return 0
@@ -2108,6 +2114,12 @@ class _min_row_index(_max_or_min_row_index):
     user code. It is primarily purpose is to support the use of ``first``
     reductions using dask and/or CUDA.
     """
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
+        return (AntialiasStage2(AntialiasCombination.MIN, -1),)
+
     def uses_cuda_mutex(self):
         return True
 
@@ -2116,6 +2128,16 @@ class _min_row_index(_max_or_min_row_index):
     @ngjit
     def _append(x, y, agg, field):
         # field is int64 row index
+        if field != -1 and (agg[y, x] == -1 or field < agg[y, x]):
+            agg[y, x] = field
+            return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        # field is int64 row index
+        # Ignore aa_factor
         if field != -1 and (agg[y, x] == -1 or field < agg[y, x]):
             agg[y, x] = field
             return 0
