@@ -15,12 +15,19 @@ from numba.typed import List
 
 try:
     from datashader.transfer_functions._cuda_utils import (
-        cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args,
-        cuda_nanmax_n_in_place, cuda_nanmin_n_in_place, cuda_row_min_in_place,
-        cuda_row_max_n_in_place, cuda_row_min_n_in_place)
+        cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args, cuda_row_min_in_place,
+        cuda_nanmax_n_in_place_4d, cuda_nanmax_n_in_place_3d,
+        cuda_nanmin_n_in_place_4d, cuda_nanmin_n_in_place_3d,
+        cuda_row_max_n_in_place_4d, cuda_row_max_n_in_place_3d,
+        cuda_row_min_n_in_place_4d, cuda_row_min_n_in_place_3d, cuda_shift_and_insert,
+    )
 except ImportError:
-    (cuda_atomic_nanmin, cuda_atomic_nanmmax, cuda_args, cuda_nanmax_n_in_place,
-     cuda_nanmin_n_in_place) = None, None, None, None, None
+    (cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args, cuda_row_min_in_place,
+        cuda_nanmax_n_in_place_4d, cuda_nanmax_n_in_place_3d,
+        cuda_nanmin_n_in_place_4d, cuda_nanmin_n_in_place_3d,
+        cuda_row_max_n_in_place_4d, cuda_row_max_n_in_place_3d,
+        cuda_row_min_n_in_place_4d, cuda_row_min_n_in_place_3d, cuda_shift_and_insert,
+    ) = None, None, None, None, None, None, None, None, None, None, None, None, None
 
 try:
     import cudf
@@ -1513,10 +1520,7 @@ class max_n(FloatingNReduction):
             n = agg.shape[2]
             for i in range(n):
                 if isnull(agg[y, x, i]) or field > agg[y, x, i]:
-                    # Bump previous values along to make room for new value.
-                    for j in range(n-1, i, -1):
-                        agg[y, x, j] = agg[y, x, j-1]
-                    agg[y, x, i] = field
+                    cuda_shift_and_insert(agg[y, x], field, i)
                     return i
         return -1
 
@@ -1539,12 +1543,12 @@ class max_n(FloatingNReduction):
     @staticmethod
     def _combine_cuda(aggs):
         ret = aggs[0]
-        if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
-            # 4d view of each agg
-            aggs = [cp.expand_dims(agg, 2) for agg in aggs]
-        kernel_args = cuda_args(aggs[0].shape[:3])
+        kernel_args = cuda_args(ret.shape[:-1])
         for i in range(1, len(aggs)):
-            cuda_nanmax_n_in_place[kernel_args](aggs[0], aggs[i])
+            if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+                cuda_nanmax_n_in_place_3d[kernel_args](aggs[0], aggs[i])
+            else:
+                cuda_nanmax_n_in_place_4d[kernel_args](aggs[0], aggs[i])
         return ret
 
 
@@ -1582,10 +1586,7 @@ class min_n(FloatingNReduction):
             n = agg.shape[2]
             for i in range(n):
                 if isnull(agg[y, x, i]) or field < agg[y, x, i]:
-                    # Bump previous values along to make room for new value.
-                    for j in range(n-1, i, -1):
-                        agg[y, x, j] = agg[y, x, j-1]
-                    agg[y, x, i] = field
+                    cuda_shift_and_insert(agg[y, x], field, i)
                     return i
         return -1
 
@@ -1608,12 +1609,12 @@ class min_n(FloatingNReduction):
     @staticmethod
     def _combine_cuda(aggs):
         ret = aggs[0]
-        if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
-            # 4d view of each agg
-            aggs = [cp.expand_dims(agg, 2) for agg in aggs]
-        kernel_args = cuda_args(aggs[0].shape[:3])
+        kernel_args = cuda_args(ret.shape[:-1])
         for i in range(1, len(aggs)):
-            cuda_nanmin_n_in_place[kernel_args](aggs[0], aggs[i])
+            if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+                cuda_nanmin_n_in_place_3d[kernel_args](aggs[0], aggs[i])
+            else:
+                cuda_nanmin_n_in_place_4d[kernel_args](aggs[0], aggs[i])
         return ret
 
 
@@ -1751,11 +1752,7 @@ class where(FloatingReduction):
     def _append_antialias_cuda(x, y, agg, field, aa_factor, update_index):
         # Ignore aa_factor
         if agg.ndim > 2:
-            # Bump previous values along to make room for new value.
-            n = agg.shape[2]
-            for i in range(n-1, update_index, -1):
-                agg[y, x, i] = agg[y, x, i-1]
-            agg[y, x, update_index] = field
+            cuda_shift_and_insert(agg[y, x], field, update_index)
         else:
             agg[y, x] = field
         return update_index
@@ -1764,11 +1761,7 @@ class where(FloatingReduction):
     @nb_cuda.jit(device=True)
     def _append_cuda(x, y, agg, field, update_index):
         if agg.ndim > 2:
-            # Bump previous values along to make room for new value.
-            n = agg.shape[2]
-            for i in range(n-1, update_index, -1):
-                agg[y, x, i] = agg[y, x, i-1]
-            agg[y, x, update_index] = field
+            cuda_shift_and_insert(agg[y, x], field, update_index)
         else:
             agg[y, x] = field
         return update_index
@@ -1873,10 +1866,7 @@ class where(FloatingReduction):
                     update_index = append(x, y, selector_aggs[0], value)
                     if update_index < 0:
                         break
-                    # Bump values along in the same way that append() has done above.
-                    for j in range(n-1, update_index, -1):
-                        aggs[0][y, x, j] = aggs[0][y, x, j-1]
-                    aggs[0][y, x, update_index] = aggs[1][y, x, i]
+                    cuda_shift_and_insert(aggs[0][y, x], aggs[1][y, x, i], update_index)
 
         @nb_cuda.jit
         def combine_cuda_n_4d(aggs, selector_aggs):
@@ -1890,10 +1880,7 @@ class where(FloatingReduction):
                     update_index = append(x, y, selector_aggs[0][:, :, cat, :], value)
                     if update_index < 0:
                         break
-                    # Bump values along in the same way that append() has done above.
-                    for j in range(n-1, update_index, -1):
-                        aggs[0][y, x, cat, j] = aggs[0][y, x, cat, j-1]
-                    aggs[0][y, x, cat, update_index] = aggs[1][y, x, cat, i]
+                    cuda_shift_and_insert(aggs[0][y, x, cat], aggs[1][y, x, cat, i], update_index)
 
         def wrapped_combine(aggs, selector_aggs):
             ret = aggs[0], selector_aggs[0]
@@ -2225,10 +2212,7 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
             n = agg.shape[2]
             for i in range(n):
                 if agg[y, x, i] == -1 or field > agg[y, x, i]:
-                    # Bump previous values along to make room for new value.
-                    for j in range(n-1, i, -1):
-                        agg[y, x, j] = agg[y, x, j-1]
-                    agg[y, x, i] = field
+                    cuda_shift_and_insert(agg[y, x], field, i)
                     return i
         return -1
 
@@ -2246,12 +2230,11 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
     def _combine_cuda(aggs):
         ret = aggs[0]
         if len(aggs) > 1:
+            kernel_args = cuda_args(ret.shape[:-1])
             if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
-                # 4d view of each agg
-                aggs = [cp.expand_dims(agg, 2) for agg in aggs]
-            kernel_args = cuda_args(aggs[0].shape[:3])
-            for i in range(1, len(aggs)):
-                cuda_row_max_n_in_place[kernel_args](aggs[0], aggs[i])
+                cuda_row_max_n_in_place_3d[kernel_args](aggs[0], aggs[1])
+            else:
+                cuda_row_max_n_in_place_4d[kernel_args](aggs[0], aggs[1])
         return ret
 
 
@@ -2287,10 +2270,7 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
             n = agg.shape[2]
             for i in range(n):
                 if agg[y, x, i] == -1 or field < agg[y, x, i]:
-                    # Bump previous values along to make room for new value.
-                    for j in range(n-1, i, -1):
-                        agg[y, x, j] = agg[y, x, j-1]
-                    agg[y, x, i] = field
+                    cuda_shift_and_insert(agg[y, x], field, i)
                     return i
         return -1
 
@@ -2308,12 +2288,12 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
     def _combine_cuda(aggs):
         ret = aggs[0]
         if len(aggs) > 1:
+            kernel_args = cuda_args(ret.shape[:-1])
             if ret.ndim == 3:  # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
-                # 4d view of each agg
-                aggs = [cp.expand_dims(agg, 2) for agg in aggs]
-            kernel_args = cuda_args(aggs[0].shape[:3])
-            for i in range(1, len(aggs)):
-                cuda_row_min_n_in_place[kernel_args](aggs[0], aggs[i])
+                cuda_row_min_n_in_place_3d[kernel_args](aggs[0], aggs[1])
+            else:
+                cuda_row_min_n_in_place_4d[kernel_args](aggs[0], aggs[1])
+
         return ret
 
 
