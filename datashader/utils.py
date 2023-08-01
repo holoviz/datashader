@@ -649,6 +649,35 @@ def nanmin_in_place(ret, other):
 
 
 @ngjit
+def shift_and_insert(target, value, index):
+    """Insert a value into a 1D array at a particular index, but before doing
+    that shift the previous values along one to make room. For use in
+    ``FloatingNReduction`` classes such as ``max_n`` and ``first_n`` which
+    store ``n`` values per pixel.
+
+    Parameters
+    ----------
+    target : 1d numpy array
+        Target pixel array.
+
+    value : float
+        Value to insert into target pixel array.
+
+    index : int
+        Index to insert at.
+
+    Returns
+    -------
+    Index beyond insertion, i.e. where the first shifted value now sits.
+    """
+    n = len(target)
+    for i in range(n-1, index, -1):
+        target[i] = target[i-1]
+    target[index] = value
+    return index + 1
+
+
+@ngjit
 def _nanmax_n_impl(ret_pixel, other_pixel):
     """Single pixel implementation of nanmax_n_in_place.
     ret_pixel and other_pixel are both 1D arrays of the same length.
@@ -666,11 +695,7 @@ def _nanmax_n_impl(ret_pixel, other_pixel):
         else:
             for i in range(istart, n):
                 if isnull(ret_pixel[i]) or other_value > ret_pixel[i]:
-                    # Shift values along then insert.
-                    for j in range(n-1, i, -1):
-                        ret_pixel[j] = ret_pixel[j-1]
-                    ret_pixel[i] = other_value
-                    istart = i+1
+                    istart = shift_and_insert(ret_pixel, other_value, i)
                     break
 
 
@@ -718,11 +743,7 @@ def _nanmin_n_impl(ret_pixel, other_pixel):
         else:
             for i in range(istart, n):
                 if isnull(ret_pixel[i]) or other_value < ret_pixel[i]:
-                    # Shift values along then insert.
-                    for j in range(n-1, i, -1):
-                        ret_pixel[j] = ret_pixel[j-1]
-                    ret_pixel[i] = other_value
-                    istart = i+1
+                    istart = shift_and_insert(ret_pixel, other_value, i)
                     break
 
 
@@ -820,11 +841,7 @@ def _row_max_n_impl(ret_pixel, other_pixel):
         else:
             for i in range(istart, n):
                 if ret_pixel[i] == -1 or other_value > ret_pixel[i]:
-                    # Shift values along then insert.
-                    for j in range(n-1, i, -1):
-                        ret_pixel[j] = ret_pixel[j-1]
-                    ret_pixel[i] = other_value
-                    istart = i+1
+                    istart = shift_and_insert(ret_pixel, other_value, i)
                     break
 
 
@@ -867,11 +884,7 @@ def _row_min_n_impl(ret_pixel, other_pixel):
         else:
             for i in range(istart, n):
                 if ret_pixel[i] == -1 or other_value < ret_pixel[i]:
-                    # Shift values along then insert.
-                    for j in range(n-1, i, -1):
-                        ret_pixel[j] = ret_pixel[j-1]
-                    ret_pixel[i] = other_value
-                    istart = i+1
+                    istart = shift_and_insert(ret_pixel, other_value, i)
                     break
 
 
