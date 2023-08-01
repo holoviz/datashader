@@ -9,8 +9,12 @@ import xarray as xr
 
 from .antialias import AntialiasCombination
 from .reductions import SpecialColumn, by, category_codes, summary
-from .utils import (isnull, ngjit, parallel_fill, nanmax_in_place, nanmin_in_place, nansum_in_place,
-    nanfirst_in_place, nanlast_in_place, row_max_in_place, row_min_in_place
+from .utils import (isnull, ngjit, parallel_fill,
+    nanmax_in_place, nanmin_in_place, nansum_in_place, nanfirst_in_place, nanlast_in_place,
+    nanmax_n_in_place_3d, nanmax_n_in_place_4d, nanmin_n_in_place_3d, nanmin_n_in_place_4d,
+    nanfirst_n_in_place_3d, nanfirst_n_in_place_4d, nanlast_n_in_place_3d, nanlast_n_in_place_4d,
+    row_min_in_place, row_min_n_in_place_3d, row_min_n_in_place_4d,
+    row_max_in_place, row_max_n_in_place_3d, row_max_n_in_place_4d,
 )
 
 try:
@@ -142,7 +146,26 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
 
 def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero: float,
                                         n_reduction: bool, categorical: bool):
-    if not n_reduction:
+    if n_reduction:
+        if zero == -1:
+            if combination == AntialiasCombination.MAX:
+                return row_max_n_in_place_4d if categorical else row_max_n_in_place_3d
+            elif combination == AntialiasCombination.MIN:
+                return row_min_n_in_place_4d if categorical else row_min_n_in_place_3d
+            else:
+                raise NotImplementedError
+        else:
+            if combination == AntialiasCombination.MAX:
+                return nanmax_n_in_place_4d if categorical else nanmax_n_in_place_3d
+            elif combination == AntialiasCombination.MIN:
+                return nanmin_n_in_place_4d if categorical else nanmin_n_in_place_3d
+            elif combination == AntialiasCombination.FIRST:
+                return nanfirst_n_in_place_4d if categorical else nanfirst_n_in_place_3d
+            elif combination == AntialiasCombination.LAST:
+                return nanlast_n_in_place_4d if categorical else nanlast_n_in_place_3d
+            else:
+                raise NotImplementedError
+    else:
         # The aggs to combine here are either 3D (ny, nx, ncat) if categorical is True or
         # 2D (ny, nx) if categorical is False. The same combination functions can be for both
         # as all elements are independent.
@@ -151,6 +174,8 @@ def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero:
                 return row_max_in_place
             elif combination == AntialiasCombination.MIN:
                 return row_min_in_place
+            else:
+                raise NotImplementedError
         else:
             if combination == AntialiasCombination.MAX:
                 return nanmax_in_place
@@ -162,8 +187,6 @@ def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero:
                 return nanlast_in_place
             else:
                 return nansum_in_place
-
-    raise NotImplementedError
 
 
 def make_antialias_stage_2_functions(antialias_stage_2):
