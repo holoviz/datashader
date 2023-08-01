@@ -198,60 +198,117 @@ else:
         cuda.atomic.exch(mutex, 0, 0)
 
 
-@cuda.jit
-def cuda_nanmax_n_in_place(ret, other):
-    """CUDA equivalent of nanmax_n_in_place.
-    """
-    ny, nx, ncat, n = ret.shape
-    x, y, cat = cuda.grid(3)
-    if x < nx and y < ny and cat < ncat:
-        ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
-        other_pixel = other[y, x, cat]  # ditto
-        # Walk along other_pixel array a value at a time, find insertion
-        # index in ret_pixel and bump values along to insert.  Next
-        # other_pixel value is inserted at a higher index, so this walks
-        # the two pixel arrays just once each.
-        istart = 0
-        for other_value in other_pixel:
-            if isnan(other_value):
-                break
+@cuda.jit(device=True)
+def cuda_shift_and_insert(target, value, index):
+    """Insert a value into a 1D array at a particular index, but before doing
+    that shift the previous values along one to make room. For use in
+    ``FloatingNReduction`` classes such as ``max_n`` and ``first_n`` which
+    store ``n`` values per pixel.
 
+    Parameters
+    ----------
+    target : 1d numpy array
+        Target pixel array.
+
+    value : float
+        Value to insert into target pixel array.
+
+    index : int
+        Index to insert at.
+
+    Returns
+    -------
+    Index beyond insertion, i.e. where the first shifted value now sits.
+    """
+    n = len(target)
+    for i in range(n-1, index, -1):
+        target[i] = target[i-1]
+    target[index] = value
+    return index + 1
+
+
+@cuda.jit(device=True)
+def _cuda_nanmax_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of nanmax_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if isnan(other_value):
+            break
+        else:
             for i in range(istart, n):
                 if isnan(ret_pixel[i]) or other_value > ret_pixel[i]:
-                    # Bump values along then insert.
-                    for j in range(n-1, i, -1):
-                        ret_pixel[j] = ret_pixel[j-1]
-                    ret_pixel[i] = other_value
-                    istart = i+1
+                    istart = cuda_shift_and_insert(ret_pixel, other_value, i)
                     break
 
 
 @cuda.jit
-def cuda_nanmin_n_in_place(ret, other):
-    """CUDA equivalent of nanmin_n_in_place.
+def cuda_nanmax_n_in_place_4d(ret, other):
+    """CUDA equivalent of nanmax_n_in_place_4d.
     """
-    ny, nx, ncat, n = ret.shape
+    ny, nx, ncat, _n = ret.shape
     x, y, cat = cuda.grid(3)
     if x < nx and y < ny and cat < ncat:
-        ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
-        other_pixel = other[y, x, cat]  # ditto
-        # Walk along other_pixel array a value at a time, find insertion
-        # index in ret_pixel and bump values along to insert.  Next
-        # other_pixel value is inserted at a higher index, so this walks
-        # the two pixel arrays just once each.
-        istart = 0
-        for other_value in other_pixel:
-            if isnan(other_value):
-                break
+        _cuda_nanmax_n_impl(ret[y, x, cat], other[y, x, cat])
 
+
+@cuda.jit
+def cuda_nanmax_n_in_place_3d(ret, other):
+    """CUDA equivalent of nanmax_n_in_place_3d.
+    """
+    ny, nx, _n = ret.shape
+    x, y = cuda.grid(2)
+    if x < nx and y < ny:
+        _cuda_nanmax_n_impl(ret[y, x], other[y, x])
+
+
+@cuda.jit(device=True)
+def _cuda_nanmin_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of nanmin_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if isnan(other_value):
+            break
+        else:
             for i in range(istart, n):
                 if isnan(ret_pixel[i]) or other_value < ret_pixel[i]:
-                    # Bump values along then insert.
-                    for j in range(n-1, i, -1):
-                        ret_pixel[j] = ret_pixel[j-1]
-                    ret_pixel[i] = other_value
-                    istart = i+1
+                    istart = cuda_shift_and_insert(ret_pixel, other_value, i)
                     break
+
+
+@cuda.jit
+def cuda_nanmin_n_in_place_4d(ret, other):
+    """CUDA equivalent of nanmin_n_in_place_4d.
+    """
+    ny, nx, ncat, _n = ret.shape
+    x, y, cat = cuda.grid(3)
+    if x < nx and y < ny and cat < ncat:
+        _cuda_nanmin_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@cuda.jit
+def cuda_nanmin_n_in_place_3d(ret, other):
+    """CUDA equivalent of nanmin_n_in_place_3d.
+    """
+    ny, nx, _n = ret.shape
+    x, y = cuda.grid(2)
+    if x < nx and y < ny:
+        _cuda_nanmin_n_impl(ret[y, x], other[y, x])
 
 
 @cuda.jit
@@ -265,57 +322,85 @@ def cuda_row_min_in_place(ret, other):
             ret[y, x, cat] = other[y, x, cat]
 
 
-@cuda.jit
-def cuda_row_max_n_in_place(ret, other):
-    """CUDA equivalent of row_max_n_in_place.
-    """
-    ny, nx, ncat, n = ret.shape
-    x, y, cat = cuda.grid(3)
-    if x < nx and y < ny and cat < ncat:
-        ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
-        other_pixel = other[y, x, cat]  # ditto
-        # Walk along other_pixel array a value at a time, find insertion
-        # index in ret_pixel and bump values along to insert.  Next
-        # other_pixel value is inserted at a higher index, so this walks
-        # the two pixel arrays just once each.
-        istart = 0
-        for other_value in other_pixel:
-            if other_value == -1:
-                break
+@cuda.jit(device=True)
+def _cuda_row_max_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of row_max_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
 
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if other_value == -1:
+            break
+        else:
             for i in range(istart, n):
                 if ret_pixel[i] == -1 or other_value > ret_pixel[i]:
-                    # Bump values along then insert.
-                    for j in range(n-1, i, -1):
-                        ret_pixel[j] = ret_pixel[j-1]
-                    ret_pixel[i] = other_value
-                    istart = i+1
+                    istart = cuda_shift_and_insert(ret_pixel, other_value, i)
                     break
 
 
 @cuda.jit
-def cuda_row_min_n_in_place(ret, other):
-    """CUDA equivalent of row_min_n_in_place.
+def cuda_row_max_n_in_place_4d(ret, other):
+    """CUDA equivalent of row_max_n_in_place_4d.
     """
-    ny, nx, ncat, n = ret.shape
+    ny, nx, ncat, _n = ret.shape
     x, y, cat = cuda.grid(3)
     if x < nx and y < ny and cat < ncat:
-        ret_pixel = ret[y, x, cat]      # 1D array of n values for single pixel
-        other_pixel = other[y, x, cat]  # ditto
-        # Walk along other_pixel array a value at a time, find insertion
-        # index in ret_pixel and bump values along to insert.  Next
-        # other_pixel value is inserted at a higher index, so this walks
-        # the two pixel arrays just once each.
-        istart = 0
-        for other_value in other_pixel:
-            if other_value == -1:
-                break
+        _cuda_row_max_n_impl(ret[y, x, cat], other[y, x, cat])
 
+
+@cuda.jit
+def cuda_row_max_n_in_place_3d(ret, other):
+    """CUDA equivalent of row_max_n_in_place_3d.
+    """
+    ny, nx, _n = ret.shape
+    x, y = cuda.grid(2)
+    if x < nx and y < ny:
+        _cuda_row_max_n_impl(ret[y, x], other[y, x])
+
+
+@cuda.jit(device=True)
+def _cuda_row_min_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of row_min_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if other_value == -1:
+            break
+        else:
             for i in range(istart, n):
                 if ret_pixel[i] == -1 or other_value < ret_pixel[i]:
-                    # Bump values along then insert.
-                    for j in range(n-1, i, -1):
-                        ret_pixel[j] = ret_pixel[j-1]
-                    ret_pixel[i] = other_value
-                    istart = i+1
+                    istart = cuda_shift_and_insert(ret_pixel, other_value, i)
                     break
+
+
+@cuda.jit
+def cuda_row_min_n_in_place_4d(ret, other):
+    """CUDA equivalent of row_min_n_in_place_4d.
+    """
+    ny, nx, ncat, _n = ret.shape
+    x, y, cat = cuda.grid(3)
+    if x < nx and y < ny and cat < ncat:
+        _cuda_row_min_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@cuda.jit
+def cuda_row_min_n_in_place_3d(ret, other):
+    """CUDA equivalent of row_min_n_in_place_4=3d.
+    """
+    ny, nx, _n = ret.shape
+    x, y = cuda.grid(2)
+    if x < nx and y < ny:
+        _cuda_row_min_n_impl(ret[y, x], other[y, x])
