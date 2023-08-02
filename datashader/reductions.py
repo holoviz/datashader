@@ -1463,7 +1463,27 @@ class first_n(_first_n_or_last_n):
             # Could do binary search instead but not expecting n to be large.
             for i in range(n):
                 if isnull(agg[y, x, i]):
+                    # Nothing to shift.
                     agg[y, x, i] = field
+                    return i
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value):
+            # Check final value first for quick abort.
+            n = agg.shape[2]
+            if not isnull(agg[y, x, n-1]):
+                return -1
+
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            for i in range(n):
+                if isnull(agg[y, x, i]):
+                    # Nothing to shift.
+                    agg[y, x, i] = value
                     return i
         return -1
 
@@ -1482,6 +1502,16 @@ class last_n(_first_n_or_last_n):
         if not isnull(field):
             # Always inserts at front of agg's third dimension.
             shift_and_insert(agg[y, x], field, 0)
+            return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value):
+            # Always inserts at front of agg's third dimension.
+            shift_and_insert(agg[y, x], value, 0)
             return 0
         return -1
 
@@ -1507,6 +1537,20 @@ class max_n(FloatingNReduction):
             for i in range(n):
                 if isnull(agg[y, x, i]) or field > agg[y, x, i]:
                     shift_and_insert(agg[y, x], field, i)
+                    return i
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value):
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if isnull(agg[y, x, i]) or value > agg[y, x, i]:
+                    shift_and_insert(agg[y, x], value, i)
                     return i
         return -1
 
@@ -1573,6 +1617,20 @@ class min_n(FloatingNReduction):
             for i in range(n):
                 if isnull(agg[y, x, i]) or field < agg[y, x, i]:
                     shift_and_insert(agg[y, x], field, i)
+                    return i
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        value = field*aa_factor
+        if not isnull(value):
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if isnull(agg[y, x, i]) or value < agg[y, x, i]:
+                    shift_and_insert(agg[y, x], value, i)
                     return i
         return -1
 
@@ -2165,12 +2223,6 @@ class _max_n_or_min_n_row_index(FloatingNReduction):
     def uses_row_index(self, cuda, partitioned):
         return True
 
-    def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        # Doesn't yet support antialiasing
-        if cuda:
-            return self._append_cuda
-        else:
-            return self._append
 
     def _build_combine(self, dshape, antialias, cuda, partitioned):
         if cuda:
@@ -2186,6 +2238,9 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
     user code. It is primarily purpose is to support the use of ``last_n``
     reductions using dask and/or CUDA.
     """
+    def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
+        return (AntialiasStage2(AntialiasCombination.MAX, -1, n_reduction=True),)
+
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
@@ -2197,6 +2252,24 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
             for i in range(n):
                 if agg[y, x, i] == -1 or field > agg[y, x, i]:
                     shift_and_insert(agg[y, x], field, i)
+                    return i
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        # field is int64 row index
+        # Ignoring aa_factor
+        if field != -1:
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if agg[y, x, i] == -1 or field > agg[y, x, i]:
+                    # Bump previous values along to make room for new value.
+                    for j in range(n-1, i, -1):
+                        agg[y, x, j] = agg[y, x, j-1]
+                    agg[y, x, i] = field
                     return i
         return -1
 
@@ -2245,10 +2318,31 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
     user code. It is primarily purpose is to support the use of ``first_n``
     reductions using dask and/or CUDA.
     """
+    def _antialias_requires_2_stages(self):
+        return True
+
+    def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
+        return (AntialiasStage2(AntialiasCombination.MIN, -1, n_reduction=True),)
+
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
         # field is int64 row index
+        if field != -1:
+            # Linear walk along stored values.
+            # Could do binary search instead but not expecting n to be large.
+            n = agg.shape[2]
+            for i in range(n):
+                if agg[y, x, i] == -1 or field < agg[y, x, i]:
+                    shift_and_insert(agg[y, x], field, i)
+                    return i
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor):
+        # field is int64 row index
+        # Ignoring aa_factor
         if field != -1:
             # Linear walk along stored values.
             # Could do binary search instead but not expecting n to be large.

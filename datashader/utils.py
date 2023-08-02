@@ -636,6 +636,7 @@ def nanmax_in_place(ret, other):
 def nanmin_in_place(ret, other):
     """Min of 2 arrays but taking nans into account.  Could use np.nanmin but
     would need to replace zeros with nans where both arrays are nans.
+    Accepts 3D (ny, nx, ncat) and 2D (ny, nx) arrays.
     Return the first array.
     """
     ret = ret.ravel()
@@ -675,6 +676,94 @@ def shift_and_insert(target, value, index):
         target[i] = target[i-1]
     target[index] = value
     return index + 1
+
+
+@ngjit
+def _nanfirst_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of nanfirst_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if isnull(other_value):
+            break
+        else:
+            for i in range(istart, n):
+                if isnull(ret_pixel[i]):
+                    # Always insert after existing values, so no shifting required.
+                    ret_pixel[i] = other_value
+                    istart = i+1
+                    break
+
+
+@ngjit_parallel
+def nanfirst_n_in_place_4d(ret, other):
+    """3d version of nanfirst_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, ncat, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            for cat in range(ncat):
+                _nanfirst_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@ngjit_parallel
+def nanfirst_n_in_place_3d(ret, other):
+    """3d version of nanfirst_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            _nanfirst_n_impl(ret[y, x], other[y, x])
+
+
+@ngjit
+def _nanlast_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of nanlast_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if isnull(other_value):
+            break
+        else:
+            for i in range(istart, n):
+                # Always insert at istart index.
+                istart = shift_and_insert(ret_pixel, other_value, istart)
+                break
+
+
+@ngjit_parallel
+def nanlast_n_in_place_4d(ret, other):
+    """3d version of nanfirst_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, ncat, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            for cat in range(ncat):
+                _nanlast_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@ngjit_parallel
+def nanlast_n_in_place_3d(ret, other):
+    """3d version of nanlast_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            _nanlast_n_impl(ret[y, x], other[y, x])
 
 
 @ngjit
@@ -798,19 +887,6 @@ def parallel_fill(array, value):
 
 
 @ngjit
-def row_min_in_place(ret, other):
-    """Minimum of 2 arrays of row indexes.
-    Row indexes are integers from 0 upwards, missing data is -1.
-    Return the first array.
-    """
-    ret = ret.ravel()
-    other = other.ravel()
-    for i in range(len(ret)):
-        if other[i] > -1 and (ret[i] == -1 or other[i] < ret[i]):
-            ret[i] = other[i]
-
-
-@ngjit
 def row_max_in_place(ret, other):
     """Maximum of 2 arrays of row indexes.
     Row indexes are integers from 0 upwards, missing data is -1.
@@ -820,6 +896,19 @@ def row_max_in_place(ret, other):
     other = other.ravel()
     for i in range(len(ret)):
         if other[i] > -1 and (ret[i] == -1 or other[i] > ret[i]):
+            ret[i] = other[i]
+
+
+@ngjit
+def row_min_in_place(ret, other):
+    """Minimum of 2 arrays of row indexes.
+    Row indexes are integers from 0 upwards, missing data is -1.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in range(len(ret)):
+        if other[i] > -1 and (ret[i] == -1 or other[i] < ret[i]):
             ret[i] = other[i]
 
 

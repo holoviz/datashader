@@ -32,11 +32,13 @@ def two_stage_agg(antialias_stage_2: UnzippedAntialiasStage2 | None):
         # Not using antialiased lines, doesn't matter what is returned.
         return False, False
 
+    aa_combinations = antialias_stage_2[0]
+
     # A single combination in (SUM_2AGG, FIRST, LAST, MIN) means that a 2-stage
     # aggregation will be used, otherwise use a 1-stage aggregation that is
     # faster.
     use_2_stage_agg = False
-    for comb in antialias_stage_2[0]:
+    for comb in aa_combinations:
         if comb in (AntialiasCombination.SUM_2AGG, AntialiasCombination.MIN,
                     AntialiasCombination.FIRST, AntialiasCombination.LAST):
             use_2_stage_agg = True
@@ -47,7 +49,7 @@ def two_stage_agg(antialias_stage_2: UnzippedAntialiasStage2 | None):
     # complicated correction algorithm. Prefer overwrite=True for speed, but
     # any SUM_1AGG implies overwrite=False.
     overwrite = True
-    for comb in antialias_stage_2[0]:
+    for comb in aa_combinations:
         if comb == AntialiasCombination.SUM_1AGG:
             overwrite = False
             break
