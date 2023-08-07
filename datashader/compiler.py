@@ -201,9 +201,16 @@ def make_antialias_stage_2_functions(antialias_stage_2):
     for func in set(funcs):
         namespace[func.__name__] = func
 
-    lines = ["def aa_stage_2_accumulate(aggs_and_copies):"]
+    lines = [
+        "def aa_stage_2_accumulate(aggs_and_copies, first_pass):",
+        #    Don't need to accumulate if first_pass, just copy (opposite of aa_stage_2_copy_back)
+        "    if first_pass:",
+        "        for a in literal_unroll(aggs_and_copies):",
+        "            a[1][:] = a[0][:]",
+        "    else:",
+    ]
     for i, func in enumerate(funcs):
-        lines.append(f"    {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
+        lines.append(f"        {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
 
     code = "\n".join(lines)
     exec(code, namespace)

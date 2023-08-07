@@ -1115,7 +1115,7 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, antialias
             if ncols == 1:
                 return
 
-            aa_stage_2_accumulate(aggs_and_accums)
+            aa_stage_2_accumulate(aggs_and_accums, j==0)
 
             if j < ncols - 1:
                 aa_stage_2_clear(aggs_and_accums)
@@ -1208,7 +1208,7 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, a
             if xs.shape[0] == 1:
                 return
 
-            aa_stage_2_accumulate(aggs_and_accums)
+            aa_stage_2_accumulate(aggs_and_accums, i==0)
 
             if i < xs.shape[0] - 1:
                 aa_stage_2_clear(aggs_and_accums)
@@ -1302,7 +1302,7 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols, anti
             if ys.shape[0] == 1:
                 return
 
-            aa_stage_2_accumulate(aggs_and_accums)
+            aa_stage_2_accumulate(aggs_and_accums, i==0)
 
             if i < ys.shape[0] - 1:
                 aa_stage_2_clear(aggs_and_accums)
@@ -1398,7 +1398,7 @@ def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols, anti
             if xs.shape[0] == 1:
                 return
 
-            aa_stage_2_accumulate(aggs_and_accums)
+            aa_stage_2_accumulate(aggs_and_accums, i==0)
 
             if i < xs.shape[0] - 1:
                 aa_stage_2_clear(aggs_and_accums)
@@ -1574,7 +1574,7 @@ def _build_extend_line_axis1_ragged(draw_segment, expand_aggs_and_cols, antialia
             if nrows == 1:
                 return
 
-            aa_stage_2_accumulate(aggs_and_accums)
+            aa_stage_2_accumulate(aggs_and_accums, i==0)
 
             if i < nrows - 1:
                 aa_stage_2_clear(aggs_and_accums)
@@ -1728,6 +1728,7 @@ def _build_extend_line_axis1_geometry(draw_segment, expand_aggs_and_cols, antial
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
 
+        first_pass = True
         for i in eligible_inds:
             if missing[i]:
                 continue
@@ -1772,7 +1773,8 @@ def _build_extend_line_axis1_geometry(draw_segment, expand_aggs_and_cols, antial
                                  segment_start, segment_end, x0, x1, y0, y1,
                                  0.0, 0.0, buffer, *aggs_and_cols)
 
-            aa_stage_2_accumulate(aggs_and_accums)
+            aa_stage_2_accumulate(aggs_and_accums, first_pass)
+            first_pass = False
             aa_stage_2_clear(aggs_and_accums)
 
         aa_stage_2_copy_back(aggs_and_accums)
