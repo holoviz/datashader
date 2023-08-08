@@ -8,8 +8,8 @@ import numpy as np
 import xarray as xr
 
 from .antialias import AntialiasCombination
-from .reductions import SpecialColumn, UsesCudaMutex, by, category_codes, summary
-from .utils import (isnull, ngjit, parallel_fill,
+from .reductions import SpecialColumn, by, category_codes, summary
+from .utils import (isnull, ngjit,
     nanmax_in_place, nanmin_in_place, nansum_in_place, nanfirst_in_place, nanlast_in_place,
     nanmax_n_in_place_3d, nanmax_n_in_place_4d, nanmin_n_in_place_3d, nanmin_n_in_place_4d,
     nanfirst_n_in_place_3d, nanfirst_n_in_place_4d, nanlast_n_in_place_3d, nanlast_n_in_place_4d,
@@ -201,6 +201,7 @@ def make_antialias_stage_2_functions(antialias_stage_2):
     for func in set(funcs):
         namespace[func.__name__] = func
 
+    # aa_stage_2_accumulate
     lines = [
         "def aa_stage_2_accumulate(aggs_and_copies, first_pass):",
         #    Don't need to accumulate if first_pass, just copy (opposite of aa_stage_2_copy_back)
@@ -211,19 +212,22 @@ def make_antialias_stage_2_functions(antialias_stage_2):
     ]
     for i, func in enumerate(funcs):
         lines.append(f"        {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
-
     code = "\n".join(lines)
     exec(code, namespace)
     aa_stage_2_accumulate = ngjit(namespace["aa_stage_2_accumulate"])
 
-    @ngjit
-    def aa_stage_2_clear(aggs_and_copies):
-        k = 0
-        # Numba access to heterogeneous tuples is only permitted using literal_unroll.
-        for agg_and_copy in literal_unroll(aggs_and_copies):
-            parallel_fill(agg_and_copy[0], aa_zeroes[k])
-            k += 1
+    # aa_stage_2_clear
+    if np.any(np.isnan(aa_zeroes)):
+        namespace["nan"] = np.nan
 
+    lines = ["def aa_stage_2_clear(aggs_and_copies):"]
+    for i, aa_zero in enumerate(aa_zeroes):
+        lines.append(f"    aggs_and_copies[{i}][0].fill({aa_zero})")
+    code = "\n".join(lines)
+    exec(code, namespace)
+    aa_stage_2_clear = ngjit(namespace["aa_stage_2_clear"])
+
+    # aa_stage_2_copy_back
     @ngjit
     def aa_stage_2_copy_back(aggs_and_copies):
         # Numba access to heterogeneous tuples is only permitted using literal_unroll.

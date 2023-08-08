@@ -441,7 +441,7 @@ The axis argument to Canvas.line must be 0 or 1
             if not isinstance(non_cat_agg, (
                 rd.any, rd.count, rd.max, rd.min, rd.sum, rd.summary, rd._sum_zero,
                 rd._first_or_last, rd.mean, rd.max_n, rd.min_n, rd._first_n_or_last_n,
-                rd._max_or_min_row_index, rd._max_n_or_min_n_row_index
+                rd._max_or_min_row_index, rd._max_n_or_min_n_row_index,
             )):
                 raise NotImplementedError(
                     f"{type(non_cat_agg)} reduction not implemented for antialiased lines")
