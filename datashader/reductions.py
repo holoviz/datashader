@@ -54,6 +54,20 @@ class SpecialColumn(Enum):
     RowIndex = 1
 
 
+class UsesCudaMutex(Enum):
+    """
+    Enum that encapsulates the need for a Reduction to use a CUDA mutex to
+    operate correctly on a GPU. Possible values:
+
+    No: the Reduction append_cuda function is atomic and no mutex is required.
+    Local: Reduction append_cuda needs wrapping in a mutex.
+    Global: the overall compiled append function needs wrapping in a mutex.
+    """
+    No = 0
+    Local = 1
+    Global = 2
+
+
 class Preprocess(Expr):
     """Base clase for preprocessing steps."""
     def __init__(self, column: str | SpecialColumn | None):
@@ -292,7 +306,7 @@ class Reduction(Expr):
         else:
             return None
 
-    def uses_cuda_mutex(self):
+    def uses_cuda_mutex(self) -> UsesCudaMutex:
         """Return ``True`` if this Reduction needs to use a CUDA mutex to
         ensure that it is threadsafe across CUDA threads.
 
@@ -300,7 +314,7 @@ class Reduction(Expr):
         the numba.cuda.atomic module) then this is ``False``, otherwise it is
         ``True``.
         """
-        return False
+        return UsesCudaMutex.No
 
     def uses_row_index(self, cuda, partitioned):
         """Return ``True`` if this Reduction uses a row index virtual column.
@@ -707,7 +721,7 @@ class by(Reduction):
     def nan_check_column(self):
         return self.reduction.nan_check_column
 
-    def uses_cuda_mutex(self):
+    def uses_cuda_mutex(self) -> UsesCudaMutex:
         return self.reduction.uses_cuda_mutex()
 
     def uses_row_index(self, cuda, partitioned):
@@ -1519,8 +1533,8 @@ class last_n(_first_n_or_last_n):
 
 
 class max_n(FloatingNReduction):
-    def uses_cuda_mutex(self):
-        return True
+    def uses_cuda_mutex(self) -> UsesCudaMutex:
+        return UsesCudaMutex.Local
 
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
         return (AntialiasStage2(AntialiasCombination.MAX, array_module.nan, n_reduction=True),)
@@ -1596,8 +1610,8 @@ class max_n(FloatingNReduction):
 
 
 class min_n(FloatingNReduction):
-    def uses_cuda_mutex(self):
-        return True
+    def uses_cuda_mutex(self) -> UsesCudaMutex:
+        return UsesCudaMutex.Local
 
     def _antialias_requires_2_stages(self):
         return True
@@ -1759,8 +1773,8 @@ class where(FloatingReduction):
         else:
             return dshape(ct.float64)
 
-    def uses_cuda_mutex(self):
-        return True
+    def uses_cuda_mutex(self) -> UsesCudaMutex:
+        return UsesCudaMutex.Local
 
     def uses_row_index(self, cuda, partitioned):
         return self.column == SpecialColumn.RowIndex or self.selector.uses_row_index(cuda, partitioned)
@@ -2163,8 +2177,8 @@ class _min_row_index(_max_or_min_row_index):
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
         return (AntialiasStage2(AntialiasCombination.MIN, -1),)
 
-    def uses_cuda_mutex(self):
-        return True
+    def uses_cuda_mutex(self) -> UsesCudaMutex:
+        return UsesCudaMutex.Local
 
     # CPU append functions
     @staticmethod
@@ -2235,12 +2249,11 @@ class _max_n_or_min_n_row_index(FloatingNReduction):
     def out_dshape(self, in_dshape, antialias, cuda, partitioned):
         return dshape(ct.int64)
 
-    def uses_cuda_mutex(self):
-        return True
+    def uses_cuda_mutex(self) -> UsesCudaMutex:
+        return UsesCudaMutex.Local
 
     def uses_row_index(self, cuda, partitioned):
         return True
-
 
     def _build_combine(self, dshape, antialias, cuda, partitioned):
         if cuda:
