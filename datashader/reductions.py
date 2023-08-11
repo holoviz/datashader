@@ -1058,10 +1058,10 @@ class m2(FloatingReduction):
         Name of the column to aggregate over. Column data type must be numeric.
         ``NaN`` values in the column are skipped.
     """
+    def uses_cuda_mutex(self) -> UsesCudaMutex:
+        return UsesCudaMutex.Global
+
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        if cuda:
-            raise ValueError("""\
-The 'std' and 'var' reduction operations are not yet supported on the GPU""")
         return super(m2, self)._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     def _build_create(self, required_dshape):
@@ -1070,9 +1070,24 @@ The 'std' and 'var' reduction operations are not yet supported on the GPU""")
     def _build_temps(self, cuda=False):
         return (_sum_zero(self.column), count(self.column))
 
+    # CPU append functions
     @staticmethod
     @ngjit
     def _append(x, y, m2, field, sum, count):
+        # sum & count are the results of sum[y, x], count[y, x] before being
+        # updated by field
+        if not isnull(field):
+            if count > 0:
+                u1 = np.float64(sum) / count
+                u = np.float64(sum + field) / (count + 1)
+                m2[y, x] += (field - u1) * (field - u)
+                return 0
+        return -1
+
+    # GPU append functions
+    @staticmethod
+    @nb_cuda.jit(device=True)
+    def _append_cuda(x, y, m2, field, sum, count):
         # sum & count are the results of sum[y, x], count[y, x] before being
         # updated by field
         if not isnull(field):
