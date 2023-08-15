@@ -696,7 +696,7 @@ def test_mean(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.mean('f64')), out)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs)
 def test_var(df):
     out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).var(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
@@ -708,7 +708,7 @@ def test_var(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.var('f64')), out)
 
 
-@pytest.mark.parametrize('df', [df_pd])
+@pytest.mark.parametrize('df', dfs)
 def test_std(df):
     out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).std(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
@@ -917,11 +917,6 @@ def test_categorical_mean_binning(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_var(df):
-    if cudf and isinstance(df, cudf.DataFrame):
-        pytest.skip(
-            "The 'var' reduction is yet supported on the GPU"
-        )
-
     sol = np.array([[[ 2.5,  nan,  nan,  nan],
                      [ nan,  nan,   2.,  nan]],
                     [[ nan,   2.,  nan,  nan],
@@ -953,11 +948,6 @@ def test_categorical_var(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_std(df):
-    if cudf and isinstance(df, cudf.DataFrame):
-        pytest.skip(
-            "The 'std' reduction is yet supported on the GPU"
-        )
-
     sol = np.sqrt(np.array([
         [[ 2.5,  nan,  nan,  nan],
          [ nan,  nan,   2.,  nan]],

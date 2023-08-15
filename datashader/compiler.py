@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 
 from .antialias import AntialiasCombination
-from .reductions import SpecialColumn, by, category_codes, summary
+from .reductions import SpecialColumn, UsesCudaMutex, by, category_codes, summary
 from .utils import (isnull, ngjit, parallel_fill,
     nanmax_in_place, nanmin_in_place, nansum_in_place, nanfirst_in_place, nanlast_in_place,
     nanmax_n_in_place_3d, nanmax_n_in_place_4d, nanmin_n_in_place_3d, nanmin_n_in_place_4d,
@@ -134,8 +134,8 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
     combine_temps = list(pluck(5, calls))
 
     create = make_create(bases, dshapes, cuda)
-    append, uses_cuda_mutex = make_append(bases, cols, calls, glyph, antialias)
-    info = make_info(cols, uses_cuda_mutex)
+    append, any_uses_cuda_mutex = make_append(bases, cols, calls, glyph, antialias)
+    info = make_info(cols, any_uses_cuda_mutex)
     combine = make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned)
     finalize = make_finalize(bases, agg, schema, cuda, partitioned)
 
@@ -252,7 +252,7 @@ def _get_call_tuples(base, dshape, schema, cuda, antialias, self_intersect, part
         base.nan_check_column,  # column used to check for NaNs in some where reductions
         base._build_temps(cuda),  # temps
         base._build_combine_temps(cuda, partitioned),  # combine temps
-        cuda and base.uses_cuda_mutex(),  # uses cuda mutex
+        base.uses_cuda_mutex() if cuda else UsesCudaMutex.No,  # uses cuda mutex
         base.is_categorical(),
     )
 
@@ -267,7 +267,7 @@ def make_create(bases, dshapes, cuda):
     return lambda shape: tuple(c(shape, array_module) for c in creators)
 
 
-def make_info(cols, uses_cuda_mutex):
+def make_info(cols, uses_cuda_mutex: bool):
     def info(df, canvas_shape):
         ret = tuple(c.apply(df) for c in cols)
         if uses_cuda_mutex:
@@ -291,7 +291,8 @@ def make_append(bases, cols, calls, glyph, antialias):
     need_isnull = any(call[3] for call in calls)
     if need_isnull:
         namespace["isnull"] = isnull
-    any_uses_cuda_mutex = any(call[6] for call in calls)
+    global_cuda_mutex = any(call[6] == UsesCudaMutex.Global for call in calls)
+    any_uses_cuda_mutex = any(call[6] != UsesCudaMutex.No for call in calls)
     if any_uses_cuda_mutex:
         # This adds an argument to the append() function that is the cuda mutex
         # generated in make_info.
@@ -308,11 +309,16 @@ def make_append(bases, cols, calls, glyph, antialias):
         subscript = ', '.join(['i' + str(n) for n in range(ndims)])
     else:
         subscript = None
-    prev_cuda_mutex = False
+    prev_local_cuda_mutex = False
     categorical_args = {}  # Reuse categorical arguments if used in more than one reduction
+
+    def get_cuda_mutex_call(lock: bool) -> str:
+        func = "cuda_mutex_lock" if lock else "cuda_mutex_unlock"
+        return f'{func}({arg_lk["_cuda_mutex"]}, (y, x))'
 
     for index, (func, bases, cols, nan_check_column, temps, _, uses_cuda_mutex, categorical) \
             in enumerate(calls):
+        local_cuda_mutex = not global_cuda_mutex and uses_cuda_mutex == UsesCudaMutex.Local
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
         namespace[func_name] = func
@@ -345,7 +351,7 @@ def make_append(bases, cols, calls, glyph, antialias):
         if antialias:
             args.append("aa_factor")
 
-        if uses_cuda_mutex and prev_cuda_mutex:
+        if local_cuda_mutex and prev_local_cuda_mutex:
             # Avoid unnecessary mutex unlock and lock cycle
             body.pop()
 
@@ -357,8 +363,8 @@ def make_append(bases, cols, calls, glyph, antialias):
             # where reduction needs access to the return of the contained
             # reduction, which is the preceding one here.
             prev_body = body.pop()
-            if uses_cuda_mutex and not prev_cuda_mutex:
-                body.append(f'cuda_mutex_lock({arg_lk["_cuda_mutex"]}, (y, x))')
+            if local_cuda_mutex and not prev_local_cuda_mutex:
+                body.append(get_cuda_mutex_call(True))
             body.append(f'{update_index_arg_name} = {prev_body}')
 
             # If nan_check_column is defined then need to check if value of
@@ -376,8 +382,8 @@ def make_append(bases, cols, calls, glyph, antialias):
             body.append(f'{whitespace}if {update_index_arg_name} >= 0:')
             body.append(f'    {whitespace}{func_name}(x, y, {", ".join(args)})')
         else:
-            if uses_cuda_mutex and not prev_cuda_mutex:
-                body.append(f'cuda_mutex_lock({arg_lk["_cuda_mutex"]}, (y, x))')
+            if local_cuda_mutex and not prev_local_cuda_mutex:
+                body.append(get_cuda_mutex_call(True))
             if nan_check_column:
                 var = f"{arg_lk[nan_check_column]}[{subscript}]"
                 body.append(f'if not isnull({var}):')
@@ -385,13 +391,16 @@ def make_append(bases, cols, calls, glyph, antialias):
             else:
                 body.append(f'{func_name}(x, y, {", ".join(args)})')
 
-        if uses_cuda_mutex:
-            body.append(f'cuda_mutex_unlock({arg_lk["_cuda_mutex"]}, (y, x))')
+        if local_cuda_mutex:
+            body.append(get_cuda_mutex_call(False))
 
-        prev_cuda_mutex = uses_cuda_mutex
+        prev_local_cuda_mutex = local_cuda_mutex
 
     body = head + ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
                    for agg, name in local_lk.items()] + body
+
+    if global_cuda_mutex:
+        body = [get_cuda_mutex_call(True)] + body + [get_cuda_mutex_call(False)]
 
     if antialias:
         signature.insert(0, "aa_factor")

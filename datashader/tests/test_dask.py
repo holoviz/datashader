@@ -812,9 +812,6 @@ def test_mean(ddf, npartitions):
 @pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_var(ddf, npartitions):
-    if dask_cudf and isinstance(ddf, dask_cudf.DataFrame):
-        pytest.skip("var not supported with cudf")
-
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
     out = xr.DataArray(
@@ -832,9 +829,6 @@ def test_var(ddf, npartitions):
 @pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_std(ddf, npartitions):
-    if dask_cudf and isinstance(ddf, dask_cudf.DataFrame):
-        pytest.skip("std not supported with cudf")
-
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
     out = xr.DataArray(
@@ -1030,10 +1024,6 @@ def test_categorical_mean_binning(ddf, npartitions):
 @pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_categorical_var(ddf, npartitions):
-    if cudf and isinstance(ddf._meta, cudf.DataFrame):
-        pytest.skip(
-            "The 'var' reduction is yet supported on the GPU"
-        )
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
     sol = np.array([[[ 2.5,  nan,  nan,  nan],
@@ -1074,10 +1064,6 @@ def test_categorical_var(ddf, npartitions):
 @pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_categorical_std(ddf, npartitions):
-    if cudf and isinstance(ddf._meta, cudf.DataFrame):
-        pytest.skip(
-            "The 'std' reduction is yet supported on the GPU"
-        )
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
     sol = np.sqrt(np.array([
@@ -1120,8 +1106,6 @@ def test_categorical_std(ddf, npartitions):
 @pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_multiple_aggregates(ddf, npartitions):
-    if dask_cudf and isinstance(ddf, dask_cudf.DataFrame):
-        pytest.skip("std not supported with cudf")
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
     agg = c.points(ddf, 'x', 'y',
