@@ -146,7 +146,6 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
 
 def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero: float,
                                         n_reduction: bool, categorical: bool):
-    print("==> CHECK", combination, zero, n_reduction, categorical)
     if n_reduction:
         if zero == -1:
             if combination in (AntialiasCombination.MAX, AntialiasCombination.LAST):
@@ -205,9 +204,6 @@ def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned
     for func in set(funcs):
         namespace[func.__name__] = func
 
-    print("==> BASES", bases)
-    #import pdb; pdb.set_trace()
-
     # Generator of unique names for combine functions
     names = (f"combine{i}" for i in count())
 
@@ -237,8 +233,6 @@ def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned
         else:
             lines.append(f"        {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
     code = "\n".join(lines)
-    print("==> aa_stage_2_accumulate")
-    print(code)
     exec(code, namespace)
     aa_stage_2_accumulate = ngjit(namespace["aa_stage_2_accumulate"])
 
@@ -250,8 +244,6 @@ def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned
     for i, aa_zero in enumerate(aa_zeroes):
         lines.append(f"    aggs_and_copies[{i}][0].fill({aa_zero})")
     code = "\n".join(lines)
-    print("==> aa_stage_2_clear")
-    print(code)
     exec(code, namespace)
     aa_stage_2_clear = ngjit(namespace["aa_stage_2_clear"])
 
@@ -444,8 +436,6 @@ def make_append(bases, cols, calls, glyph, antialias):
         code = ('def append({0}, x, y, {1}):\n'
                 '    {2}'
                 ).format(subscript, ', '.join(signature), '\n    '.join(body))
-    print("==> append")
-    print(code)
     exec(code, namespace)
     return ngjit(namespace['append']), any_uses_cuda_mutex
 
