@@ -673,6 +673,15 @@ def test_summary_where_n(df):
     assert_eq_ndarray(agg['min_n'].data, sol_min_n_rowindex)
     assert_eq_ndarray(agg['max_n'].data, sol_max_n_reverse)
 
+    # Issue #1270: Support summary reduction containing multiple where
+    # reductions that use the same selector.
+    agg = c.points(df, 'x', 'y', ds.summary(
+        max1=ds.where(ds.max_n('plusminus', 5)),
+        max2=ds.where(ds.max_n('plusminus', 5), 'reverse'),
+    ))
+    assert_eq_ndarray(agg['max1'].data, sol_max_n_rowindex)
+    assert_eq_ndarray(agg['max2'].data, sol_max_n_reverse)
+
 
 @pytest.mark.parametrize('df', dfs)
 def test_summary_different_n(df):
