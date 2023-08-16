@@ -335,6 +335,7 @@ def make_append(bases, cols, calls, glyph, antialias):
         subscript = None
     prev_local_cuda_mutex = False
     categorical_args = {}  # Reuse categorical arguments if used in more than one reduction
+    where_selectors = {}  # Reuse where.selector if used more than once in a summary reduction
 
     def get_cuda_mutex_call(lock: bool) -> str:
         func = "cuda_mutex_lock" if lock else "cuda_mutex_unlock"
@@ -379,9 +380,18 @@ def make_append(bases, cols, calls, glyph, antialias):
             # Avoid unnecessary mutex unlock and lock cycle
             body.pop()
 
-        where_reduction = len(bases) == 1 and bases[0].is_where()
-        if where_reduction:
-            update_index_arg_name = next(names)
+        is_where = len(bases) == 1 and bases[0].is_where()
+        if is_where:
+            where_reduction = bases[0]
+            if isinstance(where_reduction, by):
+                where_reduction = where_reduction.reduction
+
+            selector_hash = hash(where_reduction.selector)
+            update_index_arg_name = where_selectors.get(selector_hash, None)
+            new_selector = update_index_arg_name is None
+            if new_selector:
+                update_index_arg_name = next(names)
+                where_selectors[selector_hash] = update_index_arg_name
             args.append(update_index_arg_name)
 
             # where reduction needs access to the return of the contained
@@ -389,7 +399,10 @@ def make_append(bases, cols, calls, glyph, antialias):
             prev_body = body.pop()
             if local_cuda_mutex and not prev_local_cuda_mutex:
                 body.append(get_cuda_mutex_call(True))
-            body.append(f'{update_index_arg_name} = {prev_body}')
+            if new_selector:
+                body.append(f'{update_index_arg_name} = {prev_body}')
+            else:
+                body.append(prev_body)
 
             # If nan_check_column is defined then need to check if value of
             # correct row in that column is NaN and if so do nothing. This
