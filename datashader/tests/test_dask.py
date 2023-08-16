@@ -2147,56 +2147,161 @@ def test_log_axis_not_positive(ddf, canvas):
         canvas.line(ddf, 'x', 'y')
 
 
-@pytest.mark.skip(reason='Antialised where reduction not yet supported')
 @pytest.mark.parametrize('npartitions', [1, 2, 3])
 def test_line_antialias_where(npartitions):
-    x = np.arange(3)
+    # Identical tests to test_pandas.
     df = pd.DataFrame(dict(
-        y0 = [0.0, 0.5, 1.0],
+        y0 = [0.5, 1.0, 0.0],
         y1 = [1.0, 0.0, 0.5],
-        y2 = [0.0, 1.0, 0.0],
-        value = [1.1, 2.2, 3.3],
+        y2 = [0.0, 0.5, 1.0],
+        value = [2.2, 3.3, 1.1],
         other = [-9.0, -7.0, -5.0],
     ))
-    ddf = dd.from_pandas(df, npartitions=npartitions)
-    if ddf.npartitions != npartitions:
-        pytest.skip("Dask partitioning not as expected")
+    df = dd.from_pandas(df, npartitions=npartitions)
+    assert df.npartitions == npartitions
 
-    cvs = ds.Canvas(plot_width=7, plot_height=5)
+    cvs = ds.Canvas(plot_width=7, plot_height=7)
+    kwargs = dict(source=df, x=np.arange(3), y=["y0", "y1", "y2"], axis=1, line_width=1.0)
 
-    sol_where_max = np.array([
-        [-9., -7., -7., -7., -7., -5., -5.],
-        [-7., -7., -7., -5., -5., -5., -9.],
-        [-7., -9., -5., -5., -5., -7., nan],
-        [-5., -5., -5., -5., -9., -7., -7.],
-        [-5., -5., -9., -9., -9., -7., -7.],
-    ])
-    agg_where_max = cvs.line(
-        source=ddf, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
-        agg=ds.where(ds.max("value"), "other"),
-    )
-    assert_eq_ndarray(agg_where_max.data, sol_where_max)
+    sol_first = np.array([
+        [[ 2, -1], [ 2, -1], [ 1, -1], [ 1,  1], [ 1, -1], [-1, -1], [ 0, -1]],
+        [[ 2, -1], [ 2, -1], [ 1,  2], [ 1, -1], [ 1, -1], [ 0,  1], [ 0, -1]],
+        [[-1, -1], [ 1,  2], [ 1,  2], [ 2, -1], [-1, -1], [ 0,  1], [ 0,  1]],
+        [[ 0, -1], [ 1, -1], [ 1,  2], [ 2,  2], [ 0,  2], [ 0, -1], [ 1, -1]],
+        [[ 0,  1], [ 0,  1], [-1, -1], [ 2, -1], [ 0,  2], [ 0,  2], [-1, -1]],
+        [[ 1, -1], [ 0,  1], [ 0, -1], [ 0, -1], [ 0,  2], [ 2, -1], [ 2, -1]],
+        [[ 1, -1], [-1, -1], [ 0, -1], [ 0,  0], [ 0, -1], [ 2, -1], [ 2, -1]]
+    ], dtype=int)
 
-    sol_where_min = np.array([
-        [-9., -9., -7., -7., -7., -9., -9.],
-        [-9., -9., -7., -7., -7., -9., -9.],
-        [-7., -9., -9., -5., -9., -9., nan],
-        [-5., -9., -9., -9., -9., -9., -7.],
-        [-5., -5., -9., -9., -9., -7., -7.],
-    ])
-    agg_where_min = cvs.line(
-        source=ddf, x=x, y=["y0", "y1", "y2"], axis=1, line_width=1.0,
-        agg=ds.where(ds.min("value"), "other"),
-    )
-    # dask solution differs slightly depending on number of partitions.
-    # Exclude array elements that may differ from comparison.
-    if npartitions == 2:
-        sol_where_min[1, 6] = agg_where_min[1, 6] = nan
-    elif npartitions == 3:
-        for j, i in ((1, 5), (1, 6), (2, 1)):
-            sol_where_min[j, i] = agg_where_min[j, i] = nan
+    sol_last = np.array([
+        [[ 2, -1], [ 2, -1], [ 1, -1], [ 1,  1], [ 1, -1], [-1, -1], [ 0, -1]],
+        [[ 2, -1], [ 2, -1], [ 2,  1], [ 1, -1], [ 1, -1], [ 1,  0], [ 0, -1]],
+        [[-1, -1], [ 2,  1], [ 2,  1], [ 2, -1], [-1, -1], [ 1,  0], [ 1,  0]],
+        [[ 0, -1], [ 1, -1], [ 2,  1], [ 2,  2], [ 2,  0], [ 0, -1], [ 1, -1]],
+        [[ 1,  0], [ 1,  0], [-1, -1], [ 2, -1], [ 2,  0], [ 2,  0], [-1, -1]],
+        [[ 1, -1], [ 1,  0], [ 0, -1], [ 0, -1], [ 2,  0], [ 2, -1], [ 2, -1]],
+        [[ 1, -1], [-1, -1], [ 0, -1], [ 0,  0], [ 0, -1], [ 2, -1], [ 2, -1]],
+    ], dtype=int)
 
-    assert_eq_ndarray(agg_where_min.data, sol_where_min)
+    sol_min = np.array([
+        [[ 2, -1], [ 2, -1], [ 1, -1], [ 1,  1], [ 1, -1], [-1, -1], [ 0, -1]],
+        [[ 2, -1], [ 2, -1], [ 2,  1], [ 1, -1], [ 1, -1], [ 0,  1], [ 0, -1]],
+        [[-1, -1], [ 2,  1], [ 2,  1], [ 2, -1], [-1, -1], [ 0,  1], [ 0,  1]],
+        [[ 0, -1], [ 1, -1], [ 2,  1], [ 2,  2], [ 2,  0], [ 0, -1], [ 1, -1]],
+        [[ 1,  0], [ 0,  1], [-1, -1], [ 2, -1], [ 2,  0], [ 2,  0], [-1, -1]],
+        [[ 1, -1], [ 1,  0], [ 0, -1], [ 0, -1], [ 2,  0], [ 2, -1], [ 2, -1]],
+        [[ 1, -1], [-1, -1], [ 0, -1], [ 0,  0], [ 0, -1], [ 2, -1], [ 2, -1]],
+    ], dtype=int)
+
+    sol_max = np.array([
+        [[ 2, -1], [ 2, -1], [ 1, -1], [ 1,  1], [ 1, -1], [-1, -1], [ 0, -1]],
+        [[ 2, -1], [ 2, -1], [ 1,  2], [ 1, -1], [ 1, -1], [ 1,  0], [ 0, -1]],
+        [[-1, -1], [ 1,  2], [ 1,  2], [ 2, -1], [-1, -1], [ 1,  0], [ 1,  0]],
+        [[ 0, -1], [ 1, -1], [ 1,  2], [ 2,  2], [ 0,  2], [ 0, -1], [ 1, -1]],
+        [[ 0,  1], [ 1,  0], [-1, -1], [ 2, -1], [ 0,  2], [ 0,  2], [-1, -1]],
+        [[ 1, -1], [ 0,  1], [ 0, -1], [ 0, -1], [ 0,  2], [ 2, -1], [ 2, -1]],
+        [[ 1, -1], [-1, -1], [ 0, -1], [ 0,  0], [ 0, -1], [ 2, -1], [ 2, -1]],
+    ], dtype=int)
+
+    ##### where containing first, first_n, _min_row_index and _min_n_row_index
+    # where(first) returning row index then other column
+    sol_index = sol_first
+    sol_other = sol_index.choose(np.append(df["other"], nan), mode="wrap")
+
+    agg = cvs.line(agg=ds.where(ds.first("value")), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index[:, :, 0])
+
+    agg = cvs.line(agg=ds.where(ds.first("value"), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other[:, :, 0])
+
+    # where(first_n) returning row index then other column
+    agg = cvs.line(agg=ds.where(ds.first_n("value", n=2)), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index)
+
+    agg = cvs.line(agg=ds.where(ds.first_n("value", n=2), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other)
+
+    # where(_min_row_index) returning row index then other column
+    agg = cvs.line(agg=ds.where(ds._min_row_index()), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index[:, :, 0])
+
+    agg = cvs.line(agg=ds.where(ds._min_row_index(), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other[:, :, 0])
+
+    # where(_min_n_row_index) returning row index then other column
+    agg = cvs.line(agg=ds.where(ds._min_n_row_index(n=2)), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index)
+
+    agg = cvs.line(agg=ds.where(ds._min_n_row_index(n=2), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other)
+
+    ##### where containing last, last_n, _max_row_index and _max_n_row_index
+    # where(last) returning row index then other column
+    sol_index = sol_last
+    sol_other = sol_index.choose(np.append(df["other"], nan), mode="wrap")
+
+    agg = cvs.line(agg=ds.where(ds.last("value")), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index[:, :, 0])
+
+    agg = cvs.line(agg=ds.where(ds.last("value"), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other[:, :, 0])
+
+    # where(last_n) returning row index then other column
+    agg = cvs.line(agg=ds.where(ds.last_n("value", n=2)), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index)
+
+    agg = cvs.line(agg=ds.where(ds.last_n("value", n=2), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other)
+
+    # where(_max_row_index) returning row index then other column
+    agg = cvs.line(agg=ds.where(ds._max_row_index()), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index[:, :, 0])
+
+    agg = cvs.line(agg=ds.where(ds._max_row_index(), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other[:, :, 0])
+
+    # where(_max_n_row_index) returning row index then other column
+    agg = cvs.line(agg=ds.where(ds._max_n_row_index(n=2)), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index)
+
+    agg = cvs.line(agg=ds.where(ds._max_n_row_index(n=2), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other)
+
+    ##### where containing min and min_n
+    # where(min) returning row index then other column
+    sol_index = sol_min
+    sol_other = sol_index.choose(np.append(df["other"], nan), mode="wrap")
+
+    agg = cvs.line(agg=ds.where(ds.min("value")), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index[:, :, 0])
+
+    agg = cvs.line(agg=ds.where(ds.min("value"), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other[:, :, 0])
+
+    # where(min_n) returning row index then other column
+    agg = cvs.line(agg=ds.where(ds.min_n("value", n=2)), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index)
+
+    agg = cvs.line(agg=ds.where(ds.min_n("value", n=2), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other)
+
+    ##### where containing max and max_n
+    # where(max) returning row index then other column
+    sol_index = sol_max
+    sol_other = sol_index.choose(np.append(df["other"], nan), mode="wrap")
+
+    agg = cvs.line(agg=ds.where(ds.max("value")), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index[:, :, 0])
+
+    agg = cvs.line(agg=ds.where(ds.max("value"), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other[:, :, 0])
+
+    # where(max_n) returning row index then other column
+    agg = cvs.line(agg=ds.where(ds.max_n("value", n=2)), **kwargs)
+    assert_eq_ndarray(agg.data, sol_index)
+
+    agg = cvs.line(agg=ds.where(ds.max_n("value", n=2), "other"), **kwargs)
+    assert_eq_ndarray(agg.data, sol_other)
 
 
 def test_canvas_size():

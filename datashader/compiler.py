@@ -9,7 +9,7 @@ import xarray as xr
 
 from .antialias import AntialiasCombination
 from .reductions import SpecialColumn, UsesCudaMutex, by, category_codes, summary
-from .utils import (isnull, ngjit, parallel_fill,
+from .utils import (isnull, ngjit,
     nanmax_in_place, nanmin_in_place, nansum_in_place, nanfirst_in_place, nanlast_in_place,
     nanmax_n_in_place_3d, nanmax_n_in_place_4d, nanmin_n_in_place_3d, nanmin_n_in_place_4d,
     nanfirst_n_in_place_3d, nanfirst_n_in_place_4d, nanlast_n_in_place_3d, nanlast_n_in_place_4d,
@@ -113,7 +113,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
         else:
             array_module = np
         antialias_stage_2 = antialias_stage_2(array_module)
-        antialias_stage_2_funcs = make_antialias_stage_2_functions(antialias_stage_2)
+        antialias_stage_2_funcs = make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned)
     else:
         self_intersect = False
         antialias_stage_2 = False
@@ -148,9 +148,9 @@ def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero:
                                         n_reduction: bool, categorical: bool):
     if n_reduction:
         if zero == -1:
-            if combination == AntialiasCombination.MAX:
+            if combination in (AntialiasCombination.MAX, AntialiasCombination.LAST):
                 return row_max_n_in_place_4d if categorical else row_max_n_in_place_3d
-            elif combination == AntialiasCombination.MIN:
+            elif combination in (AntialiasCombination.MIN, AntialiasCombination.FIRST):
                 return row_min_n_in_place_4d if categorical else row_min_n_in_place_3d
             else:
                 raise NotImplementedError
@@ -170,9 +170,9 @@ def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero:
         # 2D (ny, nx) if categorical is False. The same combination functions can be for both
         # as all elements are independent.
         if zero == -1:
-            if combination == AntialiasCombination.MAX:
+            if combination in (AntialiasCombination.MAX, AntialiasCombination.LAST):
                 return row_max_in_place
-            elif combination == AntialiasCombination.MIN:
+            elif combination in (AntialiasCombination.MIN, AntialiasCombination.FIRST):
                 return row_min_in_place
             else:
                 raise NotImplementedError
@@ -189,18 +189,25 @@ def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero:
                 return nansum_in_place
 
 
-def make_antialias_stage_2_functions(antialias_stage_2):
+def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned):
     aa_combinations, aa_zeroes, aa_n_reductions, aa_categorical = antialias_stage_2
 
     # Accumulate functions.
     funcs = [_get_antialias_stage_2_combine_func(comb, zero, n_red, cat) for comb, zero, n_red, cat
              in zip(aa_combinations, aa_zeroes, aa_n_reductions, aa_categorical)]
 
+    base_is_where = [b.is_where() for b in bases]
+    next_base_is_where = base_is_where[1:] + [False]
+
     namespace = {}
     namespace["literal_unroll"] = literal_unroll
     for func in set(funcs):
         namespace[func.__name__] = func
 
+    # Generator of unique names for combine functions
+    names = (f"combine{i}" for i in count())
+
+    # aa_stage_2_accumulate
     lines = [
         "def aa_stage_2_accumulate(aggs_and_copies, first_pass):",
         #    Don't need to accumulate if first_pass, just copy (opposite of aa_stage_2_copy_back)
@@ -209,21 +216,38 @@ def make_antialias_stage_2_functions(antialias_stage_2):
         "            a[1][:] = a[0][:]",
         "    else:",
     ]
-    for i, func in enumerate(funcs):
-        lines.append(f"        {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
+    for i, (func, is_where, next_is_where) in enumerate(zip(funcs, base_is_where, next_base_is_where)):
+        if is_where:
+            where_reduction = bases[i]
+            if isinstance(where_reduction, by):
+                where_reduction = where_reduction.reduction
 
+            combine = where_reduction._combine_callback(cuda, partitioned, aa_categorical[i])
+            name = next(names)  # Unique name
+            namespace[name] = combine
+
+            lines.append(f"        {name}(aggs_and_copies[{i}][::-1], aggs_and_copies[{i-1}][::-1])")
+        elif next_is_where:
+            # This is dealt with as part of the following base which is a where reduction.
+            pass
+        else:
+            lines.append(f"        {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
     code = "\n".join(lines)
     exec(code, namespace)
     aa_stage_2_accumulate = ngjit(namespace["aa_stage_2_accumulate"])
 
-    @ngjit
-    def aa_stage_2_clear(aggs_and_copies):
-        k = 0
-        # Numba access to heterogeneous tuples is only permitted using literal_unroll.
-        for agg_and_copy in literal_unroll(aggs_and_copies):
-            parallel_fill(agg_and_copy[0], aa_zeroes[k])
-            k += 1
+    # aa_stage_2_clear
+    if np.any(np.isnan(aa_zeroes)):
+        namespace["nan"] = np.nan
 
+    lines = ["def aa_stage_2_clear(aggs_and_copies):"]
+    for i, aa_zero in enumerate(aa_zeroes):
+        lines.append(f"    aggs_and_copies[{i}][0].fill({aa_zero})")
+    code = "\n".join(lines)
+    exec(code, namespace)
+    aa_stage_2_clear = ngjit(namespace["aa_stage_2_clear"])
+
+    # aa_stage_2_copy_back
     @ngjit
     def aa_stage_2_copy_back(aggs_and_copies):
         # Numba access to heterogeneous tuples is only permitted using literal_unroll.

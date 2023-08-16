@@ -878,14 +878,6 @@ def nansum_in_place(ret, other):
             ret[i] += other[i]
 
 
-@ngjit_parallel
-def parallel_fill(array, value):
-    """Parallel version of np.fill()"""
-    array = array.ravel()
-    for i in nb.prange(len(array)):
-        array[i] = value
-
-
 @ngjit
 def row_max_in_place(ret, other):
     """Maximum of 2 arrays of row indexes.

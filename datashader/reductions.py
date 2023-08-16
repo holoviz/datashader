@@ -424,7 +424,7 @@ class Reduction(Expr):
             else:
                 return self._append
 
-    def _build_combine(self, dshape, antialias, cuda, partitioned):
+    def _build_combine(self, dshape, antialias, cuda, partitioned, categorical = False):
         return self._combine
 
     def _build_finalize(self, dshape):
@@ -627,7 +627,7 @@ class count(SelfIntersectingOptionalFieldReduction):
         nb_cuda.atomic.add(agg, (y, x), 1)
         return 0
 
-    def _build_combine(self, dshape, antialias, cuda, partitioned):
+    def _build_combine(self, dshape, antialias, cuda, partitioned, categorical = False):
         if antialias:
             return self._combine_antialias
         else:
@@ -751,8 +751,8 @@ class by(Reduction):
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         return self.reduction._build_append(dshape, schema, cuda, antialias, self_intersect)
 
-    def _build_combine(self, dshape, antialias, cuda, partitioned):
-        return self.reduction._build_combine(dshape, antialias, cuda, partitioned)
+    def _build_combine(self, dshape, antialias, cuda, partitioned, categorical = False):
+        return self.reduction._build_combine(dshape, antialias, cuda, partitioned, True)
 
     def _build_combine_temps(self, cuda, partitioned):
         return self.reduction._build_combine_temps(cuda, partitioned)
@@ -820,7 +820,7 @@ class any(OptionalFieldReduction):
     _append_cuda =_append
     _append_no_field_cuda = _append_no_field
 
-    def _build_combine(self, dshape, antialias, cuda, partitioned):
+    def _build_combine(self, dshape, antialias, cuda, partitioned, categorical = False):
         if antialias:
             return self._combine_antialias
         else:
@@ -1596,7 +1596,7 @@ class max_n(FloatingNReduction):
                     return i
         return -1
 
-    def _build_combine(self, dshape, antialias, cuda, partitioned):
+    def _build_combine(self, dshape, antialias, cuda, partitioned, categorical = False):
         if cuda:
             return self._combine_cuda
         else:
@@ -1676,7 +1676,7 @@ class min_n(FloatingNReduction):
                     return i
         return -1
 
-    def _build_combine(self, dshape, antialias, cuda, partitioned):
+    def _build_combine(self, dshape, antialias, cuda, partitioned, categorical = False):
         if cuda:
             return self._combine_cuda
         else:
@@ -1883,7 +1883,12 @@ class where(FloatingReduction):
         else:
             return selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
 
-    def _build_combine(self, dshape, antialias, cuda, partitioned):
+    def _combine_callback(self, cuda, partitioned, categorical):
+        # Used by:
+        # 1) where._build_combine()) below, the usual mechanism for combining aggs from
+        #    different dask partitions.
+        # 2) make_antialias_stage_2_functions() in compiler.py to perform stage 2 combine
+        #    of antialiased aggs.
         selector = self.selector
         is_n_reduction = isinstance(selector, FloatingNReduction)
         if cuda:
@@ -1989,38 +1994,33 @@ class where(FloatingReduction):
                         break
                     cuda_shift_and_insert(aggs[0][y, x, cat], aggs[1][y, x, cat, i], update_index)
 
-        def wrapped_combine(aggs, selector_aggs):
-            ret = aggs[0], selector_aggs[0]
-            ndim = aggs[0].ndim
+        if is_n_reduction:
+            # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+            if cuda:
+                return combine_cuda_n_4d if categorical else combine_cuda_n_3d
+            else:
+                return combine_cpu_n_4d if categorical else combine_cpu_n_3d
+        else:
+            # ndim is either 2 (ny, nx) or 3 (ny, nx, ncat)
+            if cuda:
+                return combine_cuda_3d if categorical else combine_cuda_2d
+            else:
+                return combine_cpu_3d if categorical else combine_cpu_2d
 
+    def _build_combine(self, dshape, antialias, cuda, partitioned, categorical = False):
+        combine = self._combine_callback(cuda, partitioned, categorical)
+
+        def wrapped_combine(aggs, selector_aggs):
             if len(aggs) == 1:
                 pass
-            elif is_n_reduction:
-                # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
-                if cuda:
-                    if ndim == 3:
-                        combine_cuda_n_3d[cuda_args(aggs[0].shape[:2])](aggs, selector_aggs)
-                    else:
-                        combine_cuda_n_4d[cuda_args(aggs[0].shape[:3])](aggs, selector_aggs)
-                else:
-                    if ndim == 3:
-                        combine_cpu_n_3d(aggs, selector_aggs)
-                    else:
-                        combine_cpu_n_4d(aggs, selector_aggs)
+            elif cuda:
+                is_n_reduction = isinstance(self.selector, FloatingNReduction)
+                shape = aggs[0].shape[:-1] if is_n_reduction else aggs[0].shape
+                combine[cuda_args(shape)](aggs, selector_aggs)
             else:
-                # ndim is either 2 (ny, nx) or 3 (ny, nx, ncat)
-                if cuda:
-                    if ndim == 2:
-                        combine_cuda_2d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
-                    else:
-                        combine_cuda_3d[cuda_args(aggs[0].shape)](aggs, selector_aggs)
-                else:
-                    if ndim == 2:
-                        combine_cpu_2d(aggs, selector_aggs)
-                    else:
-                        combine_cpu_3d(aggs, selector_aggs)
+                combine(aggs, selector_aggs)
 
-            return ret
+            return aggs[0], selector_aggs[0]
 
         return wrapped_combine
 
@@ -2226,7 +2226,7 @@ class _min_row_index(_max_or_min_row_index):
             return 0
         return -1
 
-    def _build_combine(self, dshape, antialias, cuda, partitioned):
+    def _build_combine(self, dshape, antialias, cuda, partitioned, categorical = False):
         if cuda:
             return self._combine_cuda
         else:
@@ -2270,7 +2270,7 @@ class _max_n_or_min_n_row_index(FloatingNReduction):
     def uses_row_index(self, cuda, partitioned):
         return True
 
-    def _build_combine(self, dshape, antialias, cuda, partitioned):
+    def _build_combine(self, dshape, antialias, cuda, partitioned, categorical = False):
         if cuda:
             return self._combine_cuda
         else:
