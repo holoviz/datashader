@@ -60,7 +60,7 @@ jobs:
   pip_build:
     name: Build PyPI Packages
     runs-on: 'ubuntu-latest'
-    timeout-minutes: 60
+    timeout-minutes: 120
     defaults:
       run:
         shell: bash -l {0}
