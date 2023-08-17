@@ -1,3 +1,47 @@
+Version 0.15.2 (2023-08-17)
+---------------------------
+
+This release adds antialiased line support for inspection reductions such as ``max_n`` and ``where``, including within categorical ``by`` reductions. It also improves support for ``summary`` reductions and adds CUDA implementations of ``std`` and ``var`` reductions.
+
+Thanks to regular contributors `@Hoxbro <https://github.com/Hoxbro>`_, `@ianthomas23 <https://github.com/ianthomas23>`_, `@maximlt <https://github.com/maximlt>`_ and `@thuydotm <https://github.com/thuydotm>`_.
+
+Enhancements:
+
+* Antialiasing line support for inspection reductions:
+
+  - Pre-compile antialias stage 2 combination (`#1258 <https://github.com/holoviz/datashader/pull/1258>`_)
+  - Antialiased min and max row index reductions (`#1259 <https://github.com/holoviz/datashader/pull/1259>`_)
+  - CPU ``shift_and_insert`` function (`#1260 <https://github.com/holoviz/datashader/pull/1260>`_)
+  - Refactor of CUDA ``*_n`` reductions (`#1261 <https://github.com/holoviz/datashader/pull/1261>`_)
+  - Support antialiased lines in ``*_n`` reductions (`#1262 <https://github.com/holoviz/datashader/pull/1262>`_)
+  - Replace accumulate with copy on first call to antialiased stage 2 combine (`#1264 <https://github.com/holoviz/datashader/pull/1264>`_)
+  - Separate where ``combine_cpu`` functions by ndim (`#1265 <https://github.com/holoviz/datashader/pull/1265>`_)
+  - Antialiased line support for ``where`` reductions (`#1269 <https://github.com/holoviz/datashader/pull/1269>`_)
+
+* Improved support for ``summary`` reductions:
+
+  - Support ``by`` reduction within ``summary`` reduction (`#1254 <https://github.com/holoviz/datashader/pull/1254>`_)
+  - Support ``summary`` containing ``by`` reduction with other reductions (`#1257 <https://github.com/holoviz/datashader/pull/1257>`_)
+  - Support ``summary`` containing multiple ``where`` with the same selector (`#1271 <https://github.com/holoviz/datashader/pull/1271>`_)
+
+* CUDA support for ``std`` and ``var`` reductions (`#1267 <https://github.com/holoviz/datashader/pull/1267>`_)
+
+General code improvements:
+
+- Remove pyarrow pin (`#1248 <https://github.com/holoviz/datashader/pull/1248>`_)
+
+Improvements to CI:
+
+- Update ``holoviz_tasks`` to v0.1a15 (`#1251 <https://github.com/holoviz/datashader/pull/1251>`_)
+- Use ``holoviz_tasks/install`` action for docs (`#1272 <https://github.com/holoviz/datashader/pull/1272>`_)
+
+Improvements to documentation:
+
+- Update readme to include Python 3.11 (`#1249 <https://github.com/holoviz/datashader/pull/1249>`_)
+- Correct links to pandas docs (`#1250 <https://github.com/holoviz/datashader/pull/1250>`_)
+- Remove twitter from index page (`#1253 <https://github.com/holoviz/datashader/pull/1253>`_)
+- Create FUNDING.yml (`#1263 <https://github.com/holoviz/datashader/pull/1263>`_)
+
 Version 0.15.1 (2023-07-05)
 ---------------------------
 
