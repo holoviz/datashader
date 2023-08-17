@@ -31,47 +31,28 @@ jobs:
     env:
       DESC: "Documentation build"
     steps:
-      - uses: actions/checkout@v3
+      - uses: holoviz-dev/holoviz_tasks/install@v0.1a15
         with:
-          fetch-depth: "100"
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          python-version: 3.8
-          channels: pyviz/label/dev,conda-forge
-      - name: Fetch unshallow
-        run: git fetch --prune --tags --unshallow -f
-      - name: Set and echo git ref
+          name: Documentation
+          python-version: "3.10"
+          channel-priority: strict
+          channels: pyviz/label/dev,conda-forge,nodefaults
+          envs: "-o doc"
+          cache: true
+          conda-update: true
+      - name: Set output
         id: vars
-        run: |
-          echo "Deploying from ref ${GITHUB_REF#refs/*/}"
-          echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
-      - name: conda setup
-        run: |
-          conda install "pyctdev>=0.5"
-          conda create -n test-environment python=3.8 pyctdev
-      - name: doit develop_install
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit develop_install -o doc
-      - name: doit env_capture
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit env_capture
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: fetch data
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           datashader fetch-data --path=examples --force
       - name: generate rst
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           nbsite generate-rst --org holoviz --project-name panel
       - name: build docs
         run: |
-          eval "$(conda shell.bash hook)"
           conda activate test-environment
           nbsite build --what=html --output=builtdocs --org holoviz --project-name datashader
       - name: Deploy dev
