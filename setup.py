@@ -14,7 +14,7 @@ install_requires = [
     'datashape',
     'numba',
     'numpy',
-    'pandas',
+    'pandas <2.1',
     'param',
     'pillow',
     'pyct',
