@@ -4,25 +4,11 @@ if "PYCTDEV_ECOSYSTEM" not in os.environ:
 
 from pyctdev import *  # noqa: api
 
-
-def task_build_website():
-    """
-    Experimental: Build website
-    Might migrate to pyctdev
-
-    """
-    return {
-        'actions': [
-            "datashader fetch-data --path=examples",
-            "nbsite generate-rst --org pyviz --project-name datashader --skip '.*tiling.*'",
-            "nbsite build --what=html --output=builtdocs",
-        ]}
-
-def task_release_website():
-    """ Experimental: Release website """
-    return {
-        'actions': [
-            "cd builtdocs",
-            "aws s3 sync --delete --acl public-read . s3://datashader.org",
-            "cd .."
-        ]}
+def task_pip_on_conda():
+    """Experimental: provide pip build env via conda"""
+    return {'actions':[
+        # some ecosystem=pip build tools must be installed with conda when using conda...
+        'conda install -y pip twine wheel rfc3986 keyring',
+        # ..and some are only available via conda-forge
+        'conda install -y tox virtualenv',
+    ]}

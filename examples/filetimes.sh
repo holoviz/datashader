@@ -27,7 +27,6 @@ test -n "$3" && set -x
 ${timer} python filetimes.py ${1}.parq         dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.snappy.parq  dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.gz.parq      dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.bcolz        dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.h5           dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.csv          dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.feather      dask    census easting northing race ${3:+--debug} ${2:+--cache=$2}
@@ -35,7 +34,6 @@ ${timer} python filetimes.py ${1}.feather      dask    census easting northing r
 ${timer} python filetimes.py ${1}.parq         pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.snappy.parq  pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.gz.parq      pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
-${timer} python filetimes.py ${1}.bcolz        pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.h5           pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.csv          pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}
 ${timer} python filetimes.py ${1}.feather      pandas  census easting northing race ${3:+--debug} ${2:+--cache=$2}

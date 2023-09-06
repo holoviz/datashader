@@ -1,6 +1,7 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 import os
+import re
 
 from inspect import getmro
 
@@ -8,7 +9,9 @@ import numba as nb
 import numpy as np
 import pandas as pd
 
+from toolz import memoize
 from xarray import DataArray
+
 import dask.dataframe as dd
 import datashape
 
@@ -17,7 +20,33 @@ try:
 except ImportError:
     RaggedDtype = type(None)
 
+try:
+    import cudf
+except Exception:
+    cudf = None
+
+try:
+    from spatialpandas.geometry import GeometryDtype
+except ImportError:
+    GeometryDtype = type(None)
+
+
+class VisibleDeprecationWarning(UserWarning):
+    """Visible deprecation warning.
+
+    By default, python will not show deprecation warnings, so this class
+    can be used when a very visible warning is helpful, for example because
+    the usage is most likely a user bug.
+    """
+
+
 ngjit = nb.jit(nopython=True, nogil=True)
+ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
+
+# Get and save the Numba version, will be used to limit functionality
+numba_version = tuple([int(x) for x in re.match(
+                            r"([0-9]+)\.([0-9]+)\.([0-9]+)",
+                            nb.__version__).groups()])
 
 
 class Expr(object):
@@ -84,6 +113,24 @@ class Dispatcher(object):
         raise TypeError("No dispatch for {0} type".format(typ))
 
 
+def isrealfloat(dt):
+    """Check if a datashape is numeric and real.
+
+    Example
+    -------
+    >>> isrealfloat('int32')
+    False
+    >>> isrealfloat('float64')
+    True
+    >>> isrealfloat('string')
+    False
+    >>> isrealfloat('complex64')
+    False
+    """
+    dt = datashape.predicates.launder(dt)
+    return isinstance(dt, datashape.Unit) and dt in datashape.typesets.floating
+
+
 def isreal(dt):
     """Check if a datashape is numeric and real.
 
@@ -102,9 +149,32 @@ def isreal(dt):
     return isinstance(dt, datashape.Unit) and dt in datashape.typesets.real
 
 
+def nansum_missing(array, axis):
+    """nansum where all-NaN values remain NaNs.
+
+    Note: In NumPy <=1.9 NaN is returned for slices that are
+    all NaN, while later versions return 0. This function emulates
+    the older behavior, which allows using NaN as a missing value
+    indicator.
+
+    Parameters
+    ----------
+    array: Array to sum over
+    axis:  Axis to sum over
+    """
+    T = list(range(array.ndim))
+    T.remove(axis)
+    T.insert(0, axis)
+    array = array.transpose(T)
+    missing_vals = np.isnan(array)
+    all_empty = np.all(missing_vals, axis=0)
+    set_to_zero = missing_vals & ~all_empty
+    return np.where(set_to_zero, 0, array).sum(axis=0)
+
+
 def calc_res(raster):
     """Calculate the resolution of xarray.DataArray raster and return it as the
-    two-tuple (xres, yres).
+    two-tuple (xres, yres). yres is positive if it is decreasing.
     """
     h, w = raster.shape[-2:]
     ydim, xdim = raster.dims[-2:]
@@ -181,6 +251,15 @@ def get_indices(start, end, coords, res):
     return sidx, eidx
 
 
+def _flip_array(array, xflip, yflip):
+    # array may have 2 or 3 dimensions, last one is x-dimension, last but one is y-dimension.
+    if yflip:
+        array = array[..., ::-1, :]
+    if xflip:
+        array = array[..., :, ::-1]
+    return array
+
+
 def orient_array(raster, res=None, layer=None):
     """
     Reorients the array to a canonical orientation depending on
@@ -205,51 +284,12 @@ def orient_array(raster, res=None, layer=None):
         res = calc_res(raster)
     array = raster.data
     if layer is not None: array = array[layer-1]
-    if array.ndim == 2:
-        if res[0] < 0: array = array[:, ::-1]
-        if res[1] > 0: array = array[::-1]
-    else:
-        if res[0] < 0: array = array[:, :, ::-1]
-        if res[1] > 0: array = array[:, ::-1]
+    r0zero = np.timedelta64(0, 'ns') if isinstance(res[0], np.timedelta64) else 0
+    r1zero = np.timedelta64(0, 'ns') if isinstance(res[1], np.timedelta64) else 0
+    xflip = res[0] < r0zero
+    yflip = res[1] > r1zero
+    array = _flip_array(array, xflip, yflip)
     return array
-
-
-def compute_coords(width, height, x_range, y_range, res):
-    """
-    Computes DataArray coordinates at bin centers
-
-    Parameters
-    ----------
-    width : int
-        Number of coordinates along the x-axis
-    height : int
-        Number of coordinates along the y-axis
-    x_range : tuple
-        Left and right edge of the coordinates
-    y_range : tuple
-        Bottom and top edges of the coordinates
-    res : tuple
-        Two-tuple (int, int) which includes x and y resolutions (aka "grid/cell
-        sizes"), respectively. Used to determine coordinate orientation.
-
-    Returns
-    -------
-    xs : numpy.ndarray
-        1D array of x-coordinates
-    ys : numpy.ndarray
-        1D array of y-coordinates
-    """
-    (x0, x1), (y0, y1) = x_range, y_range
-    xd = (x1-x0)/float(width)
-    yd = (y1-y0)/float(height)
-    xpad, ypad = abs(xd/2.), abs(yd/2.)
-    x0, x1 = x0+xpad, x1-xpad
-    y0, y1 = y0+ypad, y1-ypad
-    xs = np.linspace(x0, x1, width)
-    ys = np.linspace(y0, y1, height)
-    if res[0] < 0: xs = xs[::-1]
-    if res[1] > 0: ys = ys[::-1]
-    return xs, ys
 
 
 def downsample_aggregate(aggregate, factor, how='mean'):
@@ -337,7 +377,7 @@ def lnglat_to_meters(longitude, latitude):
     or tuples will be converted to Numpy arrays.
 
     Examples:
-       easting, northing = lnglat_to_meters(-40.71,74)
+       easting, northing = lnglat_to_meters(-74,40.71)
 
        easting, northing = lnglat_to_meters(np.array([-74]),np.array([40.71]))
 
@@ -360,12 +400,26 @@ def dshape_from_pandas_helper(col):
     """Return an object from datashape.coretypes given a column from a pandas
     dataframe.
     """
-    if isinstance(col.dtype, type(pd.Categorical.dtype)) or isinstance(col.dtype, pd.api.types.CategoricalDtype):
+    if (isinstance(col.dtype, type(pd.Categorical.dtype)) or
+            isinstance(col.dtype, pd.api.types.CategoricalDtype) or
+            cudf and isinstance(col.dtype, cudf.core.dtypes.CategoricalDtype)):
+        # Compute category dtype
+        pd_categories = col.cat.categories
+        if isinstance(pd_categories, dd.Index):
+            pd_categories = pd_categories.compute()
+        if cudf and isinstance(pd_categories, cudf.Index):
+            pd_categories = pd_categories.to_pandas()
+
+        categories = np.array(pd_categories)
+
+        if categories.dtype.kind == 'U':
+            categories = categories.astype('object')
+
         cat_dshape = datashape.dshape('{} * {}'.format(
             len(col.cat.categories),
-            col.cat.categories.dtype,
+            categories.dtype,
         ))
-        return datashape.Categorical(col.cat.categories.values,
+        return datashape.Categorical(categories,
                                      type=cat_dshape,
                                      ordered=col.cat.ordered)
     elif col.dtype.kind == 'M':
@@ -374,7 +428,7 @@ def dshape_from_pandas_helper(col):
             # Pandas stores this as a pytz.tzinfo, but DataShape wants a string
             tz = str(tz)
         return datashape.Option(datashape.DateTime(tz=tz))
-    elif isinstance(col.dtype, RaggedDtype):
+    elif isinstance(col.dtype, (RaggedDtype, GeometryDtype)):
         return col.dtype
     dshape = datashape.CType.from_numpy_dtype(col.dtype)
     dshape = datashape.string if dshape == datashape.object_ else dshape
@@ -389,9 +443,28 @@ def dshape_from_pandas(df):
                                        for k in df.columns])
 
 
+@memoize(key=lambda args, kwargs: tuple(args[0].__dask_keys__()))
 def dshape_from_dask(df):
     """Return a datashape.DataShape object given a dask dataframe."""
-    return datashape.var * dshape_from_pandas(df.head()).measure
+    cat_columns = [
+        col for col in df.columns
+        if (isinstance(df[col].dtype, type(pd.Categorical.dtype)) or
+            isinstance(df[col].dtype, pd.api.types.CategoricalDtype))
+           and not getattr(df[col].cat, 'known', True)]
+    df = df.categorize(cat_columns, index=False)
+    # get_partition(0) used below because categories are sometimes repeated
+    # for dask-cudf DataFrames with multiple partitions
+    return datashape.var * datashape.Record([
+        (k, dshape_from_pandas_helper(df[k].get_partition(0))) for k in df.columns
+    ]), df
+
+
+def dshape_from_xarray_dataset(xr_ds):
+    """Return a datashape.DataShape object given a xarray Dataset."""
+    return datashape.var * datashape.Record([
+        (k, dshape_from_pandas_helper(xr_ds[k]))
+        for k in list(xr_ds.data_vars) + list(xr_ds.coords)
+    ])
 
 
 def dataframe_from_multiple_sequences(x_values, y_values):
@@ -494,3 +567,424 @@ def mesh(vertices, simplices):
         return _dd_mesh(vertices, simplices)
 
     return _pd_mesh(vertices, simplices)
+
+
+def apply(func, args, kwargs=None):
+    if kwargs:
+        return func(*args, **kwargs)
+    else:
+        return func(*args)
+
+
+@ngjit
+def isnull(val):
+    """
+    Equivalent to isnan for floats, but also numba compatible with integers
+    """
+    return not (val <= 0 or val > 0)
+
+
+@ngjit
+def isminus1(val):
+    """
+    Check for -1 which is equivalent to NaN for some integer aggregations
+    """
+    return val == -1
+
+
+@ngjit_parallel
+def nanfirst_in_place(ret, other):
+    """First of 2 arrays but taking nans into account.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]) and not isnull(other[i]):
+            ret[i] = other[i]
+
+
+@ngjit_parallel
+def nanlast_in_place(ret, other):
+    """Last of 2 arrays but taking nans into account.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if not isnull(other[i]):
+            ret[i] = other[i]
+
+
+@ngjit_parallel
+def nanmax_in_place(ret, other):
+    """Max of 2 arrays but taking nans into account.  Could use np.nanmax but
+    would need to replace zeros with nans where both arrays are nans.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]):
+            if not isnull(other[i]):
+                ret[i] = other[i]
+        elif not isnull(other[i]) and other[i] > ret[i]:
+            ret[i] = other[i]
+
+
+@ngjit_parallel
+def nanmin_in_place(ret, other):
+    """Min of 2 arrays but taking nans into account.  Could use np.nanmin but
+    would need to replace zeros with nans where both arrays are nans.
+    Accepts 3D (ny, nx, ncat) and 2D (ny, nx) arrays.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]):
+            if not isnull(other[i]):
+                ret[i] = other[i]
+        elif not isnull(other[i]) and other[i] < ret[i]:
+            ret[i] = other[i]
+
+
+@ngjit
+def shift_and_insert(target, value, index):
+    """Insert a value into a 1D array at a particular index, but before doing
+    that shift the previous values along one to make room. For use in
+    ``FloatingNReduction`` classes such as ``max_n`` and ``first_n`` which
+    store ``n`` values per pixel.
+
+    Parameters
+    ----------
+    target : 1d numpy array
+        Target pixel array.
+
+    value : float
+        Value to insert into target pixel array.
+
+    index : int
+        Index to insert at.
+
+    Returns
+    -------
+    Index beyond insertion, i.e. where the first shifted value now sits.
+    """
+    n = len(target)
+    for i in range(n-1, index, -1):
+        target[i] = target[i-1]
+    target[index] = value
+    return index + 1
+
+
+@ngjit
+def _nanfirst_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of nanfirst_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if isnull(other_value):
+            break
+        else:
+            for i in range(istart, n):
+                if isnull(ret_pixel[i]):
+                    # Always insert after existing values, so no shifting required.
+                    ret_pixel[i] = other_value
+                    istart = i+1
+                    break
+
+
+@ngjit_parallel
+def nanfirst_n_in_place_4d(ret, other):
+    """3d version of nanfirst_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, ncat, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            for cat in range(ncat):
+                _nanfirst_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@ngjit_parallel
+def nanfirst_n_in_place_3d(ret, other):
+    """3d version of nanfirst_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            _nanfirst_n_impl(ret[y, x], other[y, x])
+
+
+@ngjit
+def _nanlast_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of nanlast_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if isnull(other_value):
+            break
+        else:
+            for i in range(istart, n):
+                # Always insert at istart index.
+                istart = shift_and_insert(ret_pixel, other_value, istart)
+                break
+
+
+@ngjit_parallel
+def nanlast_n_in_place_4d(ret, other):
+    """3d version of nanfirst_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, ncat, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            for cat in range(ncat):
+                _nanlast_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@ngjit_parallel
+def nanlast_n_in_place_3d(ret, other):
+    """3d version of nanlast_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            _nanlast_n_impl(ret[y, x], other[y, x])
+
+
+@ngjit
+def _nanmax_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of nanmax_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if isnull(other_value):
+            break
+        else:
+            for i in range(istart, n):
+                if isnull(ret_pixel[i]) or other_value > ret_pixel[i]:
+                    istart = shift_and_insert(ret_pixel, other_value, i)
+                    break
+
+
+@ngjit_parallel
+def nanmax_n_in_place_4d(ret, other):
+    """Combine two max-n arrays, taking nans into account. Max-n arrays are 4D
+    with shape (ny, nx, ncat, n) where ny and nx are the number of pixels,
+    ncat the number of categories (will be 1 if not using a categorical
+    reduction) and the last axis containing n values in descending order.
+    If there are fewer than n values it is padded with nans.
+    Return the first array.
+    """
+    ny, nx, ncat, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            for cat in range(ncat):
+                _nanmax_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@ngjit_parallel
+def nanmax_n_in_place_3d(ret, other):
+    """3d version of nanmax_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            _nanmax_n_impl(ret[y, x], other[y, x])
+
+
+@ngjit
+def _nanmin_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of nanmin_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if isnull(other_value):
+            break
+        else:
+            for i in range(istart, n):
+                if isnull(ret_pixel[i]) or other_value < ret_pixel[i]:
+                    istart = shift_and_insert(ret_pixel, other_value, i)
+                    break
+
+
+@ngjit_parallel
+def nanmin_n_in_place_4d(ret, other):
+    """Combine two min-n arrays, taking nans into account. Min-n arrays are 4D
+    with shape (ny, nx, ncat, n) where ny and nx are the number of pixels,
+    ncat the number of categories (will be 1 if not using a categorical
+    reduction) and the last axis containing n values in ascending order.
+    If there are fewer than n values it is padded with nans.
+    Return the first array.
+    """
+    ny, nx, ncat, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            for cat in range(ncat):
+                _nanmin_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@ngjit_parallel
+def nanmin_n_in_place_3d(ret, other):
+    """3d version of nanmin_n_in_place_4d, taking arrays of shape (ny, nx, n).
+    """
+    ny, nx, _n = ret.shape
+    for y in nb.prange(ny):
+        for x in range(nx):
+            _nanmin_n_impl(ret[y, x], other[y, x])
+
+
+@ngjit_parallel
+def nansum_in_place(ret, other):
+    """Sum of 2 arrays but taking nans into account.  Could use np.nansum but
+    would need to replace zeros with nans where both arrays are nans.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in nb.prange(len(ret)):
+        if isnull(ret[i]):
+            if not isnull(other[i]):
+                ret[i] = other[i]
+        elif not isnull(other[i]):
+            ret[i] += other[i]
+
+
+@ngjit
+def row_max_in_place(ret, other):
+    """Maximum of 2 arrays of row indexes.
+    Row indexes are integers from 0 upwards, missing data is -1.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in range(len(ret)):
+        if other[i] > -1 and (ret[i] == -1 or other[i] > ret[i]):
+            ret[i] = other[i]
+
+
+@ngjit
+def row_min_in_place(ret, other):
+    """Minimum of 2 arrays of row indexes.
+    Row indexes are integers from 0 upwards, missing data is -1.
+    Return the first array.
+    """
+    ret = ret.ravel()
+    other = other.ravel()
+    for i in range(len(ret)):
+        if other[i] > -1 and (ret[i] == -1 or other[i] < ret[i]):
+            ret[i] = other[i]
+
+
+@ngjit
+def _row_max_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of row_max_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if other_value == -1:
+            break
+        else:
+            for i in range(istart, n):
+                if ret_pixel[i] == -1 or other_value > ret_pixel[i]:
+                    istart = shift_and_insert(ret_pixel, other_value, i)
+                    break
+
+
+@ngjit
+def row_max_n_in_place_4d(ret, other):
+    """Combine two row_max_n signed integer arrays.
+    Equivalent to nanmax_n_in_place with -1 replacing NaN for missing data.
+    Return the first array.
+    """
+    ny, nx, ncat, _n = ret.shape
+    for y in range(ny):
+        for x in range(nx):
+            for cat in range(ncat):
+                _row_max_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@ngjit
+def row_max_n_in_place_3d(ret, other):
+    ny, nx, _n = ret.shape
+    for y in range(ny):
+        for x in range(nx):
+            _row_max_n_impl(ret[y, x], other[y, x])
+
+
+@ngjit
+def _row_min_n_impl(ret_pixel, other_pixel):
+    """Single pixel implementation of row_min_n_in_place.
+    ret_pixel and other_pixel are both 1D arrays of the same length.
+
+    Walk along other_pixel a value at a time, find insertion index in
+    ret_pixel and shift values along to insert.  Next other_pixel value is
+    inserted at a higher index, so this walks the two pixel arrays just once
+    each.
+    """
+    n = len(ret_pixel)
+    istart = 0
+    for other_value in other_pixel:
+        if other_value == -1:
+            break
+        else:
+            for i in range(istart, n):
+                if ret_pixel[i] == -1 or other_value < ret_pixel[i]:
+                    istart = shift_and_insert(ret_pixel, other_value, i)
+                    break
+
+
+@ngjit
+def row_min_n_in_place_4d(ret, other):
+    """Combine two row_min_n signed integer arrays.
+    Equivalent to nanmin_n_in_place with -1 replacing NaN for missing data.
+    Return the first array.
+    """
+    ny, nx, ncat, _n = ret.shape
+    for y in range(ny):
+        for x in range(nx):
+            for cat in range(ncat):
+                _row_min_n_impl(ret[y, x, cat], other[y, x, cat])
+
+
+@ngjit
+def row_min_n_in_place_3d(ret, other):
+    ny, nx, _n = ret.shape
+    for y in range(ny):
+        for x in range(nx):
+            _row_min_n_impl(ret[y, x], other[y, x])

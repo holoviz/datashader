@@ -1,0 +1,119 @@
+name: tests
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+    - '*'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 16 * * SUN'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test_suite:
+    name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OMP_NUM_THREADS: 1
+      OPENBLAS_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      VECLIB_MAXIMUM_THREADS: 1
+      NUMEXPR_NUM_THREADS: 1
+      PYDEVD_DISABLE_FILE_VALIDATION: 1
+    steps:
+      - uses: holoviz-dev/holoviz_tasks/install@v0.1a15
+        with:
+          name: unit_test_suite
+          python-version: ${{ matrix.python-version }}
+          channel-priority: strict
+          channels: pyviz/label/dev,conda-forge,nodefaults
+          envs: "-o tests -o examples"
+          cache: true
+          conda-update: true
+        id: install
+      - name: doit test_lint
+        if: runner.os == 'Linux'
+        run: |
+          conda activate test-environment
+          doit test_lint
+      - name: doit test_unit
+        run: |
+          conda activate test-environment
+          doit test_unit
+      - name: doit test_unit_nojit
+        run: |
+          conda activate test-environment
+          doit test_unit_nojit
+        env:
+          NUMBA_DISABLE_JIT: 1
+      - name: doit test_examples
+        run: |
+          conda activate test-environment
+          doit test_examples
+      - name: codecov
+        run: |
+          conda activate test-environment
+          codecov
+
+  test_pip:
+    name: Pip tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest']
+        python-version: ["3.10"]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Update setuptools
+        run: |
+          pip install --upgrade setuptools
+      - name: Install pyctdev
+        run: |
+          pip install pyctdev
+      - name: doit develop_install
+        run: |
+          doit ecosystem=pip develop_install -o tests -o examples
+      - name: doit env_capture
+        run: |
+          doit ecosystem=pip env_capture
+      - name: doit test_lint
+        if: runner.os == 'Linux'
+        run: |
+          doit ecosystem=pip test_lint
+      - name: doit test_unit
+        run: |
+          doit ecosystem=pip test_unit
+      - name: doit test_unit_nojit
+        run: |
+          doit ecosystem=pip test_unit_nojit
+        env:
+          NUMBA_DISABLE_JIT: 1
+      - name: doit test_examples
+        run: |
+          doit ecosystem=pip test_examples
+      - name: codecov
+        run: |
+          codecov

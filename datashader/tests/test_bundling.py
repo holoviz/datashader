@@ -1,3 +1,4 @@
+from __future__ import annotations
 import pytest
 skimage = pytest.importorskip("skimage")
 
@@ -24,7 +25,7 @@ def edges():
     # Four edges originating from the center node and connected to each
     # corner
     edges_df = pd.DataFrame({'id': np.arange(4),
-                             'source': np.zeros(4, dtype=np.int),
+                             'source': np.zeros(4, dtype=int),
                              'target': np.arange(1, 5)})
     edges_df.set_index('id')
     return edges_df
@@ -35,7 +36,7 @@ def weighted_edges():
     # Four weighted edges originating from the center node and connected
     # to each corner
     edges_df = pd.DataFrame({'id': np.arange(4),
-                             'source': np.zeros(4, dtype=np.int),
+                             'source': np.zeros(4, dtype=int),
                              'target': np.arange(1, 5),
                              'weight': np.ones(4)})
     edges_df.set_index('id')

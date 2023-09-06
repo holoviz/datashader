@@ -1,6 +1,7 @@
 [build-system]
+build-backend = "setuptools.build_meta"
 requires = [
-    "param >=1.7.0",
-    "pyct >=0.4.4",
-    "setuptools >=30.3.0"
+    "param",
+    "pyct",
+    "setuptools"
 ]

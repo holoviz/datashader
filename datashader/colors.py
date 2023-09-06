@@ -1,10 +1,4 @@
-from __future__ import absolute_import, division, print_function
-
-# Declare Python2/3 unicode-safe string type
-try:
-      basestring
-except NameError:
-      basestring = str
+from __future__ import annotations
 
 
 # Lookup of web color names to their hex codes.
@@ -117,7 +111,7 @@ def rgb(x):
     >>> rgb((255, 255, 255))
     (255, 255, 255)
     """
-    if isinstance(x, basestring):
+    if isinstance(x, str):
         if x.startswith('#'):
             return hex_to_rgb(x)
         elif x in color_lookup:

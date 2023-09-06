@@ -8,7 +8,7 @@ Test files may be generated starting from any file format supported by Pandas:
   python -c "import filetimes ; filetimes.base='<hdf5base>' ; filetimes.categories=['<cat1>','<cat2>']; filetimes.timed_write('<file>')"
 """
 
-from __future__ import print_function
+from __future__ import annotations
 
 import time
 global_start = time.time()
@@ -18,13 +18,11 @@ import pandas as pd
 import dask.dataframe as dd
 import numpy as np
 import datashader as ds
-import bcolz
 import feather
 import fastparquet as fp
 
 from datashader.utils import export_image
 from datashader import transfer_functions as tf
-from collections import OrderedDict as odict
 
 #from multiprocessing.pool import ThreadPool
 #dask.set_options(pool=ThreadPool(3)) # select a pecific number of threads
@@ -52,7 +50,7 @@ p=Parameters()
 filetypes_storing_categories = {'parq'}
 
 
-class Kwargs(odict):
+class Kwargs(dict):
     """Used to distinguish between dictionary argument values, and
     keyword-arguments.
     """
@@ -74,7 +72,7 @@ def benchmark(fn, args, filetype=None):
     if DEBUG:
         printable_posargs = ', '.join([str(posarg.head()) if hasattr(posarg, 'head') else str(posarg) for posarg in posargs])
         printable_kwargs = ', '.join(['{}={}'.format(k, v) for k,v in kwargs.items()])
-        print('DEBUG: {}({}{})'.format(fn.__name__, printable_posargs, ', '+printable_kwargs if printable_kwargs else '', flush=True))
+        print('DEBUG: {}({}{})'.format(fn.__name__, printable_posargs, ', '+printable_kwargs if printable_kwargs else ''), flush=True)
 
     # Benchmark fn when run on posargs and kwargs
     start = time.time()
@@ -83,7 +81,7 @@ def benchmark(fn, args, filetype=None):
     # If we're loading data
     if filetype is not None:
         if filetype not in filetypes_storing_categories:
-            opts=odict()
+            opts = dict()
             if p.dftype == 'pandas':
                 opts['copy']=False
             for c in p.categories:
@@ -105,10 +103,10 @@ def benchmark(fn, args, filetype=None):
     end = time.time()
 
     return end-start, res
-    
 
 
-read = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","h5","csv"]])
+
+read = dict([(f, dict()) for f in ["parq","snappy.parq","gz.parq","feather","h5","csv"]])
 
 def read_csv_dask(filepath, usecols=None):
     # Pandas writes CSV files out as a single file
@@ -123,7 +121,6 @@ def read_feather_dask(filepath):
     df = feather.read_dataframe(filepath, columns=p.columns)
     return dd.from_pandas(df, npartitions=p.n_workers)
 read["feather"]      ["dask"] = lambda filepath,p,filetype:  benchmark(read_feather_dask, (filepath,), filetype)
-read["bcolz"]        ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.from_bcolz, (filepath, Kwargs(chunksize=1000000)), filetype)
 read["parq"]         ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
 read["gz.parq"]      ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
 read["snappy.parq"]  ["dask"]   = lambda filepath,p,filetype:  benchmark(dd.read_parquet, (filepath, Kwargs(index=False, columns=p.columns)), filetype)
@@ -138,9 +135,6 @@ def read_csv_pandas(filepath, usecols=None):
 read["csv"]         ["pandas"] = lambda filepath,p,filetype:  benchmark(read_csv_pandas, (filepath, Kwargs(usecols=p.columns)), filetype)
 read["h5"]          ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)), filetype)
 read["feather"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(feather.read_dataframe, (filepath,), filetype)
-def read_bcolz_pandas(filepath, chunksize=None):
-    return bcolz.ctable(rootdir=filepath).todataframe(columns=p.columns)
-read["bcolz"]       ["pandas"]   = lambda filepath,p,filetype:  benchmark(read_bcolz_pandas, (filepath, Kwargs(chunksize=1000000)), filetype)
 def read_parq_pandas(filepath):
     return fp.ParquetFile(filepath).to_pandas()
 read["parq"]        ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
@@ -148,13 +142,10 @@ read["gz.parq"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(read_par
 read["snappy.parq"] ["pandas"] = lambda filepath,p,filetype:  benchmark(read_parq_pandas, (filepath,), filetype)
 
 
-write = odict([(f,odict()) for f in ["parq","snappy.parq","gz.parq","bcolz","feather","h5","csv"]])
+write = dict([(f, dict()) for f in ["parq","snappy.parq","gz.parq","feather","h5","csv"]])
 
 write["csv"]          ["dask"]   = lambda df,filepath,p:  benchmark(df.to_csv, (filepath.replace(".csv","*.csv"), Kwargs(index=False)))
 write["h5"]           ["dask"]   = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, p.base))
-def write_bcolz_dask(filepath, df):
-    return bcolz.ctable.fromdataframe(df.compute(), rootdir=filepath)
-write["bcolz"]        ["dask"] = lambda df,filepath,p:  benchmark(write_bcolz_dask, (filepath, df))
 def write_feather_dask(filepath, df):
     return feather.write_dataframe(df.compute(), filepath)
 write["feather"]      ["dask"] = lambda df,filepath,p:  benchmark(write_feather_dask, (filepath, df))
@@ -164,7 +155,6 @@ write["gz.parq"]      ["dask"]   = lambda df,filepath,p:  benchmark(dd.to_parque
 
 write["csv"]          ["pandas"] = lambda df,filepath,p:  benchmark(df.to_csv, (filepath, Kwargs(index=False)))
 write["h5"]           ["pandas"] = lambda df,filepath,p:  benchmark(df.to_hdf, (filepath, Kwargs(key=p.base, format='table')))
-write["bcolz"]        ["pandas"] = lambda df,filepath,p:  benchmark(bcolz.ctable.fromdataframe, (df, Kwargs(rootdir=filepath)))
 write["feather"]      ["pandas"] = lambda df,filepath,p:  benchmark(feather.write_dataframe, (df, filepath))
 write["parq"]         ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(**p.parq_opts)))
 write["gz.parq"]      ["pandas"] = lambda df,filepath,p:  benchmark(fp.write, (filepath, df, Kwargs(compression='GZIP', **p.parq_opts)))
@@ -211,7 +201,7 @@ def timed_write(filepath,dftype,fsize='double',output_directory="times"):
                 for c in p.categories:
                     df[c]=df[c].astype('category')
 
-        
+
 def timed_read(filepath,dftype):
     basename, extension = os.path.splitext(filepath)
     extension = extension[1:]
@@ -222,9 +212,9 @@ def timed_read(filepath,dftype):
         return (None, -1)
 
     p.columns=[p.x]+[p.y]+p.categories
-    
+
     duration, df = code(filepath,p,filetype)
-    
+
     return df, duration
 
 
@@ -316,7 +306,7 @@ def main(argv):
     DEBUG = args.debug
 
     if DEBUG:
-        print('DEBUG: Memory usage (before read):\t{} MB'.format(get_proc_mem(), flush=True))
+        print('DEBUG: Memory usage (before read):\t{} MB'.format(get_proc_mem()), flush=True)
     df,loadtime = timed_read(filepath, p.dftype)
 
     if df is None:
@@ -325,7 +315,7 @@ def main(argv):
         return 1
 
     if DEBUG:
-        print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem(), flush=True))
+        print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem()), flush=True)
 
     img,aggtime1 = timed_agg(df,filepath,5,5,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
@@ -334,18 +324,18 @@ def main(argv):
             mem_usage = mem_usage.compute()
         print('DEBUG:', mem_usage, flush=True)
         mem_usage_total = mem_usage.sum()
-        print('DEBUG: DataFrame size:\t\t\t{} MB'.format(mem_usage_total / 1e6, flush=True))
+        print('DEBUG: DataFrame size:\t\t\t{} MB'.format(mem_usage_total / 1e6), flush=True)
         for colname in df.columns:
             print('DEBUG: column "{}" dtype: {}'.format(colname, df[colname].dtype))
-        print('DEBUG: Memory usage (after agg1):\t{} MB'.format(get_proc_mem(), flush=True))
+        print('DEBUG: Memory usage (after agg1):\t{} MB'.format(get_proc_mem()), flush=True)
 
     img,aggtime2 = timed_agg(df,filepath,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
-        print('DEBUG: Memory usage (after agg2):\t{} MB'.format(get_proc_mem(), flush=True))
-    
+        print('DEBUG: Memory usage (after agg2):\t{} MB'.format(get_proc_mem()), flush=True)
+
     in_size  = get_size(filepath)
     out_size = get_size(filepath+".png")
-    
+
     global_end = time.time()
     print("{:28} {:6}  Aggregate1:{:06.2f} ({:06.2f}+{:06.2f})  Aggregate2:{:06.2f}  In:{:011d}  Out:{:011d}  Total:{:06.2f}"\
           .format(filepath, p.dftype, loadtime+aggtime1, loadtime, aggtime1, aggtime2, in_size, out_size, global_end-global_start), flush=True)

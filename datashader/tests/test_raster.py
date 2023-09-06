@@ -1,53 +1,93 @@
+from __future__ import annotations
 import pytest
-rasterio = pytest.importorskip("rasterio")
+
+try:
+    import rasterio
+except ImportError:
+    rasterio = None
+
+try:
+    import rioxarray
+except ImportError:
+    rioxarray = None
+
+from dask.context import config
+
+config.set(scheduler='synchronous')
+
+open_rasterio_available = pytest.mark.skipif(rioxarray is None and rasterio is None, reason="requires rioxarray or rasterio")
 
 from os import path
+from itertools import product
 
 import datashader as ds
 import xarray as xr
 import numpy as np
+import dask.array as da
+import pandas as pd
+
+from datashader.resampling import compute_chunksize
+import datashader.transfer_functions as tf
+from packaging.version import Version
 
 BASE_PATH = path.split(__file__)[0]
 DATA_PATH = path.abspath(path.join(BASE_PATH, 'data'))
 TEST_RASTER_PATH = path.join(DATA_PATH, 'world.rgb.tif')
 
-with xr.open_rasterio(TEST_RASTER_PATH) as src:
-    res = ds.utils.calc_res(src)
-    left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
-    cvs = ds.Canvas(plot_width=2,
-                    plot_height=2,
-                    x_range=(left, right),
-                    y_range=(bottom, top))
+
+def open_rasterio(path, *args, **kwargs):
+    # xarray deprecated xr.open_rasterio in its 0.20 release
+    # in favor or rioxarray.open_rasterio.
+    if Version(xr.__version__) < Version('0.20'):
+        func = xr.open_rasterio
+    else:
+        func = rioxarray.open_rasterio
+    return func(path, *args, **kwargs)
 
 
-def test_raster_aggregate_default():
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+@pytest.fixture
+def cvs():
+    with open_rasterio(TEST_RASTER_PATH) as src:
+        res = ds.utils.calc_res(src)
+        left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
+        return ds.Canvas(plot_width=2,
+                         plot_height=2,
+                         x_range=(left, right),
+                         y_range=(bottom, top))
+
+
+@open_rasterio_available
+def test_raster_aggregate_default(cvs):
+    with open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src)
         assert agg is not None
 
-
-def test_raster_aggregate_nearest():
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+@open_rasterio_available
+def test_raster_aggregate_nearest(cvs):
+    with open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, upsample_method='nearest')
         assert agg is not None
 
 
 @pytest.mark.skip('use_overviews opt no longer supported; may be re-implemented in the future')
-def test_raster_aggregate_with_overviews():
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+@open_rasterio_available
+def test_raster_aggregate_with_overviews(cvs):
+    with open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, use_overviews=True)
         assert agg is not None
 
 
 @pytest.mark.skip('use_overviews opt no longer supported; may be re-implemented in the future')
-def test_raster_aggregate_without_overviews():
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+@open_rasterio_available
+def test_raster_aggregate_without_overviews(cvs):
+    with open_rasterio(TEST_RASTER_PATH) as src:
         agg = cvs.raster(src, use_overviews=False)
         assert agg is not None
 
 
-def test_out_of_bounds_return_correct_size():
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+@open_rasterio_available
+def test_out_of_bounds_return_correct_size(cvs):
+    with open_rasterio(TEST_RASTER_PATH) as src:
         cvs = ds.Canvas(plot_width=2,
                         plot_height=2,
                         x_range=[1e10, 1e20],
@@ -60,8 +100,9 @@ def test_out_of_bounds_return_correct_size():
             assert False
 
 
+@open_rasterio_available
 def test_partial_extent_returns_correct_size():
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         res = ds.utils.calc_res(src)
         left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
         half_width = (right - left) / 2
@@ -75,8 +116,9 @@ def test_partial_extent_returns_correct_size():
         assert agg is not None
 
 
-def test_partial_extent_with_layer_returns_correct_size():
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+@open_rasterio_available
+def test_partial_extent_with_layer_returns_correct_size(cvs):
+    with open_rasterio(TEST_RASTER_PATH) as src:
         res = ds.utils.calc_res(src)
         left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
         half_width = (right - left) / 2
@@ -90,22 +132,47 @@ def test_partial_extent_with_layer_returns_correct_size():
         assert agg is not None
 
 
+@open_rasterio_available
+def test_full_extent_returns_correct_coords():
+    with open_rasterio(TEST_RASTER_PATH) as src:
+        res = ds.utils.calc_res(src)
+        left, bottom, right, top = ds.utils.calc_bbox(src.x.values, src.y.values, res)
+        cvs = ds.Canvas(plot_width=512,
+                        plot_height=256,
+                        x_range=[left, right],
+                        y_range=[bottom, top])
+        agg = cvs.raster(src)
+        assert agg.shape == (3, 256, 512)
+        assert agg is not None
+        for dim in src.dims:
+            assert np.all(agg[dim].data == src[dim].data)
+
+        assert np.allclose(agg.x_range, (-180, 180))
+        assert np.allclose(agg.y_range, (-90, 90))
+
+
+@open_rasterio_available
 def test_calc_res():
     """Assert that resolution is calculated correctly when using the xarray
     rasterio backend.
     """
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+    import rasterio
+
+    with open_rasterio(TEST_RASTER_PATH) as src:
         xr_res = ds.utils.calc_res(src)
     with rasterio.open(TEST_RASTER_PATH) as src:
         rio_res = src.res
     assert np.allclose(xr_res, rio_res)
 
 
+@open_rasterio_available
 def test_calc_bbox():
     """Assert that bounding boxes are calculated correctly when using the xarray
     rasterio backend.
     """
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+    import rasterio
+
+    with open_rasterio(TEST_RASTER_PATH) as src:
         xr_res = ds.utils.calc_res(src)
         xr_bounds = ds.utils.calc_bbox(src.x.values, src.y.values, xr_res)
     with rasterio.open(TEST_RASTER_PATH) as src:
@@ -127,6 +194,8 @@ def test_raster_both_ascending():
     assert np.allclose(agg.data, arr)
     assert np.allclose(agg.X.values, xs)
     assert np.allclose(agg.Y.values, ys)
+    assert np.allclose(agg.x_range, (-0.5, 9.5))
+    assert np.allclose(agg.y_range, (-0.5, 4.5))
 
 
 def test_raster_both_ascending_partial_range():
@@ -144,6 +213,8 @@ def test_raster_both_ascending_partial_range():
     assert np.allclose(agg.data, xarr.sel(X=slice(1, 7), Y=slice(1, 3)))
     assert np.allclose(agg.X.values, xs[1:8])
     assert np.allclose(agg.Y.values, ys[1:4])
+    assert np.allclose(agg.x_range, (0.5, 7.5))
+    assert np.allclose(agg.y_range, (0.5, 3.5))
 
 
 def test_raster_both_descending():
@@ -160,6 +231,8 @@ def test_raster_both_descending():
     assert np.allclose(agg.data, arr)
     assert np.allclose(agg.X.values, xs)
     assert np.allclose(agg.Y.values, ys)
+    assert np.allclose(agg.x_range, (-0.5, 9.5))
+    assert np.allclose(agg.y_range, (-0.5, 4.5))
 
 
 def test_raster_both_descending_partial_range():
@@ -177,6 +250,8 @@ def test_raster_both_descending_partial_range():
     assert np.allclose(agg.data, xarr.sel(Y=slice(3,1), X=slice(7, 1)).data)
     assert np.allclose(agg.X.values, xs[2:9])
     assert np.allclose(agg.Y.values, ys[1:4])
+    assert np.allclose(agg.x_range, (0.5, 7.5))
+    assert np.allclose(agg.y_range, (0.5, 3.5))
 
 
 def test_raster_x_ascending_y_descending():
@@ -193,6 +268,8 @@ def test_raster_x_ascending_y_descending():
     assert np.allclose(agg.data, arr)
     assert np.allclose(agg.X.values, xs)
     assert np.allclose(agg.Y.values, ys)
+    assert np.allclose(agg.x_range, (-0.5, 9.5))
+    assert np.allclose(agg.y_range, (-0.5, 4.5))
 
 
 def test_raster_x_ascending_y_descending_partial_range():
@@ -209,6 +286,8 @@ def test_raster_x_ascending_y_descending_partial_range():
     assert np.allclose(agg.data, xarr.sel(X=slice(1, 7), Y=slice(3, 2)).data)
     assert np.allclose(agg.X.values, xs[1:8])
     assert np.allclose(agg.Y.values, ys[1:3])
+    assert np.allclose(agg.x_range, (0.5, 7.5))
+    assert np.allclose(agg.y_range, (1.5, 3.5))
 
 
 def test_raster_x_descending_y_ascending():
@@ -225,6 +304,8 @@ def test_raster_x_descending_y_ascending():
     assert np.allclose(agg.data, arr)
     assert np.allclose(agg.X.values, xs)
     assert np.allclose(agg.Y.values, ys)
+    assert np.allclose(agg.x_range, (-0.5, 9.5))
+    assert np.allclose(agg.y_range, (-0.5, 4.5))
 
 
 def test_raster_x_descending_y_ascending_partial_range():
@@ -335,35 +416,127 @@ def test_raster_single_pixel_range():
     assert np.allclose(agg.y.values, np.array([1/60., 1/20., 1/12.]))
 
 
-
 def test_raster_single_pixel_range_with_padding():
     """
     Ensure that canvas range covering a single pixel and small area
     beyond the defined data ranges is handled correctly.
     """
 
-    cvs = ds.Canvas(plot_height=4, plot_width=4, x_range=(-0.5, 0.25), y_range=(-.5, 0.25))
+    # The .301 value ensures that one pixel covers the edge of the input extent
+    cvs = ds.Canvas(plot_height=4, plot_width=6, x_range=(-0.5, 0.25), y_range=(-.5, 0.301))
+    cvs2 = ds.Canvas(plot_height=4, plot_width=6, x_range=(-0.5, 0.25), y_range=(-.5, 0.3))
     array = np.array([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]], dtype='f')
     xr_array = xr.DataArray(array, dims=['y', 'x'],
-                            coords={'x': np.linspace(0, 1, 4),
-                                    'y': np.linspace(0, 1, 3)})
-
+                            coords={'x': np.linspace(0.125, .875, 4),
+                                    'y': np.linspace(0.125, 0.625, 3)})
     agg = cvs.raster(xr_array, downsample_method='max', nan_value=np.NaN)
-    expected = np.array([[np.NaN, np.NaN, np.NaN, np.NaN], [np.NaN, 0, 0, 0],
-                         [np.NaN, 0, 0, 0], [np.NaN, 0, 0, 0]])
+    agg2 = cvs2.raster(xr_array, downsample_method='max', nan_value=np.NaN)
+    expected = np.array([
+        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
+        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
+        [np.NaN, np.NaN, np.NaN, np.NaN, 0, 0],
+        [np.NaN, np.NaN, np.NaN, np.NaN, 0, 0]
+    ])
+    expected2 = np.array([
+        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
+        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
+        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
+        [np.NaN, np.NaN, np.NaN, np.NaN, 0, 0]
+    ])
 
     assert np.allclose(agg.data, expected, equal_nan=True)
+    assert np.allclose(agg2.data, expected2, equal_nan=True)
     assert agg.data.dtype.kind == 'f'
-    assert np.allclose(agg.x.values, np.array([-0.40625, -0.21875, -0.03125,  0.15625]))
-    assert np.allclose(agg.y.values, np.array([-0.40625, -0.21875, -0.03125,  0.15625]))
+    assert np.allclose(agg.x.values, np.array([-0.4375, -0.3125, -0.1875, -0.0625,  0.0625,  0.1875]))
+    assert np.allclose(agg.y.values, np.array([-0.399875, -0.199625,  0.000625,  0.200875]))
 
 
+@pytest.mark.parametrize('in_size, out_size, agg', product(range(5, 8), range(2, 5), ['mean', 'min', 'max', 'first', 'last', 'var', 'std', 'mode']))
+def test_raster_distributed_downsample(in_size, out_size, agg):
+    """
+    Ensure that distributed regrid is equivalent to regular regrid.
+    """
+    cvs = ds.Canvas(plot_height=out_size, plot_width=out_size)
 
-def test_resample_methods():
+    vs = np.linspace(-1, 1, in_size)
+    xs, ys = np.meshgrid(vs, vs)
+    arr = np.sin(xs*ys)
+
+    darr = da.from_array(arr, (2, 2))
+    coords = [('y', range(in_size)), ('x', range(in_size))]
+    xr_darr = xr.DataArray(darr, coords=coords, name='z')
+    xr_arr = xr.DataArray(arr, coords=coords, name='z')
+
+    agg_arr = cvs.raster(xr_arr, agg=agg)
+    agg_darr = cvs.raster(xr_darr, agg=agg)
+
+    assert np.allclose(agg_arr.data, agg_darr.data.compute())
+    assert np.allclose(agg_arr.x.values, agg_darr.x.values)
+    assert np.allclose(agg_arr.y.values, agg_darr.y.values)
+
+
+@pytest.mark.parametrize('in_size, out_size', product(range(2, 5), range(7, 9)))
+def test_raster_distributed_upsample(in_size, out_size):
+    """
+    Ensure that distributed regrid is equivalent to regular regrid.
+    """
+    cvs = ds.Canvas(plot_height=out_size, plot_width=out_size)
+
+    vs = np.linspace(-1, 1, in_size)
+    xs, ys = np.meshgrid(vs, vs)
+    arr = np.sin(xs*ys)
+
+    darr = da.from_array(arr, (2, 2))
+    coords = [('y', range(in_size)), ('x', range(in_size))]
+    xr_darr = xr.DataArray(darr, coords=coords, name='z')
+    xr_arr = xr.DataArray(arr, coords=coords, name='z')
+
+    agg_arr = cvs.raster(xr_arr, interpolate='nearest')
+    agg_darr = cvs.raster(xr_darr, interpolate='nearest')
+
+    assert np.allclose(agg_arr.data, agg_darr.data.compute())
+    assert np.allclose(agg_arr.x.values, agg_darr.x.values)
+    assert np.allclose(agg_arr.y.values, agg_darr.y.values)
+
+
+def test_raster_distributed_regrid_chunksize():
+    """
+    Ensure that distributed regrid respects explicit chunk size.
+    """
+    cvs = ds.Canvas(plot_height=2, plot_width=2)
+
+    size = 4
+    vs = np.linspace(-1, 1, size)
+    xs, ys = np.meshgrid(vs, vs)
+    arr = np.sin(xs*ys)
+
+    darr = da.from_array(arr, (2, 2))
+    xr_darr = xr.DataArray(darr, coords=[('y', range(size)), ('x', range(size))], name='z')
+
+    agg_darr = cvs.raster(xr_darr, chunksize=(1, 1))
+
+    assert agg_darr.data.chunksize == (1, 1)
+
+
+def test_resample_compute_chunksize():
+    """
+    Ensure chunksize computation is correct.
+    """
+    darr = da.from_array(np.zeros((100, 100)), (10, 10))
+
+    mem_limited_chunksize = compute_chunksize(darr, 10, 10, max_mem=2000)
+    assert mem_limited_chunksize == (2, 1)
+
+    explicit_chunksize = compute_chunksize(darr, 10, 10, chunksize=(5, 4))
+    assert explicit_chunksize == (5, 4)
+
+
+@open_rasterio_available
+def test_resample_methods(cvs):
     """Assert that an error is raised when incorrect upsample and/or downsample
     methods are provided to cvs.raster().
     """
-    with xr.open_rasterio(TEST_RASTER_PATH) as src:
+    with open_rasterio(TEST_RASTER_PATH) as src:
         try:
             cvs.raster(src, upsample_method='santaclaus', downsample_method='toothfairy')
         except ValueError:
@@ -384,3 +557,21 @@ def test_resample_methods():
             pass
         else:
             assert False
+
+
+def test_raster_vs_points_coords():
+    # Issue 1038.
+    points = pd.DataFrame(data=dict(x=[2, 6, 8], y=[9, 7, 3]))
+    raster = xr.DataArray(data=[[0.0, 1.0], [2.0, 3.0]], dims=("y", "x"),
+                          coords=dict(x=[0, 9], y=[0, 11]))
+
+    canvas = ds.Canvas(25, 15, x_range=(0, 10), y_range=(0, 5))
+    agg_points = canvas.points(points, x="x", y="y")
+    agg_raster = canvas.raster(raster)
+
+    im_points = tf.shade(agg_points)
+    im_raster = tf.shade(agg_raster)
+
+    # Coordinates should be identical, not merely close.
+    np.testing.assert_array_equal(im_points.coords["x"], im_raster.coords["x"])
+    np.testing.assert_array_equal(im_points.coords["y"], im_raster.coords["y"])

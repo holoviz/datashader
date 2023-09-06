@@ -1,4 +1,4 @@
-<img src="https://github.com/pyviz/datashader/raw/master/doc/_static/logo_stacked.png" data-canonical-src="https://github.com/pyviz/datashader/raw/master/doc/_static/logo_stacked.png" width="200"/><br>
+<img src="https://github.com/holoviz/datashader/raw/main/doc/_static/logo_horizontal.svg" data-canonical-src="https://github.com/holoviz/datashader/raw/main/doc/_static/logo_horizontal.svg" width="400"/><br>
 
 -----------------
 
@@ -6,12 +6,19 @@
 
 |    |    |
 | --- | --- |
-| Build Status | [![Linux/MacOS Build Status](https://travis-ci.org/pyviz/datashader.svg?branch=master)](https://travis-ci.org/pyviz/datashader) [![Windows Build status](https://img.shields.io/appveyor/ci/pyviz/datashader/master.svg?logo=appveyor)](https://ci.appveyor.com/project/pyviz/datashader/branch/master) |
-| Coverage | [![codecov](https://codecov.io/gh/pyviz/datashader/branch/master/graph/badge.svg)](https://codecov.io/gh/pyviz/datashader) |
-| Latest dev release | [![Github tag](https://img.shields.io/github/tag/pyviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/pyviz/datashader/tags) |
-| Latest release | [![Github release](https://img.shields.io/github/release/pyviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/pyviz/datashader/releases) [![PyPI version](https://img.shields.io/pypi/v/datashader.svg?colorB=cc77dd)](https://pypi.python.org/pypi/datashader) [![datashader version](https://img.shields.io/conda/v/pyviz/datashader.svg?colorB=4488ff&style=flat)](https://anaconda.org/pyviz/datashader) [![conda-forge version](https://img.shields.io/conda/v/conda-forge/datashader.svg?label=conda%7Cconda-forge&colorB=4488ff)](https://anaconda.org/conda-forge/datashader) [![defaults version](https://img.shields.io/conda/v/anaconda/datashader.svg?label=conda%7Cdefaults&style=flat&colorB=4488ff)](https://anaconda.org/anaconda/datashader) |
-| Docs | [![site](https://img.shields.io/website-up-down-green-red/http/datashader.org.svg)](http://datashader.org) |
+| Build Status | [![Build Status](https://github.com/holoviz/datashader/workflows/tests/badge.svg)](https://github.com/holoviz/datashader/actions?query=workflow%3Atests) |
+| Coverage | [![codecov](https://codecov.io/gh/holoviz/datashader/branch/main/graph/badge.svg)](https://codecov.io/gh/holoviz/datashader) |
+| Latest dev release | [![Github tag](https://img.shields.io/github/tag/holoviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/holoviz/datashader/tags) [![dev-site](https://img.shields.io/website-up-down-green-red/https/holoviz-dev.github.io/datashader.svg?label=dev%20website)](https://holoviz-dev.github.io/datashader/) |
+| Latest release | [![Github release](https://img.shields.io/github/release/holoviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/holoviz/datashader/releases) [![PyPI version](https://img.shields.io/pypi/v/datashader.svg?colorB=cc77dd)](https://pypi.python.org/pypi/datashader) [![datashader version](https://img.shields.io/conda/v/pyviz/datashader.svg?colorB=4488ff&style=flat)](https://anaconda.org/pyviz/datashader) [![conda-forge version](https://img.shields.io/conda/v/conda-forge/datashader.svg?label=conda%7Cconda-forge&colorB=4488ff)](https://anaconda.org/conda-forge/datashader) [![defaults version](https://img.shields.io/conda/v/anaconda/datashader.svg?label=conda%7Cdefaults&style=flat&colorB=4488ff)](https://anaconda.org/anaconda/datashader) |
+| Python | [![Python support](https://img.shields.io/pypi/pyversions/datashader.svg)](https://pypi.org/project/datashader/)
+| Docs | [![gh-pages](https://img.shields.io/github/last-commit/holoviz/datashader/gh-pages.svg)](https://github.com/holoviz/datashader/tree/gh-pages) [![site](https://img.shields.io/website-up-down-green-red/http/datashader.org.svg)](http://datashader.org) |
+| Support | [![Discourse](https://img.shields.io/discourse/status?server=https%3A%2F%2Fdiscourse.holoviz.org)](https://discourse.holoviz.org/) |
 
+-------
+
+[![History of OS GIS Timeline](examples/assets/images/featured-badge-gh.svg)](https://makepath.com/history-of-open-source-gis/)
+
+-------
 
 ## What is it?
 
@@ -42,7 +49,7 @@ to work with much larger datasets than it would otherwise.
 
 ## Installation
 
-Datashader supports Python 2.7, 3.5, 3.6 and 3.7 on Linux, Windows, or
+Datashader supports Python 3.8, 3.9, 3.10, and 3.11 on Linux, Windows, or
 Mac and can be installed with conda:
 
     conda install datashader
@@ -52,7 +59,7 @@ or with pip:
     pip install datashader
 
 For the best performance, we recommend using conda so that you are sure
-to get numerical libraries optimized for your platform. The lastest
+to get numerical libraries optimized for your platform. The latest
 releases are avalailable on the pyviz channel `conda install -c pyviz
 datashader` and the latest pre-release versions are avalailable on the
 dev-labelled channel `conda install -c pyviz/label/dev datashader`.
@@ -88,7 +95,7 @@ Otherwise create a new environment:
 
 2.  Clone the datashader git repository if you do not already have it:
 
-        git clone git://github.com/pyviz/datashader.git
+        git clone git://github.com/holoviz/datashader.git
 
 3.  Set up a new conda environment with all of the dependencies needed
     to run the examples:
@@ -100,7 +107,7 @@ Otherwise create a new environment:
 4.  Put the datashader directory into the Python path in this
     environment:
 
-        pip install -e .
+        pip install --no-deps -e .
 
 ## Learning more
 
@@ -115,10 +122,3 @@ including API documentation and papers and talks about the approach.
 ![NYC races](examples/assets/images/nyc_races.jpg)
 
 ![NYC taxi](examples/assets/images/nyc_pickups_vs_dropoffs.jpg)
-
-
-## About PyViz
-
-Datashader is part of the PyViz initiative for making Python-based visualization tools work well together.
-See [pyviz.org](http://pyviz.org) for related packages that you can use with Datashader and
-[status.pyviz.org](http://status.pyviz.org) for the current status of each PyViz project.

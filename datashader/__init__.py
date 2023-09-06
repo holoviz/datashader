@@ -1,6 +1,6 @@
-from __future__ import absolute_import
+from __future__ import annotations
 
-from distutils.version import LooseVersion
+from packaging.version import Version
 
 import param
 __version__ = str(param.version.Version(fpath=__file__, archive_commit="$Format:%h$",reponame="datashader"))
@@ -10,17 +10,12 @@ from .reductions import *                                # noqa (API import)
 from .glyphs import Point                                # noqa (API import)
 from .pipeline import Pipeline                           # noqa (API import)
 from . import transfer_functions as tf                   # noqa (API import)
-
-from . import pandas                         # noqa (build backend dispatch)
-try:
-    from . import dask                       # noqa (build backend dispatch)
-except ImportError:
-    pass
+from . import data_libraries                             # noqa (API import)
 
 # Make RaggedArray pandas extension array available for
 # pandas >= 0.24.0 is installed
 from pandas import __version__ as pandas_version
-if LooseVersion(pandas_version) >= LooseVersion('0.24.0'):
+if Version(pandas_version) >= Version('0.24.0'):
     from . import datatypes  # noqa (API import)
 
 # make pyct's example/data commands available if possible

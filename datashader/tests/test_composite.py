@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 
 from datashader.composite import add, saturate, over, source

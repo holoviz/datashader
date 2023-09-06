@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 from toolz import identity
 
@@ -66,6 +66,7 @@ class Pipeline(object):
         canvas = core.Canvas(plot_width=int(width*self.width_scale),
                              plot_height=int(height*self.height_scale),
                              x_range=x_range, y_range=y_range)
-        bins = core.bypixel(self.df, canvas, self.glyph, self.agg)
+        bins = core.bypixel(self.df, canvas, self.glyph, self.agg,
+                            antialias=self.glyph.antialiased)
         img = self.color_fn(self.transform_fn(bins))
         return self.spread_fn(img)

@@ -1,0 +1,16 @@
+,                                        CPU, CPU + Dask, GPU, GPU + Dask, Antialiasing, Within :class:`~datashader.reductions.where`
+:class:`~datashader.reductions.any`,     yes, yes,        yes, yes,        yes,
+:class:`~datashader.reductions.by`,      yes, yes,        yes, yes,        yes,
+:class:`~datashader.reductions.count`,   yes, yes,        yes, yes,        yes,
+:class:`~datashader.reductions.first`,   yes, yes,        yes, yes,        yes,          yes
+:class:`~datashader.reductions.first_n`, yes, yes,        yes, yes,        yes,          yes
+:class:`~datashader.reductions.last`,    yes, yes,        yes, yes,        yes,          yes
+:class:`~datashader.reductions.last_n`,  yes, yes,        yes, yes,        yes,          yes
+:class:`~datashader.reductions.max`,     yes, yes,        yes, yes,        yes,          yes
+:class:`~datashader.reductions.max_n`,   yes, yes,        yes, yes,        yes,          yes
+:class:`~datashader.reductions.mean`,    yes, yes,        yes, yes,        yes,
+:class:`~datashader.reductions.min`,     yes, yes,        yes, yes,        yes,          yes
+:class:`~datashader.reductions.min_n`,   yes, yes,        yes, yes,        yes,          yes
+:class:`~datashader.reductions.std`,     yes, yes,        yes, yes,        ,
+:class:`~datashader.reductions.sum`,     yes, yes,        yes, yes,        yes,
+:class:`~datashader.reductions.var`,     yes, yes,        yes, yes,        ,

@@ -1,11 +1,14 @@
+from __future__ import annotations
 import pytest
 import numpy as np
 import pandas as pd
 import pandas.tests.extension.base as eb
-import pandas.util.testing as tm
+from packaging.version import Version
 
 from datashader.datatypes import RaggedDtype, RaggedArray
 
+# Import pandas fixtures so that overridden tests have access to them
+from pandas.tests.extension.conftest import *  # noqa (fixture import)
 
 # Testing helpers
 # ---------------
@@ -85,7 +88,7 @@ def test_construct_ragged_array_fastpath():
     assert np.array_equal(rarray.flat_array, flat_array)
 
     # Check interpretation as ragged array
-    object_array = np.asarray(rarray)
+    object_array = np.asarray(rarray, dtype=object)
     expected_lists = [[0, 1], [2, 3, 4], [5], [], [6, 7, 8, 9, 10], []]
     expected_array = np.array([np.array(v, dtype='float32')
                                for v in expected_lists], dtype='object')
@@ -274,7 +277,7 @@ def test_get_item_slice():
     [0, 0, 0, 0, 0]
 ])
 def test_get_item_mask(mask):
-    arg = np.array([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]])
+    arg = np.array([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]], dtype=object)
     rarray = RaggedArray(arg, dtype='int16')
     mask = np.array(mask, dtype='bool')
 
@@ -291,7 +294,7 @@ def test_get_item_mask(mask):
     [4, 3, 2, 1, 0]
 ])
 def test_get_item_list(inds):
-    arg = np.array([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]])
+    arg = np.array([[1, 2], [], [10, 20, 30], None, [11, 22, 33, 44]], dtype=object)
     rarray = RaggedArray(arg, dtype='int16')
 
     assert_ragged_arrays_equal(
@@ -302,7 +305,7 @@ def test_get_item_list(inds):
 # _from_factorized
 # ----------------
 def test_factorization():
-    arg = np.array([[1, 2], [], [1, 2], None, [11, 22, 33, 44]])
+    arg = np.array([[1, 2], [], [1, 2], None, [11, 22, 33, 44]], dtype=object)
     rarray = RaggedArray(arg, dtype='int16')
     labels, uniques = rarray.factorize()
 
@@ -516,7 +519,7 @@ def test_equality_validation(other):
 
 # Pandas-provided extension array tests
 # -------------------------------------
-# See http://pandas-docs.github.io/pandas-docs-travis/extending.html
+# See https://pandas.pydata.org/docs/development/extending.html
 @pytest.fixture
 def dtype():
     """A fixture providing the ExtensionDtype to validate."""
@@ -550,6 +553,15 @@ def data_repeated(data):
         for _ in range(count):
             yield data
     return gen
+
+
+@pytest.fixture(params=[None, lambda x: x])
+def sort_by_key(request):
+    """
+    Simple fixture for testing keys in sorting methods.
+    Tests None (no key) and the identity key.
+    """
+    return request.param
 
 
 @pytest.fixture
@@ -608,7 +620,14 @@ def na_value():
 
 # Subclass BaseDtypeTests to run pandas-provided extension array test suite
 class TestRaggedConstructors(eb.BaseConstructorsTests):
-    pass
+
+    @pytest.mark.skip(reason="Constructing DataFrame from RaggedArray not supported")
+    def test_from_dtype(self, data):
+        pass
+
+    @pytest.mark.skip(reason="passing scalar with index not supported")
+    def test_series_constructor_scalar_with_index(self, data, dtype):
+        pass
 
 
 class TestRaggedDtype(eb.BaseDtypeTests):
@@ -671,33 +690,60 @@ class TestRaggedGetitem(eb.BaseGetitemTests):
         with pytest.raises(IndexError, match="out of bounds"):
             data.take([len(data) + 1])
 
+    def test_item(self, data):
+        # https://github.com/pandas-dev/pandas/pull/30175
+        s = pd.Series(data)
+        result = s[:1].item()
+        np.testing.assert_array_equal(result, data[0])
+
+        msg = "can only convert an array of size 1 to a Python scalar"
+        with pytest.raises(ValueError, match=msg):
+            s[:0].item()
+
+        with pytest.raises(ValueError, match=msg):
+            s.item()
+
+    @pytest.mark.skip(
+        reason="Ellipsis not supported in RaggedArray.__getitem__"
+    )
+    def test_getitem_ellipsis_and_slice(self, data):
+        pass
+
+    # Ellipsis, numpy.newaxis, None, not supported in RaggedArray.__getitem__
+    # so the error message raised RaggedArray.__getitem__ isn't the same as
+    # the one raised by the base extension.
+    @pytest.mark.skip(reason="RaggedArray.__getitem__ raises a different error message")
+    def test_getitem_invalid(self, data):
+        pass
+
+    @pytest.mark.skip(reason="Can't autoconvert ragged array to numpy array")
+    def test_getitem_series_integer_with_missing_raises(self, data, idx):
+        pass
+
 
 class TestRaggedGroupby(eb.BaseGroupbyTests):
-    @pytest.mark.parametrize('op', [
-        lambda x: 1,
-        lambda x: [1] * len(x),
-        # # Op below causes a:
-        # # ValueError: Names should be list-like for a MultiIndex
-        # lambda x: pd.Series([1] * len(x)),
-        lambda x: x,
-    ], ids=[
-        'scalar',
-        'list',
-        # 'series',
-        'object'])
-    def test_groupby_extension_apply(self, data_for_grouping, op):
-        df = pd.DataFrame({"A": [1, 1, 2, 2, 3, 3, 1, 4],
-                           "B": data_for_grouping})
-        df.groupby("B").apply(op)
-        df.groupby("B").A.apply(op)
-        df.groupby("A").apply(op)
-        df.groupby("A").B.apply(op)
+    @pytest.mark.skip(reason="agg not supported")
+    def test_groupby_agg_extension(self):
+        pass
+
+    @pytest.mark.skip(reason="numpy.ndarray unhashable")
+    def test_groupby_extension_transform(self):
+        pass
+
+    @pytest.mark.skip(reason="agg not supported")
+    def test_groupby_extension_agg(self):
+        pass
+
+    @pytest.mark.skip(
+        reason="numpy.ndarray unhashable and buffer wrong number of dims")
+    def test_groupby_extension_apply(self):
+        pass
 
 
 class TestRaggedInterface(eb.BaseInterfaceTests):
     # Add array equality
     def test_array_interface(self, data):
-        result = np.array(data)
+        result = np.array(data, dtype=object)
         np.testing.assert_array_equal(result[0], data[0])
 
         result = np.array(data, dtype=object)
@@ -707,7 +753,24 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
             if np.isscalar(a1):
                 assert np.isnan(a1) and np.isnan(a2)
             else:
-                tm.assert_numpy_array_equal(a2, a1)
+                np.testing.assert_array_equal(a1, a2)
+
+    # # NotImplementedError: 'RaggedArray' does not support __setitem__
+    @pytest.mark.skip(reason="__setitem__ not supported")
+    def test_copy(self):
+        pass
+
+    @pytest.mark.skip(reason="__setitem__ not supported")
+    def test_view(self):
+        pass
+
+    @pytest.mark.skipif(Version(pd.__version__) < Version("1.4"), reason="Added in pandas 1.4")
+    def test_tolist(self, data):
+        result = data.tolist()
+        expected = list(data)
+        assert isinstance(result, list)
+        for r, e in zip(result, expected):
+            assert np.array_equal(r, e, equal_nan=True)
 
 
 class TestRaggedMethods(eb.BaseMethodsTests):
@@ -715,6 +778,14 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     # # AttributeError: 'RaggedArray' object has no attribute 'value_counts'
     @pytest.mark.skip(reason="value_counts not supported")
     def test_value_counts(self):
+        pass
+
+    @pytest.mark.skip(reason="value_counts not supported")
+    def test_value_counts_with_normalize(self):
+        pass
+
+    @pytest.mark.skip(reason="shift not supported")
+    def test_shift_0_periods(self):
         pass
 
     # Add array equality
@@ -754,9 +825,28 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     def test_combine_first(self):
         pass
 
+    @pytest.mark.skip(
+        reason="Searchsorted seems not implemented for custom extension arrays"
+    )
+    def test_searchsorted(self):
+        pass
+
+    @pytest.mark.skip(reason="ragged cannot be used as categorical")
+    def test_sort_values_frame(self):
+        pass
+
+    @pytest.mark.skip(reason="__setitem__ not supported")
+    def test_where_series(self):
+        pass
 
 class TestRaggedPrinting(eb.BasePrintingTests):
-    pass
+    @pytest.mark.skip(reason="Can't autoconvert ragged array to numpy array")
+    def test_dataframe_repr(self):
+        pass
+
+    @pytest.mark.skip(reason="Can't autoconvert ragged array to numpy array")
+    def test_series_repr(self):
+        pass
 
 
 class TestRaggedMissing(eb.BaseMissingTests):
@@ -771,6 +861,29 @@ class TestRaggedMissing(eb.BaseMissingTests):
     def test_fillna_frame(self):
         pass
 
+    @pytest.mark.skip(reason="Can't fill with nested sequences")
+    def test_fillna_limit_pad(self):
+        pass
+
+    @pytest.mark.skip(reason="Can't fill with nested sequences")
+    def test_fillna_limit_backfill(self):
+        pass
+
+    @pytest.mark.skip(reason="Can't fill with nested sequences")
+    def test_fillna_series_method(self):
+        pass
+
 
 class TestRaggedReshaping(eb.BaseReshapingTests):
-    pass
+    @pytest.mark.skip(reason="__setitem__ not supported")
+    def test_ravel(self):
+        pass
+
+    @pytest.mark.skip(reason="transpose with numpy array elements seems not supported")
+    def test_transpose(self):
+        pass
+
+    @pytest.mark.skip(reason="transpose with numpy array elements seems not supported")
+    def test_transpose_frame(self):
+        pass
+

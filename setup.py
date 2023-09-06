@@ -9,89 +9,74 @@ import pyct.build
 ########## dependencies ##########
 
 install_requires = [
-    # `conda install dask[complete]` happily gives you dask...which is
-    # happily like pip's dask[complete]. (conda's dask-core is more
-    # like pip's dask.)
-    'dask[complete] >=0.18.0',
-    'toolz >=0.7.4',  # ? for some dask issue (dasks does only >=0.7.3)
-    'datashape >=0.5.1',
-    'numba >=0.37.0',
-    'numpy >=1.7',
-    'pandas >=0.20.3',
-    'pillow >=3.1.1',
-    'xarray >=0.9.6',
-    'colorcet >=0.9.0',
-    'param >=1.6.0',
-    'pyct[cmd]',
-    'scikit-image',
-    'bokeh',
+    'colorcet',
+    'dask',
+    'datashape',
+    'numba',
+    'numpy',
+    'pandas <2.1',
+    'param',
+    'pillow',
+    'pyct',
+    'requests',
     'scipy',
-    'testpath<0.4' # temporary due to pip issue?
+    'toolz',
+    'xarray',
+]
+
+examples = [
+    'bokeh >3.1',
+    'geopandas',
+    'holoviews',
+    'matplotlib >=3.3',
+    'panel >1.1',
+    'scikit-image',
+    'spatialpandas',
 ]
 
 extras_require = {
     'tests': [
-        'pytest ==3.9.3',
-        'pytest-benchmark ==3.0.0',
+        'codecov',
+        'fastparquet',  # optional dependency
         'flake8',
-        'nbsmoke >=0.2.6',
-        'fastparquet >=0.1.6',  # optional dependency
-        'pandas >=0.24.1',  # optional ragged array support
+        'nbconvert',
+        'nbformat',
+        'nbsmoke[verify] >0.5',
+        'netcdf4',
+        'pyarrow',
+        'pytest',
+        'pytest-benchmark',
+        'pytest-cov',
+        'rasterio',
+        'rioxarray',
+        'spatialpandas',
     ],
-    'examples': [],
-    'examples_extra':[
-        'attrs',
-        'beautifulsoup4',
-        'bokeh',
-        #'cachey', # TODO: investigate (no conda package
-        'colorcet',
-        'dill',
-        'distributed', # dask
-        'fastparquet >=0.2.1',
-        'holoviews >=1.10.0',
-        'hvplot >=0.4.0',
-        'intake >=0.4.1',
-        'intake-parquet',
-        'jupyter',
-        'jupyter_dashboards',
-        'matplotlib',
-        'networkx >=2.0',
-        'pandas >=0.24.1',
-        'panel ==0.4.0',
-        'paramnb',
-        'requests',
-        'tblib',
-        'xarray',
-        'pyyaml',
-        'streamz ==0.2.0',
-        'webargs',
+    'examples': examples,
+    'examples_extra': examples + [
+        'networkx',
+        'streamz',
         ### conda only below here
-        'cartopy',
+        'fastparquet',
         'graphviz',
         'python-graphviz',
-        'fastparquet',
-        'geoviews',
-        'iris',
-        'krb5',
-        'pyproj',
-        'pytables',
         'python-snappy',
         'rasterio',
-        'snappy',
-        'shapely',
-        'statsmodels'
     ]
 }
 
+
 extras_require['doc'] = extras_require['examples_extra'] + [
-    'nbsite >=0.5.2',
-    'sphinx_ioam_theme',
-    'numpydoc'
+    'nbsite >=0.8.2,<0.9.0',
+    'numpydoc',
 ]
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))
 
-
+extras_require['gpu_tests'] = [
+    "cupy",
+    "cudf",  # Install with conda install -c rapidsai
+    "dask-cudf",  # Install with conda install -c rapidsai
+]
 
 ########## metadata for setuptools ##########
 
@@ -101,10 +86,13 @@ setup_args = dict(
     description='Data visualization toolchain based on aggregating into a grid',
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    url='http://datashader.org',
+    url='https://datashader.org',
+    project_urls={
+        'Source': 'https://github.com/holoviz/datashader',
+    },
     maintainer='Datashader developers',
     maintainer_email='dev@datashader.org',
-    python_requires=">=2.7",
+    python_requires=">=3.8",
     install_requires=install_requires,
     extras_require=extras_require,
     tests_require=extras_require['tests'],
@@ -116,6 +104,22 @@ setup_args = dict(
             'datashader = datashader.__main__:main'
         ]
     },
+    classifiers=[
+        "License :: OSI Approved :: BSD License",
+        "Development Status :: 5 - Production/Stable",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Operating System :: OS Independent",
+        "Intended Audience :: Science/Research",
+        "Intended Audience :: Developers",
+        "Natural Language :: English",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Visualization",
+        "Topic :: Software Development :: Libraries",
+    ]
 )
 
 if __name__ == '__main__':

@@ -1,15 +1,20 @@
-from __future__ import absolute_import
+from __future__ import annotations
+
 import re
+
 from functools import total_ordering
+from packaging.version import Version
 
 import numpy as np
+import pandas as pd
+
 from numba import jit
 from pandas.api.extensions import (
     ExtensionDtype, ExtensionArray, register_extension_dtype)
 from numbers import Integral
 
-from pandas.api.types import pandas_dtype
-from pandas.core.dtypes.common import is_extension_array_dtype
+from pandas.api.types import pandas_dtype, is_extension_array_dtype
+
 
 try:
     # See if we can register extension type with dask >= 1.1.0
@@ -140,6 +145,9 @@ class RaggedDtype(ExtensionDtype):
 
     @classmethod
     def construct_from_string(cls, string):
+        if not isinstance(string, str):
+            raise TypeError("'construct_from_string' expects a string, got %s" % type(string))
+
         # lowercase string
         string = string.lower()
 
@@ -301,6 +309,11 @@ class RaggedArray(ExtensionArray):
                 # Update start indices
                 self._start_indices[i] = next_start_ind
 
+                # Do not assign when slice is empty avoiding possible
+                # nan assignment to integer array
+                if not n:
+                    continue
+
                 # Update flat array
                 self._flat_array[next_start_ind:next_start_ind+n] = array_el
 
@@ -323,7 +336,7 @@ Cannot check equality of RaggedArray values of unequal length
                 self.start_indices, self.flat_array,
                 other.start_indices, other.flat_array)
         else:
-            # Convert other to numpy arrauy
+            # Convert other to numpy array
             if not isinstance(other, np.ndarray):
                 other_array = np.asarray(other)
             else:
@@ -386,6 +399,8 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         return len(self._start_indices)
 
     def __getitem__(self, item):
+        err_msg = ("Only integers, slices and integer or boolean"
+                   "arrays are valid indices.")
         if isinstance(item, Integral):
             if item < -len(self) or item >= len(self):
                 raise IndexError("{item} is out of bounds".format(item=item))
@@ -412,18 +427,52 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
             return RaggedArray(data, dtype=self.flat_array.dtype)
 
-        elif isinstance(item, np.ndarray) and item.dtype == 'bool':
-            data = []
+        elif isinstance(item, (np.ndarray, ExtensionArray, list, tuple)):
+            if isinstance(item, (np.ndarray, ExtensionArray)):
+                # Leave numpy and pandas arrays alone
+                kind = item.dtype.kind
+            else:
+                # Convert others to pandas arrays
+                item = pd.array(item)
+                kind = item.dtype.kind
 
-            for i, m in enumerate(item):
-                if m:
-                    data.append(self[i])
+            if len(item) == 0:
+                return self.take([], allow_fill=False)
+            elif kind == 'b':
+                # Check mask length is compatible
+                if len(item) != len(self):
+                    raise IndexError(
+                        "Boolean index has wrong length: {} instead of {}"
+                        .format(len(item), len(self))
+                    )
 
-            return RaggedArray(data, dtype=self.flat_array.dtype)
-        elif isinstance(item, (list, np.ndarray)):
-            return self.take(item, allow_fill=False)
+                # check for NA values
+                isna = pd.isna(item)
+                if isna.any():
+                    if Version(pd.__version__) > Version('1.0.1'):
+                        item[isna] = False
+                    else:
+                        raise ValueError(
+                            "Cannot mask with a boolean indexer containing NA values"
+                        )
+
+                data = []
+
+                for i, m in enumerate(item):
+                    if m:
+                        data.append(self[i])
+
+                return RaggedArray(data, dtype=self.flat_array.dtype)
+            elif kind in ('i', 'u'):
+                if any(pd.isna(item)):
+                    raise ValueError(
+                        "Cannot index with an integer indexer containing NA values"
+                    )
+                return self.take(item, allow_fill=False)
+            else:
+                raise IndexError(err_msg)
         else:
-            raise IndexError(item)
+            raise IndexError(err_msg)
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
@@ -456,7 +505,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
     def fillna(self, value=None, method=None, limit=None):
         # Override in RaggedArray to handle ndarray fill values
         from pandas.util._validators import validate_fillna_kwargs
-        from pandas.core.missing import pad_1d, backfill_1d
+        from pandas.core.missing import get_fill_func
 
         value, method = validate_fillna_kwargs(value, method)
 
@@ -470,7 +519,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
         if mask.any():
             if method is not None:
-                func = pad_1d if method == 'pad' else backfill_1d
+                func = get_fill_func(method)
                 new_values = func(self.astype(object), limit=limit,
                                   mask=mask)
                 new_values = self._from_sequence(new_values, dtype=self.dtype)
@@ -535,7 +584,9 @@ Invalid indices for take with allow_fill True: {inds}""".format(
                         for i in indices]
         else:
             if len(self) == 0 and len(indices) > 0:
-                raise IndexError("cannot do a non-empty take")
+                raise IndexError(
+                    "cannot do a non-empty take from an empty axis|out of bounds"
+                )
 
             sequence = [self[i] for i in indices]
 
@@ -551,7 +602,7 @@ Invalid indices for take with allow_fill True: {inds}""".format(
     @classmethod
     def _concat_same_type(cls, to_concat):
         # concat flat_arrays
-        flat_array = np.hstack(ra.flat_array for ra in to_concat)
+        flat_array = np.hstack([ra.flat_array for ra in to_concat])
 
         # offset and concat start_indices
         offsets = np.hstack([
@@ -586,6 +637,17 @@ Invalid indices for take with allow_fill True: {inds}""".format(
                 np.asarray(self))
 
         return np.array([v for v in self], dtype=dtype, copy=copy)
+
+    def tolist(self):
+        # Based on pandas ExtensionArray.tolist
+        if self.ndim > 1:
+            return [item.tolist() for item in self]
+        else:
+            return list(self)
+
+    def __array__(self, dtype=None):
+        dtype = np.dtype(object) if dtype is None else np.dtype(dtype)
+        return np.asarray(self.tolist(), dtype=dtype)
 
 
 @jit(nopython=True, nogil=True)

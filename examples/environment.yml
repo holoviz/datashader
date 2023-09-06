@@ -3,41 +3,26 @@ channels:
  - conda-forge
 
 dependencies:
- - attrs
- - beautifulsoup4
  - bokeh
  - cartopy
  - colorcet
- - conda-forge::graphviz
- - conda-forge::pytest
- - conda-forge::pytest-benchmark
- - conda-forge::python-graphviz
- - dask>=0.15.4
+ - graphviz
+ - python-graphviz
+ - dask
  - datashader
- - dill
  - distributed
  - fastparquet
- - flake8
- - geoviews
- - pyviz/label/dev::holoviews>=1.11.2
+ - holoviews
  - ipython
- - iris
  - jupyter
- - jupyter_dashboards
- - krb5
  - matplotlib
- - nbconvert
- - nbformat
  - networkx>=2.0
  - numba
  - numpy
- - pandas
- - param>=1.5.1
- - paramnb
- - pyproj
- - pytables
+ - pandas >=0.24.1
+ - param
  - python-snappy
- - python=3.6
+ - python
  - rasterio
  - requests
  - scikit-image
@@ -45,11 +30,6 @@ dependencies:
  - shapely
  - snappy
  - statsmodels
- - tblib
+ - streamz
  - xarray
- - yaml
- - pip:
-   - cachey
-   - streamz==0.2.0
-   - webargs
-
+ - ipympl

@@ -11,15 +11,19 @@ algorithm.
    https://gitlab.com/ianjcalvert/edgehammer
 """
 
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 from math import ceil
 
 from dask import compute, delayed
 from pandas import DataFrame
-from skimage.filters import gaussian, sobel_h, sobel_v
 
-import numba as nb
+try:
+    import skimage
+    from skimage.filters import gaussian, sobel_h, sobel_v
+except Exception:
+    skimage = None
+
 import numpy as np
 import pandas as pd
 import param
@@ -33,9 +37,9 @@ def distance_between(a, b):
     return (((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2))**(0.5)
 
 
-@nb.jit
+@ngjit
 def resample_segment(segments, new_segments, min_segment_length, max_segment_length, ndims):
-    next_point = np.array([0.0] * ndims)
+    next_point = np.zeros(ndims, dtype=segments.dtype)
     current_point = segments[0]
     pos = 0
     index = 1
@@ -66,7 +70,7 @@ def resample_segment(segments, new_segments, min_segment_length, max_segment_len
     return new_segments
 
 
-@nb.jit
+@ngjit
 def calculate_length(segments, min_segment_length, max_segment_length):
     current_point = segments[0]
     index = 1
@@ -113,7 +117,7 @@ def resample_edges(edge_segments, min_segment_length, max_segment_length, ndims)
     return replaced_edges
 
 
-@nb.jit
+@ngjit
 def smooth_segment(segments, tension, idx, idy):
     seg_length = len(segments) - 2
     for i in range(1, seg_length):
@@ -183,9 +187,8 @@ def get_gradients(img):
 
 class BaseSegment(object):
     @classmethod
-    @nb.jit
     def create_delimiter(cls):
-        return np.array([[np.nan] * cls.ndims])
+        return np.full((1, cls.ndims), np.nan)
 
 
 class UnweightedSegment(BaseSegment):
@@ -201,7 +204,7 @@ class UnweightedSegment(BaseSegment):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
-    @nb.jit
+    @ngjit
     def create_segment(edge):
         return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]])
 
@@ -224,7 +227,7 @@ class EdgelessUnweightedSegment(BaseSegment):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
-    @nb.jit
+    @ngjit
     def create_segment(edge):
         return np.array([[edge[0], edge[1]], [edge[2], edge[3]]])
 
@@ -247,7 +250,7 @@ class WeightedSegment(BaseSegment):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', params.weight]
 
     @staticmethod
-    @nb.jit
+    @ngjit
     def create_segment(edge):
         return np.array([[edge[0], edge[1], edge[2], edge[5]], [edge[0], edge[3], edge[4], edge[5]]])
 
@@ -270,7 +273,7 @@ class EdgelessWeightedSegment(BaseSegment):
         return ['src_x', 'src_y', 'dst_x', 'dst_y', params.weight]
 
     @staticmethod
-    @nb.jit
+    @ngjit
     def create_segment(edge):
         return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]])
 
@@ -344,7 +347,7 @@ def _convert_graph_to_edge_segments(nodes, edges, params):
     df = df.filter(items=segment_class.get_merged_columns(params))
 
     edge_segments = []
-    for edge in df.get_values():
+    for edge in df.values:
         edge_segments.append(segment_class.create_segment(edge))
     return edge_segments, segment_class
 
@@ -423,12 +426,11 @@ class connect_edges(param.ParameterizedFunction):
 
 directly_connect_edges = connect_edges # For bockwards compatibility; deprecated
 
-@nb.jit
+
 def minmax_normalize(X, lower, upper):
     return (X - lower) / (upper - lower)
 
 
-@nb.jit
 def minmax_denormalize(X, lower, upper):
     return X * (upper - lower) + lower
 
@@ -472,6 +474,11 @@ class hammer_bundle(connect_edges):
         Column name for each edge weight. If None, weights are ignored.""")
 
     def __call__(self, nodes, edges, **params):
+        if skimage is None:
+            raise ImportError("hammer_bundle operation requires scikit-image. "
+                              "Ensure you install the dependency before applying "
+                              "bundling.")
+
         p = param.ParamOverrides(self, params)
 
         # Calculate min/max for coordinates

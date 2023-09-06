@@ -4,7 +4,7 @@
 Convert PCAP output to undirected graph and save in Parquet format.
 """
 
-from __future__ import print_function
+from __future__ import annotations
 
 import re
 import socket
