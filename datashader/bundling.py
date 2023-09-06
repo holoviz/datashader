@@ -27,6 +27,7 @@ except Exception:
 import numpy as np
 import pandas as pd
 import param
+from numba import prange
 
 from .utils import ngjit
 
@@ -286,7 +287,7 @@ class EdgelessWeightedSegment(BaseSegment):
 @ngjit
 def _edge_val_to_segments(vals):
     edge_vals = np.full(vals.size * 3, np.nan, np.dtype("float"))
-    for i in nb.prange(len(vals)):
+    for i in prange(len(vals)):
         pos = int(i * 3)
         edge_vals[pos:pos+2] = vals[i]
     return edge_vals
@@ -294,7 +295,7 @@ def _edge_val_to_segments(vals):
 @ngjit
 def _format_graph_segments(nodes, edges):
     edge_table = np.full((edges.shape[0] * 3, 2), np.nan)
-    for i in nb.prange(edges.shape[0]):
+    for i in prange(edges.shape[0]):
         pos = int(i * 3)
         s, t = edges[i]
         edge_table[pos  , 0] = nodes[s, 0]
