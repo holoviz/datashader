@@ -49,6 +49,7 @@ extras_require = {
         'pytest-cov',
         'rasterio',
         'rioxarray',
+        'scikit-image',
         'spatialpandas',
     ],
     'examples': examples,

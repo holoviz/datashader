@@ -96,6 +96,9 @@ jobs:
       - name: doit develop_install
         run: |
           doit ecosystem=pip develop_install -o tests -o examples
+      - name: install spatialpandas RC
+        run: |
+          python -m pip install "spatialpandas==0.4.9rc1"
       - name: doit env_capture
         run: |
           doit ecosystem=pip env_capture
