@@ -307,12 +307,13 @@ def _convert_graph_to_edge_segments(nodes, edges, params):
     df = df.sort_index()
     df = df.reset_index()
 
-    if params.include_edge_id:
+    include_edge_id = params.include_edge_id
+    if include_edge_id:
         df = df.rename(columns={'id': 'edge_id'})
 
     include_weight = params.weight and params.weight in edges
 
-    if params.include_edge_id:
+    if include_edge_id:
         if include_weight:
             segment_class = WeightedSegment
         else:
@@ -326,8 +327,14 @@ def _convert_graph_to_edge_segments(nodes, edges, params):
     df = df.filter(items=segment_class.get_merged_columns(params))
 
     edge_segments = []
-    for edge in df.values:
+    for tup in df.itertuples():
+        edge = (tup.src_x, tup.src_y, tup.dst_x, tup.dst_y)
+        if include_edge_id:
+            edge = (tup.edge_id,) + edge
+        if include_weight:
+            edge += (getattr(tup, params.weight),)
         edge_segments.append(segment_class.create_segment(edge))
+
     return edge_segments, segment_class
 
 
@@ -394,7 +401,7 @@ class connect_edges(param.ParameterizedFunction):
         edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p)
         return _convert_edge_segments_to_dataframe(edges, segment_class, p)
 
-directly_connect_edges = connect_edges # For bockwards compatibility; deprecated
+directly_connect_edges = connect_edges # For backwards compatibility; deprecated
 
 
 def minmax_normalize(X, lower, upper):
