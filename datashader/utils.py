@@ -26,6 +26,11 @@ except Exception:
     cudf = None
 
 try:
+    from geopandas.array import GeometryDtype as gpd_GeometryDtype
+except ImportError:
+    gpd_GeometryDtype = type(None)
+
+try:
     from spatialpandas.geometry import GeometryDtype
 except ImportError:
     GeometryDtype = type(None)
@@ -429,6 +434,8 @@ def dshape_from_pandas_helper(col):
             tz = str(tz)
         return datashape.Option(datashape.DateTime(tz=tz))
     elif isinstance(col.dtype, (RaggedDtype, GeometryDtype)):
+        return col.dtype
+    elif gpd_GeometryDtype and isinstance(col.dtype, gpd_GeometryDtype):
         return col.dtype
     dshape = datashape.CType.from_numpy_dtype(col.dtype)
     dshape = datashape.string if dshape == datashape.object_ else dshape

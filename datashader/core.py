@@ -28,6 +28,11 @@ except Exception:
     dask_cudf = None
 
 try:
+    import geopandas
+except Exception:
+    geopandas = None
+
+try:
     import spatialpandas
 except Exception:
     spatialpandas = None
@@ -738,8 +743,15 @@ The axis argument to Canvas.area must be 0 or 1
             x_range = self.x_range if self.x_range is not None else (None, None)
             y_range = self.y_range if self.y_range is not None else (None, None)
             source = source.cx_partitions[slice(*x_range), slice(*y_range)]
+            glyph = PolygonGeom(geometry)
         elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
-            pass
+            glyph = PolygonGeom(geometry)
+        elif geopandas and isinstance(source, geopandas.GeoDataFrame):
+            from .glyphs.polygon import GeopandasPolygonGeom
+            x_range = self.x_range if self.x_range is not None else (None, None)
+            y_range = self.y_range if self.y_range is not None else (None, None)
+            source = source.cx[slice(*x_range), slice(*y_range)]
+            glyph = GeopandasPolygonGeom(geometry)
         else:
             raise ValueError(
                 "source must be an instance of spatialpandas.GeoDataFrame or \n"
@@ -748,7 +760,6 @@ The axis argument to Canvas.area must be 0 or 1
 
         if agg is None:
             agg = any_rdn()
-        glyph = PolygonGeom(geometry)
         return bypixel(source, self, glyph, agg)
 
     def quadmesh(self, source, x=None, y=None, agg=None):

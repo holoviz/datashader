@@ -10,6 +10,47 @@ try:
 except Exception:
     spatialpandas = None
 
+try:
+    import geopandas
+    import shapely
+except:
+    geopandas = None
+    shapely = None
+
+
+class GeopandasPolygonGeom(_GeometryLike):
+    @property
+    def geom_dtypes(self):
+        from geopandas.array import GeometryDtype
+        return (GeometryDtype,)
+
+    @memoize
+    def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2, _antialias_stage_2_funcs):
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper)
+        draw_polygon = _build_draw_polygon(
+            append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_and_cols
+        )
+
+        perform_extend_cpu = _build_extend_geopandas_polygon_geometry(
+            draw_polygon, expand_aggs_and_cols
+        )
+        geom_name = self.geometry
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
+            geom_array = df[geom_name].array
+
+            perform_extend_cpu(
+                sx, tx, sy, ty,
+                xmin, xmax, ymin, ymax,
+                geom_array, *aggs_and_cols
+            )
+
+        return extend
+
 
 class PolygonGeom(_GeometryLike):
     # spatialpandas must be available if a PolygonGeom object is created.
@@ -52,7 +93,7 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
     @expand_aggs_and_cols
     def draw_polygon(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-            offsets, values, xs, ys, yincreasing, eligible,
+            offsets, offset_multiplier, values, xs, ys, yincreasing, eligible,
             *aggs_and_cols
     ):
         """Draw a polygon using a winding-number scan-line algorithm
@@ -64,8 +105,8 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
         eligible.fill(1)
 
         # First pass, compute bounding box of polygon vertices in data coordinates
-        start_index = offsets[0]
-        stop_index = offsets[-1]
+        start_index = offset_multiplier*offsets[0]
+        stop_index = offset_multiplier*offsets[-1]
         # num_edges = stop_index - start_index - 2
         poly_xmin = np.min(values[start_index:stop_index:2])
         poly_ymin = np.min(values[start_index + 1:stop_index:2])
@@ -105,8 +146,8 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
         # Build arrays of edges in canvas coordinates
         ei = 0
         for j in range(len(offsets) - 1):
-            start = offsets[j]
-            stop = offsets[j + 1]
+            start = offset_multiplier*offsets[j]
+            stop = offset_multiplier*offsets[j + 1]
             for k in range(start, stop - 2, 2):
                 x0 = values[k]
                 y0 = values[k + 1]
@@ -201,6 +242,62 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
     return draw_polygon
 
 
+def _build_extend_geopandas_polygon_geometry(
+        draw_polygon, expand_aggs_and_cols
+):
+    def extend_cpu(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax, geometry, *aggs_and_cols
+    ):
+        ragged = shapely.io.to_ragged_array(geometry)
+        geometry_type = ragged[0]
+        if geometry_type not in (shapely.GeometryType.POLYGON, shapely.GeometryType.MULTIPOLYGON):
+            raise NotImplementedError
+
+        coords = ragged[1].ravel()
+        if geometry_type == shapely.GeometryType.MULTIPOLYGON:
+            offsets0, offsets1, offsets2 = ragged[2]
+        else:  # POLYGON
+            offsets0, offsets1 = ragged[2]
+            offsets2 = np.arange(len(offsets1))
+
+        extend_cpu_numba(
+            sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+            coords, offsets0, offsets1, offsets2, *aggs_and_cols
+        )
+
+    @ngjit
+    @expand_aggs_and_cols
+    def extend_cpu_numba(sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                         coords, offsets0, offsets1, offsets2, *aggs_and_cols):
+        # Pre-allocate temp arrays
+        max_edges = 0
+        n_multipolygons = len(offsets2) - 1
+        for i in range(n_multipolygons):
+            polygon_inds = offsets1[offsets2[i]:offsets2[i + 1] + 1]
+            for j in range(len(polygon_inds) - 1):
+                start = offsets0[polygon_inds[j]]
+                stop = offsets0[polygon_inds[j + 1]]
+                max_edges = max(max_edges, stop - start - 1)
+
+        xs = np.full((max_edges, 2), np.nan, dtype=np.float32)
+        ys = np.full((max_edges, 2), np.nan, dtype=np.float32)
+        yincreasing = np.zeros(max_edges, dtype=np.int8)
+
+        # Initialize array indicating which edges are still eligible for processing
+        eligible = np.ones(max_edges, dtype=np.int8)
+
+        for i in range(n_multipolygons):
+            polygon_inds = offsets1[offsets2[i]:offsets2[i + 1] + 1]
+            for j in range(len(polygon_inds) - 1):
+                start = polygon_inds[j]
+                stop = polygon_inds[j + 1]
+                draw_polygon(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
+                            offsets0[start:stop + 1], 2,
+                            coords, xs, ys, yincreasing, eligible, *aggs_and_cols)
+
+    return extend_cpu
+
+
 def _build_extend_polygon_geometry(
         draw_polygon, expand_aggs_and_cols
 ):
@@ -269,7 +366,7 @@ def _build_extend_polygon_geometry(
                 stop = polygon_inds[j + 1]
 
                 draw_polygon(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                             offsets2[start:stop + 1], values,
+                             offsets2[start:stop + 1], 1, values,
                              xs, ys, yincreasing, eligible, *aggs_and_cols)
 
     return extend_cpu

@@ -16,6 +16,11 @@ except Exception:
     cuda_args = None
 
 try:
+    from geopandas.array import GeometryDtype as gpd_GeometryDtype
+except ImportError:
+    gpd_GeometryDtype = type(None)
+
+try:
     import spatialpandas
 except Exception:
     spatialpandas = None
@@ -72,11 +77,23 @@ class _GeometryLike(Glyph):
         return [self.geometry]
 
     def compute_x_bounds(self, df):
-        bounds = df[self.geometry].array.total_bounds_x
+        col = df[self.geometry]
+        if isinstance(col.dtype, gpd_GeometryDtype):
+            # geopandas
+            bounds = col.total_bounds[::2]
+        else:
+            # spatialpandas
+            bounds = col.array.total_bounds_x
         return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, df):
-        bounds = df[self.geometry].array.total_bounds_y
+        col = df[self.geometry]
+        if isinstance(col.dtype, gpd_GeometryDtype):
+            # geopandas
+            bounds = col.total_bounds[1::2]
+        else:
+            # spatialpandas
+            bounds = col.array.total_bounds_y
         return self.maybe_expand_bounds(bounds)
 
     @memoize
