@@ -607,7 +607,78 @@ class LineAxis1GeoPandas(_GeometryLike, _AntiAliasedLine):
 
             perform_extend_cpu(
                 sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                geom_array, antialias_stage_2, *aggs_and_cols
+                geom_array, antialias_stage_2, *aggs_and_cols,
+            )
+
+        return extend
+
+
+class LinesXarrayCommonX(LinesAxis1):
+    def __init__(self, x, y, x_dim_index: int):
+        super().__init__(x, y)
+        self.x_dim_index = x_dim_index
+
+    def __hash__(self):
+        # This ensures that @memoize below caches different functions for different x_dim_index.
+        return hash((type(self), self.x_dim_index))
+
+    def compute_x_bounds(self, dataset):
+        bounds = self._compute_bounds(dataset[self.x])
+        return self.maybe_expand_bounds(bounds)
+
+    def compute_y_bounds(self, dataset):
+        bounds = self._compute_bounds(dataset[self.y])
+        return self.maybe_expand_bounds(bounds)
+
+    def compute_bounds_dask(self, xr_ds):
+        return self.compute_x_bounds(xr_ds), self.compute_y_bounds(xr_ds)
+
+    def validate(self, in_dshape):
+        if not isreal(in_dshape.measure[str(self.x)]):
+            raise ValueError('x column must be real')
+
+        if not isreal(in_dshape.measure[str(self.y)]):
+            raise ValueError('y column must be real')
+
+    @memoize
+    def _internal_build_extend(
+        self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2,
+        antialias_stage_2_funcs,
+    ):
+        expand_aggs_and_cols = self.expand_aggs_and_cols(append)
+        draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
+            x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
+            expand_aggs_and_cols,
+        )
+        swap_dims = self.x_dim_index == 0
+        extend_cpu, extend_cuda = _build_extend_line_axis1_x_constant(
+            draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs, swap_dims,
+        )
+
+        x_name = self.x
+        y_name = self.y
+
+        def extend(aggs, df, vt, bounds, plot_start=True):
+            sx, tx, sy, ty = vt
+            xmin, xmax, ymin, ymax = bounds
+            aggs_and_cols = aggs + info(df, aggs[0].shape[:2])
+
+            if cudf and isinstance(df, cudf.DataFrame):
+                xs = cp.asarray(df[x_name])
+                ys = cp.asarray(df[y_name])
+                do_extend = extend_cuda[cuda_args(ys.shape)]
+            elif cp and isinstance(df[y_name].data, cp.ndarray):
+                xs = cp.asarray(df[x_name])
+                ys = df[y_name].data
+                shape = ys.shape[::-1] if swap_dims else ys.shape
+                do_extend = extend_cuda[cuda_args(shape)]
+            else:
+                xs = df[x_name].to_numpy()
+                ys = df[y_name].to_numpy()
+                do_extend = extend_cpu
+
+            do_extend(
+                sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2, *aggs_and_cols
             )
 
         return extend
@@ -1263,7 +1334,7 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols,
 
 
 def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols,
-                                        antialias_stage_2_funcs):
+                                        antialias_stage_2_funcs, swap_dims: bool = False):
     if antialias_stage_2_funcs is not None:
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = antialias_stage_2_funcs
     use_2_stage_agg = antialias_stage_2_funcs is not None
@@ -1274,22 +1345,24 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols,
             i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, buffer, *aggs_and_cols
     ):
         x0 = xs[j]
-        y0 = ys[i, j]
         x1 = xs[j + 1]
-        y1 = ys[i, j + 1]
-
-        segment_start = (
-                (j == 0) or isnull(xs[j - 1]) or isnull(ys[i, j - 1])
-        )
-
-        segment_end = (j == len(xs)-2) or isnull(xs[j+2]) or isnull(ys[i, j+2])
+        if swap_dims:
+            y0 = ys[j, i]
+            y1 = ys[j + 1, i]
+            segment_start = (j == 0) or isnull(xs[j - 1]) or isnull(ys[j - 1, i])
+            segment_end = (j == len(xs)-2) or isnull(xs[j+2]) or isnull(ys[j+2, i])
+        else:
+            y0 = ys[i, j]
+            y1 = ys[i, j + 1]
+            segment_start = (j == 0) or isnull(xs[j - 1]) or isnull(ys[i, j - 1])
+            segment_end = (j == len(xs)-2) or isnull(xs[j+2]) or isnull(ys[i, j+2])
 
         if segment_start or use_2_stage_agg:
             xm = 0.0
             ym = 0.0
         else:
             xm = xs[j-1]
-            ym = ys[i, j-1]
+            ym = ys[j-1, i] if swap_dims else ys[i, j-1]
 
         draw_segment(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                      segment_start, segment_end, x0, x1, y0, y1,
@@ -1301,8 +1374,8 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols,
                    *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
-        ncols = ys.shape[1]
-        for i in range(ys.shape[0]):
+        ncols, nrows = ys.shape if swap_dims else ys.shape[::-1]
+        for i in range(nrows):
             for j in range(ncols - 1):
                 perform_extend_line(
                     i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, buffer, *aggs_and_cols
@@ -1347,10 +1420,10 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols,
         antialias = antialias_stage_2 is not None
         buffer = cuda.local.array(8, nb_types.float64) if antialias else None
         i, j = cuda.grid(2)
-        if i < ys.shape[0] and j < ys.shape[1] - 1:
+        ncols, nrows = ys.shape if swap_dims else ys.shape[::-1]
+        if i < nrows and j < ncols - 1:
             perform_extend_line(
-                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
-                buffer, *aggs_and_cols
+                i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, buffer, *aggs_and_cols
             )
 
     if use_2_stage_agg:

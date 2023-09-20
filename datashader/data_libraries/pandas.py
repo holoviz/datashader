@@ -6,6 +6,7 @@ from datashader.core import bypixel
 from datashader.compiler import compile_components
 from datashader.glyphs.points import _PointLike, _GeometryLike
 from datashader.glyphs.area import _AreaToLineLike
+from datashader.glyphs.line import LinesXarrayCommonX
 from datashader.utils import Dispatcher
 
 __all__ = ()
@@ -45,6 +46,15 @@ def default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=Fal
     y_axis = canvas.y_axis.compute_index(y_st, height)
 
     bases = create((height, width))
+
+    if isinstance(glyph, LinesXarrayCommonX) and summary.uses_row_index(cuda, partitioned=False):
+        # Need to use a row index and extract.apply() doesn't have enough
+        # information to determine the coordinate length itself so do so here
+        # and pass it along as an xarray attribute in the usual manner.
+        other_dim_index = 1 - glyph.x_dim_index
+        other_dim_name = source[glyph.y].coords.dims[other_dim_index]
+        length = len(source[other_dim_name])
+        source = source.assign_attrs(_datashader_row_offset=0, _datashader_row_length=length)
 
     extend(bases, source, x_st + y_st, x_range + y_range)
 

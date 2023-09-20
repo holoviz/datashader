@@ -1,5 +1,6 @@
 from datashader.compiler import compile_components
 from datashader.utils import Dispatcher
+from datashader.glyphs.line import LinesXarrayCommonX
 from datashader.glyphs.quadmesh import (
     QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvilinear, build_scale_translate
 )
@@ -349,6 +350,82 @@ def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
     return dsk, result_name
 
 
+def dask_xarray_lines(
+    glyph: LinesXarrayCommonX, xr_ds: xr.Dataset, schema, canvas, summary,
+    *, antialias=False, cuda=False,
+):
+    shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
+
+    # Compile functions
+    create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, \
+        column_names = compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda,
+                                          partitioned=True)
+    x_mapper = canvas.x_axis.mapper
+    y_mapper = canvas.y_axis.mapper
+    extend = glyph._build_extend(
+        x_mapper, y_mapper, info, append, antialias_stage_2, antialias_stage_2_funcs)
+    x_range = bounds[:2]
+    y_range = bounds[2:]
+
+    x_name = glyph.x
+    x_dim_index = glyph.x_dim_index
+    other_dim_index = 1 - x_dim_index
+    other_dim_name = xr_ds[glyph.y].coords.dims[other_dim_index]
+    xs = xr_ds[x_name]
+
+    # Build chunk offsets for coordinates
+    chunk_offsets = {}
+    for k, chunks in xr_ds.chunks.items():
+        chunk_offsets[k] = [0] + list(np.cumsum(chunks))
+
+    partitioned = True
+    uses_row_index = summary.uses_row_index(cuda, partitioned)
+
+    def chunk(np_array, *chunk_indices):
+        aggs = create(shape)
+
+        start_x_index = chunk_offsets[x_name][chunk_indices[x_dim_index]]
+        end_x_index = start_x_index + np_array.shape[x_dim_index]
+        x = xs[start_x_index:end_x_index].values
+
+        start_other_index = chunk_offsets[other_dim_name][chunk_indices[other_dim_index]]
+        end_other_index = start_other_index + np_array.shape[other_dim_index]
+
+        data_vars = dict(
+            name=(("x", other_dim_name) if x_dim_index == 0 else (other_dim_name, "x"), np_array),
+        )
+        # Other required columns are chunked in the other_dim
+        for column_name in column_names:
+            values = xr_ds[column_name][start_other_index:end_other_index].values
+            data_vars[column_name] = (other_dim_name, values)
+
+        chunk_ds = xr.Dataset(
+            data_vars=data_vars,
+            coords=dict(
+                x=("x", x),
+                other_dim_name=(other_dim_name, np.arange(start_other_index, end_other_index)),
+            ),
+        )
+
+        if uses_row_index:
+            row_offset = start_other_index
+            chunk_ds.attrs["_datashader_row_offset"] = row_offset
+            chunk_ds.attrs["_datashader_row_length"] = end_other_index - start_other_index
+
+        extend(aggs, chunk_ds, st, bounds)
+        return aggs
+
+    name = tokenize(xr_ds.__dask_tokenize__(), canvas, glyph, summary)
+    keys = [k for row in xr_ds.__dask_keys__()[0] for k in row]
+    keys2 = [(name, i) for i in range(len(keys))]
+    dsk = dict((k2, (chunk, k, k[1], k[2])) for (k2, k) in zip(keys2, keys))
+    dsk[name] = (apply, finalize, [(combine, keys2)],
+                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+                      attrs=dict(x_range=x_range, y_range=y_range)))
+    return dsk, name
+
+
 dask_glyph_dispatch.register(QuadMeshRectilinear)(dask_rectilinear)
 dask_glyph_dispatch.register(QuadMeshRaster)(dask_raster)
 dask_glyph_dispatch.register(QuadMeshCurvilinear)(dask_curvilinear)
+dask_glyph_dispatch.register(LinesXarrayCommonX)(dask_xarray_lines)

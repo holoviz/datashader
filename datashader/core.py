@@ -345,7 +345,7 @@ class Canvas:
         """
         from .glyphs import (LineAxis0, LinesAxis1, LinesAxis1XConstant,
                              LinesAxis1YConstant, LineAxis0Multi,
-                             LinesAxis1Ragged, LineAxis1Geometry)
+                             LinesAxis1Ragged, LineAxis1Geometry, LinesXarrayCommonX)
 
         validate_xy_or_geometry('Line', x, y, geometry)
 
@@ -383,6 +383,21 @@ class Canvas:
                     "dask_geopandas.GeoDataFrame. Received objects of type {typ}".format(
                         typ=type(source)))
 
+            glyph = LineAxis1Geometry(geometry)
+        elif isinstance(source, Dataset) and isinstance(x, str) and isinstance(y, str):
+            x_arr = source[x]
+            y_arr = source[y]
+            if x_arr.ndim != 1:
+                raise ValueError(f"x array must have 1 dimension not {x_arr.ndim}")
+
+            if y_arr.ndim != 2:
+                raise ValueError(f"y array must have 2 dimensions not {y_arr.ndim}")
+            if x not in y_arr.dims:
+                raise ValueError("x must be one of the coordinate dimensions of y")
+
+            y_coord_dims = list(y_arr.coords.dims)
+            x_dim_index = y_coord_dims.index(x)
+            glyph = LinesXarrayCommonX(x, y, x_dim_index)
         else:
             # Broadcast column specifications to handle cases where
             # x is a list and y is a string or vice versa

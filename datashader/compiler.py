@@ -140,7 +140,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
 
     create = make_create(bases, dshapes, cuda)
     append, any_uses_cuda_mutex = make_append(bases, cols, calls, glyph, antialias)
-    info = make_info(cols, any_uses_cuda_mutex)
+    info = make_info(cols, cuda, any_uses_cuda_mutex)
     combine = make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned)
     finalize = make_finalize(bases, agg, schema, cuda, partitioned)
 
@@ -302,9 +302,9 @@ def make_create(bases, dshapes, cuda):
     return lambda shape: tuple(c(shape, array_module) for c in creators)
 
 
-def make_info(cols, uses_cuda_mutex: bool):
+def make_info(cols, cuda, uses_cuda_mutex: bool):
     def info(df, canvas_shape):
-        ret = tuple(c.apply(df) for c in cols)
+        ret = tuple(c.apply(df, cuda) for c in cols)
         if uses_cuda_mutex:
             import cupy  # Guaranteed to be available if uses_cuda_mutex is True
             import numba
