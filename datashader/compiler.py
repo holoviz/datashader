@@ -1,5 +1,6 @@
 from __future__ import annotations
 from itertools import count
+import logging
 from typing import TYPE_CHECKING
 
 from toolz import unique, concat, pluck, get, memoize
@@ -27,6 +28,9 @@ if TYPE_CHECKING:
 
 
 __all__ = ['compile_components']
+
+
+logger = logging.getLogger(__name__)
 
 
 @memoize
@@ -233,6 +237,7 @@ def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned
         else:
             lines.append(f"        {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
     code = "\n".join(lines)
+    logger.debug(code)
     exec(code, namespace)
     aa_stage_2_accumulate = ngjit(namespace["aa_stage_2_accumulate"])
 
@@ -244,6 +249,7 @@ def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned
     for i, aa_zero in enumerate(aa_zeroes):
         lines.append(f"    aggs_and_copies[{i}][0].fill({aa_zero})")
     code = "\n".join(lines)
+    logger.debug(code)
     exec(code, namespace)
     aa_stage_2_clear = ngjit(namespace["aa_stage_2_clear"])
 
@@ -337,6 +343,12 @@ def make_append(bases, cols, calls, glyph, antialias):
     categorical_args = {}  # Reuse categorical arguments if used in more than one reduction
     where_selectors = {}  # Reuse where.selector if used more than once in a summary reduction
 
+    if logger.isEnabledFor(logging.DEBUG):   # mostly does nothing...
+        logger.debug(f"global_cuda_mutex {global_cuda_mutex}")
+        logger.debug(f"any_uses_cuda_mutex {any_uses_cuda_mutex}")
+        for k, v in arg_lk.items():
+            logger.debug(f"arg_lk {v} {k} {getattr(k, 'column', None)}")
+
     def get_cuda_mutex_call(lock: bool) -> str:
         func = "cuda_mutex_lock" if lock else "cuda_mutex_unlock"
         return f'{func}({arg_lk["_cuda_mutex"]}, (y, x))'
@@ -346,6 +358,7 @@ def make_append(bases, cols, calls, glyph, antialias):
         local_cuda_mutex = not global_cuda_mutex and uses_cuda_mutex == UsesCudaMutex.Local
         local_lk.update(zip(temps, (next(names) for i in temps)))
         func_name = next(names)
+        logger.debug(f"func {func_name} {func}")
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
         if categorical and isinstance(cols[0], category_codes):
@@ -449,6 +462,7 @@ def make_append(bases, cols, calls, glyph, antialias):
         code = ('def append({0}, x, y, {1}):\n'
                 '    {2}'
                 ).format(subscript, ', '.join(signature), '\n    '.join(body))
+    logger.debug(code)
     exec(code, namespace)
     return ngjit(namespace['append']), any_uses_cuda_mutex
 
