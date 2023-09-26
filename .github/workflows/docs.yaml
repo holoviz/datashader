@@ -31,7 +31,7 @@ jobs:
     env:
       DESC: "Documentation build"
     steps:
-      - uses: holoviz-dev/holoviz_tasks/install@v0.1a15
+      - uses: holoviz-dev/holoviz_tasks/install@v0.1a17
         with:
           name: Documentation
           python-version: "3.10"
