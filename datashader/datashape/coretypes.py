@@ -13,7 +13,7 @@ import operator
 
 from math import ceil
 
-import datashape
+from datashader import datashape
 
 import numpy as np
 
@@ -141,7 +141,7 @@ class Mono(with_metaclass(Type, object)):
 
     def __mul__(self, other):
         if isinstance(other, _strtypes):
-            import datashape
+            from datashader import datashape
             return datashape.dshape(other).__rmul__(self)
         if isinstance(other, _inttypes):
             other = Fixed(other)
@@ -152,7 +152,7 @@ class Mono(with_metaclass(Type, object)):
 
     def __rmul__(self, other):
         if isinstance(other, _strtypes):
-            import datashape
+            from datashader import datashape
             return self * datashape.dshape(other)
         if isinstance(other, _inttypes):
             other = Fixed(other)

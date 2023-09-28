@@ -1,7 +1,8 @@
 import pytest
 
-from datashape import (promote, Option, float64, int64, float32, optionify,
-                       string, datetime_ as datetime, dshape)
+from datashader.datashape import (
+    promote, Option, float64, int64, float32, optionify,
+    string, datetime_ as datetime, dshape)
 
 
 def test_simple():

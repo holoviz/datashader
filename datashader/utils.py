@@ -13,7 +13,7 @@ from toolz import memoize
 from xarray import DataArray
 
 import dask.dataframe as dd
-import datashape
+import datashader.datashape as datashape
 
 try:
     from datashader.datatypes import RaggedDtype

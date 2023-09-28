@@ -5,16 +5,15 @@ from warnings import catch_warnings, simplefilter
 import numpy as np
 import pytest
 
-from datashape.discovery import (discover, null, unite_identical, unite_base,
-                                 unite_merge_dimensions, do_one,
-                                 lowest_common_dshape)
-from datashape.coretypes import (int64, float64, complex128, string, bool_,
-                                 Tuple, Record, date_, datetime_, time_,
-                                 timedelta_, int32, var, Option, real, Null,
-                                 TimeDelta, String, float32, R)
-from datashape.py2help import PY2, CPYTHON, mappingproxy, OrderedDict
-from datashape.util.testing import assert_dshape_equal
-from datashape import dshape
+from datashader.datashape.discovery import (
+    discover, null, unite_identical, unite_base, unite_merge_dimensions, do_one,
+    lowest_common_dshape)
+from datashader.datashape.coretypes import (
+    int64, float64, complex128, string, bool_, Tuple, Record, date_, datetime_, time_,
+    timedelta_, int32, var, Option, real, Null, TimeDelta, String, float32, R)
+from datashader.datashape.py2help import PY2, CPYTHON, mappingproxy, OrderedDict
+from datashader.datashape.util.testing import assert_dshape_equal
+from datashader.datashape import dshape
 from datetime import date, time, datetime, timedelta
 
 

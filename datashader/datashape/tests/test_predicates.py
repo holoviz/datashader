@@ -1,8 +1,8 @@
 import pytest
 
-from datashape import dshape
-from datashape.predicates import isfixed, _dimensions, isnumeric, isscalar
-from datashape.coretypes import TypeVar, int32, Categorical
+from datashader.datashape import dshape
+from datashader.datashape.predicates import isfixed, _dimensions, isnumeric, isscalar
+from datashader.datashape.coretypes import TypeVar, int32, Categorical
 
 
 def test_isfixed():

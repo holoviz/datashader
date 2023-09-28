@@ -3,8 +3,8 @@ import copy
 from enum import Enum
 from packaging.version import Version
 import numpy as np
-from datashape import dshape, isnumeric, Record, Option
-from datashape import coretypes as ct
+from datashader.datashape import dshape, isnumeric, Record, Option
+from datashader.datashape import coretypes as ct
 from toolz import concat, unique
 import xarray as xr
 

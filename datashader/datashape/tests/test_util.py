@@ -1,7 +1,7 @@
 import pytest
 
-import datashape
-from datashape import dshape, has_var_dim, has_ellipsis
+from datashader import datashape
+from datashader.datashape import dshape, has_var_dim, has_ellipsis
 
 
 def test_cat_dshapes():

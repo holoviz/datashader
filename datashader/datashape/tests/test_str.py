@@ -1,8 +1,8 @@
 import unittest
 import pytest
 
-import datashape
-from datashape import dshape, DataShapeSyntaxError
+from datashader import datashape
+from datashader.datashape import dshape, DataShapeSyntaxError
 
 
 class TestDataShapeStr(unittest.TestCase):

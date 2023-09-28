@@ -1,4 +1,4 @@
-import datashape
+from datashader import datashape
 import pytest
 
 

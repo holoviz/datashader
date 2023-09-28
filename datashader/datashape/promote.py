@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 import numpy as np
-import datashape
+from datashader import datashape
 
 
 __all__ = ['promote', 'optionify']

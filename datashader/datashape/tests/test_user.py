@@ -1,7 +1,7 @@
 import pytest
 
-from datashape.user import *
-from datashape import dshape
+from datashader.datashape.user import *
+from datashader.datashape import dshape
 from datetime import date, time, datetime
 import numpy as np
 

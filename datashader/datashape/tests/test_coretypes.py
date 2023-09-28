@@ -6,7 +6,7 @@ import sys
 import numpy as np
 import pytest
 
-from datashape.coretypes import (
+from datashader.datashape.coretypes import (
     CType,
     Categorical,
     DataShape,
@@ -31,7 +31,7 @@ from datashape.coretypes import (
     null,
     real,
 )
-from datashape import (
+from datashader.datashape import (
     Bytes,
     datetime_,
     date_,
@@ -48,7 +48,7 @@ from datashape import (
     uint32,
     var,
 )
-from datashape.py2help import unicode, OrderedDict
+from datashader.datashape.py2help import unicode, OrderedDict
 
 
 @pytest.fixture

@@ -5,8 +5,8 @@ import unittest
 
 import pytest
 
-import datashape
-from datashape import dshape, error, DataShape, Record
+from datashader import datashape
+from datashader.datashape import dshape, error, DataShape, Record
 
 
 class TestDataShapeCreation(unittest.TestCase):

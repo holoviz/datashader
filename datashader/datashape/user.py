@@ -1,5 +1,5 @@
 from __future__ import print_function, division, absolute_import
-from datashape.dispatch import dispatch
+from .dispatch import dispatch
 from .coretypes import *
 from .predicates import isdimension
 from .util import dshape

@@ -6,8 +6,8 @@ from __future__ import absolute_import, division, print_function
 
 import unittest
 
-import datashape
-from datashape import lexer
+from datashader import datashape
+from datashader.datashape import lexer
 
 
 class TestDataShapeLexer(unittest.TestCase):

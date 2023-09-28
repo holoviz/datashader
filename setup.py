@@ -11,6 +11,7 @@ import pyct.build
 install_requires = [
     'colorcet',
     'dask',
+    'multipledispatch',
     'numba',
     'numpy',
     'pandas',
