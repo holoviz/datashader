@@ -1,6 +1,3 @@
-import sys
-import itertools
-
 # Portions of this taken from the six library, licensed as follows.
 #
 # Copyright (c) 2010-2013 Benjamin Peterson
@@ -24,6 +21,4 @@ import itertools
 # SOFTWARE.
 
 _inttypes = (int,)
-unicode = str
-basestring = str
 _strtypes = (str,)

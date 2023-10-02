@@ -21,8 +21,6 @@ import numpy as np
 from .py2help import (
     _inttypes,
     _strtypes,
-    basestring,
-    unicode,
 )
 from .internal_utils import IndexCallable, isidentifier
 
@@ -392,7 +390,7 @@ class String(Unit):
 
         encoding = encoding or 'U8'
         if isinstance(encoding, str):
-            encoding = unicode(encoding)
+            encoding = str(encoding)
         try:
             encoding = _canonical_string_encodings[encoding]
         except KeyError:
@@ -434,10 +432,9 @@ class String(Unit):
             else:
                 return np.dtype('U%d' % self.fixlen)
 
-        from .py2help import unicode
         # Create a dtype with metadata indicating it's
         # a string in the same style as the h5py special_dtype
-        return np.dtype('O', metadata={'vlen': unicode})
+        return np.dtype('O', metadata={'vlen': str})
 
 
 class Decimal(Unit):
@@ -956,7 +953,7 @@ class RecordMeta(Type):
         name, type_ = packed = s.start, s.stop
         if name is None:
             raise TypeError('missing field name at position %d' % idx)
-        if not isinstance(name, basestring):
+        if not isinstance(name, str):
             raise TypeError(
                 "field name at position %d ('%s') was not a string" % (
                     idx, name,

@@ -48,7 +48,6 @@ from datashader.datashape import (
     uint32,
     var,
 )
-from datashader.datashape.py2help import unicode
 
 
 @pytest.fixture
@@ -338,7 +337,7 @@ def test_record_string():
 
 
 def test_record_with_unicode_name_as_numpy_dtype():
-    r = Record([(unicode('a'), 'int32')])
+    r = Record([(str('a'), 'int32')])
     assert r.to_numpy_dtype() == np.dtype([('a', 'i4')])
 
 
@@ -650,9 +649,9 @@ def test_invalid_record_literal(invalid):
 @pytest.mark.parametrize(
     ['names', 'typ'],
     [
-        (['foo', b'\xc4\x87'.decode('utf8')], unicode),
+        (['foo', b'\xc4\x87'.decode('utf8')], str),
         (['foo', 'bar'], str),
-        (list(u'ab'), unicode)
+        (list(u'ab'), str)
     ]
 )
 def test_unicode_record_names(names, typ):
