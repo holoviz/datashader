@@ -223,7 +223,7 @@ class DataShapeParser(object):
                     self.pos = saved_pos
                     return None
                 self.advance_tok()
-                args = self.parse_type_arg_list()
+                args = self.parse_type_arg_list()   # noqa: F841
                 if self.tok.id == lexer.RBRACKET:
                     self.advance_tok()
                     raise NotImplementedError(

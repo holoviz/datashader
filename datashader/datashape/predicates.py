@@ -2,9 +2,9 @@ import numpy as np
 
 from .util import collect, dshape
 from .internal_utils import remove
-from .coretypes import (DataShape, Fixed, Var, Ellipsis, Record, Tuple, Unit,
-                        date_, datetime_, TypeVar, to_numpy_dtype, Map,
-                        Option, Categorical)
+from .coretypes import (DataShape, Fixed, Var, Ellipsis, Record, Unit,
+                        date_, datetime_, TypeVar, to_numpy_dtype,
+                        Categorical)
 from .typesets import floating, boolean
 
 # https://github.com/blaze/datashape/blob/master/docs/source/types.rst

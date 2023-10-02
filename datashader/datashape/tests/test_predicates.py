@@ -1,6 +1,3 @@
-import pytest
-
-from datashader.datashape import dshape
 from datashader.datashape.predicates import isfixed, _dimensions, isnumeric, isscalar
 from datashader.datashape.coretypes import TypeVar, int32, Categorical
 

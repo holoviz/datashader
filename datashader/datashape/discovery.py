@@ -69,7 +69,7 @@ def discover(obj, **kwargs):
 
 
 @dispatch(_inttypes)
-def discover(i):
+def discover(i):  # noqa: F811
     return int64
 
 
@@ -80,52 +80,52 @@ npinttypes = tuple(chain.from_iterable((x for x in subclasses(icls)
 
 
 @dispatch(bytes)
-def discover(b):
+def discover(b):  # noqa: F811
     return String('A')
 
 
 @dispatch(npinttypes)
-def discover(n):
+def discover(n):  # noqa: F811
     return from_numpy((), n.dtype)
 
 
 @dispatch(float)
-def discover(f):
+def discover(f):  # noqa: F811
     return float64
 
 
 @dispatch(bool)
-def discover(b):
+def discover(b):  # noqa: F811
     return bool_
 
 
 @dispatch(complex)
-def discover(z):
+def discover(z):  # noqa: F811
     return complex128
 
 
 @dispatch(datetime)
-def discover(dt):
+def discover(dt):  # noqa: F811
     return datetime_
 
 
 @dispatch(timedelta)
-def discover(td):
+def discover(td):  # noqa: F811
     return TimeDelta(unit='us')
 
 
 @dispatch(date)
-def discover(dt):
+def discover(dt):  # noqa: F811
     return date_
 
 
 @dispatch(time)
-def discover(t):
+def discover(t):  # noqa: F811
     return time_
 
 
 @dispatch((type(None), Null))
-def discover(i):
+def discover(i):  # noqa: F811
     return null
 
 
@@ -173,7 +173,7 @@ def is_zero_time(t):
 
 
 @dispatch(_strtypes)
-def discover(s):
+def discover(s):  # noqa: F811
     if not s:
         return null
 
@@ -198,7 +198,7 @@ def discover(s):
 
 
 @dispatch((tuple, list, set, frozenset))
-def discover(seq):
+def discover(seq):  # noqa: F811
     if not seq:
         return var * string
     unite = do_one([unite_identical, unite_base, unite_merge_dimensions])

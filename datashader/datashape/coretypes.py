@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from __future__ import print_function, division, absolute_import
 
 """
@@ -7,7 +5,6 @@ This defines the DataShape type system, with unified
 shape and data type.
 """
 
-import sys
 import ctypes
 import operator
 

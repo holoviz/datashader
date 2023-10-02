@@ -1,6 +1,6 @@
 import pytest
 
-from datashader.datashape.user import *
+from datashader.datashape.user import issubschema, validate
 from datashader.datashape import dshape
 from datetime import date, time, datetime
 import numpy as np

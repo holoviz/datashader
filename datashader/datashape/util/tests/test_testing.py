@@ -150,7 +150,7 @@ def test_string():
     with pytest.raises(AssertionError) as e:
         assert_dshape_equal(String('U8'), String('U16'))
 
-    assert "{u}'U8' != {u}'U16'".format(u'') in str(e.value)
+    assert "'U8' != 'U16'" in str(e.value)
     assert '_.encoding' in str(e.value)
 
     with pytest.raises(AssertionError) as e:
