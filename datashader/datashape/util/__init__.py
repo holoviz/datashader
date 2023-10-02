@@ -90,12 +90,12 @@ def cat_dshapes(dslist):
 def collect(pred, expr):
     """ Collect terms in expression that match predicate
 
-    >>> from datashape import Unit, dshape
+    >>> from datashader.datashape import Unit, dshape
     >>> predicate = lambda term: isinstance(term, Unit)
     >>> dshape = dshape('var * {value: int64, loc: 2 * int32}')
     >>> sorted(set(collect(predicate, dshape)), key=str)
     [Fixed(val=2), ctype("int32"), ctype("int64"), Var()]
-    >>> from datashape import var, int64
+    >>> from datashader.datashape import var, int64
     >>> sorted(set(collect(predicate, [var, int64])), key=str)
     [ctype("int64"), Var()]
     """

@@ -515,7 +515,7 @@ class DataShape(Mono):
     Examples
     --------
 
-    >>> from datashape import Fixed, int32, DataShape, dshape
+    >>> from datashader.datashape import Fixed, int32, DataShape, dshape
 
     >>> DataShape(Fixed(5), int32)  # Rare to DataShape directly
     dshape("5 * int32")
@@ -586,7 +586,7 @@ class DataShape(Mono):
         """Returns a data shape object of the subarray with 'leading'
         dimensions removed.
 
-        >>> from datashape import dshape
+        >>> from datashader.datashape import dshape
         >>> dshape('1 * 2 * 3 * int32').subarray(1)
         dshape("2 * 3 * int32")
         >>> dshape('1 * 2 * 3 * int32').subarray(2)
@@ -612,7 +612,7 @@ class DataShape(Mono):
     def _subshape(self, index):
         """ The DataShape of an indexed subarray
 
-        >>> from datashape import dshape
+        >>> from datashader.datashape import dshape
 
         >>> ds = dshape('var * {name: string, amount: int32}')
         >>> print(ds.subshape[0])
@@ -758,7 +758,7 @@ class CType(Unit):
         """
         From Numpy dtype.
 
-        >>> from datashape import CType
+        >>> from datashader.datashape import CType
         >>> from numpy import dtype
         >>> CType.from_numpy_dtype(dtype('int32'))
         ctype("int32")
@@ -909,7 +909,7 @@ class Map(Mono):
 def _launder(x):
     """ Clean up types prior to insertion into DataShape
 
-    >>> from datashape import dshape
+    >>> from datashader.datashape import dshape
     >>> _launder(5)         # convert ints to Fixed
     Fixed(val=5)
     >>> _launder('int32')   # parse strings
@@ -1255,7 +1255,7 @@ def to_numpy(ds):
     Downcast a datashape object into a Numpy (shape, dtype) tuple if
     possible.
 
-    >>> from datashape import dshape, to_numpy
+    >>> from datashader.datashape import dshape, to_numpy
     >>> to_numpy(dshape('5 * 5 * int32'))
     ((5, 5), dtype('int32'))
     >>> to_numpy(dshape('10 * string[30]'))
@@ -1287,7 +1287,7 @@ def from_numpy(shape, dt):
     """
     Upcast a (shape, dtype) tuple if possible.
 
-    >>> from datashape import from_numpy
+    >>> from datashader.datashape import from_numpy
     >>> from numpy import dtype
     >>> from_numpy((5, 5), dtype('int32'))
     dshape("5 * 5 * int32")
@@ -1324,7 +1324,7 @@ def print_unicode_string(s):
 def pprint(ds, width=80):
     ''' Pretty print a datashape
 
-    >>> from datashape import dshape, pprint
+    >>> from datashader.datashape import dshape, pprint
     >>> print(pprint(dshape('5 * 3 * int32')))
     5 * 3 * int32
 

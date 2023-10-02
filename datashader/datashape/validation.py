@@ -34,7 +34,7 @@ def validate(ds):
 
     Examples
     --------
-    >>> from datashape import dshape
+    >>> from datashader.datashape import dshape
     >>> dshape('10 * int32')
     dshape("10 * int32")
     >>> dshape('... * int32')

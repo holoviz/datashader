@@ -397,7 +397,7 @@ def lnglat_to_meters(longitude, latitude):
 
 # Heavily inspired by odo
 def dshape_from_pandas_helper(col):
-    """Return an object from datashape.coretypes given a column from a pandas
+    """Return an object from datashader.datashape.coretypes given a column from a pandas
     dataframe.
     """
     if (isinstance(col.dtype, type(pd.Categorical.dtype)) or

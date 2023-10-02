@@ -353,7 +353,7 @@ def unpack(ds):
 
     Record packs inputs in DataShape containers.  This unpacks it.
 
-    >>> from datashape import dshape
+    >>> from datashader.datashape import dshape
     >>> unpack(dshape('string'))
     ctype("string")
     """

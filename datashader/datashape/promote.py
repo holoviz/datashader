@@ -12,7 +12,7 @@ def promote(lhs, rhs, promote_option=True):
 
     Examples
     --------
-    >>> from datashape import int32, int64, Option, string
+    >>> from datashader.datashape import int32, int64, Option, string
     >>> x = Option(int32)
     >>> y = int64
     >>> promote(x, y)
@@ -34,7 +34,7 @@ def promote(lhs, rhs, promote_option=True):
 
     Notes
     ----
-    Except for ``datashape.string`` types, this uses ``numpy.result_type`` for
+    Except for ``datashader.datashape.string`` types, this uses ``numpy.result_type`` for
     type promotion logic.  See the numpy documentation at:
 
     http://docs.scipy.org/doc/numpy/reference/generated/numpy.result_type.html
@@ -61,7 +61,7 @@ def optionify(lhs, rhs, dshape):
 
     Examples
     --------
-    >>> from datashape import int32, int64, Option
+    >>> from datashader.datashape import int32, int64, Option
     >>> x = Option(int32)
     >>> x
     Option(ty=ctype("int32"))

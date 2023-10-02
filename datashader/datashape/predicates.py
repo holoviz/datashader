@@ -53,7 +53,7 @@ def isrecord(ds):
 def isdimension(ds):
     """ Is a component a dimension?
 
-    >>> from datashape import int32
+    >>> from datashader.datashape import int32
     >>> isdimension(Fixed(10))
     True
     >>> isdimension(Var())
@@ -67,7 +67,7 @@ def isdimension(ds):
 def ishomogeneous(ds):
     """ Does datashape contain only one dtype?
 
-    >>> from datashape import int32
+    >>> from datashader.datashape import int32
     >>> ishomogeneous(int32)
     True
     >>> ishomogeneous('var * 3 * string')
