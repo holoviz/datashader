@@ -934,8 +934,7 @@ def _launder(x):
         return x[0]
     if isinstance(x, Mono):
         return x
-
-    raise TypeError("Received unsupported type {}".format(x))
+    return x
 
 
 class CollectionPrinter(object):

@@ -690,16 +690,3 @@ def test_record_parse_optional(b, c):
         [ty for ty in b.types] ==
         [oty.ty for oty in c.types]
     )
-
-
-def test_launder_raises():
-
-    with pytest.raises(TypeError) as exc:
-        Record([('y', int)])
-
-    returned_err = str(exc)
-
-    # Py 2/3 differences mean that 2 will error with <type 'int'> and 3 will
-    # error with <class 'int'>
-    assert "Received unsupported type" in returned_err
-    assert "int" in returned_err
