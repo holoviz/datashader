@@ -11,7 +11,7 @@ from datashader import datashape
 from datashader.datashape.util.testing import assert_dshape_equal
 from datashader.datashape.parser import parse
 from datashader.datashape import coretypes as ct
-from datashape import DataShapeSyntaxError
+from datashader.datashape import DataShapeSyntaxError
 
 
 @pytest.fixture

@@ -99,7 +99,7 @@ class TestToNumpyDtype(object):
         assert to_numpy_dtype(dshape('2 * string')) == np.dtype('O')
 
     def test_dimensions(self):
-        return to_numpy_dtype(dshape('var * int32')) == np.int32
+        assert to_numpy_dtype(dshape('var * int32')) == np.int32
 
     def test_timedelta(self):
         assert to_numpy_dtype(dshape('2 * timedelta')) == np.dtype('m8[us]')
