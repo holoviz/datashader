@@ -4,7 +4,7 @@ Kill me now.
 """
 import pytest
 
-from datashape.coretypes import (
+from datashader.datashape.coretypes import (
     DateTime,
     R,
     String,
@@ -15,8 +15,8 @@ from datashape.coretypes import (
     int32,
     float32,
 )
-from datashape.util import dshape
-from datashape.util.testing import assert_dshape_equal
+from datashader.datashape.util import dshape
+from datashader.datashape.util.testing import assert_dshape_equal
 
 
 def test_datashape_measure():
