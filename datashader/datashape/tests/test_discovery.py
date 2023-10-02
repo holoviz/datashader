@@ -1,5 +1,6 @@
+from collections import OrderedDict
 from itertools import starmap
-import sys
+from types import MappingProxyType
 from warnings import catch_warnings, simplefilter
 
 import numpy as np
@@ -11,7 +12,6 @@ from datashader.datashape.discovery import (
 from datashader.datashape.coretypes import (
     int64, float64, complex128, string, bool_, Tuple, Record, date_, datetime_, time_,
     timedelta_, int32, var, Option, real, Null, TimeDelta, String, float32, R)
-from datashader.datashape.py2help import PY2, CPYTHON, mappingproxy, OrderedDict
 from datashader.datashape.util.testing import assert_dshape_equal
 from datashader.datashape import dshape
 from datetime import date, time, datetime, timedelta
@@ -24,11 +24,6 @@ def test_simple():
     assert discover('Hello') == string
     assert discover(True) == bool_
     assert discover(None) == null
-
-
-def test_long():
-    if sys.version_info[0] == 2:
-        assert eval('discover(3L)') == int64
 
 
 def test_list():
@@ -61,13 +56,10 @@ def test_record():
                     ['name', discover('Alice')]]))
 
 
-@pytest.mark.skipif(
-    PY2 and not CPYTHON,
-    reason='We cannot create mapping proxies in python 2 when not in CPython')
 def test_mappingproxy():
     d = {'a': np.int64(1), 'b': 'cs', 'c': np.float32(1.0)}
     assert_dshape_equal(
-        discover(mappingproxy(d)),
+        discover(MappingProxyType(d)),
         discover(d),
     )
 
@@ -320,10 +312,6 @@ def test_discover_array_like():
     assert 'MyArray' in str(wl[0].message)
 
 
-@pytest.mark.xfail(sys.version_info[0] == 2,
-                   raises=AssertionError,
-                   reason=('discovery behavior is different for raw strings '
-                           'in python 2'))
 def test_discover_bytes():
     x = b'abcdefg'
     assert discover(x) == String('A')

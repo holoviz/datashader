@@ -1,10 +1,11 @@
 from __future__ import print_function, division, absolute_import
 
+from collections import OrderedDict
 from datetime import datetime, date, time, timedelta
 from itertools import chain
 import re
-import sys
 from textwrap import dedent
+from types import MappingProxyType
 from warnings import warn
 
 from dateutil.parser import parse as dateparse
@@ -16,7 +17,7 @@ from .coretypes import (int32, int64, float64, bool_, complex128, datetime_,
                         Record, string, Null, DataShape, real, date_, time_,
                         Unit, timedelta_, TimeDelta, object_, String)
 from .predicates import isdimension, isrecord
-from .py2help import _strtypes, _inttypes, MappingProxyType, OrderedDict
+from .py2help import _strtypes, _inttypes
 from .internal_utils import _toposort, groupby
 from .util import subclasses
 
@@ -78,10 +79,9 @@ npinttypes = tuple(chain.from_iterable((x for x in subclasses(icls)
                                        for icls in subclasses(np.integer)))
 
 
-if sys.version_info[0] == 3:
-    @dispatch(bytes)
-    def discover(b):
-        return String('A')
+@dispatch(bytes)
+def discover(b):
+    return String('A')
 
 
 @dispatch(npinttypes)

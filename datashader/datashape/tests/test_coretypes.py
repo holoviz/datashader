@@ -1,7 +1,7 @@
+from collections import OrderedDict
 import datetime
 from operator import getitem
 import pickle
-import sys
 
 import numpy as np
 import pytest
@@ -48,7 +48,7 @@ from datashader.datashape import (
     uint32,
     var,
 )
-from datashader.datashape.py2help import unicode, OrderedDict
+from datashader.datashape.py2help import unicode
 
 
 @pytest.fixture
@@ -342,10 +342,6 @@ def test_record_with_unicode_name_as_numpy_dtype():
     assert r.to_numpy_dtype() == np.dtype([('a', 'i4')])
 
 
-@pytest.mark.xfail(
-    sys.version_info < (2, 7),
-    reason='OrderedDict not supported before 2.7',
-)
 def test_record_from_OrderedDict():
     r = Record(OrderedDict([('a', 'int32'), ('b', 'float64')]))
     assert r.to_numpy_dtype() == np.dtype([('a', 'i4'), ('b', 'f8')])

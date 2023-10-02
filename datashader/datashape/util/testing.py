@@ -1,6 +1,5 @@
-from abc import ABCMeta
+from abc import ABC
 
-from ..py2help import with_metaclass
 from ..coretypes import (
     DataShape,
     DateTime,
@@ -99,7 +98,7 @@ def assert_dshape_equal(a, b, check_dim=True, path=None, **kwargs):
     )
 
 
-class Slotted(with_metaclass(ABCMeta)):
+class Slotted(ABC):
     @classmethod
     def __subclasshook__(cls, subcls):
         return hasattr(subcls, '__slots__')

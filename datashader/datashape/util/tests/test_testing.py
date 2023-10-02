@@ -15,7 +15,6 @@ from datashape.coretypes import (
     int32,
     float32,
 )
-from datashape.py2help import PY2
 from datashape.util import dshape
 from datashape.util.testing import assert_dshape_equal
 
@@ -151,7 +150,7 @@ def test_string():
     with pytest.raises(AssertionError) as e:
         assert_dshape_equal(String('U8'), String('U16'))
 
-    assert "{u}'U8' != {u}'U16'".format(u='u' if PY2 else '') in str(e.value)
+    assert "{u}'U8' != {u}'U16'".format(u'') in str(e.value)
     assert '_.encoding' in str(e.value)
 
     with pytest.raises(AssertionError) as e:

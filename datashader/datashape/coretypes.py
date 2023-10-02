@@ -11,6 +11,7 @@ import sys
 import ctypes
 import operator
 
+from collections import OrderedDict
 from math import ceil
 
 from datashader import datashape
@@ -18,12 +19,10 @@ from datashader import datashape
 import numpy as np
 
 from .py2help import (
-    OrderedDict,
     _inttypes,
     _strtypes,
     basestring,
     unicode,
-    with_metaclass,
 )
 from .internal_utils import IndexCallable, isidentifier
 
@@ -57,7 +56,7 @@ class Type(type):
         return cls._registry[name]
 
 
-class Mono(with_metaclass(Type, object)):
+class Mono(metaclass=Type):
 
     """
     Monotype are unqualified 0 parameters.
@@ -981,38 +980,7 @@ class RecordMeta(Type):
         return self(list(map(self._unpack_slice, types, range(len(types)))))
 
 
-if sys.version_info[:2] == (2, 7):
-    def unify_name_types(names):
-        """ Construct the names of fields in a Record datashape to have a single
-        string type
-
-        Parameters
-        ----------
-        names : list[str|unicode]
-            List of field names for a Record datashape
-
-        Returns
-        -------
-        list[str|unicode]
-            A list of strings of a *single* type: either str (Python 2 and 3)
-            or unicode (Python 2 only)
-
-        Examples
-        --------
-        >>> unify_name_types([u'a', 'b']) == list(u'ab')
-        True
-        >>> unify_name_types(list('ab')) == list('ab')
-        True
-        """
-        types = set(map(type, names))
-        if 0 <= len(types) <= 1:
-            return names
-        return list(map(unicode if unicode in types else str, names))
-else:
-    unify_name_types = lambda x: x
-
-
-class Record(with_metaclass(RecordMeta, CollectionPrinter, Mono)):
+class Record(CollectionPrinter, Mono, metaclass=RecordMeta):
     """
     A composite data structure of ordered fields mapped to types.
 
@@ -1046,10 +1014,10 @@ class Record(with_metaclass(RecordMeta, CollectionPrinter, Mono)):
         if isinstance(fields, OrderedDict):
             fields = fields.items()
         fields = list(fields)
-        names = unify_name_types([
+        names = [
             str(name) if not isinstance(name, _strtypes) else name
             for name, _ in fields
-        ])
+        ]
         types = [_launder(v) for _, v in fields]
 
         if len(set(names)) != len(names):
