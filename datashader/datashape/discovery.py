@@ -158,7 +158,7 @@ def deltaparse(x):
         ...
     ValueError: floating point timedelta value not supported
     """
-    value, unit = re.split('\s+', x.strip())
+    value, unit = re.split(r'\s+', x.strip())
     value = float(value)
     if not value.is_integer():
         raise ValueError('floating point timedelta values not supported')
