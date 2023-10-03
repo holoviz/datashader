@@ -1,8 +1,8 @@
 from __future__ import annotations
-from datashape import dshape
 import numpy as np
 from xarray import DataArray
 
+from datashader.datashape import dshape
 from datashader.utils import Dispatcher, apply, calc_res, isreal, orient_array
 
 
