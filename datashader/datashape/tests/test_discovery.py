@@ -299,7 +299,7 @@ def test_letters_only_strings():
 
 
 def test_discover_array_like():
-    class MyArray(object):
+    class MyArray:
         def __init__(self, shape, dtype):
             self.shape = shape
             self.dtype = dtype
@@ -318,7 +318,7 @@ def test_discover_bytes():
 
 
 def test_discover_undiscoverable():
-    class MyClass(object):
+    class MyClass:
         pass
     with pytest.raises(NotImplementedError):
         discover(MyClass())

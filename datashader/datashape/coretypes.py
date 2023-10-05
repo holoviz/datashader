@@ -930,7 +930,7 @@ def _launder(x):
     return x
 
 
-class CollectionPrinter(object):
+class CollectionPrinter:
 
     def __repr__(self):
         s = str(self)

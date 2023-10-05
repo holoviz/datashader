@@ -114,7 +114,7 @@ dim_constructor = [
 ]
 
 
-class TypeSymbolTable(object):
+class TypeSymbolTable:
 
     """
     This is a class which holds symbols for types and type constructors,

@@ -7,7 +7,7 @@ from . import reductions
 from . import core
 
 
-class Pipeline(object):
+class Pipeline:
     """A datashading pipeline callback.
 
     Given a declarative specification, creates a callable with the following

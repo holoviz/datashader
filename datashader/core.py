@@ -32,7 +32,7 @@ try:
 except Exception:
     spatialpandas = None
 
-class Axis(object):
+class Axis:
     """Interface for implementing axis transformations.
 
     Instances hold implementations of transformations to and from axis space.
@@ -150,7 +150,7 @@ providing the geometry argument. Received:
 """.format(glyph=glyph, x=repr(x), y=repr(y), geometry=repr(geometry)))
 
 
-class Canvas(object):
+class Canvas:
     """An abstract canvas representing the space in which to bin.
 
     Parameters

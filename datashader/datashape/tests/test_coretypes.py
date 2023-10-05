@@ -81,7 +81,7 @@ def test_error_on_datashape_with_string_argument():
         DataShape('5 * int32')
 
 
-class TestToNumpyDtype(object):
+class TestToNumpyDtype:
 
     def test_simple(self):
         assert to_numpy_dtype(dshape('2 * int32')) == np.int32
@@ -135,7 +135,7 @@ def test_timedelta_aliases():
                 dshape('timedelta[unit=%r]' % _unit_aliases[alias]))
 
 
-class TestFromNumPyDtype(object):
+class TestFromNumPyDtype:
 
     def test_int32(self):
         assert from_numpy((2,), 'int32') == dshape('2 * int32')
@@ -230,7 +230,7 @@ def test_option_passes_itemsize():
             dshape('float32').measure.itemsize)
 
 
-class TestComplexFieldNames(object):
+class TestComplexFieldNames:
 
     """
     The tests in this class should verify that the datashape parser can handle

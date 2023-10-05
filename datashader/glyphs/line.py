@@ -24,7 +24,7 @@ except Exception:
     spatialpandas = None
 
 
-class _AntiAliasedLine(object):
+class _AntiAliasedLine:
     """ Methods common to all lines. """
     _line_width = 0  # Use antialiasing if > 0.
 

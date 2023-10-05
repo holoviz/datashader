@@ -82,7 +82,7 @@ Elements of start_indices must be less than the length of flat_array ({m})
 # Internal ragged element array wrapper that provides
 # equality, ordering, and hashing.
 @total_ordering
-class _RaggedElement(object):
+class _RaggedElement:
 
     @staticmethod
     def ragged_or_nan(a):
