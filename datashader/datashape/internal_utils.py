@@ -10,7 +10,7 @@ import keyword
 import re
 
 
-class IndexCallable(object):
+class IndexCallable:
     """ Provide getitem syntax for functions
 
     >>> def inc(x):

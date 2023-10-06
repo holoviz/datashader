@@ -185,7 +185,7 @@ def get_gradients(img):
     return (vert, horiz)
 
 
-class BaseSegment(object):
+class BaseSegment:
     @classmethod
     def create_delimiter(cls):
         return np.full((1, cls.ndims), np.nan)

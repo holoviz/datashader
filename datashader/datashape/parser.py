@@ -12,7 +12,7 @@ from . import coretypes
 __all__ = ['parse']
 
 
-class DataShapeParser(object):
+class DataShapeParser:
     """A DataShape parser object."""
     def __init__(self, ds_str, sym):
         # The datashape string being parsed

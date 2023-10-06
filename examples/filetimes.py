@@ -33,7 +33,7 @@ DEBUG = False
 DD_FORCE_LOAD = False
 DASK_CLIENT = None
 
-class Parameters(object):
+class Parameters:
     base,x,y='data','x','y'
     dftype='pandas'
     categories=[]

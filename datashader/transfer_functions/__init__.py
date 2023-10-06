@@ -62,7 +62,7 @@ class Image(xr.DataArray):
 
 
 
-class Images(object):
+class Images:
     """
     A list of HTML-representable objects to display in a table.
     Primarily intended for Image objects, but could be anything

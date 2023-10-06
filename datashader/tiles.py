@@ -124,7 +124,7 @@ def invert_y_tile(y, z):
 
 
 # TODO: change name from source to definition
-class MercatorTileDefinition(object):
+class MercatorTileDefinition:
     ''' Implementation of mercator tile source
     In general, tile sources are used as a required input for ``TileRenderer``.
 
@@ -277,7 +277,7 @@ class MercatorTileDefinition(object):
         return (xmin, ymin, xmax, ymax)
 
 
-class TileRenderer(object):
+class TileRenderer:
 
     def __init__(self, tile_definition, output_location, tile_format='PNG',
                  post_render_func=None):

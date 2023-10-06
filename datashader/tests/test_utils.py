@@ -12,7 +12,7 @@ def test_Dispatcher():
     foo.register(float, lambda a, b, c=1: a - b + c)
     foo.register(object, lambda a, b, c=1: 10)
 
-    class Bar(object):
+    class Bar:
         pass
     b = Bar()
     assert foo(1, 2) == 4

@@ -49,7 +49,7 @@ numba_version = tuple([int(x) for x in re.match(
                             nb.__version__).groups()])
 
 
-class Expr(object):
+class Expr:
     """Base class for expression-like objects.
 
     Implements hashing and equality checks. Subclasses should implement an
@@ -83,7 +83,7 @@ class Expr(object):
         return tuple(result)
 
 
-class Dispatcher(object):
+class Dispatcher:
     """Simple single dispatch."""
     def __init__(self):
         self._lookup = {}

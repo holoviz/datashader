@@ -82,7 +82,7 @@ def matches_typeset(types, signature):
     return match
 
 
-class TypesetRegistry(object):
+class TypesetRegistry:
     def __init__(self):
         self.registry = {}
         self.lookup = self.registry.get
