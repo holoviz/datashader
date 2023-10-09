@@ -40,6 +40,7 @@ def values(s):
 class _GeometryLike(Glyph):
     def __init__(self, geometry):
         self.geometry = geometry
+        self._cached_bounds = None
 
     @property
     def ndims(self):
@@ -80,7 +81,9 @@ class _GeometryLike(Glyph):
         col = df[self.geometry]
         if isinstance(col.dtype, gpd_GeometryDtype):
             # geopandas
-            bounds = col.total_bounds[::2]
+            if self._cached_bounds is None:
+                self._cached_bounds = col.total_bounds
+            bounds = self._cached_bounds[::2]
         else:
             # spatialpandas
             bounds = col.array.total_bounds_x
@@ -90,7 +93,9 @@ class _GeometryLike(Glyph):
         col = df[self.geometry]
         if isinstance(col.dtype, gpd_GeometryDtype):
             # geopandas
-            bounds = col.total_bounds[1::2]
+            if self._cached_bounds is None:
+                self._cached_bounds = col.total_bounds
+            bounds = self._cached_bounds[1::2]
         else:
             # spatialpandas
             bounds = col.array.total_bounds_y
