@@ -10,13 +10,6 @@ try:
 except Exception:
     spatialpandas = None
 
-try:
-    import geopandas
-    import shapely
-except:
-    geopandas = None
-    shapely = None
-
 
 class GeopandasPolygonGeom(_GeometryLike):
     @property
@@ -245,6 +238,9 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
 def _build_extend_geopandas_polygon_geometry(
         draw_polygon, expand_aggs_and_cols
 ):
+    # Lazy import shapely. Cannot get here if geopandas and shapely are not available.
+    import shapely
+
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax, geometry, *aggs_and_cols
     ):

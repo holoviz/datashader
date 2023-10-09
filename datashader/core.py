@@ -28,11 +28,6 @@ except Exception:
     dask_cudf = None
 
 try:
-    import geopandas
-except Exception:
-    geopandas = None
-
-try:
     import spatialpandas
 except Exception:
     spatialpandas = None
@@ -738,6 +733,17 @@ The axis argument to Canvas.area must be 0 or 1
         """
         from .glyphs import PolygonGeom
         from .reductions import any as any_rdn
+
+        try:
+            import geopandas
+        except ImportError:
+            geopandas = None
+
+        try:
+            import dask_geopandas
+        except ImportError:
+            dask_geopandas = None
+
         if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
             # Downselect partitions to those that may contain polygons in viewport
             x_range = self.x_range if self.x_range is not None else (None, None)
@@ -746,7 +752,8 @@ The axis argument to Canvas.area must be 0 or 1
             glyph = PolygonGeom(geometry)
         elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
             glyph = PolygonGeom(geometry)
-        elif geopandas and isinstance(source, geopandas.GeoDataFrame):
+        elif ((geopandas and isinstance(source, geopandas.GeoDataFrame)) or
+              (dask_geopandas and isinstance(source, dask_geopandas.GeoDataFrame))):
             from .glyphs.polygon import GeopandasPolygonGeom
             x_range = self.x_range if self.x_range is not None else (None, None)
             y_range = self.y_range if self.y_range is not None else (None, None)
