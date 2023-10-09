@@ -16,6 +16,18 @@ except ImportError:
     GeoDataFrame = None
     MultiPolygonArray = None
 
+try:
+    from geodatasets import get_path
+    import geopandas
+except ImportError:
+    get_path = None
+    geopandas = None
+
+try:
+    import dask_geopandas
+except ImportError:
+    dask_geopandas = None
+
 
 def dask_GeoDataFrame(*args, **kwargs):
     return dd.from_pandas(GeoDataFrame(*args, **kwargs), npartitions=3)
@@ -122,7 +134,7 @@ def test_multiple_polygons_auto_range(DataFrame):
     out = xr.DataArray(sol, coords=[lincoords_y, lincoords_x], dims=['y', 'x'])
 
     assert_eq_xr(agg, out)
-    
+
     assert_eq_ndarray(agg.x_range, (-1, 3.5), close=True)
     assert_eq_ndarray(agg.y_range, (0.1, 2), close=True)
 
@@ -319,3 +331,58 @@ def test_spatial_index_not_dropped():
 
     assert df2.columns == ['some_geom']
     assert df2.some_geom.array._sindex == df.some_geom.array._sindex
+
+
+natural_earth_sol = np.array([
+    [-1,  7,  7,   7,   7,   7,   0,   2,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,  -1],
+    [-1, -1, -1,  -1,   5,  -1,   6,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1],
+    [-1, -1, -1,  -1,  -1,  -1,   9,  -1,  -1,  -1,  -1,  -1,  -1,  10,  -1,  -1,  -1,  -1,  11,  12],
+    [-1, -1, -1,  -1,  -1,  -1,  95,  -1,  -1,  -1,  -1, 112,  -1,  -1,  -1,  -1,  21,  21,  21,  13],
+    [17, -1, -1,  -1,  -1,  -1,  95,  95,  -1,  -1,  -1, 112,  20,  -1,  -1,  -1,  31,  32,  34,  22],
+    [-1, -1, -1,  -1,  -1,  -1,  95,  -1,  -1, 112, 112, 112, 112,  -1,  44,  41,  50,  43,  37,  -1],
+    [-1, 60, -1,  -1,  95,  65,  54,  -1,  -1, 112, 112, 112, 112,  -1, 112, 112,  63,  -1,  -1,  -1],
+    [-1, -1, -1,  95,  95,  95,  74,  -1,  -1,  -1,  72,  68, 112, 112, 112, 112, 112,  71,  73,  -1],
+    [87, 82, 78,  95,  95,  88,  95,  -1,  -1,  80,  83, 112, 112, 112, 112, 112, 112, 112,  -1,  -1],
+    [94, -1, -1, 116, 118, 125, 125, 126, 126,  -1,  -1, 121, 122, 109,  -1, 123,  -1, 101, 106,  93],
+], dtype=np.int64)
+
+
+@pytest.mark.skipif(not geopandas, reason="geopandas not installed")
+def test_natural_earth_geopandas():
+    df = geopandas.read_file(get_path("naturalearth.land"))
+
+    canvas = ds.Canvas(plot_height=10, plot_width=20)
+    agg = canvas.polygons(source=df, geometry="geometry", agg=ds._max_row_index())
+
+    assert_eq_ndarray(agg.data, natural_earth_sol)
+
+
+@pytest.mark.skipif(not geopandas, reason="geopandas not installed")
+@pytest.mark.skipif(not dask_geopandas, reason="dask_geopandas not installed")
+@pytest.mark.parametrize('npartitions', [1, 2, 5])
+def test_natural_earth_dask_geopandas(npartitions):
+    df = geopandas.read_file(get_path("naturalearth.land"))
+    df = dd.from_pandas(df, npartitions=npartitions)
+    assert df.npartitions == npartitions
+    df.calculate_spatial_partitions()
+
+    canvas = ds.Canvas(plot_height=10, plot_width=20)
+    agg = canvas.polygons(source=df, geometry="geometry", agg=ds._max_row_index())
+
+    assert_eq_ndarray(agg.data, natural_earth_sol)
+
+
+@pytest.mark.skipif(not geopandas, reason="geopandas not installed")
+@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
+@pytest.mark.parametrize('npartitions', [0, 1, 2, 5])
+def test_natural_earth_spatialpandas(npartitions):
+    df = geopandas.read_file(get_path("naturalearth.land"))
+    df = spatialpandas.GeoDataFrame(df)
+    if npartitions > 0:
+        df = dd.from_pandas(df, npartitions=npartitions)
+        assert df.npartitions == npartitions
+
+    canvas = ds.Canvas(plot_height=10, plot_width=20)
+    agg = canvas.polygons(source=df, geometry="geometry", agg=ds._max_row_index())
+
+    assert_eq_ndarray(agg.data, natural_earth_sol)
