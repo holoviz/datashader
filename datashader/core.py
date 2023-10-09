@@ -754,6 +754,12 @@ The axis argument to Canvas.area must be 0 or 1
             glyph = PolygonGeom(geometry)
         elif ((geopandas and isinstance(source, geopandas.GeoDataFrame)) or
               (dask_geopandas and isinstance(source, dask_geopandas.GeoDataFrame))):
+            # Explicit shapely version check as cannot continue unless shapely >= 2
+            from packaging.version import Version
+            from shapely import __version__ as shapely_version
+            if Version(shapely_version) < Version('2.0.0'):
+                raise ImportError("Use of GeoPandas in Datashader requires Shapely >= 2.0.0")
+
             from .glyphs.polygon import GeopandasPolygonGeom
             x_range = self.x_range if self.x_range is not None else (None, None)
             y_range = self.y_range if self.y_range is not None else (None, None)
