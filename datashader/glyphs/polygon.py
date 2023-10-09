@@ -248,7 +248,7 @@ def _build_extend_geopandas_polygon_geometry(
     def extend_cpu(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax, geometry, *aggs_and_cols
     ):
-        ragged = shapely.io.to_ragged_array(geometry)
+        ragged = shapely.to_ragged_array(geometry)
         geometry_type = ragged[0]
         if geometry_type not in (shapely.GeometryType.POLYGON, shapely.GeometryType.MULTIPOLYGON):
             raise NotImplementedError
