@@ -24,9 +24,15 @@ install_requires = [
     'xarray',
 ]
 
-examples = [
-    'bokeh >3.1',
+geopandas = [
+    'dask-geopandas',
     'geopandas',
+    'shapely >=2.0.0',
+]
+
+examples = geopandas + [
+    'bokeh >3.1',
+    'geodatasets',
     'holoviews',
     'matplotlib >=3.3',
     'panel >1.1',
@@ -35,8 +41,9 @@ examples = [
 ]
 
 extras_require = {
-    'tests': [
+    'tests': geopandas + [
         'codecov',
+        'geodatasets',
         'fastparquet',  # optional dependency
         'flake8',
         'nbconvert',
@@ -62,7 +69,8 @@ extras_require = {
         'python-graphviz',
         'python-snappy',
         'rasterio',
-    ]
+    ],
+    'geopandas': geopandas,
 }
 
 
