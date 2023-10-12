@@ -22,7 +22,7 @@ def _complex(tp):
         return ct.complex_float64
     else:
         raise TypeError(
-            'Cannot contruct a complex type with real component %s' % tp)
+            'Cannot construct a complex type with real component %s' % tp)
 
 
 def _struct(names, dshapes):
