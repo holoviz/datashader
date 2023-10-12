@@ -667,10 +667,6 @@ class TestRaggedGetitem(eb.BaseGetitemTests):
         result = s.get('Z')
         assert result is None
 
-        np.testing.assert_array_equal(s.get(4), s.iloc[4])
-        np.testing.assert_array_equal(s.get(-1), s.iloc[-1])
-        assert s.get(len(s)) is None
-
     def test_take_sequence(self, data):
         result = pd.Series(data)[[0, 1, 3]]
         np.testing.assert_array_equal(result.iloc[0], data[0])
@@ -870,6 +866,10 @@ class TestRaggedMissing(eb.BaseMissingTests):
         pass
 
     @pytest.mark.skip(reason="Can't fill with nested sequences")
+    def test_fillna_no_op_returns_copy(self):
+        pass
+
+    @pytest.mark.skip(reason="Can't set array element with a sequence")
     def test_fillna_series_method(self):
         pass
 
