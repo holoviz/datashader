@@ -33,7 +33,7 @@ def _validate_ragged_properties(start_indices, flat_array):
     flat_array: numpy array containing concatenation
                 of all nested arrays to be represented
                 by this ragged array
-    start_indices: unsiged integer numpy array the same
+    start_indices: unsigned integer numpy array the same
                    length as the ragged array where values
                    represent the index into flat_array where
                    the corresponding ragged array element
@@ -231,7 +231,7 @@ class RaggedArray(ExtensionArray):
                     - flat_array:  numpy array containing concatenation
                                    of all nested arrays to be represented
                                    by this ragged array
-                    - start_indices: unsiged integer numpy array the same
+                    - start_indices: unsigned integer numpy array the same
                                      length as the ragged array where values
                                      represent the index into flat_array where
                                      the corresponding ragged array element
@@ -385,7 +385,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
     @property
     def start_indices(self):
         """
-        unsiged integer numpy array the same length as the ragged array where
+        unsigned integer numpy array the same length as the ragged array where
         values represent the index into flat_array where the corresponding
         ragged array element begins
 

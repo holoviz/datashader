@@ -25,7 +25,7 @@ from datashader.utils import export_image
 from datashader import transfer_functions as tf
 
 #from multiprocessing.pool import ThreadPool
-#dask.set_options(pool=ThreadPool(3)) # select a pecific number of threads
+#dask.set_options(pool=ThreadPool(3)) # select a specific number of threads
 from dask import distributed
 
 # Toggled by command-line arguments

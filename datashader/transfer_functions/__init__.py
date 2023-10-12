@@ -672,7 +672,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         in proportion to how much each category contributes to the
         final sum.  However, if values can be negative or if they are
         on an interval scale where values e.g. twice as far from zero
-        are not twice as high (such as temperature in Farenheit), then
+        are not twice as high (such as temperature in Fahrenheit), then
         you will need to provide a suitable baseline value for use in
         calculating color mixing.  A value of None (the default) means
         to take the minimum across the entire aggregate array, which

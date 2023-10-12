@@ -2,16 +2,16 @@
 
 The best way to understand how Datashader works is to try out our
 extensive set of examples. [Datashader.org](http://datashader.org)
-includes static versions of the 
-[getting started guide](http://datashader.org/getting_started), 
+includes static versions of the
+[getting started guide](http://datashader.org/getting_started),
 [user manual](http://datashader.org/user_guide), and
 [topic examples](http://datashader.org/topics), but for the full
 experience with dynamic updating you will need to install them on a
-live server. 
+live server.
 
-These instructions assume you are using 
-[conda](https://conda.io/docs/install/quick.html), but they can be 
-adapted as needed to use [pip](https://pip.pypa.io/en/stable/installing/) 
+These instructions assume you are using
+[conda](https://conda.io/docs/install/quick.html), but they can be
+adapted as needed to use [pip](https://pip.pypa.io/en/stable/installing/)
 and [virtualenv](https://virtualenv.pypa.io) if desired.
 
 To get started, first go to your home directory and
@@ -71,7 +71,7 @@ jupyter notebook
 
 If you want the generated notebooks to work without an internet connection or
 with an unreliable connection (e.g. if you see `Loading BokehJS ...` but never
-`BokehJS sucessfully loaded`), then restart the Jupyter notebook server using:
+`BokehJS successfully loaded`), then restart the Jupyter notebook server using:
 
 ```
 BOKEH_RESOURCES=inline jupyter notebook --NotebookApp.iopub_data_rate_limit=100000000

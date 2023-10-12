@@ -75,7 +75,7 @@
 # line whereas for 006 it is a multi-segment line, and each vertex is listed
 # only a single time. Datashader then "connects the dots" as it were.
 #
-# Test 007 tests the edge case, where we draw an almost staright line between
+# Test 007 tests the edge case, where we draw an almost straight line between
 # corners with only a single pixel offset. This is to ensure that anti-aliasing
 # does not try to draw pixels that  are out of bounds. Importantly, this needs
 # to be run with Numba disabled, since Numba does not do OOB checking by

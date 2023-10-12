@@ -58,7 +58,7 @@ def discover(obj, **kwargs):
         warn(
             dedent(
                 """\
-                array-like discovery is deperecated.
+                array-like discovery is deprecated.
                 Please write an explicit discover function for type '%s'.
                 """ % type_name,
             ),

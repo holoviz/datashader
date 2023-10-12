@@ -480,7 +480,7 @@ class OptionalFieldReduction(Reduction):
 class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
     """
     Base class for optional field reductions for which self-intersecting
-    geometry may or may not be desireable.
+    geometry may or may not be desirable.
     Ignored if not using antialiasing.
     """
     def __init__(self, column=None, self_intersect=True):
@@ -946,8 +946,8 @@ class _sum_zero(FloatingReduction):
 
 class SelfIntersectingFloatingReduction(FloatingReduction):
     """
-    Base class fo floating reductions for which self-intersecting geometry
-    may or may not be desireable.
+    Base class for floating reductions for which self-intersecting geometry
+    may or may not be desirable.
     Ignored if not using antialiasing.
     """
     def __init__(self, column=None, self_intersect=True):

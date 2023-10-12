@@ -724,7 +724,7 @@ Minor bugfix release to support Bokeh 0.12:
 Version 0.3.0 (2016-06-23)
 --------------------------
 
-The major feature of this release is support of raster data via ``Canvas.raster``. To use this feature, you must install the optional dependencies via ``conda install rasterio scikit-image``. Rasterio relies on ``gdal`` whose conda package has some known bugs, including a missing dependancy for ``conda install krb5``. InteractiveImage in this release requires bokeh 0.11.1 or earlier, and will not work with bokeh 0.12.
+The major feature of this release is support of raster data via ``Canvas.raster``. To use this feature, you must install the optional dependencies via ``conda install rasterio scikit-image``. Rasterio relies on ``gdal`` whose conda package has some known bugs, including a missing dependency for ``conda install krb5``. InteractiveImage in this release requires bokeh 0.11.1 or earlier, and will not work with bokeh 0.12.
 
 - **PR #160 #187** Improved example notebooks and dashboard
 - **PR #186 #184 #178** Add datashader-download-data cli command for grabbing example datasets

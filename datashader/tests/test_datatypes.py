@@ -115,7 +115,7 @@ def test_validate_ragged_array_fastpath():
         RaggedArray(dict(valid_dict, start_indices=25))
     ve.match('start_indices property of a RaggedArray')
 
-    # not unsiged int
+    # not unsigned int
     with pytest.raises(ValueError) as ve:
         RaggedArray(dict(valid_dict,
                          start_indices=start_indices.astype('float32')))
@@ -148,7 +148,7 @@ def test_validate_ragged_array_fastpath():
 
 
 def test_start_indices_dtype():
-    # The start_indices dtype should be an unsiged int that is only as large
+    # The start_indices dtype should be an unsigned int that is only as large
     # as needed to handle the length of the flat array
 
     # Empty

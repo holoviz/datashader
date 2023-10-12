@@ -133,7 +133,7 @@ Greys9 = ["#000000", "#252525", "#525252", "#737373", "#969696", "#bdbdbd", "#d9
 # Adapted from matplotlib.cm.hot to be more uniform at the high end
 Hot = ["black", "maroon", "darkred", "red", "orangered", "darkorange", "orange", "gold", "yellow", "white"]
 
-# pseudo terrestial elevation ramp
+# pseudo terrestrial elevation ramp
 Elevation = ["aqua", "sandybrown", "limegreen", "green", "green", "darkgreen", "saddlebrown", "gray", "white"]
 
 # Qualitative color maps, for use in colorizing categories
