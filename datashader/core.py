@@ -761,9 +761,16 @@ The axis argument to Canvas.area must be 0 or 1
                 raise ImportError("Use of GeoPandas in Datashader requires Shapely >= 2.0.0")
 
             from .glyphs.polygon import GeopandasPolygonGeom
-            x_range = self.x_range if self.x_range is not None else (None, None)
-            y_range = self.y_range if self.y_range is not None else (None, None)
-            source = source.cx[slice(*x_range), slice(*y_range)]
+            if isinstance(source, geopandas.GeoDataFrame):
+                x_range = self.x_range if self.x_range is not None else (-np.inf, np.inf)
+                y_range = self.y_range if self.y_range is not None else (-np.inf, np.inf)
+                from shapely import box
+                query = source.sindex.query(box(x_range[0], y_range[0], x_range[1], y_range[1]))
+                source = source.iloc[query]
+            else:
+                x_range = self.x_range if self.x_range is not None else (None, None)
+                y_range = self.y_range if self.y_range is not None else (None, None)
+                source = source.cx[slice(*x_range), slice(*y_range)]
             glyph = GeopandasPolygonGeom(geometry)
         else:
             raise ValueError(

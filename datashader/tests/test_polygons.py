@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
 import numpy as np
+from numpy import nan
 import xarray as xr
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
@@ -334,25 +335,26 @@ def test_spatial_index_not_dropped():
 
 
 natural_earth_sol = np.array([
-    [-1,  7,  7,   7,   7,   7,   0,   2,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,  -1],
-    [-1, -1, -1,  -1,   5,  -1,   6,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1],
-    [-1, -1, -1,  -1,  -1,  -1,   9,  -1,  -1,  -1,  -1,  -1,  -1,  10,  -1,  -1,  -1,  -1,  11,  12],
-    [-1, -1, -1,  -1,  -1,  -1,  95,  -1,  -1,  -1,  -1, 112,  -1,  -1,  -1,  -1,  21,  21,  21,  13],
-    [17, -1, -1,  -1,  -1,  -1,  95,  95,  -1,  -1,  -1, 112,  20,  -1,  -1,  -1,  31,  32,  34,  22],
-    [-1, -1, -1,  -1,  -1,  -1,  95,  -1,  -1, 112, 112, 112, 112,  -1,  44,  41,  50,  43,  37,  -1],
-    [-1, 60, -1,  -1,  95,  65,  54,  -1,  -1, 112, 112, 112, 112,  -1, 112, 112,  63,  -1,  -1,  -1],
-    [-1, -1, -1,  95,  95,  95,  74,  -1,  -1,  -1,  72,  68, 112, 112, 112, 112, 112,  71,  73,  -1],
-    [87, 82, 78,  95,  95,  88,  95,  -1,  -1,  80,  83, 112, 112, 112, 112, 112, 112, 112,  -1,  -1],
-    [94, -1, -1, 116, 118, 125, 125, 126, 126,  -1,  -1, 121, 122, 109,  -1, 123,  -1, 101, 106,  93],
-], dtype=np.int64)
+    [nan,   7,   7,   7,   7,   7,   0,   2,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7, nan],
+    [nan, nan, nan, nan,   5, nan,   6, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],
+    [nan, nan, nan, nan, nan, nan,   9, nan, nan, nan, nan, nan, nan,  10, nan, nan, nan, nan,  11,  12],
+    [nan, nan, nan, nan, nan, nan,  95, nan, nan, nan, nan, 112, nan, nan, nan, nan,  21,  21,  21,  13],
+    [ 17, nan, nan, nan, nan, nan,  95,  95, nan, nan, nan, 112,  20, nan, nan, nan,  31,  32,  34,  22],
+    [nan, nan, nan, nan, nan, nan,  95, nan, nan, 112, 112, 112, 112, nan,  44,  41,  50,  43,  37, nan],
+    [nan,  60, nan, nan,  95,  65,  54, nan, nan, 112, 112, 112, 112, nan, 112, 112,  63, nan, nan, nan],
+    [nan, nan, nan,  95,  95,  95,  74, nan, nan, nan,  72,  68, 112, 112, 112, 112, 112,  71,  73, nan],
+    [ 87,  82,  78,  95,  95,  88,  95, nan, nan,  80,  83, 112, 112, 112, 112, 112, 112, 112, nan, nan],
+    [ 94, nan, nan, 116, 118, 125, 125, 126, 126, nan, nan, 121, 122, 109, nan, 123, nan, 101, 106,  93],
+])
 
 
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
 def test_natural_earth_geopandas():
     df = geopandas.read_file(get_path("naturalearth.land"))
+    df["col"] = np.arange(len(df))
 
     canvas = ds.Canvas(plot_height=10, plot_width=20)
-    agg = canvas.polygons(source=df, geometry="geometry", agg=ds._max_row_index())
+    agg = canvas.polygons(source=df, geometry="geometry", agg=ds.max("col"))
 
     assert_eq_ndarray(agg.data, natural_earth_sol)
 
@@ -362,12 +364,13 @@ def test_natural_earth_geopandas():
 @pytest.mark.parametrize('npartitions', [1, 2, 5])
 def test_natural_earth_dask_geopandas(npartitions):
     df = geopandas.read_file(get_path("naturalearth.land"))
+    df["col"] = np.arange(len(df))
     df = dd.from_pandas(df, npartitions=npartitions)
     assert df.npartitions == npartitions
     df.calculate_spatial_partitions()
 
     canvas = ds.Canvas(plot_height=10, plot_width=20)
-    agg = canvas.polygons(source=df, geometry="geometry", agg=ds._max_row_index())
+    agg = canvas.polygons(source=df, geometry="geometry", agg=ds.max("col"))
 
     assert_eq_ndarray(agg.data, natural_earth_sol)
 
@@ -377,12 +380,13 @@ def test_natural_earth_dask_geopandas(npartitions):
 @pytest.mark.parametrize('npartitions', [0, 1, 2, 5])
 def test_natural_earth_spatialpandas(npartitions):
     df = geopandas.read_file(get_path("naturalearth.land"))
+    df["col"] = np.arange(len(df))
     df = spatialpandas.GeoDataFrame(df)
     if npartitions > 0:
         df = dd.from_pandas(df, npartitions=npartitions)
         assert df.npartitions == npartitions
 
     canvas = ds.Canvas(plot_height=10, plot_width=20)
-    agg = canvas.polygons(source=df, geometry="geometry", agg=ds._max_row_index())
+    agg = canvas.polygons(source=df, geometry="geometry", agg=ds.max("col"))
 
     assert_eq_ndarray(agg.data, natural_earth_sol)
