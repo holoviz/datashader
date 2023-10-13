@@ -734,16 +734,6 @@ The axis argument to Canvas.area must be 0 or 1
         from .glyphs import PolygonGeom
         from .reductions import any as any_rdn
 
-        try:
-            import geopandas
-        except ImportError:
-            geopandas = None
-
-        try:
-            import dask_geopandas
-        except ImportError:
-            dask_geopandas = None
-
         if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
             # Downselect partitions to those that may contain polygons in viewport
             x_range = self.x_range if self.x_range is not None else (None, None)
@@ -752,25 +742,9 @@ The axis argument to Canvas.area must be 0 or 1
             glyph = PolygonGeom(geometry)
         elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
             glyph = PolygonGeom(geometry)
-        elif ((geopandas and isinstance(source, geopandas.GeoDataFrame)) or
-              (dask_geopandas and isinstance(source, dask_geopandas.GeoDataFrame))):
-            # Explicit shapely version check as cannot continue unless shapely >= 2
-            from packaging.version import Version
-            from shapely import __version__ as shapely_version
-            if Version(shapely_version) < Version('2.0.0'):
-                raise ImportError("Use of GeoPandas in Datashader requires Shapely >= 2.0.0")
-
+        elif (geopandas_source := self._source_from_geopandas(source)) is not None:
+            source = geopandas_source
             from .glyphs.polygon import GeopandasPolygonGeom
-            if isinstance(source, geopandas.GeoDataFrame):
-                x_range = self.x_range if self.x_range is not None else (-np.inf, np.inf)
-                y_range = self.y_range if self.y_range is not None else (-np.inf, np.inf)
-                from shapely import box
-                query = source.sindex.query(box(x_range[0], y_range[0], x_range[1], y_range[1]))
-                source = source.iloc[query]
-            else:
-                x_range = self.x_range if self.x_range is not None else (None, None)
-                y_range = self.y_range if self.y_range is not None else (None, None)
-                source = source.cx[slice(*x_range), slice(*y_range)]
             glyph = GeopandasPolygonGeom(geometry)
         else:
             raise ValueError(
@@ -1258,6 +1232,44 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         """Check that parameter settings are valid for this object"""
         self.validate_ranges(self.x_range, self.y_range)
         self.validate_size(self.plot_width, self.plot_height)
+
+    def _source_from_geopandas(self, source):
+        """
+        Check if the specified source is a geopandas or dask-geopandas GeoDataFrame.
+        If so, spatially filter the source and return it.
+        If not, return None.
+        """
+        try:
+            import geopandas
+        except ImportError:
+            geopandas = None
+
+        try:
+            import dask_geopandas
+        except ImportError:
+            dask_geopandas = None
+
+        if ((geopandas and isinstance(source, geopandas.GeoDataFrame)) or
+              (dask_geopandas and isinstance(source, dask_geopandas.GeoDataFrame))):
+            # Explicit shapely version check as cannot continue unless shapely >= 2
+            from packaging.version import Version
+            from shapely import __version__ as shapely_version
+            if Version(shapely_version) < Version('2.0.0'):
+                raise ImportError("Use of GeoPandas in Datashader requires Shapely >= 2.0.0")
+
+            if isinstance(source, geopandas.GeoDataFrame):
+                x_range = self.x_range if self.x_range is not None else (-np.inf, np.inf)
+                y_range = self.y_range if self.y_range is not None else (-np.inf, np.inf)
+                from shapely import box
+                query = source.sindex.query(box(x_range[0], y_range[0], x_range[1], y_range[1]))
+                source = source.iloc[query]
+            else:
+                x_range = self.x_range if self.x_range is not None else (None, None)
+                y_range = self.y_range if self.y_range is not None else (None, None)
+                source = source.cx[slice(*x_range), slice(*y_range)]
+            return source
+        else:
+            return None
 
 
 def bypixel(source, canvas, glyph, agg, *, antialias=False):
