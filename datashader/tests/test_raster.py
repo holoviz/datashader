@@ -347,7 +347,7 @@ def test_raster_float_nan_value():
     Ensure default nan_value is handled correctly for float arrays
     """
     cvs = ds.Canvas(plot_height=2, plot_width=2, x_range=(0, 1), y_range=(0,1))
-    array = np.array([[np.NaN, 1., 2., 3.], [4., np.NaN, 6., 7.], [8., 9., np.NaN, 11.]])
+    array = np.array([[np.nan, 1., 2., 3.], [4., np.nan, 6., 7.], [8., 9., np.nan, 11.]])
     coords = {'x': np.linspace(0, 1, 4), 'y': np.linspace(0, 1, 3)}
     xr_array = xr.DataArray(array, coords=coords, dims=['y', 'x'])
 
@@ -429,19 +429,19 @@ def test_raster_single_pixel_range_with_padding():
     xr_array = xr.DataArray(array, dims=['y', 'x'],
                             coords={'x': np.linspace(0.125, .875, 4),
                                     'y': np.linspace(0.125, 0.625, 3)})
-    agg = cvs.raster(xr_array, downsample_method='max', nan_value=np.NaN)
-    agg2 = cvs2.raster(xr_array, downsample_method='max', nan_value=np.NaN)
+    agg = cvs.raster(xr_array, downsample_method='max', nan_value=np.nan)
+    agg2 = cvs2.raster(xr_array, downsample_method='max', nan_value=np.nan)
     expected = np.array([
-        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
-        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
-        [np.NaN, np.NaN, np.NaN, np.NaN, 0, 0],
-        [np.NaN, np.NaN, np.NaN, np.NaN, 0, 0]
+        [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+        [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+        [np.nan, np.nan, np.nan, np.nan, 0, 0],
+        [np.nan, np.nan, np.nan, np.nan, 0, 0]
     ])
     expected2 = np.array([
-        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
-        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
-        [np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN],
-        [np.NaN, np.NaN, np.NaN, np.NaN, 0, 0]
+        [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+        [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+        [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+        [np.nan, np.nan, np.nan, np.nan, 0, 0]
     ])
 
     assert np.allclose(agg.data, expected, equal_nan=True)
