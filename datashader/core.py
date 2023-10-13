@@ -1073,7 +1073,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         elif np.issubdtype(source.dtype, np.integer):
             fill_value = 0
         else:
-            fill_value = np.NaN
+            fill_value = np.nan
 
         if self.x_range is None: self.x_range = (left,right)
         if self.y_range is None: self.y_range = (bottom,top)
