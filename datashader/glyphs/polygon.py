@@ -247,7 +247,9 @@ def _build_extend_geopandas_polygon_geometry(
         ragged = shapely.to_ragged_array(geometry)
         geometry_type = ragged[0]
         if geometry_type not in (shapely.GeometryType.POLYGON, shapely.GeometryType.MULTIPOLYGON):
-            raise NotImplementedError
+            raise ValueError(
+                "Canvas.polygons supports GeoPandas geometry types of POLYGON and MULTIPOLYGON, "
+                f"not {repr(geometry_type)}")
 
         coords = ragged[1].ravel()
         if geometry_type == shapely.GeometryType.MULTIPOLYGON:

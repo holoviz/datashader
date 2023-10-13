@@ -774,9 +774,9 @@ The axis argument to Canvas.area must be 0 or 1
             glyph = GeopandasPolygonGeom(geometry)
         else:
             raise ValueError(
-                "source must be an instance of spatialpandas.GeoDataFrame or \n"
-                "spatialpandas.dask.DaskGeoDataFrame.\n"
-                "  Received value of type {typ}".format(typ=type(source)))
+                "source must be an instance of spatialpandas.GeoDataFrame, "
+                "spatialpandas.dask.DaskGeoDataFrame, geopandas.GeoDataFrame or "
+                f"dask_geopandas.GeoDataFrame, not {type(source)}")
 
         if agg is None:
             agg = any_rdn()
