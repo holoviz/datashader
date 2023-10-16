@@ -112,7 +112,7 @@ signed = TypeSet(int8, int16, int32, int64, name='signed')
 unsigned = TypeSet(uint8, uint16, uint32, uint64, name='unsigned')
 integral = TypeSet(*[x for t in zip(signed, unsigned) for x in t],
                    name='integral')
-floating = TypeSet(float32, float64, name='floating')
+floating = TypeSet(float16, float32, float64, name='floating')
 complexes = TypeSet(complex64, complex128, name='complexes')
 boolean = TypeSet(bool_, name='boolean')
 
