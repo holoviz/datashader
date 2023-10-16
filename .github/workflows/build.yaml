@@ -20,7 +20,7 @@ jobs:
       run:
         shell: bash -l {0}
     env:
-      PKG_TEST_PYTHON: "--test-python=py38"
+      PKG_TEST_PYTHON: "--test-python=py39"
       MPLBACKEND: "Agg"
       CONDA_UPLOAD_TOKEN: ${{ secrets.CONDA_UPLOAD_TOKEN }}
     steps:
@@ -30,7 +30,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v2
         with:
           miniconda-version: "latest"
-          python-version: 3.8
+          python-version: 3.9
           channels: pyviz/label/dev,conda-forge,nodefaults
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow -f
@@ -65,8 +65,8 @@ jobs:
       run:
         shell: bash -l {0}
     env:
-      PKG_TEST_PYTHON: "--test-python=py38"
-      PYTHON_VERSION: "3.8"
+      PKG_TEST_PYTHON: "--test-python=py39"
+      PYTHON_VERSION: "3.9"
       MPLBACKEND: "Agg"
       PPU: ${{ secrets.PPU }}
       PPP: ${{ secrets.PPP }}
