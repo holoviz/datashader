@@ -16,6 +16,11 @@ except Exception:
     cuda_args = None
 
 try:
+    from geopandas.array import GeometryDtype as gpd_GeometryDtype
+except ImportError:
+    gpd_GeometryDtype = type(None)
+
+try:
     import spatialpandas
 except Exception:
     spatialpandas = None
@@ -35,6 +40,7 @@ def values(s):
 class _GeometryLike(Glyph):
     def __init__(self, geometry):
         self.geometry = geometry
+        self._cached_bounds = None
 
     @property
     def ndims(self):
@@ -72,11 +78,27 @@ class _GeometryLike(Glyph):
         return [self.geometry]
 
     def compute_x_bounds(self, df):
-        bounds = df[self.geometry].array.total_bounds_x
+        col = df[self.geometry]
+        if isinstance(col.dtype, gpd_GeometryDtype):
+            # geopandas
+            if self._cached_bounds is None:
+                self._cached_bounds = col.total_bounds
+            bounds = self._cached_bounds[::2]
+        else:
+            # spatialpandas
+            bounds = col.array.total_bounds_x
         return self.maybe_expand_bounds(bounds)
 
     def compute_y_bounds(self, df):
-        bounds = df[self.geometry].array.total_bounds_y
+        col = df[self.geometry]
+        if isinstance(col.dtype, gpd_GeometryDtype):
+            # geopandas
+            if self._cached_bounds is None:
+                self._cached_bounds = col.total_bounds
+            bounds = self._cached_bounds[1::2]
+        else:
+            # spatialpandas
+            bounds = col.array.total_bounds_y
         return self.maybe_expand_bounds(bounds)
 
     @memoize
