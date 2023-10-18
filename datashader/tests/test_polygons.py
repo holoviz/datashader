@@ -1,7 +1,6 @@
 import pytest
 import pandas as pd
 import numpy as np
-from numpy import nan
 import xarray as xr
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
