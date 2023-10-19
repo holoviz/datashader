@@ -38,6 +38,21 @@ class _AntiAliasedLine:
                 x_mapper, y_mapper, info, append, self._line_width, antialias_stage_2, antialias_stage_2_funcs)
 
 
+def _line_internal_build_extend(
+    x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
+    expand_aggs_and_cols,
+):
+    antialias = line_width > 0
+    map_onto_pixel = _build_map_onto_pixel_for_line(x_mapper, y_mapper, antialias)
+    overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
+    if not use_2_stage_agg:
+        antialias_stage_2_funcs = None
+    draw_segment = _build_draw_segment(
+        append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite,
+    )
+    return draw_segment, antialias_stage_2_funcs
+
+
 class LineAxis0(_PointLike, _AntiAliasedLine):
     """A line, with vertices defined by ``x`` and ``y``.
 
@@ -49,19 +64,15 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
-        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
-        map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, antialias)
-        overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
-        if not use_2_stage_agg:
-            antialias_stage_2_funcs = None
-        draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
+        draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
+            x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
+            expand_aggs_and_cols,
         )
         extend_cpu, extend_cuda = _build_extend_line_axis0(
             draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs,
         )
+
         x_name = self.x
         y_name = self.y
 
@@ -144,15 +155,10 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
-        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
-        map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, antialias)
-        overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
-        if not use_2_stage_agg:
-            antialias_stage_2_funcs = None
-        draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
+        draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
+            x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
+            expand_aggs_and_cols,
         )
         extend_cpu, extend_cuda = _build_extend_line_axis0_multi(
             draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs,
@@ -262,15 +268,10 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
-        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
-        map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, antialias)
-        overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
-        if not use_2_stage_agg:
-            antialias_stage_2_funcs = None
-        draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
+        draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
+            x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
+            expand_aggs_and_cols,
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_none_constant(
             draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs,
@@ -339,15 +340,10 @@ class LinesAxis1XConstant(LinesAxis1):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
-        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
-        map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, antialias)
-        overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
-        if not use_2_stage_agg:
-            antialias_stage_2_funcs = None
-        draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
+        draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
+            x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
+            expand_aggs_and_cols,
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_x_constant(
             draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs,
@@ -417,15 +413,10 @@ class LinesAxis1YConstant(LinesAxis1):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
-        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
-        map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, antialias)
-        overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
-        if not use_2_stage_agg:
-            antialias_stage_2_funcs = None
-        draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
+        draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
+            x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
+            expand_aggs_and_cols,
         )
         extend_cpu, extend_cuda = _build_extend_line_axis1_y_constant(
             draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs,
@@ -497,15 +488,10 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
     @memoize
     def _internal_build_extend(
             self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
-        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
-        map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, antialias)
-        overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
-        if not use_2_stage_agg:
-            antialias_stage_2_funcs = None
-        draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
+        draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
+            x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
+            expand_aggs_and_cols,
         )
         extend_cpu = _build_extend_line_axis1_ragged(
             draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs,
@@ -546,15 +532,10 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
         from spatialpandas.geometry import (
             PolygonArray, MultiPolygonArray, RingArray
         )
-        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
-        map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, antialias)
-        overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
-        if not use_2_stage_agg:
-            antialias_stage_2_funcs = None
-        draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
+        draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
+            x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
+            expand_aggs_and_cols,
         )
         perform_extend_cpu = _build_extend_line_axis1_geometry(
             draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs,
