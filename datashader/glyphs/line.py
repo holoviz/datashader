@@ -580,15 +580,10 @@ class LineAxis1GeoPandas(_GeometryLike, _AntiAliasedLine):
         self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2,
         antialias_stage_2_funcs,
     ):
-        antialias = line_width > 0
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
-        map_onto_pixel = _build_map_onto_pixel_for_line(
-            x_mapper, y_mapper, antialias)
-        overwrite, use_2_stage_agg = two_stage_agg(antialias_stage_2)
-        if not use_2_stage_agg:
-            antialias_stage_2_funcs = None
-        draw_segment = _build_draw_segment(
-            append, map_onto_pixel, expand_aggs_and_cols, line_width, overwrite
+        draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
+            x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
+            expand_aggs_and_cols,
         )
         perform_extend_cpu = _build_extend_line_axis1_geopandas(
             draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs,
