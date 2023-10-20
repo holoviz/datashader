@@ -1,0 +1,41 @@
+###############################
+# pip development environment #
+###############################
+
+[envs.pip]
+features = [
+  "tests"
+]
+
+[[envs.pip.matrix]]
+python = ["3.9", "3.10", "3.11"]
+
+[envs.pip.scripts]
+env-capture = "pip list"
+lint = "flake8"
+test = "pytest -v datashader"
+test-nojit = "NUMBA_DISABLE_JIT=1 pytest -v datashader"
+
+#################################
+# conda development environment #
+#################################
+
+[envs.conda]
+type = "conda"  # Would like to use mamba
+conda-forge = true
+pre-install-commands = [  # All are executed using "conda run"
+  "pip install tomli",
+  "python -c 'import toml_to_env as t; t.toml_to_env()'",
+  "conda install mamba --channel conda-forge",
+  "conda list",
+  "mamba env update --file env.yaml",
+]
+
+[[envs.conda.matrix]]
+python = ["3.9", "3.10", "3.11"]
+
+[envs.conda.scripts]
+env-capture = "conda list"
+lint = "flake8"
+test = "pytest -v datashader"
+test-nojit = "NUMBA_DISABLE_JIT=1 pytest -v datashader"

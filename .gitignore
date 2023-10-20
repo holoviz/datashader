@@ -87,3 +87,4 @@ datashader/.version
 /.pytest_cache
 
 .asv/
+env.yaml
