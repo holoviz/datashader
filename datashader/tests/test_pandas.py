@@ -264,7 +264,8 @@ def test_max_n(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_min(df):
-    sol_int = np.array([[[0, 1, 2, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]], dtype=np.float64)
+    sol_int = np.array([[[0, 1, 2, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
+                       dtype=np.float64)
     sol_float = np.array([[[0, 1, nan, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]])
     assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.min('i32'))).data, sol_int)
     assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.min('i64'))).data, sol_int)
@@ -274,7 +275,8 @@ def test_categorical_min(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_max(df):
-    sol_int = np.array([[[4, 1, 2, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]], dtype=np.float64)
+    sol_int = np.array([[[4, 1, 2, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
+                       dtype=np.float64)
     sol_float = np.array([[[4, 1, nan, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]])
     assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.max('i32'))).data, sol_int)
     assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.max('i64'))).data, sol_int)
@@ -293,7 +295,8 @@ def test_categorical_min_n(df):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(df, 'x', 'y', ds.by('cat2', ds.min('f32'))).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(df, 'x', 'y', ds.by('cat2', ds.min('f32'))).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -307,7 +310,8 @@ def test_categorical_max_n(df):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(df, 'x', 'y', ds.by('cat2', ds.max('f32'))).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(df, 'x', 'y', ds.by('cat2', ds.max('f32'))).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -335,7 +339,8 @@ def test_categorical_min_n_row_index(df):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(df, 'x', 'y', ds.by('cat2', ds._min_row_index())).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(df, 'x', 'y', ds.by('cat2', ds._min_row_index())).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -349,7 +354,8 @@ def test_categorical_max_n_row_index(df):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(df, 'x', 'y', ds.by('cat2', ds._max_row_index())).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(df, 'x', 'y', ds.by('cat2', ds._max_row_index())).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -385,7 +391,8 @@ def test_categorical_first_n(df):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(df, 'x', 'y', ds.by('cat2', ds.first("plusminus"))).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(df, 'x', 'y', ds.by('cat2', ds.first("plusminus"))).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -399,7 +406,8 @@ def test_categorical_last_n(df):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(df, 'x', 'y', ds.by('cat2', ds.last("plusminus"))).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(df, 'x', 'y', ds.by('cat2', ds.last("plusminus"))).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -427,7 +435,9 @@ def test_where_min_n_row_index(df):
         print(' ', out.tolist())
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds._min_row_index(), 'plusminus')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y',
+                                       ds.where(ds._min_row_index(), 'plusminus')).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -443,7 +453,9 @@ def test_where_max_n_row_index(df):
         print(' ', out.tolist())
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds._max_row_index(), 'plusminus')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y',
+                                       ds.where(ds._max_row_index(), 'plusminus')).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -520,7 +532,8 @@ def test_where_first_n(df):
                               [10, 11, 12, 13, 14, -1]],
                              [[ 5,  6,  7,  8,  9, -1],
                               [15, 16, 17, 18, 19, -1]]])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -528,14 +541,17 @@ def test_where_first_n(df):
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.first('plusminus'))).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y', ds.where(ds.first('plusminus'))).data)
 
         # Using another column
         agg = c.points(df, 'x', 'y', ds.where(ds.first_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.first('plusminus'), 'reverse')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y',
+                                       ds.where(ds.first('plusminus'), 'reverse')).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -544,7 +560,8 @@ def test_where_last_n(df):
                               [14, 13, 12, 11, 10, -1]],
                              [[ 9,  8,  7,  6,  5, -1],
                               [19, 18, 17, 16, 15, -1]]])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -552,14 +569,17 @@ def test_where_last_n(df):
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.last('plusminus'))).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y', ds.where(ds.last('plusminus'))).data)
 
         # Using another column
         agg = c.points(df, 'x', 'y', ds.where(ds.last_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.last('plusminus'), 'reverse')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y',
+                                       ds.where(ds.last('plusminus'), 'reverse')).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -568,7 +588,8 @@ def test_where_max_n(df):
                               [14, 12, 10, 11, 13, -1]],
                              [[ 8,  6,  5,  7,  9, -1],
                               [18, 16, 15, 17, 19, -1]]])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -576,14 +597,16 @@ def test_where_max_n(df):
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.max('plusminus'))).data)
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y',
+                                                          ds.where(ds.max('plusminus'))).data)
 
         # Using another column
         agg = c.points(df, 'x', 'y', ds.where(ds.max_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.max('plusminus'), 'reverse')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y', ds.where(ds.max('plusminus'), 'reverse')).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -592,7 +615,8 @@ def test_where_min_n(df):
                               [13, 11, 10, 12, 14, -1]],
                              [[ 9,  7,  5,  6,  8, -1],
                               [19, 17, 15, 16, 18, -1]]])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -600,14 +624,16 @@ def test_where_min_n(df):
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.min('plusminus'))).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y', ds.where(ds.min('plusminus'))).data)
 
         # Using another column
         agg = c.points(df, 'x', 'y', ds.where(ds.min_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.where(ds.min('plusminus'), 'reverse')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y', ds.where(ds.min('plusminus'), 'reverse')).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -758,7 +784,8 @@ def test_categorical_count(df):
 
     # categorizing by (cat_int-10)%4 ought to give the same result
     out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.count()))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.count()))
     assert_eq_xr(agg, out)
 
 
@@ -783,13 +810,15 @@ def test_categorical_count_binning(df):
     # add an extra category (this will count nans and out of bounds)
     sol = np.append(sol, [[[0], [0]],[[0], [0]]], axis=2)
 
-    # categorizing by binning the integer arange columns using [0,20] into 4 bins. Same result as for count_cat
+    # categorizing by binning the integer arange columns using [0,20] into 4 bins. Same result as
+    # for count_cat
     for col in 'i32', 'i64':
         out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
         agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
         assert_eq_xr(agg, out)
 
-    # as above, but for the float arange columns. Element 2 has a nan, so the first bin is one short, and the nan bin is +1
+    # as above, but for the float arange columns. Element 2 has a nan, so the first bin is one
+    # short, and the nan bin is +1
     sol[0, 0, 0] = 4
     sol[0, 0, 4] = 1
 
@@ -815,10 +844,12 @@ def test_categorical_sum(df):
     # categorizing by (cat_int-10)%4 ought to give the same result
     out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
 
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.sum('i32')))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.sum('i32')))
     assert_eq_xr(agg, out)
 
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.sum('i64')))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.sum('i64')))
     assert_eq_xr(agg, out)
 
     sol = np.array([[[8.0,  nan,  nan,  nan],
@@ -863,10 +894,12 @@ def test_categorical_max2(df):
     # categorizing by (cat_int-10)%4 ought to give the same result
     out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
 
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.max('i32')))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.max('i32')))
     assert_eq_xr(agg, out)
 
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.max('i64')))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.max('i64')))
     assert_eq_xr(agg, out)
 
 
@@ -902,10 +935,12 @@ def test_categorical_mean(df):
     # categorizing by (cat_int-10)%4 ought to give the same result
     out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
 
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('i32')))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('i32')))
     assert_eq_xr(agg, out)
 
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('i64')))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('i64')))
     assert_eq_xr(agg, out)
 
 
@@ -941,10 +976,12 @@ def test_categorical_var(df):
         # categorizing by (cat_int-10)%4 ought to give the same result
     out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
 
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.var('f32')))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.var('f32')))
     assert_eq_xr(agg, out)
 
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.var('f64')))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.var('f64')))
     assert_eq_xr(agg, out)
 
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
@@ -974,10 +1011,12 @@ def test_categorical_std(df):
     # categorizing by (cat_int-10)%4 ought to give the same result
     out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
 
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.std('f32')))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.std('f32')))
     assert_eq_xr(agg, out)
 
-    agg = c.points(df, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.std('f64')))
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.std('f64')))
     assert_eq_xr(agg, out)
 
     sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
@@ -1079,7 +1118,8 @@ def test_multiple_aggregates(df):
                               i32_sum=ds.sum('i32'),
                               i32_count=ds.count('i32')))
 
-    f = lambda x: xr.DataArray(x, coords=coords, dims=dims)
+    def f(x):
+        return xr.DataArray(x, coords=coords, dims=dims)
     assert_eq_xr(agg.f64_mean, f(np.nanmean(values(df.f64).reshape((2, 2, 5)), axis=2).T))
     assert_eq_xr(agg.i32_sum, f(values(df.i32).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
     assert_eq_xr(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
@@ -1461,7 +1501,8 @@ def test_trimesh_no_double_edge():
         [0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ], dtype='i4')
-    np.testing.assert_array_equal(np.flipud((agg.fillna(0) + 0.5).astype('i4').values)[10:20, :20], sol)
+    np.testing.assert_array_equal(np.flipud((agg.fillna(0) + 0.5).astype('i4').values)[10:20, :20],
+                                  sol)
 
 def test_trimesh_interp():
     """Assert that triangles are interpolated when vertex values are provided.
@@ -1844,15 +1885,15 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs, line_width):
 
     if line_width > 0:
         sol = np.array([
-            [np.nan,   np.nan,   np.nan,   0.646447, 1.292893, 0.646447, np.nan,   np.nan,   np.nan  ],
-            [np.nan,   np.nan,   0.646447, 0.646447, np.nan,   0.646447, 0.646447, np.nan,   np.nan  ],
-            [np.nan,   0.646447, 0.646447, np.nan,   np.nan,   np.nan,   0.646447, 0.646447, np.nan  ],
-            [0.646447, 0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447, 0.646447],
-            [0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447],
-            [0.646447, 0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447, 0.646447],
-            [np.nan,   0.646447, 0.646447, np.nan,   np.nan,   np.nan,   0.646447, 0.646447, np.nan  ],
-            [np.nan,   np.nan,   0.646447, 0.646447, np.nan,   0.646447, 0.646447, np.nan,   np.nan  ],
-            [np.nan,   np.nan,   np.nan,   0.646447, 1.292893, 0.646447, np.nan,   np.nan,   np.nan  ]
+            [np.nan,   np.nan,   np.nan,   0.646447, 1.292893, 0.646447, np.nan,   np.nan,   np.nan  ],  # noqa: E501
+            [np.nan,   np.nan,   0.646447, 0.646447, np.nan,   0.646447, 0.646447, np.nan,   np.nan  ],  # noqa: E501
+            [np.nan,   0.646447, 0.646447, np.nan,   np.nan,   np.nan,   0.646447, 0.646447, np.nan  ],  # noqa: E501
+            [0.646447, 0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447, 0.646447],  # noqa: E501
+            [0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447],  # noqa: E501
+            [0.646447, 0.646447, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.646447, 0.646447],  # noqa: E501
+            [np.nan,   0.646447, 0.646447, np.nan,   np.nan,   np.nan,   0.646447, 0.646447, np.nan  ],  # noqa: E501
+            [np.nan,   np.nan,   0.646447, 0.646447, np.nan,   0.646447, 0.646447, np.nan,   np.nan  ],  # noqa: E501
+            [np.nan,   np.nan,   np.nan,   0.646447, 1.292893, 0.646447, np.nan,   np.nan,   np.nan  ],  # noqa: E501
         ], dtype='f4')
     else:
         sol = np.array([[0, 0, 0, 0, 2, 0, 0, 0, 0],
@@ -2358,43 +2399,43 @@ line_antialias_df = pd.DataFrame(dict(
     value=[3, 3, 3, 3],
 ))
 line_antialias_sol_0 = np.array([
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
-    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
-    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
-    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
-    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.292893, 1.0,      0.292893, np.nan,   1.0,    np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      0.292893, np.nan,   np.nan,   1.0,    np.nan],
-    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.292893, 1.0,      0.292893, np.nan,   1.0,    np.nan],
-    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
-    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
-    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],  # noqa: E501
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],  # noqa: E501
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.292893, 1.0,      0.292893, np.nan,   1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      0.292893, np.nan,   np.nan,   1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.292893, 1.0,      0.292893, np.nan,   1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],  # noqa: E501
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],  # noqa: E501
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],  # noqa: E501
 ])
 line_antialias_sol_0_intersect = np.array([
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
-    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
-    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
-    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
-    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.585786, 1.0,      0.292893, np.nan,   1.0,    np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   0.585786, 2.0,      0.585786, np.nan,   np.nan,   1.0,    np.nan],
-    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.585786, 1.0,      0.292893, np.nan,   1.0,    np.nan],
-    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],
-    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],
-    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],  # noqa: E501
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],  # noqa: E501
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.585786, 1.0,      0.292893, np.nan,   1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   0.585786, 2.0,      0.585786, np.nan,   np.nan,   1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   0.292893, 1.0,      0.585786, 1.0,      0.292893, np.nan,   1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   0.292893, 1.0,      0.292893, np.nan,   0.292893, 1.0,      0.292893, 1.0,    np.nan],  # noqa: E501
+    [np.nan, 0.292893, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   0.292893, 1.0,      1.0,    np.nan],  # noqa: E501
+    [np.nan, 1.0,      0.292893, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   0.292893, 1.0,    np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan,   np.nan, np.nan],  # noqa: E501
 ])
 line_antialias_sol_1 = np.array([
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
-    [np.nan, 1.0,      0.92521,  0.85042,  0.77563,  0.70084, 0.62605, 0.55126 , 0.47647, 0.40168, np.nan],
-    [np.nan, 0.002801, 0.077591, 0.152381, 0.227171, 0.30196, 0.37675, 0.45154 , 0.52633, 0.6,     np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
-    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],  # noqa: E501
+    [np.nan, 1.0,      0.92521,  0.85042,  0.77563,  0.70084, 0.62605, 0.55126 , 0.47647, 0.40168, np.nan],  # noqa: E501
+    [np.nan, 0.002801, 0.077591, 0.152381, 0.227171, 0.30196, 0.37675, 0.45154 , 0.52633, 0.6,     np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],  # noqa: E501
+    [np.nan, np.nan,   np.nan,   np.nan,   np.nan,   np.nan,  np.nan,  np.nan,   np.nan,  np.nan,  np.nan],  # noqa: E501
 ])
 line_antialias_sol_min_index_0 = np.array([
     [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
@@ -2594,7 +2635,8 @@ def test_line_antialias():
 
     agg = cvs.line(agg=ds.min_n("value", n=2), **kwargs)
     sol = np.full((11, 11), np.nan)
-    sol[2, 1:-1] = [3.0, 2.775630, 0.911939, 1.833810, 2.1025216, 1.437950, 0.667619, 1.429411, 1.205041]
+    sol[2, 1:-1] = [3.0, 2.775630, 0.911939, 1.833810, 2.1025216, 1.437950, 0.667619, 1.429411,
+                    1.205041]
     sol[3, 1:-1] = [0.008402, 0.232772, 0.457142, 0.4, 0.905881, 0.940874, 0.309275, 1.578991, 1.8]
     assert_eq_ndarray(agg[:, :, 0].data, sol, close=True)
     sol = np.full((11, 11), np.nan)
@@ -2644,11 +2686,13 @@ def test_line_antialias():
     assert_eq_ndarray(agg.data, 3*sol_min, close=True)
 
     agg = cvs.line(agg=ds.first("value"), **kwargs)
-    sol_first = 3*np.where(np.isnan(line_antialias_sol_0), line_antialias_sol_1, line_antialias_sol_0)
+    sol_first = 3*np.where(np.isnan(line_antialias_sol_0), line_antialias_sol_1,
+                           line_antialias_sol_0)
     assert_eq_ndarray(agg.data, sol_first, close=True)
 
     agg = cvs.line(agg=ds.last("value"), **kwargs)
-    sol_last = 3*np.where(np.isnan(line_antialias_sol_1), line_antialias_sol_0, line_antialias_sol_1)
+    sol_last = 3*np.where(np.isnan(line_antialias_sol_1), line_antialias_sol_0,
+                          line_antialias_sol_1)
     assert_eq_ndarray(agg.data, sol_last, close=True)
 
     agg = cvs.line(agg=ds.mean("value"), **kwargs)
@@ -2683,8 +2727,10 @@ def test_line_antialias_summary():
     sol_count = nansum(line_antialias_sol_0, line_antialias_sol_1)
     sol_count_intersect = nansum(line_antialias_sol_0_intersect, line_antialias_sol_1)
     sol_min = 3*nanmin(line_antialias_sol_0, line_antialias_sol_1)
-    sol_first = 3*np.where(np.isnan(line_antialias_sol_0), line_antialias_sol_1, line_antialias_sol_0)
-    sol_last = 3*np.where(np.isnan(line_antialias_sol_1), line_antialias_sol_0, line_antialias_sol_1)
+    sol_first = 3*np.where(np.isnan(line_antialias_sol_0), line_antialias_sol_1,
+                           line_antialias_sol_0)
+    sol_last = 3*np.where(np.isnan(line_antialias_sol_1), line_antialias_sol_0,
+                          line_antialias_sol_1)
 
     # Summary of count and sum using self_intersect=True
     agg = cvs.line(
@@ -2743,33 +2789,33 @@ def test_line_antialias_summary():
 
 
 line_antialias_nan_sol_intersect = np.array([
-    [0.085786, 0.5,      0.085786, nan,      nan,      nan,      nan,      nan,      nan,      0.085786, 0.5,      0.085786],
-    [0.5,      1.0,      0.792893, 0.085786, nan,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
-    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
-    [nan,      0.085786, 0.5,      0.085786, nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
-    [nan,      nan,      nan,      nan,      0.085786, 0.585786, 0.878679, 1.0,      0.792893, 0.085786, nan,      nan     ],
-    [nan,      nan,      nan,      nan,      0.585786, 1.792893, 1.792893, 0.878679, 0.085786, nan,      nan,      nan     ],
-    [nan,      nan,      nan,      nan,      0.585786, 1.792893, 1.792893, 0.878679, 0.085786, nan,      nan,      nan     ],
-    [nan,      nan,      nan,      nan,      0.085786, 0.585786, 0.878679, 1.0,      0.792893, 0.085786, nan,      nan     ],
-    [nan,      0.085786, 0.5,      0.085786, nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
-    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
-    [0.5,      1.0,      0.792893, 0.085786, nan,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
-    [0.085786, 0.5,      0.085786, nan,      nan,      nan,      nan,      nan,      nan,      0.085786, 0.5,      0.085786],
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan,      nan,      nan,      nan,      0.085786, 0.5,      0.085786],  # noqa: E501
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],  # noqa: E501
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],  # noqa: E501
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],  # noqa: E501
+    [nan,      nan,      nan,      nan,      0.085786, 0.585786, 0.878679, 1.0,      0.792893, 0.085786, nan,      nan     ],  # noqa: E501
+    [nan,      nan,      nan,      nan,      0.585786, 1.792893, 1.792893, 0.878679, 0.085786, nan,      nan,      nan     ],  # noqa: E501
+    [nan,      nan,      nan,      nan,      0.585786, 1.792893, 1.792893, 0.878679, 0.085786, nan,      nan,      nan     ],  # noqa: E501
+    [nan,      nan,      nan,      nan,      0.085786, 0.585786, 0.878679, 1.0,      0.792893, 0.085786, nan,      nan     ],  # noqa: E501
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],  # noqa: E501
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],  # noqa: E501
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan,      nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],  # noqa: E501
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan,      nan,      nan,      nan,      0.085786, 0.5,      0.085786],  # noqa: E501
 ])
 
 line_antialias_nan_sol_max = np.array([
-    [0.085786, 0.5,      0.085786, nan,      nan,      nan, nan,      nan,      nan,      0.085786, 0.5,      0.085786],
-    [0.5,      1.0,      0.792893, 0.085786, nan,      nan, nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
-    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan, nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
-    [nan,      0.085786, 0.5,      0.085786, nan,      nan, 0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
-    [nan,      nan,      nan,      nan,      0.085786, 0.5, 0.792893, 1.0,      0.792893, 0.085786, nan,      nan     ],
-    [nan,      nan,      nan,      nan,      0.5,      1.0, 1.0,      0.792893, 0.085786, nan,      nan,      nan     ],
-    [nan,      nan,      nan,      nan,      0.5,      1.0, 1.0,      0.792893, 0.085786, nan,      nan,      nan     ],
-    [nan,      nan,      nan,      nan,      0.085786, 0.5, 0.792893, 1.0,      0.792893, 0.085786, nan,      nan     ],
-    [nan,      0.085786, 0.5,      0.085786, nan,      nan, 0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],
-    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan, nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],
-    [0.5,      1.0,      0.792893, 0.085786, nan,      nan, nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],
-    [0.085786, 0.5,      0.085786, nan,      nan,      nan, nan,      nan,      nan,      0.085786, 0.5,      0.085786],
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan, nan,      nan,      nan,      0.085786, 0.5,      0.085786],  # noqa: E501
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan, nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],  # noqa: E501
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan, nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],  # noqa: E501
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan, 0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],  # noqa: E501
+    [nan,      nan,      nan,      nan,      0.085786, 0.5, 0.792893, 1.0,      0.792893, 0.085786, nan,      nan     ],  # noqa: E501
+    [nan,      nan,      nan,      nan,      0.5,      1.0, 1.0,      0.792893, 0.085786, nan,      nan,      nan     ],  # noqa: E501
+    [nan,      nan,      nan,      nan,      0.5,      1.0, 1.0,      0.792893, 0.085786, nan,      nan,      nan     ],  # noqa: E501
+    [nan,      nan,      nan,      nan,      0.085786, 0.5, 0.792893, 1.0,      0.792893, 0.085786, nan,      nan     ],  # noqa: E501
+    [nan,      0.085786, 0.5,      0.085786, nan,      nan, 0.085786, 0.792893, 1.0,      0.792893, 0.085786, nan     ],  # noqa: E501
+    [0.085786, 0.792893, 1.0,      0.5,      nan,      nan, nan,      0.085786, 0.792893, 1.0,      0.792893, 0.085786],  # noqa: E501
+    [0.5,      1.0,      0.792893, 0.085786, nan,      nan, nan,      nan,      0.085786, 0.792893, 1.0,      0.5     ],  # noqa: E501
+    [0.085786, 0.5,      0.085786, nan,      nan,      nan, nan,      nan,      nan,      0.085786, 0.5,      0.085786],  # noqa: E501
 ])
 
 line_antialias_nan_params = [
@@ -2826,8 +2872,10 @@ line_antialias_nan_params = [
     line_antialias_nan_sol_intersect.T, line_antialias_nan_sol_intersect.T),
     # LineAxis1Ragged
     (dict(data=dict(
-        x=pd.array([[0.5, 1.5, np.nan, 4.5, 9.5], [0.5, 1.5, np.nan, 4.5, 9.5]], dtype='Ragged[float32]'),
-        y=pd.array([[0.5, 1.5, np.nan, 4.5, 9.5], [9.5, 8.5, np.nan, 5.5, 0.5]], dtype='Ragged[float32]'),
+        x=pd.array([[0.5, 1.5, np.nan, 4.5, 9.5], [0.5, 1.5, np.nan, 4.5, 9.5]],
+                   dtype='Ragged[float32]'),
+        y=pd.array([[0.5, 1.5, np.nan, 4.5, 9.5], [9.5, 8.5, np.nan, 5.5, 0.5]],
+                   dtype='Ragged[float32]'),
     )),
     dict(x='x', y='y', axis=1),
     line_antialias_nan_sol_intersect, line_antialias_nan_sol_intersect),
@@ -3169,9 +3217,11 @@ def test_canvas_size():
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_where_max(df):
-    sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
+    sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]],
+                                 [[8, 5, 6, 7], [16, 17, 18, 15]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     # Using row index
     agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.max('plusminus'))))
@@ -3184,9 +3234,11 @@ def test_categorical_where_max(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_where_min(df):
-    sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
+    sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]],
+                                 [[8, 9, 6, 7], [16, 17, 18, 19]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     # Using row index
     agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.min('plusminus'))))
@@ -3199,9 +3251,11 @@ def test_categorical_where_min(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_where_first(df):
-    sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
+    sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]],
+                                 [[8, 5, 6, 7], [16, 17, 18, 15]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     # Using row index
     agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.first('plusminus'))))
@@ -3214,9 +3268,11 @@ def test_categorical_where_first(df):
 
 @pytest.mark.parametrize('df', dfs)
 def test_categorical_where_last(df):
-    sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
+    sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]],
+                                 [[8, 9, 6, 7], [16, 17, 18, 19]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     # Using row index
     agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'))))
@@ -3235,7 +3291,8 @@ def test_categorical_where_max_n(df):
          [[[8, -1, -1], [5, 9, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [15, 19, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -3244,15 +3301,18 @@ def test_categorical_where_max_n(df):
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.max('plusminus')))).data)
+                              c.points(df, 'x', 'y', ds.by('cat2',
+                                                           ds.where(ds.max('plusminus')))).data)
 
         # Using another column
-        agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.max_n('plusminus', n=n), 'reverse')))
+        agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.max_n('plusminus', n=n),
+                                                            'reverse')))
         out = sol_reverse[:, :, :, :n]
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.max('plusminus'), 'reverse'))).data)
+                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.max('plusminus'),
+                                                                            'reverse'))).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -3263,7 +3323,8 @@ def test_categorical_where_min_n(df):
          [[[8, -1, -1], [9, 5, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [19, 15, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -3272,15 +3333,18 @@ def test_categorical_where_min_n(df):
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.min('plusminus')))).data)
+                              c.points(df, 'x', 'y', ds.by('cat2',
+                                                           ds.where(ds.min('plusminus')))).data)
 
         # Using another column
-        agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.min_n('plusminus', n=n), 'reverse')))
+        agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.min_n('plusminus', n=n),
+                                                            'reverse')))
         out = sol_reverse[:, :, :, :n]
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.min('plusminus'), 'reverse'))).data)
+                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.min('plusminus'),
+                                                                            'reverse'))).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -3291,7 +3355,8 @@ def test_categorical_where_first_n(df):
          [[[8, -1, -1], [5, 9, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [15, 19, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -3300,15 +3365,18 @@ def test_categorical_where_first_n(df):
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.first('plusminus')))).data)
+                              c.points(df, 'x', 'y', ds.by('cat2',
+                                                           ds.where(ds.first('plusminus')))).data)
 
         # Using another column
-        agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.first_n('plusminus', n=n), 'reverse')))
+        agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.first_n('plusminus', n=n),
+                                                            'reverse')))
         out = sol_reverse[:, :, :, :n]
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.first('plusminus'), 'reverse'))).data)
+                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.first('plusminus'),
+                                                                            'reverse'))).data)
 
 
 @pytest.mark.parametrize('df', dfs)
@@ -3319,7 +3387,8 @@ def test_categorical_where_last_n(df):
          [[[8, -1, -1], [9, 5, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [19, 15, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6),
+                           np.nan, 20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -3328,12 +3397,15 @@ def test_categorical_where_last_n(df):
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus')))).data)
+                              c.points(df, 'x', 'y', ds.by('cat2',
+                                                           ds.where(ds.last('plusminus')))).data)
 
         # Using another column
-        agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.last_n('plusminus', n=n), 'reverse')))
+        agg = c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.last_n('plusminus', n=n),
+                                                            'reverse')))
         out = sol_reverse[:, :, :, :n]
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'), 'reverse'))).data)
+                              c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'),
+                                                                            'reverse'))).data)

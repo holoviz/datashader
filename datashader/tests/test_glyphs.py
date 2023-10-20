@@ -58,7 +58,8 @@ extend_line, _ = _build_extend_line_axis0(_draw_segment, expand_aggs_and_cols, N
 
 # Triangles rasterization
 draw_triangle, draw_triangle_interp = _build_draw_triangle(tri_append)
-extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp, map_onto_pixel_for_triangle)
+extend_triangles = _build_extend_triangles(draw_triangle, draw_triangle_interp,
+                                           map_onto_pixel_for_triangle)
 
 # Trapezoid y rasterization
 _draw_trapezoid = _build_draw_trapezoid_y(

@@ -13,10 +13,6 @@ except ImportError:
 
 from dask.context import config
 
-config.set(scheduler='synchronous')
-
-open_rasterio_available = pytest.mark.skipif(rioxarray is None and rasterio is None, reason="requires rioxarray or rasterio")
-
 from os import path
 from itertools import product
 
@@ -29,6 +25,11 @@ import pandas as pd
 from datashader.resampling import compute_chunksize
 import datashader.transfer_functions as tf
 from packaging.version import Version
+
+config.set(scheduler='synchronous')
+
+open_rasterio_available = pytest.mark.skipif(rioxarray is None and rasterio is None,
+                                             reason="requires rioxarray or rasterio")
 
 BASE_PATH = path.split(__file__)[0]
 DATA_PATH = path.abspath(path.join(BASE_PATH, 'data'))
@@ -367,7 +368,8 @@ def test_raster_integer_nan_value_padding():
 
     cvs = ds.Canvas(plot_height=3, plot_width=3, x_range=(0, 2), y_range=(0, 2))
     array = np.array([[9999, 1, 2, 3], [4, 9999, 6, 7], [8, 9, 9999, 11]])
-    xr_array = xr.DataArray(array, coords={'x': np.linspace(0, 1, 4), 'y': np.linspace(0, 1, 3)}, dims=['y', 'x'])
+    xr_array = xr.DataArray(array, coords={'x': np.linspace(0, 1, 4), 'y': np.linspace(0, 1, 3)},
+                            dims=['y', 'x'])
 
     agg = cvs.raster(xr_array, downsample_method='max', nan_value=9999)
     expected = np.array([[4, 7, 9999], [9, 11, 9999], [9999, 9999, 9999]])
@@ -385,7 +387,8 @@ def test_raster_float_nan_value_padding():
 
     cvs = ds.Canvas(plot_height=3, plot_width=3, x_range=(0, 2), y_range=(0, 2))
     array = np.array([[np.nan, 1., 2., 3.], [4., np.nan, 6., 7.], [8., 9., np.nan, 11.]])
-    xr_array = xr.DataArray(array, coords={'x': np.linspace(0, 1, 4), 'y': np.linspace(0, 1, 3)}, dims=['y', 'x'])
+    xr_array = xr.DataArray(array, coords={'x': np.linspace(0, 1, 4), 'y': np.linspace(0, 1, 3)},
+                            dims=['y', 'x'])
 
     agg = cvs.raster(xr_array, downsample_method='max')
     expected = np.array([[4., 7., np.nan], [9., 11., np.nan], [np.nan, np.nan, np.nan]])
@@ -447,11 +450,14 @@ def test_raster_single_pixel_range_with_padding():
     assert np.allclose(agg.data, expected, equal_nan=True)
     assert np.allclose(agg2.data, expected2, equal_nan=True)
     assert agg.data.dtype.kind == 'f'
-    assert np.allclose(agg.x.values, np.array([-0.4375, -0.3125, -0.1875, -0.0625,  0.0625,  0.1875]))
+    assert np.allclose(agg.x.values, np.array([-0.4375, -0.3125, -0.1875, -0.0625, 0.0625, 0.1875]))
     assert np.allclose(agg.y.values, np.array([-0.399875, -0.199625,  0.000625,  0.200875]))
 
 
-@pytest.mark.parametrize('in_size, out_size, agg', product(range(5, 8), range(2, 5), ['mean', 'min', 'max', 'first', 'last', 'var', 'std', 'mode']))
+@pytest.mark.parametrize(
+    'in_size, out_size, agg',
+    product(range(5, 8), range(2, 5),
+            ['mean', 'min', 'max', 'first', 'last', 'var', 'std', 'mode']))
 def test_raster_distributed_downsample(in_size, out_size, agg):
     """
     Ensure that distributed regrid is equivalent to regular regrid.

@@ -312,7 +312,8 @@ def test_first_n(ddf, npartitions):
         out = solution[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.first('plusminus')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(ddf, 'x', 'y', ds.first('plusminus')).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -348,7 +349,8 @@ def test_categorical_count(ddf, npartitions):
 def test_categorical_min(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
-    sol_int = np.array([[[0, 1, 2, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]], dtype=np.float64)
+    sol_int = np.array([[[0, 1, 2, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
+                       dtype=np.float64)
     sol_float = np.array([[[0, 1, nan, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]])
     assert_eq_ndarray(c.points(ddf, 'x', 'y', ds.by('cat2', ds.min('i32'))).data, sol_int)
     assert_eq_ndarray(c.points(ddf, 'x', 'y', ds.by('cat2', ds.min('i64'))).data, sol_int)
@@ -361,7 +363,8 @@ def test_categorical_min(ddf, npartitions):
 def test_categorical_max(ddf, npartitions):
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
-    sol_int = np.array([[[4, 1, 2, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]], dtype=np.float64)
+    sol_int = np.array([[[4, 1, 2, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
+                       dtype=np.float64)
     sol_float = np.array([[[4, 1, nan, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]])
     assert_eq_ndarray(c.points(ddf, 'x', 'y', ds.by('cat2', ds.max('i32'))).data, sol_int)
     assert_eq_ndarray(c.points(ddf, 'x', 'y', ds.by('cat2', ds.max('i64'))).data, sol_int)
@@ -383,7 +386,8 @@ def test_categorical_min_n(ddf, npartitions):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(ddf, 'x', 'y', ds.by('cat2', ds.min('f32'))).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.min('f32'))).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -400,7 +404,8 @@ def test_categorical_max_n(ddf, npartitions):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(ddf, 'x', 'y', ds.by('cat2', ds.max('f32'))).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.max('f32'))).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -437,7 +442,8 @@ def test_categorical_min_n_row_index(ddf, npartitions):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(ddf, 'x', 'y', ds.by('cat2', ds._min_row_index())).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(ddf, 'x', 'y', ds.by('cat2', ds._min_row_index())).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -454,7 +460,8 @@ def test_categorical_max_n_row_index(ddf, npartitions):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(ddf, 'x', 'y', ds.by('cat2', ds._max_row_index())).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(ddf, 'x', 'y', ds.by('cat2', ds._max_row_index())).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -499,7 +506,8 @@ def test_categorical_first_n(ddf, npartitions):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(ddf, 'x', 'y', ds.by('cat2', ds.first("plusminus"))).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.first("plusminus"))).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -516,7 +524,8 @@ def test_categorical_last_n(ddf, npartitions):
         out = solution[:, :, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[..., 0].data, c.points(ddf, 'x', 'y', ds.by('cat2', ds.last("plusminus"))).data)
+            assert_eq_ndarray(agg[..., 0].data,
+                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.last("plusminus"))).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -572,7 +581,8 @@ def test_where_max_n(ddf, npartitions):
                               [14, 12, 10, 11, 13, -1]],
                              [[ 8,  6,  5,  7,  9, -1],
                               [18, 16, 15, 17, 19, -1]]])
-    sol_reverse = np.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = np.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -580,14 +590,17 @@ def test_where_max_n(ddf, npartitions):
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.max('plusminus'))).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(ddf, 'x', 'y', ds.where(ds.max('plusminus'))).data)
 
         # Using another column
         agg = c.points(ddf, 'x', 'y', ds.where(ds.max_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.max('plusminus'), 'reverse')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(ddf, 'x', 'y', ds.where(ds.max('plusminus'),
+                                                               'reverse')).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -601,7 +614,8 @@ def test_where_min_n(ddf, npartitions):
                               [13, 11, 10, 12, 14, -1]],
                              [[ 9,  7,  5,  6,  8, -1],
                               [19, 17, 15, 16, 18, -1]]])
-    sol_reverse = np.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = np.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -609,14 +623,17 @@ def test_where_min_n(ddf, npartitions):
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.min('plusminus'))).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(ddf, 'x', 'y', ds.where(ds.min('plusminus'))).data)
 
         # Using another column
         agg = c.points(ddf, 'x', 'y', ds.where(ds.min_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.min('plusminus'), 'reverse')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(ddf, 'x', 'y', ds.where(ds.min('plusminus'),
+                                                               'reverse')).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -672,7 +689,8 @@ def test_where_first_n(ddf, npartitions):
                               [10, 11, 12, 13, 14, -1]],
                              [[ 5,  6,  7,  8,  9, -1],
                               [15, 16, 17, 18, 19, -1]]])
-    sol_reverse = np.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = np.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -680,14 +698,17 @@ def test_where_first_n(ddf, npartitions):
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.first('plusminus'))).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(ddf, 'x', 'y', ds.where(ds.first('plusminus'))).data)
 
         # Using another column
         agg = c.points(ddf, 'x', 'y', ds.where(ds.first_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.first('plusminus'), 'reverse')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(ddf, 'x', 'y', ds.where(ds.first('plusminus'),
+                                                               'reverse')).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -701,7 +722,8 @@ def test_where_last_n(ddf, npartitions):
                               [14, 13, 12, 11, 10, -1]],
                              [[ 9,  8,  7,  6,  5, -1],
                               [19, 18, 17, 16, 15, -1]]])
-    sol_reverse = np.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = np.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 7):
         # Using row index.
@@ -709,14 +731,17 @@ def test_where_last_n(ddf, npartitions):
         out = sol_rowindex[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.last('plusminus'))).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(ddf, 'x', 'y', ds.where(ds.last('plusminus'))).data)
 
         # Using another column
         agg = c.points(ddf, 'x', 'y', ds.where(ds.last_n('plusminus', n=n), 'reverse'))
         out = sol_reverse[:, :, :n]
         assert_eq_ndarray(agg.data, out)
         if n == 1:
-            assert_eq_ndarray(agg[:, :, 0].data, c.points(ddf, 'x', 'y', ds.where(ds.last('plusminus'), 'reverse')).data)
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(ddf, 'x', 'y', ds.where(ds.last('plusminus'),
+                                                               'reverse')).data)
 
 
 @pytest.mark.parametrize('ddf', [_ddf])
@@ -742,7 +767,8 @@ def test_summary_by(ddf, npartitions):
     assert_eq_xr(agg_summary["max"], agg_max)
 
     # summary(by, by)
-    agg_summary = c.points(ddf, 'x', 'y', ds.summary(by=ds.by("cat"), by_any=ds.by("cat", ds.any())))
+    agg_summary = c.points(ddf, 'x', 'y', ds.summary(by=ds.by("cat"),
+                                                     by_any=ds.by("cat", ds.any())))
     agg_by_any = c.points(ddf, 'x', 'y', ds.by("cat", ds.any()))
     assert_eq_xr(agg_summary["by"], agg_by)
     assert_eq_xr(agg_summary["by_any"], agg_by_any)
@@ -864,7 +890,8 @@ def test_count_cat(ddf, npartitions):
     out = xr.DataArray(
         sol, coords=(coords + [range(4)]), dims=(dims + ['cat_int'])
     )
-    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.count()))
+    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10),
+                                        ds.count()))
     assert_eq_xr(agg, out)
     assert_eq_ndarray(agg.x_range, (0, 1), close=True)
     assert_eq_ndarray(agg.y_range, (0, 1), close=True)
@@ -874,7 +901,8 @@ def test_count_cat(ddf, npartitions):
     # add an extra category (this will count nans and out of bounds)
     sol = np.append(sol, [[[0], [0]],[[0], [0]]], axis=2)
 
-    # categorizing by binning the integer arange columns using [0,20] into 4 bins. Same result as for count_cat
+    # categorizing by binning the integer arange columns using [0,20] into 4 bins. Same result as
+    # for count_cat
     for col in 'i32', 'i64':
         out = xr.DataArray(
             sol, coords=(coords + [range(5)]), dims=(dims + [col])
@@ -884,7 +912,8 @@ def test_count_cat(ddf, npartitions):
         assert_eq_ndarray(agg.x_range, (0, 1), close=True)
         assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
-    # as above, but for the float arange columns. Element 2 has a nan, so the first bin is one short, and the nan bin is +1
+    # as above, but for the float arange columns. Element 2 has a nan, so the first bin is one
+    # short, and the nan bin is +1
     sol[0, 0, 0] = 4
     sol[0, 0, 4] = 1
 
@@ -919,10 +948,12 @@ def test_categorical_sum(ddf, npartitions):
     out = xr.DataArray(
         sol, coords=(coords + [range(4)]), dims=(dims + ['cat_int'])
     )
-    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.sum('i32')))
+    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10),
+                                        ds.sum('i32')))
     assert_eq_xr(agg, out)
 
-    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.sum('i64')))
+    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10),
+                                        ds.sum('i64')))
     assert_eq_xr(agg, out)
 
     sol = np.array([[[8.0,  nan,  nan,  nan],
@@ -989,10 +1020,12 @@ def test_categorical_mean(ddf, npartitions):
     out = xr.DataArray(
         sol, coords=(coords + [range(4)]), dims=(dims + ['cat_int'])
     )
-    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('f32')))
+    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10),
+                                        ds.mean('f32')))
     assert_eq_xr(agg, out)
 
-    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.mean('f64')))
+    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10),
+                                        ds.mean('f64')))
     assert_eq_xr(agg, out)
 
 
@@ -1044,10 +1077,12 @@ def test_categorical_var(ddf, npartitions):
     out = xr.DataArray(
         sol, coords=(coords + [range(4)]), dims=(dims + ['cat_int'])
     )
-    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.var('f32')))
+    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10),
+                                        ds.var('f32')))
     assert_eq_xr(agg, out)
 
-    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.var('f64')))
+    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10),
+                                        ds.var('f64')))
     assert_eq_xr(agg, out)
 
     # add an extra category (this will count nans and out of bounds)
@@ -1086,10 +1121,12 @@ def test_categorical_std(ddf, npartitions):
     out = xr.DataArray(
         sol, coords=(coords + [range(4)]), dims=(dims + ['cat_int'])
     )
-    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.std('f32')))
+    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10),
+                                        ds.std('f32')))
     assert_eq_xr(agg, out)
 
-    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.std('f64')))
+    agg = c.points(ddf, 'x', 'y', ds.by(ds.category_modulo('cat_int', modulo=4, offset=10),
+                                        ds.std('f64')))
     assert_eq_xr(agg, out)
 
     # add an extra category (this will count nans and out of bounds)
@@ -1114,7 +1151,8 @@ def test_multiple_aggregates(ddf, npartitions):
                               i32_sum=ds.sum('i32'),
                               i32_count=ds.count('i32')))
 
-    f = lambda x: xr.DataArray(x, coords=coords, dims=dims)
+    def f(x):
+        return xr.DataArray(x, coords=coords, dims=dims)
     assert_eq_xr(agg.f64_std, f(np.nanstd(values(df_pd.f64).reshape((2, 2, 5)), axis=2).T))
     assert_eq_xr(agg.f64_mean, f(np.nanmean(values(df_pd.f64).reshape((2, 2, 5)), axis=2).T))
     assert_eq_xr(agg.i32_sum, f(values(df_pd.i32).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
@@ -2044,7 +2082,8 @@ def test_trimesh_no_double_edge():
     # Test left/right edge shared
     verts = dd.from_pandas(pd.DataFrame({'x': [4, 1, 5, 5, 5, 4],
                                          'y': [4, 5, 5, 5, 4, 4]}), npartitions=mp.cpu_count())
-    tris = dd.from_pandas(pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 2]}), npartitions=mp.cpu_count())
+    tris = dd.from_pandas(pd.DataFrame({'v0': [0, 3], 'v1': [1, 4], 'v2': [2, 5], 'val': [1, 2]}),
+                          npartitions=mp.cpu_count())
     # Plot dims and x/y ranges need to be set such that the edge is drawn twice:
     cvs = ds.Canvas(plot_width=20, plot_height=20, x_range=(0, 5), y_range=(0, 5))
     agg = cvs.trimesh(verts, tris)
@@ -2371,9 +2410,11 @@ def test_categorical_where_max(ddf, npartitions):
     # Identical results to equivalent pandas test.
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
-    sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
+    sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]],
+                                 [[8, 5, 6, 7], [16, 17, 18, 15]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     # Using row index
     agg = c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.max('plusminus'))))
@@ -2391,9 +2432,11 @@ def test_categorical_where_min(ddf, npartitions):
     # Identical results to equivalent pandas test.
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
-    sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
+    sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]],
+                                 [[8, 9, 6, 7], [16, 17, 18, 19]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     # Using row index
     agg = c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.min('plusminus'))))
@@ -2411,9 +2454,11 @@ def test_categorical_where_first(ddf, npartitions):
     # Identical results to equivalent pandas test.
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
-    sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
+    sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]],
+                                 [[8, 5, 6, 7], [16, 17, 18, 15]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     # Using row index
     agg = c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.first('plusminus'))))
@@ -2431,9 +2476,11 @@ def test_categorical_where_last(ddf, npartitions):
     # Identical results to equivalent pandas test.
     ddf = ddf.repartition(npartitions)
     assert ddf.npartitions == npartitions
-    sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
+    sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]],
+                                 [[8, 9, 6, 7], [16, 17, 18, 19]]],
                                 coords=coords + [['a', 'b', 'c', 'd']], dims=dims + ['cat2'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     # Using row index
     agg = c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'))))
@@ -2457,7 +2504,8 @@ def test_categorical_where_max_n(ddf, npartitions):
          [[[8, -1, -1], [5, 9, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [15, 19, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -2466,15 +2514,19 @@ def test_categorical_where_max_n(ddf, npartitions):
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.max('plusminus')))).data)
+                              c.points(ddf, 'x', 'y',
+                                       ds.by('cat2', ds.where(ds.max('plusminus')))).data)
 
         # Using another column
-        agg = c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.max_n('plusminus', n=n), 'reverse')))
+        agg = c.points(ddf, 'x', 'y',
+                       ds.by('cat2', ds.where(ds.max_n('plusminus', n=n), 'reverse')))
         out = sol_reverse[:, :, :, :n]
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.max('plusminus'), 'reverse'))).data)
+                              c.points(ddf, 'x', 'y',
+                                       ds.by('cat2', ds.where(ds.max('plusminus'),
+                                                              'reverse'))).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -2490,7 +2542,8 @@ def test_categorical_where_min_n(ddf, npartitions):
          [[[8, -1, -1], [9, 5, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [19, 15, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -2499,15 +2552,19 @@ def test_categorical_where_min_n(ddf, npartitions):
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.min('plusminus')))).data)
+                              c.points(ddf, 'x', 'y',
+                                       ds.by('cat2', ds.where(ds.min('plusminus')))).data)
 
         # Using another column
-        agg = c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.min_n('plusminus', n=n), 'reverse')))
+        agg = c.points(ddf, 'x', 'y',
+                       ds.by('cat2', ds.where(ds.min_n('plusminus', n=n), 'reverse')))
         out = sol_reverse[:, :, :, :n]
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.min('plusminus'), 'reverse'))).data)
+                              c.points(ddf, 'x', 'y',
+                                       ds.by('cat2', ds.where(ds.min('plusminus'),
+                                                              'reverse'))).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -2523,7 +2580,8 @@ def test_categorical_where_first_n(ddf, npartitions):
          [[[8, -1, -1], [5, 9, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [15, 19, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -2532,15 +2590,19 @@ def test_categorical_where_first_n(ddf, npartitions):
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.first('plusminus')))).data)
+                              c.points(ddf, 'x', 'y',
+                                       ds.by('cat2', ds.where(ds.first('plusminus')))).data)
 
         # Using another column
-        agg = c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.first_n('plusminus', n=n), 'reverse')))
+        agg = c.points(ddf, 'x', 'y',
+                       ds.by('cat2', ds.where(ds.first_n('plusminus', n=n), 'reverse')))
         out = sol_reverse[:, :, :, :n]
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.first('plusminus'), 'reverse'))).data)
+                              c.points(ddf, 'x', 'y',
+                                       ds.by('cat2', ds.where(ds.first('plusminus'),
+                                                              'reverse'))).data)
 
 
 @pytest.mark.parametrize('ddf', ddfs)
@@ -2552,7 +2614,8 @@ def test_categorical_where_last_n(ddf, npartitions):
          [[[8, -1, -1], [9, 5, -1], [6, -1, -1], [7, -1, -1]],
           [[16, -1, -1], [17, -1, -1], [18, -1, -1], [19, 15, -1]]]],
         coords=coords + [['a', 'b', 'c', 'd'], [0, 1, 2]], dims=dims + ['cat2', 'n'])
-    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan, 20 - sol_rowindex)
+    sol_reverse = xr.where(np.logical_or(sol_rowindex < 0, sol_rowindex == 6), np.nan,
+                           20 - sol_rowindex)
 
     for n in range(1, 4):
         # Using row index
@@ -2561,12 +2624,15 @@ def test_categorical_where_last_n(ddf, npartitions):
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus')))).data)
+                              c.points(ddf, 'x', 'y',
+                                       ds.by('cat2', ds.where(ds.last('plusminus')))).data)
 
         # Using another column
-        agg = c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.last_n('plusminus', n=n), 'reverse')))
+        agg = c.points(ddf, 'x', 'y',
+                       ds.by('cat2', ds.where(ds.last_n('plusminus', n=n), 'reverse')))
         out = sol_reverse[:, :, :, :n]
         assert_eq_xr(agg, out)
         if n == 1:
             assert_eq_ndarray(agg[:, :, :, 0].data,
-                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'), 'reverse'))).data)
+                              c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'),
+                                                                             'reverse'))).data)

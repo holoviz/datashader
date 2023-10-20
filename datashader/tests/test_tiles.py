@@ -73,9 +73,9 @@ def test_render_tiles():
     assert results
     assert isinstance(results, dict)
 
-    for l in levels:
-        assert l in results
-        assert isinstance(results[l], dict)
+    for level in levels:
+        assert level in results
+        assert isinstance(results[level], dict)
 
     assert results[0]['success']
     assert results[0]['stats']

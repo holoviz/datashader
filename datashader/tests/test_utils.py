@@ -31,7 +31,8 @@ def test_isreal():
 
 
 def test_apply():
-    f = lambda a, b, c=1, d=2: a + b + c + d
+    def f(a, b, c=1, d=2):
+        return a + b + c + d
     assert apply(f, (1, 2,)) == 6
     assert apply(f, (1, 2,), dict(c=3)) == 8
 

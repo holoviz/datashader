@@ -44,31 +44,39 @@ except Exception:
 
 #: Interpolation method for upsampling: Take nearest source grid cell, even if it is invalid.
 US_NEAREST = 10
-#: Interpolation method for upsampling: Bi-linear interpolation between the 4 nearest source grid cells.
+#: Interpolation method for upsampling: Bi-linear interpolation between the 4 nearest source grid
+# cells.
 US_LINEAR = 11
 
-#: Aggregation method for downsampling: Take first valid source grid cell, ignore contribution areas.
+#: Aggregation method for downsampling: Take first valid source grid cell, ignore contribution
+# areas.
 DS_FIRST = 50
 #: Aggregation method for downsampling: Take last valid source grid cell, ignore contribution areas.
 DS_LAST = 51
-#: Aggregation method for downsampling: Take the minimum source grid cell value, ignore contribution areas.
+#: Aggregation method for downsampling: Take the minimum source grid cell value, ignore contribution
+# areas.
 DS_MIN = 52
-#: Aggregation method for downsampling: Take the maximum source grid cell value, ignore contribution areas.
+#: Aggregation method for downsampling: Take the maximum source grid cell value, ignore contribution
+# areas.
 DS_MAX = 53
 #: Aggregation method for downsampling: Compute average of all valid source grid cells,
 #: with weights given by contribution area.
 DS_MEAN = 54
 # DS_MEDIAN = 55
 #: Aggregation method for downsampling: Compute most frequently seen valid source grid cell,
-#: with frequency given by contribution area. Note that this mode can use an additional keyword argument
+#: with frequency given by contribution area. Note that this mode can use an additional keyword
+# argument
 #: *mode_rank* which can be used to generate the n-th mode. See :py:function:`downsample_2d`.
 DS_MODE = 56
 #: Aggregation method for downsampling: Compute the biased weighted estimator of variance
-#: (see https://en.wikipedia.org/wiki/Mean_square_weighted_deviation), with weights given by contribution area.
+#: (see https://en.wikipedia.org/wiki/Mean_square_weighted_deviation), with weights given by
+# contribution area.
 DS_VAR = 57
-#: Aggregation method for downsampling: Compute the corresponding standard deviation to the biased weighted estimator
+#: Aggregation method for downsampling: Compute the corresponding standard deviation to the biased
+# weighted estimator
 #: of variance
-#: (see https://en.wikipedia.org/wiki/Mean_square_weighted_deviation), with weights given by contribution area.
+#: (see https://en.wikipedia.org/wiki/Mean_square_weighted_deviation), with weights given by
+# contribution area.
 DS_STD = 58
 
 #: Constant indicating an empty 2-D mask
@@ -354,8 +362,8 @@ def upsample_2d(src, w, h, method=US_LINEAR, fill_value=None, out=None):
         otherwise from *out* if it is a masked array,
         otherwise numpy's default value is used.
     out: 2-D *ndarray*, optional
-        Alternate output array in which to place the result. The default is *None*; if provided, it must have the same
-        shape as the expected output.
+        Alternate output array in which to place the result. The default is *None*; if provided,
+        it must have the same shape as the expected output.
 
     Returns
     -------

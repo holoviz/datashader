@@ -33,9 +33,11 @@ class _AntiAliasedLine:
         if hasattr(self, "antialiased"):
             self.antialiased = (line_width > 0)
 
-    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2, antialias_stage_2_funcs):
+    def _build_extend(self, x_mapper, y_mapper, info, append, antialias_stage_2,
+                      antialias_stage_2_funcs):
         return self._internal_build_extend(
-                x_mapper, y_mapper, info, append, self._line_width, antialias_stage_2, antialias_stage_2_funcs)
+                x_mapper, y_mapper, info, append, self._line_width, antialias_stage_2,
+                antialias_stage_2_funcs)
 
 
 def _line_internal_build_extend(
@@ -63,7 +65,8 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
     """
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
+            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2,
+            antialias_stage_2_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
             x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
@@ -154,7 +157,8 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
+            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2,
+            antialias_stage_2_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
             x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
@@ -267,7 +271,8 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
+            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2,
+            antialias_stage_2_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
             x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
@@ -339,7 +344,8 @@ class LinesAxis1XConstant(LinesAxis1):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
+            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2,
+            antialias_stage_2_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
             x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
@@ -412,7 +418,8 @@ class LinesAxis1YConstant(LinesAxis1):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
+            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2,
+            antialias_stage_2_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
             x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
@@ -487,7 +494,8 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
+            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2,
+            antialias_stage_2_funcs):
         expand_aggs_and_cols = self.expand_aggs_and_cols(append)
         draw_segment, antialias_stage_2_funcs = _line_internal_build_extend(
             x_mapper, y_mapper, append, line_width, antialias_stage_2, antialias_stage_2_funcs,
@@ -528,7 +536,8 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
 
     @memoize
     def _internal_build_extend(
-            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2, antialias_stage_2_funcs):
+            self, x_mapper, y_mapper, info, append, line_width, antialias_stage_2,
+            antialias_stage_2_funcs):
         from spatialpandas.geometry import (
             PolygonArray, MultiPolygonArray, RingArray
         )
@@ -1157,7 +1166,8 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, antialias
         return extend_cpu, extend_cuda
 
 
-def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs):
+def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols,
+                                           antialias_stage_2_funcs):
     if antialias_stage_2_funcs is not None:
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = antialias_stage_2_funcs
     use_2_stage_agg = antialias_stage_2_funcs is not None
@@ -1191,7 +1201,8 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, a
 
     @ngjit
     @expand_aggs_and_cols
-    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2, *aggs_and_cols):
+    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2,
+                   *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
         ncols = xs.shape[1]
@@ -1234,7 +1245,8 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, a
 
     @cuda.jit
     @expand_aggs_and_cols
-    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2, *aggs_and_cols):
+    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2,
+                    *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = cuda.local.array(8, nb_types.float64) if antialias else None
         i, j = cuda.grid(2)
@@ -1250,7 +1262,8 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols, a
         return extend_cpu, extend_cuda
 
 
-def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs):
+def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols,
+                                        antialias_stage_2_funcs):
     if antialias_stage_2_funcs is not None:
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = antialias_stage_2_funcs
     use_2_stage_agg = antialias_stage_2_funcs is not None
@@ -1284,7 +1297,8 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols, anti
 
     @ngjit
     @expand_aggs_and_cols
-    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2, *aggs_and_cols):
+    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2,
+                   *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
         ncols = ys.shape[1]
@@ -1328,7 +1342,8 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols, anti
 
     @cuda.jit
     @expand_aggs_and_cols
-    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2, *aggs_and_cols):
+    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2,
+                    *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = cuda.local.array(8, nb_types.float64) if antialias else None
         i, j = cuda.grid(2)
@@ -1344,7 +1359,8 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols, anti
         return extend_cpu, extend_cuda
 
 
-def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs):
+def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols,
+                                        antialias_stage_2_funcs):
     if antialias_stage_2_funcs is not None:
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = antialias_stage_2_funcs
     use_2_stage_agg = antialias_stage_2_funcs is not None
@@ -1378,7 +1394,8 @@ def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols, anti
 
     @ngjit
     @expand_aggs_and_cols
-    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2, *aggs_and_cols):
+    def extend_cpu(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2,
+                   *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = np.empty(8) if antialias else None
         ncols = xs.shape[1]
@@ -1424,7 +1441,8 @@ def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols, anti
 
     @cuda.jit
     @expand_aggs_and_cols
-    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2, *aggs_and_cols):
+    def extend_cuda(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, antialias_stage_2,
+                    *aggs_and_cols):
         antialias = antialias_stage_2 is not None
         buffer = cuda.local.array(8, nb_types.float64) if antialias else None
         i, j = cuda.grid(2)

@@ -23,7 +23,8 @@ class AntialiasStage2(NamedTuple):
 
 
 if TYPE_CHECKING:
-    UnzippedAntialiasStage2 = tuple[tuple[AntialiasCombination], tuple[float], tuple[bool], tuple[bool]]
+    UnzippedAntialiasStage2 = \
+        tuple[tuple[AntialiasCombination], tuple[float], tuple[bool], tuple[bool]]
 
 
 def two_stage_agg(antialias_stage_2: UnzippedAntialiasStage2 | None):

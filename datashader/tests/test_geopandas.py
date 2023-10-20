@@ -31,26 +31,26 @@ except ImportError:
 
 
 nybb_lines_sol = np.array([
-    [ 0.,  0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],
-    [ 0., nan,  0.,  0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],
-    [ 0.,  0., nan, nan,  0.,  0., nan, nan, nan, nan, nan,  1.,  1.,  1., nan, nan, nan, nan, nan, nan],
-    [nan,  0., nan, nan, nan,  0.,  0.,  0.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan, nan, nan],
-    [nan,  0.,  0., nan, nan, nan,  0.,  0.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1., nan],
-    [nan,  0.,  0., nan, nan, nan,  0.,  2.,  2., nan, nan,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1., nan],
-    [nan,  0.,  0.,  0.,  0.,  0.,  0.,  2., nan, nan, nan, nan,  2.,  2.,  2.,  2.,  1.,  1.,  1., nan],
-    [nan, nan,  0.,  0., nan,  0.,  0.,  2.,  2.,  2., nan, nan, nan,  2.,  2.,  1.,  1., nan,  1.,  1.],
-    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  2., nan, nan,  2.,  2.,  2., nan, nan, nan,  1.,  1.],
-    [nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  2., nan,  2.,  2.,  2., nan, nan, nan, nan,  1.],
-    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  2.,  2., nan, nan, nan, nan, nan,  1.,  1.],
-    [nan, nan, nan, nan, nan, nan, nan, nan,  3., nan,  3.,  2., nan, nan, nan, nan, nan, nan, nan,  1.],
-    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  3., nan, nan,  1., nan, nan,  1.,  1.,  1.],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3., nan,  3.,  3.,  4.,  1.,  1.,  1.,  1.,  1., nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  4.,  4.,  4.,  4.,  4.,  4.,  1., nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4., nan,  4.,  4.,  4.,  4., nan, nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4., nan, nan,  4.,  4.,  4.,  4., nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4., nan, nan,  4.,  4.,  4., nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4., nan, nan,  4.,  4.,  4., nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4., nan, nan, nan, nan, nan],
+    [ 0.,  0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
+    [ 0., nan,  0.,  0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
+    [ 0.,  0., nan, nan,  0.,  0., nan, nan, nan, nan, nan,  1.,  1.,  1., nan, nan, nan, nan, nan, nan],  # noqa: E501
+    [nan,  0., nan, nan, nan,  0.,  0.,  0.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan, nan, nan],  # noqa: E501
+    [nan,  0.,  0., nan, nan, nan,  0.,  0.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1., nan],  # noqa: E501
+    [nan,  0.,  0., nan, nan, nan,  0.,  2.,  2., nan, nan,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1., nan],  # noqa: E501
+    [nan,  0.,  0.,  0.,  0.,  0.,  0.,  2., nan, nan, nan, nan,  2.,  2.,  2.,  2.,  1.,  1.,  1., nan],  # noqa: E501
+    [nan, nan,  0.,  0., nan,  0.,  0.,  2.,  2.,  2., nan, nan, nan,  2.,  2.,  1.,  1., nan,  1.,  1.],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  2., nan, nan,  2.,  2.,  2., nan, nan, nan,  1.,  1.],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  2., nan,  2.,  2.,  2., nan, nan, nan, nan,  1.],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  2.,  2., nan, nan, nan, nan, nan,  1.,  1.],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan,  3., nan,  3.,  2., nan, nan, nan, nan, nan, nan, nan,  1.],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  3., nan, nan,  1., nan, nan,  1.,  1.,  1.],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3., nan,  3.,  3.,  4.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  4.,  4.,  4.,  4.,  4.,  4.,  1., nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4., nan,  4.,  4.,  4.,  4., nan, nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4., nan, nan,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4., nan, nan,  4.,  4.,  4., nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4., nan, nan,  4.,  4.,  4., nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4., nan, nan, nan, nan, nan],  # noqa: E501
 ])
 
 nybb_points_sol = np.array([
@@ -78,26 +78,26 @@ nybb_points_sol = np.array([
 
 
 nybb_polygons_sol = np.array([
-    [ 0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],
-    [ 0.,  0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],
-    [nan,  0.,  0.,  0.,  0., nan, nan, nan, nan, nan, nan,  1., nan, nan, nan, nan, nan, nan, nan, nan],
-    [nan, nan,  0.,  0.,  0.,  0., nan,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],
-    [nan, nan,  0.,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan, nan],
-    [nan, nan,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan],
-    [nan, nan,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan],
-    [nan, nan, nan,  0., nan, nan, nan, nan,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1., nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1., nan],
-    [nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1.,  1., nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  2.,  1.,  1.,  1.,  1.,  1.,  1.,  1., nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1., nan,  1.,  1.,  1., nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  4.,  4., nan, nan, nan, nan, nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4., nan, nan, nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4.,  4., nan, nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4., nan, nan, nan, nan, nan],
+    [ 0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
+    [ 0.,  0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
+    [nan,  0.,  0.,  0.,  0., nan, nan, nan, nan, nan, nan,  1., nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
+    [nan, nan,  0.,  0.,  0.,  0., nan,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
+    [nan, nan,  0.,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan, nan],  # noqa: E501
+    [nan, nan,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan],  # noqa: E501
+    [nan, nan,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan],  # noqa: E501
+    [nan, nan, nan,  0., nan, nan, nan, nan,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  2.,  1.,  1.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1., nan,  1.,  1.,  1., nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  4.,  4., nan, nan, nan, nan, nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4., nan, nan, nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4.,  4., nan, nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4., nan, nan, nan, nan, nan],  # noqa: E501
 ])
 
 

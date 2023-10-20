@@ -144,7 +144,7 @@ class category_codes(CategoryPreprocess):
         return input_dshape.measure[self.column].categories
 
     def validate(self, in_dshape):
-        if not self.column in in_dshape.dict:
+        if self.column not in in_dshape.dict:
             raise ValueError("specified column not found")
         if not isinstance(in_dshape.measure[self.column], ct.Categorical):
             raise ValueError("input must be categorical")
@@ -163,8 +163,10 @@ class category_modulo(category_codes):
     Category is computed as (column_value - offset)%modulo.
     """
 
-    # couldn't find anything in the datashape docs about how to check if a CType is an integer, so just define a big set
-    IntegerTypes = {ct.bool_, ct.uint8, ct.uint16, ct.uint32, ct.uint64, ct.int8, ct.int16, ct.int32, ct.int64}
+    # couldn't find anything in the datashape docs about how to check if a CType is an integer, so
+    # just define a big set
+    IntegerTypes = {ct.bool_, ct.uint8, ct.uint16, ct.uint32, ct.uint64, ct.int8, ct.int16,
+                    ct.int32, ct.int64}
 
     def __init__(self, column, modulo, offset=0):
         super().__init__(column)
@@ -178,7 +180,7 @@ class category_modulo(category_codes):
         return list(range(self.modulo))
 
     def validate(self, in_dshape):
-        if not self.column in in_dshape.dict:
+        if self.column not in in_dshape.dict:
             raise ValueError("specified column not found")
         if in_dshape.measure[self.column] not in self.IntegerTypes:
             raise ValueError("input must be an integer column")
@@ -196,8 +198,8 @@ class category_binning(category_modulo):
     """
     A variation on category_codes that assigns categories by binning a continuous-valued column.
     The number of categories returned is always nbins+1.
-    The last category (nbin) is for NaNs in the data column, as well as for values under/over the binned
-    interval (when include_under or include_over is False).
+    The last category (nbin) is for NaNs in the data column, as well as for values under/over the
+    binned interval (when include_under or include_over is False).
 
     Parameters
     ----------
@@ -221,7 +223,7 @@ class category_binning(category_modulo):
         return super()._hashable_inputs() + (self.bin0, self.binsize, self.bin_under, self.bin_over)
 
     def validate(self, in_dshape):
-        if not self.column in in_dshape.dict:
+        if self.column not in in_dshape.dict:
             raise ValueError("specified column not found")
 
     def apply(self, df):
@@ -336,7 +338,7 @@ class Reduction(Expr):
     def validate(self, in_dshape):
         if self.column == SpecialColumn.RowIndex:
             return
-        if not self.column in in_dshape.dict:
+        if self.column not in in_dshape.dict:
             raise ValueError("specified column not found")
         if not isnumeric(in_dshape.measure[self.column]):
             raise ValueError("input must be numeric")
@@ -685,7 +687,8 @@ class by(Reduction):
             self.preprocess = self.categorizer
 
     def __hash__(self):
-        return hash((type(self), self._hashable_inputs(), self.categorizer._hashable_inputs(), self.reduction))
+        return hash((type(self), self._hashable_inputs(), self.categorizer._hashable_inputs(),
+                     self.reduction))
 
     def _build_temps(self, cuda=False):
         return tuple(by(self.categorizer, tmp) for tmp in self.reduction._build_temps(cuda))
@@ -1792,7 +1795,8 @@ class where(FloatingReduction):
         return UsesCudaMutex.Local
 
     def uses_row_index(self, cuda, partitioned):
-        return self.column == SpecialColumn.RowIndex or self.selector.uses_row_index(cuda, partitioned)
+        return (self.column == SpecialColumn.RowIndex or
+                self.selector.uses_row_index(cuda, partitioned))
 
     def validate(self, in_dshape):
         if self.column != SpecialColumn.RowIndex:
@@ -1868,7 +1872,8 @@ class where(FloatingReduction):
 
     def _build_bases(self, cuda, partitioned):
         selector = self.selector
-        if isinstance(selector, (_first_or_last, _first_n_or_last_n)) and selector.uses_row_index(cuda, partitioned):
+        if isinstance(selector, (_first_or_last, _first_n_or_last_n)) and \
+                selector.uses_row_index(cuda, partitioned):
             # Need to swap out the selector with an equivalent row index selector
             row_index_selector = selector._create_row_index_selector()
             if self.column == SpecialColumn.RowIndex:
@@ -1879,9 +1884,11 @@ class where(FloatingReduction):
             else:
                 new_where = where(row_index_selector, self.column)
                 new_where._nan_check_column = self.selector.column
-                return row_index_selector._build_bases(cuda, partitioned) + new_where._build_bases(cuda, partitioned)
+                return row_index_selector._build_bases(cuda, partitioned) + \
+                    new_where._build_bases(cuda, partitioned)
         else:
-            return selector._build_bases(cuda, partitioned) + super()._build_bases(cuda, partitioned)
+            return selector._build_bases(cuda, partitioned) + \
+                super()._build_bases(cuda, partitioned)
 
     def _combine_callback(self, cuda, partitioned, categorical):
         # Used by:
@@ -1916,7 +1923,8 @@ class where(FloatingReduction):
                 for x in range(nx):
                     for cat in range(ncat):
                         value = selector_aggs[1][y, x, cat]
-                        if not invalid(value) and append(x, y, selector_aggs[0][:, :, cat], value) >= 0:
+                        if not invalid(value) and append(x, y, selector_aggs[0][:, :, cat],
+                                                         value) >= 0:
                             aggs[0][y, x, cat] = aggs[1][y, x, cat]
 
         @ngjit
@@ -1946,7 +1954,8 @@ class where(FloatingReduction):
                             update_index = append(x, y, selector_aggs[0][:, :, cat, :], value)
                             if update_index < 0:
                                 break
-                            shift_and_insert(aggs[0][y, x, cat], aggs[1][y, x, cat, i], update_index)
+                            shift_and_insert(aggs[0][y, x, cat], aggs[1][y, x, cat, i],
+                                             update_index)
 
         @nb_cuda.jit
         def combine_cuda_2d(aggs, selector_aggs):
