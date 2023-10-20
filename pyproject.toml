@@ -1,7 +1,123 @@
 [build-system]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
 requires = [
+    "hatchling",
+    "hatch-conda",
+    "hatch-vcs",
     "param",
     "pyct",
-    "setuptools"
 ]
+
+[project]
+authors = [
+    {name = "Datashader developers", email = "dev@datashader.org"},
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "colorcet",
+    "dask",
+    "datashape",
+    "numba >=0.51",
+    "numpy",
+    "pandas",
+    "param",
+    "pillow",
+    "pyct",
+    "requests",
+    "scipy",
+    "toolz",
+    "xarray",
+]
+description = "Data visualization toolchain based on aggregating into a grid"
+dynamic = ["version"]
+license = {file = "LICENSE.txt"}
+name = "datashader"
+readme = "README.md"
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+all = [
+    # All except optional gpu-specific packages
+    "datashader[docs]",
+    "datashader[examples]",
+    "datashader[examples_extras]",
+    "datashader[tests]",
+]
+docs = [
+    "datashader[examples_extra]",
+    "nbsite >=0.7.1",
+    "numpydoc",
+    "pydata-sphinx-theme <0.9.0",
+    "sphinx-copybutton",
+]
+examples = [
+    "datashader[geopandas]",
+    "bokeh >3.1",
+    "geodatasets",
+    "holoviews",
+    "matplotlib",
+    "scikit-image",
+    "spatialpandas",
+]
+examples_extra = [
+    "datashader[examples]",
+    "networkx",
+    "streamz",
+    ### conda only below here
+    "fastparquet",
+    "graphviz",
+    "python-graphviz",
+    "python-snappy",
+    "rasterio",
+    "snappy",
+]
+geopandas = [
+    "dask-geopandas",
+    "geopandas",
+    "shapely >=2.0.0",
+]
+gpu_tests = [
+    "cupy",
+    "cudf",  # Install with conda install -c rapidsai
+    "dask-cudf",  # Install with conda install -c rapidsai
+]
+tests = [
+    "codecov",
+    "fastparquet",  # optional dependency
+    "flake8",
+    "nbconvert",
+    "nbformat",
+    "nbsmoke[verify] >0.5",
+    "netcdf4",
+    "pyarrow <11",
+    "pytest",
+    "pytest-benchmark",
+    "pytest-cov",
+    "rasterio",
+    "rioxarray",
+    "spatialpandas",
+]
+
+[project.scripts]
+datashader = "datashader.__main__:main"
+
+[project.urls]
+Homepage = "http://datashader.org"
+Source = "https://github.com/holoviz/datashader"
+
+[tool.hatch.version]
+source = "vcs"
