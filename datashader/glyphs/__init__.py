@@ -8,6 +8,7 @@ from .line import (  # noqa (API import)
     LinesAxis1YConstant,
     LinesAxis1Ragged,
     LineAxis1Geometry,
+    LineAxis1GeoPandas,
 )
 from .area import (  # noqa (API import)
     AreaToZeroAxis0,

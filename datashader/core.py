@@ -206,15 +206,19 @@ class Canvas:
                 x_range = self.x_range if self.x_range is not None else (None, None)
                 y_range = self.y_range if self.y_range is not None else (None, None)
                 source = source.cx_partitions[slice(*x_range), slice(*y_range)]
+                glyph = MultiPointGeometry(geometry)
             elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
-                pass
+                glyph = MultiPointGeometry(geometry)
+            elif (geopandas_source := self._source_from_geopandas(source)) is not None:
+                source = geopandas_source
+                from datashader.glyphs.points import MultiPointGeoPandas
+                glyph = MultiPointGeoPandas(geometry)
             else:
                 raise ValueError(
-                    "source must be an instance of spatialpandas.GeoDataFrame or \n"
-                    "spatialpandas.dask.DaskGeoDataFrame.\n"
-                    "  Received value of type {typ}".format(typ=type(source)))
-
-            glyph = MultiPointGeometry(geometry)
+                    "source must be an instance of spatialpandas.GeoDataFrame, "
+                    "spatialpandas.dask.DaskGeoDataFrame, geopandas.GeoDataFrame, or "
+                    "dask_geopandas.GeoDataFrame. Received objects of type {typ}".format(
+                        typ=type(source)))
 
         return bypixel(source, self, glyph, agg)
 
@@ -365,15 +369,20 @@ class Canvas:
                 x_range = self.x_range if self.x_range is not None else (None, None)
                 y_range = self.y_range if self.y_range is not None else (None, None)
                 source = source.cx_partitions[slice(*x_range), slice(*y_range)]
+                glyph = LineAxis1Geometry(geometry)
             elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
-                pass
+                glyph = LineAxis1Geometry(geometry)
+            elif (geopandas_source := self._source_from_geopandas(source)) is not None:
+                source = geopandas_source
+                from datashader.glyphs.line import LineAxis1GeoPandas
+                glyph = LineAxis1GeoPandas(geometry)
             else:
                 raise ValueError(
-                    "source must be an instance of spatialpandas.GeoDataFrame or \n"
-                    "spatialpandas.dask.DaskGeoDataFrame.\n"
-                    "  Received value of type {typ}".format(typ=type(source)))
+                    "source must be an instance of spatialpandas.GeoDataFrame, "
+                    "spatialpandas.dask.DaskGeoDataFrame, geopandas.GeoDataFrame, or "
+                    "dask_geopandas.GeoDataFrame. Received objects of type {typ}".format(
+                        typ=type(source)))
 
-            glyph = LineAxis1Geometry(geometry)
         else:
             # Broadcast column specifications to handle cases where
             # x is a list and y is a string or vice versa
