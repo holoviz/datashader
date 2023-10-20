@@ -53,4 +53,3 @@ def test_count(source):
     assert_eq(agg, out)
     np.testing.assert_array_almost_equal(agg.x_range, (0, 1))
     np.testing.assert_array_almost_equal(agg.y_range, (0, 1))
-

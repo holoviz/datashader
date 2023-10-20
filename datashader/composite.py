@@ -162,4 +162,3 @@ def max_arr(src, dst):
 @arr_operator
 def min_arr(src, dst):
     return min([src,  dst])
-

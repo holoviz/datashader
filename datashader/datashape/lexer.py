@@ -100,4 +100,3 @@ def lex(ds_str):
         m = _whitespace_re.match(ds_str, pos)
         if m:
             pos = m.end()
-
