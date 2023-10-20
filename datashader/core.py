@@ -522,7 +522,7 @@ The axis argument to Canvas.line must be 0 or 1
         Aggregate two area regions across all rows. The first starting
         with coordinates df.A1 by df.B1 and the second with coordinates
         df.A2 by df.B2. Both regions are filled to the y=0 line
-        >>> agg = cvs.area(df, x=['A1', 'A2'], y=['B1', 'B2'],
+        >>> agg = cvs.area(df, x=['A1', 'A2'], y=['B1', 'B2'],  # doctest: +SKIP
                            agg=ds.count(), axis=0)
         ... tf.shade(agg)
 
@@ -536,7 +536,7 @@ The axis argument to Canvas.line must be 0 or 1
         Aggregate 6 length-2 area regions, one per row, where the ith region
         starts with coordinates [df.A1[i], df.A2[i]] by [df.B1[i], df.B2[i]]
         and is filled to the y=0 line
-        >>> agg = cvs.area(df, x=['A1', 'A2'], y=['B1', 'B2'],
+        >>> agg = cvs.area(df, x=['A1', 'A2'], y=['B1', 'B2'],  # doctest: +SKIP
                            agg=ds.count(), axis=1)
         ... tf.shade(agg)
 

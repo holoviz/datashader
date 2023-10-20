@@ -15,8 +15,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pre_commit:
+    name: Run pre-commit
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: holoviz-dev/holoviz_tasks/pre-commit@v0.1a17
+
   test_suite:
     name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    needs: [pre_commit]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -72,6 +79,7 @@ jobs:
 
   test_pip:
     name: Pip tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    needs: [pre_commit]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
