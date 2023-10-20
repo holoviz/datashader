@@ -1,11 +1,11 @@
+"""
+Utilities for manipulating the Abstract Syntax Tree of Python constructs
+"""
 import re
 import copy
 import inspect
 import ast
 import textwrap
-"""
-Utilities for manipulating the Abstract Syntax Tree of Python constructs
-"""
 
 
 class NameVisitor(ast.NodeVisitor):

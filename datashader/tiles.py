@@ -61,7 +61,7 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
 def render_tiles(full_extent, levels, load_data_func,
                  rasterize_func, shader_func,
                  post_render_func, output_path, color_ranging_strategy='fullscan'):
-    results = dict()
+    results = {}
     for level in levels:
         print('calculating statistics for level {}'.format(level))
         super_tiles, span = calculate_zoom_level_stats(list(gen_super_tiles(full_extent, level)),

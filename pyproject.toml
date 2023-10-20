@@ -7,6 +7,10 @@ requires = [
 ]
 
 
+[tool.codespell]
+ignore-words-list = "trough,thi"
+
+
 [tool.ruff]
 line-length = 100
 target-version = "py39"

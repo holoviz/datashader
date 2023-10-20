@@ -109,11 +109,11 @@ def groupby(func, seq):
         ``countby``
     """
 
-    d = dict()
+    d = {}
     for item in seq:
         key = func(item)
         if key not in d:
-            d[key] = list()
+            d[key] = []
         d[key].append(item)
     return d
 
