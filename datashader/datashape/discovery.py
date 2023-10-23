@@ -233,7 +233,9 @@ def isnull(ds):
     return ds == null or ds == DataShape(null)
 
 
-identity = lambda x: x
+def identity(x):
+    return x
+
 
 # (a, b) implies that b can turn into a
 edges = [

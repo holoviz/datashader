@@ -222,10 +222,14 @@ def calc_bbox(xs, ys, res):
                    [0.,      0.,      1.]])
     for x_, y_ in [(0, 0), (0, len(ys)), (len(xs), 0), (len(xs), len(ys))]:
         x, y, _ = np.dot(Ab, np.array([x_, y_, 1.]))
-        if x < xmin: xmin = x
-        if x > xmax: xmax = x
-        if y < ymin: ymin = y
-        if y > ymax: ymax = y
+        if x < xmin:
+            xmin = x
+        if x > xmax:
+            xmax = x
+        if y < ymin:
+            ymin = y
+        if y > ymax:
+            ymax = y
     xpad, ypad = res[0]/2., res[1]/2.
     return xmin-xpad, ymin+ypad, xmax-xpad, ymax+ypad
 
@@ -288,7 +292,8 @@ def orient_array(raster, res=None, layer=None):
     if res is None:
         res = calc_res(raster)
     array = raster.data
-    if layer is not None: array = array[layer-1]
+    if layer is not None:
+        array = array[layer-1]
     r0zero = np.timedelta64(0, 'ns') if isinstance(res[0], np.timedelta64) else 0
     r1zero = np.timedelta64(0, 'ns') if isinstance(res[1], np.timedelta64) else 0
     xflip = res[0] < r0zero
@@ -320,11 +325,13 @@ def downsample_aggregate(aggregate, factor, how='mean'):
     elif how == 'var':
         return np.nanvar(concat, axis=0)
     else:
-        raise ValueError("Invalid 'how' downsample method. Options mean, sum, max, min, median, std, var")
+        raise ValueError("Invalid 'how' downsample method. Options mean, sum, max, min, median, "
+                         "std, var")
 
 
 def summarize_aggregate_values(aggregate, how='linear', num=180):
-    """Helper function similar to np.linspace which return values from aggregate min value to aggregate max value in either linear or log space.
+    """Helper function similar to np.linspace which return values from aggregate min value to
+    aggregate max value in either linear or log space.
     """
 
     max_val = np.nanmax(aggregate.values)
@@ -483,7 +490,8 @@ def dataframe_from_multiple_sequences(x_values, y_values):
    Discussion at: https://github.com/bokeh/datashader/issues/286#issuecomment-334619499
 
    x_values: 1D numpy array with the values to be plotted on the x axis (eg: time)
-   y_values: 2D numpy array with the sequences to be plotted of shape (num sequences X length of each sequence)
+   y_values: 2D numpy array with the sequences to be plotted of shape (num sequences X length of
+             each sequence)
 
    """
 
@@ -567,7 +575,8 @@ def mesh(vertices, simplices):
                                 'consider casting simplices to integers '
                                 'with ".astype(int)"')
 
-    assert len(vertices.columns) > 2 or simplices.values.shape[1] > 3, 'If no vertex weight column is provided, a triangle weight column is required.'
+    assert len(vertices.columns) > 2 or simplices.values.shape[1] > 3, \
+        'If no vertex weight column is provided, a triangle weight column is required.'
 
 
     if isinstance(vertices, dd.DataFrame) and isinstance(simplices, dd.DataFrame):

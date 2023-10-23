@@ -24,7 +24,8 @@ glyph_dispatch = Dispatcher()
 @glyph_dispatch.register(_AreaToLineLike)
 def default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=False):
     create, info, append, _, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
-        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=False)
+        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda,
+                           partitioned=False)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(

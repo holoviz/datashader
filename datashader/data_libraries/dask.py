@@ -71,8 +71,9 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
 
     # Compile functions
     partitioned = isinstance(df, dd.DataFrame) and df.npartitions > 1
-    create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, column_names = \
-        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=partitioned)
+    create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, \
+        column_names = compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda,
+                                          partitioned=partitioned)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(
@@ -211,7 +212,8 @@ def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     # Compile functions
     partitioned = isinstance(df, dd.DataFrame) and df.npartitions > 1
     create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
-        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=partitioned)
+        compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda,
+                           partitioned=partitioned)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
     extend = glyph._build_extend(

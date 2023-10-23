@@ -81,7 +81,7 @@ def benchmark(fn, args, filetype=None):
     # If we're loading data
     if filetype is not None:
         if filetype not in filetypes_storing_categories:
-            opts = dict()
+            opts = {}
             if p.dftype == 'pandas':
                 opts['copy']=False
             for c in p.categories:

@@ -21,12 +21,14 @@ def test_pipeline():
     agg = cvs.points(df, 'x', 'y', ds.count())
     assert img.equals(tf.shade(agg))
 
-    color_fn = lambda agg: tf.shade(agg, 'pink', 'red')
+    def color_fn(agg):
+        return tf.shade(agg, 'pink', 'red')
     pipeline.color_fn = color_fn
     img = pipeline((0, 1), (0, 1), 2, 2)
     assert img.equals(color_fn(agg))
 
-    transform_fn = lambda agg: agg + 1
+    def transform_fn(agg):
+        return agg + 1
     pipeline.transform_fn = transform_fn
     img = pipeline((0, 1), (0, 1), 2, 2)
     assert img.equals(color_fn(transform_fn(agg)))

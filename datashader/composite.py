@@ -148,8 +148,10 @@ def arr_operator(f):
 
 @arr_operator
 def source_arr(src, dst):
-    if src:  return src
-    else:    return dst
+    if src:
+        return src
+    else:
+        return dst
 
 @arr_operator
 def add_arr(src, dst):
@@ -162,4 +164,3 @@ def max_arr(src, dst):
 @arr_operator
 def min_arr(src, dst):
     return min([src,  dst])
-

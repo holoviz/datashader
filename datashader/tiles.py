@@ -16,7 +16,8 @@ __all__ = ['render_tiles', 'MercatorTileDefinition']
 
 # helpers ---------------------------------------------------------------------
 def _create_dir(path):
-    import os, errno
+    import errno
+    import os
 
     try:
         os.makedirs(path)
@@ -61,13 +62,14 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
 def render_tiles(full_extent, levels, load_data_func,
                  rasterize_func, shader_func,
                  post_render_func, output_path, color_ranging_strategy='fullscan'):
-    results = dict()
+    results = {}
     for level in levels:
         print('calculating statistics for level {}'.format(level))
         super_tiles, span = calculate_zoom_level_stats(list(gen_super_tiles(full_extent, level)),
                                                        load_data_func, rasterize_func,
                                                        color_ranging_strategy=color_ranging_strategy)
-        print('rendering {} supertiles for zoom level {} with span={}'.format(len(super_tiles), level, span))
+        print('rendering {} supertiles for zoom level {} with span={}'.format(len(super_tiles),
+                                                                              level, span))
         b = db.from_sequence(super_tiles)
         b.map(render_super_tile, span, output_path, shader_func, post_render_func).compute()
         results[level] = dict(success=True, stats=span, supertile_count=len(super_tiles))
@@ -79,7 +81,8 @@ def gen_super_tiles(extent, zoom_level, span=None):
     xmin, ymin, xmax, ymax = extent
     super_tile_size = min(2 ** 4 * 256,
                           (2 ** zoom_level) * 256)
-    super_tile_def = MercatorTileDefinition(x_range=(xmin, xmax), y_range=(ymin, ymax), tile_size=super_tile_size)
+    super_tile_def = MercatorTileDefinition(x_range=(xmin, xmax), y_range=(ymin, ymax),
+                                            tile_size=super_tile_size)
     super_tiles = super_tile_def.get_tiles_by_extent(extent, zoom_level)
     for s in super_tiles:
         st_extent = s[3]
@@ -176,7 +179,8 @@ class MercatorTileDefinition:
         self.x_origin_offset = x_origin_offset
         self.y_origin_offset = y_origin_offset
         self.initial_resolution = initial_resolution
-        self._resolutions = [self._get_resolution(z) for z in range(self.min_zoom, self.max_zoom + 1)]
+        self._resolutions = [
+            self._get_resolution(z) for z in range(self.min_zoom, self.max_zoom + 1)]
 
     def to_ogc_tile_metadata(self, output_file_path):
         '''
@@ -273,7 +277,8 @@ class MercatorTileDefinition:
     def get_tile_meters(self, tx, ty, level):
         ty = invert_y_tile(ty, level)  # convert to TMS for conversion to meters
         xmin, ymin = self.pixels_to_meters(tx * self.tile_size, ty * self.tile_size, level)
-        xmax, ymax = self.pixels_to_meters((tx + 1) * self.tile_size, (ty + 1) * self.tile_size, level)
+        xmax, ymax = self.pixels_to_meters((tx + 1) * self.tile_size,
+                                           (ty + 1) * self.tile_size, level)
         return (xmin, ymin, xmax, ymax)
 
 
@@ -305,7 +310,8 @@ class TileRenderer:
             if 0 in arr.shape:
                 continue
 
-            img = fromarray(np.flip(arr.data, 0), 'RGBA')  # flip since y tiles go down (Google map tiles)
+            # flip since y tiles go down (Google map tiles
+            img = fromarray(np.flip(arr.data, 0), 'RGBA')
 
             if self.post_render_func:
                 extras = dict(x=x, y=y, z=z)

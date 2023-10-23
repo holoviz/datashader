@@ -1,9 +1,8 @@
-from __future__ import print_function, division, absolute_import
-
 """
 This defines the DataShape type system, with unified
 shape and data type.
 """
+from __future__ import print_function, division, absolute_import
 
 import ctypes
 import operator

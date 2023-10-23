@@ -117,7 +117,8 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
         else:
             array_module = np
         antialias_stage_2 = antialias_stage_2(array_module)
-        antialias_stage_2_funcs = make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned)
+        antialias_stage_2_funcs = make_antialias_stage_2_functions(antialias_stage_2, bases, cuda,
+                                                                   partitioned)
     else:
         self_intersect = False
         antialias_stage_2 = False
@@ -145,7 +146,8 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
 
     column_names = [c.column for c in cols if c.column != SpecialColumn.RowIndex]
 
-    return create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, column_names
+    return create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, \
+        column_names
 
 
 def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero: float,
@@ -220,7 +222,8 @@ def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned
         "            a[1][:] = a[0][:]",
         "    else:",
     ]
-    for i, (func, is_where, next_is_where) in enumerate(zip(funcs, base_is_where, next_base_is_where)):
+    for i, (func, is_where, next_is_where) in enumerate(zip(funcs, base_is_where,
+                                                            next_base_is_where)):
         if is_where:
             where_reduction = bases[i]
             if isinstance(where_reduction, by):
@@ -230,12 +233,14 @@ def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned
             name = next(names)  # Unique name
             namespace[name] = combine
 
-            lines.append(f"        {name}(aggs_and_copies[{i}][::-1], aggs_and_copies[{i-1}][::-1])")
+            lines.append(
+                f"        {name}(aggs_and_copies[{i}][::-1], aggs_and_copies[{i-1}][::-1])")
         elif next_is_where:
             # This is dealt with as part of the following base which is a where reduction.
             pass
         else:
-            lines.append(f"        {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
+            lines.append(
+                f"        {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
     code = "\n".join(lines)
     logger.debug(code)
     exec(code, namespace)
@@ -477,7 +482,8 @@ def make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitio
     # it from explicit combine calls.
     base_is_where = [b.is_where() for b in bases]
     next_base_is_where = base_is_where[1:] + [False]
-    calls = [(None if n else b._build_combine(d, antialias, cuda, partitioned), [arg_lk[i] for i in (b,) + t + ct])
+    calls = [(None if n else b._build_combine(d, antialias, cuda, partitioned),
+              [arg_lk[i] for i in (b,) + t + ct])
              for (b, d, t, ct, n) in zip(bases, dshapes, temps, combine_temps, next_base_is_where)]
 
     def combine(base_tuples):
@@ -539,6 +545,7 @@ def make_antialias_stage_2(reds, bases):
             break
 
     def antialias_stage_2(array_module) -> UnzippedAntialiasStage2:
-        return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module) for b in bases)))
+        return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module)
+                                 for b in bases)))
 
     return self_intersect, antialias_stage_2

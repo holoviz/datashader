@@ -51,7 +51,8 @@ def test_extend_line_normal(benchmark, extend_line):
     xs = np.linspace(start, end, n)
 
     signal = np.random.normal(0, 0.3, size=n).cumsum() + 50
-    noise = lambda var, bias, n: np.random.normal(bias, var, n)
+    def noise(var, bias, n):
+        return np.random.normal(bias, var, n)
     ys = signal + noise(1, 10*(np.random.random() - 0.5), n)
 
     agg = np.zeros((ymin, ymax), dtype='i4')

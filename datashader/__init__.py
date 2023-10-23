@@ -3,7 +3,8 @@ from __future__ import annotations
 from packaging.version import Version
 
 import param
-__version__ = str(param.version.Version(fpath=__file__, archive_commit="$Format:%h$",reponame="datashader"))
+__version__ = str(param.version.Version(fpath=__file__, archive_commit="$Format:%h$",
+                                        reponame="datashader"))
 
 from .core import Canvas                                 # noqa (API import)
 from .reductions import *                                # noqa (API import)
@@ -26,8 +27,11 @@ try:
     fetch_data = partial(_fetch,'datashader')
     examples = partial(_examples,'datashader')
 except ImportError:
-    def _missing_cmd(*args,**kw): return("install pyct to enable this command (e.g. `conda install pyct or `pip install pyct[cmd]`)")
+    def _missing_cmd(*args,**kw):
+        return("install pyct to enable this command (e.g. `conda install pyct or "
+               "`pip install pyct[cmd]`)")
     _copy = _fetch = _examples = _missing_cmd
-    def err(): raise ValueError(_missing_cmd())
+    def err():
+        raise ValueError(_missing_cmd())
     fetch_data = copy_examples = examples = err
 del partial, _examples, _copy, _fetch

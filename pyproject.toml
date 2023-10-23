@@ -5,3 +5,16 @@ requires = [
     "pyct",
     "setuptools"
 ]
+
+
+[tool.codespell]
+ignore-words-list = "trough,thi"
+
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+
+[tool.ruff.per-file-ignores]
+"test_mpl_ext.py" = ["E402"]  # Module level import not at top of file

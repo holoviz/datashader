@@ -5,7 +5,7 @@ from packaging.version import Version
 
 try:
     from math import nan
-except:
+except ImportError:
     nan = float('nan')
 
 import numba
@@ -23,7 +23,7 @@ try:
             *[arg.dtype if isinstance(arg, cupy.ndarray) else arg
               for arg in args]
         )
-except:
+except ImportError:
     cupy = None
 
 
@@ -130,7 +130,8 @@ def interp(x, xp, fp, left=None, right=None):
         right = fp[-1]
     right = float(right)
     interp2d_kernel[cuda_args(x.shape)](
-        x.astype(cupy.float64), xp.astype(cupy.float64), fp.astype(cupy.float64), left, right, output_y
+        x.astype(cupy.float64), xp.astype(cupy.float64), fp.astype(cupy.float64), left, right,
+        output_y,
     )
     return output_y
 

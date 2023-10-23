@@ -522,7 +522,8 @@ The axis argument to Canvas.line must be 0 or 1
         Aggregate two area regions across all rows. The first starting
         with coordinates df.A1 by df.B1 and the second with coordinates
         df.A2 by df.B2. Both regions are filled to the y=0 line
-        >>> agg = cvs.area(df, x=['A1', 'A2'], y=['B1', 'B2'], agg=ds.count(), axis=0)  # doctest: +SKIP
+        >>> agg = cvs.area(df, x=['A1', 'A2'], y=['B1', 'B2'],  # doctest: +SKIP
+                           agg=ds.count(), axis=0)
         ... tf.shade(agg)
 
         Aggregate two area regions across all rows where the regions share the
@@ -535,7 +536,8 @@ The axis argument to Canvas.line must be 0 or 1
         Aggregate 6 length-2 area regions, one per row, where the ith region
         starts with coordinates [df.A1[i], df.A2[i]] by [df.B1[i], df.B2[i]]
         and is filled to the y=0 line
-        >>> agg = cvs.area(df, x=['A1', 'A2'], y=['B1', 'B2'], agg=ds.count(), axis=1)  # doctest: +SKIP
+        >>> agg = cvs.area(df, x=['A1', 'A2'], y=['B1', 'B2'],  # doctest: +SKIP
+                           agg=ds.count(), axis=1)
         ... tf.shade(agg)
 
         Aggregate 6 length-4 area regions, one per row, where the
@@ -931,7 +933,8 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             elif interpolate == 'nearest':
                 interp = False
             else:
-                raise ValueError('Invalid interpolate method: options include {}'.format(['linear','nearest']))
+                raise ValueError('Invalid interpolate method: options include {}'.format(
+                    ['linear','nearest']))
 
         # Validation is done inside the [pd]d_mesh utility functions
         if source is None:
@@ -951,7 +954,8 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         cols = source.columns
         x, y, weights = cols[0], cols[1], cols[2:]
 
-        return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights, interp=interp), agg)
+        return bypixel(source, self, Triangles(x, y, weights, weight_type=verts_have_weights,
+                                               interp=interp), agg)
 
     def raster(self,
                source,
@@ -1020,8 +1024,10 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         data : xarray.Dataset
         """
         # For backwards compatibility
-        if agg         is None: agg=downsample_method
-        if interpolate is None: interpolate=upsample_method
+        if agg         is None:
+            agg=downsample_method
+        if interpolate is None:
+            interpolate=upsample_method
 
         upsample_methods = ['nearest','linear']
 
@@ -1035,7 +1041,8 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
                               'max':'max',     rd.max:'max'}
 
         if interpolate not in upsample_methods:
-            raise ValueError('Invalid interpolate method: options include {}'.format(upsample_methods))
+            raise ValueError('Invalid interpolate method: options include {}'.format(
+                upsample_methods))
 
         if not isinstance(source, (DataArray, Dataset)):
             raise ValueError('Expected xarray DataArray or Dataset as '
@@ -1065,7 +1072,8 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             source = source[column]
 
         if agg not in downsample_methods.keys():
-            raise ValueError('Invalid aggregation method: options include {}'.format(list(downsample_methods.keys())))
+            raise ValueError('Invalid aggregation method: options include {}'.format(
+                list(downsample_methods.keys())))
         ds_method = downsample_methods[agg]
 
         if source.ndim not in [2, 3]:
@@ -1089,8 +1097,10 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         else:
             fill_value = np.nan
 
-        if self.x_range is None: self.x_range = (left,right)
-        if self.y_range is None: self.y_range = (bottom,top)
+        if self.x_range is None:
+            self.x_range = (left,right)
+        if self.y_range is None:
+            self.y_range = (bottom,top)
 
         # window coordinates
         xmin = max(self.x_range[0], left)
@@ -1177,8 +1187,10 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             data = concat(arrays, axis=1) if len(arrays) > 1 else arrays[0]
 
         # Reorient array to original orientation
-        if res[1] > 0: data = data[::-1]
-        if res[0] < 0: data = data[:, ::-1]
+        if res[1] > 0:
+            data = data[::-1]
+        if res[0] < 0:
+            data = data[:, ::-1]
 
         # Compute DataArray metadata
 
@@ -1218,7 +1230,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         if 'nodata' not in attrs:
             try:
                 attrs['nodata'] = source.attrs['nodatavals'][0]
-            except:
+            except Exception:
                 pass
 
         # Handle DataArray with layers
@@ -1337,7 +1349,8 @@ def _bypixel_sanitise(source, glyph, agg):
             if isinstance(glyph, PolygonGeom):
                 sindex = getattr(source[glyph.geometry].array, "_sindex", None)
             source = source[cols_to_keep]
-            if sindex is not None and getattr(source[glyph.geometry].array, "_sindex", None) is None:
+            if (sindex is not None and
+                    getattr(source[glyph.geometry].array, "_sindex", None) is None):
                 source[glyph.geometry].array._sindex = sindex
         dshape = dshape_from_pandas(source)
     elif isinstance(source, dd.DataFrame):

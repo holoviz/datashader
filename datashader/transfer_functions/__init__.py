@@ -290,7 +290,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
             masked_data = np.where(~mask, data, np.nan)
             span = np.nanmin(masked_data), np.nanmax(masked_data)
 
-            if rescale_discrete_levels and discrete_levels is not None:  # Only valid for how='eq_hist'
+            if rescale_discrete_levels and discrete_levels is not None:  # Only valid for eq_hist
                 span = _rescale_discrete_levels(discrete_levels, span)
         else:
             if how == 'eq_hist':
@@ -343,7 +343,8 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
 
-def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline, rescale_discrete_levels):
+def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
+              rescale_discrete_levels):
     if cupy and isinstance(agg.data, cupy.ndarray):
         array = cupy.array
     else:
@@ -365,8 +366,8 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     if not isinstance(color_key, dict):
         color_key = dict(zip(cats, color_key))
     if len(color_key) < len(cats):
-        raise ValueError("Insufficient colors provided ({}) for the categorical fields available ({})"
-                         .format(len(color_key), len(cats)))
+        raise ValueError(f"Insufficient colors provided ({len(color_key)}) for the categorical "
+                         f"fields available ({len(cats)})")
 
     colors = [rgb(color_key[c]) for c in cats]
     rs, gs, bs = map(array, zip(*colors))
@@ -696,7 +697,7 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     name = agg.name if name is None else name
 
     if not ((0 <= min_alpha <= 255) and (0 <= alpha <= 255)):
-        raise ValueError("min_alpha ({}) and alpha ({}) must be between 0 and 255".format(min_alpha,alpha))
+        raise ValueError(f"min_alpha ({min_alpha}) and alpha ({alpha}) must be between 0 and 255")
 
     if rescale_discrete_levels and how != 'eq_hist':
         rescale_discrete_levels = False
@@ -707,9 +708,11 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
                 agg, color_key, alpha, name, color_baseline
             )
         else:
-            return _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_levels)
+            return _interpolate(agg, cmap, how, alpha, span, min_alpha, name,
+                                rescale_discrete_levels)
     elif agg.ndim == 3:
-        return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline, rescale_discrete_levels)
+        return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
+                         rescale_discrete_levels)
     else:
         raise ValueError("agg must use 2D or 3D coordinates")
 
