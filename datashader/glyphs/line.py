@@ -16,6 +16,7 @@ try:
     from ..transfer_functions._cuda_utils import cuda_args
 except ImportError:
     cudf = None
+    cp = None
     cuda_args = None
 
 try:

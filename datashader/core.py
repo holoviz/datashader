@@ -383,7 +383,6 @@ class Canvas:
                     "dask_geopandas.GeoDataFrame. Received objects of type {typ}".format(
                         typ=type(source)))
 
-            glyph = LineAxis1Geometry(geometry)
         elif isinstance(source, Dataset) and isinstance(x, str) and isinstance(y, str):
             x_arr = source[x]
             y_arr = source[y]
