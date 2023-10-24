@@ -112,7 +112,7 @@ class extract(Preprocess):
             else:
                 return np.arange(row_offset, row_offset + row_length, dtype=np.int64)
         elif isinstance(df, xr.Dataset):
-            if cuda:
+            if cuda and not isinstance(df[self.column].data, cp.ndarray):
                 return cp.asarray(df[self.column])
             else:
                 return df[self.column].data
