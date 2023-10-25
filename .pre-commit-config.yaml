@@ -23,6 +23,10 @@ repos:
     - id: codespell
       additional_dependencies:
         - tomli
+  - repo: https://github.com/hoxbro/clean_notebook
+    rev: v0.1.13
+    hooks:
+      - id: clean-notebook
 
 ci:
   autofix_prs: false
