@@ -84,14 +84,20 @@ class Preprocess(Expr):
 
 class extract(Preprocess):
     """Extract a column from a dataframe as a numpy array of values."""
-    def apply(self, df):
+    def apply(self, df, cuda):
         if self.column is SpecialColumn.RowIndex:
-            attrs = getattr(df, "attrs", None)
-            row_offset = getattr(attrs or df, "_datashader_row_offset", 0)
+            attr_name = "_datashader_row_offset"
+            if isinstance(df, xr.Dataset):
+                row_offset = df.attrs[attr_name]
+                row_length = df.attrs["_datashader_row_length"]
+            else:
+                attrs = getattr(df, "attrs", None)
+                row_offset = getattr(attrs or df, attr_name, 0)
+                row_length = len(df)
 
         if cudf and isinstance(df, cudf.DataFrame):
             if self.column is SpecialColumn.RowIndex:
-                return cp.arange(row_offset, row_offset+len(df), dtype=np.int64)
+                return cp.arange(row_offset, row_offset + row_length, dtype=np.int64)
 
             if df[self.column].dtype.kind == 'f':
                 nullval = np.nan
@@ -100,11 +106,16 @@ class extract(Preprocess):
             if Version(cudf.__version__) >= Version("22.02"):
                 return df[self.column].to_cupy(na_value=nullval)
             return cp.array(df[self.column].to_gpu_array(fillna=nullval))
-        elif isinstance(df, xr.Dataset):
-            # DataArray could be backed by numpy or cupy array
-            return df[self.column].data
         elif self.column is SpecialColumn.RowIndex:
-            return np.arange(row_offset, row_offset+len(df), dtype=np.int64)
+            if cuda:
+                return cp.arange(row_offset, row_offset + row_length, dtype=np.int64)
+            else:
+                return np.arange(row_offset, row_offset + row_length, dtype=np.int64)
+        elif isinstance(df, xr.Dataset):
+            if cuda and not isinstance(df[self.column].data, cp.ndarray):
+                return cp.asarray(df[self.column])
+            else:
+                return df[self.column].data
         else:
             return df[self.column].values
 
@@ -124,7 +135,7 @@ class CategoryPreprocess(Preprocess):
         """Validates input shape"""
         raise NotImplementedError("validate not implemented")
 
-    def apply(self, df):
+    def apply(self, df, cuda):
         """Applies preprocessor to DataFrame and returns array"""
         raise NotImplementedError("apply not implemented")
 
@@ -149,7 +160,7 @@ class category_codes(CategoryPreprocess):
         if not isinstance(in_dshape.measure[self.column], ct.Categorical):
             raise ValueError("input must be categorical")
 
-    def apply(self, df):
+    def apply(self, df, cuda):
         if cudf and isinstance(df, cudf.DataFrame):
             if Version(cudf.__version__) >= Version("22.02"):
                 return df[self.column].cat.codes.to_cupy()
@@ -185,7 +196,7 @@ class category_modulo(category_codes):
         if in_dshape.measure[self.column] not in self.IntegerTypes:
             raise ValueError("input must be an integer column")
 
-    def apply(self, df):
+    def apply(self, df, cuda):
         result = (df[self.column] - self.offset) % self.modulo
         if cudf and isinstance(df, cudf.Series):
             if Version(cudf.__version__) >= Version("22.02"):
@@ -226,7 +237,7 @@ class category_binning(category_modulo):
         if self.column not in in_dshape.dict:
             raise ValueError("specified column not found")
 
-    def apply(self, df):
+    def apply(self, df, cuda):
         if cudf and isinstance(df, cudf.DataFrame):
             if Version(cudf.__version__) >= Version("22.02"):
                 values = df[self.column].to_cupy(na_value=cp.nan)
@@ -269,8 +280,8 @@ class category_values(CategoryPreprocess):
     def validate(self, in_dshape):
         return self.categorizer.validate(in_dshape)
 
-    def apply(self, df):
-        a = self.categorizer.apply(df)
+    def apply(self, df, cuda):
+        a = self.categorizer.apply(df, cuda)
         if cudf and isinstance(df, cudf.DataFrame):
             import cupy
             if self.column == SpecialColumn.RowIndex:
@@ -281,7 +292,7 @@ class category_values(CategoryPreprocess):
                 nullval = 0
             a = cupy.asarray(a)
             if self.column == SpecialColumn.RowIndex:
-                b = extract(SpecialColumn.RowIndex).apply(df)
+                b = extract(SpecialColumn.RowIndex).apply(df, cuda)
             elif Version(cudf.__version__) >= Version("22.02"):
                 b = df[self.column].to_cupy(na_value=nullval)
             else:
@@ -289,7 +300,7 @@ class category_values(CategoryPreprocess):
             return cupy.stack((a, b), axis=-1)
         else:
             if self.column == SpecialColumn.RowIndex:
-                b = extract(SpecialColumn.RowIndex).apply(df)
+                b = extract(SpecialColumn.RowIndex).apply(df, cuda)
             else:
                 b = df[self.column].values
             return np.stack((a, b), axis=-1)
@@ -2023,11 +2034,13 @@ class where(FloatingReduction):
             if len(aggs) == 1:
                 pass
             elif cuda:
+                assert len(aggs) == 2
                 is_n_reduction = isinstance(self.selector, FloatingNReduction)
                 shape = aggs[0].shape[:-1] if is_n_reduction else aggs[0].shape
                 combine[cuda_args(shape)](aggs, selector_aggs)
             else:
-                combine(aggs, selector_aggs)
+                for i in range(1, len(aggs)):
+                    combine((aggs[0], aggs[i]), (selector_aggs[0], selector_aggs[i]))
 
             return aggs[0], selector_aggs[0]
 
@@ -2182,10 +2195,11 @@ class _max_row_index(_max_or_min_row_index):
     def _combine(aggs):
         # Maximum ignoring -1 values
         # Works for CPU and GPU
-        if len(aggs) > 1:
+        ret = aggs[0]
+        for i in range(1, len(aggs)):
             # Works with numpy or cupy arrays
-            np.maximum(aggs[0], aggs[1], out=aggs[0])
-        return aggs[0]
+            np.maximum(ret, aggs[i], out=ret)
+        return ret
 
 
 class _min_row_index(_max_or_min_row_index):
@@ -2245,9 +2259,9 @@ class _min_row_index(_max_or_min_row_index):
     def _combine(aggs):
         # Minimum ignoring -1 values
         ret = aggs[0]
-        if len(aggs) > 1:
+        for i in range(1, len(aggs)):
             # Can take 2d (ny, nx) or 3d (ny, nx, ncat) arrays.
-            row_min_in_place(aggs[0], aggs[1])
+            row_min_in_place(ret, aggs[i])
         return ret
 
     @staticmethod
