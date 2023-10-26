@@ -1,6 +1,8 @@
 from __future__ import annotations
 import pytest
 
+pytest.importorskip("matplotlib")
+
 import matplotlib
 matplotlib.use("Agg")
 
@@ -10,8 +12,6 @@ import pandas as pd
 
 import datashader as ds
 from datashader.mpl_ext import dsshow
-
-pytest.importorskip("matplotlib")
 
 
 df = pd.DataFrame(
