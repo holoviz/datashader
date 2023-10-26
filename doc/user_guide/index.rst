@@ -47,6 +47,9 @@ Contents:
 `12. Inspection Reductions <Inspection_Reductions.html>`_
  Using reduction to inspect rather than aggregate data.
 
+`13. GeoPandas <Geopandas.html>`_
+GeoPandas support in Datashader.
+
 .. toctree::
     :hidden:
     :maxdepth: 3
@@ -63,3 +66,4 @@ Contents:
     Performance <Performance>
     Geography <Geography>
     Inspection Reductions <Inspection_Reductions>
+    GeoPandas <Geopandas>
