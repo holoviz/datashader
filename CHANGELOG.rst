@@ -1,3 +1,44 @@
+Version 0.16.0 (2023-10-26)
+---------------------------
+
+Datashader 0.16.0 is a significant release adding support for rendering GeoPandas GeoDataFrames directly rather than having to convert them to SpatialPandas first. Support for GeoPandas geometry types in Datashader ``Canvas`` functions is as follows:
+
+- ``Canvas.line``: ``LineString``, ``MultiLineString``, ``MultiPolygon``, ``Polygon``
+- ``Canvas.point``: ``MultiPoint``, ``Point``
+- ``Canvas.polygons``: ``MultiPolygon``, ``Polygon``
+
+There is also support in ``Canvas.line`` for a new data type which is a 2D ``xarray.DataArray`` (within an ``xarray.Dataset``) containing the coordinates of multiple lines that share the same ``x`` coordinates.
+
+The DataShape package is now vendored in Datashader as it has not been maintained for a number of years and is not accepting updates.
+
+Thanks to new contributor `@J08ny <https://github.com/J08ny>`_ and regular contributors `@Hoxbro <https://github.com/Hoxbro>`_ and `@ianthomas23 <https://github.com/ianthomas23>`_.
+
+Enhancements:
+
+- Support rendering of GeoPandas GeoDataFrames as lines, points and polygons (`#1285 <https://github.com/holoviz/datashader/pull/1285>`_, `#1293 <https://github.com/holoviz/datashader/pull/1293>`_, `#1297 <https://github.com/holoviz/datashader/pull/1297>`_)
+- Implement lines using 2D xarray with common x coordinates (`#1282 <https://github.com/holoviz/datashader/pull/1282>`_)
+
+General code improvements:
+
+- Add debug logging to compiler module (`#1280 <https://github.com/holoviz/datashader/pull/1280>`_)
+- Vendor DataShape (`#1284 <https://github.com/holoviz/datashader/pull/1284>`_)
+- Don't use ``object`` as base class (`#1286 <https://github.com/holoviz/datashader/pull/1286>`_)
+- Fix typos using ``codespell`` (`#1288 <https://github.com/holoviz/datashader/pull/1288>`_)
+- Fix ``float16`` being a floating type. (`#1290 <https://github.com/holoviz/datashader/pull/1290>`_)
+- Simplify line ``_internal_build_extend`` (`#1294 <https://github.com/holoviz/datashader/pull/1294>`_)
+
+Improvements to CI:
+
+- Update to latest ``holoviz_tasks`` (`#1281 <https://github.com/holoviz/datashader/pull/1281>`_)
+- Update ``codecov`` configuration (`#1292 <https://github.com/holoviz/datashader/pull/1292>`_)
+- Add ``pre-commit`` (`#1295 <https://github.com/holoviz/datashader/pull/1295>`_, `#1296 <https://github.com/holoviz/datashader/pull/1296>`_)
+
+Compatibility:
+
+- Support Pandas 2.1 (`#1276 <https://github.com/holoviz/datashader/pull/1276>`_, `#1287 <https://github.com/holoviz/datashader/pull/1287>`_)
+- Replace ``np.NaN`` with ``np.nan`` (`#1289 <https://github.com/holoviz/datashader/pull/1289>`_)
+- Drop support for Python 3.8 (`#1291 <https://github.com/holoviz/datashader/pull/1291>`_)
+
 Version 0.15.2 (2023-08-17)
 ---------------------------
 
