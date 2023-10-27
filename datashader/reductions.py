@@ -556,18 +556,18 @@ class count(SelfIntersectingOptionalFieldReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         if not isnull(field):
             if isnull(agg[y, x]):
-                agg[y, x] = aa_factor
+                agg[y, x] = aa_factor - prev_aa_factor
             else:
-                agg[y, x] += aa_factor
+                agg[y, x] += aa_factor - prev_aa_factor
             return 0
         return -1
 
     @staticmethod
     @ngjit
-    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor):
+    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor, prev_aa_factor):
         if not isnull(field):
             if isnull(agg[y, x]) or aa_factor > agg[y, x]:
                 agg[y, x] = aa_factor
@@ -582,16 +582,16 @@ class count(SelfIntersectingOptionalFieldReduction):
 
     @staticmethod
     @ngjit
-    def _append_no_field_antialias(x, y, agg, aa_factor):
+    def _append_no_field_antialias(x, y, agg, aa_factor, prev_aa_factor):
         if isnull(agg[y, x]):
-            agg[y, x] = aa_factor
+            agg[y, x] = aa_factor - prev_aa_factor
         else:
-            agg[y, x] += aa_factor
+            agg[y, x] += aa_factor - prev_aa_factor
         return 0
 
     @staticmethod
     @ngjit
-    def _append_no_field_antialias_not_self_intersect(x, y, agg, aa_factor):
+    def _append_no_field_antialias_not_self_intersect(x, y, agg, aa_factor, prev_aa_factor):
         if isnull(agg[y, x]) or aa_factor > agg[y, x]:
             agg[y, x] = aa_factor
             return 0
@@ -600,7 +600,7 @@ class count(SelfIntersectingOptionalFieldReduction):
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_antialias_cuda(x, y, agg, field, aa_factor):
+    def _append_antialias_cuda(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
             old = cuda_atomic_nanmax(agg, (y, x), value)
@@ -610,7 +610,7 @@ class count(SelfIntersectingOptionalFieldReduction):
 
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_no_field_antialias_cuda_not_self_intersect(x, y, agg, aa_factor):
+    def _append_no_field_antialias_cuda_not_self_intersect(x, y, agg, aa_factor, prev_aa_factor):
         if not isnull(aa_factor):
             old = cuda_atomic_nanmax(agg, (y, x), aa_factor)
             if isnull(old) or old < aa_factor:
@@ -627,7 +627,7 @@ class count(SelfIntersectingOptionalFieldReduction):
 
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_no_field_antialias_cuda(x, y, agg, aa_factor):
+    def _append_no_field_antialias_cuda(x, y, agg, aa_factor, prev_aa_factor):
         if not isnull(aa_factor):
             old = cuda_atomic_nanmax(agg, (y, x), aa_factor)
             if isnull(old) or old < aa_factor:
@@ -656,6 +656,35 @@ class count(SelfIntersectingOptionalFieldReduction):
         for i in range(1, len(aggs)):
             nansum_in_place(ret, aggs[i])
         return ret
+
+
+class _count_ignore_antialiasing(count):
+    """Count reduction but ignores antialiasing. Used by mean reduction.
+    """
+    def out_dshape(self, in_dshape, antialias, cuda, partitioned):
+        return dshape(ct.uint32)
+
+    def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
+        if self_intersect:
+            return (AntialiasStage2(AntialiasCombination.SUM_1AGG, 0),)
+        else:
+            return (AntialiasStage2(AntialiasCombination.SUM_2AGG, 0),)
+
+    @staticmethod
+    @ngjit
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
+        if not isnull(field) and prev_aa_factor == 0.0:
+            agg[y, x] += 1
+            return 0
+        return -1
+
+    @staticmethod
+    @ngjit
+    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor, prev_aa_factor):
+        if not isnull(field) and prev_aa_factor == 0.0:
+            agg[y, x] += 1
+            return 0
+        return -1
 
 
 class by(Reduction):
@@ -809,7 +838,7 @@ class any(OptionalFieldReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         if not isnull(field):
             if isnull(agg[y, x]) or aa_factor > agg[y, x]:
                 agg[y, x] = aa_factor
@@ -824,7 +853,7 @@ class any(OptionalFieldReduction):
 
     @staticmethod
     @ngjit
-    def _append_no_field_antialias(x, y, agg, aa_factor):
+    def _append_no_field_antialias(x, y, agg, aa_factor, prev_aa_factor):
         if isnull(agg[y, x]) or aa_factor > agg[y, x]:
             agg[y, x] = aa_factor
             return 0
@@ -926,8 +955,8 @@ class _sum_zero(FloatingReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
-        value = field*aa_factor
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
+        value = field*(aa_factor - prev_aa_factor)
         if not isnull(value):
             # agg[y, x] cannot be null as initialised to zero.
             agg[y, x] += value
@@ -936,7 +965,7 @@ class _sum_zero(FloatingReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor):
+    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value) and value > agg[y, x]:
             # agg[y, x] cannot be null as initialised to zero.
@@ -1026,8 +1055,8 @@ class sum(SelfIntersectingFloatingReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
-        value = field*aa_factor
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
+        value = field*(aa_factor - prev_aa_factor)
         if not isnull(value):
             if isnull(agg[y, x]):
                 agg[y, x] = value
@@ -1038,7 +1067,7 @@ class sum(SelfIntersectingFloatingReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor):
+    def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
             if isnull(agg[y, x]) or value > agg[y, x]:
@@ -1145,7 +1174,7 @@ class min(FloatingReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
             agg[y, x] = value
@@ -1190,7 +1219,7 @@ class max(FloatingReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
             agg[y, x] = value
@@ -1200,7 +1229,7 @@ class max(FloatingReduction):
     # GPU append functions
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_antialias_cuda(x, y, agg, field, aa_factor):
+    def _append_antialias_cuda(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
             old = cuda_atomic_nanmax(agg, (y, x), value)
@@ -1247,7 +1276,7 @@ class mean(Reduction):
         ``NaN`` values in the column are skipped.
     """
     def _build_bases(self, cuda, partitioned):
-        return (_sum_zero(self.column), count(self.column))
+        return (_sum_zero(self.column), _count_ignore_antialiasing(self.column))
 
     @staticmethod
     def _finalize(bases, cuda=False, **kwargs):
@@ -1365,7 +1394,7 @@ class first(_first_or_last):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
             agg[y, x] = value
@@ -1403,7 +1432,7 @@ class last(_first_or_last):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
             agg[y, x] = value
@@ -1512,7 +1541,7 @@ class first_n(_first_n_or_last_n):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
             # Check final value first for quick abort.
@@ -1549,7 +1578,7 @@ class last_n(_first_n_or_last_n):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
             # Always inserts at front of agg's third dimension.
@@ -1584,7 +1613,7 @@ class max_n(FloatingNReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
             # Linear walk along stored values.
@@ -1664,7 +1693,7 @@ class min_n(FloatingNReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
             # Linear walk along stored values.
@@ -1841,7 +1870,7 @@ class where(FloatingReduction):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor, update_index):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor, update_index):
         # Ignore aa_factor.
         if agg.ndim > 2:
             shift_and_insert(agg[y, x], field, update_index)
@@ -1850,7 +1879,7 @@ class where(FloatingReduction):
 
     @staticmethod
     @nb_cuda.jit(device=True)
-    def _append_antialias_cuda(x, y, agg, field, aa_factor, update_index):
+    def _append_antialias_cuda(x, y, agg, field, aa_factor, prev_aa_factor, update_index):
         # Ignore aa_factor
         if agg.ndim > 2:
             cuda_shift_and_insert(agg[y, x], field, update_index)
@@ -2172,7 +2201,7 @@ class _max_row_index(_max_or_min_row_index):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         # field is int64 row index
         # Ignore aa_factor
         if field > agg[y, x]:
@@ -2230,7 +2259,7 @@ class _min_row_index(_max_or_min_row_index):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         # field is int64 row index
         # Ignore aa_factor
         if field != -1 and (agg[y, x] == -1 or field < agg[y, x]):
@@ -2326,7 +2355,7 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         # field is int64 row index
         # Ignoring aa_factor
         if field != -1:
@@ -2409,7 +2438,7 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
 
     @staticmethod
     @ngjit
-    def _append_antialias(x, y, agg, field, aa_factor):
+    def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         # field is int64 row index
         # Ignoring aa_factor
         if field != -1:

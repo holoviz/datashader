@@ -392,7 +392,7 @@ def make_append(bases, cols, calls, glyph, antialias):
 
         args.extend([local_lk[i] for i in temps])
         if antialias:
-            args.append("aa_factor")
+            args += ["aa_factor", "prev_aa_factor"]
 
         if local_cuda_mutex and prev_local_cuda_mutex:
             # Avoid unnecessary mutex unlock and lock cycle
@@ -458,7 +458,7 @@ def make_append(bases, cols, calls, glyph, antialias):
         body = [get_cuda_mutex_call(True)] + body + [get_cuda_mutex_call(False)]
 
     if antialias:
-        signature.insert(0, "aa_factor")
+        signature = ["aa_factor", "prev_aa_factor"] + signature
 
     if ndims is None:
         code = ('def append(x, y, {0}):\n'

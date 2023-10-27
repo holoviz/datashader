@@ -967,15 +967,18 @@ def _build_full_antialias(expand_aggs_and_cols):
                         prev_correction = True
                 value = 1.0 - _linearstep(0.5*(line_width - aa), halfwidth, distance)
                 value *= scale
+                prev_value = 0.0
                 if prev_correction:
                     # Already set pixel from previous segment, need to correct it
                     prev_distance = abs((x-x0)*prev_rightx + (y-y0)*prev_righty)
                     prev_value = 1.0 - _linearstep(0.5*(line_width - aa), halfwidth, prev_distance)
                     prev_value *= scale
-                    value = value - prev_value  # Correction from previous segment.
+                    if value <= prev_value:
+                        # Have already used a larger value (alpha) for this pixel.
+                        value = 0.0
                 if value > 0.0:
                     xx, yy = (y, x) if flip_xy else (x, y)
-                    append(i, xx, yy, value, *aggs_and_cols)
+                    append(i, xx, yy, value, prev_value, *aggs_and_cols)
 
     return _full_antialias
 
