@@ -2489,6 +2489,32 @@ line_antialias_sol_max_index_1 = np.array([
     [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
     [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
 ], dtype=np.int64)
+line_antialias_sol_count_ignore_aa_0 = np.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0],
+    [0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0],
+    [0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+    [0, 0, 0, 1, 1, 2, 1, 1, 0, 1, 0],
+    [0, 0, 0, 0, 2, 2, 2, 0, 0, 1, 0],
+    [0, 0, 0, 1, 1, 2, 1, 1, 0, 1, 0],
+    [0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0],
+    [0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+], dtype=np.float64)
+line_antialias_sol_count_ignore_aa_1 = np.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+], dtype=np.float64)
 
 def test_line_antialias():
     x_range = y_range = (-0.1875, 1.1875)
@@ -2523,9 +2549,11 @@ def test_line_antialias():
     agg = cvs.line(agg=ds.last("value"), **kwargs)
     assert_eq_ndarray(agg.data, 3*line_antialias_sol_0, close=True)
 
+    agg = cvs.line(agg=ds._count_ignore_antialiasing("value"), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_count_ignore_aa_0, close=True)
+
     agg = cvs.line(agg=ds.mean("value"), **kwargs)
-    # Sum = 3*count so mean is 3 everywhere that there is any fraction of an antialiased line
-    sol = np.where(line_antialias_sol_0 > 0, 3.0, np.nan)
+    sol = 3*line_antialias_sol_0_intersect / line_antialias_sol_count_ignore_aa_0
     assert_eq_ndarray(agg.data, sol, close=True)
 
     agg = cvs.line(agg=ds._min_row_index(), **kwargs)
@@ -2602,9 +2630,12 @@ def test_line_antialias():
     agg = cvs.line(agg=ds.last("value"), **kwargs)
     assert_eq_ndarray(agg.data, 3*line_antialias_sol_1, close=True)
 
+    agg = cvs.line(agg=ds._count_ignore_antialiasing("value"), **kwargs)
+    assert_eq_ndarray(agg.data, line_antialias_sol_count_ignore_aa_1, close=True)
+
     agg = cvs.line(agg=ds.mean("value"), **kwargs)
-    sol_mean = np.where(line_antialias_sol_1 > 0, 3.0, np.nan)
-    assert_eq_ndarray(agg.data, sol_mean, close=True)
+    sol = 3*line_antialias_sol_1 / line_antialias_sol_count_ignore_aa_1
+    assert_eq_ndarray(agg.data, sol, close=True)
 
     agg = cvs.line(agg=ds._min_row_index(), **kwargs)
     assert_eq_ndarray(agg.data, line_antialias_sol_min_index_1)
@@ -2695,9 +2726,16 @@ def test_line_antialias():
                           line_antialias_sol_1)
     assert_eq_ndarray(agg.data, sol_last, close=True)
 
+    agg = cvs.line(agg=ds._count_ignore_antialiasing("value"), **kwargs)
+    sol = line_antialias_sol_count_ignore_aa_0 + line_antialias_sol_count_ignore_aa_1
+    assert_eq_ndarray(agg.data, sol, close=True)
+
     agg = cvs.line(agg=ds.mean("value"), **kwargs)
-    sol_mean = np.where(sol_count>0, 3.0, np.nan)
-    assert_eq_ndarray(agg.data, sol_mean, close=True)
+    numerator = np.nan_to_num(line_antialias_sol_0_intersect) + np.nan_to_num(line_antialias_sol_1)
+    denom = np.nan_to_num(line_antialias_sol_count_ignore_aa_0) + \
+        np.nan_to_num(line_antialias_sol_count_ignore_aa_1)
+    sol = 3*numerator / denom
+    assert_eq_ndarray(agg.data, sol, close=True)
 
     agg = cvs.line(agg=ds._min_row_index(), **kwargs)
     sol_min_row = rowmin(line_antialias_sol_min_index_0, line_antialias_sol_min_index_1)

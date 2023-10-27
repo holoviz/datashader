@@ -174,6 +174,6 @@ class Glyph(Expr):
 
         # Antialiased append() calls also take aa_factor argument
         if antialiased:
-            aggs_and_cols_len -= 1
+            aggs_and_cols_len -= 2
 
         return expand_varargs(aggs_and_cols_len)
