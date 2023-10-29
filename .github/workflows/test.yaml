@@ -141,6 +141,7 @@ jobs:
       VECLIB_MAXIMUM_THREADS: 1
       NUMEXPR_NUM_THREADS: 1
       PYDEVD_DISABLE_FILE_VALIDATION: 1
+      AGENT_TOOLSDIRECTORY: /opt/hostedtoolcache
     steps:
       - uses: holoviz-dev/holoviz_tasks/install@v0.1a17
         with:
