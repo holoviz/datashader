@@ -145,7 +145,7 @@ jobs:
       - uses: holoviz-dev/holoviz_tasks/install@v0.1a17
         with:
           name: unit_test_suite
-          python-version: 3.10
+          python-version: "3.10.13"
           channel-priority: strict
           channels: pyviz/label/dev,numba,nvidia,rapidsai,conda-forge,nodefaults
           envs: "-o tests -o gpu"
