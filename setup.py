@@ -59,6 +59,10 @@ extras_require = {
         'scikit-image',
         'spatialpandas',
     ],
+    'gpu': [
+        'cudf',
+        'cupy'
+    ],
     'examples': examples,
     'examples_extra': examples + [
         'networkx',

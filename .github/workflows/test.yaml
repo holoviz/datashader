@@ -125,3 +125,34 @@ jobs:
       - name: codecov
         run: |
           codecov
+  gpu:
+    name: Tests on Linux with Python 3.10
+    runs-on: ['self-hosted']
+    strategy:
+      fail-fast: false
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      OMP_NUM_THREADS: 1
+      OPENBLAS_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      VECLIB_MAXIMUM_THREADS: 1
+      NUMEXPR_NUM_THREADS: 1
+      PYDEVD_DISABLE_FILE_VALIDATION: 1
+    steps:
+      - uses: holoviz-dev/holoviz_tasks/install@v0.1a17
+        with:
+          name: unit_test_suite
+          python-version: 3.10
+          channel-priority: strict
+          channels: pyviz/label/dev,numba,nvidia,rapidsai,conda-forge,nodefaults
+          envs: "-o tests -o gpu"
+          cache: true
+          conda-update: true
+        id: install
+      - name: doit test_unit_gpu
+        run: |
+          conda activate test-environment
+          doit test_unit_gpu
