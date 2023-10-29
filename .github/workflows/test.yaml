@@ -160,6 +160,7 @@ jobs:
       - name: Install environment
         run: |
           conda create -n test-environment -c conda-forge -c nvidia -c rapidsai python=3.10 cudf cupy numba dask spatialpandas xarray param pyct pillow toolz pytest geodatasets fastparquet pyarrow
+          conda activate test-environment
           pip install -e . --no-deps --no-build-isolation
         shell: bash -el {0}
       - name: doit test_unit_gpu
