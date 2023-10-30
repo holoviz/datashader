@@ -1,0 +1,48 @@
+name: gpu-tests
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+    - '*'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 16 * * SUN'
+
+jobs:
+  gpu:
+    name: GPU Tests on self-hosted machine
+    runs-on: ['self-hosted']
+    strategy:
+      fail-fast: false
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      OMP_NUM_THREADS: 1
+      OPENBLAS_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      VECLIB_MAXIMUM_THREADS: 1
+      NUMEXPR_NUM_THREADS: 1
+      PYDEVD_DISABLE_FILE_VALIDATION: 1
+      AGENT_TOOLSDIRECTORY: /opt/hostedtoolcache
+      CONDA: ~/miniconda3
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: "100"
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-activate-base: true
+          activate-environment: ""
+      - name: Install environment
+        run: |
+          conda create -n datashader-gh-gpu -c conda-forge -c nvidia -c rapidsai -c pyviz python=3.10 cudf cupy numba dask spatialpandas xarray param pyct pillow toolz pytest geodatasets fastparquet pyarrow pytest-benchmark pyctdev
+          conda activate datashader-gh-gpu
+          pip install -e . --no-deps --no-build-isolation
+      - name: doit test_unit_gpu
+        run: |
+          conda activate datashader-gh-gpu
+          doit test_unit_gpu
