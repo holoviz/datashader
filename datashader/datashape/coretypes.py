@@ -779,7 +779,7 @@ class CType(Unit):
         elif np.issubdtype(dt, np.timedelta64):
             unit, _ = np.datetime_data(dt)
             return TimeDelta(unit=unit)
-        elif np.__version__[0] != "2" and np.issubdtype(dt, np.unicode_):
+        elif np.__version__[0] < "2" and np.issubdtype(dt, np.unicode_):
             return String(dt.itemsize // 4, 'U32')
         elif np.issubdtype(dt, np.str_) or np.issubdtype(dt, np.bytes_):
             return String(dt.itemsize, 'ascii')
