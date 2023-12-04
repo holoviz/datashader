@@ -48,7 +48,7 @@ jobs:
           name: unit_test_suite
           python-version: ${{ matrix.python-version }}
           channel-priority: strict
-          channels: pyviz/label/dev,numba,conda-forge,nodefaults
+          channels: pyviz/label/dev,numba/label/dev,conda-forge,nodefaults
           envs: "-o tests -o examples"
           cache: true
           conda-update: true
