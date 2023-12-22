@@ -43,7 +43,6 @@ html_theme_options.update({
             "icon": "fa-brands fa-discord",
         },
     ],
-    "analytics": {"google_analytics_id": "G-M7369XC3Y3"},
     "pygment_dark_style": "material"
 })
 
@@ -57,8 +56,13 @@ html_context.update({
 
 extensions += [
     'sphinx.ext.autosummary',
-    'numpydoc'
+    'numpydoc',
+    'nbsite.analytics',
 ]
+
+nbsite_analytics = {
+    'goatcounter_holoviz': True,
+}
 
 nbbuild_cell_timeout = 2000
 
