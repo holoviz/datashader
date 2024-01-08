@@ -66,5 +66,10 @@ nbsite_analytics = {
 
 nbbuild_cell_timeout = 2000
 
+# Turning off all numpydoc checks, not great but a good workaround
+# for https://github.com/pydata/xarray/issues/8596
+# To be removed some day to re-enable the validation checks.
+numpydoc_validation_checks = set()
+
 # Override the Sphinx default title that appends `documentation`
 html_title = f'{project} v{version}'
