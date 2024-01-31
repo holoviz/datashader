@@ -51,7 +51,7 @@ extras_require = {
         'nbsmoke[verify] >0.5',
         'netcdf4',
         'pyarrow',
-        'pytest',
+        'pytest <8',  # Fails lint with IPynbFile is deprecated
         'pytest-benchmark',
         'pytest-cov',
         'rasterio',
