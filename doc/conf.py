@@ -43,7 +43,6 @@ html_theme_options.update({
             "icon": "fa-brands fa-discord",
         },
     ],
-    "analytics": {"google_analytics_id": "G-M7369XC3Y3"},
     "pygment_dark_style": "material"
 })
 
@@ -57,10 +56,36 @@ html_context.update({
 
 extensions += [
     'sphinx.ext.autosummary',
-    'numpydoc'
+    'numpydoc',
+    'nbsite.analytics',
 ]
 
+nbsite_analytics = {
+    'goatcounter_holoviz': True,
+}
+
 nbbuild_cell_timeout = 2000
+
+# Datashader uses sphinx.ext.autodoc (e.g. automodule) for its API reference
+# and automatically include a module that contains Image. Image inherits
+# from xr.DataArray. Datashader uses numpydoc to parse the docstrings.
+# It turns out xarray broke numpydoc https://github.com/pydata/xarray/issues/8596
+# This is a bad hack to work around this issue.
+
+import numpydoc.docscrape  # noqa
+
+original_error_location = numpydoc.docscrape.NumpyDocString._error_location
+
+def patch_error_location(self, msg, error=True):
+    try:
+        original_error_location(self, msg, error)
+    except ValueError as e:
+        if "See Also entry ':doc:`xarray-tutorial" in str(e):
+            return
+        else:
+            raise e
+
+numpydoc.docscrape.NumpyDocString._error_location = patch_error_location
 
 # Override the Sphinx default title that appends `documentation`
 html_title = f'{project} v{version}'
