@@ -898,10 +898,14 @@ class TestRaggedReshaping(eb.BaseReshapingTests):
     def test_transpose_frame(self):
         pass
 
-    @pytest.mark.skipif(Version(pd.__version__) >= Version("2.2"), reason="Stopped working in Pandas 2.2")
+    @pytest.mark.skipif(
+        Version(pd.__version__) >= Version("2.2"), reason="Stopped working in Pandas 2.2"
+    )
     def test_merge_on_extension_array(self, data):
         super().test_merge_on_extension_array(data)
 
-    @pytest.mark.skipif(Version(pd.__version__) >= Version("2.2"), reason="Stopped working in Pandas 2.2")
+    @pytest.mark.skipif(
+        Version(pd.__version__) >= Version("2.2"), reason="Stopped working in Pandas 2.2"
+    )
     def test_merge_on_extension_array_duplicates(self, data):
         super().test_merge_on_extension_array_duplicates(data)
