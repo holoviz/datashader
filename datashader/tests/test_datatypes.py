@@ -873,6 +873,11 @@ class TestRaggedMissing(eb.BaseMissingTests):
     def test_fillna_series_method(self):
         pass
 
+    @pytest.mark.skip(reason="Can't fill with nested sequences")
+    def test_ffill_limit_area(self):
+        # Added in Pandas 2.2
+        pass
+
 
 class TestRaggedReshaping(eb.BaseReshapingTests):
     @pytest.mark.skip(reason="__setitem__ not supported")
