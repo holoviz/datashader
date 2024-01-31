@@ -835,6 +835,12 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     def test_where_series(self):
         pass
 
+    @pytest.mark.xfail(reason="not currently supported")
+    def test_duplicated(self):
+        # Added in Pandas 2.2
+        # https://github.com/pandas-dev/pandas/pull/55255
+        pass
+
 class TestRaggedPrinting(eb.BasePrintingTests):
     @pytest.mark.skip(reason="Can't autoconvert ragged array to numpy array")
     def test_dataframe_repr(self):
@@ -891,3 +897,11 @@ class TestRaggedReshaping(eb.BaseReshapingTests):
     @pytest.mark.skip(reason="transpose with numpy array elements seems not supported")
     def test_transpose_frame(self):
         pass
+
+    @pytest.mark.skipif(Version(pd.__version__) >= Version("2.2"), reason="Stopped working in Pandas 2.2")
+    def test_merge_on_extension_array(self, data):
+        super().test_merge_on_extension_array(data)
+
+    @pytest.mark.skipif(Version(pd.__version__) >= Version("2.2"), reason="Stopped working in Pandas 2.2")
+    def test_merge_on_extension_array_duplicates(self, data):
+        super().test_merge_on_extension_array_duplicates(data)
