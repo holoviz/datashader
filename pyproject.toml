@@ -18,3 +18,18 @@ target-version = "py39"
 
 [tool.ruff.per-file-ignores]
 "test_mpl_ext.py" = ["E402"]  # Module level import not at top of file
+
+[tool.pytest.ini_options]
+addopts = ["--pyargs", "--doctest-modules", "--doctest-ignore-import-errors", "--strict-config", "--strict-markers", "--color=yes"]
+norecursedirs = 'doc .git dist build _build .ipynb_checkpoints'
+minversion = "7"
+xfail_strict = true
+log_cli_level = "INFO"
+nbsmoke_skip_run = [ # skipping any notebooks that require extra deps
+    '.*tiling.ipynb$',
+    '.*streaming-aggregation.ipynb$',
+    '.*8_Geography.ipynb$',
+]
+filterwarnings = [
+    "ignore:Passing a (SingleBlockManager|BlockManager) to (Series|GeoSeries|DataFrame|GeoDataFrame) is deprecated:DeprecationWarning",  # https://github.com/holoviz/spatialpandas/issues/137
+]
