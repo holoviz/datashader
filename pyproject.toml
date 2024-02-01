@@ -25,11 +25,8 @@ norecursedirs = 'doc .git dist build _build .ipynb_checkpoints'
 minversion = "7"
 xfail_strict = true
 log_cli_level = "INFO"
-nbsmoke_skip_run = [ # skipping any notebooks that require extra deps
-    '.*tiling.ipynb$',
-    '.*streaming-aggregation.ipynb$',
-    '.*8_Geography.ipynb$',
-]
+# skipping any notebooks that require extra deps
+nbsmoke_skip_run = ".*tiling.ipynb$\n.*streaming-aggregation.ipynb$\n.*8_Geography.ipynb$"
 filterwarnings = [
     "ignore:Passing a (SingleBlockManager|BlockManager) to (Series|GeoSeries|DataFrame|GeoDataFrame) is deprecated:DeprecationWarning",  # https://github.com/holoviz/spatialpandas/issues/137
 ]
