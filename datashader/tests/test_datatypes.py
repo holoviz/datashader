@@ -836,10 +836,10 @@ class TestRaggedMethods(eb.BaseMethodsTests):
         pass
 
     @pytest.mark.xfail(reason="not currently supported")
-    def test_duplicated(self):
+    def test_duplicated(self, data):
         # Added in Pandas 2.2
         # https://github.com/pandas-dev/pandas/pull/55255
-        pass
+        super().test_duplicated(data)
 
 class TestRaggedPrinting(eb.BasePrintingTests):
     @pytest.mark.skip(reason="Can't autoconvert ragged array to numpy array")
