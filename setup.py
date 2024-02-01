@@ -44,7 +44,6 @@ extras_require = {
     'tests': geopandas + [
         'codecov',
         'geodatasets',
-        # 'fastparquet',  # optional dependency
         'flake8',
         'nbconvert',
         'nbformat',
