@@ -14,10 +14,6 @@ from datashader import datashape
 
 import numpy as np
 
-from .py2help import (
-    _inttypes,
-    _strtypes,
-)
 from .internal_utils import IndexCallable, isidentifier
 
 
@@ -133,10 +129,10 @@ class Mono(metaclass=Type):
             return self
 
     def __mul__(self, other):
-        if isinstance(other, _strtypes):
+        if isinstance(other, str):
             from datashader import datashape
             return datashape.dshape(other).__rmul__(self)
-        if isinstance(other, _inttypes):
+        if isinstance(other, int):
             other = Fixed(other)
         if isinstance(other, DataShape):
             return other.__rmul__(self)
@@ -144,10 +140,10 @@ class Mono(metaclass=Type):
         return DataShape(self, other)
 
     def __rmul__(self, other):
-        if isinstance(other, _strtypes):
+        if isinstance(other, str):
             from datashader import datashape
             return self * datashape.dshape(other)
-        if isinstance(other, _inttypes):
+        if isinstance(other, int):
             other = Fixed(other)
 
         return DataShape(other, self)
@@ -221,7 +217,7 @@ class Time(Unit):
     __slots__ = 'tz',
 
     def __init__(self, tz=None):
-        if tz is not None and not isinstance(tz, _strtypes):
+        if tz is not None and not isinstance(tz, str):
             raise TypeError('tz parameter to time datashape must be a string')
         # TODO validate against Olson tz database
         self.tz = tz
@@ -241,7 +237,7 @@ class DateTime(Unit):
     __slots__ = 'tz',
 
     def __init__(self, tz=None):
-        if tz is not None and not isinstance(tz, _strtypes):
+        if tz is not None and not isinstance(tz, str):
             raise TypeError('tz parameter to datetime datashape must be a '
                             'string')
         # TODO validate against Olson tz database
@@ -318,7 +314,7 @@ class Units(Unit):
     __slots__ = 'unit', 'tp'
 
     def __init__(self, unit, tp=None):
-        if not isinstance(unit, _strtypes):
+        if not isinstance(unit, str):
             raise TypeError('unit parameter to units datashape must be a '
                             'string')
         if tp is None:
@@ -377,9 +373,9 @@ class String(Unit):
         if len(args) == 0:
             fixlen, encoding = None, None
         if len(args) == 1:
-            if isinstance(args[0], _strtypes):
+            if isinstance(args[0], str):
                 fixlen, encoding = None, args[0]
-            if isinstance(args[0], _inttypes):
+            if isinstance(args[0], int):
                 fixlen, encoding = args[0], None
         if len(args) == 2:
             fixlen, encoding = args
@@ -532,7 +528,7 @@ class DataShape(Mono):
     composite = False
 
     def __init__(self, *parameters, **kwds):
-        if len(parameters) == 1 and isinstance(parameters[0], _strtypes):
+        if len(parameters) == 1 and isinstance(parameters[0], str):
             raise TypeError("DataShape constructor for internal use.\n"
                             "Use dshape function to convert strings into "
                             "datashapes.\nTry:\n\tdshape('%s')"
@@ -600,7 +596,7 @@ class DataShape(Mono):
             return DataShape(*self.parameters[leading:])
 
     def __rmul__(self, other):
-        if isinstance(other, _inttypes):
+        if isinstance(other, int):
             other = Fixed(other)
         return DataShape(other, *self)
 
@@ -646,16 +642,16 @@ class DataShape(Mono):
         {amount: int32, id: int32}
         """
         from .predicates import isdimension
-        if isinstance(index, _inttypes) and isdimension(self[0]):
+        if isinstance(index, int) and isdimension(self[0]):
             return self.subarray(1)
-        if isinstance(self[0], Record) and isinstance(index, _strtypes):
+        if isinstance(self[0], Record) and isinstance(index, str):
             return self[0][index]
-        if isinstance(self[0], Record) and isinstance(index, _inttypes):
+        if isinstance(self[0], Record) and isinstance(index, int):
             return self[0].parameters[0][index][1]
         if isinstance(self[0], Record) and isinstance(index, list):
             rec = self[0]
             # Translate strings to corresponding integers
-            index = [self[0].names.index(i) if isinstance(i, _strtypes) else i
+            index = [self[0].names.index(i) if isinstance(i, str) else i
                      for i in index]
             return DataShape(Record([rec.parameters[0][i] for i in index]))
         if isinstance(self[0], Record) and isinstance(index, slice):
@@ -839,7 +835,7 @@ class Fixed(Unit):
 
     def __eq__(self, other):
         return (type(other) is Fixed and self.val == other.val or
-                isinstance(other, _inttypes) and self.val == other)
+                isinstance(other, int) and self.val == other)
 
     __hash__ = Mono.__hash__
 
@@ -918,9 +914,9 @@ def _launder(x):
     >>> _launder(Fixed(5))  # No-op on valid parameters
     Fixed(val=5)
     """
-    if isinstance(x, _inttypes):
+    if isinstance(x, int):
         x = Fixed(x)
-    if isinstance(x, _strtypes):
+    if isinstance(x, str):
         x = datashape.dshape(x)
     if isinstance(x, DataShape) and len(x) == 1:
         return x[0]
@@ -1008,7 +1004,7 @@ class Record(CollectionPrinter, Mono, metaclass=RecordMeta):
             fields = fields.items()
         fields = list(fields)
         names = [
-            str(name) if not isinstance(name, _strtypes) else name
+            str(name) if not isinstance(name, str) else name
             for name, _ in fields
         ]
         types = [_launder(v) for _, v in fields]

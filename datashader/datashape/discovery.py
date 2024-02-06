@@ -17,7 +17,6 @@ from .coretypes import (int32, int64, float64, bool_, complex128, datetime_,
                         Record, string, Null, DataShape, real, date_, time_,
                         Unit, timedelta_, TimeDelta, object_, String)
 from .predicates import isdimension, isrecord
-from .py2help import _strtypes, _inttypes
 from .internal_utils import _toposort, groupby
 from .util import subclasses
 
@@ -68,7 +67,7 @@ def discover(obj, **kwargs):
     raise NotImplementedError("Don't know how to discover type %r" % type_name)
 
 
-@dispatch(_inttypes)
+@dispatch(int)
 def discover(i):  # noqa: F811
     return int64
 
@@ -172,7 +171,7 @@ def is_zero_time(t):
     return not (t.hour or t.minute or t.second or t.microsecond)
 
 
-@dispatch(_strtypes)
+@dispatch(str)
 def discover(s):  # noqa: F811
     if not s:
         return null
@@ -394,7 +393,7 @@ def is_string_array(x):
     >>> is_string_array(np.array(['Hello', None], dtype='O'))
     False
     """
-    return all(isinstance(i, _strtypes) for i in x.flat[:5].tolist())
+    return all(isinstance(i, str) for i in x.flat[:5].tolist())
 
 
 @dispatch(np.ndarray)
