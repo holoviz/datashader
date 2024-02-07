@@ -377,7 +377,7 @@ class String(Unit):
                 fixlen, encoding = None, args[0]
             if isinstance(args[0], int):
                 fixlen, encoding = args[0], None
-        if len(args) == 2:
+        elif len(args) == 2:
             fixlen, encoding = args
 
         encoding = encoding or 'U8'
