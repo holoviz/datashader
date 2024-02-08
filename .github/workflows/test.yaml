@@ -85,7 +85,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest']
-        python-version: ["3.10"]
+        python-version: ["3.12"]
     steps:
       - name: Checkout source
         uses: actions/checkout@v3
