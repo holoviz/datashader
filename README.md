@@ -49,7 +49,7 @@ to work with much larger datasets than it would otherwise.
 
 ## Installation
 
-Datashader supports Python 3.8, 3.9, 3.10, and 3.11 on Linux, Windows, or
+Datashader supports Python 3.9, 3.10, 3.11, and 3.12 on Linux, Windows, or
 Mac and can be installed with conda:
 
     conda install datashader
