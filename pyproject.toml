@@ -29,4 +29,5 @@ log_cli_level = "INFO"
 nbsmoke_skip_run = ".*tiling.ipynb$\n.*streaming-aggregation.ipynb$\n.*8_Geography.ipynb$"
 filterwarnings = [
     "ignore:Passing a (SingleBlockManager|BlockManager) to (Series|GeoSeries|DataFrame|GeoDataFrame) is deprecated:DeprecationWarning",  # https://github.com/holoviz/spatialpandas/issues/137
+    "ignore:Accessing the underlying geometries through the `.data`:DeprecationWarning:dask_geopandas.core",  # https://github.com/geopandas/dask-geopandas/issues/264
 ]
