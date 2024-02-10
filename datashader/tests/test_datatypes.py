@@ -899,13 +899,13 @@ class TestRaggedReshaping(eb.BaseReshapingTests):
         pass
 
     @pytest.mark.skipif(
-        Version(pd.__version__) >= Version("2.2"), reason="Stopped working in Pandas 2.2"
+        Version(pd.__version__) == Version("2.2.0"), reason="Regression in Pandas 2.2"
     )
     def test_merge_on_extension_array(self, data):
         super().test_merge_on_extension_array(data)
 
     @pytest.mark.skipif(
-        Version(pd.__version__) >= Version("2.2"), reason="Stopped working in Pandas 2.2"
+        Version(pd.__version__) == Version("2.2.0"), reason="Regression in Pandas 2.2"
     )
     def test_merge_on_extension_array_duplicates(self, data):
         super().test_merge_on_extension_array_duplicates(data)
