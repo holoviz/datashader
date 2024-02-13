@@ -44,14 +44,13 @@ extras_require = {
     'tests': geopandas + [
         'codecov',
         'geodatasets',
-        'fastparquet',  # optional dependency
         'flake8',
         'nbconvert',
         'nbformat',
         'nbsmoke[verify] >0.5',
         'netcdf4',
         'pyarrow',
-        'pytest',
+        'pytest <8',  # Fails lint with IPynbFile is deprecated
         'pytest-benchmark',
         'pytest-cov',
         'rasterio',

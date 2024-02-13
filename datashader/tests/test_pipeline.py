@@ -9,7 +9,7 @@ import datashader.transfer_functions as tf
 df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                    'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
                    'f64': np.arange(20, dtype='f8')})
-df.f64.iloc[2] = np.nan
+df.loc['f64', 2] = np.nan
 
 cvs = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
 cvs10 = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 1), y_range=(0, 1))
