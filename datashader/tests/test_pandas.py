@@ -2734,7 +2734,8 @@ def test_line_antialias():
     numerator = np.nan_to_num(line_antialias_sol_0_intersect) + np.nan_to_num(line_antialias_sol_1)
     denom = np.nan_to_num(line_antialias_sol_count_ignore_aa_0) + \
         np.nan_to_num(line_antialias_sol_count_ignore_aa_1)
-    sol = 3*numerator / denom
+    with np.errstate(invalid='ignore'):  # Dividing by zero is expected
+        sol = 3*numerator / denom
     assert_eq_ndarray(agg.data, sol, close=True)
 
     agg = cvs.line(agg=ds._min_row_index(), **kwargs)

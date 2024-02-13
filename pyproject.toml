@@ -18,3 +18,16 @@ target-version = "py39"
 
 [tool.ruff.per-file-ignores]
 "test_mpl_ext.py" = ["E402"]  # Module level import not at top of file
+
+[tool.pytest.ini_options]
+addopts = ["--pyargs", "--doctest-modules", "--doctest-ignore-import-errors", "--strict-config", "--strict-markers", "--color=yes"]
+norecursedirs = 'doc .git dist build _build .ipynb_checkpoints'
+minversion = "7"
+xfail_strict = true
+log_cli_level = "INFO"
+# skipping any notebooks that require extra deps
+nbsmoke_skip_run = ".*tiling.ipynb$\n.*streaming-aggregation.ipynb$\n.*8_Geography.ipynb$"
+filterwarnings = [
+    "ignore:Passing a (SingleBlockManager|BlockManager) to (Series|GeoSeries|DataFrame|GeoDataFrame) is deprecated:DeprecationWarning",  # https://github.com/holoviz/spatialpandas/issues/137
+    "ignore:Accessing the underlying geometries through the `.data`:DeprecationWarning:dask_geopandas.core",  # https://github.com/geopandas/dask-geopandas/issues/264
+]
