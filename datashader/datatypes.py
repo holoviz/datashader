@@ -649,6 +649,10 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         dtype = np.dtype(object) if dtype is None else np.dtype(dtype)
         return np.asarray(self.tolist(), dtype=dtype)
 
+    def duplicated(self, *args, **kwargs):
+        msg = "duplicated is not implemented for RaggedArray"
+        raise NotImplementedError(msg)
+
 
 @jit(nopython=True, nogil=True)
 def _eq_ragged_ragged(start_indices1,

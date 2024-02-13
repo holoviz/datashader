@@ -3,7 +3,6 @@ from __future__ import print_function, division, absolute_import
 from itertools import chain
 import operator
 
-from .. import py2help
 from .. import parser
 from .. import type_symbol_table
 from ..validation import validate
@@ -38,7 +37,7 @@ def dshape(o):
     """
     if isinstance(o, coretypes.DataShape):
         return o
-    if isinstance(o, py2help._strtypes):
+    if isinstance(o, str):
         ds = parser.parse(o, type_symbol_table.sym)
     elif isinstance(o, (coretypes.CType, coretypes.String,
                         coretypes.Record, coretypes.JSON,

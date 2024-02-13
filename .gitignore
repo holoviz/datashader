@@ -62,6 +62,8 @@ doc/*.ipynb
 doc/*/*.ipynb
 doc/*.rst
 doc/*/*.rst
+builtdocs/
+jupyter_execute/
 
 # PyBuilder
 target/

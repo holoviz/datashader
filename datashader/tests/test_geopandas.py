@@ -200,7 +200,7 @@ def test_lines_spatialpandas(geom_type, explode, use_boundary, npartitions):
 def test_points_geopandas(geom_type):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
 
-    df["geometry"] = df["geometry"].sample_points(100, seed=93814)  # multipoint
+    df["geometry"] = df["geometry"].sample_points(100, rng=93814)  # multipoint
     if geom_type == "point":
         df = df.explode(index_parts=False)  # Multipoint -> point.
     unique_geom_type = df["geometry"].geom_type.unique()
@@ -218,7 +218,7 @@ def test_points_geopandas(geom_type):
 def test_points_dask_geopandas(geom_type, npartitions):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
 
-    df["geometry"] = df["geometry"].sample_points(100, seed=93814)  # multipoint
+    df["geometry"] = df["geometry"].sample_points(100, rng=93814)  # multipoint
     if geom_type == "point":
         df = df.explode(index_parts=False)  # Multipoint -> point.
     unique_geom_type = df["geometry"].geom_type.unique()
@@ -240,7 +240,7 @@ def test_points_dask_geopandas(geom_type, npartitions):
 def test_points_spatialpandas(geom_type, npartitions):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
 
-    df["geometry"] = df["geometry"].sample_points(100, seed=93814)  # multipoint
+    df["geometry"] = df["geometry"].sample_points(100, rng=93814)  # multipoint
     if geom_type == "point":
         df = df.explode(index_parts=False)  # Multipoint -> point.
     unique_geom_type = df["geometry"].geom_type.unique()

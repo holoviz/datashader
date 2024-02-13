@@ -44,14 +44,13 @@ extras_require = {
     'tests': geopandas + [
         'codecov',
         'geodatasets',
-        'fastparquet',  # optional dependency
         'flake8',
         'nbconvert',
         'nbformat',
         'nbsmoke[verify] >0.5',
         'netcdf4',
         'pyarrow',
-        'pytest',
+        'pytest <8',  # Fails lint with IPynbFile is deprecated
         'pytest-benchmark',
         'pytest-cov',
         'rasterio',
@@ -75,7 +74,7 @@ extras_require = {
 
 
 extras_require['doc'] = extras_require['examples_extra'] + [
-    'nbsite >=0.8.2,<0.9.0',
+    'nbsite >=0.8.4,<0.9.0',
     'numpydoc',
 ]
 
