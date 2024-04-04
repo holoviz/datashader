@@ -101,7 +101,7 @@ jobs:
         with:
           name: unit_test_suite
           python-version: ${{ matrix.python-version }}
-          channel-priority: strict
+          channel-priority: flexible
           channels: pyviz/label/dev,numba,conda-forge,nodefaults
           envs: "-o tests -o examples"
           cache: ${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
