@@ -5,5 +5,4 @@ with contextlib.suppress(Exception):
     # https://github.com/dask/dask/issues/10995
     import dask
 
-    dask.config.set(scheduler="synchronous")
     dask.config.set({"dataframe.query-planning": False})

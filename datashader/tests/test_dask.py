@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from dask.context import config
 from numpy import nan
 
 import datashader as ds
@@ -24,6 +25,8 @@ except ImportError:
 from datashader.tests.test_pandas import (
     assert_eq_xr, assert_eq_ndarray, values
 )
+
+config.set(scheduler='synchronous')
 
 test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
