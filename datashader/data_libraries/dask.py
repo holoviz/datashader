@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from importlib.util import find_spec
+from warnings import warn
+
 import numpy as np
 import pandas as pd
 import dask
@@ -14,6 +17,16 @@ from datashader.glyphs import Glyph, LineAxis0
 from datashader.utils import Dispatcher
 
 __all__ = ()
+
+# Warn if query planning is installed
+query_planning = dask.config.get("dataframe.query-planning")
+dask_expr = find_spec("dask_expr")
+
+if query_planning or (query_planning is None and dask_expr):
+    msg = """\
+Dask query planning is enabled. This does not currently work with datashader.
+Please disable it: dask.config.set({'dataframe.query-planning': False})."""
+    warn(msg)
 
 
 @bypixel.pipeline.register(dd.DataFrame)
