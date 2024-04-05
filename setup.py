@@ -57,6 +57,7 @@ extras_require = {
         'rioxarray',
         'scikit-image',
         'spatialpandas',
+        'dask-expr',
     ],
     'examples': examples,
     'examples_extra': examples + [
