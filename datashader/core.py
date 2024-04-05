@@ -3,36 +3,19 @@ from __future__ import annotations
 from numbers import Number
 from math import log10
 import warnings
-from importlib.util import find_spec
 
 import numpy as np
 import pandas as pd
-import dask
+import dask.dataframe as dd
 import dask.array as da
 from xarray import DataArray, Dataset
 
-query_planning = dask.config.get("dataframe.query-planning")
-dask.config.set({"dataframe.query-planning": False})
-
-import dask.dataframe as dd    # noqa: E402
-
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
-    dshape_from_xarray_dataset  # noqa: E402
-from .utils import get_indices, dshape_from_pandas, dshape_from_dask  # noqa: E402
-from .utils import Expr  # noqa: E402, F401
-from .resampling import resample_2d, resample_2d_distributed  # noqa: E402
-from . import reductions as rd  # noqa: E402
-
-
-# Warn if query planning is enabled and installed
-dask_expr = find_spec("dask_expr")
-if query_planning or (query_planning is None and dask_expr):
-    msg = """\
-Dask query planning has been disabled, as it does not currently work with datashader.
-To remove this warning, you can disable it globally with:
-  - Python: `dask.config.set({'dataframe.query-planning': False})`
-  - Terminal: `dask config set dataframe.query-planning false`"""
-    warnings.warn(msg)
+    dshape_from_xarray_dataset
+from .utils import get_indices, dshape_from_pandas, dshape_from_dask
+from .utils import Expr # noqa (API import)
+from .resampling import resample_2d, resample_2d_distributed
+from . import reductions as rd
 
 try:
     import cudf

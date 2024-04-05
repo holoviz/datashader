@@ -100,6 +100,7 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
 
     # Here be dragons
     # Get the dataframe graph
+    df = getattr(df, 'optimize', lambda: df)()  # Work with new dask_expr
     graph = df.__dask_graph__()
 
     # Guess a reasonable output dtype from combination of dataframe dtypes
