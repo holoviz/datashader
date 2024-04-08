@@ -17,7 +17,7 @@ __all__ = ['lex', 'Token']
 def _str_val(s):
     # Use the Python parser via the ast module to parse the string,
     # since the string_escape and unicode_escape codecs do the wrong thing
-    return ast.parse('u' + s).body[0].value.s
+    return ast.parse('u' + s).body[0].value.value
 
 # A list of the token names, corresponding regex, and value extraction function
 _tokens = [

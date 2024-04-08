@@ -2385,7 +2385,7 @@ def test_dask_categorical_counts(on_gpu):
     )
     ddf = dd.from_pandas(df, npartitions=2)
     assert ddf.npartitions == 2
-    ddf.cat = ddf.cat.astype('category')
+    ddf["cat"] = ddf.cat.astype('category')
 
     # Categorical counts at the dataframe level to confirm test is reasonable.
     cat_totals = ddf.cat.value_counts().compute()

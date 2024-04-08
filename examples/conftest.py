@@ -1,6 +1,5 @@
 import platform
 
-
 collect_ignore_glob = []
 
 # 2023-07-21 with following error:
