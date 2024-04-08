@@ -1,4 +1,5 @@
 {% set sdata = load_setup_py_data(setup_file="../../../setup.py", from_recipe_dir=True) %}
+{% set pyproject = load_file_data('../../../pyproject.toml', from_recipe_dir=True) %}
 
 package:
   name: {{ sdata['name'] }}
@@ -20,7 +21,7 @@ build:
 requirements:
   host:
     - python {{ sdata['python_requires'] }}
-    {% for dep in sdata['extras_require']['build'] %}
+    {% for dep in pyproject['build-system']['requires'] %}
     - {{ dep }}
     {% endfor %}
   run:
