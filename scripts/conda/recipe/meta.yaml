@@ -20,16 +20,14 @@ build:
 requirements:
   build:
     - python {{ sdata['python_requires'] }}
-    - param >=1.7.0
-    - pyct-core >=0.4.4
-    - setuptools >30.3.0
+    {% for dep in sdata['extras_require']['build'] %}
+    - {{ dep }}
+    {% endfor %}
   run:
     - python {{ sdata['python_requires'] }}
     {% for dep in sdata.get('install_requires',{}) %}
     - {{ dep if dep != 'dask' else 'dask-core'}}
     {% endfor %}
-    # adding pyct here is temporary (this conda recipe template will disappear when new pyctdev is released)
-    - pyct
   run_constrained:
     - cudf >=0.10.0
 test:
