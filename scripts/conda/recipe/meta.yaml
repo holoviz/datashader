@@ -5,11 +5,11 @@ package:
   version: {{ VERSION }}
 
 source:
-  url: ../../../dist/{{ sdata['name'] }}-{{ VERSION }}-py3-none-any.whl
+  url: ../../../dist/{{ sdata['name'] }}-{{ VERSION }}-py2.py3-none-any.whl
 
 build:
   noarch: python
-  script: {{ PYTHON }} -m pip install -vv {{ sdata['name'] }}-{{ VERSION }}-py3-none-any.whl
+  script: {{ PYTHON }} -m pip install -vv {{ sdata['name'] }}-{{ VERSION }}-py2.py3-none-any.whl
   entry_points:
     {% for group,epoints in sdata.get("entry_points",{}).items() %}
     {% for entry_point in epoints %}
@@ -18,7 +18,7 @@ build:
     {% endfor %}
 
 requirements:
-  build:
+  host:
     - python {{ sdata['python_requires'] }}
     {% for dep in sdata['extras_require']['build'] %}
     - {{ dep }}
