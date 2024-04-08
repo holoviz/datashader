@@ -211,6 +211,7 @@ def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
+    df = getattr(df, 'optimize', lambda: df)()  # Work with new dask_expr
     partitioned = isinstance(df, dd.DataFrame) and df.npartitions > 1
     create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
         compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda,
@@ -233,7 +234,7 @@ def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
 
     name = tokenize(df.__dask_tokenize__(), canvas, glyph, summary)
     old_name = df.__dask_tokenize__()
-    # Dask>=2024.3.1 return tokenize result as tuple of type and task name
+    # dask_expr return tokenize result as tuple of type and task name
     # We only want to use the task name as input to the new graph
     if isinstance(old_name, tuple):
         old_name = old_name[1]
