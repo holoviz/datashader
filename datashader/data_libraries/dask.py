@@ -233,6 +233,10 @@ def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
 
     name = tokenize(df.__dask_tokenize__(), canvas, glyph, summary)
     old_name = df.__dask_tokenize__()
+    # Dask>=2024.3.1 return tokenize result as tuple of type and task name
+    # We only want to use the task name as input to the new graph
+    if isinstance(old_name, tuple):
+        old_name = old_name[1]
     dsk = {(name, 0): (chunk, (old_name, 0))}
     for i in range(1, df.npartitions):
         dsk[(name, i)] = (chunk, (old_name, i - 1), (old_name, i))
