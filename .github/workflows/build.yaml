@@ -51,7 +51,7 @@ jobs:
           conda install -y conda-build build pyct -c pyviz/label/dev
       - name: conda build
         run: |
-          source ./scripts/build_conda.sh
+          source ./scripts/conda/build.sh
           echo "CONDA_FILE="$CONDA_PREFIX/conda-bld/noarch/$PACKAGE-$VERSION-py_0.tar.bz2"" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v4
         if: always()
