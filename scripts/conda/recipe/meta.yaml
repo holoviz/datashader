@@ -1,15 +1,16 @@
-{% set sdata = load_setup_py_data() %}
+{% set sdata = load_setup_py_data(setup_file="../../../setup.py", from_recipe_dir=True) %}
+{% set pyproject = load_file_data('../../../pyproject.toml', from_recipe_dir=True) %}
 
 package:
-  name: datashader
-  version: {{ sdata['version'] }}
+  name: {{ sdata['name'] }}
+  version: {{ VERSION }}
 
 source:
-  path: ..
+  url: ../../../dist/{{ sdata['name'] }}-{{ VERSION }}-py2.py3-none-any.whl
 
 build:
   noarch: python
-  script: python setup.py install --single-version-externally-managed --record=record.txt
+  script: {{ PYTHON }} -m pip install -vv {{ sdata['name'] }}-{{ VERSION }}-py2.py3-none-any.whl
   entry_points:
     {% for group,epoints in sdata.get("entry_points",{}).items() %}
     {% for entry_point in epoints %}
@@ -18,18 +19,16 @@ build:
     {% endfor %}
 
 requirements:
-  build:
+  host:
     - python {{ sdata['python_requires'] }}
-    - param >=1.7.0
-    - pyct-core >=0.4.4
-    - setuptools >30.3.0
+    {% for dep in pyproject['build-system']['requires'] %}
+    - {{ dep }}
+    {% endfor %}
   run:
     - python {{ sdata['python_requires'] }}
     {% for dep in sdata.get('install_requires',{}) %}
     - {{ dep if dep != 'dask' else 'dask-core'}}
     {% endfor %}
-    # adding pyct here is temporary (this conda recipe template will disappear when new pyctdev is released)
-    - pyct
   run_constrained:
     - cudf >=0.10.0
 test:

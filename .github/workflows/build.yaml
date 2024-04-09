@@ -2,113 +2,146 @@ name: packages
 on:
   push:
     tags:
-    - 'v[0-9]+.[0-9]+.[0-9]+'
-    - 'v[0-9]+.[0-9]+.[0-9]+a[0-9]+'
-    - 'v[0-9]+.[0-9]+.[0-9]+b[0-9]+'
-    - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+a[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+b[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+rc[0-9]+"
   # Dry-run only
   workflow_dispatch:
   schedule:
-    - cron: '0 16 * * SUN'
+    - cron: "0 16 * * SUN"
+
+defaults:
+  run:
+    shell: bash -l {0}
+
+env:
+  PYTHON_VERSION: "3.11"
+  PACKAGE: "datashader"
+  MPLBACKEND: "Agg"
+  DASK_DATAFRAME__QUERY_PLANNING: false
 
 jobs:
+  waiting_room:
+    name: Waiting Room
+    runs-on: ubuntu-latest
+    needs: [conda_build, pip_install]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    environment:
+      name: publish
+    steps:
+      - run: echo "All builds have finished, have been approved, and ready to publish"
+
   conda_build:
-    name: Build Conda Packages
-    runs-on: 'ubuntu-latest'
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash -l {0}
-    env:
-      PKG_TEST_PYTHON: "--test-python=py39"
-      MPLBACKEND: "Agg"
-      CONDA_UPLOAD_TOKEN: ${{ secrets.CONDA_UPLOAD_TOKEN }}
+    name: Build Conda
+    runs-on: "ubuntu-latest"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: "100"
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniconda-version: "latest"
-          python-version: 3.9
-          channels: pyviz/label/dev,conda-forge,nodefaults
       - name: Fetch unshallow
         run: git fetch --prune --tags --unshallow -f
-      - name: Set output
-        id: vars
-        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniconda-version: "latest"
       - name: conda setup
         run: |
-          conda install "pyctdev>=0.5"
-          doit ecosystem_setup
-          # FIXME: downgrade urllib3 until this issue is fixed:
-          # https://github.com/Anaconda-Platform/anaconda-client/issues/654
-          conda install -c conda-forge "urllib3<2.0.0"
-      - name: doit env_capture
-        run: |
-          doit env_capture
+          # pyct is for running setup.py
+          conda install -y conda-build build pyct -c pyviz/label/dev
       - name: conda build
-        run: doit package_build $PKG_TEST_PYTHON --no-pkg-tests
-      - name: dev deploy
-        if: (github.event_name == 'push' && (contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc')))
         run: |
-          doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev
-      - name: main deploy
-        if: (github.event_name == 'push' && !(contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc')))
-        run: |
-          doit package_upload --token=$CONDA_UPLOAD_TOKEN --label=dev --label=main
-  pip_build:
-    name: Build PyPI Packages
-    runs-on: 'ubuntu-latest'
-    timeout-minutes: 120
-    defaults:
-      run:
-        shell: bash -l {0}
-    env:
-      PKG_TEST_PYTHON: "--test-python=py39"
-      PYTHON_VERSION: "3.9"
-      MPLBACKEND: "Agg"
-      PPU: ${{ secrets.PPU }}
-      PPP: ${{ secrets.PPP }}
-      PYPI: "https://upload.pypi.org/legacy/"
-      MAMBA_NO_BANNER: 1
+          source ./scripts/conda/build.sh
+          echo "CONDA_FILE="$CONDA_PREFIX/conda-bld/noarch/$PACKAGE-$VERSION-py_0.tar.bz2"" >> $GITHUB_ENV
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: conda
+          path: ${{ env.CONDA_FILE }}
+          if-no-files-found: error
+
+  conda_publish:
+    name: Publish Conda
+    runs-on: ubuntu-latest
+    needs: [conda_build, waiting_room]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v4
         with:
-          fetch-depth: "100"
-      - uses: conda-incubator/setup-miniconda@v2
+          name: conda
+          path: dist/
+      - name: Set environment variables
+        run: |
+          echo "TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+          echo "CONDA_FILE=$(ls dist/*.tar.bz2)" >> $GITHUB_ENV
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          channel-priority: strict
           miniconda-version: "latest"
-          channels: pyviz/label/dev,conda-forge,nodefaults
-          mamba-version: "*"
-      - name: Fetch unshallow
-        run: git fetch --prune --tags --unshallow -f
       - name: conda setup
         run: |
-          conda install "pyctdev>=0.5"
-          doit ecosystem_setup
-          conda create -n test-environment python=$PYTHON_VERSION pyctdev
-      - name: env setup
+          conda install -y anaconda-client
+      - name: conda dev upload
+        if: contains(env.TAG, 'a') || contains(env.TAG, 'b') || contains(env.TAG, 'rc')
         run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit develop_install -o tests --conda-mode=mamba
-          pip uninstall -y datashader
-          doit pip_on_conda
-      - name: doit env_capture
+          anaconda --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev $CONDA_FILE
+      - name: conda main upload
+        if: (!(contains(env.TAG, 'a') || contains(env.TAG, 'b') || contains(env.TAG, 'rc')))
         run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit env_capture
-      - name: pip build
+          anaconda --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev --label=main $CONDA_FILE
+
+  pip_build:
+    name: Build PyPI
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: "100"
+      - name: Fetch unshallow
+        run: git fetch --prune --tags --unshallow -f
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install build
         run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit ecosystem=pip package_build $PKG_TEST_PYTHON --test-group=unit
-      - name: pip upload
-        if: github.event_name == 'push'
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda activate test-environment
-          doit ecosystem=pip package_upload -u $PPU -p $PPP -r $PYPI
+          python -m pip install build
+      - name: Build package
+        run: python -m build .
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pip
+          path: dist/
+          if-no-files-found: error
+
+  pip_install:
+    name: Install PyPI
+    runs-on: "ubuntu-latest"
+    needs: [pip_build]
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: pip
+          path: dist/
+      - name: Install package
+        run: python -m pip install dist/*.whl
+      - name: Test package
+        run: python -c "import $PACKAGE; print($PACKAGE.__version__)"
+
+  pip_publish:
+    name: Publish PyPI
+    runs-on: ubuntu-latest
+    needs: [pip_build, waiting_room]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pip
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: ${{ secrets.PPU }}
+          password: ${{ secrets.PPP }}
+          repository-url: "https://upload.pypi.org/legacy/"
