@@ -138,7 +138,7 @@ def stack(*imgs, **kwargs):
 
 
 def eq_hist(data, mask=None, nbins=256*256):
-    """Return a numpy array after histogram equalization.
+    """Compute the numpy array after histogram equalization.
 
     For use in `shade`.
 
@@ -151,6 +151,12 @@ def eq_hist(data, mask=None, nbins=256*256):
         Maximum number of bins to use. If data is of type boolean or integer
         this will determine when to switch from exact unique value counts to
         a binned histogram.
+
+    Returns
+    -------
+    ndarray or tuple(ndarray, int)
+        Returns the array when mask isn't set, otherwise returns the
+        array and the computed number of discrete levels.
 
     Notes
     -----
