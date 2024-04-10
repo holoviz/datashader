@@ -136,20 +136,6 @@ def stack(*imgs, **kwargs):
         out = tz.reduce(tz.flip(op), [i.data for i in imgs])
     return Image(out, coords=imgs[0].coords, dims=imgs[0].dims, name=name)
 
-def foo(data):
-    """_summary_
-
-    Parameters
-    ----------
-    data : _type_
-        _description_
-
-    Returns
-    -------
-    _type_
-        _description_
-    """
-    return data
 
 def eq_hist(data, mask=None, nbins=256*256):
     """Compute the numpy array after histogram equalization.
