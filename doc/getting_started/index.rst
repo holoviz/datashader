@@ -52,8 +52,8 @@ Usage
     :maxdepth: 2
 
     Introduction <Introduction>
-    Customization <Pipeline>
-    Tabular Datasets <Interactivity>
+    Pipeline <Pipeline>
+    Interactivity <Interactivity>
 
 If you have any questions, please refer to `FAQ <../FAQ>`_
 and if that doesn't help, feel free to post an
