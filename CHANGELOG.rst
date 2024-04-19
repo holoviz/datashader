@@ -1,4 +1,4 @@
-Version 0.16.1 (2024-04-10)
+Version 0.16.1 (2024-04-19)
 ---------------------------
 
 This release brings compatibility with new release of upstream packages. Thanks to first-time contributor `@alexander-beedie <https://github.com/alexander-beedie>`_, and the regular contributors `@philippjfr <https://github.com/philippjfr>`_, `@ianthomas23 <https://github.com/ianthomas23>`_, `@maximlt <https://github.com/maximlt>`_, and `@Hoxbro <https://github.com/Hoxbro>`_.
@@ -6,6 +6,7 @@ This release brings compatibility with new release of upstream packages. Thanks 
 Enhancements:
 
 - Improved antialiased mean reduction (`#1300 <https://github.com/holoviz/datashader/pull/1300>`_)
+- Update the docstring of ``eq_hist`` (`#1322 <https://github.com/holoviz/datashader/pull/1322>`_)
 
 Compatibility:
 
