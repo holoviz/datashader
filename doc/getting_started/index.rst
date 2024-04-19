@@ -50,6 +50,7 @@ Usage
 .. toctree::
     :titlesonly:
     :maxdepth: 2
+    :hidden:
 
     Introduction <Introduction>
     Pipeline <Pipeline>
