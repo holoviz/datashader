@@ -50,6 +50,11 @@ Usage
 .. toctree::
     :titlesonly:
     :maxdepth: 2
+    :hidden:
+
+    Introduction <Introduction>
+    Pipeline <Pipeline>
+    Interactivity <Interactivity>
 
 If you have any questions, please refer to `FAQ <../FAQ>`_
 and if that doesn't help, feel free to post an
