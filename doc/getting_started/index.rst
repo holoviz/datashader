@@ -51,6 +51,10 @@ Usage
     :titlesonly:
     :maxdepth: 2
 
+    Introduction <Introduction>
+    Customization <Pipeline>
+    Tabular Datasets <Interactivity>
+
 If you have any questions, please refer to `FAQ <../FAQ>`_
 and if that doesn't help, feel free to post an
 `issue on GitHub <https://github.com/holoviz/datashader/issues>`_ or a
