@@ -1,3 +1,28 @@
+Version 0.16.1 (2024-04-19)
+---------------------------
+
+This release brings compatibility with new release of upstream packages. Thanks to first-time contributor `@alexander-beedie <https://github.com/alexander-beedie>`_, and the regular contributors `@philippjfr <https://github.com/philippjfr>`_, `@ianthomas23 <https://github.com/ianthomas23>`_, `@maximlt <https://github.com/maximlt>`_, and `@Hoxbro <https://github.com/Hoxbro>`_.
+
+Enhancements:
+
+- Improved antialiased mean reduction (`#1300 <https://github.com/holoviz/datashader/pull/1300>`_)
+- Update the docstring of ``eq_hist`` (`#1322 <https://github.com/holoviz/datashader/pull/1322>`_)
+
+Compatibility:
+
+- Python 3.12 support (`#1317 <https://github.com/holoviz/datashader/pull/1317>`_)
+- Basic ``dask_expr`` support (`#1317 <https://github.com/holoviz/datashader/pull/1317>`_)
+- Numpy 2.0 support (`#1306 <https://github.com/holoviz/datashader/pull/1306>`_)
+- Remove redundant py2 helper code (`#1316 <https://github.com/holoviz/datashader/pull/1316>`_)
+
+Maintenance:
+
+- Replace Google Analytics with GoatCounter (`#1309 <https://github.com/holoviz/datashader/pull/1309>`_)
+- Docs: ignore numpydoc validation checks (`#1310 <https://github.com/holoviz/datashader/pull/1310>`_)
+- Fix test suite (`#1314 <https://github.com/holoviz/datashader/pull/1314>`_)
+- General maintenance (`#1320 <https://github.com/holoviz/datashader/pull/1320>`_)
+
+
 Version 0.16.0 (2023-10-26)
 ---------------------------
 
