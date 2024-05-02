@@ -13,3 +13,10 @@ with suppress(ImportError):
     import bokeh.sampledata
 
     bokeh.sampledata.download()
+
+
+with suppress(ImportError):
+    import geodatasets as gds
+
+    gds.get_path("geoda.natregimes")
+    gds.get_path("nybb")
