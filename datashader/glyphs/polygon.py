@@ -197,8 +197,10 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
                     # Reject edges that are above, below, or left of current pixel.
                     # Note: Edge skipped if lower vertex overlaps,
                     #       but is kept if upper vertex overlaps
-                    if (y0c >= yi or y1c < yi
-                            or (x0c < xi and x1c < xi)
+                    if (
+                        y0c >= yi
+                        # or y1c > yi  # Create white dots https://github.com/holoviz/datashader/issues/1327
+                        or (x0c < xi and x1c < xi)
                     ):
                         # Edge not eligible for any remaining pixel in this row
                         eligible[ei] = 0
