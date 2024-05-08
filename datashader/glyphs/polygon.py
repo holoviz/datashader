@@ -130,11 +130,11 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
             append(i, startxi, startyi, *aggs_and_cols)
             return
         elif (stopxi - startxi) == 1:
-            for yi in range(min(startyi, stopyi) + 1, max(startyi, stopyi)):
+            for yi in range(min(startyi, stopyi), max(startyi, stopyi)):
                 append(i, startxi, yi, *aggs_and_cols)
             return
         elif (stopyi - startyi) == 1:
-            for xi in range(min(startxi, stopxi) + 1, max(startxi, stopxi)):
+            for xi in range(min(startxi, stopxi), max(startxi, stopxi)):
                 append(i, xi, startyi, *aggs_and_cols)
             return
 
