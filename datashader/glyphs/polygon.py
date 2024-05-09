@@ -155,10 +155,7 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
                 x1c = x_mapper(x1) * sx + tx - 0.5
                 y1c = y_mapper(y1) * sy + ty - 0.5
 
-                if np.isclose(y1c, y0c):
-                    # Skip horizontal edges
-                    continue
-                elif y1c > y0c:
+                if y1c > y0c:
                     xs[ei, 0] = x0c
                     ys[ei, 0] = y0c
                     xs[ei, 1] = x1c
@@ -200,10 +197,8 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
                     # Reject edges that are above, below, or left of current pixel.
                     # Note: Edge skipped if lower vertex overlaps,
                     #       but is kept if upper vertex overlaps
-                    if (
-                        y0c >= yi
-                        or y1c < yi
-                        or (x0c < xi and x1c < xi)
+                    if (y0c >= yi or y1c < yi
+                            or (x0c < xi and x1c < xi)
                     ):
                         # Edge not eligible for any remaining pixel in this row
                         eligible[ei] = 0
@@ -226,7 +221,7 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
                         # Compute cross product of B and A
                         bxa = (bx * ay - by * ax)
 
-                        if bxa < 0 or (np.isclose(bxa, 0) and yincreasing[ei]):
+                        if bxa < 0 or (bxa == 0 and yincreasing[ei]):
                             # Edge to the right
                             winding_number += yincreasing[ei]
                         else:
