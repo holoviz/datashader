@@ -72,7 +72,7 @@ jobs:
                   "python-version": "3.9"
               }]
           }')
-          # Windows won't solve on Windows + Python 3.9
+          # Won't solve on Windows + Python 3.9
           echo "MATRIX=$MATRIX" >> $GITHUB_ENV
       - name: Set test matrix with 'full' option
         if: env.MATRIX_OPTION == 'full'
@@ -85,7 +85,7 @@ jobs:
                   "python-version": "3.9"
               }]
           }')
-          # Windows won't solve on Windows + Python 3.9
+          # Won't solve on Windows + Python 3.9
           echo "MATRIX=$MATRIX" >> $GITHUB_ENV
       - name: Set test matrix with 'downstream' option
         if: env.MATRIX_OPTION == 'downstream'
