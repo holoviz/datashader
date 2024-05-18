@@ -38,7 +38,7 @@ examples = [
     'matplotlib >=3.3',
     'panel >1.1',
     # 'scikit-image',
-    'spatialpandas',
+    # 'spatialpandas',
 ]
 
 extras_require = {
@@ -58,7 +58,7 @@ extras_require = {
         # 'rasterio',
         # 'rioxarray',  # rasterio
         # 'scikit-image',
-        'spatialpandas',
+        # 'spatialpandas',
         # 'dask-expr',  # pyarrow
     ],
     'examples': examples,
