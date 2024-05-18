@@ -54,10 +54,10 @@ extras_require = {
         'pytest-benchmark',
         'pytest-cov',
         # 'rasterio',
-        # 'rioxarray',
+        # 'rioxarray',  # rasterio
         # 'scikit-image',
         'spatialpandas',
-        'dask-expr',
+        # 'dask-expr',  # pyarrow
     ],
     'examples': examples,
     'examples_extra': examples + [
