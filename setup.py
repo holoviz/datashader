@@ -49,11 +49,11 @@ extras_require = {
         'nbformat',
         'nbsmoke[verify] >0.5',
         'netcdf4',
-        'pyarrow',
+        # 'pyarrow',
         'pytest <8',  # Fails lint with IPynbFile is deprecated
         'pytest-benchmark',
         'pytest-cov',
-        'rasterio',
+        # 'rasterio',
         'rioxarray',
         # 'scikit-image',
         'spatialpandas',
@@ -68,7 +68,7 @@ extras_require = {
         'graphviz',
         'python-graphviz',
         'python-snappy',
-        'rasterio',
+        # 'rasterio',
     ],
     'geopandas': geopandas,
 }
