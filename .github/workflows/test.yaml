@@ -115,11 +115,15 @@ jobs:
           name: unit_test_suite
           python-version: ${{ matrix.python-version }}
           channel-priority: flexible
-          channels: pyviz/label/dev,numba,conda-forge,nodefaults
+          channels: pyviz/label/dev,conda-forge/label/numpy_rc,numba/label/dev,conda-forge,nodefaults
           envs: "-o tests -o examples"
-          cache: ${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
+          cache: false  #${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
           conda-update: true
         id: install
+      - name: check version
+        run: |
+          python -c "import datashader as ds; print('Datashader', ds.__version__)"
+          python -c "import numpy; print('Numpy', numpy.__version__)"
       - name: doit test_lint
         if: runner.os == 'Linux'
         run: |
