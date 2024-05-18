@@ -36,7 +36,7 @@ examples = geopandas + [
     'holoviews',
     'matplotlib >=3.3',
     'panel >1.1',
-    'scikit-image',
+    # 'scikit-image',
     'spatialpandas',
 ]
 
@@ -55,7 +55,7 @@ extras_require = {
         'pytest-cov',
         'rasterio',
         'rioxarray',
-        'scikit-image',
+        # 'scikit-image',
         'spatialpandas',
         'dask-expr',
     ],
