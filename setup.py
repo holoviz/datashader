@@ -54,7 +54,7 @@ extras_require = {
         'pytest-benchmark',
         'pytest-cov',
         # 'rasterio',
-        'rioxarray',
+        # 'rioxarray',
         # 'scikit-image',
         'spatialpandas',
         'dask-expr',
