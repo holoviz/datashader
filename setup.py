@@ -30,7 +30,8 @@ geopandas = [
     'shapely >=2.0.0',
 ]
 
-examples = geopandas + [
+# examples = geopandas + [
+examples = [
     'bokeh >3.1',
     'geodatasets',
     'holoviews',
@@ -41,7 +42,8 @@ examples = geopandas + [
 ]
 
 extras_require = {
-    'tests': geopandas + [
+    # 'tests': geopandas + [
+    'tests': [
         'codecov',
         'geodatasets',
         'flake8',
