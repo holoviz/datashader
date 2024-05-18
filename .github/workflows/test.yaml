@@ -118,13 +118,13 @@ jobs:
           channel-priority: flexible
           channels: pyviz/label/dev,conda-forge/label/numpy_rc,numba/label/dev,conda-forge,nodefaults
           envs: "-o tests -o examples"
-          cache: false  #${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
+          cache: ${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
           conda-update: true
         id: install
       - name: check version
         run: |
           conda activate test-environment
-          python -c "import datashader as ds; print('Datashader', ds.__version__)"
+          python -c "import numba; print('Numba', numba.__version__)"
           python -c "import numpy; print('Numpy', numpy.__version__)"
       - name: doit test_lint
         if: runner.os == 'Linux'
