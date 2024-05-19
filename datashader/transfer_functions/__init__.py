@@ -184,7 +184,7 @@ def eq_hist(data, mask=None, nbins=256*256):
     # Run more accurate value counting if data is of boolean or integer type
     # and unique value array is smaller than nbins.
     if data2.dtype == bool or (array_module.issubdtype(data2.dtype, array_module.integer) and
-                               data2.ptp() < nbins):
+                               array_module.ptp(data2) < nbins):
         values, counts = array_module.unique(data2, return_counts=True)
         vmin, vmax = values[0].item(), values[-1].item()  # Convert from arrays to scalars.
         interval = vmax-vmin
