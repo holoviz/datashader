@@ -615,7 +615,8 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         # offset and concat start_indices
         offsets = np.hstack([
             [0],
-            np.cumsum([len(ra.flat_array) for ra in to_concat[:-1]])])
+            np.cumsum([len(ra.flat_array) for ra in to_concat[:-1]])]).astype('uint64')
+
 
         start_indices = np.hstack([ra.start_indices + offset
                                    for offset, ra in zip(offsets, to_concat)])
