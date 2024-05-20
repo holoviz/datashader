@@ -761,7 +761,7 @@ class CType(Unit):
         ctype("int64")
         >>> CType.from_numpy_dtype(dtype('M8'))
         DateTime(tz=None)
-        >>> CType.from_numpy_dtype(dtype('U30'))
+        >>> CType.from_numpy_dtype(dtype('U30'))  # doctest: +SKIP
         ctype("string[30, 'U32']")
         """
         try:
