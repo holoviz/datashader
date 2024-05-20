@@ -647,9 +647,10 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         else:
             return list(self)
 
-    def __array__(self, dtype=None):
+    def __array__(self, dtype=None, copy=None):
         dtype = np.dtype(object) if dtype is None else np.dtype(dtype)
-        return np.asarray(self.tolist(), dtype=dtype)
+        arr = np.asarray(self.tolist(), dtype=dtype)
+        return arr.copy() if copy else arr
 
     def duplicated(self, *args, **kwargs):
         msg = "duplicated is not implemented for RaggedArray"
