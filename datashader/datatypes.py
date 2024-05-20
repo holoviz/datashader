@@ -45,13 +45,13 @@ def _validate_ragged_properties(start_indices, flat_array):
     """
 
     # Validate start_indices
-    if (
-        isinstance(start_indices, np.ndarray)
-        and start_indices.dtype.kind == 'i'
-        and start_indices.min() >= 0
-    ):
-        # TODO: Investigate why this is now a int and not uint
-        start_indices = start_indices.astype(f'uint{start_indices.dtype.itemsize * 8}')
+    # if (
+    #     isinstance(start_indices, np.ndarray)
+    #     and start_indices.dtype.kind == 'i'
+    #     and start_indices.min() >= 0
+    # ):
+    #     # TODO: Investigate why this is now a int and not uint
+    #     start_indices = start_indices.astype(f'uint{start_indices.dtype.itemsize * 8}')
 
     if (not isinstance(start_indices, np.ndarray) or
             start_indices.dtype.kind != 'u' or
