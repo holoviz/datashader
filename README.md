@@ -6,12 +6,13 @@
 
 |    |    |
 | --- | --- |
-| Build Status | [![Build Status](https://github.com/holoviz/datashader/workflows/tests/badge.svg)](https://github.com/holoviz/datashader/actions?query=workflow%3Atests) |
+| Downloads | ![https://pypistats.org/packages/datashader](https://img.shields.io/pypi/dm/datashader?label=pypi) ![https://anaconda.org/pyviz/datashader](https://pyviz.org/_static/cache/datashader_conda_downloads_badge.svg)
+| Build Status | [![Build Status](https://github.com/holoviz/datashader/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/holoviz/datashader/actions/workflows/test.yaml?query=branch%3Amain) |
 | Coverage | [![codecov](https://codecov.io/gh/holoviz/datashader/branch/main/graph/badge.svg)](https://codecov.io/gh/holoviz/datashader) |
 | Latest dev release | [![Github tag](https://img.shields.io/github/tag/holoviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/holoviz/datashader/tags) [![dev-site](https://img.shields.io/website-up-down-green-red/https/holoviz-dev.github.io/datashader.svg?label=dev%20website)](https://holoviz-dev.github.io/datashader/) |
 | Latest release | [![Github release](https://img.shields.io/github/release/holoviz/datashader.svg?label=tag&colorB=11ccbb)](https://github.com/holoviz/datashader/releases) [![PyPI version](https://img.shields.io/pypi/v/datashader.svg?colorB=cc77dd)](https://pypi.python.org/pypi/datashader) [![datashader version](https://img.shields.io/conda/v/pyviz/datashader.svg?colorB=4488ff&style=flat)](https://anaconda.org/pyviz/datashader) [![conda-forge version](https://img.shields.io/conda/v/conda-forge/datashader.svg?label=conda%7Cconda-forge&colorB=4488ff)](https://anaconda.org/conda-forge/datashader) [![defaults version](https://img.shields.io/conda/v/anaconda/datashader.svg?label=conda%7Cdefaults&style=flat&colorB=4488ff)](https://anaconda.org/anaconda/datashader) |
 | Python | [![Python support](https://img.shields.io/pypi/pyversions/datashader.svg)](https://pypi.org/project/datashader/)
-| Docs | [![gh-pages](https://img.shields.io/github/last-commit/holoviz/datashader/gh-pages.svg)](https://github.com/holoviz/datashader/tree/gh-pages) [![site](https://img.shields.io/website-up-down-green-red/http/datashader.org.svg)](http://datashader.org) |
+| Docs | [![DocBuildStatus](https://github.com/holoviz/datashader/workflows/docs/badge.svg?query=branch%3Amain)](https://github.com/holoviz/datashader/actions?query=workflow%3Adocs+branch%3Amain) [![site](https://img.shields.io/website-up-down-green-red/https/datashader.org.svg)](https://datashader.org) |
 | Support | [![Discourse](https://img.shields.io/discourse/status?server=https%3A%2F%2Fdiscourse.holoviz.org)](https://discourse.holoviz.org/) |
 
 -------
@@ -112,7 +113,7 @@ Otherwise create a new environment:
 ## Learning more
 
 After working through the examples, you can find additional resources linked
-from the [datashader documentation](http://datashader.org),
+from the [datashader documentation](https://datashader.org),
 including API documentation and papers and talks about the approach.
 
 ## Some Examples
