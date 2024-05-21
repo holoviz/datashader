@@ -86,15 +86,15 @@ nybb_polygons_sol = np.array([
     [nan, nan,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan],  # noqa: E501
     [nan, nan,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan],  # noqa: E501
     [nan, nan, nan,  0., nan, nan, nan, nan,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
     [nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
     [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  2.,  1.,  1.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
     [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],  # noqa: E501
     [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1., nan,  1.,  1.,  1., nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  4., nan,  1.,  1.,  1., nan, nan],  # noqa: E501
     [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  4.,  4., nan, nan, nan, nan, nan, nan],  # noqa: E501
     [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4., nan, nan, nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4.,  4., nan, nan, nan],  # noqa: E501
+    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
     [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
     [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
     [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4., nan, nan, nan, nan, nan],  # noqa: E501
