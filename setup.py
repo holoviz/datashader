@@ -32,7 +32,6 @@ geopandas = [
 
 examples = geopandas + [
     'bokeh >3.1',
-    'bokeh_sampledata',
     'geodatasets',
     'holoviews',
     'matplotlib >=3.3',
@@ -40,6 +39,11 @@ examples = geopandas + [
     'scikit-image',
     'spatialpandas',
 ]
+
+if sys.python_version_info[:2] >= (3, 10):
+    examples += [
+        'bokeh_sampledata',
+    ]
 
 extras_require = {
     'tests': geopandas + [
