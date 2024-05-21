@@ -635,10 +635,8 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         elif is_extension_array_dtype(dtype):
             return dtype.construct_array_type()._from_sequence(
                 np.asarray(self))
-        if copy:
-            return np.array([v for v in self], dtype=dtype)
-        else:
-            return np.asarray([v for v in self], dtype=dtype)
+
+        return np.array([v for v in self], dtype=dtype)
 
     def tolist(self):
         # Based on pandas ExtensionArray.tolist
@@ -647,10 +645,12 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         else:
             return list(self)
 
-    def __array__(self, dtype=None, copy=None):
+    def __array__(self, dtype=None, copy=True):
         dtype = np.dtype(object) if dtype is None else np.dtype(dtype)
-        arr = np.asarray(self.tolist(), dtype=dtype)
-        return arr.copy() if copy else arr
+        if copy:
+            return np.array(self.tolist(), dtype=dtype)
+        else:
+            return np.array(self, dtype=dtype)
 
     def duplicated(self, *args, **kwargs):
         msg = "duplicated is not implemented for RaggedArray"
