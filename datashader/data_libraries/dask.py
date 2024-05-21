@@ -20,6 +20,8 @@ __all__ = ()
 def dask_pipeline(df, schema, canvas, glyph, summary, *, antialias=False, cuda=False):
     dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary, antialias=antialias, cuda=cuda)
 
+    df = getattr(df, 'optimize', lambda: df)()  # Work with new dask_expr
+
     # Get user configured scheduler (if any), or fall back to default
     # scheduler for dask DataFrame
     scheduler = dask.base.get_scheduler() or df.__dask_scheduler__
