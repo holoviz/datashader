@@ -2639,7 +2639,7 @@ def test_categorical_where_last_n(ddf, npartitions):
 
 @pytest.mark.parametrize('ddf', ddfs)
 @pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
-def test_series_solve(ddf, npartitions):
+def test_series_reset_index(ddf, npartitions):
     # Test for: https://github.com/holoviz/datashader/issues/1331
     ser = ddf['i32'].reset_index()
     cvs = ds.Canvas(plot_width=2, plot_height=2)
