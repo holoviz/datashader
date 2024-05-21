@@ -40,7 +40,7 @@ examples = geopandas + [
     'spatialpandas',
 ]
 
-if sys.python_version_info[:2] >= (3, 10):
+if sys.version_info[:2] >= (3, 10):
     examples += [
         'bokeh_sampledata',
     ]
