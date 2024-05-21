@@ -120,7 +120,7 @@ jobs:
           echo "MATRIX=$MATRIX" >> $GITHUB_ENV
 
   test_suite:
-    name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}, numpy {{ matrix.numpy-version }}
+    name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}, numpy ${{ matrix.numpy-version }}
     needs: [pre_commit, setup]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -140,6 +140,7 @@ jobs:
           fetch-depth: 0
       - name: Set channels and envs
         run: |
+          cat setup.py
           if [[ ${{ matrix.numpy-version }} == "2" ]]; then
             channels="pyviz/label/dev,conda-forge/label/numpy_rc,numba/label/dev,conda-forge,nodefaults"
             envs="-o numpy2"
@@ -160,7 +161,7 @@ jobs:
           channel-priority: flexible
           channels: ${{ env.CHANNELS }}
           envs: ${{ env.ENVS }}
-          cache: ${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
+          cache: false # ${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
           conda-update: true
         id: install
       - name: check version
