@@ -76,16 +76,6 @@ numpy2 = [
     # 'scikit-image',
     # 'spatialpandas',
     # 'dask-expr',  # pyarrow
-
-    # [examples_extras]
-    'networkx',
-    'streamz',
-    ### conda only below here
-    'fastparquet',
-    'graphviz',
-    'python-graphviz',
-    'python-snappy',
-    # 'rasterio',
 ]
 
 extras_require = {
