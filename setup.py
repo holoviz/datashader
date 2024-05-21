@@ -12,8 +12,8 @@ install_requires = [
     'colorcet',
     'dask',
     'multipledispatch',
-    'numba ==0.60.0rc1',
-    'numpy ==2.0.0rc2',
+    'numba',
+    'numpy',
     'pandas',
     'param',
     'pillow',
@@ -30,8 +30,27 @@ geopandas = [
     'shapely >=2.0.0',
 ]
 
-# examples = geopandas + [
-examples = [
+examples = geopandas + [
+    'bokeh >3.1',
+    'geodatasets',
+    'holoviews',
+    'matplotlib >=3.3',
+    'panel >1.1',
+    'scikit-image',
+    'spatialpandas',
+]
+
+# Numpy 2 packages, should be removed when all commented out packages works with Numpy 2
+numpy2 = [
+    'numba ==0.60.0rc1',
+    'numpy ==2.0.0rc2',
+
+    # [geopandas]
+    # 'dask-geopandas',
+    # 'geopandas',
+    # 'shapely >=2.0.0',
+
+    # [examples]
     'bokeh >3.1',
     'geodatasets',
     'holoviews',
@@ -39,11 +58,38 @@ examples = [
     'panel >1.1',
     # 'scikit-image',
     # 'spatialpandas',
+
+    # [tests]
+    'codecov',
+    'geodatasets',
+    'flake8',
+    'nbconvert',
+    'nbformat',
+    'nbsmoke[verify] >0.5',
+    'netcdf4',
+    # 'pyarrow',
+    'pytest <8',  # Fails lint with IPynbFile is deprecated
+    'pytest-benchmark',
+    'pytest-cov',
+    # 'rasterio',
+    # 'rioxarray',  # rasterio
+    # 'scikit-image',
+    # 'spatialpandas',
+    # 'dask-expr',  # pyarrow
+
+    # [examples_extras]
+    'networkx',
+    'streamz',
+    ### conda only below here
+    'fastparquet',
+    'graphviz',
+    'python-graphviz',
+    'python-snappy',
+    # 'rasterio',
 ]
 
 extras_require = {
-    # 'tests': geopandas + [
-    'tests': [
+    'tests': geopandas + [
         'codecov',
         'geodatasets',
         'flake8',
@@ -51,15 +97,15 @@ extras_require = {
         'nbformat',
         'nbsmoke[verify] >0.5',
         'netcdf4',
-        # 'pyarrow',
+        'pyarrow',
         'pytest <8',  # Fails lint with IPynbFile is deprecated
         'pytest-benchmark',
         'pytest-cov',
-        # 'rasterio',
-        # 'rioxarray',  # rasterio
-        # 'scikit-image',
-        # 'spatialpandas',
-        # 'dask-expr',  # pyarrow
+        'rasterio',
+        'rioxarray',
+        'scikit-image',
+        'spatialpandas',
+        'dask-expr',
     ],
     'examples': examples,
     'examples_extra': examples + [
@@ -70,9 +116,10 @@ extras_require = {
         'graphviz',
         'python-graphviz',
         'python-snappy',
-        # 'rasterio',
+        'rasterio',
     ],
     'geopandas': geopandas,
+    'numpy2': numpy2,
 }
 
 

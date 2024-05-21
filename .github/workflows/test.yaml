@@ -65,13 +65,22 @@ jobs:
         if: env.MATRIX_OPTION == 'default'
         run: |
           MATRIX=$(jq -nsc '{
-              # "os": ["ubuntu-latest", "macos-latest", "windows-latest"],
-              # "python-version": ["3.9", "3.10", "3.11", "3.12"],
-              "os": ["ubuntu-latest", "macos-latest"],
-              "python-version": ["3.12"],
+              "os": ["ubuntu-latest", "macos-latest", "windows-latest"],
+              "python-version": ["3.9", "3.10", "3.11", "3.12"],
+              "numpy-version": ["1"],
               "exclude": [{
                   "os": "windows-latest",
                   "python-version": "3.9"
+              }],
+              "include": [{
+                  "os": "ubuntu-latest",
+                  "python-version": "3.12",
+                  "numpy-version": "2"
+              },
+              {
+                  "os": "macos-latest",
+                  "python-version": "3.12",
+                  "numpy-version": "2"
               }]
           }')
           # Won't solve on Windows + Python 3.9
@@ -82,9 +91,20 @@ jobs:
           MATRIX=$(jq -nsc '{
               "os": ["ubuntu-latest", "macos-latest", "windows-latest"],
               "python-version": ["3.9", "3.10", "3.11", "3.12"],
+              "numpy-version": ["1"],
               "exclude": [{
                   "os": "windows-latest",
                   "python-version": "3.9"
+              }],
+              "include": [{
+                  "os": "ubuntu-latest",
+                  "python-version": "3.12",
+                  "numpy-version": "2"
+              },
+              {
+                  "os": "macos-latest",
+                  "python-version": "3.12",
+                  "numpy-version": "2"
               }]
           }')
           # Won't solve on Windows + Python 3.9
@@ -99,7 +119,7 @@ jobs:
           echo "MATRIX=$MATRIX" >> $GITHUB_ENV
 
   test_suite:
-    name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}, numpy {{ matrix.numpy-version }}
     needs: [pre_commit, setup]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -112,13 +132,24 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - name: Set channels and envs
+        run: |
+          if [[ ${{ matrix.numpy-version }} == "2" ]]; then
+            channels="pyviz/label/dev,conda-forge/label/numpy_rc,numba/label/dev,conda-forge,nodefaults"
+            envs="-o numpy2"
+          else
+            channels="pyviz/label/dev,numba,conda-forge,nodefaults"
+            envs="-o tests -o examples"
+          fi
+          echo "CHANNELS=$channels" >> $GITHUB_ENV
+          echo "ENVS=$envs" >> $GITHUB_ENV
       - uses: holoviz-dev/holoviz_tasks/install@v0
         with:
           name: unit_test_suite
           python-version: ${{ matrix.python-version }}
           channel-priority: flexible
-          channels: pyviz/label/dev,conda-forge/label/numpy_rc,numba/label/dev,conda-forge,nodefaults
-          envs: "-o tests -o examples"
+          channels: ${{ env.CHANNELS }}
+          envs: ${{ env.ENVS }}
           cache: ${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
           conda-update: true
         id: install
@@ -151,51 +182,51 @@ jobs:
           conda activate test-environment
           codecov
 
-  # test_pip:
-  #   name: Pip tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
-  #   needs: [pre_commit]
-  #   runs-on: ${{ matrix.os }}
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: ['ubuntu-latest', 'macos-latest']
-  #       python-version: ["3.12"]
-  #   steps:
-  #     - name: Checkout source
-  #       uses: actions/checkout@v3
-  #       with:
-  #         fetch-depth: 0
-  #     - name: Install Python ${{ matrix.python-version }}
-  #       uses: actions/setup-python@v4
-  #       with:
-  #         python-version: ${{ matrix.python-version }}
-  #     - name: Update setuptools
-  #       run: |
-  #         pip install --upgrade setuptools
-  #     - name: Install pyctdev
-  #       run: |
-  #         pip install pyctdev
-  #     - name: doit develop_install
-  #       run: |
-  #         doit ecosystem=pip develop_install -o tests -o examples
-  #     - name: doit env_capture
-  #       run: |
-  #         doit ecosystem=pip env_capture
-  #     - name: doit test_lint
-  #       if: runner.os == 'Linux'
-  #       run: |
-  #         doit ecosystem=pip test_lint
-  #     - name: doit test_unit
-  #       run: |
-  #         doit ecosystem=pip test_unit
-  #     - name: doit test_unit_nojit
-  #       run: |
-  #         doit ecosystem=pip test_unit_nojit
-  #       env:
-  #         NUMBA_DISABLE_JIT: 1
-  #     - name: doit test_examples
-  #       run: |
-  #         doit ecosystem=pip test_examples
-  #     - name: codecov
-  #       run: |
-  #         codecov
+  test_pip:
+    name: Pip tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    needs: [pre_commit]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest']
+        python-version: ["3.12"]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Update setuptools
+        run: |
+          pip install --upgrade setuptools
+      - name: Install pyctdev
+        run: |
+          pip install pyctdev
+      - name: doit develop_install
+        run: |
+          doit ecosystem=pip develop_install -o tests -o examples
+      - name: doit env_capture
+        run: |
+          doit ecosystem=pip env_capture
+      - name: doit test_lint
+        if: runner.os == 'Linux'
+        run: |
+          doit ecosystem=pip test_lint
+      - name: doit test_unit
+        run: |
+          doit ecosystem=pip test_unit
+      - name: doit test_unit_nojit
+        run: |
+          doit ecosystem=pip test_unit_nojit
+        env:
+          NUMBA_DISABLE_JIT: 1
+      - name: doit test_examples
+        run: |
+          doit ecosystem=pip test_examples
+      - name: codecov
+        run: |
+          codecov
