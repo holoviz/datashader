@@ -114,6 +114,7 @@ jobs:
         run: |
           MATRIX=$(jq -nsc '{
               "os": ["ubuntu-latest"],
+              "numpy-version": ["1"],
               "python-version": ["3.11"]
           }')
           echo "MATRIX=$MATRIX" >> $GITHUB_ENV
@@ -132,11 +133,20 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+        # Needs to run this first to sed the setup.py file
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Set channels and envs
         run: |
           if [[ ${{ matrix.numpy-version }} == "2" ]]; then
             channels="pyviz/label/dev,conda-forge/label/numpy_rc,numba/label/dev,conda-forge,nodefaults"
             envs="-o numpy2"
+            # Update numpy and numba in required as they are installed first and will
+            # conflict when pinning them in optional dependencies.
+            sed -i "s/'numpy'/'numpy ==2.0.0rc2'/g" setup.py
+            sed -i "s/'numba'/'numba ==0.60.0rc1'/g" setup.py
           else
             channels="pyviz/label/dev,numba,conda-forge,nodefaults"
             envs="-o tests -o examples"
