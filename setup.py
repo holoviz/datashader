@@ -32,6 +32,7 @@ geopandas = [
 
 examples = geopandas + [
     'bokeh >3.1',
+    'bokeh_sampledata',
     'geodatasets',
     'holoviews',
     'matplotlib >=3.3',
