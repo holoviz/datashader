@@ -18,7 +18,7 @@ __all__ = ()
 # Note about `getattr(df, 'optimize', lambda: df)()`:
 # Places where this is done, are to be compatible with both
 # `dask-expr` and classic `dask.dataframe` (where `optimize` does not exist).
-# With dask-expr calling df.__dask_graph__() or df.__dask_keys() will
+# With dask-expr calling df.__dask_graph__() or df.__dask_keys__() will
 # make the graph no longer match the df._name, so we preemptively call it
 # to make it match. For more information, see the following comment:
 # https://github.com/holoviz/datashader/pull/1317#issuecomment-2039986852
