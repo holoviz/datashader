@@ -48,6 +48,7 @@ extras_require = {
         'nbconvert',
         'nbformat',
         'nbsmoke[verify] >0.5',
+        'nbval',
         'netcdf4',
         'pyarrow',
         'pytest <8',  # Fails lint with IPynbFile is deprecated
