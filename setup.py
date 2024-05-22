@@ -53,6 +53,8 @@ extras_require = {
         'pytest <8',  # Fails lint with IPynbFile is deprecated
         'pytest-benchmark',
         'pytest-cov',
+        'psutil',
+        'pytest-xdist',
         'rasterio',
         'rioxarray',
         'scikit-image',
