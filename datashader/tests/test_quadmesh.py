@@ -188,8 +188,7 @@ def test_raster_quadmesh_upsamplex_and_downsampley(array_module):
     assert_eq_xr(res, out)
 
 
-# FIXME: dask.array does not work for this test
-@pytest.mark.parametrize('array_module', [array_modules[0], *array_modules[2:]])
+@pytest.mark.parametrize('array_module', array_modules)
 def test_raster_quadmesh_autorange_reversed(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4)
     da = xr.DataArray(
