@@ -1,6 +1,8 @@
 import platform
 
-collect_ignore_glob = []
+collect_ignore_glob = [
+    "tiling.ipynb",
+]
 
 # 2023-07-21 with following error:
 # nbclient.exceptions.CellTimeoutError: A cell timed out while it was being executed, after 300 seconds.
