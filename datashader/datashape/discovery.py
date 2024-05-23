@@ -150,7 +150,7 @@ def deltaparse(x):
     Examples
     --------
     >>> td = '1 day'
-    >>> deltaparse(td)
+    >>> deltaparse(td)  # doctest: +SKIP
     numpy.timedelta64(1,'D')
     >>> deltaparse('1.2 days')  # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):

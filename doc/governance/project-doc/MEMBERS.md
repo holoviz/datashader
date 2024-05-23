@@ -7,5 +7,5 @@ The Datashader Project’s equivalently named documents take precedence over any
 | **NAME** | **Role** | **GitHub Handle** |
 | --- | --- | --- |
 | James Bednar | Project Director | [jbednar](https://github.com/jbednar) |
-| Ian Thomas | Lead Maintainer | [ianthomas23](https://github.com/ianthomas23) |
 | Philipp Rudiger | Maintainer | [philippjfr](https://github.com/philippjfr) |
+| Simon Hansen | Maintainer | [hoxbro](https://github.com/hoxbro) |
