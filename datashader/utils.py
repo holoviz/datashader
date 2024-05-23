@@ -520,7 +520,9 @@ def _pd_mesh(vertices, simplices):
     winding = [0, 1, 2]
     first_tri = vertices.values[simplices.values[0, winding].astype(np.int64), :2]
     a, b, c = first_tri
-    if np.cross(b-a, c-a).item() >= 0:
+    p1, p2 = b - a, c - a
+    cross_product = p1[0] * p2[1] - p1[1] * p2[0]
+    if cross_product >= 0:
         winding = [0, 2, 1]
 
     # Construct mesh by indexing into vertices with simplex indices

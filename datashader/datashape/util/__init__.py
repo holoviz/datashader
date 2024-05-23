@@ -29,7 +29,7 @@ def dshapes(*args):
 def dshape(o):
     """
     Parse a datashape. For a thorough description see
-    http://blaze.pydata.org/docs/datashape.html
+    https://datashape.readthedocs.io/en/latest/
 
     >>> ds = dshape('2 * int32')
     >>> ds[1]

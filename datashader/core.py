@@ -845,10 +845,10 @@ The axis argument to Canvas.area must be 0 or 1
             xaxis_linear = self.x_axis is _axis_lookup["linear"]
             yaxis_linear = self.y_axis is _axis_lookup["linear"]
             even_yspacing = np.allclose(
-                yarr, np.linspace(yarr[0], yarr[-1], len(yarr))
+                yarr, np.linspace(yarr[0].data, yarr[-1].data, len(yarr))
             )
             even_xspacing = np.allclose(
-                xarr, np.linspace(xarr[0], xarr[-1], len(xarr))
+                xarr, np.linspace(xarr[0].data, xarr[-1].data, len(xarr))
             )
 
             if xaxis_linear and yaxis_linear and even_xspacing and even_yspacing:

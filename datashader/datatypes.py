@@ -606,8 +606,8 @@ Invalid indices for take with allow_fill True: {inds}""".format(
 
         # offset and concat start_indices
         offsets = np.hstack([
-            [0],
-            np.cumsum([len(ra.flat_array) for ra in to_concat[:-1]])])
+            [0], np.cumsum([len(ra.flat_array) for ra in to_concat[:-1]])
+        ]).astype('uint64')
 
         start_indices = np.hstack([ra.start_indices + offset
                                    for offset, ra in zip(offsets, to_concat)])
@@ -636,7 +636,7 @@ Invalid indices for take with allow_fill True: {inds}""".format(
             return dtype.construct_array_type()._from_sequence(
                 np.asarray(self))
 
-        return np.array([v for v in self], dtype=dtype, copy=copy)
+        return np.array([v for v in self], dtype=dtype)
 
     def tolist(self):
         # Based on pandas ExtensionArray.tolist
@@ -645,9 +645,12 @@ Invalid indices for take with allow_fill True: {inds}""".format(
         else:
             return list(self)
 
-    def __array__(self, dtype=None):
+    def __array__(self, dtype=None, copy=True):
         dtype = np.dtype(object) if dtype is None else np.dtype(dtype)
-        return np.asarray(self.tolist(), dtype=dtype)
+        if copy:
+            return np.array(self.tolist(), dtype=dtype)
+        else:
+            return np.array(self, dtype=dtype)
 
     def duplicated(self, *args, **kwargs):
         msg = "duplicated is not implemented for RaggedArray"
