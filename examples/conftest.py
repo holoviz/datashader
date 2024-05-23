@@ -1,6 +1,19 @@
+from importlib.util import find_spec
+
 import platform
 
 collect_ignore_glob = []
+
+if find_spec("geopandas") is None:
+    collect_ignore_glob += [
+        "user_guide/13_Geopandas.ipynb",
+    ]
+
+if find_spec("spatialpandas") is None:
+    collect_ignore_glob += [
+        "user_guide/7_Networks.ipynb",
+        "user_guide/8_Polygons.ipynb",
+    ]
 
 # 2023-07-21 with following error:
 # nbclient.exceptions.CellTimeoutError: A cell timed out while it was being executed, after 300 seconds.

@@ -67,9 +67,20 @@ jobs:
           MATRIX=$(jq -nsc '{
               "os": ["ubuntu-latest", "macos-latest", "windows-latest"],
               "python-version": ["3.9", "3.10", "3.11", "3.12"],
+              "numpy-version": ["1"],
               "exclude": [{
                   "os": "windows-latest",
                   "python-version": "3.9"
+              }],
+              "include": [{
+                  "os": "ubuntu-latest",
+                  "python-version": "3.12",
+                  "numpy-version": "2"
+              },
+              {
+                  "os": "macos-latest",
+                  "python-version": "3.12",
+                  "numpy-version": "2"
               }]
           }')
           # Won't solve on Windows + Python 3.9
@@ -80,9 +91,20 @@ jobs:
           MATRIX=$(jq -nsc '{
               "os": ["ubuntu-latest", "macos-latest", "windows-latest"],
               "python-version": ["3.9", "3.10", "3.11", "3.12"],
+              "numpy-version": ["1"],
               "exclude": [{
                   "os": "windows-latest",
                   "python-version": "3.9"
+              }],
+              "include": [{
+                  "os": "ubuntu-latest",
+                  "python-version": "3.12",
+                  "numpy-version": "2"
+              },
+              {
+                  "os": "macos-latest",
+                  "python-version": "3.12",
+                  "numpy-version": "2"
               }]
           }')
           # Won't solve on Windows + Python 3.9
@@ -92,12 +114,13 @@ jobs:
         run: |
           MATRIX=$(jq -nsc '{
               "os": ["ubuntu-latest"],
+              "numpy-version": ["1"],
               "python-version": ["3.11"]
           }')
           echo "MATRIX=$MATRIX" >> $GITHUB_ENV
 
   test_suite:
-    name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}, numpy ${{ matrix.numpy-version }}
     needs: [pre_commit, setup]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -110,16 +133,32 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - name: Set channels and envs
+        run: |
+          if [[ ${{ matrix.numpy-version }} == "2" ]]; then
+            channels="pyviz/label/dev,conda-forge/label/numpy_rc,numba/label/dev,conda-forge,nodefaults"
+            envs="-o numpy2"
+          else
+            channels="pyviz/label/dev,numba,conda-forge,nodefaults"
+            envs="-o tests -o examples"
+          fi
+          echo "CHANNELS=$channels" >> $GITHUB_ENV
+          echo "ENVS=$envs" >> $GITHUB_ENV
       - uses: holoviz-dev/holoviz_tasks/install@v0
         with:
           name: unit_test_suite
           python-version: ${{ matrix.python-version }}
           channel-priority: flexible
-          channels: pyviz/label/dev,numba,conda-forge,nodefaults
-          envs: "-o tests -o examples"
+          channels: ${{ env.CHANNELS }}
+          envs: ${{ env.ENVS }}
           cache: ${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
           conda-update: true
         id: install
+      - name: check version
+        run: |
+          conda activate test-environment
+          python -c "import numba; print('Numba', numba.__version__)"
+          python -c "import numpy; print('Numpy', numpy.__version__)"
       - name: doit test_lint
         if: runner.os == 'Linux'
         run: |
