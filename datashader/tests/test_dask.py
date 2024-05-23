@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+from importlib import reload
 
 import dask.dataframe as dd
 import numpy as np
@@ -28,9 +28,8 @@ from datashader.tests.test_pandas import (
 
 config.set(scheduler='synchronous')
 
-test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
-
-df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
+def _pandas():
+    df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
                       'log_x': np.array(([1.] * 10 + [10] * 10)),
                       'log_y': np.array(([1.] * 5 + [10] * 5 + [1] * 5 + [10] * 5)),
@@ -44,14 +43,49 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
                       'cat2': ['a', 'b', 'c', 'd']*5,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
-df_pd.cat = df_pd.cat.astype('category')
-df_pd.cat2 = df_pd.cat2.astype('category')
-df_pd.at[2, 'f32'] = nan
-df_pd.at[2, 'f64'] = nan
-df_pd.at[6, 'reverse'] = nan
-df_pd.at[2, 'plusminus'] = nan
+    df_pd.cat = df_pd.cat.astype('category')
+    df_pd.cat2 = df_pd.cat2.astype('category')
+    df_pd.at[2, 'f32'] = nan
+    df_pd.at[2, 'f64'] = nan
+    df_pd.at[6, 'reverse'] = nan
+    df_pd.at[2, 'plusminus'] = nan
+    return df_pd
 
-_ddf = dd.from_pandas(df_pd, npartitions=2)
+def _dask():
+    config.set(**{'dataframe.query-planning': False})
+    import dask.dataframe as dd
+    import datashader.data_libraries.dask as ds_dask
+    dd = reload(dd)
+    ds_dask = reload(ds_dask)
+    return dd.from_pandas(_pandas(), npartitions=2)
+
+def _dask_expr():
+    config.set(**{'dataframe.query-planning': True})
+    import dask.dataframe as dd
+    import datashader.data_libraries.dask as ds_dask
+    dd = reload(dd)
+    ds_dask = reload(ds_dask)
+    return dd.from_pandas(_pandas(), npartitions=2)
+
+def _dask_cudf():
+    import dask_cudf
+    return dask_cudf.from_dask_dataframe(_dask())
+
+_backends = (
+    pytest.param(_dask, id="dask"),
+    pytest.param(_dask_expr, id="dask-expr"),
+    pytest.param(_dask_cudf, marks=pytest.mark.gpu, id="dask-cudf"),
+)
+
+@pytest.fixture(params=_backends, scope="module")
+def ddf(request):
+    return _backends[request.param]()
+
+
+@pytest.fixture(params=[1, 2, 3, 4], scope="module")
+def npartitions(request):
+    return request.param
+
 
 def dask_DataFrame(*args, **kwargs):
     if kwargs.pop("geo", False):
@@ -59,34 +93,6 @@ def dask_DataFrame(*args, **kwargs):
     else:
         df = pd.DataFrame(*args, **kwargs)
     return dd.from_pandas(df, npartitions=2)
-
-
-try:
-    import cudf
-    import cupy
-    import dask_cudf
-
-    if not test_gpu:
-        # GPU testing disabled even though cudf/cupy are available
-        raise ImportError
-
-    cudf_ddf = dask_cudf.from_dask_dataframe(_ddf)
-    ddfs = [_ddf, cudf_ddf]
-
-    def dask_cudf_DataFrame(*args, **kwargs):
-        assert not kwargs.pop("geo", False)
-        cdf = cudf.DataFrame.from_pandas(
-            pd.DataFrame(*args, **kwargs), nan_as_null=False
-        )
-        return dask_cudf.from_cudf(cdf, npartitions=2)
-
-    DataFrames = [dask_DataFrame, dask_cudf_DataFrame]
-except ImportError:
-    cudf = cupy = dask_cudf = None
-    cudf_ddf = None
-    ddfs = [_ddf]
-    DataFrames = [dask_DataFrame]
-    dask_cudf_DataFrame = None
 
 
 c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
@@ -113,16 +119,6 @@ def floats(n):
         yield n
         n = n + np.spacing(n)
 
-
-def test_gpu_dependencies():
-    if test_gpu and cudf is None:
-        pytest.fail(
-            "cudf, cupy, and/or dask_cudf not available and DATASHADER_TEST_GPU=1"
-        )
-
-
-@pytest.mark.parametrize('ddf', ddfs)
-@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_count(ddf, npartitions):
     ddf = ddf.repartition(npartitions=npartitions)
     assert ddf.npartitions == npartitions
@@ -136,9 +132,6 @@ def test_count(ddf, npartitions):
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.count('f32')), out)
     assert_eq_xr(c.points(ddf, 'x', 'y', ds.count('f64')), out)
 
-
-@pytest.mark.parametrize('ddf', ddfs)
-@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
 def test_any(ddf, npartitions):
     ddf = ddf.repartition(npartitions=npartitions)
     assert ddf.npartitions == npartitions

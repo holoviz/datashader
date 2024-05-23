@@ -1,4 +1,4 @@
-CUSTOM_MARKS = ("benchmark",)
+CUSTOM_MARKS = ("benchmark", "gpu")
 
 
 def pytest_addoption(parser):
