@@ -88,12 +88,51 @@ def npartitions(request):
 
 
 def dask_DataFrame(*args, **kwargs):
+    config.set(**{'dataframe.query-planning': False})
+    import dask.dataframe as dd
+    import datashader.data_libraries.dask as ds_dask
+    dd = reload(dd)
+    ds_dask = reload(ds_dask)
+
+    if kwargs.pop("geo", False):
+        df = sp.GeoDataFrame(*args, **kwargs)
+    else:
+        df = pd.DataFrame(*args, **kwargs)
+
+    return df
+
+
+def dask_expr_DataFrame(*args, **kwargs):
+    config.set(**{'dataframe.query-planning': True})
+    import dask.dataframe as dd
+    import datashader.data_libraries.dask as ds_dask
+    dd = reload(dd)
+    ds_dask = reload(ds_dask)
     if kwargs.pop("geo", False):
         df = sp.GeoDataFrame(*args, **kwargs)
     else:
         df = pd.DataFrame(*args, **kwargs)
     return dd.from_pandas(df, npartitions=2)
 
+
+def dask_cudf_DataFrame(*args, **kwargs):
+    import cudf
+    import dask_cudf
+    assert not kwargs.pop("geo", False)
+    cdf = cudf.DataFrame.from_pandas(
+        pd.DataFrame(*args, **kwargs), nan_as_null=False
+    )
+    return dask_cudf.from_cudf(cdf, npartitions=2)
+
+_backends = (
+    pytest.param(_dask, id="dask"),
+    pytest.param(_dask_expr, id="dask-expr"),
+    pytest.param(_dask_cudf, marks=pytest.mark.gpu, id="dask-cudf"),
+)
+
+@pytest.fixture(params=_backends, scope="module")
+def DataFrame(request):
+    return _backends[request.param]
 
 c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
 c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
@@ -670,8 +709,6 @@ def test_where_last_n(ddf, npartitions):
                               c.points(ddf, 'x', 'y', ds.where(ds.last('plusminus'),
                                                                'reverse')).data)
 
-
-@pytest.mark.parametrize('ddf', [_ddf])
 def test_summary_by(ddf, npartitions):
     ddf = ddf.repartition(npartitions=npartitions)
     assert ddf.npartitions == npartitions
@@ -706,7 +743,6 @@ def test_summary_by(ddf, npartitions):
     assert_eq_xr(agg_summary["by2"], agg_by2)
 
 
-@pytest.mark.parametrize('ddf', [_ddf])
 def test_summary_where_n(ddf, npartitions):
     # Important to test with npartitions > 2 to have multiple combination stages.
     # Identical results to equivalent pandas test.
@@ -1065,7 +1101,6 @@ def test_multiple_aggregates(ddf, npartitions):
     assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 def test_auto_range_points(DataFrame):
     n = 10
     data = np.arange(n, dtype='i4')
@@ -1119,7 +1154,6 @@ def test_auto_range_points(DataFrame):
     assert_eq_ndarray(agg.y_range, (0, 3), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 def test_uniform_points(DataFrame):
     n = 101
     ddf = DataFrame({'time': np.ones(2*n, dtype='i4'),
@@ -1135,7 +1169,6 @@ def test_uniform_points(DataFrame):
     assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('high', [9, 10, 99, 100])
 @pytest.mark.parametrize('low', [0])
 def test_uniform_diagonal_points(DataFrame, low, high):
@@ -1200,7 +1233,6 @@ def test_points_geometry():
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 def test_line(DataFrame):
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
@@ -1393,7 +1425,6 @@ if sp:
                      [0, -4, 4, 0, 0, 4]]
         }, dtype='Line[int64]'), dict(geometry='geom'))
     )
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_autorange_params)
 def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     if DataFrame is dask_cudf_DataFrame:
@@ -1454,7 +1485,6 @@ def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 def test_line_x_constant_autorange(DataFrame):
     # axis1 y constant
     x = np.array([-4, 0, 4])
@@ -1510,7 +1540,6 @@ def test_log_axis_line(ddf):
     assert_eq_xr(c_logxy.line(ddf, 'log_x', 'log_y', ds.count('i32')), out)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 def test_auto_range_line(DataFrame):
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-10., 10.), 5), 5)
@@ -1532,7 +1561,6 @@ def test_auto_range_line(DataFrame):
     assert_eq_ndarray(agg.y_range, (-10, 10), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
@@ -1609,7 +1637,6 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
     assert_eq_ndarray(agg.y_range, (-2.25, 2.25), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
@@ -1703,7 +1730,6 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     assert_eq_ndarray(agg.y_range, (-4, 0), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
@@ -1780,7 +1806,6 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
@@ -1885,7 +1910,6 @@ def test_area_to_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     assert_eq_ndarray(agg.y_range, (-4, 0), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
@@ -2268,12 +2292,9 @@ def test_dataframe_dtypes(ddf, npartitions):
     ds.Canvas(2, 2).points(ddf, 'x', 'y', ds.count())
 
 
-@pytest.mark.parametrize('on_gpu', [False, True])
+@pytest.mark.parametrize('on_gpu', [False, pytest.param(True, markers=pytest.mark.gpu)])
 def test_dask_categorical_counts(on_gpu):
     # Issue 1202
-    if on_gpu and not test_gpu:
-        pytest.skip('gpu tests not enabled')
-
     df = pd.DataFrame(
         data=dict(
             x = [0, 1, 2, 0, 1, 2, 1, 1, 1, 1, 1, 1],
