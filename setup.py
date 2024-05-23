@@ -67,6 +67,9 @@ numpy2 = [
     'nbformat',
     'nbsmoke[verify] >0.5',
     'netcdf4',
+    'nbval',
+    'psutil',
+    'pytest-xdist',
     # 'pyarrow',
     'pytest <8',  # Fails lint with IPynbFile is deprecated
     'pytest-benchmark',
