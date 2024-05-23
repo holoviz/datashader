@@ -34,6 +34,8 @@ config.set(scheduler='synchronous')
 @contextmanager
 def _dd_switcher(*, query=False):
     import dask.dataframe as dd
+    if query and find_spec("dask_expr") is None:
+        pytest.skip("dask-expr is not available")
     config.set(**{'dataframe.query-planning': query})
     reload(dd)
     yield
@@ -68,9 +70,7 @@ def _dask():
 
 @_dd_switcher(query=True)
 def _dask_expr():
-    if find_spec("dask_expr"):
-        return dd.from_pandas(_pandas(), npartitions=2)
-    pytest.skip("dask-expr is not available")
+    return dd.from_pandas(_pandas(), npartitions=2)
 
 def _dask_cudf():
     import dask_cudf
@@ -103,7 +103,8 @@ def _dask_DataFrame(*args, **kwargs):
 @_dd_switcher(query=True)
 def _dask_expr_DataFrame(*args, **kwargs):
     if kwargs.pop("geo", False):
-        df = sp.GeoDataFrame(*args, **kwargs)
+        pytest.skip("dask-expr currently does not work with spatialpandas")
+        # df = sp.GeoDataFrame(*args, **kwargs)
     else:
         df = pd.DataFrame(*args, **kwargs)
     return dd.from_pandas(df, npartitions=2)
@@ -112,7 +113,8 @@ def _dask_expr_DataFrame(*args, **kwargs):
 def _dask_cudf_DataFrame(*args, **kwargs):
     import cudf
     import dask_cudf
-    assert not kwargs.pop("geo", False)
+    if kwargs.pop("geo", False):
+        pytest.skip("dask-cudf currently does not work with spatialpandas")
     cdf = cudf.DataFrame.from_pandas(
         pd.DataFrame(*args, **kwargs), nan_as_null=False
     )
@@ -1309,7 +1311,7 @@ if sp:
     )
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_manual_range_params[5:7])
 def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs, request):
-    if "cudf" in request.node.name or "expr" in request.node.name:
+    if "cudf" in request.node.name:
         dtype = df_kwargs.get('dtype', '')
         if dtype.startswith('Ragged') or dtype.startswith('Line'):
             pytest.skip("Ragged array not supported with dask-expr/cudf")
@@ -1420,7 +1422,7 @@ if sp:
     )
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_autorange_params)
 def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs, request):
-    if "cudf" in request.node.name or "expr" in request.node.name:
+    if "cudf" in request.node.name:
         dtype = df_kwargs.get('dtype', '')
         if dtype.startswith('Ragged') or dtype.startswith('Line'):
             pytest.skip("Ragged array not supported with dask-expr/cudf")
