@@ -1,5 +1,0 @@
-[run]
-omit =
-    */test_*.py
-source =
-    datashader

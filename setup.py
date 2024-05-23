@@ -42,7 +42,6 @@ examples = geopandas + [
 
 extras_require = {
     'tests': geopandas + [
-        'codecov',
         'geodatasets',
         'nbval',
         'netcdf4',
