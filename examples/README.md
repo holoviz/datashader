@@ -1,11 +1,11 @@
 # Datashader Examples
 
 The best way to understand how Datashader works is to try out our
-extensive set of examples. [Datashader.org](http://datashader.org)
+extensive set of examples. [Datashader.org](https://datashader.org)
 includes static versions of the
-[getting started guide](http://datashader.org/getting_started),
-[user manual](http://datashader.org/user_guide), and
-[topic examples](http://datashader.org/topics), but for the full
+[getting started guide](https://datashader.org/getting_started),
+[user manual](https://datashader.org/user_guide), and
+[topic examples](https://datashader.org/topics), but for the full
 experience with dynamic updating you will need to install them on a
 live server.
 
@@ -55,7 +55,7 @@ you are welcome to edit that file or to download the individual files
 specified therein manually if you prefer, as long as you put them into
 a subdirectory `data/` so the examples can find them.  Once these
 steps have completed, you will be ready to run any of the examples
-listed on [datashader.org](http://datashader.org).
+listed on [datashader.org](https://datashader.org).
 
 
 ## Notebooks
