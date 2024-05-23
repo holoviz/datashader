@@ -22,6 +22,12 @@ try:
 except ImportError:
     sp = None
 
+try:
+    import cudf
+    import dask_cudf
+except ImportError:
+    cudf, dask_cudf = None, None
+
 from datashader.tests.test_pandas import (
     assert_eq_xr, assert_eq_ndarray, values
 )
@@ -1313,10 +1319,10 @@ if sp:
                      [-4, 0, 0, 4, 4, 0, 4, 0, 0, 0, -4, 0]]
         }, dtype='Line[int64]'), dict(geometry='geom'))
     )
-@pytest.mark.parametrize('DataFrame', DataFrames[:1])
+# @pytest.mark.parametrize('DataFrame', DataFrames[:1])
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_manual_range_params[5:7])
 def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame is dask_cudf_DataFrame:
+    if dask_cudf and isinstance(DataFrame, dask_cudf.DataFrame):
         dtype = df_kwargs.get('dtype', '')
         if dtype.startswith('Ragged') or dtype.startswith('Line'):
             pytest.skip("Ragged array not supported with cudf")
@@ -1427,7 +1433,7 @@ if sp:
     )
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_autorange_params)
 def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame is dask_cudf_DataFrame:
+    if dask_cudf and isinstance(DataFrame, dask_cudf.DataFrame):
         dtype = df_kwargs.get('dtype', '')
         if dtype.startswith('Ragged') or dtype.startswith('Line'):
             pytest.skip("Ragged array not supported with cudf")
