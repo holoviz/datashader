@@ -60,17 +60,13 @@ def _pandas():
 def _dask():
     config.set(**{'dataframe.query-planning': False})
     import dask.dataframe as dd
-    import datashader.data_libraries.dask as ds_dask
     dd = reload(dd)
-    ds_dask = reload(ds_dask)
     return dd.from_pandas(_pandas(), npartitions=2)
 
 def _dask_expr():
     config.set(**{'dataframe.query-planning': True})
     import dask.dataframe as dd
-    import datashader.data_libraries.dask as ds_dask
     dd = reload(dd)
-    ds_dask = reload(ds_dask)
     return dd.from_pandas(_pandas(), npartitions=2)
 
 def _dask_cudf():
