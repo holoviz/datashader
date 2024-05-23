@@ -146,7 +146,7 @@ jobs:
           echo "ENVS=$envs" >> $GITHUB_ENV
       - uses: holoviz-dev/holoviz_tasks/install@v0
         with:
-          name: unit_test_suite
+          name: unit_test_suite_np${{ matrix.numpy-version }}
           python-version: ${{ matrix.python-version }}
           channel-priority: flexible
           channels: ${{ env.CHANNELS }}
