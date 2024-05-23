@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import sys
+from contextlib import suppress
 
 import numpy as np
 import pandas as pd
@@ -39,7 +39,7 @@ def dask_pipeline(df, schema, canvas, glyph, summary, *, antialias=False, cuda=F
 # Classic Dask.DataFrame
 bypixel.pipeline.register(dd.core.DataFrame)(dask_pipeline)
 
-if "dask_expr" in sys.modules:
+with suppress(ImportError):
     import dask_expr
 
     bypixel.pipeline.register(dask_expr.DataFrame)(dask_pipeline)

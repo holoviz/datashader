@@ -85,12 +85,12 @@ _backends = [
     pytest.param(_dask_cudf, marks=pytest.mark.gpu, id="dask-cudf"),
 ]
 
-@pytest.fixture(params=_backends, scope="module")
+@pytest.fixture(params=_backends)
 def ddf(request):
     return request.param()
 
 
-@pytest.fixture(params=[1, 2, 3, 4], scope="module")
+@pytest.fixture(params=[1, 2, 3, 4])
 def npartitions(request):
     return request.param
 
@@ -127,7 +127,7 @@ _backends = [
     pytest.param(_dask_cudf_DataFrame, marks=pytest.mark.gpu, id="dask-cudf"),
 ]
 
-@pytest.fixture(params=_backends, scope="module")
+@pytest.fixture(params=_backends)
 def DataFrame(request):
     return request.param
 
