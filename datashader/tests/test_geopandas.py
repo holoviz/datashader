@@ -1,5 +1,7 @@
 # Testing GeoPandas and SpatialPandas
+from importlib import reload
 
+import dask
 import dask.dataframe as dd
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray
@@ -7,6 +9,10 @@ import numpy as np
 from numpy import nan
 import pytest
 
+@pytest.fixture(autouse=True)
+def _classic_dd():
+    dask.config.set(**{'dataframe.query-planning': False})
+    reload(dd)
 
 try:
     import dask_geopandas

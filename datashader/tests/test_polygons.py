@@ -1,10 +1,18 @@
+from importlib import reload
+
 import pytest
+import dask
 import pandas as pd
 import numpy as np
 import xarray as xr
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
 import dask.dataframe as dd
+
+@pytest.fixture(autouse=True)
+def _classic_dd():
+    dask.config.set(**{'dataframe.query-planning': False})
+    reload(dd)
 
 try:
     # Import to register extension arrays
