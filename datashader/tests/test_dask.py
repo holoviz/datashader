@@ -77,15 +77,15 @@ def _dask_cudf():
     import dask_cudf
     return dask_cudf.from_dask_dataframe(_dask())
 
-_backends = (
+_backends = [
     pytest.param(_dask, id="dask"),
     pytest.param(_dask_expr, id="dask-expr"),
     pytest.param(_dask_cudf, marks=pytest.mark.gpu, id="dask-cudf"),
-)
+]
 
 @pytest.fixture(params=_backends, scope="module")
 def ddf(request):
-    return _backends[request.param]()
+    return request.param()
 
 
 @pytest.fixture(params=[1, 2, 3, 4], scope="module")
@@ -130,15 +130,15 @@ def dask_cudf_DataFrame(*args, **kwargs):
     )
     return dask_cudf.from_cudf(cdf, npartitions=2)
 
-_backends = (
+_backends = [
     pytest.param(_dask, id="dask"),
     pytest.param(_dask_expr, id="dask-expr"),
     pytest.param(_dask_cudf, marks=pytest.mark.gpu, id="dask-cudf"),
-)
+]
 
 @pytest.fixture(params=_backends, scope="module")
 def DataFrame(request):
-    return _backends[request.param]
+    return request.param()
 
 c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
 c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
