@@ -2298,7 +2298,7 @@ def test_dataframe_dtypes(ddf, npartitions):
     ds.Canvas(2, 2).points(ddf, 'x', 'y', ds.count())
 
 
-@pytest.mark.parametrize('on_gpu', [False, pytest.param(True, markers=pytest.mark.gpu)])
+@pytest.mark.parametrize('on_gpu', [False, pytest.param(True, marks=pytest.mark.gpu)])
 def test_dask_categorical_counts(on_gpu):
     # Issue 1202
     df = pd.DataFrame(
