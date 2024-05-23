@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from importlib import reload
 from contextlib import contextmanager
+from importlib.util import find_spec
 
 import dask.dataframe as dd
 import numpy as np
@@ -22,12 +23,6 @@ try:
     import spatialpandas.dask  # noqa (API import)
 except ImportError:
     sp = None
-
-try:
-    import cudf
-    import dask_cudf
-except ImportError:
-    cudf, dask_cudf = None, None
 
 from datashader.tests.test_pandas import (
     assert_eq_xr, assert_eq_ndarray, values
@@ -73,7 +68,9 @@ def _dask():
 
 @_dd_switcher(query=True)
 def _dask_expr():
-    return dd.from_pandas(_pandas(), npartitions=2)
+    if find_spec("dask_expr"):
+        return dd.from_pandas(_pandas(), npartitions=2)
+    pytest.skip("dask-expr is not available")
 
 def _dask_cudf():
     import dask_cudf
@@ -918,8 +915,8 @@ def test_categorical_sum(ddf, npartitions):
     assert_eq_xr(agg, out)
 
 
-def test_categorical_sum_binning(ddf, npartitions):
-    if cudf and isinstance(ddf._meta, cudf.DataFrame):
+def test_categorical_sum_binning(ddf, npartitions, request):
+    if "cudf" in request.node.name:
         pytest.skip(
             "The categorical binning of 'sum' reduction is yet supported on the GPU"
         )
@@ -973,8 +970,8 @@ def test_categorical_mean(ddf, npartitions):
     assert_eq_xr(agg, out)
 
 
-def test_categorical_mean_binning(ddf, npartitions):
-    if cudf and isinstance(ddf._meta, cudf.DataFrame):
+def test_categorical_mean_binning(ddf, npartitions, request):
+    if "cudf" in request.node.name:
         pytest.skip(
             "The categorical binning of 'mean' reduction is yet supported on the GPU"
         )
@@ -1310,13 +1307,12 @@ if sp:
                      [-4, 0, 0, 4, 4, 0, 4, 0, 0, 0, -4, 0]]
         }, dtype='Line[int64]'), dict(geometry='geom'))
     )
-# @pytest.mark.parametrize('DataFrame', DataFrames[:1])
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_manual_range_params[5:7])
-def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs):
-    if dask_cudf and isinstance(DataFrame, dask_cudf.DataFrame):
+def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs, request):
+    if "cudf" in request.node.name or "expr" in request.node.name:
         dtype = df_kwargs.get('dtype', '')
         if dtype.startswith('Ragged') or dtype.startswith('Line'):
-            pytest.skip("Ragged array not supported with cudf")
+            pytest.skip("Ragged array not supported with dask-expr/cudf")
 
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
@@ -1423,11 +1419,11 @@ if sp:
         }, dtype='Line[int64]'), dict(geometry='geom'))
     )
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_autorange_params)
-def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
-    if dask_cudf and isinstance(DataFrame, dask_cudf.DataFrame):
+def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs, request):
+    if "cudf" in request.node.name or "expr" in request.node.name:
         dtype = df_kwargs.get('dtype', '')
         if dtype.startswith('Ragged') or dtype.startswith('Line'):
-            pytest.skip("Ragged array not supported with cudf")
+            pytest.skip("Ragged array not supported with dask-expr/cudf")
 
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(
@@ -2080,8 +2076,8 @@ def test_trimesh_dask_partitions(npartitions):
     (ds.min("f64"), np.float64, np.float64),
     (ds.sum("f64"), np.float64, np.float64),
 ])
-def test_combine_dtype(ddf, reduction, dtype, aa_dtype):
-    if dask_cudf and isinstance(ddf, dask_cudf.DataFrame):
+def test_combine_dtype(ddf, reduction, dtype, aa_dtype, request):
+    if "cudf" in request.node.name:
         pytest.skip("antialiased lines not supported with cudf")
 
     cvs = ds.Canvas(plot_width=10, plot_height=10)
