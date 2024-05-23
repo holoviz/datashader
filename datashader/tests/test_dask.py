@@ -1209,6 +1209,7 @@ def test_log_axis_points(ddf):
 
 
 @pytest.mark.skipif(not sp, reason="spatialpandas not installed")
+@_dd_switcher(query=False)
 def test_points_geometry():
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((0., 2.), 3), 3)
