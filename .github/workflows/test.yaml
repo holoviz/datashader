@@ -120,11 +120,6 @@ jobs:
           cache: ${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
           conda-update: true
         id: install
-      - name: doit test_lint
-        if: runner.os == 'Linux'
-        run: |
-          conda activate test-environment
-          doit test_lint
       - name: doit test_unit
         run: |
           conda activate test-environment
