@@ -2636,3 +2636,18 @@ def test_categorical_where_last_n(ddf, npartitions):
             assert_eq_ndarray(agg[:, :, :, 0].data,
                               c.points(ddf, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'),
                                                                              'reverse'))).data)
+
+@pytest.mark.parametrize('ddf', ddfs)
+@pytest.mark.parametrize('npartitions', [1, 2, 3, 4])
+def test_series_reset_index(ddf, npartitions):
+    # Test for: https://github.com/holoviz/datashader/issues/1331
+    ser = ddf['i32'].reset_index()
+    cvs = ds.Canvas(plot_width=2, plot_height=2)
+    out = cvs.line(ser, x='index', y='i32')
+
+    expected = xr.DataArray(
+        data=[[True, False], [False, True]],
+        coords={"index": [4.75, 14.25], "i32": [4.75, 14.25]},
+        dims=['i32', 'index'],
+    )
+    assert_eq_xr(out, expected)
