@@ -25,7 +25,7 @@ def pytest_collection_modifyitems(config, items):
             skipped.append(item)
         elif empty:
             selected.append(item)
-        elif not empty and any(m in item.keywords for m in markers):
+        elif not empty and all(m in item.keywords for m in markers):
             selected.append(item)
         else:
             skipped.append(item)
