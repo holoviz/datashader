@@ -73,17 +73,6 @@ _backends = [
 def array(request):
     return request.param
 
-# if test_gpu:
-#     import cupy
-#     aggs = [build_agg(np), build_agg(cupy), build_agg_dask()]
-#     arrays = [np.array, cupy.array, create_dask_array]
-#     array_modules = [np, cupy]
-# else:
-#     cupy = None
-#     aggs = [build_agg(np), build_agg_dask()]
-#     arrays = [np.array, create_dask_array]
-#     array_modules = [np]
-
 int_span = [11, 17]
 float_span = [11.0, 17.0]
 
