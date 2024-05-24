@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from importlib import reload
-from contextlib import contextmanager
-from importlib.util import find_spec
 
 import dask.dataframe as dd
 import numpy as np
@@ -17,6 +14,7 @@ from datashader.datatypes import RaggedArray
 import datashader.utils as du
 
 import pytest
+from datashader.tests.utils import dask_switcher
 
 try:
     import spatialpandas as sp
@@ -29,16 +27,6 @@ from datashader.tests.test_pandas import (
 )
 
 config.set(scheduler='synchronous')
-
-
-@contextmanager
-def _dd_switcher(*, query=False):
-    import dask.dataframe as dd
-    if query and find_spec("dask_expr") is None:
-        pytest.skip("dask-expr is not available")
-    config.set(**{'dataframe.query-planning': query})
-    reload(dd)
-    yield
 
 
 def _pandas():
@@ -64,11 +52,11 @@ def _pandas():
     df_pd.at[2, 'plusminus'] = nan
     return df_pd
 
-@_dd_switcher(query=False)
+@dask_switcher(query=False)
 def _dask():
     return dd.from_pandas(_pandas(), npartitions=2)
 
-@_dd_switcher(query=True)
+@dask_switcher(query=True)
 def _dask_expr():
     return dd.from_pandas(_pandas(), npartitions=2)
 
@@ -91,7 +79,7 @@ def ddf(request):
 def npartitions(request):
     return request.param
 
-@_dd_switcher(query=False)
+@dask_switcher(query=False)
 def _dask_DataFrame(*args, **kwargs):
     if kwargs.pop("geo", False):
         df = sp.GeoDataFrame(*args, **kwargs)
@@ -100,7 +88,7 @@ def _dask_DataFrame(*args, **kwargs):
     return dd.from_pandas(df, npartitions=2)
 
 
-@_dd_switcher(query=True)
+@dask_switcher(query=True)
 def _dask_expr_DataFrame(*args, **kwargs):
     if kwargs.pop("geo", False):
         pytest.skip("dask-expr currently does not work with spatialpandas")
@@ -1209,7 +1197,7 @@ def test_log_axis_points(ddf):
 
 
 @pytest.mark.skipif(not sp, reason="spatialpandas not installed")
-@_dd_switcher(query=False)
+@dask_switcher(query=False)
 def test_points_geometry():
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((0., 2.), 3), 3)
@@ -1315,7 +1303,7 @@ def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs, request):
     if "cudf" in request.node.name:
         dtype = df_kwargs.get('dtype', '')
         if dtype.startswith('Ragged') or dtype.startswith('Line'):
-            pytest.skip("Ragged array not supported with dask-expr/cudf")
+            pytest.skip("Ragged array not supported with cudf")
 
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
@@ -1426,7 +1414,7 @@ def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs, request):
     if "cudf" in request.node.name:
         dtype = df_kwargs.get('dtype', '')
         if dtype.startswith('Ragged') or dtype.startswith('Line'):
-            pytest.skip("Ragged array not supported with dask-expr/cudf")
+            pytest.skip("Ragged array not supported with cudf")
 
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(
