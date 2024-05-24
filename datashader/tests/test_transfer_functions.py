@@ -531,9 +531,8 @@ def test_shade_rescale_discrete_levels(agg, attr, rescale):
     assert_eq_xr(img, sol)
 
 
-@pytest.mark.parametrize('array_module', array_modules)
-def test_shade_rescale_discrete_levels_categorical(array_module):
-    arr = array_module.array([[[1, 2], [0, 1]],
+def test_shade_rescale_discrete_levels_categorical(array):
+    arr = array([[[1, 2], [0, 1]],
                               [[0, 0], [0, 0]],
                               [[1, 0], [3, 0]],
                               [[1, 0], [2, 1]]], dtype='u4')
@@ -547,20 +546,18 @@ def test_shade_rescale_discrete_levels_categorical(array_module):
     assert_eq_ndarray(img.data, sol)
 
 
-empty_arrays = [
+@pytest.mark.parametrize('empty_array', [
     np.zeros((2, 2, 2), dtype=np.uint32),
     np.full((2, 2, 2), np.nan, dtype=np.float64),
-]
-if cupy is not None:
-    empty_arrays += [
-        cupy.zeros((2, 2, 2), dtype=cupy.uint32),
-        cupy.full((2, 2, 2), cupy.nan, dtype=cupy.float64),
-    ]
-@pytest.mark.parametrize('empty_array', empty_arrays)
-def test_shade_all_masked(empty_array):
+])
+@pytest.mark.parametrize('on_gpu', [False, pytest.param(True, marks=pytest.mark.gpu)])
+def test_shade_all_masked(empty_array, on_gpu):
     # Issue #1166, return early with array of all nans if all of data is masked out.
     # Before the fix this test results in:
     #   IndexError: index -1 is out of bounds for axis 0 with size 0
+    if on_gpu:
+        import cupy
+        empty_array = cupy.array(empty_array)
     agg = xr.DataArray(
         data=empty_array,
         coords=dict(y=[0, 1], x=[0, 1], cat=['a', 'b']),
@@ -1172,28 +1169,14 @@ def test_shade_with_discrete_color_key(array):
                        [0, 0, 0, 0, 0]],
                       dtype='uint32')
 
-    # numpy case
-    arr_numpy = tf.Image(data, dims=['x', 'y'])
-    result_numpy = tf.shade(arr_numpy, color_key=color_key)
-    assert (result_numpy.data == result).all()
-
-    # dask with numpy backed case
-    arr_dask = tf.Image(da.from_array(data, chunks=(2, 2)), dims=['x', 'y'])
-    result_dask = tf.shade(arr_dask, color_key=color_key)
-    assert (result_dask.data == result).all()
-
-    # cupy case
-    try:
-        import cupy
-        arr_cupy = tf.Image(cupy.asarray(data), dims=['x', 'y'])
-        result_cupy = tf.shade(arr_cupy, color_key=color_key)
-        assert (result_cupy.data == result).all()
-    except ImportError:
-        cupy = None
+    arr = tf.Image(data, dims=['x', 'y'])
+    result = tf.shade(arr, color_key=color_key)
+    assert (result.data == result).all()
 
 
-@pytest.mark.parametrize('array_module', array_modules)
-def test_interpolate_alpha_discrete_levels_None(array_module):
-    data = array_module.array([[0.0, 1.0], [1.0, 0.0]])
+def test_interpolate_alpha_discrete_levels_None(array, request):
+    if "dask" in request.node.name:
+        pytest.skip("This test is not compatible with dask arrays")
+    data = array([[0.0, 1.0], [1.0, 0.0]])
     # Issue #1084: this raises a ValueError.
     tf._interpolate_alpha(data, data, None, "eq_hist", 0.5, None, 0.4, True)
