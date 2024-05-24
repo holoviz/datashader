@@ -1,5 +1,4 @@
 from __future__ import annotations
-import os
 from numpy import nan
 
 import numpy as np
@@ -12,7 +11,30 @@ import pytest
 
 from datashader.datatypes import RaggedDtype
 
-df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
+try:
+    import spatialpandas as sp
+    from spatialpandas.geometry import LineDtype
+except ImportError:
+    LineDtype = None
+    sp = None
+
+try:
+    import cudf
+    import cupy
+except ImportError:
+    cupy, cudf = None, None
+
+def _pandas():
+    """
+    x          0  0   0  0  0   0   0  0  0  0   1   1  1   1  1    1  1   1  1   1
+    y          0  0   0  0  0   1   1  1  1  1   0   0  0   0  0    1  1   1  1   1
+    i32        0  1   2  3  4   5   6  7  8  9  10  11 12  13 14   15 16  17 18  19
+    f32        0  1 nan  3  4   5   6  7  8  9  10  11 12  13 14   15 16  17 18  19
+    reverse   20 19  18 17 16  15 nan 13 12 11  10   9  8   7  6    5  4   3  2   1
+    plusminus  0 -1 nan -3  4  -5   6 -7  8 -9  10 -11 12 -13 14  -15 16 -17 18 -19
+    cat2       a  b   c  d  a   b   c  d  a  b   c   d  a   b  c    d  a   b  c   d
+    """
+    df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
                       'log_x': np.array(([1.] * 10 + [10] * 10)),
                       'log_y': np.array(([1.] * 5 + [10] * 5 + [1] * 5 + [10] * 5)),
@@ -27,60 +49,53 @@ df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
                       'cat2': ['a', 'b', 'c', 'd']*5,
                       'onecat': ['one']*20,
                       'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
-df_pd.cat = df_pd.cat.astype('category')
-df_pd.cat2 = df_pd.cat2.astype('category')
-df_pd.onecat = df_pd.onecat.astype('category')
-df_pd.at[2, 'f32'] = nan
-df_pd.at[2, 'f64'] = nan
-df_pd.at[6, 'reverse'] = nan
-df_pd.at[2, 'plusminus'] = nan
-# x          0  0   0  0  0   0   0  0  0  0   1   1  1   1  1    1  1   1  1   1
-# y          0  0   0  0  0   1   1  1  1  1   0   0  0   0  0    1  1   1  1   1
-# i32        0  1   2  3  4   5   6  7  8  9  10  11 12  13 14   15 16  17 18  19
-# f32        0  1 nan  3  4   5   6  7  8  9  10  11 12  13 14   15 16  17 18  19
-# reverse   20 19  18 17 16  15 nan 13 12 11  10   9  8   7  6    5  4   3  2   1
-# plusminus  0 -1 nan -3  4  -5   6 -7  8 -9  10 -11 12 -13 14  -15 16 -17 18 -19
-# cat2       a  b   c  d  a   b   c  d  a  b   c   d  a   b  c    d  a   b  c   d
-
-test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
+    df_pd.cat = df_pd.cat.astype('category')
+    df_pd.cat2 = df_pd.cat2.astype('category')
+    df_pd.onecat = df_pd.onecat.astype('category')
+    df_pd.at[2, 'f32'] = nan
+    df_pd.at[2, 'f64'] = nan
+    df_pd.at[6, 'reverse'] = nan
+    df_pd.at[2, 'plusminus'] = nan
+    return df_pd
 
 
-try:
-    import spatialpandas as sp
-    from spatialpandas.geometry import LineDtype
-except ImportError:
-    LineDtype = None
-    sp = None
+def _cudf():
+    return cudf.DataFrame.from_pandas(_pandas())
 
 
-def pd_DataFrame(*args, **kwargs):
+_backends = [
+    pytest.param(_pandas, id="pandas"),
+    pytest.param(_cudf, marks=pytest.mark.gpu, id="cudf"),
+]
+
+@pytest.fixture(params=_backends)
+def df(request):
+    return request.param()
+
+
+def _pandas_DataFrame(*args, **kwargs):
     if kwargs.pop("geo", False):
         return sp.GeoDataFrame(*args, **kwargs)
     else:
         return pd.DataFrame(*args, **kwargs)
 
 
-try:
+def _cudf_DataFrame(*args, **kwargs):
     import cudf
-    import cupy
+    if kwargs.pop("geo", False):
+        pytest.skip("cudf currently does not work with spatialpandas")
+    return cudf.DataFrame.from_pandas(
+        pd.DataFrame(*args, **kwargs), nan_as_null=False
+    )
 
-    if not test_gpu:
-        # GPU testing disabled even though cudf/cupy are available
-        raise ImportError
+_backends = [
+    pytest.param(_pandas_DataFrame, id="pandas"),
+    pytest.param(_cudf_DataFrame, marks=pytest.mark.gpu, id="cudf"),
+]
 
-    def cudf_DataFrame(*args, **kwargs):
-        assert not kwargs.pop("geo", False)
-        return cudf.DataFrame.from_pandas(
-            pd.DataFrame(*args, **kwargs), nan_as_null=False
-        )
-    df_cuda = cudf_DataFrame(df_pd)
-    dfs = [df_pd, df_cuda]
-    DataFrames = [pd_DataFrame, cudf_DataFrame]
-except ImportError:
-    cudf = cupy = None
-    dfs = [df_pd]
-    DataFrames = [pd_DataFrame]
-
+@pytest.fixture(params=_backends)
+def DataFrame(request):
+    return request.param
 
 c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
 c_logx = ds.Canvas(plot_width=2, plot_height=2, x_range=(1, 10),
@@ -162,12 +177,7 @@ def values(s):
         return s.values
 
 
-def test_gpu_dependencies():
-    if test_gpu and cudf is None:
-        pytest.fail("cudf and/or cupy not available and DATASHADER_TEST_GPU=1")
-
-
-@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+@pytest.mark.gpu
 def test_cudf_concat():
     # Testing if a newer version of cuDF implements the possibility to
     # concatenate multiple columns with the same name.
@@ -181,7 +191,6 @@ def test_cudf_concat():
         cudf.concat((dfc["y"], dfc["y"]), axis=1)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_count(df):
     out = xr.DataArray(np.array([[5, 5], [5, 5]], dtype='i4'),
                        coords=coords, dims=dims)
@@ -194,7 +203,6 @@ def test_count(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.count('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_any(df):
     out = xr.DataArray(np.array([[True, True], [True, True]]),
                        coords=coords, dims=dims)
@@ -206,7 +214,6 @@ def test_any(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.any('empty_bin')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_sum(df):
     out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
@@ -218,7 +225,6 @@ def test_sum(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.sum('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_min(df):
     out = xr.DataArray(values(df.i64).reshape((2, 2, 5)).min(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
@@ -228,7 +234,6 @@ def test_min(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.min('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_max(df):
     out = xr.DataArray(values(df.i64).reshape((2, 2, 5)).max(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
@@ -238,7 +243,6 @@ def test_max(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_min_n(df):
     solution = np.array([[[-3, -1, 0, 4, nan, nan], [-13, -11, 10, 12, 14, nan]],
                          [[-9, -7, -5, 6, 8, nan], [-19, -17, -15, 16, 18, nan]]])
@@ -250,7 +254,6 @@ def test_min_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.min('plusminus')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_max_n(df):
     solution = np.array([[[4, 0, -1, -3, nan, nan], [14, 12, 10, -11, -13, nan]],
                          [[8, 6, -5, -7, -9, nan], [18, 16, -15, -17, -19, nan]]])
@@ -262,7 +265,6 @@ def test_max_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.max('plusminus')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_min(df):
     sol_int = np.array([[[0, 1, 2, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]],
                        dtype=np.float64)
@@ -273,7 +275,6 @@ def test_categorical_min(df):
     assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.min('f64'))).data, sol_float)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_max(df):
     sol_int = np.array([[[4, 1, 2, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]],
                        dtype=np.float64)
@@ -284,7 +285,6 @@ def test_categorical_max(df):
     assert_eq_ndarray(c.points(df, 'x', 'y', ds.by('cat2', ds.max('f64'))).data, sol_float)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_min_n(df):
     solution = np.array([[[[0, 4, nan], [1, nan, nan], [nan, nan, nan], [3, nan, nan]],
                           [[12, nan, nan], [13, nan, nan], [10, 14, nan], [11, nan, nan]]],
@@ -299,7 +299,6 @@ def test_categorical_min_n(df):
                               c.points(df, 'x', 'y', ds.by('cat2', ds.min('f32'))).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_max_n(df):
     solution = np.array([[[[4, 0, nan], [1, nan, nan], [nan, nan, nan], [3, nan, nan]],
                           [[12, nan, nan], [13, nan, nan], [14, 10, nan], [11, nan, nan]]],
@@ -314,21 +313,18 @@ def test_categorical_max_n(df):
                               c.points(df, 'x', 'y', ds.by('cat2', ds.max('f32'))).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_min_row_index(df):
     solution = np.array([[[0, 1, 2, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]])
     agg = c.points(df, 'x', 'y', ds.by('cat2', ds._min_row_index()))
     assert_eq_ndarray(agg.data, solution)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_max_row_index(df):
     solution = np.array([[[4, 1, 2, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]])
     agg = c.points(df, 'x', 'y', ds.by('cat2', ds._max_row_index()))
     assert_eq_ndarray(agg.data, solution)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_min_n_row_index(df):
     solution = np.array([[[[0, 4, -1], [1, -1, -1], [2, -1, -1], [3, -1, -1]],
                           [[12, -1, -1], [13, -1, -1], [10, 14, -1], [11, -1, -1]]],
@@ -343,7 +339,6 @@ def test_categorical_min_n_row_index(df):
                               c.points(df, 'x', 'y', ds.by('cat2', ds._min_row_index())).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_max_n_row_index(df):
     solution = np.array([[[[4, 0, -1], [1, -1, -1], [2, -1, -1], [3, -1, -1]],
                           [[12, -1, -1], [13, -1, -1], [14, 10, -1], [11, -1, -1]]],
@@ -358,7 +353,6 @@ def test_categorical_max_n_row_index(df):
                               c.points(df, 'x', 'y', ds.by('cat2', ds._max_row_index())).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_first(df):
     solution = np.array([[[0, -1, nan, -3],
                           [12, -13, 10, -11]],
@@ -369,7 +363,6 @@ def test_categorical_first(df):
         assert_eq_ndarray(agg.data, solution)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_last(df):
     solution = np.array([[[4, -1, nan, -3],
                           [12, -13, 14, -11]],
@@ -380,7 +373,6 @@ def test_categorical_last(df):
         assert_eq_ndarray(agg.data, solution)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_first_n(df):
     solution = np.array([[[[0, 4, nan], [-1, nan, nan], [nan, nan, nan], [-3, nan, nan]],
                           [[12, nan, nan], [-13, nan, nan], [10, 14, nan], [-11, nan, nan]]],
@@ -395,7 +387,6 @@ def test_categorical_first_n(df):
                               c.points(df, 'x', 'y', ds.by('cat2', ds.first("plusminus"))).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_last_n(df):
     solution = np.array([[[[4, 0, nan], [-1, nan, nan], [nan, nan, nan], [-3, nan, nan]],
                           [[12, nan, nan], [-13, nan, nan], [14, 10, nan], [-11, nan, nan]]],
@@ -410,19 +401,16 @@ def test_categorical_last_n(df):
                               c.points(df, 'x', 'y', ds.by('cat2', ds.last("plusminus"))).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_min_row_index(df):
     out = xr.DataArray([[0, 10], [-5, -15]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds._min_row_index(), 'plusminus')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_max_row_index(df):
     out = xr.DataArray([[4, 14], [-9, -19]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds._max_row_index(), 'plusminus')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_min_n_row_index(df):
     sol = np.array([[[  0,  -1, nan,  -3,   4, nan],
                      [ 10, -11,  12, -13,  14, nan]],
@@ -440,7 +428,6 @@ def test_where_min_n_row_index(df):
                                        ds.where(ds._min_row_index(), 'plusminus')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_max_n_row_index(df):
     sol = np.array([[[  4,  -3, nan,  -1,   0, nan],
                      [ 14, -13,  12, -11,  10, nan]],
@@ -458,7 +445,6 @@ def test_where_max_n_row_index(df):
                                        ds.where(ds._max_row_index(), 'plusminus')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_first(df):
     # Note reductions like ds.where(ds.first('i32'), 'reverse') are supported,
     # but the same results can be achieved using the simpler ds.first('reverse')
@@ -476,7 +462,6 @@ def test_where_first(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.first('f32'))), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_last(df):
     # Note reductions like ds.where(ds.last('i32'), 'reverse') are supported,
     # but the same results can be achieved using the simpler ds.last('reverse')
@@ -494,7 +479,6 @@ def test_where_last(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.last('f32'))), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_max(df):
     out = xr.DataArray([[16, 6], [11, 1]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('i32'), 'reverse')), out)
@@ -510,7 +494,6 @@ def test_where_max(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.max('f32'))), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_min(df):
     out = xr.DataArray([[20, 10], [15, 5]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('i32'), 'reverse')), out)
@@ -526,7 +509,6 @@ def test_where_min(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds.min('f32'))), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_first_n(df):
     sol_rowindex = np.array([[[ 0,  1,  3,  4, -1, -1],
                               [10, 11, 12, 13, 14, -1]],
@@ -554,7 +536,6 @@ def test_where_first_n(df):
                                        ds.where(ds.first('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_last_n(df):
     sol_rowindex = np.array([[[ 4,  3,  1,  0, -1, -1],
                               [14, 13, 12, 11, 10, -1]],
@@ -582,7 +563,6 @@ def test_where_last_n(df):
                                        ds.where(ds.last('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_max_n(df):
     sol_rowindex = np.array([[[ 4,  0,  1,  3, -1, -1],
                               [14, 12, 10, 11, 13, -1]],
@@ -609,7 +589,6 @@ def test_where_max_n(df):
                               c.points(df, 'x', 'y', ds.where(ds.max('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_where_min_n(df):
     sol_rowindex = np.array([[[3,  1,  0,  4, -1, -1],
                               [13, 11, 10, 12, 14, -1]],
@@ -636,7 +615,6 @@ def test_where_min_n(df):
                               c.points(df, 'x', 'y', ds.where(ds.min('plusminus'), 'reverse')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_summary_by(df):
     # summary(by)
     agg_summary = c.points(df, 'x', 'y', ds.summary(by=ds.by("cat")))
@@ -667,7 +645,6 @@ def test_summary_by(df):
     assert_eq_xr(agg_summary["by2"], agg_by2)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_summary_where_n(df):
     sol_min_n_rowindex = np.array([[[ 3,  1,  0,  4, -1],
                                     [13, 11, 10, 12, 14]],
@@ -709,7 +686,6 @@ def test_summary_where_n(df):
     assert_eq_ndarray(agg['max2'].data, sol_max_n_reverse)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_summary_different_n(df):
     msg = 'Using multiple FloatingNReductions with different n values is not supported'
     with pytest.raises(ValueError, match=msg):
@@ -719,7 +695,6 @@ def test_summary_different_n(df):
         ))
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_mean(df):
     out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
@@ -731,7 +706,6 @@ def test_mean(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.mean('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_var(df):
     out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).var(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
@@ -743,7 +717,6 @@ def test_var(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.var('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_std(df):
     out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).std(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
@@ -755,7 +728,6 @@ def test_std(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.std('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_count_cat(df):
     sol = np.array([[[5, 0, 0, 0],
                      [0, 0, 5, 0]],
@@ -768,7 +740,6 @@ def test_count_cat(df):
     assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_count(df):
     sol = np.array([[[5, 0, 0, 0],
                      [0, 0, 5, 0]],
@@ -789,7 +760,6 @@ def test_categorical_count(df):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_one_category(df):
     # Issue #1142.
     assert len(df['onecat'].unique()) == 1
@@ -800,7 +770,6 @@ def test_one_category(df):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_count_binning(df):
     sol = np.array([[[5, 0, 0, 0],
                      [0, 0, 5, 0]],
@@ -828,7 +797,6 @@ def test_categorical_count_binning(df):
         assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_sum(df):
     sol = np.array([[[ 10, nan, nan, nan],
                      [nan, nan,  60, nan]],
@@ -864,7 +832,6 @@ def test_categorical_sum(df):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_sum_binning(df):
     sol = np.array([[[8.0,  nan,  nan,  nan],
                      [nan,  nan, 60.0,  nan]],
@@ -881,7 +848,6 @@ def test_categorical_sum_binning(df):
         assert_eq_ndarray(agg.y_range, (0, 1), close=True)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_max2(df):
     sol = np.array([[[  4, nan, nan, nan],
                      [nan, nan,  14, nan]],
@@ -903,7 +869,6 @@ def test_categorical_max2(df):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_max_binning(df):
     sol = np.array([[[  4, nan, nan, nan],
                      [nan, nan,  14, nan]],
@@ -918,7 +883,6 @@ def test_categorical_max_binning(df):
         assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_mean(df):
     sol = np.array([[[  2, nan, nan, nan],
                      [nan, nan,  12, nan]],
@@ -944,7 +908,6 @@ def test_categorical_mean(df):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_mean_binning(df):
     sol = np.array([[[  2, nan, nan, nan],
                      [nan, nan,  12, nan]],
@@ -959,7 +922,6 @@ def test_categorical_mean_binning(df):
         assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_var(df):
     sol = np.array([[[ 2.5,  nan,  nan,  nan],
                      [ nan,  nan,   2.,  nan]],
@@ -992,7 +954,6 @@ def test_categorical_var(df):
         assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_std(df):
     sol = np.sqrt(np.array([
         [[ 2.5,  nan,  nan,  nan],
@@ -1027,7 +988,6 @@ def test_categorical_std(df):
         assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_first(df):
     out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.first('i32')), out)
@@ -1036,7 +996,6 @@ def test_first(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.first('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_last(df):
     out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.last('i32')), out)
@@ -1045,7 +1004,6 @@ def test_last(df):
     assert_eq_xr(c.points(df, 'x', 'y', ds.last('f64')), out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_first_n(df):
     solution = np.array([[[0, -1, -3, 4, nan, nan], [10, -11, 12, -13, 14, nan]],
                          [[-5, 6, -7, 8, -9, nan], [-15, 16, -17, 18, -19, nan]]])
@@ -1057,7 +1015,6 @@ def test_first_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.first('plusminus')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_last_n(df):
     solution = np.array([[[4, -3, -1, 0, nan, nan], [14, -13, 12, -11, 10, nan]],
                          [[-9, 8, -7, 6, -5, nan], [-19, 18, -17, 16, -15, nan]]])
@@ -1069,7 +1026,6 @@ def test_last_n(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.last('plusminus')).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_min_row_index(df):
     out = xr.DataArray([[0, 10], [5, 15]], coords=coords, dims=dims)
     agg = c.points(df, 'x', 'y', ds._min_row_index())
@@ -1077,7 +1033,6 @@ def test_min_row_index(df):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_max_row_index(df):
     out = xr.DataArray([[4, 14], [9, 19]], coords=coords, dims=dims)
     agg = c.points(df, 'x', 'y', ds._max_row_index())
@@ -1085,7 +1040,6 @@ def test_max_row_index(df):
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_min_n_row_index(df):
     solution = np.array([[[0, 1, 2, 3, 4, -1], [10, 11, 12, 13, 14, -1]],
                          [[5, 6, 7, 8, 9, -1], [15, 16, 17, 18, 19, -1]]])
@@ -1098,7 +1052,6 @@ def test_min_n_row_index(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds._min_row_index()).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_max_n_row_index(df):
     solution = np.array([[[4, 3, 2, 1, 0, -1], [14, 13, 12, 11, 10, -1]],
                          [[9, 8, 7, 6, 5, -1], [19, 18, 17, 16, 15, -1]]])
@@ -1111,7 +1064,6 @@ def test_max_n_row_index(df):
             assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds._max_row_index()).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_multiple_aggregates(df):
     agg = c.points(df, 'x', 'y',
                    ds.summary(f64_mean=ds.mean('f64'),
@@ -1125,7 +1077,6 @@ def test_multiple_aggregates(df):
     assert_eq_xr(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 def test_auto_range_points(DataFrame):
     n = 10
     data = np.arange(n, dtype='i4')
@@ -1217,7 +1168,6 @@ def test_uniform_diagonal_points(low, high):
     assert_eq_ndarray(agg.y_range, (low, high), close=True)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_log_axis_points(df):
     axis = ds.core.LogAxis()
     logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
@@ -1366,7 +1316,6 @@ def test_lines_on_edge():
     assert_eq_xr(agg, out)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_log_axis_line(df):
     axis = ds.core.LogAxis()
     logcoords = axis.compute_index(axis.compute_scale_and_translate((1, 10), 2), 2)
@@ -1766,10 +1715,9 @@ if sp:
             ),
         }], dict(geometry='geom'))
     )
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_args,cvs_kwargs', line_manual_range_params)
 def test_line_manual_range(DataFrame, df_args, cvs_kwargs):
-    if cudf and DataFrame is cudf_DataFrame:
+    if cudf and DataFrame is _cudf_DataFrame:
         if (isinstance(getattr(df_args[0].get('x', []), 'dtype', ''), RaggedDtype) or
                 sp and isinstance(
                     getattr(df_args[0].get('geom', []), 'dtype', ''), LineDtype
@@ -1858,11 +1806,10 @@ if sp:
             ),
         }], dict(geometry='geom'))
     )
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_args,cvs_kwargs', line_autorange_params)
 @pytest.mark.parametrize('line_width', [0, 1])
 def test_line_autorange(DataFrame, df_args, cvs_kwargs, line_width):
-    if cudf and DataFrame is cudf_DataFrame:
+    if cudf and DataFrame is _cudf_DataFrame:
         if (isinstance(getattr(df_args[0].get('x', []), 'dtype', ''), RaggedDtype) or
                 sp and isinstance(
                     getattr(df_args[0].get('geom', []), 'dtype', ''), LineDtype
@@ -1913,7 +1860,6 @@ def test_line_autorange(DataFrame, df_args, cvs_kwargs, line_width):
     assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 def test_line_autorange_axis1_x_constant(DataFrame):
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(
@@ -1950,7 +1896,6 @@ def test_line_autorange_axis1_x_constant(DataFrame):
 
 
 # Sum aggregate
-@pytest.mark.parametrize('DataFrame', DataFrames)
 def test_line_agg_sum_axis1_none_constant(DataFrame):
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
@@ -2022,7 +1967,6 @@ def test_line_autorange_axis1_ragged():
     assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
@@ -2055,7 +1999,7 @@ def test_line_autorange_axis1_ragged():
     }), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
-    if cudf and DataFrame is cudf_DataFrame:
+    if cudf and DataFrame is _cudf_DataFrame:
         if isinstance(getattr(df_kwargs['data'].get('x', []), 'dtype', ''), RaggedDtype):
             pytest.skip("cudf DataFrames do not support extension types")
 
@@ -2087,7 +2031,6 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
     assert_eq_ndarray(agg.y_range, (-2.25, 2.25), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
@@ -2135,7 +2078,7 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
     }), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
-    if cudf and DataFrame is cudf_DataFrame:
+    if cudf and DataFrame is _cudf_DataFrame:
         if isinstance(getattr(df_kwargs['data'].get('x', []), 'dtype', ''), RaggedDtype):
             pytest.skip("cudf DataFrames do not support extension types")
 
@@ -2167,7 +2110,6 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     assert_eq_ndarray(agg.y_range, (-4, 0), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
@@ -2202,7 +2144,7 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     }), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
-    if cudf and DataFrame is cudf_DataFrame:
+    if cudf and DataFrame is _cudf_DataFrame:
         if isinstance(getattr(df_kwargs['data'].get('x', []), 'dtype', ''), RaggedDtype):
             pytest.skip("cudf DataFrames do not support extension types")
 
@@ -2234,7 +2176,6 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     assert_eq_ndarray(agg.y_range, (-4, 4), close=True)
 
 
-@pytest.mark.parametrize('DataFrame', DataFrames)
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', [
     # axis1 none constant
     (dict(data={
@@ -2294,7 +2235,7 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     }), dict(x='x', y='y', y_stack='y_stack', axis=1))
 ])
 def test_area_to_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
-    if cudf and DataFrame is cudf_DataFrame:
+    if cudf and DataFrame is _cudf_DataFrame:
         if isinstance(getattr(df_kwargs['data'].get('x', []), 'dtype', ''), RaggedDtype):
             pytest.skip("cudf DataFrames do not support extension types")
 
@@ -3180,7 +3121,6 @@ def test_reduction_dtype(reduction, dtype, aa_dtype):
         assert agg.dtype == aa_dtype
 
 
-@pytest.mark.parametrize('df', dfs)
 @pytest.mark.parametrize('canvas', [
     ds.Canvas(x_axis_type='log'),
     ds.Canvas(x_axis_type='log', x_range=(0, 1)),
@@ -3254,7 +3194,6 @@ def test_canvas_size():
             cvs.points(df, "x", "y", ds.mean("z"))
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_where_max(df):
     sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]],
                                  [[8, 5, 6, 7], [16, 17, 18, 15]]],
@@ -3271,7 +3210,6 @@ def test_categorical_where_max(df):
     assert_eq_xr(agg, sol_reverse)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_where_min(df):
     sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]],
                                  [[8, 9, 6, 7], [16, 17, 18, 19]]],
@@ -3288,7 +3226,6 @@ def test_categorical_where_min(df):
     assert_eq_xr(agg, sol_reverse)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_where_first(df):
     sol_rowindex = xr.DataArray([[[0, 1, -1, 3], [12, 13, 10, 11]],
                                  [[8, 5, 6, 7], [16, 17, 18, 15]]],
@@ -3305,7 +3242,6 @@ def test_categorical_where_first(df):
     assert_eq_xr(agg, sol_reverse)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_where_last(df):
     sol_rowindex = xr.DataArray([[[4, 1, -1, 3], [12, 13, 14, 11]],
                                  [[8, 9, 6, 7], [16, 17, 18, 19]]],
@@ -3322,7 +3258,6 @@ def test_categorical_where_last(df):
     assert_eq_xr(agg, sol_reverse)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_where_max_n(df):
     sol_rowindex = xr.DataArray(
         [[[[4, 0, -1], [1, -1, -1], [-1, -1, -1], [3, -1, -1]],
@@ -3354,7 +3289,6 @@ def test_categorical_where_max_n(df):
                                                                             'reverse'))).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_where_min_n(df):
     sol_rowindex = xr.DataArray(
         [[[[0, 4, -1], [1, -1, -1], [-1, -1, -1], [3, -1, -1]],
@@ -3386,7 +3320,6 @@ def test_categorical_where_min_n(df):
                                                                             'reverse'))).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_where_first_n(df):
     sol_rowindex = xr.DataArray(
         [[[[0, 4, -1], [1, -1, -1], [-1, -1, -1], [3, -1, -1]],
@@ -3418,7 +3351,6 @@ def test_categorical_where_first_n(df):
                                                                             'reverse'))).data)
 
 
-@pytest.mark.parametrize('df', dfs)
 def test_categorical_where_last_n(df):
     sol_rowindex = xr.DataArray(
         [[[[4, 0, -1], [1, -1, -1], [-1, -1, -1], [3, -1, -1]],

@@ -15,6 +15,7 @@ import datashader.utils as du
 
 import pytest
 from datashader.tests.utils import dask_switcher
+from datashader.tests.test_pandas import _pandas
 
 try:
     import spatialpandas as sp
@@ -28,29 +29,6 @@ from datashader.tests.test_pandas import (
 
 config.set(scheduler='synchronous')
 
-
-def _pandas():
-    df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
-                      'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
-                      'log_x': np.array(([1.] * 10 + [10] * 10)),
-                      'log_y': np.array(([1.] * 5 + [10] * 5 + [1] * 5 + [10] * 5)),
-                      'i32': np.arange(20, dtype='i4'),
-                      'i64': np.arange(20, dtype='i8'),
-                      'f32': np.arange(20, dtype='f4'),
-                      'f64': np.arange(20, dtype='f8'),
-                      'reverse': np.arange(20, 0, -1),
-                      'plusminus': np.arange(20, dtype='f8')*([1, -1]*10),
-                      'empty_bin': np.array([0.] * 15 + [np.nan] * 5),
-                      'cat': ['a']*5 + ['b']*5 + ['c']*5 + ['d']*5,
-                      'cat2': ['a', 'b', 'c', 'd']*5,
-                      'cat_int': np.array([10]*5 + [11]*5 + [12]*5 + [13]*5)})
-    df_pd.cat = df_pd.cat.astype('category')
-    df_pd.cat2 = df_pd.cat2.astype('category')
-    df_pd.at[2, 'f32'] = nan
-    df_pd.at[2, 'f64'] = nan
-    df_pd.at[6, 'reverse'] = nan
-    df_pd.at[2, 'plusminus'] = nan
-    return df_pd
 
 @dask_switcher(query=False)
 def _dask():
