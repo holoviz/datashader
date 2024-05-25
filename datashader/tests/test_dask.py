@@ -1175,7 +1175,7 @@ def test_log_axis_points(ddf):
 
 
 @pytest.mark.skipif(not sp, reason="spatialpandas not installed")
-@dask_switcher(query=False)
+@dask_switcher(query=False, extras=["spatialpandas.dask"])
 def test_points_geometry():
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((0., 2.), 3), 3)
@@ -1196,6 +1196,7 @@ def test_points_geometry():
     assert_eq_xr(agg, out)
 
 
+@dask_switcher(query=False, extras=["spatialpandas.dask"])
 def test_line(DataFrame):
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
@@ -1276,6 +1277,8 @@ if sp:
                      [-4, 0, 0, 4, 4, 0, 4, 0, 0, 0, -4, 0]]
         }, dtype='Line[int64]'), dict(geometry='geom'))
     )
+
+@dask_switcher(query=False, extras=["spatialpandas.dask"])
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_manual_range_params[5:7])
 def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs, request):
     if "cudf" in request.node.name:

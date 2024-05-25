@@ -10,7 +10,7 @@ from datashader.tests.utils import dask_switcher
 
 @pytest.fixture(autouse=True)
 def _classic_dd():
-    with dask_switcher(query=False): ...
+    with dask_switcher(query=False, extras=["spatialpandas.dask"]): ...
 
 try:
     # Import to register extension arrays
