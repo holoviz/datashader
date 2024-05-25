@@ -1390,6 +1390,8 @@ if sp:
                      [0, -4, 4, 0, 0, 4]]
         }, dtype='Line[int64]'), dict(geometry='geom'))
     )
+
+@dask_switcher(query=False, extras=["spatialpandas.dask"])
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_autorange_params)
 def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs, request):
     if "cudf" in request.node.name:
