@@ -38,9 +38,11 @@ def _dask():
 def _dask_expr():
     return dd.from_pandas(_pandas(), npartitions=2)
 
+@dask_switcher(query=False, extras=["dask_cudf"])
 def _dask_cudf():
     import dask_cudf
-    return dask_cudf.from_dask_dataframe(_dask())
+    _dask = dd.from_pandas(_pandas(), npartitions=2)
+    return dask_cudf.from_dask_dataframe(_dask)
 
 _backends = [
     pytest.param(_dask, id="dask"),
@@ -76,6 +78,7 @@ def _dask_expr_DataFrame(*args, **kwargs):
     return dd.from_pandas(df, npartitions=2)
 
 
+@dask_switcher(query=False, extras=["dask_cudf"])
 def _dask_cudf_DataFrame(*args, **kwargs):
     import cudf
     import dask_cudf
@@ -119,6 +122,24 @@ def floats(n):
     while True:
         yield n
         n = n + np.spacing(n)
+
+
+@pytest.mark.gpu
+def test_check_query_setting():
+    import os
+    from subprocess import check_output
+
+    # dask-cudf does not support query planning as of 24.04.
+    # Rapids 24.04.01 hard pins to dask 2024.1.1.
+    # This version of Dask does not seem to play well with the
+    # system environment variable.
+    # The current release of dask when writing this note is 2024.5.1.
+    assert 'DASK_DATAFRAME__QUERY_PLANNING' not in os.environ
+
+    # This also have problem with the global setting so we check
+    cmd = ['dask', 'config', 'get', 'dataframe.query-planning']
+    output = check_output(cmd, text=True).strip().lower()
+    assert output != 'true'
 
 
 def test_count(ddf, npartitions):

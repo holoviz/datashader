@@ -23,7 +23,7 @@ def dask_switcher(*, query=False, extras=None):
         pytest.skip("dask-expr is not available")
 
     dask.config.set(**{"dataframe.query-planning": query})
-    for module in ("dask.dataframe", *(extras or [])):
+    for module in ("dask.dataframe", *(extras or ())):
         if module in sys.modules:
             reload(sys.modules[module])
     yield
