@@ -16,6 +16,20 @@ from datashader.utils import Dispatcher
 __all__ = ()
 
 
+def _dask_compat(df):
+    """
+    Places where this is done, are to be compatible with both
+    `dask-expr` and classic `dask.dataframe` (where `optimize` does not exist).
+    With dask-expr calling df.__dask_graph__() or df.__dask_keys__() will
+    make the graph no longer match the df._name, so we preemptively call it
+    to make it match.
+
+    For more information, see the following comment:
+    https://github.com/holoviz/datashader/pull/1317#issuecomment-2039986852
+    """
+    return getattr(df, 'optimize', lambda: df)()
+
+
 @bypixel.pipeline.register(dd.DataFrame)
 def dask_pipeline(df, schema, canvas, glyph, summary, *, antialias=False, cuda=False):
     dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary, antialias=antialias, cuda=cuda)
@@ -27,6 +41,7 @@ def dask_pipeline(df, schema, canvas, glyph, summary, *, antialias=False, cuda=F
     if isinstance(dsk, da.Array):
         return da.compute(dsk, scheduler=scheduler)[0]
 
+    df = _dask_compat(df)
     keys = df.__dask_keys__()
     optimize = df.__dask_optimize__
     graph = df.__dask_graph__()
@@ -100,7 +115,7 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
 
     # Here be dragons
     # Get the dataframe graph
-    df = getattr(df, 'optimize', lambda: df)()  # Work with new dask_expr
+    df = _dask_compat(df)
     graph = df.__dask_graph__()
 
     # Guess a reasonable output dtype from combination of dataframe dtypes
@@ -211,7 +226,7 @@ def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(df, canvas, glyph)
 
     # Compile functions
-    df = getattr(df, 'optimize', lambda: df)()  # Work with new dask_expr
+    df = _dask_compat(df)
     partitioned = isinstance(df, dd.DataFrame) and df.npartitions > 1
     create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
         compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda,
