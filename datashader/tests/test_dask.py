@@ -130,11 +130,8 @@ def test_check_query_setting():
     from subprocess import check_output
 
     # dask-cudf does not support query planning as of 24.04.
-    # Rapids 24.04.01 hard pins to dask 2024.1.1.
-    # This version of Dask does not seem to play well with the
-    # system environment variable.
-    # The current release of dask when writing this note is 2024.5.1.
-    assert 'DASK_DATAFRAME__QUERY_PLANNING' not in os.environ
+    # So we check that it is not set outside of Python.
+    assert os.environ.get('DASK_DATAFRAME__QUERY_PLANNING', 'false').lower() != 'true'
 
     # This also have problem with the global setting so we check
     cmd = ['dask', 'config', 'get', 'dataframe.query-planning']
