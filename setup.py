@@ -65,18 +65,13 @@ numpy2 = [
     # 'spatialpandas',
 
     # [tests]
-    'codecov',
     'geodatasets',
-    'flake8',
-    'nbconvert',
-    'nbformat',
-    'nbsmoke[verify] >0.5',
     'netcdf4',
     'nbval',
     'psutil',
     'pytest-xdist',
     # 'pyarrow',
-    'pytest <8',  # Fails lint with IPynbFile is deprecated
+    'pytest',
     'pytest-benchmark',
     'pytest-cov',
     # 'rasterio',
@@ -88,16 +83,11 @@ numpy2 = [
 
 extras_require = {
     'tests': geopandas + [
-        'codecov',
         'geodatasets',
-        'flake8',
-        'nbconvert',
-        'nbformat',
-        'nbsmoke[verify] >0.5',
         'nbval',
         'netcdf4',
         'pyarrow',
-        'pytest <8',  # Fails lint with IPynbFile is deprecated
+        'pytest',
         'pytest-benchmark',
         'pytest-cov',
         'psutil',
