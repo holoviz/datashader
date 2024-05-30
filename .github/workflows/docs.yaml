@@ -47,7 +47,7 @@ jobs:
       - name: fetch data
         run: |
           conda activate test-environment
-          datashader fetch-data --path=examples --force
+          python scripts/download_data.py
       - name: generate rst
         run: |
           conda activate test-environment
