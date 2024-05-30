@@ -40,6 +40,11 @@ examples = geopandas + [
     'spatialpandas',
 ]
 
+if sys.version_info[:2] >= (3, 10):
+    examples += [
+        'bokeh_sampledata',
+    ]
+
 # Numpy 2 packages, should be removed when all commented out packages works with Numpy 2
 numpy2 = [
     'numba ==0.60.0rc1',
