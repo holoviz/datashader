@@ -1,7 +1,35 @@
+Version 0.16.2 (2024-05-30)
+---------------------------
+
+This release adds compatibility with Numpy 2.0, along with other improvements and bugfixes. Thanks to `@hoxbro <https://github.com/hoxbro>`_ for his contributions.
+
+Bugfixes:
+
+- Remove artifact from Polygon rendering (`#1329 <https://github.com/holoviz/datashader/pull/1329>`_)
+
+Compatibility:
+
+- Test dev releases of ``numpy`` 2.0 and ``numba`` 0.60.0 (`#1332 <https://github.com/holoviz/datashader/pull/1332>`_)
+- Improve compatibility with ``dask-expr`` (`#1335 <https://github.com/holoviz/datashader/pull/1335>`_)
+- Add gpu marker for test and test both classic and ``dask-expr`` ``Dask.DataFrame``'s (`#1341 <https://github.com/holoviz/datashader/pull/1341>`_)
+
+Documentation:
+
+- Update links (`#1337 <https://github.com/holoviz/datashader/pull/1337>`_, `#1339 <https://github.com/holoviz/datashader/pull/1339>`_)
+- Update readme badges (`#1334 <https://github.com/holoviz/datashader/pull/1334>`_)
+- Add download data script (`#1326 <https://github.com/holoviz/datashader/pull/1326>`_)
+
+Maintenance:
+
+- Update list of maintainers (`#1336 <https://github.com/holoviz/datashader/pull/1336>`_)
+- Parallelize the test suite and fix a test polluted bug (`#1338 <https://github.com/holoviz/datashader/pull/1338>`_)
+- Update test workflow (`#1340 <https://github.com/holoviz/datashader/pull/1340>`_)
+
+
 Version 0.16.1 (2024-04-19)
 ---------------------------
 
-This release brings compatibility with new release of upstream packages. Thanks to first-time contributor `@alexander-beedie <https://github.com/alexander-beedie>`_, and the regular contributors `@philippjfr <https://github.com/philippjfr>`_, `@ianthomas23 <https://github.com/ianthomas23>`_, `@maximlt <https://github.com/maximlt>`_, and `@Hoxbro <https://github.com/Hoxbro>`_.
+This release brings compatibility with new release of upstream packages. Thanks to first-time contributor `@alexander-beedie <https://github.com/alexander-beedie>`_, and the regular contributors `@philippjfr <https://github.com/philippjfr>`_, `@ianthomas23 <https://github.com/ianthomas23>`_, `@maximlt <https://github.com/maximlt>`_, and `@hoxbro <https://github.com/hoxbro>`_.
 
 Enhancements:
 
