@@ -254,7 +254,7 @@ class DateTime(Unit):
         return np.dtype('datetime64[us]')
 
 
-_units = set(['ns', 'us', 'ms', 's', 'm', 'h', 'D', 'W', 'M', 'Y'])
+_units = ('ns', 'us', 'ms', 's', 'm', 'h', 'D', 'W', 'M', 'Y')
 
 
 _unit_aliases = {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from io import BytesIO
 
 import numpy as np
@@ -12,6 +13,8 @@ from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr, assert
 
 coords = dict([('x_axis', [3, 4, 5]), ('y_axis', [0, 1, 2])])
 dims = ['y_axis', 'x_axis']
+
+test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
 # CPU
 def build_agg(array_module=np):
@@ -42,12 +45,12 @@ def create_dask_array_np(*args, **kwargs):
     return da.from_array(np.array(*args, **kwargs))
 
 
-try:
+if test_gpu:
     import cupy
     aggs = [build_agg(np), build_agg(cupy), build_agg_dask()]
     arrays = [np.array, cupy.array, create_dask_array_np]
     array_modules = [np, cupy]
-except ImportError:
+else:
     cupy = None
     aggs = [build_agg(np), build_agg_dask()]
     arrays = [np.array, create_dask_array_np]

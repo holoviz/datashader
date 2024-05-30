@@ -173,8 +173,8 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
     src_y0, src_y1 = glyph._compute_bounds_from_1d_centers(
         xr_ds, y_name, maybe_expand=False, orient=False
     )
-    xbinsize = float(xr_ds[x_name][1] - xr_ds[x_name][0])
-    ybinsize = float(xr_ds[y_name][1] - xr_ds[y_name][0])
+    xbinsize = abs(float(xr_ds[x_name][1] - xr_ds[x_name][0]))
+    ybinsize = abs(float(xr_ds[y_name][1] - xr_ds[y_name][0]))
 
     # Compute scale/translate
     out_h, out_w = shape

@@ -2,7 +2,9 @@ from importlib.util import find_spec
 
 import platform
 
-collect_ignore_glob = []
+collect_ignore_glob = [
+    "tiling.ipynb",
+]
 
 if find_spec("geopandas") is None:
     collect_ignore_glob += [
