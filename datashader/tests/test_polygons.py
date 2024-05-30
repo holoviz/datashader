@@ -5,6 +5,12 @@ import xarray as xr
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
 import dask.dataframe as dd
+from datashader.tests.utils import dask_switcher
+
+
+@pytest.fixture(autouse=True)
+def _classic_dd():
+    with dask_switcher(query=False, extras=["spatialpandas.dask"]): ...
 
 try:
     # Import to register extension arrays

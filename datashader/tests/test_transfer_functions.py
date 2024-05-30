@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from io import BytesIO
 
 import numpy as np
@@ -13,8 +12,6 @@ from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr, assert
 
 coords = dict([('x_axis', [3, 4, 5]), ('y_axis', [0, 1, 2])])
 dims = ['y_axis', 'x_axis']
-
-test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
 # CPU
 def build_agg(array_module=np):
@@ -40,21 +37,41 @@ def build_agg_dask():
     return build_agg(np).chunk({d: 1 for d in dims})
 
 
-def create_dask_array_np(*args, **kwargs):
+def build_agg_cupy():
+    import cupy
+    return build_agg(cupy)
+
+
+_backends = [
+    pytest.param(build_agg, id="numpy"),
+    pytest.param(build_agg_dask, id="dask"),
+    pytest.param(build_agg_cupy, marks=pytest.mark.gpu, id="cupy"),
+]
+
+@pytest.fixture(params=_backends)
+def agg(request):
+    return request.param()
+
+
+def create_dask_array(*args, **kwargs):
     """Create a dask array wrapping around a numpy array."""
     return da.from_array(np.array(*args, **kwargs))
 
 
-if test_gpu:
+def create_cupy_array(*args, **kwargs):
     import cupy
-    aggs = [build_agg(np), build_agg(cupy), build_agg_dask()]
-    arrays = [np.array, cupy.array, create_dask_array_np]
-    array_modules = [np, cupy]
-else:
-    cupy = None
-    aggs = [build_agg(np), build_agg_dask()]
-    arrays = [np.array, create_dask_array_np]
-    array_modules = [np]
+    return cupy.array(*args, **kwargs)
+
+
+_backends = [
+    pytest.param(np.array, id="numpy"),
+    pytest.param(create_dask_array, id="dask"),
+    pytest.param(create_cupy_array, marks=pytest.mark.gpu, id="cupy"),
+]
+
+@pytest.fixture(params=_backends)
+def array(request):
+    return request.param
 
 int_span = [11, 17]
 float_span = [11.0, 17.0]
@@ -143,7 +160,6 @@ def check_span(x, cmap, how, sol):
     assert_eq_xr(img, sol)
 
 
-@pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('attr', ['a', 'b', 'c'])
 @pytest.mark.parametrize('span', [None, int_span, float_span])
 def test_shade(agg, attr, span):
@@ -184,7 +200,6 @@ def test_shade(agg, attr, span):
     assert_eq_xr(img, sol)
 
 
-@pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('attr', ['a', 'b', 'c'])
 @pytest.mark.parametrize('how', ['linear', 'log', 'cbrt'])
 @pytest.mark.parametrize('cmap', [['pink', 'red'], ('#FFC0CB', '#FF0000')])
@@ -199,7 +214,6 @@ def test_span_cmap_list(agg, attr, how, cmap):
     check_span(x, cmap, how, sol)
 
 
-@pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('cmap', ['black', (0, 0, 0), '#000000'])
 def test_span_cmap_single(agg, cmap):
     # Get input
@@ -215,7 +229,6 @@ def test_span_cmap_single(agg, cmap):
     check_span(x, cmap, 'log', sol)
 
 
-@pytest.mark.parametrize('agg', aggs)
 def test_span_cmap_mpl(agg):
     # Get inputs
     x = agg.a
@@ -249,7 +262,6 @@ def test_shade_bool():
     assert_eq_xr(img, sol)
 
 
-@pytest.mark.parametrize('agg', aggs)
 def test_shade_cmap(agg):
     cmap = ['red', (0, 255, 0), '#0000FF']
     img = tf.shade(agg.a, how='log', cmap=cmap)
@@ -260,7 +272,6 @@ def test_shade_cmap(agg):
     assert_eq_xr(img, sol)
 
 
-@pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('cmap', ['black', (0, 0, 0), '#000000'])
 def test_shade_cmap_non_categorical_alpha(agg, cmap):
     img = tf.shade(agg.a, how='log', cmap=cmap)
@@ -271,7 +282,6 @@ def test_shade_cmap_non_categorical_alpha(agg, cmap):
     assert_eq_xr(img, sol)
 
 
-@pytest.mark.parametrize('agg', aggs)
 def test_shade_cmap_errors(agg):
     with pytest.raises(ValueError):
         tf.shade(agg.a, cmap='foo')
@@ -280,7 +290,6 @@ def test_shade_cmap_errors(agg):
         tf.shade(agg.a, cmap=[])
 
 
-@pytest.mark.parametrize('agg', aggs)
 def test_shade_mpl_cmap(agg):
     cm = pytest.importorskip('matplotlib.cm')
     img = tf.shade(agg.a, how='log', cmap=cm.viridis)
@@ -291,7 +300,6 @@ def test_shade_mpl_cmap(agg):
     assert_eq_xr(img, sol)
 
 
-@pytest.mark.parametrize('array', arrays)
 def test_shade_category(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
     cat_agg = tf.Image(array([[(0, 12, 0), (3, 0, 3)], [(12, 12, 12), (24, 0, 0)]], dtype='u4'),
@@ -478,7 +486,6 @@ def test_shade_category(array):
     assert ((img.data[1,1] >> 24) & 0xFF) == 20 # min alpha
 
 
-@pytest.mark.parametrize('array', arrays)
 def test_shade_zeros(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
     cat_agg = tf.Image(array([[(0, 0, 0), (0, 0, 0)],
@@ -495,7 +502,6 @@ def test_shade_zeros(array):
     assert_eq_xr(img, sol)
 
 
-@pytest.mark.parametrize('agg', aggs)
 @pytest.mark.parametrize('attr', ['d'])
 @pytest.mark.parametrize('rescale', [False, True])
 def test_shade_rescale_discrete_levels(agg, attr, rescale):
@@ -514,9 +520,8 @@ def test_shade_rescale_discrete_levels(agg, attr, rescale):
     assert_eq_xr(img, sol)
 
 
-@pytest.mark.parametrize('array_module', array_modules)
-def test_shade_rescale_discrete_levels_categorical(array_module):
-    arr = array_module.array([[[1, 2], [0, 1]],
+def test_shade_rescale_discrete_levels_categorical(array):
+    arr = array([[[1, 2], [0, 1]],
                               [[0, 0], [0, 0]],
                               [[1, 0], [3, 0]],
                               [[1, 0], [2, 1]]], dtype='u4')
@@ -530,20 +535,18 @@ def test_shade_rescale_discrete_levels_categorical(array_module):
     assert_eq_ndarray(img.data, sol)
 
 
-empty_arrays = [
+@pytest.mark.parametrize('empty_array', [
     np.zeros((2, 2, 2), dtype=np.uint32),
     np.full((2, 2, 2), np.nan, dtype=np.float64),
-]
-if cupy is not None:
-    empty_arrays += [
-        cupy.zeros((2, 2, 2), dtype=cupy.uint32),
-        cupy.full((2, 2, 2), cupy.nan, dtype=cupy.float64),
-    ]
-@pytest.mark.parametrize('empty_array', empty_arrays)
-def test_shade_all_masked(empty_array):
+])
+@pytest.mark.parametrize('on_gpu', [False, pytest.param(True, marks=pytest.mark.gpu)])
+def test_shade_all_masked(empty_array, on_gpu):
     # Issue #1166, return early with array of all nans if all of data is masked out.
     # Before the fix this test results in:
     #   IndexError: index -1 is out of bounds for axis 0 with size 0
+    if on_gpu:
+        import cupy
+        empty_array = cupy.array(empty_array)
     agg = xr.DataArray(
         data=empty_array,
         coords=dict(y=[0, 1], x=[0, 1], cat=['a', 'b']),
@@ -1141,42 +1144,28 @@ def test_shade_should_handle_zeros_array():
     assert img is not None
 
 
-def test_shade_with_discrete_color_key():
-    data = np.array([[0, 0, 0, 0, 0],
+def test_shade_with_discrete_color_key(array):
+    data = array([[0, 0, 0, 0, 0],
                      [0, 1, 1, 1, 0],
                      [0, 2, 2, 2, 0],
                      [0, 3, 3, 3, 0],
                      [0, 0, 0, 0, 0]], dtype='uint32')
     color_key = {1: 'white', 2: 'purple', 3: 'yellow'}
-    result = np.array([[0, 0, 0, 0, 0],
+    result = array([[0, 0, 0, 0, 0],
                        [0, 4294967295, 4294967295, 4294967295, 0],
                        [0, 4286578816, 4286578816, 4286578816, 0],
                        [0, 4278255615, 4278255615, 4278255615, 0],
                        [0, 0, 0, 0, 0]],
                       dtype='uint32')
 
-    # numpy case
-    arr_numpy = tf.Image(data, dims=['x', 'y'])
-    result_numpy = tf.shade(arr_numpy, color_key=color_key)
-    assert (result_numpy.data == result).all()
-
-    # dask with numpy backed case
-    arr_dask = tf.Image(da.from_array(data, chunks=(2, 2)), dims=['x', 'y'])
-    result_dask = tf.shade(arr_dask, color_key=color_key)
-    assert (result_dask.data == result).all()
-
-    # cupy case
-    try:
-        import cupy
-        arr_cupy = tf.Image(cupy.asarray(data), dims=['x', 'y'])
-        result_cupy = tf.shade(arr_cupy, color_key=color_key)
-        assert (result_cupy.data == result).all()
-    except ImportError:
-        cupy = None
+    arr = tf.Image(data, dims=['x', 'y'])
+    result = tf.shade(arr, color_key=color_key)
+    assert (result.data == result).all()
 
 
-@pytest.mark.parametrize('array_module', array_modules)
-def test_interpolate_alpha_discrete_levels_None(array_module):
-    data = array_module.array([[0.0, 1.0], [1.0, 0.0]])
+def test_interpolate_alpha_discrete_levels_None(array, request):
+    if "dask" in request.node.name:
+        pytest.skip("This test is not compatible with dask arrays")
+    data = array([[0.0, 1.0], [1.0, 0.0]])
     # Issue #1084: this raises a ValueError.
     tf._interpolate_alpha(data, data, None, "eq_hist", 0.5, None, 0.4, True)

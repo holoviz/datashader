@@ -1,12 +1,16 @@
 # Testing GeoPandas and SpatialPandas
-
 import dask.dataframe as dd
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray
 import numpy as np
 from numpy import nan
 import pytest
+from datashader.tests.utils import dask_switcher
 
+
+@pytest.fixture(autouse=True)
+def _classic_dd():
+    with dask_switcher(query=False, extras=["spatialpandas.dask", "dask_geopandas"]): ...
 
 try:
     import dask_geopandas

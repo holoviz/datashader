@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import suppress
+
 import numpy as np
 import pandas as pd
 import dask
@@ -30,7 +32,6 @@ def _dask_compat(df):
     return getattr(df, 'optimize', lambda: df)()
 
 
-@bypixel.pipeline.register(dd.DataFrame)
 def dask_pipeline(df, schema, canvas, glyph, summary, *, antialias=False, cuda=False):
     dsk, name = glyph_dispatch(glyph, df, schema, canvas, summary, antialias=antialias, cuda=cuda)
 
@@ -48,6 +49,15 @@ def dask_pipeline(df, schema, canvas, glyph, summary, *, antialias=False, cuda=F
 
     dsk.update(optimize(graph, keys))
     return scheduler(dsk, name)
+
+
+# Classic Dask.DataFrame
+bypixel.pipeline.register(dd.core.DataFrame)(dask_pipeline)
+
+with suppress(ImportError):
+    import dask_expr
+
+    bypixel.pipeline.register(dask_expr.DataFrame)(dask_pipeline)
 
 
 def shape_bounds_st_and_axis(df, canvas, glyph):

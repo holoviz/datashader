@@ -1,11 +1,8 @@
 import pytest
-import os
 import numpy as np
 import pandas as pd
 
 import datashader as ds
-
-test_gpu = bool(int(os.getenv("DATASHADER_TEST_GPU", 0)))
 
 
 @pytest.fixture
@@ -33,7 +30,7 @@ def test_points(benchmark, time_series):
     benchmark(cvs.points, time_series, 'x', 'y')
 
 
-@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+@pytest.mark.gpu
 @pytest.mark.benchmark(group="canvas")
 def test_line_gpu(benchmark, time_series):
     from cudf import from_pandas
@@ -42,7 +39,7 @@ def test_line_gpu(benchmark, time_series):
     benchmark(cvs.line, time_series, 'x', 'y')
 
 
-@pytest.mark.skipif(not test_gpu, reason="DATASHADER_TEST_GPU not set")
+@pytest.mark.gpu
 @pytest.mark.benchmark(group="canvas")
 def test_points_gpu(benchmark, time_series):
     from cudf import from_pandas

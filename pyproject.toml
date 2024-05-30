@@ -16,7 +16,7 @@ line-length = 100
 target-version = "py39"
 
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "test_mpl_ext.py" = ["E402"]  # Module level import not at top of file
 
 [tool.pytest.ini_options]
