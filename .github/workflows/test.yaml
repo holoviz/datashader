@@ -159,6 +159,10 @@ jobs:
           conda activate test-environment
           python -c "import numba; print('Numba', numba.__version__)"
           python -c "import numpy; print('Numpy', numpy.__version__)"
+      - name: download data
+        run: |
+          conda activate test-environment
+          python scripts/download_data.py
       - name: doit test_unit
         run: |
           conda activate test-environment
