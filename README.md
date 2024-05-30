@@ -91,7 +91,7 @@ Otherwise create a new environment:
 
 1.  Install Python 3
     [miniconda](https://docs.conda.io/en/latest/miniconda.html) or
-    [anaconda](https://www.anaconda.com/distribution/), if you don't
+    [anaconda](https://www.anaconda.com/download/success), if you don't
     already have it on your system.
 
 2.  Clone the datashader git repository if you do not already have it:

@@ -8,7 +8,7 @@ requires = [
 
 
 [tool.codespell]
-ignore-words-list = "trough,thi"
+ignore-words-list = "trough,thi,ser"
 
 
 [tool.ruff]

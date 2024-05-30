@@ -554,7 +554,7 @@ New features:
 * Replaced outdated 536-line Bokeh `dashboard.py <https://github.com/holoviz/datashader/blob/ae72d237d574cbd7103a912fc84094ce10d55344/examples/dashboard/dashboard.py>`_ with 71-line Panel+HoloViews `dashboard <https://github.com/holoviz/datashader/blob/main/examples/dashboard.ipynb>`_ (`#676 <https://github.com/holoviz/datashader/pull/676>`_)
 * Allow aggregating xarray objects (in addition to Pandas and Dask DataFrames) (`#675 <https://github.com/holoviz/datashader/pull/675>`_)
 * Create WMTS tiles from Datashader data (`#636 <https://github.com/holoviz/datashader/pull/636>`_)
-* Added various `geographic utility functions <http://datashader.org/user_guide/8_Geography.html>`_ (ndvi, slope, aspect, hillshade, mean, bump map, Perlin noise) (`#661 <https://github.com/holoviz/datashader/pull/661>`_)
+* Added various `geographic utility functions <https://datashader.org/user_guide/8_Geography.html>`_ (ndvi, slope, aspect, hillshade, mean, bump map, Perlin noise) (`#661 <https://github.com/holoviz/datashader/pull/661>`_)
 * Made OpenSky data public (`#691 <https://github.com/holoviz/datashader/pull/691>`_)
 
 Bugfixes and compatibility:
