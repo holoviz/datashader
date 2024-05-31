@@ -1,4 +1,4 @@
-Version 0.16.2 (2024-05-30)
+Version 0.16.2 (2024-05-31)
 ---------------------------
 
 This release adds compatibility with Numpy 2.0, along with other improvements and bugfixes. Thanks to `@hoxbro <https://github.com/hoxbro>`_ for his contributions.
