@@ -8,6 +8,7 @@ import xarray as xr
 
 from dask.context import config
 from numpy import nan
+from packaging.version import Version
 
 import datashader as ds
 from datashader.datatypes import RaggedArray
@@ -42,12 +43,24 @@ def _dask_expr():
 def _dask_cudf():
     import dask_cudf
     _dask = dd.from_pandas(_pandas(), npartitions=2)
-    return dask_cudf.from_dask_dataframe(_dask)
+    if Version(dask_cudf.__version__) >= Version("24.06"):
+        return _dask.to_backend("cudf")
+    else:
+        return dask_cudf.from_dask_dataframe(_dask)
+
+@dask_switcher(query=True, extras=["dask_cudf"])
+def _dask_expr_cudf():
+    import dask_cudf
+    if Version(dask_cudf.__version__) >= Version("24.06"):
+        pytest.skip("dask-expression first requires dask-cudf 24.06")
+    _dask = dd.from_pandas(_pandas(), npartitions=2)
+    return _dask.to_backend("cudf")
 
 _backends = [
     pytest.param(_dask, id="dask"),
     pytest.param(_dask_expr, id="dask-expr"),
     pytest.param(_dask_cudf, marks=pytest.mark.gpu, id="dask-cudf"),
+    pytest.param(_dask_expr_cudf, marks=pytest.mark.gpu, id="dask-expr-cudf"),
 ]
 
 @pytest.fixture(params=_backends)
@@ -89,10 +102,28 @@ def _dask_cudf_DataFrame(*args, **kwargs):
     )
     return dask_cudf.from_cudf(cdf, npartitions=2)
 
+
+@dask_switcher(query=True, extras=["dask_cudf"])
+def _dask_expr_cudf_DataFrame(*args, **kwargs):
+    import cudf
+    import dask_cudf
+
+    if Version(dask_cudf.__version__) >= Version("24.06"):
+        pytest.skip("dask-expression first requires dask-cudf 24.06")
+
+    if kwargs.pop("geo", False):
+        pytest.skip("dask-cudf currently does not work with spatialpandas")
+    cdf = cudf.DataFrame.from_pandas(
+        pd.DataFrame(*args, **kwargs), nan_as_null=False
+    )
+    return dask_cudf.from_cudf(cdf, npartitions=2)
+
+
 _backends = [
     pytest.param(_dask_DataFrame, id="dask"),
     pytest.param(_dask_expr_DataFrame, id="dask-expr"),
     pytest.param(_dask_cudf_DataFrame, marks=pytest.mark.gpu, id="dask-cudf"),
+    pytest.param(_dask_expr_cudf_DataFrame, marks=pytest.mark.gpu, id="dask-expr-cudf"),
 ]
 
 @pytest.fixture(params=_backends)
@@ -127,16 +158,20 @@ def floats(n):
 @pytest.mark.gpu
 def test_check_query_setting():
     import os
-    from subprocess import check_output
+    from subprocess import check_output, SubprocessError
 
     # dask-cudf does not support query planning as of 24.04.
     # So we check that it is not set outside of Python.
     assert os.environ.get('DASK_DATAFRAME__QUERY_PLANNING', 'false').lower() != 'true'
 
     # This also have problem with the global setting so we check
-    cmd = ['dask', 'config', 'get', 'dataframe.query-planning']
-    output = check_output(cmd, text=True).strip().lower()
-    assert output != 'true'
+    try:
+        cmd = ['dask', 'config', 'get', 'dataframe.query-planning']
+        output = check_output(cmd, text=True).strip().lower()
+        assert output != 'true'
+    except SubprocessError:
+        # Newer version will error out if not set
+        pass
 
 
 def test_count(ddf, npartitions):
@@ -1578,7 +1613,7 @@ def test_auto_range_line(DataFrame):
     }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame is _dask_cudf_DataFrame:
+    if DataFrame in (_dask_cudf_DataFrame, _dask_expr_cudf_DataFrame):
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
 
@@ -1670,7 +1705,7 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
     }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame is _dask_cudf_DataFrame:
+    if DataFrame in (_dask_cudf_DataFrame, _dask_expr_cudf_DataFrame):
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
 
@@ -1747,7 +1782,7 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame is _dask_cudf_DataFrame:
+    if DataFrame in (_dask_cudf_DataFrame, _dask_expr_cudf_DataFrame):
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
 
@@ -1850,7 +1885,7 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     }, dtype='Ragged[float32]'), dict(x='x', y='y', y_stack='y_stack', axis=1))
 ])
 def test_area_to_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame is _dask_cudf_DataFrame:
+    if DataFrame in (_dask_cudf_DataFrame, _dask_expr_cudf_DataFrame):
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
 
@@ -1937,7 +1972,7 @@ def test_area_to_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     }, dtype='Ragged[float32]'), dict(x='x', y='y', y_stack='y_stack', axis=1))
 ])
 def test_area_to_line_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame is _dask_cudf_DataFrame:
+    if DataFrame in (_dask_cudf_DataFrame, _dask_expr_cudf_DataFrame):
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
 
