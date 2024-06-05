@@ -52,7 +52,7 @@ def _dask_cudf():
 def _dask_expr_cudf():
     import dask_cudf
     if Version(dask_cudf.__version__) >= Version("24.06"):
-        pytest.skip("dask-expression requires dask-cudf 24.06 or later")
+        pytest.skip("dask-expr requires dask-cudf 24.06 or later")
     _dask = dd.from_pandas(_pandas(), npartitions=2)
     return _dask.to_backend("cudf")
 
@@ -96,6 +96,8 @@ def _dask_cudf_DataFrame(*args, **kwargs):
     import cudf
     import dask_cudf
     if kwargs.pop("geo", False):
+        # As of dask-cudf version 24.06, dask-cudf is not
+        # compatible with spatialpandas version 0.4.10
         pytest.skip("dask-cudf currently does not work with spatialpandas")
     cdf = cudf.DataFrame.from_pandas(
         pd.DataFrame(*args, **kwargs), nan_as_null=False
@@ -109,9 +111,11 @@ def _dask_expr_cudf_DataFrame(*args, **kwargs):
     import dask_cudf
 
     if Version(dask_cudf.__version__) >= Version("24.06"):
-        pytest.skip("dask-expression first requires dask-cudf 24.06")
+        pytest.skip("dask-expr requires dask-cudf 24.06 or later")
 
     if kwargs.pop("geo", False):
+        # As of dask-cudf version 24.06, dask-cudf is not
+        # compatible with spatialpandas version 0.4.10
         pytest.skip("dask-cudf currently does not work with spatialpandas")
     cdf = cudf.DataFrame.from_pandas(
         pd.DataFrame(*args, **kwargs), nan_as_null=False
