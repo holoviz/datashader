@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
@@ -51,7 +50,7 @@ def _dask_cudf():
 @dask_switcher(query=True, extras=["dask_cudf"])
 def _dask_expr_cudf():
     import dask_cudf
-    if Version(dask_cudf.__version__) >= Version("24.06"):
+    if Version(dask_cudf.__version__) < Version("24.06"):
         pytest.skip("dask-expr requires dask-cudf 24.06 or later")
     _dask = dd.from_pandas(_pandas(), npartitions=2)
     return _dask.to_backend("cudf")
@@ -110,7 +109,7 @@ def _dask_expr_cudf_DataFrame(*args, **kwargs):
     import cudf
     import dask_cudf
 
-    if Version(dask_cudf.__version__) >= Version("24.06"):
+    if Version(dask_cudf.__version__) < Version("24.06"):
         pytest.skip("dask-expr requires dask-cudf 24.06 or later")
 
     if kwargs.pop("geo", False):
