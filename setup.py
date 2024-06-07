@@ -21,6 +21,7 @@ install_requires = [
     'requests',
     'scipy',
     'toolz',
+    'packaging',
     'xarray',
 ]
 
