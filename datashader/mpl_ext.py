@@ -205,22 +205,22 @@ class DSArtist(_ImageBase):
         self.plot_height = plot_height
         self.width_scale = width_scale
         self.height_scale = height_scale
-        
+
         x_col = glyph.x_label
         y_col = glyph.y_label
 
         self.bbox_df = Bbox(
             np.array(
-                [[df[x_col].values.min(), df[y_col].values.min()], 
+                [[df[x_col].values.min(), df[y_col].values.min()],
                  [df[x_col].values.max(), df[y_col].values.max()]]
                 )
             )
-        
+
         if x_range is None:
             x_range = (self.bbox_df.x0, self.bbox_df.x1)
         if y_range is None:
             y_range = (self.bbox_df.y0, self.bbox_df.y1)
-            
+
         ax.set_xlim(x_range)
         ax.set_ylim(y_range)
 
