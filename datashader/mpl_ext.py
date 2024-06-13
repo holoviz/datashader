@@ -205,12 +205,22 @@ class DSArtist(_ImageBase):
         self.plot_height = plot_height
         self.width_scale = width_scale
         self.height_scale = height_scale
+        
+        x_col = glyph.x_label
+        y_col = glyph.y_label
+
+        self.bbox_df = Bbox(
+            np.array(
+                [[df[x_col].values.min(), df[y_col].values.min()], 
+                 [df[x_col].values.max(), df[y_col].values.max()]]
+                )
+            )
+        
         if x_range is None:
-            x_col = glyph.x_label
-            x_range = (df[x_col].min(), df[x_col].max())
+            x_range = (self.bbox_df.x0, self.bbox_df.x1)
         if y_range is None:
-            y_col = glyph.y_label
-            y_range = (df[y_col].min(), df[y_col].max())
+            y_range = (self.bbox_df.y0, self.bbox_df.y1)
+            
         ax.set_xlim(x_range)
         ax.set_ylim(y_range)
 
@@ -262,6 +272,11 @@ class DSArtist(_ImageBase):
         """
         x1, x2, y1, y2 = self.get_extent()
         bbox = Bbox(np.array([[x1, y1], [x2, y2]]))
+
+        # Fail-fast if visible extent does not overlap with data extent
+        if not bbox.overlaps(self.bbox_df):
+            return None, 0, 0, None
+
         trans = self.get_transform()
         transformed_bbox = TransformedBbox(bbox, trans)
         if (
