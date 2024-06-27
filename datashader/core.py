@@ -9,6 +9,7 @@ import pandas as pd
 import dask.dataframe as dd
 import dask.array as da
 from xarray import DataArray, Dataset
+from packaging.version import Version
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
@@ -1280,14 +1281,17 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             geopandas = None
 
         try:
-            import dask_geopandas
+            import dask_geopandas as dgpd
+            if Version(dgpd.__version__) >= Version("0.4.0"):
+                dask_geo_dfs = (dgpd.core.GeoDataFrame, dgpd.expr.GeoDataFrame)
+            else:
+                dask_geo_dfs = dgpd.GeoDataFrame
         except ImportError:
-            dask_geopandas = None
+            dgpd = None
 
         if ((geopandas and isinstance(source, geopandas.GeoDataFrame)) or
-              (dask_geopandas and isinstance(source, dask_geopandas.GeoDataFrame))):
+              (dgpd and isinstance(source, dask_geo_dfs))):
             # Explicit shapely version check as cannot continue unless shapely >= 2
-            from packaging.version import Version
             from shapely import __version__ as shapely_version
             if Version(shapely_version) < Version('2.0.0'):
                 raise ImportError("Use of GeoPandas in Datashader requires Shapely >= 2.0.0")
