@@ -21,9 +21,13 @@ with contextlib.suppress(ImportError):
         _backends.append(pytest.param(True, id="dask-expr"))
 
 
-@pytest.fixture(params=_backends, autouse=True)
-def _auto_dask_switcher(request):
+@pytest.fixture(params=_backends)
+def dask_both(request):
     with dask_switcher(query=request.param, extras=["spatialpandas.dask", "dask_geopandas"]): ...
+
+@pytest.fixture
+def dask_classic(request):
+    with dask_switcher(query=False, extras=["spatialpandas.dask", "dask_geopandas"]): ...
 
 try:
     import dask_geopandas
@@ -157,7 +161,7 @@ def test_lines_geopandas(geom_type, explode, use_boundary):
         ("linestring", True, True),
     ],
 )
-def test_lines_dask_geopandas(geom_type, explode, use_boundary, npartitions):
+def test_lines_dask_geopandas(geom_type, explode, use_boundary, npartitions, dask_both):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
     df["col"] = np.arange(len(df))  # Extra column for aggregation.
     geometry = "boundary" if use_boundary else "geometry"
@@ -189,9 +193,7 @@ def test_lines_dask_geopandas(geom_type, explode, use_boundary, npartitions):
         ("linestring", True, True),
     ],
 )
-def test_lines_spatialpandas(geom_type, explode, use_boundary, npartitions, request):
-    if "dask-expr" in request.node.name:
-        pytest.xfail("spatialpandas does not support dask-expr")
+def test_lines_spatialpandas(geom_type, explode, use_boundary, npartitions, dask_classic):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
     df["col"] = np.arange(len(df))  # Extra column for aggregation.
     geometry = "boundary" if use_boundary else "geometry"
@@ -234,7 +236,7 @@ def test_points_geopandas(geom_type):
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
 @pytest.mark.parametrize('npartitions', [1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipoint", "point"])
-def test_points_dask_geopandas(geom_type, npartitions):
+def test_points_dask_geopandas(geom_type, npartitions, dask_both):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
 
     df["geometry"] = df["geometry"].sample_points(100, rng=93814)  # multipoint
@@ -256,9 +258,7 @@ def test_points_dask_geopandas(geom_type, npartitions):
 @pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('npartitions', [0, 1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipoint", "point"])
-def test_points_spatialpandas(geom_type, npartitions, request):
-    if "dask-expr" in request.node.name:
-        pytest.xfail("spatialpandas does not support dask-expr")
+def test_points_spatialpandas(geom_type, npartitions, dask_classic):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
 
     df["geometry"] = df["geometry"].sample_points(100, rng=93814)  # multipoint
@@ -299,7 +299,7 @@ def test_polygons_geopandas(geom_type):
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
 @pytest.mark.parametrize('npartitions', [1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipolygon", "polygon"])
-def test_polygons_dask_geopandas(geom_type, npartitions):
+def test_polygons_dask_geopandas(geom_type, npartitions, dask_both):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
     df["col"] = np.arange(len(df))
 
@@ -322,10 +322,7 @@ def test_polygons_dask_geopandas(geom_type, npartitions):
 @pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('npartitions', [0, 1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipolygon", "polygon"])
-def test_polygons_spatialpandas(geom_type, npartitions, request):
-    if "dask-expr" in request.node.name:
-        pytest.xfail("spatialpandas does not support dask-expr")
-
+def test_polygons_spatialpandas(geom_type, npartitions, dask_classic):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
     df["col"] = np.arange(len(df))
 
