@@ -123,6 +123,7 @@ nybb_polygons_sol = np.array([
 ])
 
 
+@pytest.mark.skipif(not dask_geopandas, reason="dask_geopandas not installed")
 def test_dask_geopandas_switcher(dask_both):
     import dask_geopandas
     if dask_both:
