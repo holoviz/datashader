@@ -23,11 +23,12 @@ with contextlib.suppress(ImportError):
 
 @pytest.fixture(params=_backends)
 def dask_both(request):
-    with dask_switcher(query=request.param, extras=["spatialpandas.dask", "dask_geopandas"]): ...
+    with dask_switcher(query=request.param, extras=["spatialpandas.dask", "dask_geopandas.backends", "dask_geopandas"]): ...
+    return request.param
 
 @pytest.fixture
 def dask_classic(request):
-    with dask_switcher(query=False, extras=["spatialpandas.dask", "dask_geopandas"]): ...
+    with dask_switcher(query=False, extras=["spatialpandas.dask", "dask_geopandas.backends", "dask_geopandas"]): ...
 
 try:
     import dask_geopandas
@@ -120,6 +121,14 @@ nybb_polygons_sol = np.array([
     [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
     [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4., nan, nan, nan, nan, nan],  # noqa: E501
 ])
+
+
+def test_dask_geopandas_switcher(dask_both):
+    import dask_geopandas
+    if dask_both:
+        assert dask_geopandas.expr.GeoDataFrame == dask_geopandas.GeoDataFrame
+    else:
+        assert dask_geopandas.core.GeoDataFrame == dask_geopandas.GeoDataFrame
 
 
 @pytest.mark.skipif(not geodatasets, reason="geodatasets not installed")

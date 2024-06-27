@@ -1284,7 +1284,10 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         with contextlib.suppress(ImportError):
             import dask_geopandas
             if Version(dask_geopandas.__version__) >= Version("0.4.0"):
-                dfs.extend([dask_geopandas.core.GeoDataFrame, dask_geopandas.expr.GeoDataFrame])
+                from dask_geopandas.core import GeoDataFrame as gdf1
+                from dask_geopandas.expr import GeoDataFrame as gdf2
+
+                dfs.extend([gdf1, gdf2])
             else:
                 dfs.append(dask_geopandas.GeoDataFrame)
 
