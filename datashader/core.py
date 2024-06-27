@@ -3,13 +3,14 @@ from __future__ import annotations
 from numbers import Number
 from math import log10
 import warnings
+import contextlib
 
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 import dask.array as da
-from xarray import DataArray, Dataset
 from packaging.version import Version
+from xarray import DataArray, Dataset
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
@@ -1275,22 +1276,19 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         If so, spatially filter the source and return it.
         If not, return None.
         """
-        try:
+        dfs = []
+        with contextlib.suppress(ImportError):
             import geopandas
-        except ImportError:
-            geopandas = None
+            dfs.append(geopandas.GeoDataFrame)
 
-        try:
-            import dask_geopandas as dgpd
-            if Version(dgpd.__version__) >= Version("0.4.0"):
-                dask_geo_dfs = (dgpd.core.GeoDataFrame, dgpd.expr.GeoDataFrame)
+        with contextlib.suppress(ImportError):
+            import dask_geopandas
+            if Version(dask_geopandas.__version__) >= Version("0.4.0"):
+                dfs.extend([dask_geopandas.core.GeoDataFrame, dask_geopandas.expr.GeoDataFrame])
             else:
-                dask_geo_dfs = dgpd.GeoDataFrame
-        except ImportError:
-            dgpd = None
+                dfs.append(dask_geopandas.GeoDataFrame)
 
-        if ((geopandas and isinstance(source, geopandas.GeoDataFrame)) or
-              (dgpd and isinstance(source, dask_geo_dfs))):
+        if isinstance(source, tuple(dfs)):
             # Explicit shapely version check as cannot continue unless shapely >= 2
             from shapely import __version__ as shapely_version
             if Version(shapely_version) < Version('2.0.0'):
