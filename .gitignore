@@ -82,6 +82,7 @@ examples/export
 examples/tiles_output_directory
 examples/user_guide/export
 examples/user_guide/df_world.parq
+examples/user_guide/sgeodf.parq
 
 **.org
 .doit*
