@@ -58,7 +58,6 @@ extensions += [
     'sphinx.ext.autosummary',
     'numpydoc',
     'nbsite.analytics',
-    'myst_parser',
     'sphinxcontrib.mermaid',
 ]
 
