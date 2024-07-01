@@ -58,7 +58,11 @@ extensions += [
     'sphinx.ext.autosummary',
     'numpydoc',
     'nbsite.analytics',
+    'myst_parser',
+    'sphinxcontrib.mermaid',
 ]
+
+myst_fence_as_directive = ["mermaid"]
 
 nbsite_analytics = {
     'goatcounter_holoviz': True,
