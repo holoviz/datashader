@@ -135,7 +135,7 @@ jobs:
           NUMBA_DISABLE_JIT: 1
       - name: doit test_examples
         env:
-          DASK_DATAFRAME__QUERY_PLANNING: false
+          DASK_DATAFRAME__QUERY_PLANNING: False
         run: |
           conda activate test-environment
           doit test_examples
