@@ -12,8 +12,12 @@ import pandas as pd
 from toolz import memoize
 from xarray import DataArray
 
-import dask.dataframe as dd
 import datashader.datashape as datashape
+
+try:
+    import dask.dataframe as dd
+except ImportError:
+    dd = None
 
 try:
     from datashader.datatypes import RaggedDtype
@@ -581,7 +585,7 @@ def mesh(vertices, simplices):
         'If no vertex weight column is provided, a triangle weight column is required.'
 
 
-    if isinstance(vertices, dd.DataFrame) and isinstance(simplices, dd.DataFrame):
+    if dd and isinstance(vertices, dd.DataFrame) and isinstance(simplices, dd.DataFrame):
         return _dd_mesh(vertices, simplices)
 
     return _pd_mesh(vertices, simplices)
