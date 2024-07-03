@@ -10,7 +10,6 @@ import pyct.build
 
 install_requires = [
     'colorcet',
-    'dask',
     'multipledispatch',
     'numba',
     'numpy',
@@ -33,6 +32,7 @@ geopandas = [
 
 examples = geopandas + [
     'bokeh >3.1',
+    'dask',
     'geodatasets',
     'holoviews',
     'matplotlib >=3.3',
@@ -48,6 +48,7 @@ if sys.version_info[:2] >= (3, 10):
 
 extras_require = {
     'tests': geopandas + [
+        'dask',
         'geodatasets',
         'nbval',
         'netcdf4',
