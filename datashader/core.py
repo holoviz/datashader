@@ -3,11 +3,13 @@ from __future__ import annotations
 from numbers import Number
 from math import log10
 import warnings
+import contextlib
 
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 import dask.array as da
+from packaging.version import Version
 from xarray import DataArray, Dataset
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
@@ -1274,20 +1276,23 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         If so, spatially filter the source and return it.
         If not, return None.
         """
-        try:
+        dfs = []
+        with contextlib.suppress(ImportError):
             import geopandas
-        except ImportError:
-            geopandas = None
+            dfs.append(geopandas.GeoDataFrame)
 
-        try:
+        with contextlib.suppress(ImportError):
             import dask_geopandas
-        except ImportError:
-            dask_geopandas = None
+            if Version(dask_geopandas.__version__) >= Version("0.4.0"):
+                from dask_geopandas.core import GeoDataFrame as gdf1
+                from dask_geopandas.expr import GeoDataFrame as gdf2
 
-        if ((geopandas and isinstance(source, geopandas.GeoDataFrame)) or
-              (dask_geopandas and isinstance(source, dask_geopandas.GeoDataFrame))):
+                dfs.extend([gdf1, gdf2])
+            else:
+                dfs.append(dask_geopandas.GeoDataFrame)
+
+        if isinstance(source, tuple(dfs)):
             # Explicit shapely version check as cannot continue unless shapely >= 2
-            from packaging.version import Version
             from shapely import __version__ as shapely_version
             if Version(shapely_version) < Version('2.0.0'):
                 raise ImportError("Use of GeoPandas in Datashader requires Shapely >= 2.0.0")

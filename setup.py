@@ -46,42 +46,6 @@ if sys.version_info[:2] >= (3, 10):
         'bokeh_sampledata',
     ]
 
-# Numpy 2 packages, should be removed when all commented out packages works with Numpy 2
-numpy2 = [
-    'numba ==0.60.0rc1',
-    'numpy ==2.0.0rc2',
-
-    # [geopandas]
-    # 'dask-geopandas',
-    # 'geopandas',
-    # 'shapely >=2.0.0',
-
-    # [examples]
-    'bokeh >3.1',
-    'geodatasets',
-    'holoviews',
-    'matplotlib >=3.3',
-    'panel >1.1',
-    # 'scikit-image',
-    # 'spatialpandas',
-
-    # [tests]
-    'geodatasets',
-    'netcdf4',
-    'nbval',
-    'psutil',
-    'pytest-xdist',
-    # 'pyarrow',
-    'pytest',
-    'pytest-benchmark',
-    'pytest-cov',
-    # 'rasterio',
-    # 'rioxarray',  # rasterio
-    # 'scikit-image',
-    # 'spatialpandas',
-    # 'dask-expr',  # pyarrow
-]
-
 extras_require = {
     'tests': geopandas + [
         'geodatasets',
@@ -111,13 +75,13 @@ extras_require = {
         'rasterio',
     ],
     'geopandas': geopandas,
-    'numpy2': numpy2,
 }
 
 
 extras_require['doc'] = extras_require['examples_extra'] + [
     'nbsite >=0.8.4,<0.9.0',
     'numpydoc',
+    'sphinxcontrib-mermaid',
 ]
 
 extras_require['all'] = sorted(set(sum(extras_require.values(), [])))

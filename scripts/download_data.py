@@ -21,3 +21,4 @@ with suppress(ImportError):
 
     gds.get_path("geoda.natregimes")
     gds.get_path("nybb")
+    gds.get_path('geoda health')
