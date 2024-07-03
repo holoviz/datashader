@@ -64,10 +64,8 @@ jobs:
         if: env.MATRIX_OPTION == 'default'
         run: |
           MATRIX=$(jq -nsc '{
-              "os": ["ubuntu-latest"],
-              "python-version": ["3.12"],
-              # "os": ["ubuntu-latest", "macos-latest", "windows-latest"],
-              # "python-version": ["3.9", "3.10", "3.11", "3.12"],
+              "os": ["ubuntu-latest", "macos-latest", "windows-latest"],
+              "python-version": ["3.9", "3.10", "3.11", "3.12"],
               "exclude": [{
                   "os": "windows-latest",
                   "python-version": "3.9"
@@ -125,16 +123,16 @@ jobs:
         run: |
           conda activate test-environment
           python scripts/download_data.py
-      # - name: doit test_unit
-      #   run: |
-      #     conda activate test-environment
-      #     doit test_unit
-      # - name: doit test_unit_nojit
-      #   run: |
-      #     conda activate test-environment
-      #     doit test_unit_nojit
-      #   env:
-      #     NUMBA_DISABLE_JIT: 1
+      - name: doit test_unit
+        run: |
+          conda activate test-environment
+          doit test_unit
+      - name: doit test_unit_nojit
+        run: |
+          conda activate test-environment
+          doit test_unit_nojit
+        env:
+          NUMBA_DISABLE_JIT: 1
       - name: doit test_examples
         env:
           DASK_DATAFRAME__QUERY_PLANNING: False
