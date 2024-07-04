@@ -6,7 +6,6 @@ import xarray as xr
 
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray
-from datashader.tests.utils import dask_skip
 
 import pytest
 
@@ -48,9 +47,10 @@ def assert_eq(agg, b):
     assert agg.equals(b)
 
 
-@dask_skip
 @pytest.mark.parametrize("source", [xda, xdda, xds, xdds])
 def test_count(source):
+    if source is None:
+        pytest.skip("Dask not available")
     out = xr.DataArray(np.array([[5, 5], [5, 5]], dtype='i4'),
                        coords=coords, dims=dims)
     assert_eq(c.points(source, 'x', 'y', ds.count('i32')), out)
