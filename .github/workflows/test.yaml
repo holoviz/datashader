@@ -176,11 +176,7 @@ jobs:
       - name: doit test_unit
         run: |
           conda activate test-environment
-          doit test_unit
-      - name: doit test_unit_nojit
-        run: |
-          conda activate test-environment
-          doit test_unit_nojit
+          pytest datashader/tests -n logical --dist loadgroup
         env:
           NUMBA_DISABLE_JIT: 1
       - uses: codecov/codecov-action@v4
