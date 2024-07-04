@@ -421,7 +421,7 @@ def dshape_from_pandas_helper(col):
             cudf and isinstance(col.dtype, cudf.core.dtypes.CategoricalDtype)):
         # Compute category dtype
         pd_categories = col.cat.categories
-        if isinstance(pd_categories, dd.Index):
+        if dd and isinstance(pd_categories, dd.Index):
             pd_categories = pd_categories.compute()
         if cudf and isinstance(pd_categories, cudf.Index):
             pd_categories = pd_categories.to_pandas()
