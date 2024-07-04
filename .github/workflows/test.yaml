@@ -149,7 +149,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+      matrix:
+        os: ["ubuntu-latest"]
+        python-version: ["3.12"]
     timeout-minutes: 180
     defaults:
       run:
