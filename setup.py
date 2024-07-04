@@ -46,18 +46,22 @@ if sys.version_info[:2] >= (3, 10):
         'bokeh_sampledata',
     ]
 
+tests_core = [
+    'pytest',
+    'psutil',
+    'pytest-xdist',
+]
+
 extras_require = {
-    'tests': geopandas + [
+    'tests_core': tests_core,
+    'tests': tests_core + geopandas + [
         'dask',
         'geodatasets',
         'nbval',
         'netcdf4',
         'pyarrow',
-        'pytest',
         'pytest-benchmark',
         'pytest-cov',
-        'psutil',
-        'pytest-xdist',
         'rasterio',
         'rioxarray',
         'scikit-image',

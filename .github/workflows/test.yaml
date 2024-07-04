@@ -142,3 +142,45 @@ jobs:
       - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  core_test_suite:
+    name: Core tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    needs: [pre_commit, setup]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: holoviz-dev/holoviz_tasks/install@v0
+        with:
+          name: core_test_suite
+          python-version: ${{ matrix.python-version }}
+          channel-priority: flexible
+          channels: "pyviz/label/dev,numba,conda-forge,nodefaults"
+          envs: "-o tests_core"
+          cache: ${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
+          conda-update: true
+        id: install
+      - name: download data
+        run: |
+          conda activate test-environment
+          python scripts/download_data.py
+      - name: doit test_unit
+        run: |
+          conda activate test-environment
+          doit test_unit
+      - name: doit test_unit_nojit
+        run: |
+          conda activate test-environment
+          doit test_unit_nojit
+        env:
+          NUMBA_DISABLE_JIT: 1
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
