@@ -90,3 +90,8 @@ datashader/.version
 /.pytest_cache
 
 .asv/
+
+# pixi + hatchling
+.pixi
+pixi.lock
+_version.py

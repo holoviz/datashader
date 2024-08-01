@@ -1,0 +1,132 @@
+[project]
+name = "datashader"
+channels = ["pyviz/label/dev", "conda-forge"]
+platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
+
+[tasks]
+download-data = "python scripts/download_data.py"
+install = "python -m pip install --no-deps --disable-pip-version-check -e ."
+
+[environments]
+test-39 = ["py39", "test-core", "test", "example", "test-example", "test-unit-task"]
+test-310 = ["py310", "test-core", "test", "example", "test-example", "test-unit-task"]
+test-311 = ["py311", "test-core", "test", "example", "test-example", "test-unit-task"]
+test-312 = ["py312", "test-core", "test", "example", "test-example", "test-unit-task"]
+test-benchmark = ["py312", "test-core", "test-benchmark"]
+test-core = ["py312", "test-core", "test-unit-task"]
+test-gpu = ["py311", "test-core", "test-gpu"]
+# docs = ["py311", "example", "doc"]
+# build = ["py311", "build"]
+# lint = ["py311", "lint"]
+
+[dependencies]
+colorcet = "*"
+multipledispatch = "*"
+numba = "*"
+numpy = "*"
+pandas = "*"
+param = "*"
+pillow = "*"
+pip = "*"
+pyct = "*"
+requests = "*"
+scipy = "*"
+setuptools = "*" # distutils for pyct
+toolz = "*"
+xarray = "*"
+
+[feature.py39.dependencies]
+python = "3.9.*"
+
+[feature.py310.dependencies]
+python = "3.10.*"
+
+[feature.py311.dependencies]
+python = "3.11.*"
+
+[feature.py312.dependencies]
+python = "3.12.*"
+
+[feature.example.dependencies]
+bokeh = ">3.1"
+dask-core = "*"
+dask-geopandas = "*"
+fastparquet = "*"
+geodatasets = "*"
+geopandas = "*"
+graphviz = "*"
+holoviews = "*"
+matplotlib-base = ">=3.3"
+networkx = "*"
+panel = ">1.1"
+python-graphviz = "*"
+python-snappy = "*"
+rasterio = "*"
+scikit-image = "*"
+shapely = ">=2.0.0"
+spatialpandas = "*"
+streamz = "*"
+
+# =============================================
+# =================== TESTS ===================
+# =============================================
+[feature.test-core.dependencies]
+psutil = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-github-actions-annotate-failures = "*"
+pytest-xdist = "*"
+
+[feature.test-unit-task.tasks] # So it is not showing up in the test-gpu environment
+test-unit = 'pytest datashader -n logical --dist loadgroup'
+test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --dist loadgroup', env = { NUMBA_DISABLE_JIT = '1' } }
+
+[feature.test.dependencies]
+dask-core = "*"
+dask-expr = "*"
+dask-geopandas = "*"
+geodatasets = "*"
+geopandas = "*"
+netcdf4 = "*"
+pyarrow = "*"
+rasterio = "*"
+rioxarray = "*"
+scikit-image = "*"
+shapely = ">=2.0.0"
+spatialpandas = "*"
+
+[feature.test-example.dependencies]
+nbval = "*"
+
+[feature.test-example.tasks]
+test-example = 'pytest -n logical --dist loadscope --nbval-lax examples'
+
+[feature.test-gpu]
+channels = ["pyviz/label/dev", "rapidsai", "conda-forge"]
+platforms = ["linux-64"]
+
+[feature.test-gpu.activation.env]
+NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS = '0'
+
+[feature.test-gpu.dependencies]
+cuda-version = "12.2.*"
+cudf = "24.06.*"
+cupy = "*"
+dask-cudf = "*"
+dask-expr = "*"
+librmm = { version = "*", channel = "rapidsai" }
+rmm = { version = "*", channel = "rapidsai" }
+
+[feature.test-gpu.tasks]
+test-gpu = "python -m pytest datashader/tests -n logical --dist loadgroup --gpu"
+
+[feature.test-benchmark.dependencies]
+pytest-benchmark = "*"
+
+[feature.test-benchmark.tasks]
+test-benchmark = 'pytest datashader/tests --benchmark'
+
+# [feature.doc.dependencies]
+# nbsite = ">=0.8.4,<0.9.0"
+# numpydoc = "*"
+# sphinxcontrib-mermaid = "*"
