@@ -19,8 +19,8 @@ test-benchmark = ["py312", "test-core", "test-benchmark"]
 test-core = ["py312", "test-core", "test-unit-task"]
 test-gpu = ["py311", "test-core", "test-gpu"]
 # docs = ["py311", "example", "doc"]
-# build = ["py311", "build"]
-# lint = ["py311", "lint"]
+build = ["py311", "build"]
+lint = ["py311", "lint"]
 
 [dependencies]
 colorcet = "*"
@@ -128,7 +128,31 @@ pytest-benchmark = "*"
 [feature.test-benchmark.tasks]
 test-benchmark = 'pytest datashader/tests --benchmark'
 
+# =============================================
+# =================== DOCS ====================
+# =============================================
 # [feature.doc.dependencies]
 # nbsite = ">=0.8.4,<0.9.0"
 # numpydoc = "*"
 # sphinxcontrib-mermaid = "*"
+
+# =============================================
+# ================== BUILD ====================
+# =============================================
+[feature.build.dependencies]
+python-build = "*"
+conda-build = "*"
+
+[feature.build.tasks]
+build-conda = 'bash scripts/conda/build.sh'
+build-pip = 'python -m build .'
+
+# =============================================
+# =================== LINT ====================
+# =============================================
+[feature.lint.dependencies]
+pre-commit = "*"
+
+[feature.lint.tasks]
+lint = 'pre-commit run --all-files'
+lint-install = 'pre-commit install'
