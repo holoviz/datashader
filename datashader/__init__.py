@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from packaging.version import Version
 
-import param
-__version__ = str(param.version.Version(fpath=__file__, archive_commit="$Format:%h$",
-                                        reponame="datashader"))
+from .__version import __version__  # noqa: F401
 
 from .core import Canvas                                 # noqa (API import)
 from .reductions import *                                # noqa (API import)

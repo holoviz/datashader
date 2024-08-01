@@ -144,7 +144,7 @@ python-build = "*"
 conda-build = "*"
 
 [feature.build.tasks]
-build-conda = 'bash scripts/conda/build.sh'
+build-conda = { cmd = 'bash scripts/conda/build.sh', env = { DASK_DATAFRAME__QUERY_PLANNING = "False" } }
 build-pip = 'python -m build .'
 
 # =============================================
