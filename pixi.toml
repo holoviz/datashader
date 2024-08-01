@@ -124,7 +124,7 @@ librmm = { version = "*", channel = "rapidsai" }
 rmm = { version = "*", channel = "rapidsai" }
 
 [feature.test-gpu.tasks]
-test-gpu = "python -m pytest datashader/tests -n logical --dist loadgroup --gpu"
+test-gpu = "python -m pytest datashader/tests -n logical --dist loadgroup --gpu --benchmark-skip"
 test-benchmark = 'pytest datashader/tests --benchmark --gpu'
 
 # =============================================
