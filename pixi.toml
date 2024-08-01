@@ -15,7 +15,6 @@ test-39 = ["py39", "test-core", "test", "example", "test-example", "test-unit-ta
 test-310 = ["py310", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-311 = ["py311", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-312 = ["py312", "test-core", "test", "example", "test-example", "test-unit-task"]
-test-benchmark = ["py312", "test-core", "test-benchmark"]
 test-core = ["py312", "test-core", "test-unit-task"]
 test-gpu = ["py311", "test-core", "test-gpu"]
 # docs = ["py311", "example", "doc"]
@@ -79,13 +78,17 @@ streamz = "*"
 [feature.test-core.dependencies]
 psutil = "*"
 pytest = "*"
+pytest-benchmark = "*"
 pytest-cov = "*"
 pytest-github-actions-annotate-failures = "*"
 pytest-xdist = "*"
 
+[feature.test-core.tasks]
+test-benchmark = 'pytest datashader/tests --benchmark'
+
 [feature.test-unit-task.tasks] # So it is not showing up in the test-gpu environment
-test-unit = 'pytest datashader -n logical --dist loadgroup'
-test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --dist loadgroup', env = { NUMBA_DISABLE_JIT = '1' } }
+test-unit = 'pytest datashader -n logical --dist loadgroup --benchmark-skip'
+test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --dist loadgroup --benchmark-skip', env = { NUMBA_DISABLE_JIT = '1' } }
 
 [feature.test.dependencies]
 dask-expr = "*"
@@ -124,12 +127,6 @@ rmm = { version = "*", channel = "rapidsai" }
 
 [feature.test-gpu.tasks]
 test-gpu = "python -m pytest datashader/tests -n logical --dist loadgroup --gpu"
-
-[feature.test-benchmark.dependencies]
-pytest-benchmark = "*"
-
-[feature.test-benchmark.tasks]
-test-benchmark = 'pytest datashader/tests --benchmark'
 
 # =============================================
 # =================== DOCS ====================
