@@ -21,6 +21,7 @@ test-gpu = ["py311", "test-core", "test-gpu"]
 
 [dependencies]
 colorcet = "*"
+dask-core = "*"
 multipledispatch = "*"
 numba = "*"
 numpy = "*"
@@ -49,7 +50,6 @@ python = "3.12.*"
 
 [feature.example.dependencies]
 bokeh = ">3.1"
-dask-core = "*"
 dask-geopandas = "*"
 fastparquet = "*"
 geodatasets = "*"
@@ -82,7 +82,6 @@ test-unit = 'pytest datashader -n logical --dist loadgroup'
 test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --dist loadgroup', env = { NUMBA_DISABLE_JIT = '1' } }
 
 [feature.test.dependencies]
-dask-core = "*"
 dask-expr = "*"
 dask-geopandas = "*"
 geodatasets = "*"
