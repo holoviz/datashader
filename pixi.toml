@@ -17,7 +17,7 @@ test-311 = ["py311", "test-core", "test", "example", "test-example", "test-unit-
 test-312 = ["py312", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-core = ["py312", "test-core", "test-unit-task"]
 test-gpu = ["py311", "test-core", "test-gpu"]
-# docs = ["py311", "example", "doc"]
+docs = ["py311", "example", "doc"]
 build = ["py311", "build"]
 lint = ["py311", "lint"]
 
@@ -130,10 +130,20 @@ test-benchmark = 'pytest datashader/tests --benchmark --gpu'
 # =============================================
 # =================== DOCS ====================
 # =============================================
-# [feature.doc.dependencies]
-# nbsite = ">=0.8.4,<0.9.0"
-# numpydoc = "*"
-# sphinxcontrib-mermaid = "*"
+[feature.doc.dependencies]
+nbsite = ">=0.8.4,<0.9.0"
+numpydoc = "*"
+sphinxcontrib-mermaid = "*"
+
+[feature.doc.activation.env]
+DASK_DATAFRAME__QUERY_PLANNING = "False"
+
+[feature.doc.tasks]
+_docs-generate-rst = 'nbsite generate-rst --org holoviz --project-name datashader'
+_docs-generate = 'nbsite build --what=html --output=builtdocs --org holoviz --project-name datashader'
+
+[feature.doc.tasks.docs-build]
+depends_on = ['_docs-generate-rst', '_docs-generate']
 
 # =============================================
 # ================== BUILD ====================
