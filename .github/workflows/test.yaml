@@ -27,13 +27,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash -el {0}
+
 env:
-  OMP_NUM_THREADS: 1
-  OPENBLAS_NUM_THREADS: 1
-  MKL_NUM_THREADS: 1
-  VECLIB_MAXIMUM_THREADS: 1
-  NUMEXPR_NUM_THREADS: 1
-  PYDEVD_DISABLE_FILE_VALIDATION: 1
+  DISPLAY: ":99.0"
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  COV: "--cov=./holoviews --cov-report=xml"
 
 jobs:
   pre_commit:
@@ -65,80 +66,91 @@ jobs:
         run: |
           MATRIX=$(jq -nsc '{
               "os": ["ubuntu-latest", "macos-latest", "windows-latest"],
-              "python-version": ["3.9", "3.10", "3.11", "3.12"],
-              "exclude": [{
-                  "os": "windows-latest",
-                  "python-version": "3.9"
-              }]
+              "environment": ["test-39", "test-312"]
           }')
-          # Won't solve on Windows + Python 3.9
           echo "MATRIX=$MATRIX" >> $GITHUB_ENV
       - name: Set test matrix with 'full' option
         if: env.MATRIX_OPTION == 'full'
         run: |
           MATRIX=$(jq -nsc '{
               "os": ["ubuntu-latest", "macos-latest", "windows-latest"],
-              "python-version": ["3.9", "3.10", "3.11", "3.12"],
-              "exclude": [{
-                  "os": "windows-latest",
-                  "python-version": "3.9"
-              }]
+              "environment": ["test-39", "test-310", "test-311", "test-312"]
           }')
-          # Won't solve on Windows + Python 3.9
           echo "MATRIX=$MATRIX" >> $GITHUB_ENV
       - name: Set test matrix with 'downstream' option
         if: env.MATRIX_OPTION == 'downstream'
         run: |
           MATRIX=$(jq -nsc '{
               "os": ["ubuntu-latest"],
-              "python-version": ["3.11"]
+              "environment": ["test-311"]
           }')
           echo "MATRIX=$MATRIX" >> $GITHUB_ENV
 
-  test_suite:
-    name: Tests on ${{ matrix.os }} with Python ${{ matrix.python-version }}
-    needs: [pre_commit, setup]
+  pixi_lock:
+    name: Pixi lock
+    runs-on: ubuntu-latest
+    steps:
+      - uses: holoviz-dev/holoviz_tasks/pixi_lock@pixi
+        with:
+          cache: ${{ github.event.inputs.cache == 'true' || github.event.inputs.cache == '' }}
+
+  unit_test_suite:
+    name: unit:${{ matrix.environment }}:${{ matrix.os }}
+    needs: [pre_commit, setup, pixi_lock]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
-    timeout-minutes: 180
-    defaults:
-      run:
-        shell: bash -l {0}
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 120
     steps:
-      - uses: holoviz-dev/holoviz_tasks/install@v0
+      - uses: holoviz-dev/holoviz_tasks/pixi_install@pixi
         with:
-          name: unit_test_suite
-          python-version: ${{ matrix.python-version }}
-          channel-priority: flexible
-          channels: "pyviz/label/dev,numba,conda-forge,nodefaults"
-          envs: "-o tests -o examples"
-          cache: ${{ github.event.inputs.cache || github.event.inputs.cache == '' }}
-          conda-update: true
-        id: install
-      - name: download data
+          environments: ${{ matrix.environment }}
+      - name: Test Unit
         run: |
-          conda activate test-environment
-          python scripts/download_data.py
-      - name: doit test_unit
+          pixi run -e ${{ matrix.environment }} test-unit $COV
+      - name: Test Unit - No JIT
         run: |
-          conda activate test-environment
-          doit test_unit
-      - name: doit test_unit_nojit
+          pixi run -e ${{ matrix.environment }} test-unit-nojit $COV
+      - name: Test Examples
         run: |
-          conda activate test-environment
-          doit test_unit_nojit
-        env:
-          NUMBA_DISABLE_JIT: 1
-      - name: doit test_examples
-        env:
-          DASK_DATAFRAME__QUERY_PLANNING: False
-        run: |
-          conda activate test-environment
-          doit test_examples
+          pixi run -e ${{ matrix.environment }} test-example
       - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  core_test_suite:
+    name: core:${{ matrix.environment }}:${{ matrix.os }}
+    needs: [pre_commit, setup, pixi_lock]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+        environment: ["test-core"]
+    timeout-minutes: 120
+    steps:
+      - uses: holoviz-dev/holoviz_tasks/pixi_install@pixi
+        with:
+          environments: ${{ matrix.environment }}
+      - name: Test Unit
+        run: |
+          pixi run -e ${{ matrix.environment }} test-unit
+
+  benchmark_test_suite:
+    name: benchmark:${{ matrix.environment }}:${{ matrix.os }}
+    needs: [pre_commit, setup, pixi_lock]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        environment: ["test-benchmark"]
+    timeout-minutes: 120
+    steps:
+      - uses: holoviz-dev/holoviz_tasks/pixi_install@pixi
+        with:
+          environments: ${{ matrix.environment }}
+      - name: Test Unit
+        run: |
+          pixi run -e ${{ matrix.environment }} test-benchmark
