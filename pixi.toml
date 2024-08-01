@@ -44,12 +44,15 @@ python = "3.9.*"
 
 [feature.py310.dependencies]
 python = "3.10.*"
+bokeh_sampledata = "*"
 
 [feature.py311.dependencies]
 python = "3.11.*"
+bokeh_sampledata = "*"
 
 [feature.py312.dependencies]
 python = "3.12.*"
+bokeh_sampledata = "*"
 
 [feature.example.dependencies]
 bokeh = ">3.1"
