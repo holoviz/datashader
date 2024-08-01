@@ -109,7 +109,7 @@ jobs:
       - name: Test Unit
         run: |
           pixi run -e ${{ matrix.environment }} test-unit $COV
-      - name: Test Unit - No JIT
+      - name: Test Unit (without JIT)
         run: |
           pixi run -e ${{ matrix.environment }} test-unit-nojit $COV
       - name: Test Examples
