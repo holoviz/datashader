@@ -5,7 +5,7 @@ on:
       - main
   pull_request:
     branches:
-    - '*'
+      - "*"
   workflow_dispatch:
     inputs:
       target:
@@ -21,7 +21,7 @@ on:
         type: boolean
         default: true
   schedule:
-    - cron: '0 16 * * SUN'
+    - cron: "0 16 * * SUN"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -38,7 +38,7 @@ env:
 jobs:
   pre_commit:
     name: Run pre-commit
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     steps:
       - uses: holoviz-dev/holoviz_tasks/pre-commit@v0
 
