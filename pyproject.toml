@@ -1,6 +1,71 @@
 [build-system]
-build-backend = "setuptools.build_meta"
-requires = ["param", "pyct", "setuptools"]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "datashader"
+dynamic = ["version"]
+description="Data visualization toolchain based on aggregating into a grid"
+readme = "README.md"
+license = { text = "New BSD" }
+requires-python = ">=3.9"
+authors = [{ name = "HoloViz developers", email = "developers@holoviz.org" }]
+maintainers = [{ name = "HoloViz developers", email = "developers@holoviz.org" }]
+classifiers = [
+    "License :: OSI Approved :: BSD License",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    'colorcet',
+    'dask',
+    'multipledispatch',
+    'numba',
+    'numpy',
+    'pandas',
+    'param',
+    'pillow',
+    'pyct',
+    'requests',
+    'scipy',
+    'toolz',
+    'packaging',
+    'xarray',
+]
+
+[project.urls]
+Homepage = "https://datashader.org"
+Source = "https://github.com/holoviz/datashader"
+HoloViz = "https://holoviz.org/"
+
+# TODO: [project.optional-dependencies]
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { version_scheme = "no-guess-dev" }
+
+[tool.hatch.build.targets.wheel]
+include = ["datashader"]
+
+[tool.hatch.build.targets.sdist]
+include = ["datashader", "scripts"]
+
+[tool.hatch.build.targets.sdist.force-include]
+examples = "datashader/examples"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "datashader/_version.py"
 
 [tool.codespell]
 ignore-words-list = "trough,thi,ser"
