@@ -144,8 +144,12 @@ python-build = "*"
 conda-build = "*"
 
 [feature.build.tasks]
-build-conda = { cmd = 'bash scripts/conda/build.sh', env = { DASK_DATAFRAME__QUERY_PLANNING = "False" } }
+build-conda = 'bash scripts/conda/build.sh'
 build-pip = 'python -m build .'
+
+[feature.build.activation.env]
+MPLBACKEND = "Agg"
+DASK_DATAFRAME__QUERY_PLANNING = "False"
 
 # =============================================
 # =================== LINT ====================
