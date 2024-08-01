@@ -59,10 +59,7 @@ raw-options = { version_scheme = "no-guess-dev" }
 include = ["datashader"]
 
 [tool.hatch.build.targets.sdist]
-include = ["datashader", "scripts"]
-
-[tool.hatch.build.targets.sdist.force-include]
-examples = "datashader/examples"
+include = ["datashader", "scripts", "examples"]
 
 [tool.hatch.build.hooks.vcs]
 version-file = "datashader/_version.py"
