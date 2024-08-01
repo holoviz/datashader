@@ -7,6 +7,9 @@ platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 download-data = "python scripts/download_data.py"
 install = "python -m pip install --no-deps --disable-pip-version-check -e ."
 
+[activation.env]
+PYTHONIOENCODING = "utf-8"
+
 [environments]
 test-39 = ["py39", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-310 = ["py310", "test-core", "test", "example", "test-example", "test-unit-task"]
@@ -98,7 +101,7 @@ spatialpandas = "*"
 nbval = "*"
 
 [feature.test-example.tasks]
-test-example = 'pytest -n logical --dist loadscope --nbval-lax examples'
+test-example = { cmd = 'pytest -n logical --dist loadscope --nbval-lax examples', env = { DASK_DATAFRAME__QUERY_PLANNING = "False" } }
 
 [feature.test-gpu]
 channels = ["pyviz/label/dev", "rapidsai", "conda-forge"]
