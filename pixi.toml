@@ -105,7 +105,7 @@ spatialpandas = "*"
 nbval = "*"
 
 [feature.test-example.tasks]
-test-example = { cmd = 'pytest -n logical --dist loadscope --nbval-lax examples', env = { DASK_DATAFRAME__QUERY_PLANNING = "False" } }
+test-example = { cmd = 'pytest -n logical --dist loadscope --nbval-lax examples --benchmark-skip', env = { DASK_DATAFRAME__QUERY_PLANNING = "False" } }
 
 [feature.test-gpu]
 channels = ["pyviz/label/dev", "rapidsai", "conda-forge"]
