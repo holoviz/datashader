@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "datashader"
 dynamic = ["version"]
-description="Data visualization toolchain based on aggregating into a grid"
+description = "Data visualization toolchain based on aggregating into a grid"
 readme = "README.md"
 license = { text = "New BSD" }
 requires-python = ">=3.9"
