@@ -4,7 +4,7 @@ set -euxo pipefail
 
 PACKAGE="datashader"
 
-python -m build -w .
+python -m build .  # No -w, to also get examples into conda package
 
 VERSION=$(python -c "import $PACKAGE; print($PACKAGE._version.__version__)")
 export VERSION
