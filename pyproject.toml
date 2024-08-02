@@ -49,7 +49,11 @@ Homepage = "https://datashader.org"
 Source = "https://github.com/holoviz/datashader"
 HoloViz = "https://holoviz.org/"
 
-# TODO: [project.optional-dependencies]
+[project.optional-dependencies]
+tests = ["pytest"]
+
+[project.scripts]
+datashader = "datashader.__main:main"
 
 [tool.hatch.version]
 source = "vcs"
