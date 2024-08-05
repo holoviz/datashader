@@ -39,6 +39,6 @@ test:
     - pip
 
 about:
-  home: https://datashader.org
-  description: Data visualization toolchain based on aggregating into a grid
-  license: New BSD
+  home: {{ project['urls']['Homepage'] }}
+  summary: {{ project['description'] }}
+  license: {{ project['license']['text'] }}
