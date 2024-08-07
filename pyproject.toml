@@ -1,31 +1,98 @@
 [build-system]
-build-backend = "setuptools.build_meta"
-requires = [
-    "param",
-    "pyct",
-    "setuptools"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "datashader"
+dynamic = ["version"]
+description = "Data visualization toolchain based on aggregating into a grid"
+readme = "README.md"
+license = { text = "New BSD" }
+requires-python = ">=3.9"
+authors = [{ name = "HoloViz developers", email = "developers@holoviz.org" }]
+maintainers = [{ name = "HoloViz developers", email = "developers@holoviz.org" }]
+classifiers = [
+    "License :: OSI Approved :: BSD License",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    'colorcet',
+    'dask',
+    'multipledispatch',
+    'numba',
+    'numpy',
+    'pandas',
+    'param',
+    'pillow',
+    'pyct',
+    'requests',
+    'scipy',
+    'toolz',
+    'packaging',
+    'xarray',
 ]
 
+[project.urls]
+Homepage = "https://datashader.org"
+Source = "https://github.com/holoviz/datashader"
+HoloViz = "https://holoviz.org/"
+
+[project.optional-dependencies]
+tests = ["pytest"]
+
+[project.scripts]
+datashader = "datashader.__main:main"
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { version_scheme = "no-guess-dev" }
+
+[tool.hatch.build.targets.wheel]
+include = ["datashader"]
+
+[tool.hatch.build.targets.sdist]
+include = ["datashader", "scripts"]
+
+[tool.hatch.build.targets.sdist.force-include]
+examples = "datashader/examples"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "datashader/_version.py"
 
 [tool.codespell]
 ignore-words-list = "trough,thi,ser"
 
-
 [tool.ruff]
 line-length = 100
-target-version = "py39"
-
 
 [tool.ruff.lint.per-file-ignores]
-"test_mpl_ext.py" = ["E402"]  # Module level import not at top of file
+"test_mpl_ext.py" = ["E402"] # Module level import not at top of file
 
 [tool.pytest.ini_options]
-addopts = ["--pyargs", "--doctest-modules", "--doctest-ignore-import-errors", "--strict-config", "--strict-markers", "--color=yes"]
-norecursedirs = 'doc .git dist build _build .ipynb_checkpoints'
+addopts = [
+    "--pyargs",
+    "--doctest-modules",
+    "--doctest-ignore-import-errors",
+    "--strict-config",
+    "--strict-markers",
+    "--color=yes",
+]
 minversion = "7"
 xfail_strict = true
 log_cli_level = "INFO"
 filterwarnings = [
-    "ignore:Passing a (SingleBlockManager|BlockManager) to (Series|GeoSeries|DataFrame|GeoDataFrame) is deprecated:DeprecationWarning",  # https://github.com/holoviz/spatialpandas/issues/137
-    "ignore:Accessing the underlying geometries through the `.data`:DeprecationWarning:dask_geopandas.core",  # https://github.com/geopandas/dask-geopandas/issues/264
+    "ignore:Passing a (SingleBlockManager|BlockManager) to (Series|GeoSeries|DataFrame|GeoDataFrame) is deprecated:DeprecationWarning", # https://github.com/holoviz/spatialpandas/issues/137
+    "ignore:Accessing the underlying geometries through the `.data`:DeprecationWarning:dask_geopandas.core", # https://github.com/geopandas/dask-geopandas/issues/264
 ]
