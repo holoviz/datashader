@@ -2,61 +2,78 @@ name: docs
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+a[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+b[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+a[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+b[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+rc[0-9]+"
   workflow_dispatch:
     inputs:
       target:
-        description: 'Site to build and deploy'
+        description: "Site to build and deploy"
         type: choice
         options:
-        - dev
-        - main
-        - dryrun
+          - dev
+          - main
+          - dryrun
         required: true
         default: dryrun
   schedule:
-    - cron: '0 16 * * SUN'
+    - cron: "0 16 * * SUN"
+
+defaults:
+  run:
+    shell: bash -el {0}
 
 jobs:
-  build_docs:
-    name: Documentation
-    runs-on: 'ubuntu-latest'
-    timeout-minutes: 120
-    defaults:
-      run:
-        shell: bash -l {0}
-    env:
-      DESC: "Documentation build"
-      DASK_DATAFRAME__QUERY_PLANNING: false
+  pixi_lock:
+    name: Pixi lock
+    runs-on: ubuntu-latest
     steps:
-      - uses: holoviz-dev/holoviz_tasks/install@v0
+      - uses: holoviz-dev/holoviz_tasks/pixi_lock@pixi
+
+  docs_build:
+    name: Build Documentation
+    needs: [pixi_lock]
+    runs-on: "macos-latest"
+    timeout-minutes: 180
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: holoviz-dev/holoviz_tasks/pixi_install@pixi
         with:
-          name: Documentation
-          python-version: "3.10"
-          channel-priority: strict
-          channels: pyviz/label/dev,conda-forge,nodefaults
-          envs: "-o doc"
-          cache: true
-          conda-update: true
+          environments: docs
+      - name: Build documentation
+        run: pixi run -e docs docs-build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docs
+          if-no-files-found: error
+          path: builtdocs
       - name: Set output
         id: vars
         run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
-      - name: fetch data
-        run: |
-          conda activate test-environment
-          python scripts/download_data.py
-      - name: generate rst
-        run: |
-          conda activate test-environment
-          nbsite generate-rst --org holoviz --project-name datashader
-      - name: build docs
-        run: |
-          conda activate test-environment
-          nbsite build --what=html --output=builtdocs --org holoviz --project-name datashader
-      - name: Deploy dev
+
+  docs_publish:
+    name: Publish Documentation
+    runs-on: "ubuntu-latest"
+    needs: [docs_build]
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: docs
+          path: builtdocs/
+      - name: Set output
+        id: vars
+        run: echo "tag=${{ needs.docs_build.outputs.tag }}" >> $GITHUB_OUTPUT
+      - name: upload dev
         uses: peaceiris/actions-gh-pages@v3
         if: |
           (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'dev') ||
@@ -66,7 +83,7 @@ jobs:
           external_repository: holoviz-dev/datashader
           publish_dir: ./builtdocs
           force_orphan: true
-      - name: Deploy main
+      - name: upload main
         if: |
           (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'main') ||
           (github.event_name == 'push' && !(contains(steps.vars.outputs.tag, 'a') || contains(steps.vars.outputs.tag, 'b') || contains(steps.vars.outputs.tag, 'rc')))

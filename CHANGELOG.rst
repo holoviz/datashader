@@ -1,3 +1,22 @@
+Version 0.16.3 (2024-07-04)
+---------------------------
+
+This release adds an enhancement and compatibility changes with upstream libraries. Thanks to `@raphaelquast <https://github.com/raphaelquast>`_, `@droumis <https://github.com/droumis>`_ and `@hoxbro <https://github.com/hoxbro>`_.
+
+Enhancements:
+
+- Add fail-fast for datasets outside the visible extent (`#1345 <https://github.com/holoviz/datashader/pull/1345>`_)
+
+Compatibility:
+
+- Compatibility with cudf 2024.06 (`#1344 <https://github.com/holoviz/datashader/pull/1344>`_)
+- Compatibility with geopandas 1.0 and dask-geopandas 0.4.0 (`#1347 <https://github.com/holoviz/datashader/pull/1347>`_)
+
+Maintenance:
+
+- Update docs.yaml (`#1346 <https://github.com/holoviz/datashader/pull/1346>`_)
+
+
 Version 0.16.2 (2024-05-31)
 ---------------------------
 

@@ -2,14 +2,15 @@
 
 set -euxo pipefail
 
-git status
+PACKAGE="datashader"
 
-python -m build -w .
+python -m build .  # No -w, to also get examples into conda package
 
-git diff --exit-code
-
-VERSION=$(find dist -name "*.whl" -exec basename {} \; | cut -d- -f2)
+VERSION=$(python -c "import $PACKAGE; print($PACKAGE._version.__version__)")
 export VERSION
 
-# Note: pyct is needed in the same environment as conda-build!
+# conda config --env --set conda_build.pkg_format 2
 conda build scripts/conda/recipe --no-anaconda-upload --no-verify
+
+# mv "$CONDA_PREFIX/conda-bld/noarch/$PACKAGE-$VERSION-py_0.conda" dist
+mv "$CONDA_PREFIX/conda-bld/noarch/$PACKAGE-$VERSION-py_0.tar.bz2" dist
