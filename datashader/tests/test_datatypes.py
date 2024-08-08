@@ -63,7 +63,7 @@ def test_construct_ragged_array():
     assert rarray.nbytes == expected
 
     # Check dtype
-    assert type(rarray.dtype) == RaggedDtype
+    assert type(rarray.dtype) is RaggedDtype
 
 
 def test_construct_ragged_array_from_ragged_array():

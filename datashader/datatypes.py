@@ -418,7 +418,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
                         if slice_end!=slice_start
                         else np.nan)
 
-        elif type(item) == slice:
+        elif type(item) is slice:
             data = []
             selected_indices = np.arange(len(self))[item]
 
