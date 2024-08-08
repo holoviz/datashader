@@ -1,6 +1,19 @@
 from __future__ import annotations
 import pytest
 
+from os import path
+from itertools import product
+
+import datashader as ds
+import xarray as xr
+import numpy as np
+import pandas as pd
+
+from datashader.resampling import compute_chunksize
+import datashader.transfer_functions as tf
+from packaging.version import Version
+from .utils import dask_skip
+
 try:
     import rasterio
 except ImportError:
@@ -11,22 +24,12 @@ try:
 except ImportError:
     rioxarray = None
 
-from dask.context import config
-
-from os import path
-from itertools import product
-
-import datashader as ds
-import xarray as xr
-import numpy as np
-import dask.array as da
-import pandas as pd
-
-from datashader.resampling import compute_chunksize
-import datashader.transfer_functions as tf
-from packaging.version import Version
-
-config.set(scheduler='synchronous')
+try:
+    from dask.context import config
+    import dask.array as da
+    config.set(scheduler='synchronous')
+except ImportError:
+    da = None
 
 open_rasterio_available = pytest.mark.skipif(rioxarray is None and rasterio is None,
                                              reason="requires rioxarray or rasterio")
@@ -454,6 +457,7 @@ def test_raster_single_pixel_range_with_padding():
     assert np.allclose(agg.y.values, np.array([-0.399875, -0.199625,  0.000625,  0.200875]))
 
 
+@dask_skip
 @pytest.mark.parametrize(
     'in_size, out_size, agg',
     product(range(5, 8), range(2, 5),
@@ -481,6 +485,7 @@ def test_raster_distributed_downsample(in_size, out_size, agg):
     assert np.allclose(agg_arr.y.values, agg_darr.y.values)
 
 
+@dask_skip
 @pytest.mark.parametrize('in_size, out_size', product(range(2, 5), range(7, 9)))
 def test_raster_distributed_upsample(in_size, out_size):
     """
@@ -505,6 +510,7 @@ def test_raster_distributed_upsample(in_size, out_size):
     assert np.allclose(agg_arr.y.values, agg_darr.y.values)
 
 
+@dask_skip
 def test_raster_distributed_regrid_chunksize():
     """
     Ensure that distributed regrid respects explicit chunk size.
@@ -523,7 +529,7 @@ def test_raster_distributed_regrid_chunksize():
 
     assert agg_darr.data.chunksize == (1, 1)
 
-
+@dask_skip
 def test_resample_compute_chunksize():
     """
     Ensure chunksize computation is correct.

@@ -29,16 +29,20 @@ from __future__ import annotations
 from itertools import groupby
 from math import floor, ceil
 
-import dask.array as da
 import numpy as np
 
-from dask.delayed import delayed
 from numba import prange
 from .utils import ngjit, ngjit_parallel
 
 try:
+    import dask.array as da
+    from dask.delayed import delayed
+except ImportError:
+    da, delayed = None, None
+
+try:
     import cupy
-except Exception:
+except ImportError:
     cupy = None
 
 
@@ -242,6 +246,8 @@ def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear',
     resampled : dask.array.Array
         A resampled version of the *src* array.
     """
+    if da is None:
+        raise ImportError('dask is required for distributed regridding')
     temp_chunks = compute_chunksize(src, w, h, chunksize, max_mem)
     if chunksize is None:
         chunksize = src.chunksize
@@ -343,7 +349,10 @@ def resample_2d(src, w, h, ds_method='mean', us_method='linear',
     return _mask_or_not(resampled, src, fill_value)
 
 
-_resample_2d_delayed = delayed(resample_2d)
+if delayed:
+    _resample_2d_delayed = delayed(resample_2d)
+else:
+    _resample_2d_delayed = None
 
 
 def upsample_2d(src, w, h, method=US_LINEAR, fill_value=None, out=None):

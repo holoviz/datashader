@@ -15,8 +15,15 @@ from __future__ import annotations
 
 from math import ceil
 
-from dask import compute, delayed
 from pandas import DataFrame
+
+try:
+    import dask
+    from dask import compute, delayed
+except ImportError:
+    dask = None
+    compute = None
+    delayed = lambda *args, **kwargs: None  # noqa: E731
 
 try:
     import skimage
@@ -457,8 +464,8 @@ class hammer_bundle(connect_edges):
         Column name for each edge weight. If None, weights are ignored.""")
 
     def __call__(self, nodes, edges, **params):
-        if skimage is None:
-            raise ImportError("hammer_bundle operation requires scikit-image. "
+        if dask is None or skimage is None:
+            raise ImportError("hammer_bundle operation requires dask and scikit-image. "
                               "Ensure you install the dependency before applying "
                               "bundling.")
 

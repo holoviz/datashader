@@ -5,10 +5,20 @@ import xarray as xr
 import datashader as ds
 import pytest
 
-import dask.array
 from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
+from datashader.tests.utils import dask_skip
 
-array_modules = [np, dask.array]
+array_modules = [np]
+
+try:
+    import dask
+    import dask.array
+    dask.config.set(scheduler='single-threaded')
+    array_modules.append(dask.array)
+except ImportError:
+    class dask:
+        array = None
+
 try:
     import cudf
     import cupy
@@ -16,9 +26,6 @@ try:
 except ImportError:
     cudf = None
     cupy = None
-
-
-dask.config.set(scheduler='single-threaded')
 
 
 # Raster
@@ -90,6 +97,7 @@ def test_raster_quadmesh_autorange(array_module):
     assert_eq_ndarray(res.y_range, (0.5, 2.5), close=True)
 
 
+@dask_skip
 def test_raster_quadmesh_autorange_chunked():
     c = ds.Canvas(plot_width=8, plot_height=6)
     da = xr.DataArray(
@@ -331,6 +339,7 @@ def test_rectilinear_quadmesh_autorange(array_module):
     assert_eq_ndarray(res.y_range, (0.5, 2.5), close=True)
 
 
+@dask_skip
 def test_rectilinear_quadmesh_autorange_chunked():
     c = ds.Canvas(plot_width=8, plot_height=6)
     da = xr.DataArray(
@@ -572,7 +581,7 @@ def test_curve_quadmesh_autorange(array_module):
     assert_eq_ndarray(res.x_range, (0.5, 2.5), close=True)
     assert_eq_ndarray(res.y_range, (-1, 7), close=True)
 
-
+@dask_skip
 def test_curve_quadmesh_autorange_chunked():
     c = ds.Canvas(plot_width=4, plot_height=8)
 
