@@ -54,12 +54,11 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
                 stats.append(np.nanmax(agg.data))
         if is_bool:
             span = (0, 1)
+        elif dask:
+            b = db.from_sequence(stats)
+            span = dask.compute(b.min(), b.max())
         else:
-            if dask:
-                b = db.from_sequence(stats)
-                span = dask.compute(b.min(), b.max())
-            else:
-                raise ValueError('Dask is required for non-boolean data')
+            raise ValueError('Dask is required for non-boolean data')
         return super_tiles, span
     else:
         raise ValueError('Invalid color_ranging_strategy option')

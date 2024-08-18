@@ -21,9 +21,9 @@ try:
     import dask
     from dask import compute, delayed
 except ImportError:
-    dask = None
-    compute = None
-    delayed = lambda *args, **kwargs: None  # noqa: E731
+    dask, compute = None, None
+    def delayed(obj, *args, **kwargs):
+        raise ImportError("dask is required to use delayed functions")
 
 try:
     import skimage

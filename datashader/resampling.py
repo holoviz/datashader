@@ -349,10 +349,7 @@ def resample_2d(src, w, h, ds_method='mean', us_method='linear',
     return _mask_or_not(resampled, src, fill_value)
 
 
-if delayed:
-    _resample_2d_delayed = delayed(resample_2d)
-else:
-    _resample_2d_delayed = None
+_resample_2d_delayed = delayed(resample_2d) if delayed else None
 
 
 def upsample_2d(src, w, h, method=US_LINEAR, fill_value=None, out=None):
