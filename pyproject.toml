@@ -29,7 +29,6 @@ classifiers = [
 ]
 dependencies = [
     'colorcet',
-    'dask',
     'multipledispatch',
     'numba',
     'numpy',
