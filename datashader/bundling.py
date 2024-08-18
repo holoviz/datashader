@@ -22,9 +22,10 @@ try:
     from dask import compute, delayed
 except ImportError:
     dask, compute = None, None
-    def delayed(obj, *args, **kwargs):
-        raise ImportError("dask is required to use delayed functions")
-
+    def delayed(*args, **kwargs):
+        def func(*args, **kwargs):
+            raise ImportError("dask is required to use delayed functions")
+        return func
 try:
     import skimage
     from skimage.filters import gaussian, sobel_h, sobel_v
