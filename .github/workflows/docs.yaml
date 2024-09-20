@@ -22,14 +22,14 @@ on:
 
 defaults:
   run:
-    shell: bash -el {0}
+    shell: bash -l {0}
 
 jobs:
   pixi_lock:
     name: Pixi lock
     runs-on: ubuntu-latest
     steps:
-      - uses: holoviz-dev/holoviz_tasks/pixi_lock@pixi
+      - uses: holoviz-dev/holoviz_tasks/pixi_lock@v0
 
   docs_build:
     name: Build Documentation
@@ -41,7 +41,7 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: holoviz-dev/holoviz_tasks/pixi_install@pixi
+      - uses: holoviz-dev/holoviz_tasks/pixi_install@v0
         with:
           environments: docs
       - name: Build documentation
