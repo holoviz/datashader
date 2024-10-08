@@ -2,7 +2,7 @@ exclude: (\.(js|svg)$)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-builtin-literals
       - id: check-case-conflict
@@ -13,7 +13,7 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.6
+    rev: v0.6.9
     hooks:
       - id: ruff
         files: datashader/
