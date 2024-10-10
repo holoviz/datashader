@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-from dask.context import config
 from numpy import nan
 from packaging.version import Version
 
@@ -27,7 +25,14 @@ from datashader.tests.test_pandas import (
     assert_eq_xr, assert_eq_ndarray, values
 )
 
-config.set(scheduler='synchronous')
+
+try:
+    import dask.dataframe as dd
+    from dask.context import config
+    config.set(scheduler='synchronous')
+except ImportError:
+    pytestmark = pytest.importorskip("dask")
+
 
 
 @dask_switcher(query=False)
