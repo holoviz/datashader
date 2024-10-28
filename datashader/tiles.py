@@ -1,4 +1,5 @@
 from __future__ import annotations
+from importlib.util import find_spec
 from io import BytesIO
 
 import math
@@ -8,8 +9,6 @@ import dask
 import dask.bag as db
 
 import numpy as np
-
-from PIL.Image import fromarray
 
 __all__ = ['render_tiles', 'MercatorTileDefinition']
 
@@ -292,11 +291,15 @@ class TileRenderer:
         self.tile_format = tile_format
         self.post_render_func = post_render_func
 
+        if find_spec("PIL") is None:
+            raise ImportError('pillow is required to render tiles')
         # TODO: add all the formats supported by PIL
         if self.tile_format not in ('PNG', 'JPG'):
             raise ValueError('Invalid output format')
 
     def render(self, da, level):
+        from PIL import fromarray
+
         xmin, xmax = self.tile_def.x_range
         ymin, ymax = self.tile_def.y_range
         extent = xmin, ymin, xmax, ymax

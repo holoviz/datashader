@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import pytest
+
 import datashader as ds
 import datashader.transfer_functions as tf
 
@@ -42,7 +45,7 @@ def mock_shader_func(agg, span=None):
 
 
 def mock_post_render_func(img, **kwargs):
-    from PIL import ImageDraw
+    ImageDraw = pytest.importorskip("PIL.ImageDraw")
 
     (x, y) = (5, 5)
     info = "x={} / y={} / z={}, w={}, h={}".format(kwargs['x'],
@@ -58,6 +61,8 @@ def mock_post_render_func(img, **kwargs):
 
 # TODO: mark with slow_test
 def test_render_tiles():
+    pytest.importorskip("PIL")
+
     full_extent_of_data = (-500000, -500000,
                            500000, 500000)
     levels = list(range(2))
