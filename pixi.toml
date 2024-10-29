@@ -22,10 +22,10 @@ build = ["py311", "build"]
 lint = ["py311", "lint"]
 
 [dependencies]
+numba = "*"  # At top as this dictates Python version
 colorcet = "*"
 dask-core = "*"
 multipledispatch = "*"
-numba = "*"
 numpy = "*"
 pandas = "*"
 param = "*"
