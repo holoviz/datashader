@@ -298,7 +298,7 @@ class TileRenderer:
             raise ValueError('Invalid output format')
 
     def render(self, da, level):
-        from PIL import fromarray
+        from PIL.Image import fromarray
 
         xmin, xmax = self.tile_def.x_range
         ymin, ymax = self.tile_def.y_range
