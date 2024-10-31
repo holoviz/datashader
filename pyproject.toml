@@ -76,6 +76,22 @@ ignore-words-list = "trough,thi,ser"
 
 [tool.ruff]
 line-length = 100
+fix = true
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "UP",
+    "W",
+]
+ignore = [
+    "UP026",  # deprecated-mock-import
+    "UP027",  # unpacked-list-comprehension (deprecated)
+    "UP030",  # format-literals
+    "UP031",  # printf-string-formatting
+    "UP032",  # f-string
+]
 
 [tool.ruff.lint.per-file-ignores]
 "test_mpl_ext.py" = ["E402"] # Module level import not at top of file

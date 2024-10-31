@@ -337,7 +337,7 @@ def test_record_string():
 
 
 def test_record_with_unicode_name_as_numpy_dtype():
-    r = Record([(str('a'), 'int32')])
+    r = Record([('a', 'int32')])
     assert r.to_numpy_dtype() == np.dtype([('a', 'i4')])
 
 
