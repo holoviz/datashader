@@ -92,7 +92,7 @@ def alpha_colormap(color, min_alpha=40, max_alpha=255, N=256):
 
 class EqHistNormalize(mpl.colors.Normalize):
     def __init__(self, vmin=None, vmax=None, clip=False, nbins=256 ** 2, ncolors=256):
-        super(EqHistNormalize, self).__init__(vmin, vmax, clip)
+        super().__init__(vmin, vmax, clip)
         self._nbins = nbins
         self._bin_edges = None
         self._ncolors = ncolors
@@ -164,15 +164,15 @@ class EqHistNormalize(mpl.colors.Normalize):
         return np.interp([value], self._color_bins, self._bin_edges)[0]
 
     def autoscale(self, A):
-        super(EqHistNormalize, self).autoscale(A)
+        super().autoscale(A)
         self._bin_edges = self._binning(A, self._ncolors)
 
     def autoscale_None(self, A):
-        super(EqHistNormalize, self).autoscale_None(A)
+        super().autoscale_None(A)
         self._bin_edges = self._binning(A, self._ncolors)
 
     def scaled(self):
-        return super(EqHistNormalize, self).scaled() and self._bin_edges is not None
+        return super().scaled() and self._bin_edges is not None
 
 
 class DSArtist(_ImageBase):

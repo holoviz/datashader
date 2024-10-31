@@ -16,8 +16,8 @@ from datashader.mpl_ext import dsshow
 
 df = pd.DataFrame(
     {
-        "x": np.array(([0.0] * 10 + [1] * 10)),
-        "y": np.array(([0.0] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
+        "x": np.array([0.0] * 10 + [1] * 10),
+        "y": np.array([0.0] * 5 + [1] * 5 + [0] * 5 + [1] * 5),
     }
 )
 

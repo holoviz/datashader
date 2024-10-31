@@ -13,7 +13,7 @@ class NameVisitor(ast.NodeVisitor):
     NodeVisitor that builds a set of all of the named identifiers in an AST
     """
     def __init__(self, *args, **kwargs):
-        super(NameVisitor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.names = set()
 
     def visit_Name(self, node):
@@ -71,7 +71,7 @@ class ExpandVarargTransformer(ast.NodeTransformer):
             variable
 
         """
-        super(ExpandVarargTransformer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.starred_name = starred_name
         self.expand_names = expand_names
 
