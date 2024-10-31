@@ -339,20 +339,20 @@ class Bytes(Unit):
 
 
 _canonical_string_encodings = {
-    u'A': u'A',
-    u'ascii': u'A',
-    u'U8': u'U8',
-    u'utf-8': u'U8',
-    u'utf_8': u'U8',
-    u'utf8': u'U8',
-    u'U16': u'U16',
-    u'utf-16': u'U16',
-    u'utf_16': u'U16',
-    u'utf16': u'U16',
-    u'U32': u'U32',
-    u'utf-32': u'U32',
-    u'utf_32': u'U32',
-    u'utf32': u'U32',
+    'A': 'A',
+    'ascii': 'A',
+    'U8': 'U8',
+    'utf-8': 'U8',
+    'utf_8': 'U8',
+    'utf8': 'U8',
+    'U16': 'U16',
+    'utf-16': 'U16',
+    'utf_16': 'U16',
+    'utf16': 'U16',
+    'U32': 'U32',
+    'utf-32': 'U32',
+    'utf_32': 'U32',
+    'utf32': 'U32',
 }
 
 

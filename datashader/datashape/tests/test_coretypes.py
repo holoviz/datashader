@@ -651,7 +651,7 @@ def test_invalid_record_literal(invalid):
     [
         (['foo', b'\xc4\x87'.decode('utf8')], str),
         (['foo', 'bar'], str),
-        (list(u'ab'), str)
+        (list('ab'), str)
     ]
 )
 def test_unicode_record_names(names, typ):

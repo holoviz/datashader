@@ -80,9 +80,9 @@ class TestDataShapeLexer(unittest.TestCase):
         self.check_isolated_token("'test'", 'STRING', 'test')
         # Valid escaped characters
         self.check_isolated_token(r'"\"\b\f\n\r\t\ub155"', 'STRING',
-                                  u'"\b\f\n\r\t\ub155')
+                                  '"\b\f\n\r\t\ub155')
         self.check_isolated_token(r"'\'\b\f\n\r\t\ub155'", 'STRING',
-                                  u"'\b\f\n\r\t\ub155")
+                                  "'\b\f\n\r\t\ub155")
         # A sampling of invalid escaped characters
         self.check_failing_token(r'''"\'"''')
         self.check_failing_token(r"""'\"'""")
@@ -94,8 +94,8 @@ class TestDataShapeLexer(unittest.TestCase):
         self.check_failing_token(r"'\u123g'")
         self.check_failing_token(r"'\u123'")
         # Some unescaped and escapted unicode characters
-        self.check_isolated_token(u'"\uc548\ub155 \\uc548\\ub155"', 'STRING',
-                                  u'\uc548\ub155 \uc548\ub155')
+        self.check_isolated_token('"\uc548\ub155 \\uc548\\ub155"', 'STRING',
+                                  '\uc548\ub155 \uc548\ub155')
 
     def test_failing_tokens(self):
         self.check_failing_token('~')
