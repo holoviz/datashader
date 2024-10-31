@@ -1105,7 +1105,7 @@ class m2(FloatingReduction):
         return UsesCudaMutex.Global
 
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
-        return super(m2, self)._build_append(dshape, schema, cuda, antialias, self_intersect)
+        return super()._build_append(dshape, schema, cuda, antialias, self_intersect)
 
     def _build_create(self, required_dshape):
         return self._create_float64_zero
@@ -1263,7 +1263,7 @@ class count_cat(by):
         categories present.
     """
     def __init__(self, column):
-        super(count_cat, self).__init__(column, count())
+        super().__init__(column, count())
 
 
 class mean(Reduction):

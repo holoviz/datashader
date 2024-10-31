@@ -18,7 +18,7 @@ class _PolygonLike(_PointLike):
             * interp (bool): Whether to interpolate (True), or to have one color per shape (False)
     """
     def __init__(self, x, y, z=None, weight_type=True, interp=True):
-        super(_PolygonLike, self).__init__(x, y)
+        super().__init__(x, y)
         if z is None:
             self.z = []
         else:

@@ -25,7 +25,7 @@ class Type(type):
     _registry = {}
 
     def __new__(meta, name, bases, dct):
-        cls = super(Type, meta).__new__(meta, name, bases, dct)
+        cls = super(Type, meta).__new__(meta, name, bases, dct)  # noqa: UP008
         # Don't register abstract classes
         if not dct.get('abstract'):
             Type._registry[name] = cls
@@ -222,7 +222,7 @@ class Time(Unit):
         self.tz = tz
 
     def __str__(self):
-        basename = super(Time, self).__str__()
+        basename = super().__str__()
         if self.tz is None:
             return basename
         else:
@@ -243,7 +243,7 @@ class DateTime(Unit):
         self.tz = tz
 
     def __str__(self):
-        basename = super(DateTime, self).__str__()
+        basename = super().__str__()
         if self.tz is None:
             return basename
         else:
