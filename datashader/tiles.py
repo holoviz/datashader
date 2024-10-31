@@ -396,10 +396,7 @@ class S3TileRenderer(TileRenderer):
         except ImportError:
             raise ImportError('install boto3 to enable rendering to S3')
 
-        try:
-            from urlparse import urlparse
-        except ImportError:
-            from urllib.parse import urlparse
+        from urllib.parse import urlparse
 
         s3_info = urlparse(self.output_location)
         bucket = s3_info.netloc
