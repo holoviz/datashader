@@ -16,8 +16,6 @@ def test_hex_to_rgb():
 
 def test_rgb():
     assert rgb('#FAFBFC') == (250, 251, 252)
-    assert rgb('#FAFBFC') == (250, 251, 252)
-    assert rgb('blue') == (0, 0, 255)
     assert rgb('blue') == (0, 0, 255)
     assert rgb((255, 255, 255)) == (255, 255, 255)
     with pytest.raises(ValueError):
