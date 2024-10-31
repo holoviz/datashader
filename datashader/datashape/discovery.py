@@ -434,10 +434,7 @@ Mock = None
 try:
     from unittest.mock import Mock
 except ImportError:
-    try:
-        from mock import Mock
-    except ImportError:
-        pass
+    pass
 
 if Mock is not None:
     @dispatch(Mock)

@@ -86,8 +86,8 @@ select = [
     "W",
 ]
 ignore = [
-    "UP026",  # deprecated-mock-import
     "UP027",  # unpacked-list-comprehension (deprecated)
+    # The following should be enabled in the future
     "UP030",  # format-literals
     "UP031",  # printf-string-formatting
     "UP032",  # f-string

@@ -336,10 +336,7 @@ def test_lowest_common_dshape_varlen_strings():
 
 
 def test_discover_mock():
-    try:
-        from unittest.mock import Mock
-    except ImportError:
-        from mock import Mock
+    from unittest.mock import Mock
 
     # This used to segfault because we were sending mocks into numpy
     with pytest.raises(NotImplementedError):
