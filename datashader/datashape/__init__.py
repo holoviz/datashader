@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 
 from . import lexer, parser              # noqa (API import)
 from .coretypes import *                 # noqa (API import)

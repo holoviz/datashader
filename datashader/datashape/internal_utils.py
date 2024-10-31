@@ -4,7 +4,6 @@ Utility functions that are unrelated to datashape
 Do not import datashape modules into this module.  See util.py in that case
 """
 
-from __future__ import print_function, division, absolute_import
 
 import keyword
 import re

@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 from .dispatch import dispatch
 from .coretypes import (
     CType, Date, DateTime, DataShape, Record, String, Time, Var, from_numpy, to_numpy_dtype)
