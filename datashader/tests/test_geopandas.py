@@ -14,7 +14,7 @@ _backends = [
     pytest.param(False, id="dask"),
 ]
 
-_extra = ["spatialpandas.dask", "dask_geopandas.backends", "dask_geopandas"]
+_extras = ["spatialpandas.dask", "dask_geopandas.backends", "dask_geopandas"]
 
 with contextlib.suppress(ImportError):
     import dask_geopandas
@@ -25,12 +25,12 @@ with contextlib.suppress(ImportError):
 
 @pytest.fixture(params=_backends)
 def dask_both(request):
-    with dask_switcher(query=request.param, extras=_extra): ...
+    with dask_switcher(query=request.param, extras=_extras): ...
     return request.param
 
 @pytest.fixture
 def dask_classic(request):
-    with dask_switcher(query=False, extras=_extra): ...
+    with dask_switcher(query=False, extras=_extras): ...
 
 try:
     import dask_geopandas
