@@ -28,8 +28,12 @@ xda.f32[2] = np.nan
 xda.f64[2] = np.nan
 xds = xda.to_dataset(name='value').reset_coords(names=['i32', 'i64'])
 
-xdda = xda.chunk(chunks=5)
-xdds = xds.chunk(chunks=5)
+try:
+    import dask
+    xdda = xda.chunk(chunks=5)
+    xdds = xds.chunk(chunks=5)
+except ImportError:
+    dask, xdda, xdds = None, None, None
 
 c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
 
@@ -45,6 +49,8 @@ def assert_eq(agg, b):
 
 @pytest.mark.parametrize("source", [xda, xdda, xds, xdds])
 def test_count(source):
+    if source is None:
+        pytest.skip("Dask not available")
     out = xr.DataArray(np.array([[5, 5], [5, 5]], dtype='i4'),
                        coords=coords, dims=dims)
     assert_eq(c.points(source, 'x', 'y', ds.count('i32')), out)
@@ -110,6 +116,8 @@ def test_lines_xarray_common_x(ds2d, on_gpu, chunksizes):
         source.name.data = cupy.asarray(source.name.data)
 
     if chunksizes is not None:
+        if dask is None:
+            pytest.skip("Dask not available")
         source = source.chunk(chunksizes)
 
     canvas = ds.Canvas(plot_height=3, plot_width=7)

@@ -15,9 +15,17 @@ from __future__ import annotations
 
 from math import ceil
 
-from dask import compute, delayed
 from pandas import DataFrame
 
+try:
+    import dask
+    from dask import compute, delayed
+except ImportError:
+    dask, compute = None, None
+    def delayed(*args, **kwargs):
+        def func(*args, **kwargs):
+            raise ImportError("dask is required to use delayed functions")
+        return func
 try:
     import skimage
     from skimage.filters import gaussian, sobel_h, sobel_v
@@ -457,8 +465,8 @@ class hammer_bundle(connect_edges):
         Column name for each edge weight. If None, weights are ignored.""")
 
     def __call__(self, nodes, edges, **params):
-        if skimage is None:
-            raise ImportError("hammer_bundle operation requires scikit-image. "
+        if dask is None or skimage is None:
+            raise ImportError("hammer_bundle operation requires dask and scikit-image. "
                               "Ensure you install the dependency before applying "
                               "bundling.")
 
