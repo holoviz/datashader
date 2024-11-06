@@ -21,8 +21,9 @@ df = None
 def mock_load_data_func(x_range, y_range):
     global df
     if df is None:
-        xs = np.random.normal(loc=0, scale=500000, size=10000000)
-        ys = np.random.normal(loc=0, scale=500000, size=10000000)
+        rng = np.random.default_rng()
+        xs = rng.normal(loc=0, scale=500000, size=10000000)
+        ys = rng.normal(loc=0, scale=500000, size=10000000)
         df = pd.DataFrame(dict(x=xs, y=ys))
 
     return df.loc[df['x'].between(*x_range) & df['y'].between(*y_range)]

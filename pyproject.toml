@@ -82,6 +82,7 @@ fix = true
 select = [
     "E",
     "F",
+    "NPY",
     "UP",
     "W",
 ]
