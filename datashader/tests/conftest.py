@@ -1,3 +1,6 @@
+import numpy as np
+import pytest
+
 CUSTOM_MARKS = {"benchmark", "gpu"}
 
 
@@ -33,3 +36,8 @@ def pytest_collection_modifyitems(config, items):
 
     config.hook.pytest_deselected(items=skipped)
     items[:] = selected
+
+
+@pytest.fixture
+def rng():
+    return np.random.default_rng(42)
