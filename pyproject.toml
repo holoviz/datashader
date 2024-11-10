@@ -109,6 +109,11 @@ minversion = "7"
 xfail_strict = true
 log_cli_level = "INFO"
 filterwarnings = [
+    "error",
     "ignore:Passing a (SingleBlockManager|BlockManager) to (Series|GeoSeries|DataFrame|GeoDataFrame) is deprecated:DeprecationWarning", # https://github.com/holoviz/spatialpandas/issues/137
     "ignore:Accessing the underlying geometries through the `.data`:DeprecationWarning:dask_geopandas.core", # https://github.com/geopandas/dask-geopandas/issues/264
+    # 2024-11
+    "ignore:numpy.ndarray size changed, may indicate binary incompatibility:RuntimeWarning", # https://github.com/pydata/xarray/issues/7259
+    "ignore:\\s*Dask dataframe query planning is disabled because dask-expr is not installed:FutureWarning", # https://github.com/holoviz/spatialpandas/issues/146
+    "ignore:The legacy Dask DataFrame implementation is deprecated:FutureWarning", # https://github.com/holoviz/spatialpandas/issues/146
 ]
