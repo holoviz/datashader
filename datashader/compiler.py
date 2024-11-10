@@ -272,8 +272,7 @@ def traverse_aggregation(agg):
     """Yield a left->right traversal of an aggregation"""
     if isinstance(agg, summary):
         for a in agg.values:
-            for a2 in traverse_aggregation(a):
-                yield a2
+            yield from traverse_aggregation(a)
     else:
         yield agg
 

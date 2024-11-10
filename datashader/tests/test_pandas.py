@@ -34,10 +34,10 @@ def _pandas():
     plusminus  0 -1 nan -3  4  -5   6 -7  8 -9  10 -11 12 -13 14  -15 16 -17 18 -19
     cat2       a  b   c  d  a   b   c  d  a  b   c   d  a   b  c    d  a   b  c   d
     """
-    df_pd = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
-                      'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
-                      'log_x': np.array(([1.] * 10 + [10] * 10)),
-                      'log_y': np.array(([1.] * 5 + [10] * 5 + [1] * 5 + [10] * 5)),
+    df_pd = pd.DataFrame({'x': np.array([0.] * 10 + [1] * 10),
+                      'y': np.array([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5),
+                      'log_x': np.array([1.] * 10 + [10] * 10),
+                      'log_y': np.array([1.] * 5 + [10] * 5 + [1] * 5 + [10] * 5),
                       'i32': np.arange(20, dtype='i4'),
                       'i64': np.arange(20, dtype='i8'),
                       'f32': np.arange(20, dtype='f4'),

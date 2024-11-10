@@ -382,7 +382,7 @@ def tile_previewer(full_extent, tileset_url,
 class FileSystemTileRenderer(TileRenderer):
 
     def render(self, da, level):
-        for img, x, y, z in super(FileSystemTileRenderer, self).render(da, level):
+        for img, x, y, z in super().render(da, level):
             tile_file_name = '{}.{}'.format(y, self.tile_format.lower())
             tile_directory = os.path.join(self.output_location, str(z), str(x))
             output_file = os.path.join(tile_directory, tile_file_name)
@@ -399,15 +399,12 @@ class S3TileRenderer(TileRenderer):
         except ImportError:
             raise ImportError('install boto3 to enable rendering to S3')
 
-        try:
-            from urlparse import urlparse
-        except ImportError:
-            from urllib.parse import urlparse
+        from urllib.parse import urlparse
 
         s3_info = urlparse(self.output_location)
         bucket = s3_info.netloc
         client = boto3.client('s3')
-        for img, x, y, z in super(S3TileRenderer, self).render(da, level):
+        for img, x, y, z in super().render(da, level):
             tile_file_name = '{}.{}'.format(y, self.tile_format.lower())
             key = os.path.join(s3_info.path, str(z), str(x), tile_file_name).lstrip('/')
             output_buf = BytesIO()

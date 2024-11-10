@@ -1,17 +1,15 @@
 import pytest
-import numpy as np
 import pandas as pd
-
 import datashader as ds
 
 
 @pytest.fixture
-def time_series():
+def time_series(rng):
     n = 10**7
-    signal = np.random.normal(0, 0.3, size=n).cumsum() + 50
+    signal = rng.normal(0, 0.3, size=n).cumsum() + 50
     def noise(var, bias, n):
-        return np.random.normal(bias, var, n)
-    ys = signal + noise(1, 10*(np.random.random() - 0.5), n)
+        return rng.normal(bias, var, n)
+    ys = signal + noise(1, 10*(rng.random() - 0.5), n)
 
     df = pd.DataFrame({'y': ys})
     df['x'] = df.index
