@@ -106,7 +106,7 @@ class Slotted(ABC):
 
 @assert_dshape_equal.register(Slotted, Slotted)
 def _check_slots(a, b, path=None, **kwargs):
-    if type(a) != type(b):
+    if type(a) is not type(b):
         return _base_case(a, b, path=path, **kwargs)
 
     assert a.__slots__ == b.__slots__, 'slots mismatch: %r != %r\n%s' % (
@@ -132,7 +132,7 @@ def _base_case(a, b, path=None, **kwargs):
 
 @dispatch((DateTime, Time), (DateTime, Time))
 def assert_dshape_equal(a, b, path=None, check_tz=True, **kwargs):
-    if type(a) != type(b):
+    if type(a) is not type(b):
         return _base_case(a, b)
     if check_tz:
         _check_slots(a, b, path)

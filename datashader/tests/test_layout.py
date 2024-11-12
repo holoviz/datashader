@@ -87,9 +87,8 @@ def test_forceatlas2_unpositioned_nodes_with_weighted_edges(nodes_without_positi
 
 
 def test_random_layout(nodes_without_positions, edges):
-    expected_x = [0.417022004703, 0.000114374817, 0.146755890817, 0.186260211378, 0.396767474231]
-    expected_y = [0.720324493442, 0.302332572632, 0.092338594769, 0.345560727043, 0.538816734003]
-
+    expected_x = [0.511821624, 0.144159612, 0.311831452, 0.827702593, 0.549593687]
+    expected_y = [0.950463696, 0.948649447, 0.423326448, 0.409199136, 0.027559113]
     df = random_layout(nodes_without_positions, edges, seed=1)
 
     assert np.allclose(df['x'], expected_x)
@@ -107,9 +106,8 @@ def test_uniform_circular_layout(nodes_without_positions, edges):
 
 
 def test_random_circular_layout(nodes_without_positions, edges):
-    expected_x = [0.066430214119, 0.407310906119, 0.999999870890, 0.338539010529, 0.802076237875]
-    expected_y = [0.749032609855, 0.008666374166, 0.500359319055, 0.973212794501, 0.898434369139]
-
+    expected_x = [0.00137865, 0.97597639, 0.80853537, 0.97420002, 0.31060039]
+    expected_y = [0.46289541, 0.34687760, 0.89345383, 0.34146188, 0.96273944]
     df = circular_layout(nodes_without_positions, edges, uniform=False, seed=1)
 
     assert np.allclose(df['x'], expected_x)

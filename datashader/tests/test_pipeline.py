@@ -6,8 +6,8 @@ import datashader as ds
 import datashader.transfer_functions as tf
 
 
-df = pd.DataFrame({'x': np.array(([0.] * 10 + [1] * 10)),
-                   'y': np.array(([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5)),
+df = pd.DataFrame({'x': np.array([0.] * 10 + [1] * 10),
+                   'y': np.array([0.] * 5 + [1] * 5 + [0] * 5 + [1] * 5),
                    'f64': np.arange(20, dtype='f8')})
 df.loc['f64', 2] = np.nan
 

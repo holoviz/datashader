@@ -14,10 +14,10 @@ try:
 except ImportError:
     cupy = None
 
-xda = xr.DataArray(data=np.array(([1.] * 10 + [10] * 10)),
+xda = xr.DataArray(data=np.array([1.] * 10 + [10] * 10),
                    dims=('record'),
-                   coords={'x': xr.DataArray(np.array(([0.]*10 + [1]*10)), dims=('record')),
-                           'y': xr.DataArray(np.array(([0.]*5 + [1]*5 + [0]*5 + [1]*5)),
+                   coords={'x': xr.DataArray(np.array([0.]*10 + [1]*10), dims=('record')),
+                           'y': xr.DataArray(np.array([0.]*5 + [1]*5 + [0]*5 + [1]*5),
                                              dims=('record')),
                            'i32': xr.DataArray(np.arange(20, dtype='i4'), dims=('record')),
                            'i64': xr.DataArray(np.arange(20, dtype='i8'), dims=('record')),

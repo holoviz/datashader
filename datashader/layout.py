@@ -65,10 +65,10 @@ class random_layout(LayoutAlgorithm):
     def __call__(self, nodes, edges=None, **params):
         p = param.ParamOverrides(self, params)
 
-        np.random.seed(p.seed)
+        rng = np.random.default_rng(p.seed)
 
         df = nodes.copy()
-        points = np.asarray(np.random.random((len(df), 2)))
+        points = np.asarray(rng.random((len(df), 2)))
 
         df[p.x] = points[:, 0]
         df[p.y] = points[:, 1]
@@ -92,7 +92,7 @@ class circular_layout(LayoutAlgorithm):
     def __call__(self, nodes, edges=None, **params):
         p = param.ParamOverrides(self, params)
 
-        np.random.seed(p.seed)
+        rng = np.random.default_rng(p.seed)
 
         r = 0.5  # radius
         x0, y0 = 0.5, 0.5  # center of unit circle
@@ -103,7 +103,7 @@ class circular_layout(LayoutAlgorithm):
         if p.uniform:
             thetas = np.arange(circumference, step=circumference/len(df))
         else:
-            thetas = np.asarray(np.random.random((len(df),))) * circumference
+            thetas = np.asarray(rng.random((len(df),))) * circumference
 
         df[p.x] = x0 + r * np.cos(thetas)
         df[p.y] = y0 + r * np.sin(thetas)
@@ -111,11 +111,14 @@ class circular_layout(LayoutAlgorithm):
         return df
 
 
-def _extract_points_from_nodes(nodes, params, dtype=None):
+def _extract_points_from_nodes(nodes, params, dtype=None, rng=None):
+    if rng is None:
+        rng = np.random.default_rng()
+
     if params.x in nodes.columns and params.y in nodes.columns:
         points = np.asarray(nodes[[params.x, params.y]])
     else:
-        points = np.asarray(np.random.random((len(nodes), params.dim)), dtype=dtype)
+        points = np.asarray(rng.random((len(nodes), params.dim)), dtype=dtype)
     return points
 
 
@@ -243,10 +246,10 @@ class forceatlas2_layout(LayoutAlgorithm):
     def __call__(self, nodes, edges, **params):
         p = param.ParamOverrides(self, params)
 
-        np.random.seed(p.seed)
+        rng = np.random.default_rng(p.seed)
 
         # Convert graph into sparse adjacency matrix and array of points
-        points = _extract_points_from_nodes(nodes, p, dtype='f')
+        points = _extract_points_from_nodes(nodes, p, dtype='f', rng=rng)
         matrix = _convert_graph_to_sparse_matrix(nodes, edges, p, dtype='f')
 
         if p.k is None:

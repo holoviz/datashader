@@ -2,7 +2,6 @@
 A symbol table object to hold types for the parser.
 """
 
-from __future__ import absolute_import, division, print_function
 import ctypes
 from itertools import chain
 

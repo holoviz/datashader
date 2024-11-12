@@ -25,13 +25,13 @@ def extend_line():
 @pytest.mark.parametrize('high', [0, 10**5])
 @pytest.mark.parametrize('low', [0, -10**5])
 @pytest.mark.benchmark(group="extend_line")
-def test_extend_line_uniform(benchmark, extend_line, low, high):
+def test_extend_line_uniform(benchmark, extend_line, low, high, rng):
     n = 10**6
     sx, tx, sy, ty = (1, 0, 1, 0)
     xmin, xmax, ymin, ymax = (0, 0, 10**4, 10**4)
 
-    xs = np.random.uniform(xmin + low, ymin + high, n)
-    ys = np.random.uniform(xmax + low, ymax + high, n)
+    xs = rng.uniform(xmin + low, ymin + high, n)
+    ys = rng.uniform(xmax + low, ymax + high, n)
 
     agg = np.zeros((ymin, ymax), dtype='i4')
     buffer = np.empty(0)
@@ -41,7 +41,7 @@ def test_extend_line_uniform(benchmark, extend_line, low, high):
 
 
 @pytest.mark.benchmark(group="extend_line")
-def test_extend_line_normal(benchmark, extend_line):
+def test_extend_line_normal(benchmark, extend_line, rng):
     n = 10**6
     sx, tx, sy, ty = (1, 0, 1, 0)
     xmin, xmax, ymin, ymax = (0, 0, 10**4, 10**4)
@@ -50,10 +50,10 @@ def test_extend_line_normal(benchmark, extend_line):
     end = start + 60 * 60 * 24
     xs = np.linspace(start, end, n)
 
-    signal = np.random.normal(0, 0.3, size=n).cumsum() + 50
+    signal = rng.normal(0, 0.3, size=n).cumsum() + 50
     def noise(var, bias, n):
-        return np.random.normal(bias, var, n)
-    ys = signal + noise(1, 10*(np.random.random() - 0.5), n)
+        return rng.normal(bias, var, n)
+    ys = signal + noise(1, 10*(rng.random() - 0.5), n)
 
     agg = np.zeros((ymin, ymax), dtype='i4')
     buffer = np.empty(0)

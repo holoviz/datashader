@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 from itertools import chain
 import operator

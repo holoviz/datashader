@@ -1,4 +1,3 @@
-from __future__ import print_function, division, absolute_import
 
 from collections import OrderedDict
 from datetime import datetime, date, time, timedelta
@@ -435,10 +434,7 @@ Mock = None
 try:
     from unittest.mock import Mock
 except ImportError:
-    try:
-        from mock import Mock
-    except ImportError:
-        pass
+    pass
 
 if Mock is not None:
     @dispatch(Mock)

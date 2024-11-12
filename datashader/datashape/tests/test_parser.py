@@ -2,7 +2,6 @@
 Test the DataShape parser.
 """
 
-from __future__ import absolute_import, division, print_function
 
 import unittest
 import pytest
@@ -162,8 +161,8 @@ class TestDataShapeParserDTypeConstr(unittest.TestCase):
         # String parameter (positional)
         assertExpectedParse('unary["test"]', 'test')
         assertExpectedParse("unary['test']", 'test')
-        assertExpectedParse('unary["\\uc548\\ub155"]', u'\uc548\ub155')
-        assertExpectedParse(u'unary["\uc548\ub155"]', u'\uc548\ub155')
+        assertExpectedParse('unary["\\uc548\\ub155"]', '\uc548\ub155')
+        assertExpectedParse('unary["\uc548\ub155"]', '\uc548\ub155')
         # DataShape parameter (positional)
         assertExpectedParse('unary[int8]', ct.DataShape(ct.int8))
         assertExpectedParse('unary[X]', ct.DataShape(ct.TypeVar('X')))
@@ -185,8 +184,8 @@ class TestDataShapeParserDTypeConstr(unittest.TestCase):
         # String parameter (keyword)
         assertExpectedParse('unary[blah="test"]', 'test')
         assertExpectedParse("unary[blah='test']", 'test')
-        assertExpectedParse('unary[blah="\\uc548\\ub155"]', u'\uc548\ub155')
-        assertExpectedParse(u'unary[blah="\uc548\ub155"]', u'\uc548\ub155')
+        assertExpectedParse('unary[blah="\\uc548\\ub155"]', '\uc548\ub155')
+        assertExpectedParse('unary[blah="\uc548\ub155"]', '\uc548\ub155')
         # DataShape parameter (keyword)
         assertExpectedParse('unary[blah=int8]', ct.DataShape(ct.int8))
         assertExpectedParse('unary[blah=X]', ct.DataShape(ct.TypeVar('X')))
