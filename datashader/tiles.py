@@ -4,12 +4,15 @@ from io import BytesIO
 import math
 import os
 
-import dask
-import dask.bag as db
 
 import numpy as np
 
 from PIL.Image import fromarray
+try:
+    import dask
+    import dask.bag as db
+except ImportError:
+    dask, db = None, None
 
 __all__ = ['render_tiles', 'MercatorTileDefinition']
 
@@ -51,9 +54,11 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
                 stats.append(np.nanmax(agg.data))
         if is_bool:
             span = (0, 1)
-        else:
+        elif dask:
             b = db.from_sequence(stats)
             span = dask.compute(b.min(), b.max())
+        else:
+            raise ValueError('Dask is required for non-boolean data')
         return super_tiles, span
     else:
         raise ValueError('Invalid color_ranging_strategy option')
@@ -62,6 +67,8 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
 def render_tiles(full_extent, levels, load_data_func,
                  rasterize_func, shader_func,
                  post_render_func, output_path, color_ranging_strategy='fullscan'):
+    if not dask:
+        raise ImportError('Dask is required for rendering tiles')
     results = {}
     for level in levels:
         print('calculating statistics for level {}'.format(level))

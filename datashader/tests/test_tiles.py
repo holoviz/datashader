@@ -10,6 +10,8 @@ from datashader.tiles import _get_super_tile_min_max
 from datashader.tiles import calculate_zoom_level_stats
 from datashader.tiles import MercatorTileDefinition
 
+from datashader.tests.utils import dask_skip
+
 import numpy as np
 import pandas as pd
 
@@ -58,6 +60,7 @@ def mock_post_render_func(img, **kwargs):
 
 
 # TODO: mark with slow_test
+@dask_skip
 def test_render_tiles():
     full_extent_of_data = (-500000, -500000,
                            500000, 500000)
@@ -108,6 +111,7 @@ def test_get_super_tile_min_max():
     assert_is_numeric(result[0])
     assert_is_numeric(result[1])
 
+@dask_skip
 def test_calculate_zoom_level_stats_with_fullscan_ranging_strategy():
     full_extent = (-MERCATOR_CONST, -MERCATOR_CONST,
                    MERCATOR_CONST, MERCATOR_CONST)
