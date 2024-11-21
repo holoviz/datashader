@@ -116,4 +116,5 @@ filterwarnings = [
     "ignore:numpy.ndarray size changed, may indicate binary incompatibility:RuntimeWarning", # https://github.com/pydata/xarray/issues/7259
     "ignore:\\s*Dask dataframe query planning is disabled because dask-expr is not installed:FutureWarning", # https://github.com/holoviz/spatialpandas/issues/146
     "ignore:The legacy Dask DataFrame implementation is deprecated:FutureWarning", # https://github.com/holoviz/spatialpandas/issues/146
+    "ignore:The cuda.cuda(rt)? module is deprecated:DeprecationWarning", # https://github.com/rapidsai/rmm/issues/1730
 ]
