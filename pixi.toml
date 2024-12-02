@@ -1,7 +1,8 @@
 [project]
 name = "datashader"
-channels = ["pyviz/label/dev", "conda-forge"]
-platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
+channels = ["pyviz/label/dev", "numba", "conda-forge"]
+# platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
+platforms = ["linux-64", "osx-arm64", "osx-64"]
 
 [tasks]
 download-data = "python scripts/download_data.py"
@@ -15,6 +16,7 @@ test-39 = ["py39", "test-core", "test", "example", "test-example", "test-unit-ta
 test-310 = ["py310", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-311 = ["py311", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-312 = ["py312", "test-core", "test", "example", "test-example", "test-unit-task"]
+# test-313 = ["py313", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-core = ["py312", "test-core", "test-unit-task"]
 test-gpu = ["py312", "test-core", "test-gpu"]
 docs = ["py311", "example", "doc"]
@@ -51,6 +53,10 @@ bokeh_sampledata = "*"
 [feature.py312.dependencies]
 python = "3.12.*"
 bokeh_sampledata = "*"
+
+# [feature.py313.dependencies]
+# python = "3.13.*"
+# bokeh_sampledata = "*"
 
 [feature.example.dependencies]
 bokeh = ">3.1"
