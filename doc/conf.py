@@ -53,9 +53,6 @@ html_context.update({
     'github_repo': 'datashader',
 })
 
-if 'sphinxext.rediraffe' in extensions:
-    extensions.remove('sphinxext.rediraffe')
-
 extensions += [
     'sphinx.ext.autosummary',
     'numpydoc',
