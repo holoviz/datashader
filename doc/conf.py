@@ -53,12 +53,12 @@ html_context.update({
     'github_repo': 'datashader',
 })
 
-
 extensions += [
     'sphinx.ext.autosummary',
     'numpydoc',
     'nbsite.analytics',
     'sphinxcontrib.mermaid',
+    'sphinx_reredirects',
 ]
 
 myst_fence_as_directive = ["mermaid"]
@@ -68,6 +68,10 @@ nbsite_analytics = {
 }
 
 nbbuild_cell_timeout = 2000
+
+redirects = {
+    'topics/index': 'https://examples.holoviz.org',
+}
 
 # Datashader uses sphinx.ext.autodoc (e.g. automodule) for its API reference
 # and automatically include a module that contains Image. Image inherits

@@ -38,7 +38,7 @@ hardware, while exploiting distributed and GPU systems when available.
     Introduction <self>
     Getting Started <getting_started/index>
     User Guide <user_guide/index>
-    Topics <topics/index>
+    Examples <https://examples.holoviz.org>
     Releases <releases>
     API <api>
     FAQ <FAQ>
