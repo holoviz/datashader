@@ -137,6 +137,7 @@ test-benchmark = 'pytest datashader/tests --benchmark --gpu'
 nbsite = ">=0.8.4,<0.9.0"
 numpydoc = "*"
 sphinxcontrib-mermaid = "*"
+sphinx-reredirects = "*"
 
 [feature.doc.activation.env]
 DASK_DATAFRAME__QUERY_PLANNING = "False"
