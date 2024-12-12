@@ -52,6 +52,9 @@ bokeh_sampledata = "*"
 python = "3.12.*"
 bokeh_sampledata = "*"
 
+[feature.py312.activation.env]
+COVERAGE_CORE = "sysmon"
+
 [feature.example.dependencies]
 bokeh = ">3.1"
 dask-core = "*"
