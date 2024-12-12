@@ -119,7 +119,7 @@ NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS = '0'
 
 [feature.test-gpu.dependencies]
 cuda-version = "12.2.*"
-cudf = "24.10.*"
+cudf = "24.12.*"
 cupy = "*"
 dask-cudf = "*"
 dask-expr = "*"
