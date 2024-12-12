@@ -86,7 +86,6 @@ select = [
     "W",
 ]
 ignore = [
-    "UP027",  # unpacked-list-comprehension (deprecated)
     # The following should be enabled in the future
     "UP030",  # format-literals
     "UP031",  # printf-string-formatting
