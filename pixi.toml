@@ -119,7 +119,7 @@ NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS = '0'
 
 [feature.test-gpu.dependencies]
 cuda-version = "12.2.*"
-cudf = "24.10.*"
+cudf = "24.12.*"
 cupy = "*"
 dask-cudf = "*"
 dask-expr = "*"
@@ -137,6 +137,7 @@ test-benchmark = 'pytest datashader/tests --benchmark --gpu'
 nbsite = ">=0.8.4,<0.9.0"
 numpydoc = "*"
 sphinxcontrib-mermaid = "*"
+sphinx-reredirects = "*"
 
 [feature.doc.activation.env]
 DASK_DATAFRAME__QUERY_PLANNING = "False"
