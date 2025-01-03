@@ -252,7 +252,7 @@ class DSArtist(_ImageBase):
         """Convert an aggregate into an RGBA array."""
         raise NotImplementedError
 
-    def make_image(self, renderer, magnification=1.0, unsampled=True):
+    def make_image(self, renderer, magnification=1.0, unsampled=False):
         """
         Normalize, rescale, and colormap this image's data for rendering using
         *renderer*, with the given *magnification*.
@@ -279,13 +279,6 @@ class DSArtist(_ImageBase):
 
         trans = self.get_transform()
         transformed_bbox = TransformedBbox(bbox, trans)
-        if (
-            self.plot_width is not None
-            or self.plot_height is not None
-            or self.width_scale != 1.0
-            or self.height_scale != 1.0
-        ):
-            unsampled = False
 
         # Aggregate
         binned = self.aggregate([x1, x2], [y1, y2])
