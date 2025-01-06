@@ -520,7 +520,7 @@ class hammer_bundle(connect_edges):
             get_gradients_fn = delayed(get_gradients)
             advect_resample_all_fn = delayed(advect_resample_all)
         else:
-            result_edges_fn = resample_edges
+            resample_edges_fn = resample_edges
             draw_to_surface_fn = draw_to_surface
             get_gradients_fn = get_gradients
             advect_resample_all_fn = advect_resample_all
