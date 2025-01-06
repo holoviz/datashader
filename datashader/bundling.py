@@ -35,18 +35,42 @@ except Exception:
 import numpy as np
 import pandas as pd
 import param
+import numba as nb
 
 from .utils import ngjit
 
 
-@ngjit
+@nb.jit(
+    nb.float32(nb.float32[::1], nb.float32[::1]),
+    nopython=True,
+    nogil=True,
+    fastmath=True,
+    locals={"result": nb.float32, "diff": nb.float32},
+)
 def distance_between(a, b):
     """Find the Euclidean distance between two points."""
-    return (((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2))**(0.5)
+    diff = a[0] - b[0]
+    result = diff * diff
+    diff = a[1] - b[1]
+    result += diff * diff
+    return result
 
 
-@ngjit
-def resample_segment(segments, new_segments, min_segment_length, max_segment_length, ndims):
+
+@nb.jit(
+    'f4[:,::1](f4[:,::1],f4[:,::1],f8,f8,f8,i8)', 
+    nopython=True, 
+    nogil=True, 
+    fastmath=True,
+    locals={
+        'next_point': nb.float32[::1], 
+        'current_point': nb.float32[::1], 
+        'pos': nb.uint64, 
+        'index': nb.uint64, 
+        'distance': nb.float32
+    }
+)
+def resample_segment(segments, new_segments, min_segment_length, max_segment_length, squared_mean_segment_length, ndims):
     next_point = np.zeros(ndims, dtype=segments.dtype)
     current_point = segments[0]
     pos = 0
@@ -62,7 +86,7 @@ def resample_segment(segments, new_segments, min_segment_length, max_segment_len
             index += 2
         elif distance > max_segment_length:
             # If points are too far away from each other, linearly place new points
-            points = int(ceil(distance / ((max_segment_length + min_segment_length) / 2)))
+            points = int(ceil(np.sqrt(distance / squared_mean_segment_length)))
             for i in range(points):
                 new_segments[pos] = current_point + (i * ((next_point - current_point) / points))
                 pos += 1
@@ -78,8 +102,20 @@ def resample_segment(segments, new_segments, min_segment_length, max_segment_len
     return new_segments
 
 
-@ngjit
-def calculate_length(segments, min_segment_length, max_segment_length):
+@nb.jit(
+    nb.types.Tuple((nb.boolean, nb.uint64))(nb.float32[:,::1], nb.float64, nb.float64, nb.float64),
+    nopython=True, 
+    nogil=True, 
+    fastmath=True,
+    locals={
+        'next_point': nb.float32[::1], 
+        'current_point': nb.float32[::1], 
+        'pos': nb.uint64, 
+        'index': nb.uint64, 
+        'distance': nb.float32
+    }
+)
+def calculate_length(segments, squared_min_segment_length, squared_max_segment_length, squared_mean_segment_length):
     current_point = segments[0]
     index = 1
     total = 0
@@ -87,15 +123,15 @@ def calculate_length(segments, min_segment_length, max_segment_length):
     while index < len(segments):
         next_point = segments[index]
         distance = distance_between(current_point, next_point)
-        if (distance < min_segment_length and 1 < index < (len(segments) - 2)):
+        if (distance < squared_min_segment_length and 1 < index < (len(segments) - 2)):
             any_change = True
             current_point = (current_point + next_point) / 2
             total += 1
             index += 2
-        elif distance > max_segment_length:
+        elif distance > squared_max_segment_length:
             any_change = True
             # Linear subsample
-            points = int(ceil(distance / ((max_segment_length + min_segment_length) / 2)))
+            points = int(ceil(np.sqrt(distance / squared_mean_segment_length)))
             total += points
             current_point = next_point
             index += 1
@@ -108,20 +144,26 @@ def calculate_length(segments, min_segment_length, max_segment_length):
     return any_change, total
 
 
-def resample_edge(segments, min_segment_length, max_segment_length, ndims):
-    change, total_resamples = calculate_length(segments, min_segment_length, max_segment_length)
+def resample_edge(segments, squared_min_segment_length, squared_max_segment_length, 
+                  squared_mean_segment_length, ndims):
+    change, total_resamples = calculate_length(segments, squared_min_segment_length, 
+                                               squared_max_segment_length, squared_mean_segment_length)
     if not change:
         return segments
-    resampled = np.empty((total_resamples, ndims))
-    resample_segment(segments, resampled, min_segment_length, max_segment_length, ndims)
+    resampled = np.empty((total_resamples, ndims), dtype=np.float32)
+    resample_segment(segments, resampled, squared_min_segment_length, 
+                     squared_max_segment_length, squared_mean_segment_length, ndims)
     return resampled
 
 
-@delayed
 def resample_edges(edge_segments, min_segment_length, max_segment_length, ndims):
+    squared_min_segment_length = min_segment_length**2
+    squared_max_segment_length = max_segment_length**2
+    squared_mean_segment_length = ((min_segment_length + max_segment_length) / 2)**2
     replaced_edges = []
     for segments in edge_segments:
-        replaced_edges.append(resample_edge(segments, min_segment_length, max_segment_length,
+        replaced_edges.append(resample_edge(segments, squared_min_segment_length, 
+                                            squared_max_segment_length, squared_mean_segment_length,
                                             ndims))
     return replaced_edges
 
@@ -161,7 +203,6 @@ def advect_and_resample(vert, horiz, segments, iterations, accuracy, min_segment
     return segments
 
 
-@delayed
 def advect_resample_all(gradients, edge_segments, iterations, accuracy, min_segment_length,
                         max_segment_length, segment_class):
     vert, horiz = gradients
@@ -176,7 +217,6 @@ def batches(seq, n):
         yield seq[i:i + n]
 
 
-@delayed
 def draw_to_surface(edge_segments, bandwidth, accuracy, accumulator):
     img = np.zeros((accuracy + 1, accuracy + 1))
     for segments in edge_segments:
@@ -185,7 +225,6 @@ def draw_to_surface(edge_segments, bandwidth, accuracy, accumulator):
     return gaussian(img, sigma=bandwidth / 2)
 
 
-@delayed
 def get_gradients(img):
     img /= np.max(img)
 
@@ -219,7 +258,7 @@ class UnweightedSegment(BaseSegment):
     @staticmethod
     @ngjit
     def create_segment(edge):
-        return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]])
+        return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]], dtype=np.float32)
 
     @staticmethod
     @ngjit
@@ -242,7 +281,7 @@ class EdgelessUnweightedSegment(BaseSegment):
     @staticmethod
     @ngjit
     def create_segment(edge):
-        return np.array([[edge[0], edge[1]], [edge[2], edge[3]]])
+        return np.array([[edge[0], edge[1]], [edge[2], edge[3]]], dtype=np.float32)
 
     @staticmethod
     @ngjit
@@ -266,7 +305,7 @@ class WeightedSegment(BaseSegment):
     @ngjit
     def create_segment(edge):
         return np.array([[edge[0], edge[1], edge[2], edge[5]],
-                         [edge[0], edge[3], edge[4], edge[5]]])
+                         [edge[0], edge[3], edge[4], edge[5]]], dtype=np.float32)
 
     @staticmethod
     @ngjit
@@ -289,7 +328,7 @@ class EdgelessWeightedSegment(BaseSegment):
     @staticmethod
     @ngjit
     def create_segment(edge):
-        return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]])
+        return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]], dtype=np.float32)
 
     @staticmethod
     @ngjit
@@ -464,6 +503,9 @@ class hammer_bundle(connect_edges):
     weight = param.String(default='weight', allow_None=True, doc="""
         Column name for each edge weight. If None, weights are ignored.""")
 
+    use_dask = param.Boolean(default=False, doc="""
+        Whether to use dask to parallelize the computation.""")
+
     def __call__(self, nodes, edges, **params):
         if dask is None or skimage is None:
             raise ImportError("hammer_bundle operation requires dask and scikit-image. "
@@ -471,6 +513,17 @@ class hammer_bundle(connect_edges):
                               "bundling.")
 
         p = param.ParamOverrides(self, params)
+
+        if p.use_dask:
+            resample_edges_fn = delayed(resample_edges)
+            draw_to_surface_fn = delayed(draw_to_surface)
+            get_gradients_fn = delayed(get_gradients)
+            advect_resample_all_fn = delayed(advect_resample_all)
+        else:
+            result_edges_fn = resample_edges
+            draw_to_surface_fn = draw_to_surface
+            get_gradients_fn = get_gradients
+            advect_resample_all_fn = advect_resample_all
 
         # Calculate min/max for coordinates
         xmin, xmax = np.min(nodes[p.x]), np.max(nodes[p.x])
@@ -489,7 +542,7 @@ class hammer_bundle(connect_edges):
 
         # This gets the edges split into lots of small segments
         # Doing this inside a delayed function lowers the transmission overhead
-        edge_segments = [resample_edges(batch, p.min_segment_length, p.max_segment_length,
+        edge_segments = [resample_edges_fn(batch, p.min_segment_length, p.max_segment_length,
                                         segment_class.ndims) for batch in edge_batches]
 
         for i in range(p.iterations):
@@ -501,25 +554,26 @@ class hammer_bundle(connect_edges):
                 break
 
             # Draw the density maps and combine them
-            images = [draw_to_surface(segment, bandwidth, p.accuracy, segment_class.accumulate)
+            images = [draw_to_surface_fn(segment, bandwidth, p.accuracy, segment_class.accumulate)
                       for segment in edge_segments]
             overall_image = sum(images)
 
-            gradients = get_gradients(overall_image)
+            gradients = get_gradients_fn(overall_image)
 
             # Move edges along the gradients and resample when necessary
             # This could include smoothing to adjust the amount a graph can change
-            edge_segments = [advect_resample_all(gradients, segment, p.advect_iterations,
+            edge_segments = [advect_resample_all_fn(gradients, segment, p.advect_iterations,
                                                  p.accuracy, p.min_segment_length,
                                                  p.max_segment_length, segment_class)
                              for segment in edge_segments]
 
         # Do a final resample to a smaller size for nicer rendering
-        edge_segments = [resample_edges(segment, p.min_segment_length, p.max_segment_length,
+        edge_segments = [resample_edges_fn(segment, p.min_segment_length, p.max_segment_length,
                                         segment_class.ndims) for segment in edge_segments]
 
-        # Finally things can be sent for computation
-        edge_segments = compute(*edge_segments)
+        if p.use_dask:
+            # Finally things can be sent for computation
+            edge_segments = compute(edge_segments)
 
         # Smooth out the graph
         for i in range(10):
