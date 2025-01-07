@@ -185,7 +185,7 @@ def smooth(edge_segments, tension, idx, idy):
 
 
 @nb.jit(
-    'void(f4[:,::1],f8[:,::1],f8[:,::1],f8,u1,u1)',
+    nb.void(nb.float32[:,::1], nb.float32[:,::1], nb.float32[:,::1], nb.float64, nb.int64, nb.int64),
     nopython=True,
     nogil=True,
     fastmath=True,
@@ -195,14 +195,14 @@ def advect_segments(segments, vert, horiz, accuracy, idx, idy):
     for i in range(1, len(segments) - 1):
         x = np.uint16(segments[i, idx] * accuracy)
         y = np.uint16(segments[i, idy] * accuracy)
-        segments[i, idx] = segments[i, idx] + horiz[x, y] / accuracy
-        segments[i, idy] = segments[i, idy] + vert[x, y] / accuracy
+        segments[i, idx] += horiz[x, y] / accuracy
+        segments[i, idy] += vert[x, y] / accuracy
         segments[i, idx] = max(0, min(segments[i, idx], 1))
         segments[i, idy] = max(0, min(segments[i, idy], 1))
 
 
 @nb.jit(
-    nb.float32[:,::1](nb.float64[:,::1], nb.float64[:,::1], nb.float32[:,::1], nb.int64, nb.float64, segment_length_type, nb.int64, nb.int64, nb.int64),
+    nb.float32[:,::1](nb.float32[:,::1], nb.float32[:,::1], nb.float32[:,::1], nb.int64, nb.float64, segment_length_type, nb.int64, nb.int64, nb.int64),
     nopython=True,
     nogil=True,
     locals={'it': nb.uint8}
@@ -228,7 +228,7 @@ def batches(seq, n):
 
 
 def draw_to_surface(edge_segments, bandwidth, accuracy, accumulator):
-    img = np.zeros((accuracy + 1, accuracy + 1))
+    img = np.zeros((accuracy + 1, accuracy + 1), dtype=np.float32)
     for segments in edge_segments:
         for point in segments:
             accumulator(img, point, accuracy)
