@@ -194,7 +194,6 @@ def smooth_segment(segments, tension, idx, idy):
                             (tension*(previous[idx] + next_point[idx]) / 2))
             current[idy] = (((1-tension)*current[idy]) +
                             (tension*(previous[idy] + next_point[idy]) / 2))
-     
 
 def smooth(edge_segments, tension, idx, idy):
     for segments in edge_segments:
