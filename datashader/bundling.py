@@ -520,7 +520,7 @@ class hammer_bundle(connect_edges):
     tension = param.Number(default=0.3,bounds=(0,None),precedence=-0.5,doc="""
         Exponential smoothing factor to use when smoothing""")
 
-    accuracy = param.Integer(default=500,bounds=(1,None),precedence=-0.5,doc="""
+    accuracy = param.Integer(default=500,bounds=(1,65535),precedence=-0.5,doc="""
         Number of entries in table for...""")
 
     advect_iterations = param.Integer(default=50,bounds=(0,None),precedence=-0.5,doc="""
