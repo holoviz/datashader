@@ -158,7 +158,8 @@ def calculate_resampling(segments, squared_segment_length):
     nogil=True,
 )
 def resample_edge(segments, squared_segment_length, ndims):
-    change, total_resamples, n_points_to_add = calculate_resampling(segments, squared_segment_length)
+    change, total_resamples, n_points_to_add = calculate_resampling(segments, 
+                                                                    squared_segment_length)
     if not change:
         return segments
     resampled = np.empty((total_resamples, ndims), dtype=np.float32)
@@ -189,8 +190,10 @@ def smooth_segment(segments, tension, idx, idy):
         seg_length = len(segments) - 2
         for i in range(1, seg_length):
             previous, current, next_point = segments[i - 1], segments[i], segments[i + 1]
-            current[idx] = ((1-tension)*current[idx]) + (tension*(previous[idx] + next_point[idx]) / 2)
-            current[idy] = ((1-tension)*current[idy]) + (tension*(previous[idy] + next_point[idy]) / 2)
+            current[idx] = (((1-tension)*current[idx]) + 
+                            (tension*(previous[idx] + next_point[idx]) / 2))
+            current[idy] = (((1-tension)*current[idy]) + 
+                            (tension*(previous[idy] + next_point[idy]) / 2))
      
 
 def smooth(edge_segments, tension, idx, idy):
@@ -205,7 +208,8 @@ def smooth(edge_segments, tension, idx, idy):
     fastmath=True,
     locals={'it': nb.uint8, "i": nb.uint16, "x": nb.uint16, "y": nb.uint16}
 )
-def advect_and_resample(vert, horiz, segments, iterations, accuracy, squared_segment_length, idx, idy, ndims):
+def advect_and_resample(vert, horiz, segments, iterations, accuracy, squared_segment_length, 
+                        idx, idy, ndims):
     for it in range(iterations):
         for i in range(1, len(segments) - 1):
             x = np.uint16(segments[i, idx] * accuracy)
@@ -281,7 +285,8 @@ class UnweightedSegment(BaseSegment):
     @staticmethod
     @ngjit
     def create_segment(edge):
-        return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]], dtype=np.float32)
+        return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]], 
+                        dtype=np.float32)
 
     @staticmethod
     @ngjit
@@ -354,7 +359,8 @@ class EdgelessWeightedSegment(BaseSegment):
     @staticmethod
     @ngjit
     def create_segment(edge):
-        return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]], dtype=np.float32)
+        return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]], 
+                        dtype=np.float32)
 
     @staticmethod
     @ngjit
@@ -564,8 +570,10 @@ class hammer_bundle(connect_edges):
         # This is simply to let the work split out over multiple cores
         edge_batches = list(batches(edges, p.batch_size))
 
-        squared_segment_length = SegmentLength(p.min_segment_length**2, p.max_segment_length**2,
-                                                        ((p.min_segment_length + p.max_segment_length) / 2)**2)
+        squared_segment_length = SegmentLength(
+            p.min_segment_length**2, p.max_segment_length**2,
+            ((p.min_segment_length + p.max_segment_length) / 2)**2
+        )
 
         # This gets the edges split into lots of small segments
         # Doing this inside a delayed function lowers the transmission overhead
@@ -590,8 +598,9 @@ class hammer_bundle(connect_edges):
             # Move edges along the gradients and resample when necessary
             # This could include smoothing to adjust the amount a graph can change
             edge_segments = [advect_resample_all_fn(gradients, segment, p.advect_iterations,
-                                                 p.accuracy, squared_segment_length, segment_class.idx,
-                                                 segment_class.idy, segment_class.ndims)
+                                                 p.accuracy, squared_segment_length, 
+                                                 segment_class.idx, segment_class.idy, 
+                                                 segment_class.ndims)
                              for segment in edge_segments]
 
         # Do a final resample to a smaller size for nicer rendering
