@@ -198,31 +198,23 @@ def smooth(edge_segments, tension, idx, idy):
         smooth_segment(segments, tension, idx, idy)
 
 @nb.jit(
-    nb.void(nb.float32[:,::1], nb.float32[:,::1], nb.float32[:,::1], nb.float64, nb.int64, nb.int64),
+    nb.float32[:,::1](nb.float32[:,::1], nb.float32[:,::1], nb.float32[:,::1], nb.int64, nb.float64, 
+                      segment_length_type, nb.uint64, nb.uint64, nb.int64),
     nopython=True,
     nogil=True,
     fastmath=True,
-    locals={"x": nb.uint16, "y": nb.uint16}
-)
-def advect_segments(segments, vert, horiz, accuracy, idx, idy):
-    for i in range(1, len(segments) - 1):
-        x = np.uint16(segments[i, idx] * accuracy)
-        y = np.uint16(segments[i, idy] * accuracy)
-        segments[i, idx] += horiz[x, y] / accuracy
-        segments[i, idy] += vert[x, y] / accuracy
-        segments[i, idx] = max(0, min(segments[i, idx], 1))
-        segments[i, idy] = max(0, min(segments[i, idy], 1))
-
-
-@nb.jit(
-    nb.float32[:,::1](nb.float32[:,::1], nb.float32[:,::1], nb.float32[:,::1], nb.int64, nb.float64, segment_length_type, nb.int64, nb.int64, nb.int64),
-    nopython=True,
-    nogil=True,
-    locals={'it': nb.uint8}
+    locals={'it': nb.uint8, "i": nb.uint16, "x": nb.uint16, "y": nb.uint16}
 )
 def advect_and_resample(vert, horiz, segments, iterations, accuracy, squared_segment_length, idx, idy, ndims):
     for it in range(iterations):
-        advect_segments(segments, vert, horiz, accuracy, idx, idy)
+        for i in range(1, len(segments) - 1):
+            x = np.uint16(segments[i, idx] * accuracy)
+            y = np.uint16(segments[i, idy] * accuracy)
+            segments[i, idx] += horiz[x, y] / accuracy
+            segments[i, idy] += vert[x, y] / accuracy
+            segments[i, idx] = max(0, min(segments[i, idx], 1))
+            segments[i, idy] = max(0, min(segments[i, idy], 1))
+
         if it % 2 == 0:
             segments = resample_edge(segments, squared_segment_length, ndims)
     return segments
