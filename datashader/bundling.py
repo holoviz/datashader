@@ -37,6 +37,7 @@ import numpy as np
 import pandas as pd
 import param
 import numba as nb
+import itertools
 
 from .utils import ngjit
 
@@ -170,19 +171,31 @@ def resample_edges(edge_segments, squared_segment_length, ndims):
             for segments in edge_segments]
 
 
-@ngjit
+@nb.jit(
+    nb.void(nb.float32[:,::1], nb.float32, nb.int64, nb.int64),
+    nopython=True,
+    nogil=True,
+    fastmath=True,
+    locals={
+        "i": nb.uint16, 
+        "segments": nb.float32[:,::1],
+        "previous": nb.float32[::1],
+        "current": nb.float32[::1],
+        "next_point": nb.float32[::1]
+    }
+)
 def smooth_segment(segments, tension, idx, idy):
-    seg_length = len(segments) - 2
-    for i in range(1, seg_length):
-        previous, current, next_point = segments[i - 1], segments[i], segments[i + 1]
-        current[idx] = ((1-tension)*current[idx]) + (tension*(previous[idx] + next_point[idx]) / 2)
-        current[idy] = ((1-tension)*current[idy]) + (tension*(previous[idy] + next_point[idy]) / 2)
-
+    for _ in range(10):
+        seg_length = len(segments) - 2
+        for i in range(1, seg_length):
+            previous, current, next_point = segments[i - 1], segments[i], segments[i + 1]
+            current[idx] = ((1-tension)*current[idx]) + (tension*(previous[idx] + next_point[idx]) / 2)
+            current[idy] = ((1-tension)*current[idy]) + (tension*(previous[idy] + next_point[idy]) / 2)
+     
 
 def smooth(edge_segments, tension, idx, idy):
     for segments in edge_segments:
         smooth_segment(segments, tension, idx, idy)
-
 
 @nb.jit(
     nb.void(nb.float32[:,::1], nb.float32[:,::1], nb.float32[:,::1], nb.float64, nb.int64, nb.int64),
@@ -226,14 +239,24 @@ def batches(seq, n):
     for i in range(0, len(seq), n):
         yield seq[i:i + n]
 
-
 def draw_to_surface(edge_segments, bandwidth, accuracy, accumulator):
     img = np.zeros((accuracy + 1, accuracy + 1), dtype=np.float32)
     for segments in edge_segments:
-        for point in segments:
-            accumulator(img, point, accuracy)
+        accumulator(img, segments, accuracy)
     return gaussian(img, sigma=bandwidth / 2)
 
+@nb.jit(
+    nb.void(nb.float32[:,::1], nb.float32[:,::1]),
+    nopython=True,
+    nogil=True,
+    fastmath=True,
+)
+def normalize_gradients(vert, horiz):
+    for i in range(vert.shape[0]):
+        for j in range(vert.shape[1]):
+            magnitude = np.sqrt(horiz[i, j]**2 + vert[i, j]**2) + 1e-5
+            vert[i, j] /= magnitude
+            horiz[i, j] /= magnitude
 
 def get_gradients(img):
     img /= np.max(img)
@@ -241,9 +264,7 @@ def get_gradients(img):
     horiz = sobel_h(img)
     vert = sobel_v(img)
 
-    magnitude = np.sqrt(horiz**2 + vert**2) + 1e-5
-    vert /= magnitude
-    horiz /= magnitude
+    normalize_gradients(vert, horiz)
     return (vert, horiz)
 
 
@@ -272,8 +293,9 @@ class UnweightedSegment(BaseSegment):
 
     @staticmethod
     @ngjit
-    def accumulate(img, point, accuracy):
-        img[int(point[1] * accuracy), int(point[2] * accuracy)] += 1
+    def accumulate(img, points, accuracy):
+        for point in points:
+            img[int(point[1] * accuracy), int(point[2] * accuracy)] += 1
 
 
 class EdgelessUnweightedSegment(BaseSegment):
@@ -295,8 +317,9 @@ class EdgelessUnweightedSegment(BaseSegment):
 
     @staticmethod
     @ngjit
-    def accumulate(img, point, accuracy):
-        img[int(point[0] * accuracy), int(point[1] * accuracy)] += 1
+    def accumulate(img, points, accuracy):
+        for point in points:
+            img[int(point[0] * accuracy), int(point[1] * accuracy)] += 1
 
 
 class WeightedSegment(BaseSegment):
@@ -319,8 +342,9 @@ class WeightedSegment(BaseSegment):
 
     @staticmethod
     @ngjit
-    def accumulate(img, point, accuracy):
-        img[int(point[1] * accuracy), int(point[2] * accuracy)] += point[3]
+    def accumulate(img, points, accuracy):
+        for point in points:
+            img[int(point[1] * accuracy), int(point[2] * accuracy)] += point[3]
 
 
 class EdgelessWeightedSegment(BaseSegment):
@@ -342,8 +366,9 @@ class EdgelessWeightedSegment(BaseSegment):
 
     @staticmethod
     @ngjit
-    def accumulate(img, point, accuracy):
-        img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]
+    def accumulate(img, points, accuracy):
+        for point in points:
+            img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]
 
 
 def _convert_graph_to_edge_segments(nodes, edges, params):
@@ -411,12 +436,9 @@ def _convert_edge_segments_to_dataframe(edge_segments, segment_class, params):
     """
 
     # Need to put an array of NaNs with size point_dims between edges
-    def edge_iterator():
-        for edge in edge_segments:
-            yield edge
-            yield segment_class.create_delimiter()
-
-    df = DataFrame(np.concatenate(list(edge_iterator())))
+    delimiters = np.full((len(edge_segments), 1, segment_class.ndims), np.nan)
+    combined = list(itertools.chain(*zip(edge_segments, delimiters)))
+    df = DataFrame(np.concatenate(combined))
     df.columns = segment_class.get_columns(params)
     return df
 
@@ -588,15 +610,12 @@ class hammer_bundle(connect_edges):
             # Finally things can be sent for computation
             edge_segments = compute(edge_segments)
 
-        # Smooth out the graph
-        for i in range(10):
-            for batch in edge_segments:
-                smooth(batch, p.tension, segment_class.idx, segment_class.idy)
-
         # Flatten things
         new_segs = []
         for batch in edge_segments:
             new_segs.extend(batch)
+
+        smooth(new_segs, p.tension, segment_class.idx, segment_class.idy)
 
         # Convert list of edge segments to Pandas dataframe
         df = _convert_edge_segments_to_dataframe(new_segs, segment_class, p)
