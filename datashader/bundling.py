@@ -600,7 +600,7 @@ class hammer_bundle(connect_edges):
 
         if p.use_dask:
             # Finally things can be sent for computation
-            edge_segments = compute(edge_segments)
+            edge_segments = compute(edge_segments)[0]
 
         # Flatten things
         new_segs = []
