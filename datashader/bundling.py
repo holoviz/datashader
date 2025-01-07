@@ -62,16 +62,16 @@ def distance_between(a, b):
 
 @nb.jit(
     nb.float32[:,::1](nb.float32[:,::1], nb.float32[:,::1], nb.uint16[::1], nb.int64),
-    nopython=True, 
-    nogil=True, 
+    nopython=True,
+    nogil=True,
     fastmath=True,
     locals={
-        'next_point': nb.float32[::1], 
+        'next_point': nb.float32[::1],
         'current_point': nb.float32[::1],
         'step_vector': nb.float32[::1],
         'i': nb.uint16,
-        'pos': nb.uint64, 
-        'index': nb.uint64, 
+        'pos': nb.uint64,
+        'index': nb.uint64,
         'distance': nb.float32
     }
 )
@@ -112,10 +112,10 @@ def resample_segment(segments, new_segments, n_points_to_add, ndims):
     nogil=True, 
     fastmath=True,
     locals={
-        'next_point': nb.float32[::1], 
-        'current_point': nb.float32[::1], 
-        'pos': nb.uint64, 
-        'index': nb.uint64, 
+        'next_point': nb.float32[::1],
+        'current_point': nb.float32[::1],
+        'pos': nb.uint64,
+        'index': nb.uint64,
         'distance': nb.float32
     }
 )
@@ -178,7 +178,7 @@ def resample_edges(edge_segments, squared_segment_length, ndims):
     nogil=True,
     fastmath=True,
     locals={
-        "i": nb.uint16, 
+        "i": nb.uint16,
         "segments": nb.float32[:,::1],
         "previous": nb.float32[::1],
         "current": nb.float32[::1],
@@ -201,7 +201,7 @@ def smooth(edge_segments, tension, idx, idy):
         smooth_segment(segments, tension, idx, idy)
 
 @nb.jit(
-    nb.float32[:,::1](nb.float32[:,::1], nb.float32[:,::1], nb.float32[:,::1], nb.int64, nb.float64, 
+    nb.float32[:,::1](nb.float32[:,::1], nb.float32[:,::1], nb.float32[:,::1], nb.int64, nb.float64,
                       segment_length_type, nb.uint64, nb.uint64, nb.int64),
     nopython=True,
     nogil=True,
@@ -223,9 +223,10 @@ def advect_and_resample(vert, horiz, segments, iterations, accuracy, squared_seg
             segments = resample_edge(segments, squared_segment_length, ndims)
     return segments
 
-def advect_resample_all(gradients, edge_segments, iterations, accuracy, squared_segment_length, idx, idy, ndims):
+def advect_resample_all(gradients, edge_segments, iterations, accuracy, squared_segment_length, 
+                        idx, idy, ndims):
     vert, horiz = gradients
-    return [advect_and_resample(vert, horiz, edges, iterations, accuracy, squared_segment_length, 
+    return [advect_and_resample(vert, horiz, edges, iterations, accuracy, squared_segment_length,
                                 idx, idy, ndims)
             for edges in edge_segments]
 
