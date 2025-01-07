@@ -108,8 +108,8 @@ def resample_segment(segments, new_segments, n_points_to_add, ndims):
 
 @nb.jit(
     nb.types.Tuple((nb.boolean, nb.uint64, nb.uint16[::1]))(nb.float32[:,::1], segment_length_type),
-    nopython=True, 
-    nogil=True, 
+    nopython=True,
+    nogil=True,
     fastmath=True,
     locals={
         'next_point': nb.float32[::1],
@@ -158,7 +158,7 @@ def calculate_resampling(segments, squared_segment_length):
     nogil=True,
 )
 def resample_edge(segments, squared_segment_length, ndims):
-    change, total_resamples, n_points_to_add = calculate_resampling(segments, 
+    change, total_resamples, n_points_to_add = calculate_resampling(segments,
                                                                     squared_segment_length)
     if not change:
         return segments
@@ -190,9 +190,9 @@ def smooth_segment(segments, tension, idx, idy):
         seg_length = len(segments) - 2
         for i in range(1, seg_length):
             previous, current, next_point = segments[i - 1], segments[i], segments[i + 1]
-            current[idx] = (((1-tension)*current[idx]) + 
+            current[idx] = (((1-tension)*current[idx]) +
                             (tension*(previous[idx] + next_point[idx]) / 2))
-            current[idy] = (((1-tension)*current[idy]) + 
+            current[idy] = (((1-tension)*current[idy]) +
                             (tension*(previous[idy] + next_point[idy]) / 2))
      
 
@@ -208,7 +208,7 @@ def smooth(edge_segments, tension, idx, idy):
     fastmath=True,
     locals={'it': nb.uint8, "i": nb.uint16, "x": nb.uint16, "y": nb.uint16}
 )
-def advect_and_resample(vert, horiz, segments, iterations, accuracy, squared_segment_length, 
+def advect_and_resample(vert, horiz, segments, iterations, accuracy, squared_segment_length,
                         idx, idy, ndims):
     for it in range(iterations):
         for i in range(1, len(segments) - 1):
@@ -223,7 +223,7 @@ def advect_and_resample(vert, horiz, segments, iterations, accuracy, squared_seg
             segments = resample_edge(segments, squared_segment_length, ndims)
     return segments
 
-def advect_resample_all(gradients, edge_segments, iterations, accuracy, squared_segment_length, 
+def advect_resample_all(gradients, edge_segments, iterations, accuracy, squared_segment_length,
                         idx, idy, ndims):
     vert, horiz = gradients
     return [advect_and_resample(vert, horiz, edges, iterations, accuracy, squared_segment_length,
@@ -286,7 +286,7 @@ class UnweightedSegment(BaseSegment):
     @staticmethod
     @ngjit
     def create_segment(edge):
-        return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]], 
+        return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]],
                         dtype=np.float32)
 
     @staticmethod
@@ -360,7 +360,7 @@ class EdgelessWeightedSegment(BaseSegment):
     @staticmethod
     @ngjit
     def create_segment(edge):
-        return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]], 
+        return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]],
                         dtype=np.float32)
 
     @staticmethod
@@ -599,8 +599,8 @@ class hammer_bundle(connect_edges):
             # Move edges along the gradients and resample when necessary
             # This could include smoothing to adjust the amount a graph can change
             edge_segments = [advect_resample_all_fn(gradients, segment, p.advect_iterations,
-                                                 p.accuracy, squared_segment_length, 
-                                                 segment_class.idx, segment_class.idy, 
+                                                 p.accuracy, squared_segment_length,
+                                                 segment_class.idx, segment_class.idy,
                                                  segment_class.ndims)
                              for segment in edge_segments]
 
