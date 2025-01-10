@@ -153,7 +153,7 @@ def calculate_resampling(segments, squared_segment_length):
     return any_change, total, n_points_to_add
 
 @nb.jit(
-    nb.float32[:,::1](nb.float32[:,::1], segment_length_type, nb.int64),
+    nb.float32[:, ::1](nb.float32[:, ::1], segment_length_type, nb.int64),
     nopython=True,
     nogil=True,
 )
