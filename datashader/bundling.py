@@ -35,6 +35,7 @@ except Exception:
 import numpy as np
 import pandas as pd
 import param
+from numba import prange
 
 from .utils import ngjit
 
@@ -297,6 +298,27 @@ class EdgelessWeightedSegment(BaseSegment):
         img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]
 
 
+@ngjit
+def _edge_val_to_segments(vals):
+    edge_vals = np.full(vals.size * 3, np.nan, np.dtype("float"))
+    for i in prange(len(vals)):
+        pos = int(i * 3)
+        edge_vals[pos:pos+2] = vals[i]
+    return edge_vals
+
+@ngjit
+def _format_graph_segments(nodes, edges):
+    edge_table = np.full((edges.shape[0] * 3, 2), np.nan)
+    for i in prange(edges.shape[0]):
+        pos = int(i * 3)
+        s, t = edges[i]
+        edge_table[pos  , 0] = nodes[s, 0]
+        edge_table[pos  , 1] = nodes[s, 1]
+        edge_table[pos+1, 0] = nodes[t, 0]
+        edge_table[pos+1, 1] = nodes[t, 1]
+    return edge_table
+
+
 def _convert_graph_to_edge_segments(nodes, edges, params):
     """
     Merge graph dataframes into a list of edge segments.
@@ -412,8 +434,17 @@ class connect_edges(param.ParameterizedFunction):
         a point with NaN as the x or y value.
         """
         p = param.ParamOverrides(self, params)
-        edges, segment_class = _convert_graph_to_edge_segments(nodes, edges, p)
-        return _convert_edge_segments_to_dataframe(edges, segment_class, p)
+        e = pd.DataFrame(
+            _format_graph_segments(
+                nodes[[p.x, p.y]].values,
+                edges[[p.source, p.target]].values),
+            columns=[p.x, p.y]
+        )
+        if p.weight is not None:
+            e[p.weight] = _edge_val_to_segments(edges[p.weight].values)
+        if p.include_edge_id:
+            e["edge_id"] = _edge_val_to_segments(edges["id"].values)
+        return e
 
 directly_connect_edges = connect_edges # For backwards compatibility; deprecated
 
