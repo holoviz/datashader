@@ -150,7 +150,7 @@ _docs-generate-rst = 'nbsite generate-rst --org holoviz --project-name datashade
 _docs-generate = 'nbsite build --what=html --output=builtdocs --org holoviz --project-name datashader'
 
 [feature.doc.tasks.docs-build]
-depends_on = ['_docs-generate-rst', '_docs-generate']
+depends-on = ['_docs-generate-rst', '_docs-generate']
 
 # =============================================
 # ================== BUILD ====================
