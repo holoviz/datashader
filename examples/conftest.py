@@ -25,3 +25,12 @@ if find_spec("dask") is not None:
         collect_ignore_glob += [
             "user_guide/8_Polygons.ipynb",
         ]
+
+
+def pytest_sessionfinish(session, exitstatus):
+    # Can be removed when spatialpandas work with dask-expr
+
+    from pytest import ExitCode
+
+    if exitstatus == ExitCode.NO_TESTS_COLLECTED:
+        session.exitstatus = ExitCode.OK
