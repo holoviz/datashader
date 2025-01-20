@@ -1291,7 +1291,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             DGP_VERSION = Version(dask_geopandas.__version__).release
             # Version 0.4.0 added support for dask_expr and 0.4.3 removed
             # support for classic DataFrame
-            if DGP_VERSION >= (0, 4, 0) and DGP_VERSION < (0, 4, 3):
+            if (0, 4, 0) <= DGP_VERSION < (0, 4, 3):
                 from dask_geopandas.core import GeoDataFrame as gdf1
                 dfs.append(gdf1)
 
