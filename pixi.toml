@@ -112,7 +112,9 @@ spatialpandas = "*"
 nbval = "*"
 
 [feature.test-example.tasks]
-test-example = 'pytest -n logical --dist loadscope --nbval-lax examples --benchmark-skip'
+test-example-1 = 'pytest -n logical --dist loadscope --nbval-lax examples --benchmark-skip -k "not Polygon"'
+test-example-2 = { cmd = 'pytest -n logical --dist loadscope --nbval-lax examples --benchmark-skip -k "Polygon"', env = { DASK_DATAFRAME__QUERY_PLANNING = "False" } }
+test-example = { depends-on = ["test-example-1", "test-example-2"] }
 
 [feature.test-gpu]
 channels = ["rapidsai"]
