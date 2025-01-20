@@ -22,6 +22,7 @@ build = ["py311", "build"]
 lint = ["py311", "lint"]
 
 [dependencies]
+python = "<3.13"
 numba = "*"  # At top as this dictates Python version
 colorcet = "*"
 multipledispatch = "*"
