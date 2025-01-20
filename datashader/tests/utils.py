@@ -32,6 +32,10 @@ def _dask_setup():
 
         bypixel.pipeline.register(dd.core.DataFrame)(dask_pipeline)
         classic = True
+    else:
+        # dask_expr import below will now fail with:
+        # cannot import name '_Frame' from 'dask.dataframe.core'
+        expr = True
 
     with suppress(ImportError):
         import dask_expr
