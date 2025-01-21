@@ -15,6 +15,8 @@ html_css_files += [
     'css/custom.css'
 ]
 
+source_suffix = ['.rst', '.md', '.ipynb']
+
 html_logo = '_static/logo_horizontal.svg'
 html_favicon = '_static/favicon.ico'
 
