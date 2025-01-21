@@ -69,6 +69,7 @@ networkx = "*"
 panel = ">1.1"
 pillow = "*"
 pyogrio =  "*"
+pyproj = "*"
 python-graphviz = "*"
 python-snappy = "*"
 rasterio = "!=1.4.0" # 2024-11: Errors and will not solve to latest on Linux + Python 3.9
