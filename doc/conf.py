@@ -87,7 +87,7 @@ def patch_error_location(self, msg, error=True):
     try:
         original_error_location(self, msg, error)
     except ValueError as e:
-        if "See Also entry ':doc:`xarray-tutorial" in str(e):
+        if "site-packages/xarray" in str(e):
             return
         else:
             raise e
