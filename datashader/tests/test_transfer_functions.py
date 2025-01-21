@@ -4,10 +4,14 @@ from io import BytesIO
 
 import numpy as np
 import xarray as xr
-import dask.array as da
 import pytest
 import datashader.transfer_functions as tf
 from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr, assert_image_close
+
+try:
+    import dask.array as da
+except ImportError:
+    da = None
 
 coords = dict([('x_axis', [3, 4, 5]), ('y_axis', [0, 1, 2])])
 dims = ['y_axis', 'x_axis']
@@ -33,6 +37,8 @@ def build_agg(array_module=np):
 def build_agg_dask():
     # Dask arrays are immutable `build_agg(da)` won't work.
     # Create numpy based DataArray and convert to Dask by forcing chunking.
+    if da is None:
+        pytest.skip("dask is not available")
     return build_agg(np).chunk({d: 1 for d in dims})
 
 
@@ -54,6 +60,8 @@ def agg(request):
 
 def create_dask_array(*args, **kwargs):
     """Create a dask array wrapping around a numpy array."""
+    if da is None:
+        pytest.skip("dask is not available")
     return da.from_array(np.array(*args, **kwargs))
 
 
@@ -112,7 +120,7 @@ eq_hist_sol_rescale_discrete_levels['c'] = eq_hist_sol_rescale_discrete_levels['
 def check_span(x, cmap, how, sol):
     # Copy inputs that will be modified
     sol = sol.copy()
-    if isinstance(x, xr.DataArray) and isinstance(x.data, da.Array):
+    if isinstance(x, xr.DataArray) and da and isinstance(x.data, da.Array):
         x = x.compute()
     else:
         x = x.copy()

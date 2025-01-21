@@ -22,9 +22,9 @@ build = ["py311", "build"]
 lint = ["py311", "lint"]
 
 [dependencies]
-numba = "*"  # At top as this dictates Python version
+python = "<3.13"
+numba = "*" # At top as this dictates Python version
 colorcet = "*"
-dask-core = "*"
 multipledispatch = "*"
 numpy = "*"
 pandas = "*"
@@ -52,8 +52,12 @@ bokeh_sampledata = "*"
 python = "3.12.*"
 bokeh_sampledata = "*"
 
+[feature.py312.activation.env]
+COVERAGE_CORE = "sysmon"
+
 [feature.example.dependencies]
 bokeh = ">3.1"
+dask-core = "*"
 dask-geopandas = "*"
 fastparquet = "*"
 geodatasets = "*"
@@ -67,7 +71,7 @@ pillow = "*"
 pyogrio =  "*"
 python-graphviz = "*"
 python-snappy = "*"
-rasterio = "*"
+rasterio = "!=1.4.0" # 2024-11: Errors and will not solve to latest on Linux + Python 3.9
 scikit-image = "*"
 shapely = ">=2.0.0"
 spatialpandas = "*"
@@ -90,6 +94,7 @@ test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --di
 test-benchmark = 'pytest datashader/tests --benchmark'
 
 [feature.test.dependencies]
+dask-core = "*"
 dask-expr = "*"
 dask-geopandas = "*"
 geodatasets = "*"
@@ -97,8 +102,8 @@ geopandas-base = "*"
 netcdf4 = "*"
 pyarrow = "*"
 pillow = "*"
-pyogrio =  "*"
-rasterio = "*"
+pyogrio = "*"
+rasterio = "!=1.4.0" # 2024-11: Errors and will not solve to latest on Linux + Python 3.9
 rioxarray = "*"
 scikit-image = "*"
 shapely = ">=2.0.0"
@@ -108,7 +113,9 @@ spatialpandas = "*"
 nbval = "*"
 
 [feature.test-example.tasks]
-test-example = { cmd = 'pytest -n logical --dist loadscope --nbval-lax examples --benchmark-skip', env = { DASK_DATAFRAME__QUERY_PLANNING = "False" } }
+_test-example-1 = 'pytest -n logical --dist loadscope --nbval-lax examples --benchmark-skip -k "not Polygon"'
+_test-example-2 = { cmd = 'pytest -n logical --dist loadscope --nbval-lax examples --benchmark-skip -k "Polygon"', env = { DASK_DATAFRAME__QUERY_PLANNING = "False" } }
+test-example = { depends-on = ["_test-example-1", "_test-example-2"] }
 
 [feature.test-gpu]
 channels = ["rapidsai"]
@@ -119,7 +126,7 @@ NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS = '0'
 
 [feature.test-gpu.dependencies]
 cuda-version = "12.2.*"
-cudf = "24.10.*"
+cudf = "24.12.*"
 cupy = "*"
 dask-cudf = "*"
 dask-expr = "*"
@@ -137,6 +144,8 @@ test-benchmark = 'pytest datashader/tests --benchmark --gpu'
 nbsite = ">=0.8.4,<0.9.0"
 numpydoc = "*"
 sphinxcontrib-mermaid = "*"
+sphinx-reredirects = "*"
+dask-core = "<2025.1" # Spatialpandas does not currently support dask-expr
 
 [feature.doc.activation.env]
 DASK_DATAFRAME__QUERY_PLANNING = "False"
@@ -146,7 +155,7 @@ _docs-generate-rst = 'nbsite generate-rst --org holoviz --project-name datashade
 _docs-generate = 'nbsite build --what=html --output=builtdocs --org holoviz --project-name datashader'
 
 [feature.doc.tasks.docs-build]
-depends_on = ['_docs-generate-rst', '_docs-generate']
+depends-on = ['_docs-generate-rst', '_docs-generate']
 
 # =============================================
 # ================== BUILD ====================
@@ -161,7 +170,6 @@ build-pip = 'python -m build .'
 
 [feature.build.activation.env]
 MPLBACKEND = "Agg"
-DASK_DATAFRAME__QUERY_PLANNING = "False"
 
 # =============================================
 # =================== LINT ====================

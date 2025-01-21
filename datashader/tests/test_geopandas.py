@@ -1,7 +1,6 @@
 # Testing GeoPandas and SpatialPandas
 import contextlib
 
-import dask.dataframe as dd
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray
 import numpy as np
@@ -9,6 +8,11 @@ from numpy import nan
 import pytest
 from datashader.tests.utils import dask_switcher
 from packaging.version import Version
+
+try:
+    import dask.dataframe as dd
+except ImportError:
+    dd = None
 
 _backends = [
     pytest.param(False, id="dask"),

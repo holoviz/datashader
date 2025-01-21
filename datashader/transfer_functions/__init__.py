@@ -10,10 +10,14 @@ import numpy as np
 import numba as nb
 import toolz as tz
 import xarray as xr
-import dask.array as da
 
 from datashader.colors import rgb, Sets1to3
 from datashader.utils import nansum_missing, ngjit
+
+try:
+    import dask.array as da
+except ImportError:
+    da = None
 
 try:
     import cupy
@@ -253,7 +257,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
     interpolater = _normalize_interpolate_how(how)
 
     data = agg.data
-    if isinstance(data, da.Array):
+    if da and isinstance(data, da.Array):
         data = data.compute()
     else:
         data = data.copy()
@@ -382,7 +386,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     # Reorient array (transposing the category dimension first)
     agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
     data = agg_t.data.transpose([1, 2, 0])
-    if isinstance(data, da.Array):
+    if da and isinstance(data, da.Array):
         data = data.compute()
     color_data = data.copy()
 
@@ -529,7 +533,7 @@ def _apply_discrete_colorkey(agg, color_key, alpha, name, color_baseline):
         raise ValueError("Color key must be provided as a dictionary")
 
     agg_data = agg.data
-    if isinstance(agg_data, da.Array):
+    if da and isinstance(agg_data, da.Array):
         agg_data = agg_data.compute()
 
     cats = color_key.keys()

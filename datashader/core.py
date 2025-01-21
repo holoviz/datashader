@@ -7,8 +7,6 @@ import contextlib
 
 import numpy as np
 import pandas as pd
-import dask.dataframe as dd
-import dask.array as da
 from packaging.version import Version
 from xarray import DataArray, Dataset
 
@@ -18,6 +16,12 @@ from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
+
+try:
+    import dask.dataframe as dd
+    import dask.array as da
+except ImportError:
+    dd, da = None, None
 
 try:
     import cudf
@@ -1143,7 +1147,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             source_window = array[rmin:rmax+1, cmin:cmax+1]
             if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
-            if isinstance(source_window, da.Array):
+            if da and isinstance(source_window, da.Array):
                 data = resample_2d_distributed(
                     source_window, chunksize=chunksize, max_mem=max_mem,
                     **kwargs)
@@ -1156,7 +1160,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
                 source_window = source_window.astype('f')
             arrays = []
             for arr in source_window:
-                if isinstance(arr, da.Array):
+                if da and isinstance(arr, da.Array):
                     arr = resample_2d_distributed(
                         arr, chunksize=chunksize, max_mem=max_mem,
                         **kwargs)
@@ -1192,7 +1196,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             top_pad = np.full(tshape, fill_value, source_window.dtype)
             bottom_pad = np.full(bshape, fill_value, source_window.dtype)
 
-            concat = da.concatenate if isinstance(data, da.Array) else np.concatenate
+            concat = da.concatenate if da and isinstance(data, da.Array) else np.concatenate
             arrays = (top_pad, data) if top_pad.shape[0] > 0 else (data,)
             if bottom_pad.shape[0] > 0:
                 arrays += (bottom_pad,)
@@ -1283,7 +1287,11 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
 
         with contextlib.suppress(ImportError):
             import dask_geopandas
-            if Version(dask_geopandas.__version__) >= Version("0.4.0"):
+
+            DGP_VERSION = Version(dask_geopandas.__version__).release
+            # Version 0.4.0 added support for dask_expr and 0.4.3 removed
+            # support for classic DataFrame
+            if (0, 4, 0) <= DGP_VERSION < (0, 4, 3):
                 from dask_geopandas.core import GeoDataFrame as gdf1
                 dfs.append(gdf1)
 
@@ -1353,7 +1361,10 @@ def _bypixel_sanitise(source, glyph, agg):
         columns = list(source.coords.keys()) + list(source.data_vars.keys())
         cols_to_keep = _cols_to_keep(columns, glyph, agg)
         source = source.drop_vars([col for col in columns if col not in cols_to_keep])
-        source = source.to_dask_dataframe()
+        if dd:
+            source = source.to_dask_dataframe()
+        else:
+            source = source.to_dataframe()
 
     if (isinstance(source, pd.DataFrame) or
             (cudf and isinstance(source, cudf.DataFrame))):
@@ -1375,7 +1386,7 @@ def _bypixel_sanitise(source, glyph, agg):
                     getattr(source[glyph.geometry].array, "_sindex", None) is None):
                 source[glyph.geometry].array._sindex = sindex
         dshape = dshape_from_pandas(source)
-    elif isinstance(source, dd.DataFrame):
+    elif dd and isinstance(source, dd.DataFrame):
         dshape, source = dshape_from_dask(source)
     elif isinstance(source, Dataset):
         # Multi-dimensional Dataset
