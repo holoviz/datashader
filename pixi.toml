@@ -96,7 +96,7 @@ test-benchmark = 'pytest datashader/tests --benchmark'
 
 [feature.test.dependencies]
 dask-core = "*"
-dask-expr = "*"
+dask-expr = "<2"
 dask-geopandas = "*"
 geodatasets = "*"
 geopandas-base = "*"
