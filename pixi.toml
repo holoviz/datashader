@@ -160,6 +160,7 @@ numpydoc = "*"
 sphinxcontrib-mermaid = "*"
 sphinx-reredirects = "*"
 dask-core = "<2025.1" # Spatialpandas does not currently support dask-expr
+spatialpandas = "*" # NOTE: Remove when numba is on conda-forge
 
 [feature.doc.activation.env]
 DASK_DATAFRAME__QUERY_PLANNING = "False"
