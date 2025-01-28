@@ -16,17 +16,17 @@ test-310 = ["py310", "test-core", "test", "example", "test-example", "test-unit-
 test-311 = ["py311", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-312 = ["py312", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-313 = ["py313", "test-core", "test", "example", "test-example", "test-unit-task"]
-test-core = ["py313", "test-core", "test-unit-task"]
+test-core = ["py312", "test-core", "test-unit-task"]
 test-gpu = ["py312", "test-core", "test-gpu"]
 docs = ["py311", "example", "doc"]
 build = ["py311", "build"]
 lint = ["py311", "lint"]
 
 [dependencies]
-numba = "*"
+# numba = "*" # NOTE: Remove when numba is on conda-forge
 colorcet = "*"
 multipledispatch = "*"
-numpy = "*"
+numpy = "<2.2" # NOTE: Remove when numba is on conda-forge
 pandas = "*"
 param = "*"
 pillow = "*"
@@ -40,18 +40,22 @@ xarray = "*"
 
 [feature.py39.dependencies]
 python = "3.9.*"
+numba = "*" # NOTE: Remove when numba is on conda-forge
 
 [feature.py310.dependencies]
 python = "3.10.*"
 bokeh_sampledata = "*"
+numba = "*" # NOTE: Remove when numba is on conda-forge
 
 [feature.py311.dependencies]
 python = "3.11.*"
 bokeh_sampledata = "*"
+numba = "*" # NOTE: Remove when numba is on conda-forge
 
 [feature.py312.dependencies]
 python = "3.12.*"
 bokeh_sampledata = "*"
+numba = "*" # NOTE: Remove when numba is on conda-forge
 
 [feature.py312.activation.env]
 COVERAGE_CORE = "sysmon"
@@ -59,6 +63,9 @@ COVERAGE_CORE = "sysmon"
 [feature.py313.dependencies]
 python = "3.13.*"
 bokeh_sampledata = "*"
+
+[feature.py313.pypi-dependencies] # NOTE: Remove when numba is on conda-forge
+numba = "==0.61.0"
 
 [feature.py313.activation.env]
 COVERAGE_CORE = "sysmon"
@@ -82,7 +89,7 @@ python-snappy = "*"
 rasterio = "!=1.4.0" # 2024-11: Errors and will not solve to latest on Linux + Python 3.9
 scikit-image = "*"
 shapely = ">=2.0.0"
-spatialpandas = "*"
+# spatialpandas = "*" # NOTE: Remove when numba is on conda-forge
 streamz = "*"
 
 # =============================================
@@ -114,7 +121,7 @@ rasterio = "!=1.4.0" # 2024-11: Errors and will not solve to latest on Linux + P
 rioxarray = "*"
 scikit-image = "*"
 shapely = ">=2.0.0"
-spatialpandas = "*"
+# spatialpandas = "*" # NOTE: Remove when numba is on conda-forge
 
 [feature.test-example.dependencies]
 nbval = "*"
