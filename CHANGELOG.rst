@@ -1,7 +1,51 @@
 Version 0.17.0 ()
 ---------------------------
 
-NOTE: This drops pillow as a required dependency.
+Breaking Changes:
+
+- Drop support for Python 3.9.
+- ``pillow`` and ``dask`` are no longer required dependencies
+- Moved to ``pixi`` and ``hatchling``
+
+Enhancements:
+
+- Edge bundling speedup using optimized ``numba`` code thanks to `@lmcinnes <https://github.com/lmcinnes>`_, (`#1383 <https://github.com/holoviz/datashader/pull/1383>`_).
+- Drop Python 3.9 by `@hoxbro <https://github.com/hoxbro>`_ in (`#1399 <https://github.com/holoviz/datashader/pull/1399>`_).
+
+Build:
+
+- Updates to build infrastructure by `@hoxbro <https://github.com/hoxbro>`_ in (`#1372 <https://github.com/holoviz/datashader/pull/1372>`_).
+- Fix documentation builds by `@hoxbro <https://github.com/hoxbro>`_ in (`#1391 <https://github.com/holoviz/datashader/pull/1391>`_).
+
+Compatibility:
+
+- Compatibility updates by `@hoxbro <https://github.com/hoxbro>`_
+  - ``cuDF`` `#1363 <https://github.com/holoviz/datashader/pull/1363>`_ and `#1378 <https://github.com/holoviz/datashader/pull/1378>`_
+  - ``pixi`` `#1387 <https://github.com/holoviz/datashader/pull/1387>`_
+  - ``dask`` `#1369 <https://github.com/holoviz/datashader/pull/1369>`_ and `#1390 <https://github.com/holoviz/datashader/pull/1390>`_
+  - ``dask-expr`` `#1394 <https://github.com/holoviz/datashader/pull/1394>`_
+  - ``gpu & pre-commit`` `#1355 <https://github.com/holoviz/datashader/pull/1355>`_
+  - ``python 3.13`` `#1398 <https://github.com/holoviz/datashader/pull/1398>`_
+
+Bugfixes:
+
+- PDF scaling bug by `@thomas-reimonn <https://github.com/thomas-reimonn>`_ in (`#1382 <https://github.com/holoviz/datashader/pull/1382>`_).
+
+Documentation:
+
+- Updated supported Python versions by `@rhkarls <https://github.com/rhkarls>`_ in the ``Getting Started`` page (`#1371 <https://github.com/holoviz/datashader/pull/1371>`_).
+- Updated original paper link by `@amaloney <https://github.com/amaloney>`_ in (`#1375 <https://github.com/holoviz/datashader/pull/1375>`_).
+- Redirect ``Topics`` page to `examples.holoviz.org <https://examples.holoviz.org>`_ by `@maximlt <https://github.com/maximlt>`_ (`#1377 <https://github.com/holoviz/datashader/pull/1377>`_).
+
+Maintenance:
+
+- Refactors by `@hoxbro <https:github.com/hoxbro>`_
+  - `#1350 <https://github.com/holoviz/datashader/pull/1350>`_
+  - `#1354 <https://github.com/holoviz/datashader/pull/1354>`_
+  - `#1357 <https://github.com/holoviz/datashader/pull/1357>`_
+  - `#1365 <https://github.com/holoviz/datashader/pull/1365>`_
+  - `#1367 <https://github.com/holoviz/datashader/pull/1367>`_
+  - `#1368 <https://github.com/holoviz/datashader/pull/1368>`_
 
 
 Version 0.16.3 (2024-07-04)
