@@ -1,3 +1,9 @@
+Version 0.17.0 ()
+---------------------------
+
+NOTE: This drops pillow as a required dependency.
+
+
 Version 0.16.3 (2024-07-04)
 ---------------------------
 
