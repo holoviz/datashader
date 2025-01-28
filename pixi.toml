@@ -11,7 +11,6 @@ install = "python -m pip install --no-deps --disable-pip-version-check -e ."
 PYTHONIOENCODING = "utf-8"
 
 [environments]
-test-39 = ["py39", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-310 = ["py310", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-311 = ["py311", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-312 = ["py312", "test-core", "test", "example", "test-example", "test-unit-task"]
@@ -23,7 +22,7 @@ lint = ["py311", "lint"]
 
 [dependencies]
 python = "<3.13"
-numba = "*" # At top as this dictates Python version
+numba = "*"
 colorcet = "*"
 multipledispatch = "*"
 numpy = "*"
@@ -37,26 +36,21 @@ setuptools = "*" # distutils for pyct
 toolz = "*"
 xarray = "*"
 
-[feature.py39.dependencies]
-python = "3.9.*"
-
 [feature.py310.dependencies]
 python = "3.10.*"
-bokeh_sampledata = "*"
 
 [feature.py311.dependencies]
 python = "3.11.*"
-bokeh_sampledata = "*"
 
 [feature.py312.dependencies]
 python = "3.12.*"
-bokeh_sampledata = "*"
 
 [feature.py312.activation.env]
 COVERAGE_CORE = "sysmon"
 
 [feature.example.dependencies]
 bokeh = ">3.1"
+bokeh_sampledata = "*"
 dask-core = "*"
 dask-geopandas = "*"
 fastparquet = "*"
@@ -68,11 +62,11 @@ matplotlib-base = ">=3.3"
 networkx = "*"
 panel = ">1.1"
 pillow = "*"
-pyogrio =  "*"
+pyogrio = "*"
 pyproj = "*"
 python-graphviz = "*"
 python-snappy = "*"
-rasterio = "!=1.4.0" # 2024-11: Errors and will not solve to latest on Linux + Python 3.9
+rasterio = "*"
 scikit-image = "*"
 shapely = ">=2.0.0"
 spatialpandas = "*"
@@ -95,6 +89,7 @@ test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --di
 test-benchmark = 'pytest datashader/tests --benchmark'
 
 [feature.test.dependencies]
+bokeh_sampledata = "*"
 dask-core = "*"
 dask-expr = "<2"
 dask-geopandas = "*"
@@ -104,7 +99,7 @@ netcdf4 = "*"
 pyarrow = "*"
 pillow = "*"
 pyogrio = "*"
-rasterio = "!=1.4.0" # 2024-11: Errors and will not solve to latest on Linux + Python 3.9
+rasterio = "*"
 rioxarray = "*"
 scikit-image = "*"
 shapely = ">=2.0.0"
