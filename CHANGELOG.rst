@@ -1,11 +1,12 @@
 Version 0.17.0 (2025-01-29)
 ---------------------------
 
-This release adds an enhancement that optimizes edge bundling using optimized numba code, breaking changes to the version of Python supported, compatibility changes to several libraries, build updates, bugfixes for PDF scaling, documentation updates, and maintenance work. Thanks to first time contributors `@rhkarls <https://github.com/rhkarls>`_, `@lmcinnes <https://github.com/lmcinnes>`_, `@thomas-reimonn <https://github.com/thomas-reimonn>`_, `@amaloney <https://github.com/amaloney>`_; and regular contributors `@hoxbro <https://github.com/hoxbro>`_ and `@maximlt <https://github.com/maximlt>`_.
+This release adds an enhancement that optimizes edge bundling using optimized numba code. The minimum supported version of Python is now 3.10, along with making pillow and dask optional dependencies. This release also adds compatibility changes to several downstream libraries, build updates, bugfixes, and documentation updates. Thanks to first time contributors `@rhkarls <https://github.com/rhkarls>`_, `@lmcinnes <https://github.com/lmcinnes>`_, `@thomas-reimonn <https://github.com/thomas-reimonn>`_, `@amaloney <https://github.com/amaloney>`_; and regular contributors `@hoxbro <https://github.com/hoxbro>`_ and `@maximlt <https://github.com/maximlt>`_.
 
 Breaking Changes:
 
 - Drop support for Python 3.9 (`#1399 <https://github.com/holoviz/datashader/pull/1399>`_)
+- Making dask and pillow optional dependencies (`#1350 <https://github.com/holoviz/datashader/pull/1350>`_, `#1365 <https://github.com/holoviz/datashader/pull/1365>`_)
 
 Enhancements:
 
@@ -22,7 +23,7 @@ Compatibility:
 - Compatibility with cuDF 24.12 (`#1363 <https://github.com/holoviz/datashader/pull/1363>`_, `#1378 <https://github.com/holoviz/datashader/pull/1378>`_)
 - Compatibility with dask 2025.1 and dask-expr 2 (`#1369 <https://github.com/holoviz/datashader/pull/1369>`_, `#1390 <https://github.com/holoviz/datashader/pull/1390>`_, `#1394 <https://github.com/holoviz/datashader/pull/1394>`_)
 - Compatibility with pixi v0.40.0 (`#1387 <https://github.com/holoviz/datashader/pull/1387>`_)
-- Compatibility with python 3.13 (`#1398 <https://github.com/holoviz/datashader/pull/1398>`_)
+- Compatibility with Python 3.13 (`#1398 <https://github.com/holoviz/datashader/pull/1398>`_)
 
 Bugfixes:
 
@@ -35,7 +36,6 @@ Documentation:
 
 Maintenance:
 
-- Remove hard dependencies (`#1350 <https://github.com/holoviz/datashader/pull/1350>`_, `#1365 <https://github.com/holoviz/datashader/pull/1365>`_)
 - Move to pixi and hatchling (`#1354 <https://github.com/holoviz/datashader/pull/1354>`_)
 - General maintenance (`#1357 <https://github.com/holoviz/datashader/pull/1357>`_)
 - Updated linting rules (`#1367 <https://github.com/holoviz/datashader/pull/1367>`_, `#1368 <https://github.com/holoviz/datashader/pull/1368>`_)
