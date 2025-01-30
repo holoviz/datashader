@@ -1,6 +1,6 @@
 [project]
 name = "datashader"
-channels = ["pyviz/label/dev", "conda-forge"]
+channels = ["pyviz/label/dev", "numba", "conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
 [tasks]
@@ -14,15 +14,16 @@ PYTHONIOENCODING = "utf-8"
 test-310 = ["py310", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-311 = ["py311", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-312 = ["py312", "test-core", "test", "example", "test-example", "test-unit-task"]
-test-core = ["py312", "test-core", "test-unit-task"]
+test-313 = ["py313", "test-core", "test", "example", "test-example", "test-unit-task"]
+test-core = ["py313", "test-core", "test-unit-task"]
 test-gpu = ["py312", "test-core", "test-gpu"]
 docs = ["py311", "example", "doc"]
 build = ["py311", "build"]
 lint = ["py311", "lint"]
 
 [dependencies]
-python = "<3.13"
-numba = "*"
+numba = { version = "*", channel = "numba" }
+llvmlite = { version = "*", channel = "conda-forge" }
 colorcet = "*"
 multipledispatch = "*"
 numpy = "*"
@@ -46,6 +47,12 @@ python = "3.11.*"
 python = "3.12.*"
 
 [feature.py312.activation.env]
+COVERAGE_CORE = "sysmon"
+
+[feature.py313.dependencies]
+python = "3.13.*"
+
+[feature.py313.activation.env]
 COVERAGE_CORE = "sysmon"
 
 [feature.example.dependencies]
