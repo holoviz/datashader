@@ -88,8 +88,7 @@ def _dask_DataFrame(*args, **kwargs):
 @dask_switcher(query=True)
 def _dask_expr_DataFrame(*args, **kwargs):
     if kwargs.pop("geo", False):
-        pytest.skip("dask-expr currently does not work with spatialpandas")
-        # df = sp.GeoDataFrame(*args, **kwargs)
+        df = sp.GeoDataFrame(*args, **kwargs)
     else:
         df = pd.DataFrame(*args, **kwargs)
     return dd.from_pandas(df, npartitions=2)
