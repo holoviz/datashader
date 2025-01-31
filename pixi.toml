@@ -58,7 +58,7 @@ COVERAGE_CORE = "sysmon"
 [feature.example.dependencies]
 bokeh = ">3.1"
 bokeh_sampledata = "*"
-dask-core = ">=2025.1"
+dask-core = "*"
 dask-geopandas = "*"
 fastparquet = "*"
 geodatasets = "*"
@@ -97,7 +97,7 @@ test-benchmark = 'pytest datashader/tests --benchmark'
 
 [feature.test.dependencies]
 bokeh_sampledata = "*"
-dask-core = ">=2025.1"
+dask-core = "*"
 dask-geopandas = "*"
 geodatasets = "*"
 geopandas-base = "*"
