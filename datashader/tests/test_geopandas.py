@@ -1,40 +1,16 @@
 # Testing GeoPandas and SpatialPandas
-import contextlib
 
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray
 import numpy as np
 from numpy import nan
 import pytest
-from datashader.tests.utils import dask_switcher
-from packaging.version import Version
 
 try:
     import dask.dataframe as dd
 except ImportError:
     dd = None
 
-_backends = [
-    pytest.param(False, id="dask"),
-]
-
-_extras = ["spatialpandas.dask", "dask_geopandas.backends", "dask_geopandas"]
-
-with contextlib.suppress(ImportError):
-    import dask_geopandas
-
-    if Version(dask_geopandas.__version__) >= Version("0.4.0"):
-        _backends.append(pytest.param(True, id="dask-expr"))
-
-
-@pytest.fixture(params=_backends)
-def dask_both(request):
-    with dask_switcher(query=request.param, extras=_extras): ...
-    return request.param
-
-@pytest.fixture
-def dask_classic(request):
-    with dask_switcher(query=False, extras=_extras): ...
 
 try:
     import dask_geopandas
@@ -129,14 +105,6 @@ nybb_polygons_sol = np.array([
 ])
 
 
-@pytest.mark.skipif(not dask_geopandas, reason="dask_geopandas not installed")
-def test_dask_geopandas_switcher(dask_both):
-    import dask_geopandas
-    if dask_both:
-        assert dask_geopandas.expr.GeoDataFrame == dask_geopandas.GeoDataFrame
-    else:
-        assert dask_geopandas.core.GeoDataFrame == dask_geopandas.GeoDataFrame
-
 
 @pytest.mark.skipif(not geodatasets, reason="geodatasets not installed")
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
@@ -177,7 +145,7 @@ def test_lines_geopandas(geom_type, explode, use_boundary):
         ("linestring", True, True),
     ],
 )
-def test_lines_dask_geopandas(geom_type, explode, use_boundary, npartitions, dask_both):
+def test_lines_dask_geopandas(geom_type, explode, use_boundary, npartitions):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
     df["col"] = np.arange(len(df))  # Extra column for aggregation.
     geometry = "boundary" if use_boundary else "geometry"
@@ -209,7 +177,7 @@ def test_lines_dask_geopandas(geom_type, explode, use_boundary, npartitions, das
         ("linestring", True, True),
     ],
 )
-def test_lines_spatialpandas(geom_type, explode, use_boundary, npartitions, dask_classic):
+def test_lines_spatialpandas(geom_type, explode, use_boundary, npartitions):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
     df["col"] = np.arange(len(df))  # Extra column for aggregation.
     geometry = "boundary" if use_boundary else "geometry"
@@ -252,7 +220,7 @@ def test_points_geopandas(geom_type):
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
 @pytest.mark.parametrize('npartitions', [1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipoint", "point"])
-def test_points_dask_geopandas(geom_type, npartitions, dask_both):
+def test_points_dask_geopandas(geom_type, npartitions):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
 
     df["geometry"] = df["geometry"].sample_points(100, rng=93814)  # multipoint
@@ -274,7 +242,7 @@ def test_points_dask_geopandas(geom_type, npartitions, dask_both):
 @pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('npartitions', [0, 1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipoint", "point"])
-def test_points_spatialpandas(geom_type, npartitions, dask_classic):
+def test_points_spatialpandas(geom_type, npartitions):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
 
     df["geometry"] = df["geometry"].sample_points(100, rng=93814)  # multipoint
@@ -315,7 +283,7 @@ def test_polygons_geopandas(geom_type):
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
 @pytest.mark.parametrize('npartitions', [1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipolygon", "polygon"])
-def test_polygons_dask_geopandas(geom_type, npartitions, dask_both):
+def test_polygons_dask_geopandas(geom_type, npartitions):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
     df["col"] = np.arange(len(df))
 
@@ -338,7 +306,7 @@ def test_polygons_dask_geopandas(geom_type, npartitions, dask_both):
 @pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
 @pytest.mark.parametrize('npartitions', [0, 1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipolygon", "polygon"])
-def test_polygons_spatialpandas(geom_type, npartitions, dask_classic):
+def test_polygons_spatialpandas(geom_type, npartitions):
     df = geopandas.read_file(geodatasets.get_path("nybb"))
     df["col"] = np.arange(len(df))
 
