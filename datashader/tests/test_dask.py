@@ -117,25 +117,6 @@ def floats(n):
         n = n + np.spacing(n)
 
 
-@pytest.mark.gpu
-def test_check_query_setting():
-    import os
-    from subprocess import check_output, SubprocessError
-
-    # dask-cudf does not support query planning as of 24.04.
-    # So we check that it is not set outside of Python.
-    assert os.environ.get('DASK_DATAFRAME__QUERY_PLANNING', 'false').lower() != 'true'
-
-    # This also have problem with the global setting so we check
-    try:
-        cmd = ['dask', 'config', 'get', 'dataframe.query-planning']
-        output = check_output(cmd, text=True).strip().lower()
-        assert output != 'true'
-    except SubprocessError:
-        # Newer version will error out if not set
-        pass
-
-
 def test_count(ddf, npartitions):
     ddf = ddf.repartition(npartitions=npartitions)
     assert ddf.npartitions == npartitions
