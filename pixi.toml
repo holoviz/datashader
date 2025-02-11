@@ -1,6 +1,6 @@
 [project]
 name = "datashader"
-channels = ["pyviz/label/dev", "numba", "conda-forge"]
+channels = ["pyviz/label/dev", "conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
 [tasks]
@@ -22,8 +22,8 @@ build = ["py311", "build"]
 lint = ["py311", "lint"]
 
 [dependencies]
-numba = { version = "*", channel = "numba" }
-llvmlite = { version = "*", channel = "conda-forge" }
+numba = "*"
+llvmlite = "*"
 colorcet = "*"
 multipledispatch = "*"
 numpy = "*"
