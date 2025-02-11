@@ -23,7 +23,6 @@ lint = ["py311", "lint"]
 
 [dependencies]
 numba = "*"
-llvmlite = "*"
 colorcet = "*"
 multipledispatch = "*"
 numpy = "*"
