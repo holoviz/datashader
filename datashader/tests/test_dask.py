@@ -12,7 +12,6 @@ from datashader.datatypes import RaggedArray
 import datashader.utils as du
 
 import pytest
-from datashader.tests.utils import dask_switcher
 from datashader.tests.test_pandas import _pandas
 
 try:
@@ -34,38 +33,25 @@ except ImportError:
     pytestmark = pytest.importorskip("dask")
 
 
-
-@dask_switcher(query=False)
 def _dask():
     return dd.from_pandas(_pandas(), npartitions=2)
 
-@dask_switcher(query=True)
-def _dask_expr():
-    return dd.from_pandas(_pandas(), npartitions=2)
 
-@dask_switcher(query=False, extras=["dask_cudf"])
 def _dask_cudf():
     import dask_cudf
+
     _dask = dd.from_pandas(_pandas(), npartitions=2)
     if Version(dask_cudf.__version__) >= Version("24.06"):
         return _dask.to_backend("cudf")
     else:
         return dask_cudf.from_dask_dataframe(_dask)
 
-@dask_switcher(query=True, extras=["dask_cudf"])
-def _dask_expr_cudf():
-    import dask_cudf
-    if Version(dask_cudf.__version__) < Version("24.06"):
-        pytest.skip("dask-expr requires dask-cudf 24.06 or later")
-    _dask = dd.from_pandas(_pandas(), npartitions=2)
-    return _dask.to_backend("cudf")
 
 _backends = [
     pytest.param(_dask, id="dask"),
-    pytest.param(_dask_expr, id="dask-expr"),
     pytest.param(_dask_cudf, marks=pytest.mark.gpu, id="dask-cudf"),
-    pytest.param(_dask_expr_cudf, marks=pytest.mark.gpu, id="dask-expr-cudf"),
 ]
+
 
 @pytest.fixture(params=_backends)
 def ddf(request):
@@ -76,7 +62,7 @@ def ddf(request):
 def npartitions(request):
     return request.param
 
-@dask_switcher(query=False)
+
 def _dask_DataFrame(*args, **kwargs):
     if kwargs.pop("geo", False):
         df = sp.GeoDataFrame(*args, **kwargs)
@@ -85,53 +71,21 @@ def _dask_DataFrame(*args, **kwargs):
     return dd.from_pandas(df, npartitions=2)
 
 
-@dask_switcher(query=True)
-def _dask_expr_DataFrame(*args, **kwargs):
-    if kwargs.pop("geo", False):
-        pytest.skip("dask-expr currently does not work with spatialpandas")
-        # df = sp.GeoDataFrame(*args, **kwargs)
-    else:
-        df = pd.DataFrame(*args, **kwargs)
-    return dd.from_pandas(df, npartitions=2)
-
-
-@dask_switcher(query=False, extras=["dask_cudf"])
 def _dask_cudf_DataFrame(*args, **kwargs):
     import cudf
     import dask_cudf
-    if kwargs.pop("geo", False):
-        # As of dask-cudf version 24.06, dask-cudf is not
-        # compatible with spatialpandas version 0.4.10
-        pytest.skip("dask-cudf currently does not work with spatialpandas")
-    cdf = cudf.DataFrame.from_pandas(
-        pd.DataFrame(*args, **kwargs), nan_as_null=False
-    )
-    return dask_cudf.from_cudf(cdf, npartitions=2)
-
-
-@dask_switcher(query=True, extras=["dask_cudf"])
-def _dask_expr_cudf_DataFrame(*args, **kwargs):
-    import cudf
-    import dask_cudf
-
-    if Version(dask_cudf.__version__) < Version("24.06"):
-        pytest.skip("dask-expr requires dask-cudf 24.06 or later")
 
     if kwargs.pop("geo", False):
         # As of dask-cudf version 24.06, dask-cudf is not
         # compatible with spatialpandas version 0.4.10
         pytest.skip("dask-cudf currently does not work with spatialpandas")
-    cdf = cudf.DataFrame.from_pandas(
-        pd.DataFrame(*args, **kwargs), nan_as_null=False
-    )
+    cdf = cudf.DataFrame.from_pandas(pd.DataFrame(*args, **kwargs), nan_as_null=False)
     return dask_cudf.from_cudf(cdf, npartitions=2)
 
 
 _backends = [
     pytest.param(_dask_DataFrame, id="dask"),
-    pytest.param(_dask_expr_DataFrame, id="dask-expr"),
     pytest.param(_dask_cudf_DataFrame, marks=pytest.mark.gpu, id="dask-cudf"),
-    pytest.param(_dask_expr_cudf_DataFrame, marks=pytest.mark.gpu, id="dask-expr-cudf"),
 ]
 
 @pytest.fixture(params=_backends)
@@ -161,25 +115,6 @@ def floats(n):
     while True:
         yield n
         n = n + np.spacing(n)
-
-
-@pytest.mark.gpu
-def test_check_query_setting():
-    import os
-    from subprocess import check_output, SubprocessError
-
-    # dask-cudf does not support query planning as of 24.04.
-    # So we check that it is not set outside of Python.
-    assert os.environ.get('DASK_DATAFRAME__QUERY_PLANNING', 'false').lower() != 'true'
-
-    # This also have problem with the global setting so we check
-    try:
-        cmd = ['dask', 'config', 'get', 'dataframe.query-planning']
-        output = check_output(cmd, text=True).strip().lower()
-        assert output != 'true'
-    except SubprocessError:
-        # Newer version will error out if not set
-        pass
 
 
 def test_count(ddf, npartitions):
@@ -1236,7 +1171,6 @@ def test_log_axis_points(ddf):
 
 
 @pytest.mark.skipif(not sp, reason="spatialpandas not installed")
-@dask_switcher(query=False, extras=["spatialpandas.dask"])
 def test_points_geometry():
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((0., 2.), 3), 3)
@@ -1257,7 +1191,6 @@ def test_points_geometry():
     assert_eq_xr(agg, out)
 
 
-@dask_switcher(query=False, extras=["spatialpandas.dask"])
 def test_line(DataFrame):
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
@@ -1339,7 +1272,6 @@ if sp:
         }, dtype='Line[int64]'), dict(geometry='geom'))
     )
 
-@dask_switcher(query=False, extras=["spatialpandas.dask"])
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_manual_range_params[5:7])
 def test_line_manual_range(DataFrame, df_kwargs, cvs_kwargs, request):
     if "cudf" in request.node.name:
@@ -1452,7 +1384,6 @@ if sp:
         }, dtype='Line[int64]'), dict(geometry='geom'))
     )
 
-@dask_switcher(query=False, extras=["spatialpandas.dask"])
 @pytest.mark.parametrize('df_kwargs,cvs_kwargs', line_autorange_params)
 def test_line_autorange(DataFrame, df_kwargs, cvs_kwargs, request):
     if "cudf" in request.node.name:
@@ -1621,7 +1552,7 @@ def test_auto_range_line(DataFrame):
     }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame in (_dask_cudf_DataFrame, _dask_expr_cudf_DataFrame):
+    if DataFrame == _dask_cudf_DataFrame:
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
 
@@ -1713,7 +1644,7 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
     }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame in (_dask_cudf_DataFrame, _dask_expr_cudf_DataFrame):
+    if DataFrame ==_dask_cudf_DataFrame:
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
 
@@ -1790,7 +1721,7 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     }, dtype='Ragged[float32]'), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame in (_dask_cudf_DataFrame, _dask_expr_cudf_DataFrame):
+    if DataFrame ==_dask_cudf_DataFrame:
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
 
@@ -1893,7 +1824,7 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     }, dtype='Ragged[float32]'), dict(x='x', y='y', y_stack='y_stack', axis=1))
 ])
 def test_area_to_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame in (_dask_cudf_DataFrame, _dask_expr_cudf_DataFrame):
+    if DataFrame == _dask_cudf_DataFrame:
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
 
@@ -1980,7 +1911,7 @@ def test_area_to_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
     }, dtype='Ragged[float32]'), dict(x='x', y='y', y_stack='y_stack', axis=1))
 ])
 def test_area_to_line_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
-    if DataFrame in (_dask_cudf_DataFrame, _dask_expr_cudf_DataFrame):
+    if DataFrame == _dask_cudf_DataFrame:
         if df_kwargs.get('dtype', '').startswith('Ragged'):
             pytest.skip("Ragged array not supported with cudf")
 
