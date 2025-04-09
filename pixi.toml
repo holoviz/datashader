@@ -11,10 +11,10 @@ install = "python -m pip install --no-deps --disable-pip-version-check -e ."
 PYTHONIOENCODING = "utf-8"
 
 [environments]
-test-39 = ["py39", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-310 = ["py310", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-311 = ["py311", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-312 = ["py312", "test-core", "test", "example", "test-example", "test-unit-task"]
+test-313 = ["py313", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-core = ["py312", "test-core", "test-unit-task"]
 test-gpu = ["py312", "test-core", "test-gpu"]
 docs = ["py311", "example", "doc"]
@@ -37,9 +37,6 @@ setuptools = "*" # distutils for pyct
 toolz = "*"
 xarray = "*"
 
-[feature.py39.dependencies]
-python = "3.9.*"
-
 [feature.py310.dependencies]
 python = "3.10.*"
 bokeh_sampledata = "*"
@@ -51,6 +48,9 @@ bokeh_sampledata = "*"
 [feature.py312.dependencies]
 python = "3.12.*"
 bokeh_sampledata = "*"
+
+[feature.py313.dependencies]
+python = "3.13.*"
 
 [feature.example.dependencies]
 bokeh = ">3.1"
@@ -146,7 +146,7 @@ _docs-generate-rst = 'nbsite generate-rst --org holoviz --project-name datashade
 _docs-generate = 'nbsite build --what=html --output=builtdocs --org holoviz --project-name datashader'
 
 [feature.doc.tasks.docs-build]
-depends_on = ['_docs-generate-rst', '_docs-generate']
+depends-on = ['_docs-generate-rst', '_docs-generate']
 
 # =============================================
 # ================== BUILD ====================
