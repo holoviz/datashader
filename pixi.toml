@@ -15,20 +15,19 @@ test-310 = ["py310", "test-core", "test", "example", "test-example", "test-unit-
 test-311 = ["py311", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-312 = ["py312", "test-core", "test", "example", "test-example", "test-unit-task"]
 test-313 = ["py313", "test-core", "test", "example", "test-example", "test-unit-task"]
-test-core = ["py312", "test-core", "test-unit-task"]
+test-core = ["py313", "test-core", "test-unit-task"]
 test-gpu = ["py312", "test-core", "test-gpu"]
 docs = ["py311", "example", "doc"]
 build = ["py311", "build"]
 lint = ["py311", "lint"]
 
 [dependencies]
-numba = "*"  # At top as this dictates Python version
+numba = "*"
 colorcet = "*"
 multipledispatch = "*"
 numpy = "*"
 pandas = "*"
 param = "*"
-pillow = "*"
 pip = "*"
 pyct = "*"
 requests = "*"
@@ -39,21 +38,28 @@ xarray = "*"
 
 [feature.py310.dependencies]
 python = "3.10.*"
-bokeh_sampledata = "*"
 
 [feature.py311.dependencies]
 python = "3.11.*"
-bokeh_sampledata = "*"
 
 [feature.py312.dependencies]
 python = "3.12.*"
-bokeh_sampledata = "*"
+
+[feature.py312.activation.env]
+COVERAGE_CORE = "sysmon"
+
+[feature.py313.dependencies]
+python = "3.13.*"
+
+[feature.py313.activation.env]
+COVERAGE_CORE = "sysmon"
 
 [feature.py313.dependencies]
 python = "3.13.*"
 
 [feature.example.dependencies]
 bokeh = ">3.1"
+bokeh_sampledata = "*"
 dask-core = "*"
 dask-geopandas = "*"
 fastparquet = "*"
@@ -64,10 +70,12 @@ holoviews = "*"
 matplotlib-base = ">=3.3"
 networkx = "*"
 panel = ">1.1"
-pyogrio =  "*"
+pillow = "*"
+pyogrio = "*"
+pyproj = "*"
 python-graphviz = "*"
 python-snappy = "*"
-rasterio = "!=1.4.0"  # 2024-11: Errors and will not solve to latest on Linux + Python 3.9
+rasterio = "*"
 scikit-image = "*"
 shapely = ">=2.0.0"
 spatialpandas = "*"
@@ -90,15 +98,16 @@ test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --di
 test-benchmark = 'pytest datashader/tests --benchmark'
 
 [feature.test.dependencies]
+bokeh_sampledata = "*"
 dask-core = "*"
-dask-expr = "*"
 dask-geopandas = "*"
 geodatasets = "*"
 geopandas-base = "*"
 netcdf4 = "*"
 pyarrow = "*"
-pyogrio =  "*"
-rasterio = "!=1.4.0"  # 2024-11: Errors and will not solve to latest on Linux + Python 3.9
+pillow = "*"
+pyogrio = "*"
+rasterio = "*"
 rioxarray = "*"
 scikit-image = "*"
 shapely = ">=2.0.0"
@@ -108,7 +117,7 @@ spatialpandas = "*"
 nbval = "*"
 
 [feature.test-example.tasks]
-test-example = { cmd = 'pytest -n logical --dist loadscope --nbval-lax examples --benchmark-skip', env = { DASK_DATAFRAME__QUERY_PLANNING = "False" } }
+test-example = 'pytest -n logical --dist loadscope --nbval-lax examples --benchmark-skip'
 
 [feature.test-gpu]
 channels = ["rapidsai"]
@@ -119,7 +128,7 @@ NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS = '0'
 
 [feature.test-gpu.dependencies]
 cuda-version = "12.2.*"
-cudf = "24.10.*"
+cudf = "25.02.*"
 cupy = "*"
 dask-cudf = "*"
 dask-expr = "*"
@@ -137,9 +146,7 @@ test-benchmark = 'pytest datashader/tests --benchmark --gpu'
 nbsite = ">=0.8.4,<0.9.0"
 numpydoc = "*"
 sphinxcontrib-mermaid = "*"
-
-[feature.doc.activation.env]
-DASK_DATAFRAME__QUERY_PLANNING = "False"
+sphinx-reredirects = "*"
 
 [feature.doc.tasks]
 _docs-generate-rst = 'nbsite generate-rst --org holoviz --project-name datashader'
@@ -161,7 +168,6 @@ build-pip = 'python -m build .'
 
 [feature.build.activation.env]
 MPLBACKEND = "Agg"
-DASK_DATAFRAME__QUERY_PLANNING = "False"
 
 # =============================================
 # =================== LINT ====================

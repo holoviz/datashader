@@ -2299,7 +2299,7 @@ def test_area_to_line_autorange_gap():
 
 
 # Using local versions of nan-aware combinations rather than those in
-# utils.py.  These versions are not always applicable, e.g. if summming
+# utils.py.  These versions are not always applicable, e.g. if summing
 # a positive and negative value to total exactly zero will be wrong here.
 def nanmax(arr0, arr1):
     mask = np.logical_and(np.isnan(arr0), np.isnan(arr1))

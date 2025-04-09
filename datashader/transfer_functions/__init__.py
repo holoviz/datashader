@@ -10,7 +10,6 @@ import numpy as np
 import numba as nb
 import toolz as tz
 import xarray as xr
-from PIL.Image import fromarray
 
 from datashader.colors import rgb, Sets1to3
 from datashader.utils import nansum_missing, ngjit
@@ -34,6 +33,8 @@ class Image(xr.DataArray):
     border=1
 
     def to_pil(self, origin='lower'):
+        from PIL.Image import fromarray
+
         data = self.data
         if cupy:
             data = cupy.asnumpy(data)

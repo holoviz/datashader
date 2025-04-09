@@ -15,6 +15,11 @@ html_css_files += [
     'css/custom.css'
 ]
 
+# Somehow .ipynb started to take precedence over .rst.
+# This broke the landing page `index.rst` as it embeds `index.ipynb` file.
+# Adding `.md` to make our life easier in the future.
+source_suffix = ['.rst', '.md', '.ipynb']
+
 html_logo = '_static/logo_horizontal.svg'
 html_favicon = '_static/favicon.ico'
 
@@ -53,12 +58,12 @@ html_context.update({
     'github_repo': 'datashader',
 })
 
-
 extensions += [
     'sphinx.ext.autosummary',
     'numpydoc',
     'nbsite.analytics',
     'sphinxcontrib.mermaid',
+    'sphinx_reredirects',
 ]
 
 myst_fence_as_directive = ["mermaid"]
@@ -68,6 +73,10 @@ nbsite_analytics = {
 }
 
 nbbuild_cell_timeout = 2000
+
+redirects = {
+    'topics/index': 'https://examples.holoviz.org',
+}
 
 # Datashader uses sphinx.ext.autodoc (e.g. automodule) for its API reference
 # and automatically include a module that contains Image. Image inherits
@@ -83,7 +92,7 @@ def patch_error_location(self, msg, error=True):
     try:
         original_error_location(self, msg, error)
     except ValueError as e:
-        if "See Also entry ':doc:`xarray-tutorial" in str(e):
+        if "site-packages/xarray" in str(e):
             return
         else:
             raise e
