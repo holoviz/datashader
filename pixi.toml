@@ -54,9 +54,6 @@ python = "3.13.*"
 [feature.py313.activation.env]
 COVERAGE_CORE = "sysmon"
 
-[feature.py313.dependencies]
-python = "3.13.*"
-
 [feature.example.dependencies]
 bokeh = ">3.1"
 bokeh_sampledata = "*"
