@@ -1,3 +1,19 @@
+Version 0.18.0 (2025-04-10)
+---------------------------
+
+Python version 3.9 was not changed in the last release of 0.17.0. It has now been updated in this
+release. Thanks to first time contributors `@Azaya89<https://github.com/Azaya89>`_ and
+`@dmiracle <https://github.com/@dmiracle>`_; and regular contributors `@hoxbro <https://github.com/hoxbro>`_,
+`@maximlt <https://github.com/maximlt>`_ and `@amaloney <https://github.com/amaloney>`_.
+
+Breaking Changes:
+
+- Really drop support for Python 3.9 (`#1415 <https://github.com/holoviz/datashader/pull/1415>`_)
+
+Enhancements:
+
+- Naive JIT implementation for cooling (`#1408 <https://github.com/holoviz/datashader/pull/1408>`_)
+
 Version 0.17.0 (2025-01-29)
 ---------------------------
 
