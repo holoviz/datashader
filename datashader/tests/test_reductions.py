@@ -12,7 +12,7 @@ def test_string_output():
         "any": "any('col')",
         "by": "by(column='col', reduction=count())",
         "count": "count()",
-        "count_cat": "count_cat(column='col', reduction=count())",
+        "count_cat": "count_cat(column='col')",
         "first": "first('col')",
         "first_n": "first_n(column='col', n=1)",
         "last": "last('col')",

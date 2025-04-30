@@ -1274,6 +1274,8 @@ class count_cat(by):
     def __init__(self, column):
         super().__init__(column, count())
 
+    def __repr__(self):
+        return f"count_cat(column={self.column!r})"
 
 class mean(Reduction):
     """Mean of all elements in ``column``.
