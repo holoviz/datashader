@@ -471,6 +471,9 @@ class Reduction(Expr):
     def _create_uint32(shape, array_module):
         return array_module.zeros(shape, dtype='u4')
 
+    def __repr__(self):
+        return f"{type(self).__name__}({self.column!r})"
+
 
 class OptionalFieldReduction(Reduction):
     """Base class for things like ``count`` or ``any`` for which the field is optional"""
@@ -657,6 +660,9 @@ class count(SelfIntersectingOptionalFieldReduction):
             nansum_in_place(ret, aggs[i])
         return ret
 
+    def __repr__(self):
+        return "count()"
+
 
 class _count_ignore_antialiasing(count):
     """Count reduction but ignores antialiasing. Used by mean reduction.
@@ -812,6 +818,9 @@ class by(Reduction):
             return self.reduction._build_finalize(dshape)(bases, cuda=cuda, **kwargs)
 
         return finalize
+
+    def __repr__(self):
+        return f"{type(self).__name__}(column={self.column!r}, reduction={self.reduction!r})"
 
 class any(OptionalFieldReduction):
     """Whether any elements in ``column`` map to each bin.
@@ -1265,6 +1274,8 @@ class count_cat(by):
     def __init__(self, column):
         super().__init__(column, count())
 
+    def __repr__(self):
+        return f"count_cat(column={self.column!r})"
 
 class mean(Reduction):
     """Mean of all elements in ``column``.
@@ -1476,6 +1487,9 @@ class FloatingNReduction(OptionalFieldReduction):
 
     def _hashable_inputs(self):
         return super()._hashable_inputs() + (self.n,)
+
+    def __repr__(self):
+        return f"{type(self).__name__}(column={self.column!r}, n={self.n!r})"
 
 
 class _first_n_or_last_n(FloatingNReduction):
@@ -2103,6 +2117,9 @@ class where(FloatingReduction):
 
         return finalize
 
+    def __repr__(self):
+        return f"where(selector={self.selector!r}, lookup_column={self.column!r})"
+
 
 class summary(Expr):
     """A collection of named reductions.
@@ -2165,6 +2182,10 @@ class summary(Expr):
     @property
     def inputs(self):
         return tuple(unique(concat(v.inputs for v in self.values)))
+
+    def __repr__(self):
+        pairs = ", ".join([f"{k}={v!r}" for k, v in zip(self.keys, self.values, strict=True)])
+        return f"summary({pairs})"
 
 
 class _max_or_min_row_index(OptionalFieldReduction):
