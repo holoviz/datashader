@@ -1,3 +1,12 @@
+Version 0.18.1 (2025-05-08)
+---------------------------
+
+This release add a small enhancement to the repr of reductions functions.
+
+Enhancements:
+
+- Add more information to repr of reductions (`#1418 <https://github.com/holoviz/datashader/pull/1418>`_)
+
 Version 0.18.0 (2025-04-10)
 ---------------------------
 
