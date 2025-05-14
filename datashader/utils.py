@@ -13,31 +13,8 @@ from toolz import memoize
 from xarray import DataArray
 
 import datashader.datashape as datashape
-
-try:
-    import dask.dataframe as dd
-except ImportError:
-    dd = None
-
-try:
-    from datashader.datatypes import RaggedDtype
-except ImportError:
-    RaggedDtype = type(None)
-
-try:
-    import cudf
-except Exception:
-    cudf = None
-
-try:
-    from geopandas.array import GeometryDtype as gpd_GeometryDtype
-except ImportError:
-    gpd_GeometryDtype = type(None)
-
-try:
-    from spatialpandas.geometry import GeometryDtype
-except ImportError:
-    GeometryDtype = type(None)
+from datashader.datatypes import RaggedDtype
+from ._dependencies import cudf, dd, gpd, spd
 
 
 class VisibleDeprecationWarning(UserWarning):
@@ -444,9 +421,11 @@ def dshape_from_pandas_helper(col):
             # Pandas stores this as a pytz.tzinfo, but DataShape wants a string
             tz = str(tz)
         return datashape.Option(datashape.DateTime(tz=tz))
-    elif isinstance(col.dtype, (RaggedDtype, GeometryDtype)):
+    elif isinstance(col.dtype, RaggedDtype):
         return col.dtype
-    elif gpd_GeometryDtype and isinstance(col.dtype, gpd_GeometryDtype):
+    elif spd and isinstance(col.dtype, spd.geometry.GeometryDtype):
+        return col.dtype
+    elif gpd and isinstance(col.dtype, gpd.array.GeometryDtype):
         return col.dtype
     dshape = datashape.CType.from_numpy_dtype(col.dtype)
     dshape = datashape.string if dshape == datashape.object_ else dshape

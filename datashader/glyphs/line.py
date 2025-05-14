@@ -9,20 +9,9 @@ from datashader.utils import isnull, isreal, ngjit
 from numba import cuda
 import numba.types as nb_types
 
+from .._dependencies import cudf, cupy as cp, spd
 
-try:
-    import cudf
-    import cupy as cp
-    from ..transfer_functions._cuda_utils import cuda_args
-except ImportError:
-    cudf = None
-    cp = None
-    cuda_args = None
-
-try:
-    import spatialpandas
-except Exception:
-    spatialpandas = None
+from ..transfer_functions._cuda_utils import cuda_args
 
 
 class _AntiAliasedLine:

@@ -1,18 +1,13 @@
-from . import pandas, xarray  # noqa (API import)
+from . import pandas, xarray
+from .. import _dependencies
 
-try:
-    import dask as _dask  # noqa (Test dask installed)
-    from . import dask    # noqa (API import)
-except ImportError:
-    pass
+if _dependencies.dask:
+    from . import dask
 
-try:
-    import cudf as _cudf  # noqa (Test cudf installed)
-    import cupy as _cupy  # noqa (Test cupy installed)
-    from . import cudf    # noqa (API import)
+if _dependencies.cudf:
+    from . import cudf
 
-    import dask_cudf as _dask_cudf  # noqa (Test dask_cudf installed)
-    from . import dask_cudf         # noqa (API import)
+if _dependencies.dask_cudf:
+    from . import dask_cudf
 
-except Exception:
-    pass
+__all__ = ("pandas", "xarray", "dask", "cudf", "dask_cudf")

@@ -8,11 +8,7 @@ import os
 
 import numpy as np
 
-try:
-    import dask
-    import dask.bag as db
-except ImportError:
-    dask, db = None, None
+from ._dependencies import dask, db
 
 __all__ = ['render_tiles', 'MercatorTileDefinition']
 

@@ -33,17 +33,12 @@ import numpy as np
 
 from numba import prange
 from .utils import ngjit, ngjit_parallel
+from ._dependencies import da, cupy
 
-try:
-    import dask.array as da
+if da:
     from dask.delayed import delayed
-except ImportError:
-    da, delayed = None, None
-
-try:
-    import cupy
-except ImportError:
-    cupy = None
+else:
+    delayed = None
 
 
 #: Interpolation method for upsampling: Take nearest source grid cell, even if it is invalid.
