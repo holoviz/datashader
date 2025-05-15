@@ -68,6 +68,8 @@ class _LazyModule:
         self.__module_name = module_name
         self.__package_name = package_name or module_name
         self.__bool_use_sys_modules = bool_use_sys_modules
+        if module_name in sys.modules:
+            self._module
 
     @property
     def _module(self):
@@ -113,8 +115,13 @@ class _LazyModule:
         return self.__module and self.__module.__version__ or _get_version(self.__package_name)
 
 
-def register_import_hook(module:  _LazyModule, fn: Callable):
-    _module_hooks[module].append(fn)
+def register_import_hook(module: _LazyModule, fn: Callable):
+    # NOTE: We cannot use module.__module,
+    # because it is overwritten by __getattr__
+    if module.__dict__["_LazyModule__module"]:
+        fn()
+    else:
+        _module_hooks[module].append(fn)
 
 
 TYPE_CHECKING = False

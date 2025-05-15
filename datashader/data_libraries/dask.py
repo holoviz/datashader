@@ -48,7 +48,7 @@ def dask_pipeline(df, schema, canvas, glyph, summary, *, antialias=False, cuda=F
     return scheduler(dsk, name)
 
 
-register_import_hook(dd, lambda: bypixel.pipeline.register(dd.DataFrame)(dask_pipeline))
+bypixel.pipeline.lazy_register(dd, "DataFrame", dask_pipeline)
 
 
 def shape_bounds_st_and_axis(df, canvas, glyph):

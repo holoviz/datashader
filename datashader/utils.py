@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 
 from inspect import getmro
 
@@ -73,6 +74,7 @@ class Dispatcher:
     """Simple single dispatch."""
     def __init__(self):
         self._lookup = {}
+        self._lazy_lookup = {}
 
     def register(self, typ, func=None):
         """Register dispatch of `func` on arguments of type `typ`"""
@@ -85,7 +87,27 @@ class Dispatcher:
             self._lookup[typ] = func
         return func
 
+    def lazy_register(self, lazy_module, attr, func):
+        """Lazy register dispatch of `func` on arguments of type `typ`"""
+        def inner_register():
+            # We check sys.modules here as the module
+            # could been imported externally
+            module_name = lazy_module.__dict__["_LazyModule__module_name"]
+            if module_name not in sys.modules:
+                return
+            typ = getattr(lazy_module, attr)
+            self._lookup[typ] = func
+            self._lazy_lookup.pop((lazy_module, attr), None)
+
+        if lazy_module:  # Only add if it is installed
+            self._lazy_lookup[(lazy_module, attr)] = inner_register
+
     def __call__(self, head, *rest, **kwargs):
+        # We check if lazy_register has been imported
+        if self._lazy_lookup:
+            for ll in self._lazy_lookup.copy().values():
+                ll()
+
         # We dispatch first on type(head), and fall back to iterating through
         # the mro. This is significantly faster in the common case where
         # type(head) is in the lookup, with only a small penalty on fall back.
