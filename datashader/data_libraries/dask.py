@@ -10,7 +10,7 @@ from datashader.compiler import compile_components
 from datashader.glyphs import Glyph, LineAxis0
 from datashader.utils import Dispatcher
 
-from .._dependencies import dask, da, dd, register_import_hook
+from .._dependencies import dask, da, dd
 
 __all__ = ()
 

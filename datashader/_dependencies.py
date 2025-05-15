@@ -63,7 +63,7 @@ class _LazyModule:
         bool_use_sys_modules: bool, optional, default False
             Also check `sys.modules` for module in __bool__ check if True.
             This means that bool can only be True if the module is already imported.
-        """
+        """  # noqa: E501
         self.__module = None
         self.__module_name = module_name
         self.__package_name = package_name or module_name
@@ -81,7 +81,7 @@ class _LazyModule:
                 if mod_version < min_version:
                     min_version_str = ".".join(map(str, min_version))
                     mod_version_str = ".".join(map(str, mod_version))
-                    msg = f"{self.__package_name} requires {min_version_str} or higher (found {mod_version_str})"
+                    msg = f"{self.__package_name} requires {min_version_str} or higher (found {mod_version_str})"  # noqa: E501
                     raise VersionError(msg, mod_version_str, min_version_str)
 
             if self in _module_hooks:
