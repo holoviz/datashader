@@ -13,11 +13,11 @@ from xarray import DataArray, Dataset
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
-from .utils import Expr # noqa (API import)
+from .utils import Expr  # noqa: F401
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
 
-from ._dependencies import dd, da, cudf, dask_cudf, spd, _is_installed
+from ._dependencies import dd, da, cudf, dask_cudf, spd, gpd, _is_installed
 
 
 class Axis:
@@ -1263,9 +1263,8 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         If not, return None.
         """
         dfs = []
-        if _is_installed("geopandas"):
-            import geopandas
-            dfs.append(geopandas.GeoDataFrame)
+        if gpd:
+            dfs.append(gpd.GeoDataFrame)
 
         if _is_installed("dask_geopandas"):
             import dask_geopandas
@@ -1290,7 +1289,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             if Version(shapely_version) < Version('2.0.0'):
                 raise ImportError("Use of GeoPandas in Datashader requires Shapely >= 2.0.0")
 
-            if isinstance(source, geopandas.GeoDataFrame):
+            if isinstance(source, gpd.GeoDataFrame):
                 x_range = self.x_range if self.x_range is not None else (-np.inf, np.inf)
                 y_range = self.y_range if self.y_range is not None else (-np.inf, np.inf)
                 from shapely import box
@@ -1347,14 +1346,6 @@ def _bypixel_sanitise(source, glyph, agg):
             source = source.to_dask_dataframe()
         else:
             source = source.to_dataframe()
-    # import narwhals as nw
-    # if isinstance(source, (nw.LazyFrame, nw.DataFrame)):
-    #     columns = list(source.collect_schema())
-    #     cols_to_keep = _cols_to_keep(columns, glyph, agg)
-    #     source = source.select(columns)
-    #     if isinstance(source, nw.LazyFrame):
-    #         source = source.collect()
-    #     source = source.to_pandas()
 
     if (isinstance(source, pd.DataFrame) or
             (cudf and isinstance(source, cudf.DataFrame))):
