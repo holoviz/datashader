@@ -13,30 +13,12 @@ from xarray import DataArray, Dataset
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
-from .utils import Expr # noqa (API import)
+from .utils import Expr  # noqa: F401
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
 
-try:
-    import dask.dataframe as dd
-    import dask.array as da
-except ImportError:
-    dd, da = None, None
+from ._dependencies import dd, da, cudf, dask_cudf, spd, gpd, _is_installed
 
-try:
-    import cudf
-except Exception:
-    cudf = None
-
-try:
-    import dask_cudf
-except Exception:
-    dask_cudf = None
-
-try:
-    import spatialpandas
-except Exception:
-    spatialpandas = None
 
 class Axis:
     """Interface for implementing axis transformations.
@@ -207,13 +189,13 @@ class Canvas:
         if geometry is None:
             glyph = Point(x, y)
         else:
-            if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
+            if spd and isinstance(source, spd.dask.DaskGeoDataFrame):
                 # Downselect partitions to those that may contain points in viewport
                 x_range = self.x_range if self.x_range is not None else (None, None)
                 y_range = self.y_range if self.y_range is not None else (None, None)
                 source = source.cx_partitions[slice(*x_range), slice(*y_range)]
                 glyph = MultiPointGeometry(geometry)
-            elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
+            elif spd and isinstance(source, spd.GeoDataFrame):
                 glyph = MultiPointGeometry(geometry)
             elif (geopandas_source := self._source_from_geopandas(source)) is not None:
                 source = geopandas_source
@@ -370,13 +352,13 @@ class Canvas:
             line_width = 1.0
 
         if geometry is not None:
-            if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
+            if spd and isinstance(source, spd.dask.DaskGeoDataFrame):
                 # Downselect partitions to those that may contain lines in viewport
                 x_range = self.x_range if self.x_range is not None else (None, None)
                 y_range = self.y_range if self.y_range is not None else (None, None)
                 source = source.cx_partitions[slice(*x_range), slice(*y_range)]
                 glyph = LineAxis1Geometry(geometry)
-            elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
+            elif spd and isinstance(source, spd.GeoDataFrame):
                 glyph = LineAxis1Geometry(geometry)
             elif (geopandas_source := self._source_from_geopandas(source)) is not None:
                 source = geopandas_source
@@ -765,13 +747,13 @@ The axis argument to Canvas.area must be 0 or 1
         from .glyphs import PolygonGeom
         from .reductions import any as any_rdn
 
-        if spatialpandas and isinstance(source, spatialpandas.dask.DaskGeoDataFrame):
+        if spd and isinstance(source, spd.dask.DaskGeoDataFrame):
             # Downselect partitions to those that may contain polygons in viewport
             x_range = self.x_range if self.x_range is not None else (None, None)
             y_range = self.y_range if self.y_range is not None else (None, None)
             source = source.cx_partitions[slice(*x_range), slice(*y_range)]
             glyph = PolygonGeom(geometry)
-        elif spatialpandas and isinstance(source, spatialpandas.GeoDataFrame):
+        elif spd and isinstance(source, spd.GeoDataFrame):
             glyph = PolygonGeom(geometry)
         elif (geopandas_source := self._source_from_geopandas(source)) is not None:
             source = geopandas_source
@@ -1281,11 +1263,10 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         If not, return None.
         """
         dfs = []
-        with contextlib.suppress(ImportError):
-            import geopandas
-            dfs.append(geopandas.GeoDataFrame)
+        if gpd:
+            dfs.append(gpd.GeoDataFrame)
 
-        with contextlib.suppress(ImportError):
+        if _is_installed("dask_geopandas"):
             import dask_geopandas
 
             DGP_VERSION = Version(dask_geopandas.__version__).release
@@ -1308,7 +1289,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             if Version(shapely_version) < Version('2.0.0'):
                 raise ImportError("Use of GeoPandas in Datashader requires Shapely >= 2.0.0")
 
-            if isinstance(source, geopandas.GeoDataFrame):
+            if isinstance(source, gpd.GeoDataFrame):
                 x_range = self.x_range if self.x_range is not None else (-np.inf, np.inf)
                 y_range = self.y_range if self.y_range is not None else (-np.inf, np.inf)
                 from shapely import box
