@@ -21,6 +21,7 @@ class VersionError(Exception):
 
 @lru_cache
 def _is_installed(module_name):
+    module_name, *_ = module_name.split(".")
     return find_spec(module_name) is not None
 
 
@@ -130,7 +131,6 @@ if TYPE_CHECKING:
     import cupy
     import dask
     import dask.array as da
-    import dask.bag as db
     import dask.dataframe as dd
     import geopandas as gpd
     import spatialpandas as spd
@@ -140,17 +140,19 @@ else:
     da = _LazyModule("dask.array", "dask")
     dask = _LazyModule("dask")
     dask_cudf = _LazyModule("dask_cudf")
-    db = _LazyModule("dask.bag", "dask")
     dd = _LazyModule("dask.dataframe", "dask")
     gpd = _LazyModule("geopandas")
     spd = _LazyModule("spatialpandas")
+
+# Trigger dask module
+register_import_hook(da, lambda: dask._module)
+register_import_hook(dd, lambda: dask._module and da._module)
 
 __all__ = [
     "cudf",
     "cupy",
     "dask",
     "da",
-    "db",
     "dd",
     "gpd",
     "spd",
