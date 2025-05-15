@@ -12,7 +12,9 @@ from datashader.antialias import AntialiasCombination, AntialiasStage2
 from datashader.utils import isminus1, isnull
 from numba import cuda as nb_cuda
 
-try:
+from ._dependencies import cupy as cp, cudf
+
+if cp:
     from datashader.transfer_functions._cuda_utils import (
         cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args, cuda_row_min_in_place,
         cuda_nanmax_n_in_place_4d, cuda_nanmax_n_in_place_3d,
@@ -20,7 +22,7 @@ try:
         cuda_row_max_n_in_place_4d, cuda_row_max_n_in_place_3d,
         cuda_row_min_n_in_place_4d, cuda_row_min_n_in_place_3d, cuda_shift_and_insert,
     )
-except ImportError:
+else:
     (cuda_atomic_nanmin, cuda_atomic_nanmax, cuda_args, cuda_row_min_in_place,
         cuda_nanmax_n_in_place_4d, cuda_nanmax_n_in_place_3d,
         cuda_nanmin_n_in_place_4d, cuda_nanmin_n_in_place_3d,
@@ -28,11 +30,6 @@ except ImportError:
         cuda_row_min_n_in_place_4d, cuda_row_min_n_in_place_3d, cuda_shift_and_insert,
     ) = None, None, None, None, None, None, None, None, None, None, None, None, None
 
-try:
-    import cudf
-    import cupy as cp
-except Exception:
-    cudf = cp = None
 
 from .utils import (
     Expr, ngjit, nansum_missing, nanmax_in_place, nansum_in_place, row_min_in_place,

@@ -88,12 +88,7 @@ class _LazyModule:
         return self.__module
 
     def __getattr__(self, attr):
-        try:
-            return getattr(self._module, attr)
-        except Exception as e:
-            print(self.__module)
-            print(attr)
-            raise e
+        return getattr(self._module, attr)
 
     def __dir__(self):
         return dir(self._module)
