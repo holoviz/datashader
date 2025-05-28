@@ -187,14 +187,19 @@ Definitions
 
 .. currentmodule:: datashader.reductions
 .. autoclass:: any
+.. autoclass:: by
 .. autoclass:: count
 .. autoclass:: count_cat
 .. autoclass:: first
+.. autoclass:: first_n
 .. autoclass:: last
+.. autoclass:: last_n
 .. autoclass:: m2
 .. autoclass:: max
+.. autoclass:: max_n
 .. autoclass:: mean
 .. autoclass:: min
+.. autoclass:: min_n
 .. autoclass:: mode
 .. autoclass:: std
 .. autoclass:: sum
