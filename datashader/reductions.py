@@ -1337,9 +1337,19 @@ class std(Reduction):
         return xr.DataArray(x, **kwargs)
 
 
-class _first_or_last(Reduction):
+class _first_or_last(OptionalFieldReduction):
     """Abstract base class of first and last reductions.
     """
+    def validate(self, in_dshape):
+        if self.column is None:
+            for key in in_dshape.dict:
+                if isnumeric(in_dshape.measure[key]):
+                    self.column = key
+                    return
+            raise ValueError("no numeric columns in data")
+        else:
+            super().validate(in_dshape)
+
     def out_dshape(self, in_dshape, antialias, cuda, partitioned):
         return dshape(ct.float64)
 
@@ -1376,6 +1386,9 @@ class _first_or_last(Reduction):
         # this is a simple reduction (with a single base) or a compound where reduction
         # (with 2 bases, the second of which is the where reduction).
         return xr.DataArray(bases[-1], **kwargs)
+
+    def __repr__(self):
+        return f"{type(self).__name__}()" if self.column is None else super().__repr__()
 
 
 class first(_first_or_last):
