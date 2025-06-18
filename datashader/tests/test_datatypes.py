@@ -716,6 +716,12 @@ class TestRaggedGetitem(eb.BaseGetitemTests):
     def test_getitem_series_integer_with_missing_raises(self, data, idx):
         pass
 
+    @pytest.mark.xfail(reason="pytest empty string warning")
+    def test_take_pandas_style_negative_raises(self, data, na_value):
+        # Backport may not happen.
+        # https://github.com/pandas-dev/pandas/issues/61557
+        super().test_take_pandas_style_negative_raises(data, na_value)
+
 
 class TestRaggedGroupby(eb.BaseGroupbyTests):
     @pytest.mark.skip(reason="agg not supported")
@@ -730,8 +736,7 @@ class TestRaggedGroupby(eb.BaseGroupbyTests):
     def test_groupby_extension_agg(self):
         pass
 
-    @pytest.mark.skip(
-        reason="numpy.ndarray unhashable and buffer wrong number of dims")
+    @pytest.mark.skip(reason="numpy.ndarray unhashable and buffer wrong number of dims")
     def test_groupby_extension_apply(self):
         pass
 
@@ -767,6 +772,10 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
         assert isinstance(result, list)
         for r, e in zip(result, expected):
             assert np.array_equal(r, e, equal_nan=True)
+
+    @pytest.mark.xfail(raises=AssertionError, reason="numpy shared memory object")
+    def test_array_interface_copy(self, data):
+        super().test_array_interface_copy(data)
 
 
 class TestRaggedMethods(eb.BaseMethodsTests):
@@ -840,6 +849,12 @@ class TestRaggedMethods(eb.BaseMethodsTests):
         # Added in Pandas 2.2
         # https://github.com/pandas-dev/pandas/pull/55255
         super().test_duplicated(data)
+
+    @pytest.mark.xfail(reason="pytest empty string warning")
+    def test_argmax_argmin_no_skipna_notimplemented(self, data_missing_for_sorting):
+        # Backport may not happen.
+        # https://github.com/pandas-dev/pandas/issues/61557
+        super().test_argmax_argmin_no_skipna_notimplemented(data_missing_for_sorting)
 
 class TestRaggedPrinting(eb.BasePrintingTests):
     @pytest.mark.skip(reason="Can't autoconvert ragged array to numpy array")
