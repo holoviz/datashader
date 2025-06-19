@@ -736,9 +736,9 @@ class TestRaggedGroupby(eb.BaseGroupbyTests):
     def test_groupby_extension_agg(self):
         pass
 
-    @pytest.mark.skip(reason="numpy.ndarray unhashable and buffer wrong number of dims")
+    @pytest.mark.xfail(reason="numpy.ndarray unhashable and buffer wrong number of dims")
     def test_groupby_extension_apply(self):
-        pass
+        super().test_groupby_extension_apply()
 
 
 class TestRaggedInterface(eb.BaseInterfaceTests):
