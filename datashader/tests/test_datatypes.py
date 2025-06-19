@@ -850,10 +850,8 @@ class TestRaggedMethods(eb.BaseMethodsTests):
         # https://github.com/pandas-dev/pandas/pull/55255
         super().test_duplicated(data)
 
-    @pytest.mark.xfail(reason="pytest empty string warning")
+    @pytest.mark.filterwarnings("ignore::pytest.PytestWarning")
     def test_argmax_argmin_no_skipna_notimplemented(self, data_missing_for_sorting):
-        # Backport may not happen.
-        # https://github.com/pandas-dev/pandas/issues/61557
         super().test_argmax_argmin_no_skipna_notimplemented(data_missing_for_sorting)
 
 class TestRaggedPrinting(eb.BasePrintingTests):
