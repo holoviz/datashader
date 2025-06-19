@@ -57,6 +57,8 @@ nybb_lines_sol = np.array([
     [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4., nan, nan, nan, nan, nan],  # noqa: E501
 ])
 
+# This data is for checking repeatability in our tests, not correctness.
+# GeoPandas 1.1.0 updated the sampling of points in https://github.com/geopandas/geopandas/pull/3471
 nybb_points_sol = np.array([
     [2,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
     [3,  4,  1,  4,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
