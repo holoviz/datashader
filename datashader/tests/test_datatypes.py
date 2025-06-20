@@ -716,10 +716,8 @@ class TestRaggedGetitem(eb.BaseGetitemTests):
     def test_getitem_series_integer_with_missing_raises(self, data, idx):
         pass
 
-    @pytest.mark.xfail(reason="pytest empty string warning")
+    @pytest.mark.filterwarnings("ignore::pytest.PytestWarning")
     def test_take_pandas_style_negative_raises(self, data, na_value):
-        # Backport may not happen.
-        # https://github.com/pandas-dev/pandas/issues/61557
         super().test_take_pandas_style_negative_raises(data, na_value)
 
 
