@@ -5,10 +5,6 @@ from datashader.glyphs.line import _build_map_onto_pixel_for_line
 from datashader.glyphs.points import _GeometryLike
 from datashader.utils import ngjit
 
-try:
-    import spatialpandas
-except Exception:
-    spatialpandas = None
 
 
 class GeopandasPolygonGeom(_GeometryLike):
