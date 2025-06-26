@@ -19,6 +19,7 @@ html_css_files += [
 # This broke the landing page `index.rst` as it embeds `index.ipynb` file.
 # Adding `.md` to make our life easier in the future.
 source_suffix = ['.rst', '.md', '.ipynb']
+master_doc = 'index'
 
 html_logo = '_static/logo_horizontal.svg'
 html_favicon = '_static/favicon.ico'
