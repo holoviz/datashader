@@ -48,7 +48,10 @@ Contents:
  Using reduction to inspect rather than aggregate data.
 
 `13. GeoPandas <Geopandas.html>`_
-GeoPandas support in Datashader.
+ GeoPandas support in Datashader.
+
+`14. Tiling <tiling.html>`_
+ Building Tiles Using DataShader.
 
 .. toctree::
     :hidden:
@@ -67,3 +70,4 @@ GeoPandas support in Datashader.
     Geography <Geography>
     Inspection Reductions <Inspection_Reductions>
     GeoPandas <Geopandas>
+    Tiling <tiling>
