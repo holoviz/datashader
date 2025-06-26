@@ -79,6 +79,8 @@ redirects = {
     'topics/index': 'https://examples.holoviz.org',
 }
 
+autosummary_generate = True
+
 # Datashader uses sphinx.ext.autodoc (e.g. automodule) for its API reference
 # and automatically include a module that contains Image. Image inherits
 # from xr.DataArray. Datashader uses numpydoc to parse the docstrings.
@@ -102,3 +104,13 @@ numpydoc.docscrape.NumpyDocString._error_location = patch_error_location
 
 # Override the Sphinx default title that appends `documentation`
 html_title = f'{project} v{version}'
+
+# /Users/runner/work/datashader/datashader/datashader/core.py:docstring of datashader.core.Canvas:21:
+# WARNING: autosummary: stub file not found 'datashader.Canvas.area'. Check your autosummary_generate setting.
+# See https://stackoverflow.com/a/73294408
+numpydoc_class_members_toctree = False
+
+numpydoc_show_inherited_class_members = False
+numpydoc_class_members_toctree = False
+
+exclude_patterns = ['governance']
