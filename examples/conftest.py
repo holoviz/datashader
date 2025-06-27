@@ -1,9 +1,15 @@
 from importlib.util import find_spec
 from packaging.version import Version
+import platform
 
-collect_ignore_glob = [
-    "tiling.ipynb",
-]
+system = platform.system()
+
+collect_ignore_glob = []
+
+if system == "Windows":
+    collect_ignore_glob = [
+        "user_guide/tiling.ipynb",
+    ]
 
 if find_spec("geopandas") is None:
     collect_ignore_glob += [

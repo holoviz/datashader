@@ -1,4 +1,4 @@
 Releases
 ========
 
-.. include:: ../CHANGELOG.rst
+.. include:: ../CHANGELOG.md
