@@ -4,6 +4,8 @@ import platform
 
 system = platform.system()
 
+collect_ignore_glob = []
+
 if system == "Windows":
     collect_ignore_glob = [
         "user_guide/tiling.ipynb",
