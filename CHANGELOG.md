@@ -12,11 +12,11 @@ Enhancements:
 
 Python version 3.9 was not changed in the last release of 0.17.0. It has
 now been updated in this release. Thanks to first time contributors
-[\@Azaya89](https://github.com/Azaya89) and
-[\@dmiracle](https://github.com/@dmiracle); and regular contributors
-[\@hoxbro](https://github.com/hoxbro),
-[\@maximlt](https://github.com/maximlt) and
-[\@amaloney](https://github.com/amaloney).
+[@Azaya89](https://github.com/Azaya89) and
+[@dmiracle](https://github.com/@dmiracle); and regular contributors
+[@hoxbro](https://github.com/hoxbro),
+[@maximlt](https://github.com/maximlt) and
+[@amaloney](https://github.com/amaloney).
 
 Breaking Changes:
 
@@ -35,12 +35,12 @@ optimized numba code. The minimum supported version of Python is now
 3.10, along with making pillow and dask optional dependencies. This
 release also adds compatibility changes to several downstream libraries,
 build updates, bugfixes, and documentation updates. Thanks to first time
-contributors [\@rhkarls](https://github.com/rhkarls),
-[\@lmcinnes](https://github.com/lmcinnes),
-[\@thomas-reimonn](https://github.com/thomas-reimonn),
-[\@amaloney](https://github.com/amaloney); and regular contributors
-[\@hoxbro](https://github.com/hoxbro) and
-[\@maximlt](https://github.com/maximlt).
+contributors [@rhkarls](https://github.com/rhkarls),
+[@lmcinnes](https://github.com/lmcinnes),
+[@thomas-reimonn](https://github.com/thomas-reimonn),
+[@amaloney](https://github.com/amaloney); and regular contributors
+[@hoxbro](https://github.com/hoxbro) and
+[@maximlt](https://github.com/maximlt).
 
 Breaking Changes:
 
@@ -89,8 +89,8 @@ Documentation:
   ([#1371](https://github.com/holoviz/datashader/pull/1371))
 - Update links and fix warnings
   ([#1375](https://github.com/holoviz/datashader/pull/1375),
-  [#1377](https://github.com/holoviz/datashader/pull/1377), [#1402
-  \<https://github.com/holoviz/datashader/pull/1402\>]{.title-ref})
+  [#1377](https://github.com/holoviz/datashader/pull/1377),
+  [#1402](https://github.com/holoviz/datashader/pull/1402))
 
 Maintenance:
 
@@ -105,9 +105,9 @@ Maintenance:
 # Version 0.16.3 (2024-07-04)
 
 This release adds an enhancement and compatibility changes with upstream
-libraries. Thanks to [\@raphaelquast](https://github.com/raphaelquast),
-[\@droumis](https://github.com/droumis) and
-[\@hoxbro](https://github.com/hoxbro).
+libraries. Thanks to [@raphaelquast](https://github.com/raphaelquast),
+[@droumis](https://github.com/droumis) and
+[@hoxbro](https://github.com/hoxbro).
 
 Enhancements:
 
@@ -130,7 +130,7 @@ Maintenance:
 
 This release adds compatibility with Numpy 2.0, along with other
 improvements and bugfixes. Thanks to
-[\@hoxbro](https://github.com/hoxbro) for his contributions.
+[@hoxbro](https://github.com/hoxbro) for his contributions.
 
 Bugfixes:
 
@@ -170,11 +170,11 @@ Maintenance:
 
 This release brings compatibility with new release of upstream packages.
 Thanks to first-time contributor
-[\@alexander-beedie](https://github.com/alexander-beedie), and the
-regular contributors [\@philippjfr](https://github.com/philippjfr),
-[\@ianthomas23](https://github.com/ianthomas23),
-[\@maximlt](https://github.com/maximlt), and
-[\@hoxbro](https://github.com/hoxbro).
+[@alexander-beedie](https://github.com/alexander-beedie), and the
+regular contributors [@philippjfr](https://github.com/philippjfr),
+[@ianthomas23](https://github.com/ianthomas23),
+[@maximlt](https://github.com/maximlt), and
+[@hoxbro](https://github.com/hoxbro).
 
 Enhancements:
 
@@ -224,9 +224,9 @@ coordinates of multiple lines that share the same `x` coordinates.
 The DataShape package is now vendored in Datashader as it has not been
 maintained for a number of years and is not accepting updates.
 
-Thanks to new contributor [\@J08ny](https://github.com/J08ny) and
-regular contributors [\@Hoxbro](https://github.com/Hoxbro) and
-[\@ianthomas23](https://github.com/ianthomas23).
+Thanks to new contributor [@J08ny](https://github.com/J08ny) and
+regular contributors [@Hoxbro](https://github.com/Hoxbro) and
+[@ianthomas23](https://github.com/ianthomas23).
 
 Enhancements:
 
@@ -279,10 +279,10 @@ such as `max_n` and `where`, including within categorical `by`
 reductions. It also improves support for `summary` reductions and adds
 CUDA implementations of `std` and `var` reductions.
 
-Thanks to regular contributors [\@Hoxbro](https://github.com/Hoxbro),
-[\@ianthomas23](https://github.com/ianthomas23),
-[\@maximlt](https://github.com/maximlt) and
-[\@thuydotm](https://github.com/thuydotm).
+Thanks to regular contributors [@Hoxbro](https://github.com/Hoxbro),
+[@ianthomas23](https://github.com/ianthomas23),
+[@maximlt](https://github.com/maximlt) and
+[@thuydotm](https://github.com/thuydotm).
 
 Enhancements:
 
@@ -348,9 +348,9 @@ for categorical inspection reductions such as `by(max_n)`. The only
 missing functionality for inspection reductions is now antialiased
 lines, which in planned for the next release.
 
-Thanks to contributors [\@ianthomas23](https://github.com/ianthomas23),
-[\@maximlt](https://github.com/maximlt) and
-[\@philippjfr](https://github.com/philippjfr).
+Thanks to contributors [@ianthomas23](https://github.com/ianthomas23),
+[@maximlt](https://github.com/maximlt) and
+[@philippjfr](https://github.com/philippjfr).
 
 Bug fixes:
 
@@ -407,11 +407,11 @@ providing Dask and CUDA support for all existing and new inspection
 reductions including `where`. It also provides support for Numba 0.57,
 NumPy 1.24 and Python 3.11, and drops support for Python 3.7.
 
-Thanks to first-time contributors [\@danigm](https://github.com/danigm)
-and [\@Jap8nted](https://github.com/Jap8nted), and also regulars
-[\@Hoxbro](https://github.com/Hoxbro),
-[\@philippjfr](https://github.com/philippjfr) and
-[\@ianthomas23](https://github.com/ianthomas23)
+Thanks to first-time contributors [@danigm](https://github.com/danigm)
+and [@Jap8nted](https://github.com/Jap8nted), and also regulars
+[@Hoxbro](https://github.com/Hoxbro),
+[@philippjfr](https://github.com/philippjfr) and
+[@ianthomas23](https://github.com/ianthomas23)
 
 Enhancements:
 
@@ -477,9 +477,9 @@ inspection capabilities and adds support for colormaps that are tuples
 of hex values. There are also various bug fixes and compatibility
 improvements.
 
-Thanks to [\@ianthomas23](https://github.com/ianthomas23),
-[\@maximlt](https://github.com/maximlt) and
-[\@Hoxbro](https://github.com/Hoxbro).
+Thanks to [@ianthomas23](https://github.com/ianthomas23),
+[@maximlt](https://github.com/maximlt) and
+[@Hoxbro](https://github.com/Hoxbro).
 
 Enhancements:
 
@@ -535,10 +535,10 @@ This release fixes a bug related to spatial indexing of
 `spatialpandas.GeoDataFrames`, and introduces enhancements to
 antialiased lines, benchmarking and GPU support.
 
-Thanks to first-time contributors [\@eriknw](https://github.com/eriknw)
-and [\@raybellwaves](https://github.com/raybellwaves), and also
-[\@ianthomas23](https://github.com/ianthomas23) and
-[\@maximlt](https://github.com/maximlt).
+Thanks to first-time contributors [@eriknw](https://github.com/eriknw)
+and [@raybellwaves](https://github.com/raybellwaves), and also
+[@ianthomas23](https://github.com/ianthomas23) and
+[@maximlt](https://github.com/maximlt).
 
 Enhancements:
 
@@ -588,8 +588,8 @@ This is a bug fix release to fix an important divide by zero bug in
 antialiased lines, along with improvements to documentation and handling
 of dependencies.
 
-Thanks to [\@ianthomas23](https://github.com/ianthomas23) and
-[\@adamjhawley](https://github.com/adamjhawley).
+Thanks to [@ianthomas23](https://github.com/ianthomas23) and
+[@adamjhawley](https://github.com/adamjhawley).
 
 Enhancements:
 
@@ -618,7 +618,7 @@ Bug fixes:
 This release provides a number of important bug fixes and small
 enhancements from Ian Thomas along with infrastructure improvements from
 Maxime Liquet and new reductions from
-[\@tselea](https://github.com/tselea).
+[@tselea](https://github.com/tselea).
 
 Enhancements:
 
@@ -863,12 +863,12 @@ No release notes produced.
 
 This release is primarily a compatibility release for newer versions of
 Rapids cuDF and Numba versions along with a small number of bug fixes.
-With contributions from [\@jonmmease](https://github.com/jonmmease),
-[\@stuartarchibald](https://github.com/stuartarchibald),
-[\@AjayThorve](https://github.com/AjayThorve),
-[\@kebowen730](https://github.com/kebowen730),
-[\@jbednar](https://github.com/jbednar) and
-[\@philippjfr](https://github.com/philippjfr).
+With contributions from [@jonmmease](https://github.com/jonmmease),
+[@stuartarchibald](https://github.com/stuartarchibald),
+[@AjayThorve](https://github.com/AjayThorve),
+[@kebowen730](https://github.com/kebowen730),
+[@jbednar](https://github.com/jbednar) and
+[@philippjfr](https://github.com/philippjfr).
 
 - Fixes support for cuDF 0.13 and Numba 0.48
   ([#933](https://github.com/holoviz/datashader/pull/933))
@@ -887,10 +887,10 @@ With contributions from [\@jonmmease](https://github.com/jonmmease),
 # Version 0.11.0 (2020-05-25)
 
 This release includes major contributions from
-[\@maihde](https://github.com/maihde) (generalizing `count_cat` to `by`
-span for colorize), [\@jonmmease](https://github.com/jonmmease) (Dask
-quadmesh support), [\@philippjfr](https://github.com/philippjfr) and
-[\@jbednar](https://github.com/jbednar)
+[@maihde](https://github.com/maihde) (generalizing `count_cat` to `by`
+span for colorize), [@jonmmease](https://github.com/jonmmease) (Dask
+quadmesh support), [@philippjfr](https://github.com/philippjfr) and
+[@jbednar](https://github.com/jbednar)
 (count_cat/by/colorize/docs/bugfixes), and Barry Bragg, Jr. (TMS tileset
 speedups).
 
@@ -911,7 +911,7 @@ New features (see `getting_started/2_Pipeline.ipynb` for examples):
   [#909](https://github.com/holoviz/datashader/pull/909),
   [#910](https://github.com/holoviz/datashader/pull/910),
   [#908](https://github.com/holoviz/datashader/pull/908))
-- Support for `span` in [colorize]{#colorize}().
+- Support for `span` in _colorize().
   ([#875](https://github.com/holoviz/datashader/pull/875),
   [#910](https://github.com/holoviz/datashader/pull/910))
 - Support for Dask-based quadmesh rendering for rectilinear and
@@ -941,7 +941,7 @@ Compatibility (breaking changes and deprecations):
   according to how far they are from the minimum aggregate value
   observed, while previously they were referenced to zero. Previous
   behavior can be restored by passing `color_baseline=0` to `count_cat`
-  or `by`
+  or `by`.
 - `count_cat` is now deprecated and removed from the docs; use
   `by(..., count())` instead.
 - Result of a `count()` aggregation is now `uint32` not `int32` to
@@ -951,8 +951,8 @@ Compatibility (breaking changes and deprecations):
   (`uint`; zero is otherwise a valid value distinct from NaN
   ([#910](https://github.com/holoviz/datashader/pull/910)).
 - `alpha` is now respected as the upper end of the alpha range for both
-  [colorize]{#colorize}() and [interpolate]{#interpolate}() in tf.shade;
-  previously only [interpolate]{#interpolate} respected it.
+  _colorize() and _interpolate() in tf.shade;
+  previously only _interpolate respected it.
 - Added new nansum_missing utility for working with Numpy\>1.9, where
   nansum no longer returns NaN for all-NaN values.
 - ds.geo and ds.spatial modules are now deprecated; their contents have
@@ -964,11 +964,11 @@ Download and install: <https://datashader.org/getting_started>
 # Version 0.10.0 (2020-01-21)
 
 This release includes major contributions from
-[\@jonmmease](https://github.com/jonmmease) (polygon rendering,
+[@jonmmease](https://github.com/jonmmease) (polygon rendering,
 spatialpandas), along with contributions from
-[\@philippjfr](https://github.com/philippjfr) and
-[\@brendancol](https://github.com/brendancol) (bugfixes), and
-[\@jbednar](https://github.com/jbednar) (docs, warnings, and import
+[@philippjfr](https://github.com/philippjfr) and
+[@brendancol](https://github.com/brendancol) (bugfixes), and
+[@jbednar](https://github.com/jbednar) (docs, warnings, and import
 times).
 
 New features:
@@ -1003,10 +1003,10 @@ Download and install: <https://datashader.org/getting_started>
 # Version 0.9.0 (2019-12-08)
 
 This release includes major contributions from
-[\@jonmmease](https://github.com/jonmmease) (GPU support), along with
-contributions from [\@brendancol](https://github.com/brendancol)
-(viewshed speedups), [\@jbednar](https://github.com/jbednar) (docs), and
-[\@jsignell](https://github.com/jsignell) (examples, maintenance,
+[@jonmmease](https://github.com/jonmmease) (GPU support), along with
+contributions from [@brendancol](https://github.com/brendancol)
+(viewshed speedups), [@jbednar](https://github.com/jbednar) (docs), and
+[@jsignell](https://github.com/jsignell) (examples, maintenance,
 website).
 
 New features:
@@ -1034,11 +1034,11 @@ Bugfixes and compatibility:
 # Version 0.8.0 (2019-10-08)
 
 This release includes major contributions from
-[\@jonmmease](https://github.com/jonmmease) (quadmesh and filled-area
-support), [\@brendancol](https://github.com/brendancol) (geospatial
-toolbox, tile previewer), [\@philippjfr](https://github.com/philippjfr)
+[@jonmmease](https://github.com/jonmmease) (quadmesh and filled-area
+support), [@brendancol](https://github.com/brendancol) (geospatial
+toolbox, tile previewer), [@philippjfr](https://github.com/philippjfr)
 (distributed regridding, dask performance), and
-[\@jsignell](https://github.com/jsignell) (examples, maintenance,
+[@jsignell](https://github.com/jsignell) (examples, maintenance,
 website).
 
 New features:
@@ -1089,10 +1089,10 @@ Bugfixes and compatibility:
 # Version 0.7.0 (2019-04-08)
 
 This release includes major contributions from
-[\@jonmmease](https://github.com/jonmmease) (ragged array extension,
+[@jonmmease](https://github.com/jonmmease) (ragged array extension,
 SpatialPointsFrame, row-oriented line storage, dask trimesh support),
-[\@jsignell](https://github.com/jsignell) (maintenance, website), and
-[\@jbednar](https://github.com/jbednar) (Panel-based dashboard).
+[@jsignell](https://github.com/jsignell) (maintenance, website), and
+[@jbednar](https://github.com/jbednar) (Panel-based dashboard).
 
 New features:
 
@@ -1122,15 +1122,15 @@ Bugfixes and compatibility:
 # Version 0.6.9 (2019-01-29)
 
 This release includes major contributions from
-[\@jonmmease](https://github.com/jonmmease) (fixing several
-long-standing bugs), [\@jlstevens](https://github.com/jlstevens)
+[@jonmmease](https://github.com/jonmmease) (fixing several
+long-standing bugs), [@jlstevens](https://github.com/jlstevens)
 (updating all example notebooks to use current syntax,
 [#685](https://github.com/holoviz/datashader/pull/685)),
-[\@jbednar](https://github.com/jbednar),
-[\@philippjfr](https://github.com/philippjfr), and
-[\@jsignell](https://github.com/jsignell)
+[@jbednar](https://github.com/jbednar),
+[@philippjfr](https://github.com/philippjfr), and
+[@jsignell](https://github.com/jsignell)
 ([Panel](https://panel/pyviz.org)-based dashboard), and
-[\@brendancol](https://github.com/brendancol) (geo utilities).
+[@brendancol](https://github.com/brendancol) (geo utilities).
 
 New features:
 
