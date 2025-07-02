@@ -23,14 +23,15 @@ master_doc = 'index'
 
 html_logo = '_static/logo_horizontal.svg'
 html_favicon = '_static/favicon.ico'
+html_show_sourcelink = False
 
 html_theme_options.update({
     'github_url': 'https://github.com/holoviz/datashader',
     'icon_links': [
         {
-            'name': 'Twitter',
-            'url': 'https://twitter.com/datashader',
-            'icon': 'fa-brands fa-twitter-square',
+            'name': 'X',
+            'url': 'https://x.com/datashader',
+            'icon': 'fa-brands fa-square-x-twitter',
         },
         {
             'name': 'Discourse',
@@ -38,18 +39,12 @@ html_theme_options.update({
             'icon': 'fa-brands fa-discourse',
         },
         {
-            "name": "HoloViz",
-            "url": "https://holoviz.org/",
-            "icon": "_static/holoviz-icon-white.svg",
-            "type": "local",
-        },
-        {
             "name": "Discord",
             "url": "https://discord.gg/AXRHnJU6sP",
             "icon": "fa-brands fa-discord",
         },
     ],
-    "pygment_dark_style": "material"
+    "pygments_dark_style": "material"
 })
 
 html_context.update({
