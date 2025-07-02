@@ -58,12 +58,21 @@ extensions += [
 ]
 
 myst_fence_as_directive = ["mermaid"]
+myst_enable_extensions = [
+    # To also use ::: delimiters to denote directives, instead of ```.
+    'colon_fence',
+    # MySt-Parser will attempt to convert any isolated img tags (i.e. not
+    # wrapped in any other HTML) to the internal representation used in sphinx.
+    'html_image',
+]
 
 nbsite_analytics = {
     'goatcounter_holoviz': True,
 }
 
 nbbuild_cell_timeout = 2000
+
+nb_execution_mode = "auto"
 
 redirects = {
     'topics/index': 'https://examples.holoviz.org',
