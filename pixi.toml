@@ -154,6 +154,9 @@ _docs-install = 'python -m pip install --no-deps --disable-pip-version-check -e 
 [feature.doc.tasks.docs-build]
 depends-on = ['_docs-install', '_docs-generate-rst', '_docs-generate']
 
+[feature.doc.activation.env]
+HV_DOCS_BUILD = "1"
+
 # =============================================
 # ================== BUILD ====================
 # =============================================
