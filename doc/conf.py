@@ -29,11 +29,6 @@ html_theme_options.update({
     'github_url': 'https://github.com/holoviz/datashader',
     'icon_links': [
         {
-            'name': 'X',
-            'url': 'https://x.com/datashader',
-            'icon': 'fa-brands fa-square-x-twitter',
-        },
-        {
             'name': 'Discourse',
             'url': 'https://discourse.holoviz.org/c/datashader/',
             'icon': 'fa-brands fa-discourse',
