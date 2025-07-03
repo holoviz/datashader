@@ -48,7 +48,7 @@ Contents:
  Using reduction to inspect rather than aggregate data.
 
 `13. GeoPandas <Geopandas.html>`_
-GeoPandas support in Datashader.
+ GeoPandas support in Datashader.
 
 .. toctree::
     :hidden:

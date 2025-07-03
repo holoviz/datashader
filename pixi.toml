@@ -103,7 +103,7 @@ geodatasets = "*"
 geopandas-base = "*"
 netcdf4 = "*"
 pyarrow = "*"
-pillow = "*"
+pillow = "<11.3.0"  # Temp. upper pin
 pyogrio = "*"
 rasterio = "*"
 rioxarray = "*"
@@ -141,7 +141,7 @@ test-benchmark = 'pytest datashader/tests --benchmark --gpu'
 # =================== DOCS ====================
 # =============================================
 [feature.doc.dependencies]
-nbsite = ">=0.8.4,<0.9.0"
+nbsite = ">=0.9.0a2, <0.10.0a0"
 numpydoc = "*"
 sphinxcontrib-mermaid = "*"
 sphinx-reredirects = "*"
@@ -149,9 +149,16 @@ sphinx-reredirects = "*"
 [feature.doc.tasks]
 _docs-generate-rst = 'nbsite generate-rst --org holoviz --project-name datashader'
 _docs-generate = 'nbsite build --what=html --output=builtdocs --org holoviz --project-name datashader'
+_docs-install = 'python -m pip install --no-deps --disable-pip-version-check -e .'
 
 [feature.doc.tasks.docs-build]
 depends-on = ['_docs-generate-rst', '_docs-generate']
+
+[feature.doc.tasks.docs-build-full]
+depends-on = ['_docs-install', 'download-data', '_docs-generate-rst', '_docs-generate']
+
+[feature.doc.activation.env]
+HV_DOCS_BUILD = "1"
 
 # =============================================
 # ================== BUILD ====================

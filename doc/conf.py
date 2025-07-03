@@ -19,28 +19,19 @@ html_css_files += [
 # This broke the landing page `index.rst` as it embeds `index.ipynb` file.
 # Adding `.md` to make our life easier in the future.
 source_suffix = ['.rst', '.md', '.ipynb']
+master_doc = 'index'
 
 html_logo = '_static/logo_horizontal.svg'
 html_favicon = '_static/favicon.ico'
+html_show_sourcelink = False
 
 html_theme_options.update({
     'github_url': 'https://github.com/holoviz/datashader',
     'icon_links': [
         {
-            'name': 'Twitter',
-            'url': 'https://twitter.com/datashader',
-            'icon': 'fa-brands fa-twitter-square',
-        },
-        {
             'name': 'Discourse',
             'url': 'https://discourse.holoviz.org/c/datashader/',
             'icon': 'fa-brands fa-discourse',
-        },
-        {
-            "name": "HoloViz",
-            "url": "https://holoviz.org/",
-            "icon": "_static/holoviz-icon-white.svg",
-            "type": "local",
         },
         {
             "name": "Discord",
@@ -48,7 +39,7 @@ html_theme_options.update({
             "icon": "fa-brands fa-discord",
         },
     ],
-    "pygment_dark_style": "material"
+    "pygments_dark_style": "material"
 })
 
 html_context.update({
@@ -67,6 +58,14 @@ extensions += [
 ]
 
 myst_fence_as_directive = ["mermaid"]
+myst_enable_extensions = [
+    # To also use ::: delimiters to denote directives, instead of ```.
+    'colon_fence',
+    # MySt-Parser will attempt to convert any isolated img tags (i.e. not
+    # wrapped in any other HTML) to the internal representation used in sphinx.
+    'html_image',
+    'deflist',
+]
 
 nbsite_analytics = {
     'goatcounter_holoviz': True,
@@ -74,9 +73,13 @@ nbsite_analytics = {
 
 nbbuild_cell_timeout = 2000
 
+nb_execution_mode = "auto"
+
 redirects = {
     'topics/index': 'https://examples.holoviz.org',
 }
+
+autosummary_generate = True
 
 # Datashader uses sphinx.ext.autodoc (e.g. automodule) for its API reference
 # and automatically include a module that contains Image. Image inherits
@@ -101,3 +104,13 @@ numpydoc.docscrape.NumpyDocString._error_location = patch_error_location
 
 # Override the Sphinx default title that appends `documentation`
 html_title = f'{project} v{version}'
+
+# /Users/runner/work/datashader/datashader/datashader/core.py:docstring of datashader.core.Canvas:21:
+# WARNING: autosummary: stub file not found 'datashader.Canvas.area'. Check your autosummary_generate setting.
+# See https://stackoverflow.com/a/73294408
+numpydoc_class_members_toctree = False
+
+numpydoc_show_inherited_class_members = False
+numpydoc_class_members_toctree = False
+
+exclude_patterns = ['governance']
