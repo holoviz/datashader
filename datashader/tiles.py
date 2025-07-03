@@ -322,7 +322,7 @@ class TileRenderer:
                 continue
 
             # flip since y tiles go down (Google map tiles
-            img = fromarray(np.flip(arr.data, 0)).convert('RGBA')
+            img = fromarray(np.flip(arr.data, 0))
 
             if self.post_render_func:
                 extras = dict(x=x, y=y, z=z)
