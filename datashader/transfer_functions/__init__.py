@@ -39,7 +39,7 @@ class Image(xr.DataArray):
         if cupy:
             data = cupy.asnumpy(data)
         arr = np.flipud(data) if origin == 'lower' else data
-        return fromarray(arr, 'RGBA')
+        return fromarray(arr).convert("RGBA")
 
     def to_bytesio(self, format='png', origin='lower'):
         fp = BytesIO()
