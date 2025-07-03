@@ -13,9 +13,9 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.10.0
+    rev: v0.12.1
     hooks:
-      - id: ruff
+      - id: ruff-check
         files: datashader/
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
@@ -24,7 +24,7 @@ repos:
         additional_dependencies:
           - tomli
   - repo: https://github.com/hoxbro/clean_notebook
-    rev: v0.1.15
+    rev: v0.1.17
     hooks:
       - id: clean-notebook
 
