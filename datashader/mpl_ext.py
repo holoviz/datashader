@@ -10,18 +10,10 @@ from . import reductions
 from . import transfer_functions as tf
 from .colors import Sets1to3
 from .core import bypixel, Canvas
+from .utils import uint32_to_uint8, uint8_to_uint32
+
 
 __all__ = ["ScalarDSArtist", "CategoricalDSArtist", "alpha_colormap", "dsshow"]
-
-
-def uint32_to_uint8(img):
-    """Cast a uint32 raster to a 4-channel uint8 RGBA array."""
-    return img.view(dtype=np.uint8).reshape(img.shape + (4,))
-
-
-def uint8_to_uint32(img):
-    """Cast a 4-channel uint8 RGBA array to uint32 raster"""
-    return img.view(dtype=np.uint32).reshape(img.shape[:-1])
 
 
 def to_ds_image(binned, rgba):

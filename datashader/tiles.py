@@ -14,6 +14,9 @@ try:
 except ImportError:
     dask, db = None, None
 
+
+from .utils import uint32_to_uint8
+
 __all__ = ['render_tiles', 'MercatorTileDefinition']
 
 
@@ -321,9 +324,14 @@ class TileRenderer:
             if 0 in arr.shape:
                 continue
 
-            # flip since y tiles go down (Google map tiles
-            img = fromarray(np.flip(arr.data, 0), 'RGBA')
+            # flip since y tiles go down (Google map tiles)
+            data = np.flip(arr.data, 0)
 
+            # Create RGBA view for img
+            if len(data.shape) == 2 and data.dtype == np.uint32:
+               data = uint32_to_uint8(data)
+
+            img = fromarray(data)
             if self.post_render_func:
                 extras = dict(x=x, y=y, z=z)
                 img = self.post_render_func(img, **extras)

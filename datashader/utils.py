@@ -1010,3 +1010,13 @@ def row_min_n_in_place_3d(ret, other):
     for y in range(ny):
         for x in range(nx):
             _row_min_n_impl(ret[y, x], other[y, x])
+
+
+def uint32_to_uint8(img):
+    """Cast a uint32 raster to a 4-channel uint8 RGBA array."""
+    return img.view(dtype=np.uint8).reshape(img.shape + (4,))
+
+
+def uint8_to_uint32(img):
+    """Cast a 4-channel uint8 RGBA array to uint32 raster"""
+    return img.view(dtype=np.uint32).reshape(img.shape[:-1])
