@@ -12,7 +12,7 @@ import toolz as tz
 import xarray as xr
 
 from datashader.colors import rgb, Sets1to3
-from datashader.utils import nansum_missing, ngjit
+from datashader.utils import nansum_missing, ngjit, uint32_to_uint8
 
 try:
     import dask.array as da
@@ -39,7 +39,10 @@ class Image(xr.DataArray):
         if cupy:
             data = cupy.asnumpy(data)
         arr = np.flipud(data) if origin == 'lower' else data
-        return fromarray(arr, 'RGBA')
+
+        if len(arr.shape) == 2 and arr.dtype == np.uint32:
+           arr = uint32_to_uint8(arr)
+        return fromarray(arr)
 
     def to_bytesio(self, format='png', origin='lower'):
         fp = BytesIO()
