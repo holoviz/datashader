@@ -12,12 +12,7 @@ import xarray as xr
 from datashader.utils import Expr, ngjit
 from datashader.macros import expand_varargs
 
-try:
-    import cudf
-    import cupy as cp
-except Exception:
-    cudf = None
-    cp = None
+from .._dependencies import cudf, cupy as cp
 
 
 class Glyph(Expr):
