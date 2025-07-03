@@ -141,7 +141,7 @@ test-benchmark = 'pytest datashader/tests --benchmark --gpu'
 # =================== DOCS ====================
 # =============================================
 [feature.doc.dependencies]
-nbsite =  ">=0.9.0a2"
+nbsite = ">=0.9.0a2, <0.10.0a0"
 numpydoc = "*"
 sphinxcontrib-mermaid = "*"
 sphinx-reredirects = "*"
@@ -152,7 +152,10 @@ _docs-generate = 'nbsite build --what=html --output=builtdocs --org holoviz --pr
 _docs-install = 'python -m pip install --no-deps --disable-pip-version-check -e .'
 
 [feature.doc.tasks.docs-build]
-depends-on = ['_docs-install', '_docs-generate-rst', '_docs-generate']
+depends-on = ['_docs-generate-rst', '_docs-generate']
+
+[feature.doc.tasks.docs-build-full]
+depends-on = ['_docs-install', 'download-data', '_docs-generate-rst', '_docs-generate']
 
 [feature.doc.activation.env]
 HV_DOCS_BUILD = "1"

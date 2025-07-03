@@ -50,9 +50,6 @@ Contents:
 `13. GeoPandas <Geopandas.html>`_
  GeoPandas support in Datashader.
 
-`14. Tiling <tiling.html>`_
- Building Tiles Using DataShader.
-
 .. toctree::
     :hidden:
     :maxdepth: 3
@@ -70,4 +67,3 @@ Contents:
     Geography <Geography>
     Inspection Reductions <Inspection_Reductions>
     GeoPandas <Geopandas>
-    Tiling <tiling>
