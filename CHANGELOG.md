@@ -1,3 +1,26 @@
+# Version 0.18.2 (2025-08-05)
+
+This release fixes a bug that caused a segmentation fault for quadmesh
+reduction, along with documentation updates. Thanks to
+[@amaloney](https://github.com/amaloney),
+[@Azaya89](https://github.com/Azaya89),
+[@maximlt](https://github.com/maximlt),
+and [@hoxbro](https://github.com/hoxbro).
+
+Bug fixes:
+
+- Fix segfault when quadmesh reduction wrongly exceeded the array size ([#1432](https://github.com/holoviz/datashader/pull/1432))
+
+Compatibility:
+
+- Pillow 11.3.0 ([#1429](https://github.com/holoviz/datashader/pull/1429))
+
+Documentation:
+
+- Add more reductions to the API ref ([#1420](https://github.com/holoviz/datashader/pull/1420))
+- Resolve documentation build warnings ([#1427](https://github.com/holoviz/datashader/pull/1427))
+- Fix images UX ([#1430](https://github.com/holoviz/datashader/pull/1430))
+
 # Version 0.18.1 (2025-05-08)
 
 This release add a small enhancement to the repr of reductions
