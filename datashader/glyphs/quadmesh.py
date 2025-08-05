@@ -113,20 +113,20 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
         @ngjit
         @self.expand_aggs_and_cols(append)
-        def perform_extend(i, j, xs, ys, *aggs_and_cols):
+        def perform_extend(i, j, xs, ys, shape, *aggs_and_cols):
             x0i, x1i = xs[i], xs[i + 1]
             # Make sure x0 <= x1
             if x0i > x1i:
                 x0i, x1i = x1i, x0i
             # Make sure single pixel quads are represented
-            if x0i == x1i:
+            if x0i == x1i and shape[1] != x1i:
                 x1i += 1
             y0i, y1i = ys[j], ys[j + 1]
             # Make sure  y0 <= y1
             if y0i > y1i:
                 y0i, y1i = y1i, y0i
             # Make sure single pixel quads are represented
-            if y0i == y1i:
+            if y0i == y1i and shape[0] != y1i:
                 y1i += 1
             # x1i and y1i are not included in the iteration. this
             # serves to avoid overlapping quads and it avoids the need
@@ -138,17 +138,17 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
         @cuda.jit
         @self.expand_aggs_and_cols(append)
-        def extend_cuda(xs, ys, *aggs_and_cols):
+        def extend_cuda(xs, ys, shape, *aggs_and_cols):
             i, j = cuda.grid(2)
             if i < (xs.shape[0] - 1) and j < (ys.shape[0] - 1):
-                perform_extend(i, j, xs, ys, *aggs_and_cols)
+                perform_extend(i, j, xs, ys, shape, *aggs_and_cols)
 
         @ngjit
         @self.expand_aggs_and_cols(append)
-        def extend_cpu(xs, ys, *aggs_and_cols):
+        def extend_cpu(xs, ys, shape, *aggs_and_cols):
             for i in range(len(xs) - 1):
                 for j in range(len(ys) - 1):
-                    perform_extend(i, j, xs, ys, *aggs_and_cols)
+                    perform_extend(i, j, xs, ys, shape, *aggs_and_cols)
 
         def extend(aggs, xr_ds, vt, bounds, x_breaks=None, y_breaks=None):
             from datashader.core import LinearAxis
@@ -215,7 +215,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
             else:
                 do_extend = extend_cpu
 
-            do_extend(xs, ys, *aggs_and_cols)
+            do_extend(xs, ys, tuple(aggs[0].shape), *aggs_and_cols)
 
         return extend
 
