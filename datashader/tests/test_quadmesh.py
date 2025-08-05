@@ -1,4 +1,9 @@
 from __future__ import annotations
+
+import subprocess
+import sys
+import textwrap
+
 import numpy as np
 from numpy import nan
 import xarray as xr
@@ -725,3 +730,44 @@ def test_curve_quadmesh_manual_range_subpixel(array_module):
 
     res = c.quadmesh(da.transpose('X', 'Y', transpose_coords=True), x='Qx', y='Qy', agg=ds.sum('Z'))
     assert_eq_xr(res, out)
+
+
+@pytest.mark.parametrize(
+    "bounds",
+    (
+        (-1, 1),  # malloc_consolidate(): unaligned fastbin chunk detected
+        (-20023593.403653, 2991711.314653),  # double free or corruption (!prev)
+    ),
+)
+def test_segfault_quadmesh(bounds):
+    # Test for https://github.com/holoviz/datashader/issues/1431
+    code = f"""\
+    import datashader as dsh
+    import numpy as np
+    import xarray as xr
+
+    left = -20037508.342789244
+    bottom = -20037508.342789244
+    right = 0.0
+    top = 0.0
+    cvs = dsh.Canvas(plot_height=512, plot_width=256, x_range=(left, right), y_range=(bottom, top))
+
+    xsize = 10
+    xmin, xmax = {bounds}
+
+    y = np.array([
+         97408.34081038, 69576.06157273, 41745.1070807 ,  13914.9473856,
+        -13914.9473856, -41745.1070807, -69576.06157273, -97408.34081038,
+        -125242.47486847, -153078.99399844,
+    ])
+    ysize = y.size
+
+    da = xr.DataArray(
+        np.ones((ysize, xsize)),
+        dims=("y", "x"),
+        coords={{"x": np.linspace(xmin, xmax, xsize), "y": y}},
+        name="foo",
+    )
+    cvs.quadmesh(da, x="x", y="y")"""
+
+    subprocess.run([sys.executable, "-c", textwrap.dedent(code)], check=True)
