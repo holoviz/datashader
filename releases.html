@@ -1,0 +1,2157 @@
+
+<!DOCTYPE html>
+
+<html data-content_root="./" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Releases — Datashader v0.18.2</title>
+<script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+<!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+<noscript>
+<style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+</noscript>
+<!-- Loaded before other Sphinx assets -->
+<link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet"/>
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet"/>
+<link href="_static/pygments.css?v=03e43079" rel="stylesheet" type="text/css"/>
+<link href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" rel="stylesheet" type="text/css"/>
+<link href="_static/graphviz.css?v=4ae1632d" rel="stylesheet" type="text/css"/>
+<link href="_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="_static/sphinx-design.min.css?v=95c83b7e" rel="stylesheet" type="text/css"/>
+<link href="_static/nbsite.css?v=d9d93254" rel="stylesheet" type="text/css"/>
+<link href="_static/notebook.css?v=19946987" rel="stylesheet" type="text/css"/>
+<link href="_static/gallery.css?v=0a3248cd" rel="stylesheet" type="text/css"/>
+<link href="_static/alert.css?v=c26666be" rel="stylesheet" type="text/css"/>
+<link href="_static/dataframe.css?v=a0f274c1" rel="stylesheet" type="text/css"/>
+<link href="_static/scroller.css?v=2dcde208" rel="stylesheet" type="text/css"/>
+<link href="_static/hv-sidebar-dropdown.css?v=3e2b0152" rel="stylesheet" type="text/css"/>
+<link href="_static/css/custom.css?v=471973f3" rel="stylesheet" type="text/css"/>
+<!-- So that users can add custom icons -->
+<script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+<!-- Pre-loaded scripts that we'll load fully later -->
+<link as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" rel="preload"/>
+<link as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" rel="preload"/>
+<script src="_static/documentation_options.js?v=29ae757a"></script>
+<script src="_static/doctools.js?v=9bcbadda"></script>
+<script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="_static/copybutton.js?v=f281be69"></script>
+<script src="_static/design-tabs.js?v=f930bc37"></script>
+<script>
+    window.goatcounter = {
+        path: function(p) { return location.host + p }
+    }
+</script>
+<script async="async" data-goatcounter="https://holoviz.goatcounter.com/count" src="_static/js/goatcounter.js?v=f53f84b8"></script>
+<script>DOCUMENTATION_OPTIONS.pagename = 'releases';</script>
+<link href="_static/favicon.ico" rel="icon"/>
+<link href="about.html" rel="author" title="About these documents"/>
+<link href="genindex.html" rel="index" title="Index"/>
+<link href="search.html" rel="search" title="Search"/>
+<link href="api.html" rel="next" title="API"/>
+<link href="user_guide/Geopandas.html" rel="prev" title="Geopandas"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="en" name="docsearch:language"/>
+<meta content="0.18.2" name="docsearch:version"/>
+<meta content="2025-08-05" name="docbuild:last-update"/>
+</head>
+<body data-bs-root-margin="0px 0px -60%" data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-default-mode="" data-offset="180">
+<div class="skip-link d-print-none" id="pst-skip-link"><a href="#main-content">Skip to main content</a></div>
+<div id="pst-scroll-pixel-helper"></div>
+<button class="btn rounded-pill" id="pst-back-to-top" type="button">
+<i class="fa-solid fa-arrow-up"></i>Back to top</button>
+<dialog id="pst-search-dialog">
+<form action="search.html" class="bd-search d-flex align-items-center" method="get">
+<i class="fa-solid fa-magnifying-glass"></i>
+<input aria-label="Search the docs ..." autocapitalize="off" autocomplete="off" autocorrect="off" class="form-control" name="q" placeholder="Search the docs ..." spellcheck="false" type="search"/>
+<span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+</dialog>
+<div class="pst-async-banner-revealer d-none">
+<aside aria-label="Version warning" class="d-none d-print-none" id="bd-header-version-warning"></aside>
+</div>
+<header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+<button aria-label="Site navigation" class="pst-navbar-icon sidebar-toggle primary-toggle">
+<span class="fa-solid fa-bars"></span>
+</button>
+<div class="col-lg-3 navbar-header-items__start">
+<div class="navbar-item">
+<a class="navbar-brand logo" href="index.html">
+<img alt="Datashader v0.18.2 - Home" class="logo__image only-light" src="_static/logo_horizontal.svg"/>
+<img alt="Datashader v0.18.2 - Home" class="logo__image only-dark pst-js-only" src="_static/logo_horizontal.svg"/>
+</a></div>
+</div>
+<div class="col-lg-9 navbar-header-items">
+<div class="me-auto navbar-header-items__center">
+<div class="navbar-item">
+<nav>
+<ul class="bd-navbar-elements navbar-nav">
+<li class="nav-item">
+<a class="nav-link nav-internal" href="index.html">
+    Introduction
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="getting_started/index.html">
+    Getting Started
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-external" href="https://examples.holoviz.org">
+    Examples
+  </a>
+</li>
+<li class="nav-item current active">
+<a class="nav-link nav-internal" href="#">
+    Releases
+  </a>
+</li>
+<li class="nav-item dropdown">
+<button aria-controls="pst-nav-more-links" aria-expanded="false" class="btn dropdown-toggle nav-item" data-bs-toggle="dropdown" type="button">
+                    More
+                </button>
+<ul class="dropdown-menu" id="pst-nav-more-links">
+<li class="">
+<a class="nav-link dropdown-item nav-internal" href="api.html">
+    API
+  </a>
+</li>
+<li class="">
+<a class="nav-link dropdown-item nav-internal" href="FAQ.html">
+    FAQ
+  </a>
+</li>
+<li class="">
+<a class="nav-link dropdown-item nav-internal" href="about.html">
+    About
+  </a>
+</li>
+</ul>
+</li>
+</ul>
+</nav></div>
+</div>
+<div class="navbar-header-items__end">
+<div class="navbar-item navbar-persistent--container">
+<button aria-label="Search" class="btn search-button-field search-button__button pst-js-only" data-bs-placement="bottom" data-bs-toggle="tooltip" title="Search">
+<i class="fa-solid fa-magnifying-glass"></i>
+<span class="search-button__default-text">Search</span>
+<span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+</div>
+<div class="navbar-item">
+<button aria-label="Color mode" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" data-bs-placement="bottom" data-bs-title="Color mode" data-bs-toggle="tooltip">
+<i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light" title="Light"></i>
+<i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark" title="Dark"></i>
+<i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto" title="System Settings"></i>
+</button></div>
+<div class="navbar-item"><ul aria-label="Icon Links" class="navbar-icon-links">
+<li class="nav-item">
+<a class="nav-link pst-navbar-icon" data-bs-placement="bottom" data-bs-toggle="tooltip" href="https://github.com/holoviz/datashader" rel="noopener" target="_blank" title="GitHub"><i aria-hidden="true" class="fa-brands fa-square-github fa-lg"></i>
+<span class="sr-only">GitHub</span></a>
+</li>
+<li class="nav-item">
+<a class="nav-link pst-navbar-icon" data-bs-placement="bottom" data-bs-toggle="tooltip" href="https://discourse.holoviz.org/c/datashader/" rel="noopener" target="_blank" title="Discourse"><i aria-hidden="true" class="fa-brands fa-discourse fa-lg"></i>
+<span class="sr-only">Discourse</span></a>
+</li>
+<li class="nav-item">
+<a class="nav-link pst-navbar-icon" data-bs-placement="bottom" data-bs-toggle="tooltip" href="https://discord.gg/AXRHnJU6sP" rel="noopener" target="_blank" title="Discord"><i aria-hidden="true" class="fa-brands fa-discord fa-lg"></i>
+<span class="sr-only">Discord</span></a>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="navbar-persistent--mobile">
+<button aria-label="Search" class="btn search-button-field search-button__button pst-js-only" data-bs-placement="bottom" data-bs-toggle="tooltip" title="Search">
+<i class="fa-solid fa-magnifying-glass"></i>
+<span class="search-button__default-text">Search</span>
+<span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+</div>
+<button aria-label="On this page" class="pst-navbar-icon sidebar-toggle secondary-toggle">
+<span class="fa-solid fa-outdent"></span>
+</button>
+</div>
+</header>
+<div class="bd-container">
+<div class="bd-container__inner bd-page-width">
+<dialog id="pst-primary-sidebar-modal"></dialog>
+<div class="bd-sidebar-primary bd-sidebar" id="pst-primary-sidebar">
+<div class="sidebar-header-items sidebar-primary__section">
+<div class="sidebar-header-items__center">
+<div class="navbar-item">
+<nav>
+<ul class="bd-navbar-elements navbar-nav">
+<li class="nav-item">
+<a class="nav-link nav-internal" href="index.html">
+    Introduction
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="getting_started/index.html">
+    Getting Started
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="user_guide/index.html">
+    User Guide
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-external" href="https://examples.holoviz.org">
+    Examples
+  </a>
+</li>
+<li class="nav-item current active">
+<a class="nav-link nav-internal" href="#">
+    Releases
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="api.html">
+    API
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="FAQ.html">
+    FAQ
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="about.html">
+    About
+  </a>
+</li>
+</ul>
+</nav></div>
+</div>
+<div class="sidebar-header-items__end">
+<div class="navbar-item">
+<button aria-label="Color mode" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" data-bs-placement="bottom" data-bs-title="Color mode" data-bs-toggle="tooltip">
+<i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light" title="Light"></i>
+<i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark" title="Dark"></i>
+<i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto" title="System Settings"></i>
+</button></div>
+<div class="navbar-item"><ul aria-label="Icon Links" class="navbar-icon-links">
+<li class="nav-item">
+<a class="nav-link pst-navbar-icon" data-bs-placement="bottom" data-bs-toggle="tooltip" href="https://github.com/holoviz/datashader" rel="noopener" target="_blank" title="GitHub"><i aria-hidden="true" class="fa-brands fa-square-github fa-lg"></i>
+<span class="sr-only">GitHub</span></a>
+</li>
+<li class="nav-item">
+<a class="nav-link pst-navbar-icon" data-bs-placement="bottom" data-bs-toggle="tooltip" href="https://discourse.holoviz.org/c/datashader/" rel="noopener" target="_blank" title="Discourse"><i aria-hidden="true" class="fa-brands fa-discourse fa-lg"></i>
+<span class="sr-only">Discourse</span></a>
+</li>
+<li class="nav-item">
+<a class="nav-link pst-navbar-icon" data-bs-placement="bottom" data-bs-toggle="tooltip" href="https://discord.gg/AXRHnJU6sP" rel="noopener" target="_blank" title="Discord"><i aria-hidden="true" class="fa-brands fa-discord fa-lg"></i>
+<span class="sr-only">Discord</span></a>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sidebar-primary-items__start sidebar-primary__section">
+<div class="sidebar-primary-item"><!-- Adapted from sidebar-nav-bs.html (1.15.2) with the following changes
+
+  - Commented out the tag that adds the "Section Navigation" title
+  - Call generate_toctree_html with startdepth=0
+
+Please update this file when required when bumping the max pin of pydata-sphinx-theme.
+-->
+<nav aria-label="Section Navigation" class="bd-docs-nav bd-links">
+<!-- <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p> -->
+<div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Introduction</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="getting_started/index.html">Getting Started</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/Introduction.html">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/Pipeline.html">Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/Interactivity.html">Interactivity</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="user_guide/index.html">User Guide</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Plotting_Pitfalls.html">Plotting Pitfalls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Points.html">Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Timeseries.html">Timeseries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Trajectories.html">Trajectories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Grids.html">Grids</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Trimesh.html">Trimesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Networks.html">Networks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Polygons.html">Polygons</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Extending.html">Extending</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Performance.html">Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Geography.html">Geography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Inspection_Reductions.html">Inspection Reductions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/Geopandas.html">GeoPandas</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference external" href="https://examples.holoviz.org">Examples</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Releases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
+</ul>
+</div>
+</nav></div>
+<div class="sidebar-primary-item">
+<div class="hv-sb-dd">
+<div class="btn-group">
+<a class="btn hv-sb-dd-value" href="https://holoviz.org" target="_blank">HoloViz.org<i aria-hidden="true" class="fa fa-external-link hv-icon"></i></a>
+<button aria-expanded="false" class="btn dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" type="button">
+<span class="visually-hidden"></span>
+</button>
+<ul class="dropdown-menu">
+<li><a class="dropdown-item" href="https://param.holoviz.org" target="_blank" title="Assembling objects from many different libraries into a layout or app, whether in a Jupyter notebook or in a standalone servable dashboard">Panel<i aria-hidden="true" class="fa fa-external-link hv-icon"></i></a></li>
+<li><a class="dropdown-item" href="https://hvplot.holoviz.org" target="_blank" title="Quickly return interactive HoloViews, GeoViews, or Panel objects from Pandas, Xarray, or other data structures">hvPlot<i aria-hidden="true" class="fa fa-external-link hv-icon"></i></a></li>
+<li><a class="dropdown-item" href="https://holoviews.org" target="_blank" title="Declarative objects for instantly visualizable data, building Bokeh plots from convenient high-level specifications">HoloViews<i aria-hidden="true" class="fa fa-external-link hv-icon"></i></a></li>
+<li><a class="dropdown-item" href="https://geoviews.org" target="_blank" title="Visualizable geographic data that that can be mixed and matched with HoloViews objects">GeoViews<i aria-hidden="true" class="fa fa-external-link hv-icon"></i></a></li>
+<li><a class="dropdown-item" href="https://param.holoviz.org" target="_blank" title="Make your Python code clearer and more reliable by declaring Parameters">Param<i aria-hidden="true" class="fa fa-external-link hv-icon"></i></a></li>
+<li><a class="dropdown-item" href="https://lumen.holoviz.org" target="_blank" title="Framework for visual analytics that allows users to build data-driven dashboards from a simple YAML specification">Lumen<i aria-hidden="true" class="fa fa-external-link hv-icon"></i></a></li>
+<li><a class="dropdown-item" href="https://colorcet.holoviz.org" target="_blank" title="A wide range of perceptually uniform continuous colormaps and perceptually based categorical color sets for use with the other libraries">Colorcet<i aria-hidden="true" class="fa fa-external-link hv-icon"></i></a></li>
+<li><hr class="dropdown-divider"/></li>
+<li><a class="dropdown-item" href="https://examples.holoviz.org" target="_blank" title=" Visualization-focused examples using HoloViz for specific topics ">Examples Gallery<i aria-hidden="true" class="fa fa-external-link hv-icon"></i></a></li>
+<li><a class="dropdown-item" href="https://blog.holoviz.org" target="_blank" title="HoloViz blog">Blog<i aria-hidden="true" class="fa fa-external-link hv-icon"></i></a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sidebar-primary-items__end sidebar-primary__section">
+<div class="sidebar-primary-item">
+<div class="flat" data-ea-manual="true" data-ea-publisher="readthedocs" data-ea-type="readthedocs-sidebar" id="ethical-ad-placement">
+</div></div>
+</div>
+</div>
+<main class="bd-main" id="main-content" role="main">
+<div class="bd-content">
+<div class="bd-article-container">
+<div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+<div class="header-article-items__start">
+<div class="header-article-item">
+<nav aria-label="Breadcrumb" class="d-print-none">
+<ul class="bd-breadcrumbs">
+<li class="breadcrumb-item breadcrumb-home">
+<a aria-label="Home" class="nav-link" href="index.html">
+<i class="fa-solid fa-home"></i>
+</a>
+</li>
+<li aria-current="page" class="breadcrumb-item active"><span class="ellipsis">Releases</span></li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+</div>
+<div id="searchbox"></div>
+<article class="bd-article">
+<section id="releases">
+<h1>Releases<a class="headerlink" href="#releases" title="Link to this heading">#</a></h1>
+<section id="version-0-18-2-2025-08-05">
+<h2>Version 0.18.2 (2025-08-05)<a class="headerlink" href="#version-0-18-2-2025-08-05" title="Link to this heading">#</a></h2>
+<p>This release fixes a bug that caused a segmentation fault for quadmesh
+reduction, along with documentation updates. Thanks to
+<a class="reference external" href="https://github.com/amaloney">@amaloney</a>,
+<a class="reference external" href="https://github.com/Azaya89">@Azaya89</a>,
+<a class="reference external" href="https://github.com/maximlt">@maximlt</a>,
+and <a class="reference external" href="https://github.com/hoxbro">@hoxbro</a>.</p>
+<p>Bug fixes:</p>
+<ul class="simple">
+<li><p>Fix segfault when quadmesh reduction wrongly exceeded the array size (<a class="reference external" href="https://github.com/holoviz/datashader/pull/1432">#1432</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p>Pillow 11.3.0 (<a class="reference external" href="https://github.com/holoviz/datashader/pull/1429">#1429</a>)</p></li>
+</ul>
+<p>Documentation:</p>
+<ul class="simple">
+<li><p>Add more reductions to the API ref (<a class="reference external" href="https://github.com/holoviz/datashader/pull/1420">#1420</a>)</p></li>
+<li><p>Resolve documentation build warnings (<a class="reference external" href="https://github.com/holoviz/datashader/pull/1427">#1427</a>)</p></li>
+<li><p>Fix images UX (<a class="reference external" href="https://github.com/holoviz/datashader/pull/1430">#1430</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-18-1-2025-05-08">
+<h2>Version 0.18.1 (2025-05-08)<a class="headerlink" href="#version-0-18-1-2025-05-08" title="Link to this heading">#</a></h2>
+<p>This release add a small enhancement to the repr of reductions
+functions.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Add more information to repr of reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1418">#1418</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-18-0-2025-04-10">
+<h2>Version 0.18.0 (2025-04-10)<a class="headerlink" href="#version-0-18-0-2025-04-10" title="Link to this heading">#</a></h2>
+<p>Python version 3.9 was not changed in the last release of 0.17.0. It has
+now been updated in this release. Thanks to first time contributors
+<a class="reference external" href="https://github.com/Azaya89">@Azaya89</a> and
+<a class="reference external" href="https://github.com/@dmiracle">@dmiracle</a>; and regular contributors
+<a class="reference external" href="https://github.com/hoxbro">@hoxbro</a>,
+<a class="reference external" href="https://github.com/maximlt">@maximlt</a> and
+<a class="reference external" href="https://github.com/amaloney">@amaloney</a>.</p>
+<p>Breaking Changes:</p>
+<ul class="simple">
+<li><p>Really drop support for Python 3.9
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1415">#1415</a>)</p></li>
+</ul>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Naive JIT implementation for cooling
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1408">#1408</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-17-0-2025-01-29">
+<h2>Version 0.17.0 (2025-01-29)<a class="headerlink" href="#version-0-17-0-2025-01-29" title="Link to this heading">#</a></h2>
+<p>This release adds an enhancement that optimizes edge bundling using
+optimized numba code. The minimum supported version of Python is now
+3.10, along with making pillow and dask optional dependencies. This
+release also adds compatibility changes to several downstream libraries,
+build updates, bugfixes, and documentation updates. Thanks to first time
+contributors <a class="reference external" href="https://github.com/rhkarls">@rhkarls</a>,
+<a class="reference external" href="https://github.com/lmcinnes">@lmcinnes</a>,
+<a class="reference external" href="https://github.com/thomas-reimonn">@thomas-reimonn</a>,
+<a class="reference external" href="https://github.com/amaloney">@amaloney</a>; and regular contributors
+<a class="reference external" href="https://github.com/hoxbro">@hoxbro</a> and
+<a class="reference external" href="https://github.com/maximlt">@maximlt</a>.</p>
+<p>Breaking Changes:</p>
+<ul class="simple">
+<li><p>Drop support for Python 3.9
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1399">#1399</a>)</p></li>
+<li><p>Making dask and pillow optional dependencies
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1350">#1350</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1365">#1365</a>)</p></li>
+</ul>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Edge bundling speedup using optimized numba code
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1383">#1383</a>)</p></li>
+</ul>
+<p>Build:</p>
+<ul class="simple">
+<li><p>Updates to build infrastructure
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1372">#1372</a>)</p></li>
+<li><p>Fix documentation builds
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1391">#1391</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p>Updated environment pins
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1355">#1355</a>)</p></li>
+<li><p>Compatibility with cuDF 24.12
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1363">#1363</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1378">#1378</a>)</p></li>
+<li><p>Compatibility with dask 2025.1 and dask-expr 2
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1369">#1369</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1390">#1390</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1394">#1394</a>)</p></li>
+<li><p>Compatibility with pixi v0.40.0
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1387">#1387</a>)</p></li>
+<li><p>Compatibility with Python 3.13
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1398">#1398</a>)</p></li>
+</ul>
+<p>Bugfixes:</p>
+<ul class="simple">
+<li><p>PDF scaling bug
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1382">#1382</a>)</p></li>
+</ul>
+<p>Documentation:</p>
+<ul class="simple">
+<li><p>Update supported Python versions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1371">#1371</a>)</p></li>
+<li><p>Update links and fix warnings
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1375">#1375</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1377">#1377</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1402">#1402</a>)</p></li>
+</ul>
+<p>Maintenance:</p>
+<ul class="simple">
+<li><p>Move to pixi and hatchling
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1354">#1354</a>)</p></li>
+<li><p>General maintenance
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1357">#1357</a>)</p></li>
+<li><p>Updated linting rules
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1367">#1367</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1368">#1368</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-16-3-2024-07-04">
+<h2>Version 0.16.3 (2024-07-04)<a class="headerlink" href="#version-0-16-3-2024-07-04" title="Link to this heading">#</a></h2>
+<p>This release adds an enhancement and compatibility changes with upstream
+libraries. Thanks to <a class="reference external" href="https://github.com/raphaelquast">@raphaelquast</a>,
+<a class="reference external" href="https://github.com/droumis">@droumis</a> and
+<a class="reference external" href="https://github.com/hoxbro">@hoxbro</a>.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Add fail-fast for datasets outside the visible extent
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1345">#1345</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p>Compatibility with cudf 2024.06
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1344">#1344</a>)</p></li>
+<li><p>Compatibility with geopandas 1.0 and dask-geopandas 0.4.0
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1347">#1347</a>)</p></li>
+</ul>
+<p>Maintenance:</p>
+<ul class="simple">
+<li><p>Update docs.yaml
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1346">#1346</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-16-2-2024-05-31">
+<h2>Version 0.16.2 (2024-05-31)<a class="headerlink" href="#version-0-16-2-2024-05-31" title="Link to this heading">#</a></h2>
+<p>This release adds compatibility with Numpy 2.0, along with other
+improvements and bugfixes. Thanks to
+<a class="reference external" href="https://github.com/hoxbro">@hoxbro</a> for his contributions.</p>
+<p>Bugfixes:</p>
+<ul class="simple">
+<li><p>Remove artifact from Polygon rendering
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1329">#1329</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p>Test dev releases of <code class="docutils literal notranslate"><span class="pre">numpy</span></code> 2.0 and <code class="docutils literal notranslate"><span class="pre">numba</span></code> 0.60.0
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1332">#1332</a>)</p></li>
+<li><p>Improve compatibility with <code class="docutils literal notranslate"><span class="pre">dask-expr</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1335">#1335</a>)</p></li>
+<li><p>Add gpu marker for test and test both classic and <code class="docutils literal notranslate"><span class="pre">dask-expr</span></code>
+<code class="docutils literal notranslate"><span class="pre">Dask.DataFrame</span></code>’s
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1341">#1341</a>)</p></li>
+</ul>
+<p>Documentation:</p>
+<ul class="simple">
+<li><p>Update links
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1337">#1337</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1339">#1339</a>)</p></li>
+<li><p>Update readme badges
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1334">#1334</a>)</p></li>
+<li><p>Add download data script
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1326">#1326</a>)</p></li>
+</ul>
+<p>Maintenance:</p>
+<ul class="simple">
+<li><p>Update list of maintainers
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1336">#1336</a>)</p></li>
+<li><p>Parallelize the test suite and fix a test polluted bug
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1338">#1338</a>)</p></li>
+<li><p>Update test workflow
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1340">#1340</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-16-1-2024-04-19">
+<h2>Version 0.16.1 (2024-04-19)<a class="headerlink" href="#version-0-16-1-2024-04-19" title="Link to this heading">#</a></h2>
+<p>This release brings compatibility with new release of upstream packages.
+Thanks to first-time contributor
+<a class="reference external" href="https://github.com/alexander-beedie">@alexander-beedie</a>, and the
+regular contributors <a class="reference external" href="https://github.com/philippjfr">@philippjfr</a>,
+<a class="reference external" href="https://github.com/ianthomas23">@ianthomas23</a>,
+<a class="reference external" href="https://github.com/maximlt">@maximlt</a>, and
+<a class="reference external" href="https://github.com/hoxbro">@hoxbro</a>.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Improved antialiased mean reduction
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1300">#1300</a>)</p></li>
+<li><p>Update the docstring of <code class="docutils literal notranslate"><span class="pre">eq_hist</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1322">#1322</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p>Python 3.12 support
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1317">#1317</a>)</p></li>
+<li><p>Basic <code class="docutils literal notranslate"><span class="pre">dask_expr</span></code> support
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1317">#1317</a>)</p></li>
+<li><p>Numpy 2.0 support
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1306">#1306</a>)</p></li>
+<li><p>Remove redundant py2 helper code
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1316">#1316</a>)</p></li>
+</ul>
+<p>Maintenance:</p>
+<ul class="simple">
+<li><p>Replace Google Analytics with GoatCounter
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1309">#1309</a>)</p></li>
+<li><p>Docs: ignore numpydoc validation checks
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1310">#1310</a>)</p></li>
+<li><p>Fix test suite
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1314">#1314</a>)</p></li>
+<li><p>General maintenance
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1320">#1320</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-16-0-2023-10-26">
+<h2>Version 0.16.0 (2023-10-26)<a class="headerlink" href="#version-0-16-0-2023-10-26" title="Link to this heading">#</a></h2>
+<p>Datashader 0.16.0 is a significant release adding support for rendering
+GeoPandas GeoDataFrames directly rather than having to convert them to
+SpatialPandas first. Support for GeoPandas geometry types in Datashader
+<code class="docutils literal notranslate"><span class="pre">Canvas</span></code> functions is as follows:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Canvas.line</span></code>: <code class="docutils literal notranslate"><span class="pre">LineString</span></code>, <code class="docutils literal notranslate"><span class="pre">MultiLineString</span></code>, <code class="docutils literal notranslate"><span class="pre">MultiPolygon</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Polygon</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Canvas.point</span></code>: <code class="docutils literal notranslate"><span class="pre">MultiPoint</span></code>, <code class="docutils literal notranslate"><span class="pre">Point</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Canvas.polygons</span></code>: <code class="docutils literal notranslate"><span class="pre">MultiPolygon</span></code>, <code class="docutils literal notranslate"><span class="pre">Polygon</span></code></p></li>
+</ul>
+<p>There is also support in <code class="docutils literal notranslate"><span class="pre">Canvas.line</span></code> for a new data type which is a 2D
+<code class="docutils literal notranslate"><span class="pre">xarray.DataArray</span></code> (within an <code class="docutils literal notranslate"><span class="pre">xarray.Dataset</span></code>) containing the
+coordinates of multiple lines that share the same <code class="docutils literal notranslate"><span class="pre">x</span></code> coordinates.</p>
+<p>The DataShape package is now vendored in Datashader as it has not been
+maintained for a number of years and is not accepting updates.</p>
+<p>Thanks to new contributor <a class="reference external" href="https://github.com/J08ny">@J08ny</a> and
+regular contributors <a class="reference external" href="https://github.com/Hoxbro">@Hoxbro</a> and
+<a class="reference external" href="https://github.com/ianthomas23">@ianthomas23</a>.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Support rendering of GeoPandas GeoDataFrames as lines, points and
+polygons (<a class="reference external" href="https://github.com/holoviz/datashader/pull/1285">#1285</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1293">#1293</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1297">#1297</a>)</p></li>
+<li><p>Implement lines using 2D xarray with common x coordinates
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1282">#1282</a>)</p></li>
+</ul>
+<p>General code improvements:</p>
+<ul class="simple">
+<li><p>Add debug logging to compiler module
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1280">#1280</a>)</p></li>
+<li><p>Vendor DataShape
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1284">#1284</a>)</p></li>
+<li><p>Don’t use <code class="docutils literal notranslate"><span class="pre">object</span></code> as base class
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1286">#1286</a>)</p></li>
+<li><p>Fix typos using <code class="docutils literal notranslate"><span class="pre">codespell</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1288">#1288</a>)</p></li>
+<li><p>Fix <code class="docutils literal notranslate"><span class="pre">float16</span></code> being a floating type.
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1290">#1290</a>)</p></li>
+<li><p>Simplify line <code class="docutils literal notranslate"><span class="pre">_internal_build_extend</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1294">#1294</a>)</p></li>
+</ul>
+<p>Improvements to CI:</p>
+<ul class="simple">
+<li><p>Update to latest <code class="docutils literal notranslate"><span class="pre">holoviz_tasks</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1281">#1281</a>)</p></li>
+<li><p>Update <code class="docutils literal notranslate"><span class="pre">codecov</span></code> configuration
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1292">#1292</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">pre-commit</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1295">#1295</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1296">#1296</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p>Support Pandas 2.1
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1276">#1276</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1287">#1287</a>)</p></li>
+<li><p>Replace <code class="docutils literal notranslate"><span class="pre">np.NaN</span></code> with <code class="docutils literal notranslate"><span class="pre">np.nan</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1289">#1289</a>)</p></li>
+<li><p>Drop support for Python 3.8
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1291">#1291</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-15-2-2023-08-17">
+<h2>Version 0.15.2 (2023-08-17)<a class="headerlink" href="#version-0-15-2-2023-08-17" title="Link to this heading">#</a></h2>
+<p>This release adds antialiased line support for inspection reductions
+such as <code class="docutils literal notranslate"><span class="pre">max_n</span></code> and <code class="docutils literal notranslate"><span class="pre">where</span></code>, including within categorical <code class="docutils literal notranslate"><span class="pre">by</span></code>
+reductions. It also improves support for <code class="docutils literal notranslate"><span class="pre">summary</span></code> reductions and adds
+CUDA implementations of <code class="docutils literal notranslate"><span class="pre">std</span></code> and <code class="docutils literal notranslate"><span class="pre">var</span></code> reductions.</p>
+<p>Thanks to regular contributors <a class="reference external" href="https://github.com/Hoxbro">@Hoxbro</a>,
+<a class="reference external" href="https://github.com/ianthomas23">@ianthomas23</a>,
+<a class="reference external" href="https://github.com/maximlt">@maximlt</a> and
+<a class="reference external" href="https://github.com/thuydotm">@thuydotm</a>.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Antialiasing line support for inspection reductions:</p>
+<ul>
+<li><p>Pre-compile antialias stage 2 combination
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1258">#1258</a>)</p></li>
+<li><p>Antialiased min and max row index reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1259">#1259</a>)</p></li>
+<li><p>CPU <code class="docutils literal notranslate"><span class="pre">shift_and_insert</span></code> function
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1260">#1260</a>)</p></li>
+<li><p>Refactor of CUDA <code class="docutils literal notranslate"><span class="pre">*_n</span></code> reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1261">#1261</a>)</p></li>
+<li><p>Support antialiased lines in <code class="docutils literal notranslate"><span class="pre">*_n</span></code> reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1262">#1262</a>)</p></li>
+<li><p>Replace accumulate with copy on first call to antialiased stage 2
+combine (<a class="reference external" href="https://github.com/holoviz/datashader/pull/1264">#1264</a>)</p></li>
+<li><p>Separate where <code class="docutils literal notranslate"><span class="pre">combine_cpu</span></code> functions by ndim
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1265">#1265</a>)</p></li>
+<li><p>Antialiased line support for <code class="docutils literal notranslate"><span class="pre">where</span></code> reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1269">#1269</a>)</p></li>
+</ul>
+</li>
+<li><p>Improved support for <code class="docutils literal notranslate"><span class="pre">summary</span></code> reductions:</p>
+<ul>
+<li><p>Support <code class="docutils literal notranslate"><span class="pre">by</span></code> reduction within <code class="docutils literal notranslate"><span class="pre">summary</span></code> reduction
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1254">#1254</a>)</p></li>
+<li><p>Support <code class="docutils literal notranslate"><span class="pre">summary</span></code> containing <code class="docutils literal notranslate"><span class="pre">by</span></code> reduction with other reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1257">#1257</a>)</p></li>
+<li><p>Support <code class="docutils literal notranslate"><span class="pre">summary</span></code> containing multiple <code class="docutils literal notranslate"><span class="pre">where</span></code> with the same selector
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1271">#1271</a>)</p></li>
+</ul>
+</li>
+<li><p>CUDA support for <code class="docutils literal notranslate"><span class="pre">std</span></code> and <code class="docutils literal notranslate"><span class="pre">var</span></code> reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1267">#1267</a>)</p></li>
+</ul>
+<p>General code improvements:</p>
+<ul class="simple">
+<li><p>Remove pyarrow pin
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1248">#1248</a>)</p></li>
+</ul>
+<p>Improvements to CI:</p>
+<ul class="simple">
+<li><p>Update <code class="docutils literal notranslate"><span class="pre">holoviz_tasks</span></code> to v0.1a15
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1251">#1251</a>)</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">holoviz_tasks/install</span></code> action for docs
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1272">#1272</a>)</p></li>
+</ul>
+<p>Improvements to documentation:</p>
+<ul class="simple">
+<li><p>Update readme to include Python 3.11
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1249">#1249</a>)</p></li>
+<li><p>Correct links to pandas docs
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1250">#1250</a>)</p></li>
+<li><p>Remove twitter from index page
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1253">#1253</a>)</p></li>
+<li><p>Create FUNDING.yml
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1263">#1263</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-15-1-2023-07-05">
+<h2>Version 0.15.1 (2023-07-05)<a class="headerlink" href="#version-0-15-1-2023-07-05" title="Link to this heading">#</a></h2>
+<p>This release contains an important bug fix to ensure that categorical
+column order in maintained across dask partitions. It also adds support
+for categorical inspection reductions such as <code class="docutils literal notranslate"><span class="pre">by(max_n)</span></code>. The only
+missing functionality for inspection reductions is now antialiased
+lines, which in planned for the next release.</p>
+<p>Thanks to contributors <a class="reference external" href="https://github.com/ianthomas23">@ianthomas23</a>,
+<a class="reference external" href="https://github.com/maximlt">@maximlt</a> and
+<a class="reference external" href="https://github.com/philippjfr">@philippjfr</a>.</p>
+<p>Bug fixes:</p>
+<ul class="simple">
+<li><p>Fix single category reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1231">#1231</a>)</p></li>
+<li><p>Ensure categorical column order is the same across dask partitions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1239">#1239</a>)</p></li>
+</ul>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Categorical inspection reductions:</p>
+<ul>
+<li><p>Support <code class="docutils literal notranslate"><span class="pre">by(max_n)</span></code> and <code class="docutils literal notranslate"><span class="pre">by(min_n)</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1229">#1229</a>)</p></li>
+<li><p>Categorical <code class="docutils literal notranslate"><span class="pre">max_row_index</span></code>, <code class="docutils literal notranslate"><span class="pre">max_n_row_index</span></code> and <code class="docutils literal notranslate"><span class="pre">min</span></code> equivalents
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1233">#1233</a>)</p></li>
+<li><p>Use enum for row index column rather than <code class="docutils literal notranslate"><span class="pre">None</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1234">#1234</a>)</p></li>
+<li><p>Add support for categorical <code class="docutils literal notranslate"><span class="pre">where</span></code> reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1237">#1237</a>)</p></li>
+<li><p>Add tests for handling of NaNs in <code class="docutils literal notranslate"><span class="pre">where</span></code> reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1241">#1241</a>)</p></li>
+</ul>
+</li>
+<li><p>General code improvements:</p>
+<ul>
+<li><p>Only check <code class="docutils literal notranslate"><span class="pre">dask.DataFrame</span></code> <code class="docutils literal notranslate"><span class="pre">dtypes</span></code> of columns actually used
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1236">#1236</a>)</p></li>
+<li><p>Remove all use of <code class="docutils literal notranslate"><span class="pre">OrderedDict</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1242">#1242</a>)</p></li>
+<li><p>Separate out 3d and 4d combine functions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1243">#1243</a>)</p></li>
+<li><p>Reorganise antialiasing code
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1245">#1245</a>)</p></li>
+</ul>
+</li>
+</ul>
+<p>Improvements to CI:</p>
+<ul class="simple">
+<li><p>Bump holoviz tasks
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1240">#1240</a>)</p></li>
+<li><p>Add image is close test helper
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1244">#1244</a>)</p></li>
+</ul>
+<p>Improvements to documentation:</p>
+<ul class="simple">
+<li><p>Update to Google Analytics 4
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1228">#1228</a>)</p></li>
+<li><p>Rename pyviz-dev as holoviz-dev
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1232">#1232</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-15-0-2023-05-30">
+<h2>Version 0.15.0 (2023-05-30)<a class="headerlink" href="#version-0-15-0-2023-05-30" title="Link to this heading">#</a></h2>
+<p>This release provides significant improvements for inspection reductions
+by adding new <code class="docutils literal notranslate"><span class="pre">first_n</span></code>, <code class="docutils literal notranslate"><span class="pre">last_n</span></code>, <code class="docutils literal notranslate"><span class="pre">max_n</span></code> and <code class="docutils literal notranslate"><span class="pre">min_n</span></code> reductions, and
+providing Dask and CUDA support for all existing and new inspection
+reductions including <code class="docutils literal notranslate"><span class="pre">where</span></code>. It also provides support for Numba 0.57,
+NumPy 1.24 and Python 3.11, and drops support for Python 3.7.</p>
+<p>Thanks to first-time contributors <a class="reference external" href="https://github.com/danigm">@danigm</a>
+and <a class="reference external" href="https://github.com/Jap8nted">@Jap8nted</a>, and also regulars
+<a class="reference external" href="https://github.com/Hoxbro">@Hoxbro</a>,
+<a class="reference external" href="https://github.com/philippjfr">@philippjfr</a> and
+<a class="reference external" href="https://github.com/ianthomas23">@ianthomas23</a></p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Inspection reductions:</p>
+<ul>
+<li><p>Reduction append functions return index not boolean
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1180">#1180</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">first_n</span></code>, <code class="docutils literal notranslate"><span class="pre">last_n</span></code>, <code class="docutils literal notranslate"><span class="pre">max_n</span></code> and <code class="docutils literal notranslate"><span class="pre">min_n</span></code> reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1184">#1184</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">cuda</span></code> argument to <code class="docutils literal notranslate"><span class="pre">_build_combine</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1194">#1194</a>)</p></li>
+<li><p>Support <code class="docutils literal notranslate"><span class="pre">max_n</span></code> and <code class="docutils literal notranslate"><span class="pre">min_n</span></code> reductions on GPU
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1196">#1196</a>)</p></li>
+<li><p>Use fast cuda mutex available in numba 0.57
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1212">#1212</a>)</p></li>
+<li><p>Dask support for <code class="docutils literal notranslate"><span class="pre">first</span></code>, <code class="docutils literal notranslate"><span class="pre">last</span></code>, <code class="docutils literal notranslate"><span class="pre">first_n</span></code> and <code class="docutils literal notranslate"><span class="pre">last_n</span></code> reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1214">#1214</a>)</p></li>
+<li><p>Wrap use of cuda mutex in <code class="docutils literal notranslate"><span class="pre">where</span></code> reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1217">#1217</a>)</p></li>
+<li><p>Cuda and cuda-with-dask support for inspection reductions
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1219">#1219</a>)</p></li>
+</ul>
+</li>
+<li><p>x and y range attributes on returned aggregations
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1198">#1198</a>)</p></li>
+<li><p>Make <code class="docutils literal notranslate"><span class="pre">datashader.composite</span></code> imports lazy for faster import time
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1222">#1222</a>)</p></li>
+<li><p>Improvements to CI:</p>
+<ul>
+<li><p>Cancel concurrent test workflows
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1208">#1208</a>)</p></li>
+</ul>
+</li>
+<li><p>Improvements to documentation:</p>
+<ul>
+<li><p>Inspection reduction documentation
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1186">#1186</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1190">#1190</a>)</p></li>
+<li><p>Upgrade to latest nbsite and pydata-sphinx-theme
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1221">#1221</a>)</p></li>
+<li><p>Use geodatasets in example data</p></li>
+</ul>
+</li>
+</ul>
+<p>Bug fixes:</p>
+<ul class="simple">
+<li><p>Fix conversion from <code class="docutils literal notranslate"><span class="pre">cupy</span></code> in categorical <code class="docutils literal notranslate"><span class="pre">rescale_discrete_levels</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1179">#1179</a>)</p></li>
+<li><p>Validate canvas <code class="docutils literal notranslate"><span class="pre">width</span></code>, <code class="docutils literal notranslate"><span class="pre">height</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1183">#1183</a>)</p></li>
+<li><p>Support antialiasing in pipeline API
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1213">#1213</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p>NumPy 1.24 compatibility
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1176">#1176</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1185">#1185</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1218">#1218</a>)</p></li>
+<li><p>Numba 0.57 compatibility
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1205">#1205</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-14-4-2023-02-02">
+<h2>Version 0.14.4 (2023-02-02)<a class="headerlink" href="#version-0-14-4-2023-02-02" title="Link to this heading">#</a></h2>
+<p>This release adds a new <code class="docutils literal notranslate"><span class="pre">where</span></code> reduction that provides improved
+inspection capabilities and adds support for colormaps that are tuples
+of hex values. There are also various bug fixes and compatibility
+improvements.</p>
+<p>Thanks to <a class="reference external" href="https://github.com/ianthomas23">@ianthomas23</a>,
+<a class="reference external" href="https://github.com/maximlt">@maximlt</a> and
+<a class="reference external" href="https://github.com/Hoxbro">@Hoxbro</a>.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>New <code class="docutils literal notranslate"><span class="pre">where</span></code> reduction to provide improved inspection functionality:</p>
+<ul>
+<li><p>Add new where reduction
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1155">#1155</a>)</p></li>
+<li><p>Where reduction using dataframe row index
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1164">#1164</a>)</p></li>
+<li><p>CUDA support for where reduction
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1167">#1167</a>)</p></li>
+<li><p>User guide page for where reduction
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1172">#1172</a>)</p></li>
+</ul>
+</li>
+<li><p>Support colormaps that are tuples of hex values
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1173">#1173</a>)</p></li>
+<li><p>Add governance docs
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1165">#1165</a>)</p></li>
+<li><p>Improve documentation build system
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1170">#1170</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1171">#1171</a>)</p></li>
+<li><p>Improvements to CI:</p>
+<ul>
+<li><p>Rename default branch from <code class="docutils literal notranslate"><span class="pre">master</span></code> to <code class="docutils literal notranslate"><span class="pre">main</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1156">#1156</a>)</p></li>
+<li><p>Use holoviz_task install action
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1163">#1163</a>)</p></li>
+</ul>
+</li>
+</ul>
+<p>Bug fixes:</p>
+<ul class="simple">
+<li><p>Validate calculated log canvas range
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1154">#1154</a>)</p></li>
+<li><p>Better validate <code class="docutils literal notranslate"><span class="pre">canvas.line()</span></code> coordinate lengths
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1160">#1160</a>)</p></li>
+<li><p>Return early in <code class="docutils literal notranslate"><span class="pre">eq_hist()</span></code> if all data masked out
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1168">#1168</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p>Follow recommended <code class="docutils literal notranslate"><span class="pre">numba</span></code> best practice.</p>
+<ul>
+<li><p>Ensure cuda functions are correctly jitted
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1153">#1153</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nopython=True</span></code> everywhere
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1162">#1162</a>)</p></li>
+</ul>
+</li>
+<li><p>Update dependencies:</p>
+<ul>
+<li><p>Pip <code class="docutils literal notranslate"><span class="pre">pyarrow</span></code> in tests dependencies
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1174">#1174</a>)</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="version-0-14-3-2022-11-17">
+<h2>Version 0.14.3 (2022-11-17)<a class="headerlink" href="#version-0-14-3-2022-11-17" title="Link to this heading">#</a></h2>
+<p>This release fixes a bug related to spatial indexing of
+<code class="docutils literal notranslate"><span class="pre">spatialpandas.GeoDataFrames</span></code>, and introduces enhancements to
+antialiased lines, benchmarking and GPU support.</p>
+<p>Thanks to first-time contributors <a class="reference external" href="https://github.com/eriknw">@eriknw</a>
+and <a class="reference external" href="https://github.com/raybellwaves">@raybellwaves</a>, and also
+<a class="reference external" href="https://github.com/ianthomas23">@ianthomas23</a> and
+<a class="reference external" href="https://github.com/maximlt">@maximlt</a>.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Improvements to antialiased lines:</p>
+<ul>
+<li><p>Fit antialiased line code within usual numba/dask framework
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1142">#1142</a>)</p></li>
+<li><p>Refactor stage 2 aggregation for antialiased lines
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1145">#1145</a>)</p></li>
+<li><p>Support compound reductions for antialiased lines on the CPU
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1146">#1146</a>)</p></li>
+</ul>
+</li>
+<li><p>New benchmark framework:</p>
+<ul>
+<li><p>Add benchmarking framework using <code class="docutils literal notranslate"><span class="pre">asv</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1120">#1120</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">cudf</span></code>, <code class="docutils literal notranslate"><span class="pre">dask</span></code> and <code class="docutils literal notranslate"><span class="pre">dask-cudf</span></code> <code class="docutils literal notranslate"><span class="pre">Canvas.line</span></code> benchmarks
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1140">#1140</a>)</p></li>
+</ul>
+</li>
+<li><p>Improvements to GPU support:</p>
+<ul>
+<li><p>Cupy implementation of eq_hist
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1129">#1129</a>)</p></li>
+</ul>
+</li>
+<li><p>Improvements to documentation:</p>
+<ul>
+<li><p>Fix markdown syntax for link
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1119">#1119</a>)</p></li>
+<li><p>DOC: add text link to
+<a class="reference external" href="https://examples.pyviz.org/datashader_dashboard">https://examples.pyviz.org/datashader_dashboard</a>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1123">#1123</a>)</p></li>
+</ul>
+</li>
+<li><p>Improvements to dependency management
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1111">#1111</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1116">#1116</a>)</p></li>
+<li><p>Improvements to CI
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1132">#1132</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1135">#1135</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1136">#1136</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1137">#1137</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1143">#1143</a>)</p></li>
+</ul>
+<p>Bug fixes:</p>
+<ul class="simple">
+<li><p>Ensure spatial index <code class="docutils literal notranslate"><span class="pre">_sindex</span></code> is retained on dataframe copy
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1122">#1122</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-14-2-2022-08-10">
+<h2>Version 0.14.2 (2022-08-10)<a class="headerlink" href="#version-0-14-2-2022-08-10" title="Link to this heading">#</a></h2>
+<p>This is a bug fix release to fix an important divide by zero bug in
+antialiased lines, along with improvements to documentation and handling
+of dependencies.</p>
+<p>Thanks to <a class="reference external" href="https://github.com/ianthomas23">@ianthomas23</a> and
+<a class="reference external" href="https://github.com/adamjhawley">@adamjhawley</a>.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Improvements to documentation:</p>
+<ul>
+<li><p>Fix links in docs when viewed in browser
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1102">#1102</a>)</p></li>
+<li><p>Add release notes
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1108">#1108</a>)</p></li>
+</ul>
+</li>
+<li><p>Improvements to handling of dependencies:</p>
+<ul>
+<li><p>Correct dask and bokeh dependencies
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1104">#1104</a>)</p></li>
+<li><p>Add requests as an install dependency
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1105">#1105</a>)</p></li>
+<li><p>Better handle returned dask npartitions in tests
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1107">#1107</a>)</p></li>
+</ul>
+</li>
+</ul>
+<p>Bug fixes:</p>
+<ul class="simple">
+<li><p>Fix antialiased line divide by zero bug
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1099">#1099</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-14-1-2022-06-21">
+<h2>Version 0.14.1 (2022-06-21)<a class="headerlink" href="#version-0-14-1-2022-06-21" title="Link to this heading">#</a></h2>
+<p>This release provides a number of important bug fixes and small
+enhancements from Ian Thomas along with infrastructure improvements from
+Maxime Liquet and new reductions from
+<a class="reference external" href="https://github.com/tselea">@tselea</a>.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Improvements to <a class="reference external" href="https://datashader.org/user_guide/Timeseries.html#antialiasing">antialiased lines</a>:</p>
+<ul>
+<li><p>Support antialiased lines for categorical aggregates
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1081">#1081</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1083">#1083</a>)</p></li>
+<li><p>Correctly handle NaNs in antialiased line coordinates
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1097">#1097</a>)</p></li>
+</ul>
+</li>
+<li><p>Improvements to <code class="docutils literal notranslate"><span class="pre">rescale_discrete_levels</span></code> for <code class="docutils literal notranslate"><span class="pre">how='eq_hist'</span></code>:</p>
+<ul>
+<li><p>Correct implementation of <code class="docutils literal notranslate"><span class="pre">rescale_discrete_levels</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1078">#1078</a>)</p></li>
+<li><p>Check before calling <code class="docutils literal notranslate"><span class="pre">rescale_discrete_levels</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1085">#1085</a>)</p></li>
+<li><p>Remove empty histogram bins in <code class="docutils literal notranslate"><span class="pre">eq_hist</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1094">#1094</a>)</p></li>
+</ul>
+</li>
+<li><p>Implementation of first and last reduction
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1093">#1093</a>) for data
+types other than raster.</p></li>
+</ul>
+<p>Bug fixes:</p>
+<ul class="simple">
+<li><p>Do not snap trimesh vertices to pixel grid
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1092">#1092</a>)</p></li>
+<li><p>Correctly orient (y, x) arrays for xarray
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1095">#1095</a>)</p></li>
+<li><p>Infrastructure/build fixes
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1080">#1080</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1089">#1089</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1096">#1096</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-14-0-2022-04-25">
+<h2>Version 0.14.0 (2022-04-25)<a class="headerlink" href="#version-0-14-0-2022-04-25" title="Link to this heading">#</a></h2>
+<p>This release has been nearly a year in the making, with major new
+contributions from Ian Thomas, Thuy Do Thi Minh, Simon Høxbro Hansen,
+Maxime Liquet, and James Bednar, and additional support from Andrii
+Oriekhov, Philipp Rudiger, and Ajay Thorve.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Full support for <a class="reference external" href="https://datashader.org/user_guide/Timeseries.html#antialiasing">antialiased
+lines</a>
+of specified width
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1048">#1048</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1072">#1072</a>). Previous
+antialiasing support was limited to single-pixel lines and certain
+floating-point reduction functions. Now supports arbitrary widths and
+arbitrary reduction functions, making antialiasing fully supported.
+Performance ranges from 1.3x to 14x slower than the simplest
+zero-width implementation; see
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1072">benchmarks</a>.</p></li>
+<li><p>Fixed an issue with visibility on zoomed-in points plots and on
+overlapping line plots that was first reported in 2017, with a new
+option <code class="docutils literal notranslate"><span class="pre">rescale_discrete_levels</span></code> for <code class="docutils literal notranslate"><span class="pre">how='eq_hist'</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1055">#1055</a>)</p></li>
+<li><p>Added a <a class="reference external" href="https://datashader.org/getting_started/Pipeline.html#colormapping-2d-categorical-data">categorical color_key for
+2D</a>
+(unstacked) aggregates
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1020">#1020</a>), for
+producing plots where each pixel has at most one category value</p></li>
+<li><p>Improved docs:</p>
+<ul>
+<li><p>A brand new <a class="reference external" href="https://datashader.org/user_guide/Polygons.html">polygons
+guide</a>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1071">#1071</a>)</p></li>
+<li><p>A new guide to <a class="reference external" href="https://datashader.org/getting_started/Pipeline.html#id1">3D
+aggregations</a>
+using <code class="docutils literal notranslate"><span class="pre">by</span></code> now documenting using <code class="docutils literal notranslate"><span class="pre">categorizer</span></code> objects to do 3D
+numerical binning
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1071">#1071</a>)</p></li>
+<li><p>Moved documentation for
+<a class="reference external" href="https://datashader.org/getting_started/Pipeline.html#spreading">spreading</a>
+to its own section so it can be presented at the right pipeline
+stage (was mixed up with colormapping before)
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1071">#1071</a>)</p></li>
+<li><p>Added <a class="reference external" href="https://datashader.org/getting_started/Pipeline.html#transforming-data-values-for-colormapping">rescale_discrete_levels
+example</a>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1071">#1071</a>)</p></li>
+<li><p>Other misc doc cleanup
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1035">#1035</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1037">#1037</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1058">#1058</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1074">#1074</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1077">#1077</a>)</p></li>
+</ul>
+</li>
+</ul>
+<p>Bugfixes:</p>
+<ul class="simple">
+<li><p>Fixed details of the raster coordinate calculations to match other
+primitives, making it simpler to overlay separately rendered results
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/959">#959</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1046">#1046</a>)</p></li>
+<li><p>Various fixes and extensions for cupy/CUDA, e.g. to use cuda for
+category_binning, spread, and dynspread, including cupy.interp where
+appropriate (<a class="reference external" href="https://github.com/holoviz/datashader/pull/1015">#1015</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1016">#1016</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1044">#1044</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1050">#1050</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1060">#1060</a>)</p></li>
+<li><p>Infrastructure/build/ecosystem fixes
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1022">#1022</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1025">#1025</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1027">#1027</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1036">#1036</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1045">#1045</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1049">#1049</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1050">#1050</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1057">#1057</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1061">#1061</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1062">#1062</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1063">#1063</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/1064">#1064</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Canvas.line()</span></code> option <code class="docutils literal notranslate"><span class="pre">antialias=True</span></code> is now deprecated; use
+<code class="docutils literal notranslate"><span class="pre">line_width=1</span></code> (or another nonzero value) instead.
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1048">#1048</a>)</p></li>
+<li><p>Removed long-deprecated <code class="docutils literal notranslate"><span class="pre">bokeh_ext.py</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1059">#1059</a>)</p></li>
+<li><p>Dropped support for Python 2.7 (actually already dropped from the
+tests in Datashader 0.12) and 3.6 (no longer supported by many
+downstream libraries like rioxarray, but several of them are not
+properly declaring that restriction, making 3.6 much more difficult to
+support.) (<a class="reference external" href="https://github.com/holoviz/datashader/pull/1033">#1033</a>)</p></li>
+<li><p>Now tested on Python 3.7, 3.8, 3.9, and 3.10.
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1033">#1033</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-13-0-2021-06-10">
+<h2>Version 0.13.0 (2021-06-10)<a class="headerlink" href="#version-0-13-0-2021-06-10" title="Link to this heading">#</a></h2>
+<p>Thanks to Jim Bednar, Nezar Abdennur, Philipp Rudiger, and Jean-Luc
+Stevens.</p>
+<p>Enhancements:</p>
+<ul class="simple">
+<li><p>Defined new <code class="docutils literal notranslate"><span class="pre">dynspread</span> <span class="pre">metric</span></code> based on counting the fraction of
+non-empty pixels that have non-empty pixels within a given radius. The
+resulting <code class="docutils literal notranslate"><span class="pre">dynspread</span></code> behavior is much more intuitive than the old
+behavior, which counted already-spread pixels as if they were
+neighbors (<a class="reference external" href="https://github.com/holoviz/datashader/pull/1001">#1001</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">ds.count()</span></code> as the default reduction for <code class="docutils literal notranslate"><span class="pre">ds.by</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1004">#1004</a>)</p></li>
+</ul>
+<p>Bugfixes:</p>
+<ul class="simple">
+<li><p>Fixed array-bounds reading error in <code class="docutils literal notranslate"><span class="pre">dynspread</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1001">#1001</a>)</p></li>
+<li><p>Fix <code class="docutils literal notranslate"><span class="pre">color_key</span></code> argument for <code class="docutils literal notranslate"><span class="pre">dsshow</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/986">#986</a>)</p></li>
+<li><p>Added Matplotlib output to the 3_Interactivity getting started page.
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1009">#1009</a>)</p></li>
+<li><p>Misc docs fixes
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1007">#1007</a>)</p></li>
+<li><p>Fix nan assignment to integer array in RaggedArray
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/1008">#1008</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p>Any usage of <code class="docutils literal notranslate"><span class="pre">dynspread</span></code> with datatypes other than points should be
+replaced with <code class="docutils literal notranslate"><span class="pre">spread()</span></code>, which will do what was probably intended by
+the original <code class="docutils literal notranslate"><span class="pre">dynspread</span></code> call, i.e. to make isolated lines and shapes
+visible. Strictly speaking, dynspread could still be useful for other
+glyph types if that glyph is contained entirely in a pixel, e.g. if a
+polygon or line segment is located within the pixel bounds, but that
+seems unlikely.</p></li>
+<li><p>Dynspread may need to have the threshold or max_px arguments updated
+to achieve the same spreading as in previous releases, though the new
+behavior is normally going to be more useful than the old.</p></li>
+</ul>
+</section>
+<section id="version-0-12-1-2021-03-22">
+<h2>Version 0.12.1 (2021-03-22)<a class="headerlink" href="#version-0-12-1-2021-03-22" title="Link to this heading">#</a></h2>
+<p>Major release with new features that should really be considered part of
+the upcoming 0.13 release; please treat all the new features as
+experimental in this release due to it being officially a minor release
+(unintentionally).</p>
+<p>Massive thanks to these contributors for substantial new functionality:</p>
+<ul class="simple">
+<li><p>Nezar Abdennur (nvictus), Trevor Manz, and Thomas Caswell for their
+contributions to the new <code class="docutils literal notranslate"><span class="pre">dsshow()</span></code> support for using Datashader as a
+Matplotlib Artist, providing seamless interactive
+Matplotlib+Datashader plots.</p></li>
+<li><p>Oleg Smirnov for <code class="docutils literal notranslate"><span class="pre">category_modulo</span></code> and <code class="docutils literal notranslate"><span class="pre">category_binning</span></code> for <code class="docutils literal notranslate"><span class="pre">by()</span></code>,
+making categorical plots vastly more powerful.</p></li>
+<li><p>Jean-Luc Stevens for <code class="docutils literal notranslate"><span class="pre">spread</span></code> and <code class="docutils literal notranslate"><span class="pre">dynspread</span></code> support for numerical
+aggregate arrays and not just RGB images, allowing isolated datapoints
+to be made visible while still supporting hover, colorbars, and other
+plot features that depend on the numeric aggregate values.</p></li>
+<li><p>Valentin Haenel for the initial anti-aliased line drawing support
+(still experimental).</p></li>
+</ul>
+<p>Thanks to Jim Bednar, Philipp Rudiger, Peter Roelants, Thuy Do Thi Minh,
+Chris Ball, and Jean-Luc Stevens for maintenance and other
+contributions.</p>
+<p>New features:</p>
+<ul class="simple">
+<li><p>Expanded (and transposed) performance guide table
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/961">#961</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">category_modulo</span></code> and <code class="docutils literal notranslate"><span class="pre">category_binning</span></code> for grouping numerical
+values into categories using by()
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/927">#927</a>)</p></li>
+<li><p>Support spreading for numerical (non-RGB) aggregate arrays
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/771">#771</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/954">#954</a>)</p></li>
+<li><p>Xiaolin Wu anti-aliased line drawing, enabled by adding
+<code class="docutils literal notranslate"><span class="pre">antialias=True</span></code> to the <code class="docutils literal notranslate"><span class="pre">Canvas.line()</span></code> method call. Experimental;
+currently restricted to <code class="docutils literal notranslate"><span class="pre">sum</span></code> and <code class="docutils literal notranslate"><span class="pre">max</span></code> reductions ant only supporting
+a single-pixel line width.
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/916">#916</a>)</p></li>
+<li><p>Improve Dask performance issue using a tree reduction
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/926">#926</a>)</p></li>
+</ul>
+<p>Bugfixes:</p>
+<ul class="simple">
+<li><p>Fix for xarray 0.17 raster files, supporting various nodata
+conventions (<a class="reference external" href="https://github.com/holoviz/datashader/pull/991">#991</a>)</p></li>
+<li><p>Fix RaggedArray tests to keep up with Pandas test suite changes
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/982">#982</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/993">#993</a>)</p></li>
+<li><p>Fix out-of-bounds error on Points aggregation
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/981">#981</a>)</p></li>
+<li><p>Fix CUDA issues
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/973">#973</a>)</p></li>
+<li><p>Fix Xarray handling
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/971">#971</a>)</p></li>
+<li><p>Disable the interactivity warning on the homepage
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/983">#983</a>)</p></li>
+</ul>
+<p>Compatibility:</p>
+<ul class="simple">
+<li><p>Drop deprecated modules <code class="docutils literal notranslate"><span class="pre">ds.geo</span></code> (moved to <code class="docutils literal notranslate"><span class="pre">xarray_image</span></code>) and
+<code class="docutils literal notranslate"><span class="pre">ds.spatial</span></code> (moved to <code class="docutils literal notranslate"><span class="pre">SpatialPandas</span></code>)
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/955">#955</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-12-0-2021-01-07">
+<h2>Version 0.12.0 (2021-01-07)<a class="headerlink" href="#version-0-12-0-2021-01-07" title="Link to this heading">#</a></h2>
+<p>No release notes produced.</p>
+</section>
+<section id="version-0-11-1-2020-08-16">
+<h2>Version 0.11.1 (2020-08-16)<a class="headerlink" href="#version-0-11-1-2020-08-16" title="Link to this heading">#</a></h2>
+<p>This release is primarily a compatibility release for newer versions of
+Rapids cuDF and Numba versions along with a small number of bug fixes.
+With contributions from <a class="reference external" href="https://github.com/jonmmease">@jonmmease</a>,
+<a class="reference external" href="https://github.com/stuartarchibald">@stuartarchibald</a>,
+<a class="reference external" href="https://github.com/AjayThorve">@AjayThorve</a>,
+<a class="reference external" href="https://github.com/kebowen730">@kebowen730</a>,
+<a class="reference external" href="https://github.com/jbednar">@jbednar</a> and
+<a class="reference external" href="https://github.com/philippjfr">@philippjfr</a>.</p>
+<ul class="simple">
+<li><p>Fixes support for cuDF 0.13 and Numba 0.48
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/933">#933</a>)</p></li>
+<li><p>Fixes for cuDF support on Numba&gt;=0.51
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/934">#934</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/947">#947</a>)</p></li>
+<li><p>Fixes tile generation using aggregators with output of boolean dtype
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/949">#949</a>)</p></li>
+<li><p>Fixes for CI and build infrastructure
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/935">#935</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/948">#948</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/951">#951</a>)</p></li>
+<li><p>Updates to docstrings (b1349e3,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/950">#950</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-11-0-2020-05-25">
+<h2>Version 0.11.0 (2020-05-25)<a class="headerlink" href="#version-0-11-0-2020-05-25" title="Link to this heading">#</a></h2>
+<p>This release includes major contributions from
+<a class="reference external" href="https://github.com/maihde">@maihde</a> (generalizing <code class="docutils literal notranslate"><span class="pre">count_cat</span></code> to <code class="docutils literal notranslate"><span class="pre">by</span></code>
+span for colorize), <a class="reference external" href="https://github.com/jonmmease">@jonmmease</a> (Dask
+quadmesh support), <a class="reference external" href="https://github.com/philippjfr">@philippjfr</a> and
+<a class="reference external" href="https://github.com/jbednar">@jbednar</a>
+(count_cat/by/colorize/docs/bugfixes), and Barry Bragg, Jr. (TMS tileset
+speedups).</p>
+<p>New features (see <code class="docutils literal notranslate"><span class="pre">getting_started/2_Pipeline.ipynb</span></code> for examples):</p>
+<ul class="simple">
+<li><p>New <code class="docutils literal notranslate"><span class="pre">by()</span></code> categorical aggregator, extending <code class="docutils literal notranslate"><span class="pre">count_cat</span></code> to work with
+other reduction functions, no longer just <code class="docutils literal notranslate"><span class="pre">count</span></code>. Allows binning of
+aggregates separately per category value, so that you can compare how
+that aggregate is affected by category value.
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/875">#875</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/902">#902</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/904">#904</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/906">#906</a>). See example
+in the <a class="reference external" href="http://dev.holoviews.org/user_guide/Large_Data.html#Multidimensional-plots">holoviews
+docs</a>.</p></li>
+<li><p>Support for negative and zero values in <code class="docutils literal notranslate"><span class="pre">tf.shade</span></code> for categorical
+aggregates. (<a class="reference external" href="https://github.com/holoviz/datashader/pull/896">#896</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/909">#909</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/910">#910</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/908">#908</a>)</p></li>
+<li><p>Support for <code class="docutils literal notranslate"><span class="pre">span</span></code> in _colorize().
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/875">#875</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/910">#910</a>)</p></li>
+<li><p>Support for Dask-based quadmesh rendering for rectilinear and
+curvilinear mesh types
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/885">#885</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/913">#913</a>)</p></li>
+<li><p>Support for GPU-based raster mesh rendering via <code class="docutils literal notranslate"><span class="pre">Canvas.quadmesh</span></code>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/872">#872</a>)</p></li>
+<li><p>Faster TMS tileset generation
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/886">#886</a>)</p></li>
+<li><p>Expanded performance guide
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/868">#868</a>)</p></li>
+</ul>
+<p>Bugfixes:</p>
+<ul class="simple">
+<li><p>Misc bugfixes and improvements
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/874">#874</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/882">#882</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/888">#888</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/889">#889</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/890">#890</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/891">#891</a>)</p></li>
+</ul>
+<p>Compatibility (breaking changes and deprecations):</p>
+<ul class="simple">
+<li><p>To allow negative-valued aggregates, count_cat now weights categories
+according to how far they are from the minimum aggregate value
+observed, while previously they were referenced to zero. Previous
+behavior can be restored by passing <code class="docutils literal notranslate"><span class="pre">color_baseline=0</span></code> to <code class="docutils literal notranslate"><span class="pre">count_cat</span></code>
+or <code class="docutils literal notranslate"><span class="pre">by</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">count_cat</span></code> is now deprecated and removed from the docs; use
+<code class="docutils literal notranslate"><span class="pre">by(...,</span> <span class="pre">count())</span></code> instead.</p></li>
+<li><p>Result of a <code class="docutils literal notranslate"><span class="pre">count()</span></code> aggregation is now <code class="docutils literal notranslate"><span class="pre">uint32</span></code> not <code class="docutils literal notranslate"><span class="pre">int32</span></code> to
+distinguish counts from other aggregation types
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/910">#910</a>).</p></li>
+<li><p>tf.shade now only treats zero values as missing for <code class="docutils literal notranslate"><span class="pre">count</span></code> aggregates
+(<code class="docutils literal notranslate"><span class="pre">uint</span></code>; zero is otherwise a valid value distinct from NaN
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/910">#910</a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">alpha</span></code> is now respected as the upper end of the alpha range for both
+_colorize() and _interpolate() in tf.shade;
+previously only _interpolate respected it.</p></li>
+<li><p>Added new nansum_missing utility for working with Numpy&gt;1.9, where
+nansum no longer returns NaN for all-NaN values.</p></li>
+<li><p>ds.geo and ds.spatial modules are now deprecated; their contents have
+moved to xarray_spatial and spatialpandas, respectively.
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/894">#894</a>)</p></li>
+</ul>
+<p>Download and install: <a class="reference external" href="https://datashader.org/getting_started">https://datashader.org/getting_started</a></p>
+</section>
+<section id="version-0-10-0-2020-01-21">
+<h2>Version 0.10.0 (2020-01-21)<a class="headerlink" href="#version-0-10-0-2020-01-21" title="Link to this heading">#</a></h2>
+<p>This release includes major contributions from
+<a class="reference external" href="https://github.com/jonmmease">@jonmmease</a> (polygon rendering,
+spatialpandas), along with contributions from
+<a class="reference external" href="https://github.com/philippjfr">@philippjfr</a> and
+<a class="reference external" href="https://github.com/brendancol">@brendancol</a> (bugfixes), and
+<a class="reference external" href="https://github.com/jbednar">@jbednar</a> (docs, warnings, and import
+times).</p>
+<p>New features:</p>
+<ul class="simple">
+<li><p>Polygon (and points and lines) rendering for spatialpandas extension
+arrays (<a class="reference external" href="https://github.com/holoviz/datashader/pull/826">#826</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/853">#853</a>)</p></li>
+<li><p>Quadmesh GPU support
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/861">#861</a>)</p></li>
+<li><p>Much faster import times
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/863">#863</a>)</p></li>
+<li><p>New table in docs listing glyphs supported for each data library
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/864">#864</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/867">#867</a>)</p></li>
+<li><p>Support for remote Parquet filesystems
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/818">#818</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/866">#866</a>)</p></li>
+</ul>
+<p>Bugfixes and compatibility:</p>
+<ul class="simple">
+<li><p>Misc bugfixes and improvements
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/844">#844</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/860">#860</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/866">#866</a>)</p></li>
+<li><p>Fix warnings and deprecations in tests
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/859">#859</a>)</p></li>
+<li><p>Fix Canvas.raster (padding, mode buffers, etc.
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/862">#862</a>)</p></li>
+</ul>
+<p>Download and install: <a class="reference external" href="https://datashader.org/getting_started">https://datashader.org/getting_started</a></p>
+</section>
+<section id="version-0-9-0-2019-12-08">
+<h2>Version 0.9.0 (2019-12-08)<a class="headerlink" href="#version-0-9-0-2019-12-08" title="Link to this heading">#</a></h2>
+<p>This release includes major contributions from
+<a class="reference external" href="https://github.com/jonmmease">@jonmmease</a> (GPU support), along with
+contributions from <a class="reference external" href="https://github.com/brendancol">@brendancol</a>
+(viewshed speedups), <a class="reference external" href="https://github.com/jbednar">@jbednar</a> (docs), and
+<a class="reference external" href="https://github.com/jsignell">@jsignell</a> (examples, maintenance,
+website).</p>
+<p>New features:</p>
+<ul class="simple">
+<li><p>Support for CUDA GPU dataframes (cudf and dask_cudf)
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/794">#794</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/793">#793</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/821">#821</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/841">#841</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/842">#842</a>)</p></li>
+<li><p>Documented new quadmesh support (renaming user guide section 5_Rasters
+to 5_Grids to reflect the more-general grid support)
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/805">#805</a>)</p></li>
+</ul>
+<p>Bugfixes and compatibility:</p>
+<ul class="simple">
+<li><p>Avoid double-counting line segments that fit entirely into a single
+rendered pixel
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/839">#839</a>)</p></li>
+<li><p>Improved geospatial toolbox, including 75X speedups to viewshed
+algorithm (<a class="reference external" href="https://github.com/holoviz/datashader/pull/811">#811</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/824">#824</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/844">#844</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-8-0-2019-10-08">
+<h2>Version 0.8.0 (2019-10-08)<a class="headerlink" href="#version-0-8-0-2019-10-08" title="Link to this heading">#</a></h2>
+<p>This release includes major contributions from
+<a class="reference external" href="https://github.com/jonmmease">@jonmmease</a> (quadmesh and filled-area
+support), <a class="reference external" href="https://github.com/brendancol">@brendancol</a> (geospatial
+toolbox, tile previewer), <a class="reference external" href="https://github.com/philippjfr">@philippjfr</a>
+(distributed regridding, dask performance), and
+<a class="reference external" href="https://github.com/jsignell">@jsignell</a> (examples, maintenance,
+website).</p>
+<p>New features:</p>
+<ul class="simple">
+<li><p>Native quadmesh (<code class="docutils literal notranslate"><span class="pre">canvas.quadmesh()</span></code> support (for rectilinear and
+curvilinear grids – 3X faster than approximating with a trimesh;
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/779">#779</a>)</p></li>
+<li><p><a class="reference external" href="https://datashader.org/user_guide/Timeseries.html#Area-plots">Filled
+area</a>
+(<code class="docutils literal notranslate"><span class="pre">canvas.area()</span></code> support
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/734">#734</a>)</p></li>
+<li><p>Expanded <a class="reference external" href="https://datashader.org/user_guide/Geography.html">geospatial
+toolbox</a>, with
+support for:</p>
+<ul>
+<li><p>Zonal statistics
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/782">#782</a>)</p></li>
+<li><p>Calculating viewshed
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/781">#781</a>)</p></li>
+<li><p>Calculating proximity (Euclidean and other distance metrics,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/772">#772</a>)</p></li>
+</ul>
+</li>
+<li><p>Distributed raster regridding with Dask
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/762">#762</a>)</p></li>
+<li><p>Improved dask performance
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/798">#798</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/801">#801</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tile_previewer</span></code> utility function (simple Bokeh-based plotting of
+local tile sources for debugging;
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/761">#761</a>)</p></li>
+</ul>
+<p>Bugfixes and compatibility:</p>
+<ul class="simple">
+<li><p>Compatibility with latest Numba, Intake, Pandas, and Xarray
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/763">#763</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/768">#768</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/791">#791</a>)</p></li>
+<li><p>Improved datetime support
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/803">#803</a>)</p></li>
+<li><p>Simplified docs (now built on Travis, and no longer requiring
+GeoViews) and examples (now on examples.pyviz.org)</p></li>
+<li><p>Skip rendering of empty tiles
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/760">#760</a>)</p></li>
+<li><p>Improved performance for point, area, and line glyphs
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/780">#780</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">InteractiveImage</span></code> and <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> are now deprecated; removed from
+examples (<a class="reference external" href="https://github.com/holoviz/datashader/pull/751">#751</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-7-0-2019-04-08">
+<h2>Version 0.7.0 (2019-04-08)<a class="headerlink" href="#version-0-7-0-2019-04-08" title="Link to this heading">#</a></h2>
+<p>This release includes major contributions from
+<a class="reference external" href="https://github.com/jonmmease">@jonmmease</a> (ragged array extension,
+SpatialPointsFrame, row-oriented line storage, dask trimesh support),
+<a class="reference external" href="https://github.com/jsignell">@jsignell</a> (maintenance, website), and
+<a class="reference external" href="https://github.com/jbednar">@jbednar</a> (Panel-based dashboard).</p>
+<p>New features:</p>
+<ul class="simple">
+<li><p>Simplified <a class="reference external" href="https://panel.pyviz.org">Panel</a> based
+<a class="reference external" href="https://datashader.org/dashboard.html">dashboard</a> using new Param
+features; now only 48 lines with fewer new concepts
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/707">#707</a>)</p></li>
+<li><p>Added pandas ExtensionArray and Dask support for storing homogeneous
+ragged arrays (<a class="reference external" href="https://github.com/holoviz/datashader/pull/687">#687</a>)</p></li>
+<li><p>Added SpatialPointsFrame and updated census, osm-1billion, and osm
+examples to use it
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/702">#702</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/706">#706</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/708">#708</a>)</p></li>
+<li><p>Expanded 8_Geography.ipynb to document other geo-related functions</p></li>
+<li><p>Added Dask support for trimesh rendering, though computing the mesh
+initially still requires vertices and simplicies to fit into memory
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/696">#696</a>)</p></li>
+<li><p>Add zero-copy rendering of row-oriented line coordinates, using a new
+axis argument (<a class="reference external" href="https://github.com/holoviz/datashader/pull/694">#694</a>)</p></li>
+</ul>
+<p>Bugfixes and compatibility:</p>
+<ul class="simple">
+<li><p>Added lnglat_to_meters to geo module; new code should import it from
+there (<a class="reference external" href="https://github.com/holoviz/datashader/pull/708">#708</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-6-9-2019-01-29">
+<h2>Version 0.6.9 (2019-01-29)<a class="headerlink" href="#version-0-6-9-2019-01-29" title="Link to this heading">#</a></h2>
+<p>This release includes major contributions from
+<a class="reference external" href="https://github.com/jonmmease">@jonmmease</a> (fixing several
+long-standing bugs), <a class="reference external" href="https://github.com/jlstevens">@jlstevens</a>
+(updating all example notebooks to use current syntax,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/685">#685</a>),
+<a class="reference external" href="https://github.com/jbednar">@jbednar</a>,
+<a class="reference external" href="https://github.com/philippjfr">@philippjfr</a>, and
+<a class="reference external" href="https://github.com/jsignell">@jsignell</a>
+(<a class="reference external" href="https://panel/pyviz.org">Panel</a>-based dashboard), and
+<a class="reference external" href="https://github.com/brendancol">@brendancol</a> (geo utilities).</p>
+<p>New features:</p>
+<ul class="simple">
+<li><p>Replaced outdated 536-line Bokeh
+<a class="reference external" href="https://github.com/holoviz/datashader/blob/ae72d237d574cbd7103a912fc84094ce10d55344/examples/dashboard/dashboard.py">dashboard.py</a>
+with 71-line Panel+HoloViews
+<a class="reference external" href="https://github.com/holoviz/datashader/blob/main/examples/dashboard.ipynb">dashboard</a>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/676">#676</a>)</p></li>
+<li><p>Allow aggregating xarray objects (in addition to Pandas and Dask
+DataFrames) (<a class="reference external" href="https://github.com/holoviz/datashader/pull/675">#675</a>)</p></li>
+<li><p>Create WMTS tiles from Datashader data
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/636">#636</a>)</p></li>
+<li><p>Added various <a class="reference external" href="https://datashader.org/user_guide/8_Geography.html">geographic utility
+functions</a> (ndvi,
+slope, aspect, hillshade, mean, bump map, Perlin noise)
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/661">#661</a>)</p></li>
+<li><p>Made OpenSky data public
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/691">#691</a>)</p></li>
+</ul>
+<p>Bugfixes and compatibility:</p>
+<ul class="simple">
+<li><p>Fix array bounds error on line glyph
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/683">#683</a>)</p></li>
+<li><p>Fixed the span argument to tf.shade
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/680">#680</a>)</p></li>
+<li><p>Fixed composite.add (for use in spreading) to clip colors rather than
+overflow (<a class="reference external" href="https://github.com/holoviz/datashader/pull/689">#689</a>)</p></li>
+<li><p>Fixed gerrymandering shape file
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/688">#688</a>)</p></li>
+<li><p>Updated to match Bokeh
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/656">#656</a>), Dask
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/681">#681</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/667">#667</a>), Pandas/Numpy
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/697">#697</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-6-8-2018-09-11">
+<h2>Version 0.6.8 (2018-09-11)<a class="headerlink" href="#version-0-6-8-2018-09-11" title="Link to this heading">#</a></h2>
+<p>Minor, mostly bugfix, release with some speed improvements.</p>
+<p>New features:</p>
+<ul class="simple">
+<li><p>Added Strange Attractors example
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/632">#632</a>)</p></li>
+<li><p>Major speedup: optimized dask datashape detection
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/634">#634</a>)</p></li>
+</ul>
+<p>Bugfixes and compatibility:</p>
+<ul class="simple">
+<li><p>Silenced inappropriate warnings
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/631">#631</a>)</p></li>
+<li><p>Fixed various other bugs, including
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/644">#644</a></p></li>
+<li><p>Added handling for zero data and zero range
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/612">#612</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/648">#648</a>)</p></li>
+</ul>
+</section>
+<section id="version-0-6-7-2018-07-07">
+<h2>Version 0.6.7 (2018-07-07)<a class="headerlink" href="#version-0-6-7-2018-07-07" title="Link to this heading">#</a></h2>
+<p>Minor compatibility release.</p>
+<ul class="simple">
+<li><p>Supports dask &gt;= 0.18.</p></li>
+<li><p>Updated installation and usage instructions</p></li>
+</ul>
+</section>
+<section id="version-0-6-6-2018-05-20">
+<h2>Version 0.6.6 (2018-05-20)<a class="headerlink" href="#version-0-6-6-2018-05-20" title="Link to this heading">#</a></h2>
+<p>Minor bugfix release.</p>
+<ul class="simple">
+<li><p>Now available to install using pip (<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">datashader</span></code>) or conda
+defaults (<code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">install</span> <span class="pre">datashader</span></code>)</p></li>
+<li><p>InteractiveImage is now deprecated; please use the Datashader support
+in HoloViews instead.</p></li>
+<li><p>Updated installation and example instructions to use new <code class="docutils literal notranslate"><span class="pre">datashader</span></code>
+command.</p></li>
+<li><p>Made package building automatic, to allow more frequent releases</p></li>
+<li><p>Ensured transparent (not black) image is returned when there is no
+data to plot (thanks to Nick Xie)</p></li>
+<li><p>Simplified getting-started example (thanks to David Jones)</p></li>
+<li><p>Various fixes and compatibility updates to examples</p></li>
+</ul>
+</section>
+<section id="version-0-6-5-2018-02-01">
+<h2>Version 0.6.5 (2018-02-01)<a class="headerlink" href="#version-0-6-5-2018-02-01" title="Link to this heading">#</a></h2>
+<p>Major release with extensive support for triangular meshes and changes
+to the raster API.</p>
+<p>New features:</p>
+<ul class="simple">
+<li><p>Trimesh support: Rendering of irregular triangular meshes using
+<code class="docutils literal notranslate"><span class="pre">Canvas.trimesh()</span></code> (see <a class="reference external" href="https://github.com/holoviz/datashader/blob/main/examples/user_guide/6_Trimesh.ipynb">user
+guide</a>)
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/525">#525</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/552">#552</a>)</p></li>
+<li><p>Added a new website at <a class="reference external" href="https://datashader.org">datashader.org</a>, with
+new Getting Started pages and an extensive User Guide, with about 50%
+new material not previously in example notebooks. Built entirely from
+Jupyter notebooks, which can be run in the <code class="docutils literal notranslate"><span class="pre">examples/</span></code> directory.
+Website is now complete except for sections on points (see the
+<a class="reference external" href="https://github.com/holoviz/datashader/blob/main/examples/topics/nyc_taxi.ipynb">nyc_taxi
+example</a>
+in the meantime).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Canvas.raster()</span></code> now accepts xarray Dataset types, not just
+DataArrays, with the specific DataArray selectable from the Dataset
+using the <code class="docutils literal notranslate"><span class="pre">column=</span></code> argument of a supplied aggregation function.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tf.Images()</span></code> now displays anything with an HTML representation, to
+allow laying out Pandas dataframes alongside datashader output.</p></li>
+</ul>
+<p>Bugfixes and compatibility:</p>
+<ul class="simple">
+<li><p>Changed Raster API to match other glyph types:</p>
+<ul>
+<li><p>Now accepts a reduction function via an <code class="docutils literal notranslate"><span class="pre">agg=</span></code> argument like
+<code class="docutils literal notranslate"><span class="pre">Canvas.line()</span></code>, <code class="docutils literal notranslate"><span class="pre">Canvas.points()</span></code>, etc. The previous
+<code class="docutils literal notranslate"><span class="pre">downsample_method</span></code> is still accepted for this release, but is now
+deprecated.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">upsample_method</span></code> is now <code class="docutils literal notranslate"><span class="pre">interpolate</span></code>, accepting <code class="docutils literal notranslate"><span class="pre">linear=True</span></code> or
+<code class="docutils literal notranslate"><span class="pre">linear=False</span></code>; the previous spelling is now deprecated.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">layer=</span></code> argument previously accepted a 1-based integer index,
+which was confusing given the standard Python 0-based indexing
+elsewhere. Changed to accept an xarray coordinate, which can be a
+1-based index if that’s what is defined on the array, but also
+works with arbitrary floating-point coordinates (e.g. for a depth
+parameter in an image stack).</p></li>
+<li><p>Now auto-ranges in x and y when not given explicit ranges, instead
+of raising an error.</p></li>
+</ul>
+</li>
+<li><p>Fixed various bugs, including one generating incorrect output in
+<code class="docutils literal notranslate"><span class="pre">Canvas.raster(agg='mode')</span></code></p></li>
+</ul>
+</section>
+<section id="version-0-6-4-2017-12-05">
+<h2>Version 0.6.4 (2017-12-05)<a class="headerlink" href="#version-0-6-4-2017-12-05" title="Link to this heading">#</a></h2>
+<p>Minor compatibility release to track changes in external packages.</p>
+<ul class="simple">
+<li><p>Updated imports for bokeh 0.12.11 (fixes
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/535">#535</a>), though there
+are issues in 0.12.11 itself and so 0.12.12 should be used instead (to
+be released shortly).</p></li>
+<li><p>Pinned pillow version on Windows (fixes
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/534">#534</a>).</p></li>
+</ul>
+</section>
+<section id="version-0-6-3-2017-12-01">
+<h2>Version 0.6.3 (2017-12-01)<a class="headerlink" href="#version-0-6-3-2017-12-01" title="Link to this heading">#</a></h2>
+<p>Apart from the new website, this is a minor release primarily to catch
+up with changes in external libraries.</p>
+<p>New features:</p>
+<ul class="simple">
+<li><p>Reorganized examples directory as the basis for a completely new
+website at <a class="reference external" href="https://bokeh.github.io/datashader-docs">https://bokeh.github.io/datashader-docs</a>
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/516">#516</a>).</p></li>
+<li><p>Added tf.Images() class to format multiple labeled Datashader images
+as a table in a Jupyter notebook, now used extensively in the new
+website.</p></li>
+<li><p>Added utility function
+<code class="docutils literal notranslate"><span class="pre">dataframe_from_multiple_sequences(x_values,</span> <span class="pre">y_values)</span></code> to convert
+large numbers of sequences stored as 2D numpy arrays to a
+NaN-separated pandas dataframe that can be displayed efficiently (see
+new example in tseries.ipynb)
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/512">#512</a>).</p></li>
+<li><p>Improved streaming support
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/520">#520</a>).</p></li>
+</ul>
+<p>Bugfixes and compatibility:</p>
+<ul class="simple">
+<li><p>Added support for Dask 0.15 and 0.16 and pandas 0.21
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/523">#523</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/529">#529</a>) and declared
+minimum required Numba version.</p></li>
+<li><p>Improved and fixed issues with various example notebooks, primarily to
+update for changes in dependencies.</p></li>
+<li><p>Changes in network graph support: ignore id field by default to avoid
+surprising dependence on column name, rename directly_connect_edges to
+connect_edges for accuracy and conciseness.</p></li>
+</ul>
+</section>
+<section id="version-0-6-2-2017-10-25">
+<h2>Version 0.6.2 (2017-10-25)<a class="headerlink" href="#version-0-6-2-2017-10-25" title="Link to this heading">#</a></h2>
+<p>Release with bugfixes, changes to match external libraries, and some new
+features.</p>
+<p>Backwards compatibility:</p>
+<ul class="simple">
+<li><p>Minor changes to network graph API, e.g. to ignore weights by default
+in forcelayout2
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/488">#488</a>)</p></li>
+<li><p>Fix upper-bound bin error for auto-ranged data
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/459">#459</a>). Previously,
+points falling on the upper bound of the plotted area were excluded
+from the plot, which was consistent with the behavior for individual
+grid cells, but which was confusing and misleading for the outer
+boundaries. Points falling on the very outermost boundaries are now
+folded into the final grid cell, which should be the least surprising
+behavior.</p></li>
+</ul>
+<p>New or updated examples (.ipynb files in examples/):</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/streaming-aggregation">streaming-aggregation.ipynb</a>:
+Illustrates combining incoming streams of data for display (also see
+<a class="reference external" href="https://anaconda.org/philippjfr/working_with_streaming_data">holoviews
+streaming</a>).</p></li>
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/landsat">landsat.ipynb</a>: simplified
+using HoloViews; now includes plots of full spectrum for each point
+via hovering.</p></li>
+<li><p>Updated and simplified census-hv-dask (now called
+census-congressional), census-hv, packet_capture_graph.</p></li>
+</ul>
+<p>New features and improvements</p>
+<ul class="simple">
+<li><p>Updated Bokeh support to work with new bokeh 0.12.10 release
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/505">#505</a>)</p></li>
+<li><p>More options for network/graph plotting (configurable column names,
+control over weights usage; #488,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/494">#494</a>)</p></li>
+<li><p>For lines plots (time series, trajectory, networ graphs), switch
+line-clipping algorithm from Cohen-Sutherland to Liang-Barsky. The
+performance gains for random lines range from 50-75% improvement for a
+million lines.
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/495">#495</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">tf.Images</span></code> class to format a list of images as an HTML table
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/492">#492</a>)</p></li>
+<li><p>Faster resampling/regridding operations
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/486">#486</a>)</p></li>
+</ul>
+<p>Known issues:</p>
+<ul class="simple">
+<li><p>examples/dashboard has not yet been updated to match other libraries,
+and is thus missing functionality like hovering and legends.</p></li>
+<li><p>A full website with documentation has been started but is not yet
+ready for deployment.</p></li>
+</ul>
+</section>
+<section id="version-0-6-1-2017-09-13">
+<h2>Version 0.6.1 (2017-09-13)<a class="headerlink" href="#version-0-6-1-2017-09-13" title="Link to this heading">#</a></h2>
+<p>Minor bugfix release, primarily updating example notebooks to match API
+changes in external packages.</p>
+<p>Backwards compatibility:</p>
+<ul class="simple">
+<li><p>Made edge bundling retain edge order, to allow indexing, and absolute
+coordinates, to allow overlaying on external data.</p></li>
+<li><p>Updated examples to show that xarray now requires dimension names to
+match before doing arithmetic or comparisons between arrays.</p></li>
+</ul>
+<p>Known issues:</p>
+<ul class="simple">
+<li><p>If you use Jupyter notebook 5.0 (earlier or later versions should be
+ok), you will need to override a setting that prevents visualizations
+from appearing, e.g.:
+<code class="docutils literal notranslate"><span class="pre">jupyter</span> <span class="pre">notebook</span> <span class="pre">--NotebookApp.iopub_data_rate_limit=100000000</span> <span class="pre">census.ipynb</span> <span class="pre">&amp;</span></code></p></li>
+<li><p>The dashboard needs to be rewritten entirely to match current Bokeh
+and HoloViews releases, so that hover and legend support can be
+restored.</p></li>
+</ul>
+</section>
+<section id="version-0-6-0-2017-08-19">
+<h2>Version 0.6.0 (2017-08-19)<a class="headerlink" href="#version-0-6-0-2017-08-19" title="Link to this heading">#</a></h2>
+<p>New release of features that may still be in progress, but are already
+usable:</p>
+<ul class="simple">
+<li><p>Added graph/network plotting support (still may be in flux)
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/385">#385</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/390">#390</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/398">#398</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/408">#408</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/415">#415</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/418">#418</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/436">#436</a>)</p></li>
+<li><p>Improved raster regridding based on gridtools and xarray (still may be
+in flux); no longer depends on rasterio and scikit-image
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/383">#383</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/389">#389</a>,
+<a class="reference external" href="https://github.com/holoviz/datashader/pull/423">#423</a>)</p></li>
+<li><p>Significantly improved performance for dataframes with categorical
+fields</p></li>
+</ul>
+<p>New examples (.ipynb files in examples/):</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/osm-1billion">osm-1billion</a>:
+1-billion-point OSM example, for in-core processing on a 16GB laptop.</p></li>
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/edge_bundling">edge_bundling</a>: Plotting
+graphs using “edgehammer” bundling of edges to show structure.</p></li>
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/packet_capture_graph">packet_capture_graph</a>:
+Laying out and visualizing network packets as a graph.</p></li>
+</ul>
+<p>Backwards compatibility:</p>
+<ul class="simple">
+<li><p>Remove deprecated interpolate and colorize functions</p></li>
+<li><p>Made raster processing consistently use bin centers to match xarray
+conventions (requires recent fixes to xarray; only available on a
+custom channel for now)
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/422">#422</a>)</p></li>
+<li><p>Fixed various limitations and quirks for NaN values</p></li>
+<li><p>Made alpha scaling respect <code class="docutils literal notranslate"><span class="pre">min_alpha</span></code> consistently
+(<a class="reference external" href="https://github.com/holoviz/datashader/pull/371">#371</a>)</p></li>
+</ul>
+<p>Known issues:</p>
+<ul class="simple">
+<li><p>If you use Jupyter notebook 5.0 (earlier or later versions should be
+ok), you will need to override a setting that prevents visualizations
+from appearing, e.g.:
+<code class="docutils literal notranslate"><span class="pre">jupyter</span> <span class="pre">notebook</span> <span class="pre">--NotebookApp.iopub_data_rate_limit=100000000</span> <span class="pre">census.ipynb</span> <span class="pre">&amp;</span></code></p></li>
+<li><p>The dashboard needs updating to match current Bokeh releases; most
+parts other than hover and legends, should be functional but it needs
+a rewrite to use currently recommended approaches.</p></li>
+</ul>
+</section>
+<section id="version-0-5-0-2017-05-12">
+<h2>Version 0.5.0 (2017-05-12)<a class="headerlink" href="#version-0-5-0-2017-05-12" title="Link to this heading">#</a></h2>
+<p>Major release with extensive optimizations and new plotting-library
+support, incorporating 9 months of development from 5 main
+<a class="reference external" href="https://github.com/bokeh/datashader/graphs/contributors">contributors</a>:</p>
+<ul class="simple">
+<li><p>Extensive optimizations for speed and memory usage, providing at least
+5X improvements in speed (using the latest Numba versions) and 2X
+improvements in peak memory requirements.</p></li>
+<li><p>Added <a class="reference external" href="https://anaconda.org/jbednar/holoviews_datashader">HoloViews
+support</a> for
+flexible, composable, dynamic plotting, making it simple to switch
+between datashaded and non-datashaded versions of a Bokeh or
+Matplotlib plot.</p></li>
+<li><p>Added
+<a class="reference external" href="https://github.com/holoviz/datashader/blob/main/examples/environment.yml">examples/environment.yml</a>
+to make it easy to install dependencies needed to run the examples.</p></li>
+<li><p>Updated examples to use the now-recommended supported and fast Apache
+Parquet file format</p></li>
+<li><p>Added support for variable alpha for non-categorical aggregates, by
+specifying a single color rather than a list or colormap #345</p></li>
+<li><p>Added
+<a class="reference external" href="https://github.com/holoviz/datashader/blob/main/datashader/utils.py#L142">datashader.utils.lnglat_to_meters</a>
+utility function for working in Web Mercator coordinates with Bokeh</p></li>
+<li><p>Added <a class="reference external" href="https://anacondausercontent.org/user-content/notebooks/jbednar/plotting_pitfalls?signature=C_divg.WRaRHLPmIEtQ1V1lp0dCBZ34U8Y#6.-Nonuniform-colormapping">discussion of why you should be using uniform
+colormaps</a>),
+and examples of using uniform colormaps from the new
+<a class="reference external" href="https://github.com/bokeh/colorcet">colorcet</a> package</p></li>
+<li><p>Numerous bug fixes and updates, mostly in the examples and Bokeh
+extension</p></li>
+<li><p>Updated reference manual and documentation</p></li>
+</ul>
+<p>New examples (.ipynb files in examples/):</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/holoviews_datashader">holoviews_datashader</a>:
+Using HoloViews to create dynamic Datashader plots easily</p></li>
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/census-hv-dask">census-hv-dask</a>: Using
+<a class="reference external" href="https://www.continuum.io/blog/developer-blog/introducing-geoviews">GeoViews</a>
+for overlaying shape files, demonstrating gerrymandering by race</p></li>
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/nyc_taxi-paramnb">nyc_taxi-paramnb</a>:
+Using ParamNB to make a simple dashboard</p></li>
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/lidar">lidar</a>: Visualizing point clouds</p></li>
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/solar">solar</a>: Visualizing solar
+radiation data</p></li>
+<li><p><a class="reference external" href="https://anaconda.org/jbednar/nyc_taxi-nongeo">Dynamic 1D histogram
+example</a> (last code cell
+in examples/nyc_taxi-nongeo.ipynb)</p></li>
+<li><p>dashboard: Now includes opensky example
+(<code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">dashboard/dashboard.py</span> <span class="pre">-c</span> <span class="pre">dashboard/opensky.yml</span></code>)</p></li>
+</ul>
+<p>Backwards compatibility:</p>
+<ul class="simple">
+<li><p>To improve consistency with Numpy and Python data structures and
+eliminate issues with an empty column and row at the edge of the
+aggregated raster, the provided xrange,yrange bounds are now treated
+as upper exclusive. Results will thus differ between 0.5.0 and earlier
+versions. See #259 for discussion.</p></li>
+</ul>
+<p>Known issues:</p>
+<ul class="simple">
+<li><p>If you use Jupyter notebook 5.0 (earlier or later versions should be
+ok), you will need to override a setting that prevents visualizations
+from appearing, e.g.:
+<code class="docutils literal notranslate"><span class="pre">jupyter</span> <span class="pre">notebook</span> <span class="pre">--NotebookApp.iopub_data_rate_limit=100000000</span> <span class="pre">census.ipynb</span> <span class="pre">&amp;</span></code></p></li>
+<li><p>Legend and hover support is currently disabled for the dashboard, due
+to ongoing development of a simpler approach.</p></li>
+</ul>
+</section>
+<section id="version-0-4-0-2016-08-18">
+<h2>Version 0.4.0 (2016-08-18)<a class="headerlink" href="#version-0-4-0-2016-08-18" title="Link to this heading">#</a></h2>
+<p>Minor bugfix release to support Bokeh 0.12.1, with some API and defaults
+changes.</p>
+<ul class="simple">
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">examples()</span></code> function to obtain the notebooks and other examples
+corresponding to the installed datashader version; see
+<a class="reference external" href="https://github.com/holoviz/datashader/blob/main/examples/README.md">examples/README.md</a>.</p></li>
+<li><p>Updated dashboard example to match changes in Bokeh</p></li>
+<li><p>Added default color cycle with distinguishable colors for shading
+categorical data; now <code class="docutils literal notranslate"><span class="pre">tf.shade(agg)</span></code> with no other arguments should
+give a usable plot for both categorical and non-categorical data.</p></li>
+</ul>
+<p>Backwards compatibility:</p>
+<ul class="simple">
+<li><p>Replaced confusing <code class="docutils literal notranslate"><span class="pre">tf.interpolate()</span></code> and <code class="docutils literal notranslate"><span class="pre">tf.colorize()</span></code> functions
+with a single shading function <code class="docutils literal notranslate"><span class="pre">tf.shade()</span></code>. The previous names are
+still supported, but give deprecation warnings. Calls to the previous
+functions using keyword arguments can simply be renamed to use
+<code class="docutils literal notranslate"><span class="pre">tf.shade</span></code> as all the same keywords are accepted, but calls to
+<code class="docutils literal notranslate"><span class="pre">colorize</span></code> that used a positional argument for e.g. the <code class="docutils literal notranslate"><span class="pre">color_key</span></code>
+will now need to use a keyword when calling <code class="docutils literal notranslate"><span class="pre">shade()</span></code></p></li>
+<li><p>Increased default <code class="docutils literal notranslate"><span class="pre">threshold</span></code> for <code class="docutils literal notranslate"><span class="pre">tf.dynspread()</span></code> to improve
+visibility of sparse dots</p></li>
+<li><p>Increased default <code class="docutils literal notranslate"><span class="pre">min_alpha</span></code> for <code class="docutils literal notranslate"><span class="pre">tf.shade()</span></code> (formerly
+<code class="docutils literal notranslate"><span class="pre">tf.colorize()</span></code>) to avoid undersaturation</p></li>
+</ul>
+<p>Known issues:</p>
+<ul class="simple">
+<li><p>For Bokeh 0.12.1, some notebooks will give warnings for Bokeh plots
+when used with Jupyter’s “Run All” command. Bokeh 0.12.2 will fix
+this problem when it is released, but for now you can either downgrade
+to 0.12.0 or use single-cell execution.</p></li>
+<li><p>There are some Bokeh compatibility issues with the dashboard example
+that are still being investigated and may require a new Bokeh or
+datashader release in this series.</p></li>
+</ul>
+</section>
+<section id="version-0-3-2-2016-07-18">
+<h2>Version 0.3.2 (2016-07-18)<a class="headerlink" href="#version-0-3-2-2016-07-18" title="Link to this heading">#</a></h2>
+<p>Minor bugfix release to support Bokeh 0.12:</p>
+<ul class="simple">
+<li><p>Fixed InteractiveImage zooming to work with Bokeh 0.12.</p></li>
+<li><p>Added more responsive event throttling for DynamicImage; <code class="docutils literal notranslate"><span class="pre">throttle</span></code>
+parameter no longer needed and is now deprecated</p></li>
+<li><p>Fixed datashader-download-data command</p></li>
+<li><p>Improved non-geo Taxi example</p></li>
+<li><p>Temporarily disabled dashboard legends; will re-enable in future
+release</p></li>
+</ul>
+</section>
+<section id="version-0-3-0-2016-06-23">
+<h2>Version 0.3.0 (2016-06-23)<a class="headerlink" href="#version-0-3-0-2016-06-23" title="Link to this heading">#</a></h2>
+<p>The major feature of this release is support of raster data via
+<code class="docutils literal notranslate"><span class="pre">Canvas.raster</span></code>. To use this feature, you must install the optional
+dependencies via <code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">install</span> <span class="pre">rasterio</span> <span class="pre">scikit-image</span></code>. Rasterio relies
+on <code class="docutils literal notranslate"><span class="pre">gdal</span></code> whose conda package has some known bugs, including a missing
+dependency for <code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">install</span> <span class="pre">krb5</span></code>. InteractiveImage in this release
+requires bokeh 0.11.1 or earlier, and will not work with bokeh 0.12.</p>
+<ul class="simple">
+<li><p><strong>PR #160 #187</strong> Improved example notebooks and dashboard</p></li>
+<li><p><strong>PR #186 #184 #178</strong> Add datashader-download-data cli command for
+grabbing example datasets</p></li>
+<li><p><strong>PR #176 #177</strong> Changed census example data to use HDF5 format
+(slower but more portable)</p></li>
+<li><p><strong>PR #156 #173 #174</strong> Added Landsat8 and race/ethnicity vs. elevation
+example notebooks</p></li>
+<li><p><strong>PR #172 #159 #157 #149</strong> Added support for images using
+<code class="docutils literal notranslate"><span class="pre">Canvas.raster</span></code> (requires <code class="docutils literal notranslate"><span class="pre">rasterio</span></code> and <code class="docutils literal notranslate"><span class="pre">scikit-image</span></code>).</p></li>
+<li><p><strong>PR #169</strong> Added legends notebook demonstrating
+<code class="docutils literal notranslate"><span class="pre">create_categorical_legend</span></code> and <code class="docutils literal notranslate"><span class="pre">create_ramp_legend</span></code> - <strong>PR #162</strong>.
+Added notebook example for <code class="docutils literal notranslate"><span class="pre">datashader.bokeh_ext.HoverLayer</span></code> - <strong>PR
+#152</strong>. Added <code class="docutils literal notranslate"><span class="pre">alpha</span></code>arg to <code class="docutils literal notranslate"><span class="pre">tf.interpolate</span></code> - <strong>PR #151 #150, etc.</strong>
+Small bugfixes</p></li>
+<li><p><strong>PR #146 #145 #144 #143</strong> Added streaming example</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">hold</span></code> decorator to utils, <code class="docutils literal notranslate"><span class="pre">summarize_aggregate_values</span></code> helper
+function</p></li>
+<li><p>Added <a class="reference external" href="http://datashader.readthedocs.io/en/latest/#faq">FAQ</a> to docs</p></li>
+</ul>
+<p>Backwards compatibility:</p>
+<ul class="simple">
+<li><p>Removed <code class="docutils literal notranslate"><span class="pre">memoize_method</span></code></p></li>
+<li><p>Renamed <code class="docutils literal notranslate"><span class="pre">datashader.callbacks</span></code> –&gt; <code class="docutils literal notranslate"><span class="pre">datashader.bokeh_ext</span></code></p></li>
+<li><p>Renamed <code class="docutils literal notranslate"><span class="pre">examples/plotting_problems.ipynb</span></code> –&gt; <code class="docutils literal notranslate"><span class="pre">examples/plotting_pitfalls.ipynb</span></code></p></li>
+</ul>
+</section>
+<section id="version-0-2-0-2016-04-01">
+<h2>Version 0.2.0 (2016-04-01)<a class="headerlink" href="#version-0-2-0-2016-04-01" title="Link to this heading">#</a></h2>
+<p>A major release with significant new functionality and some small
+backwards-incompatible changes.</p>
+<p>New features:</p>
+<ul class="simple">
+<li><p><strong>PR #124</strong>, <a class="reference external" href="https://anaconda.org/jbednar/census/notebook">census</a>
+New census notebook example, showing how to work with categorical
+data.</p></li>
+<li><p><strong>PR #79</strong>, <a class="reference external" href="https://anaconda.org/jbednar/tseries">tseries</a>,
+<a class="reference external" href="https://anaconda.org/jbednar/trajectory">trajectory</a> Added line glyph
+and <code class="docutils literal notranslate"><span class="pre">.any()</span></code> reduction, used in new time series and trajectory notebook
+examples.</p></li>
+<li><p><strong>PR #76, #77, #131</strong> Updated all of the other notebooks in examples/,
+including <a class="reference external" href="https://anaconda.org/jbednar/nyc_taxi/notebook">nyc_taxi</a>.</p></li>
+<li><p><strong>PR #100, #125:</strong> Improved dashboard example: added categorical data
+support, census and osm datasets, legend and hover support, better
+performance, out of core option, and more</p></li>
+<li><p><strong>PR #109, #111:</strong> Add full colormap support via a new <code class="docutils literal notranslate"><span class="pre">cmap</span></code> argument
+to <code class="docutils literal notranslate"><span class="pre">interpolate</span></code> and <code class="docutils literal notranslate"><span class="pre">colorize</span></code> supports color ranges as lists, plus
+Bokeh palettes and matplotlib colormaps</p></li>
+<li><p><strong>PR #98:</strong> Added <code class="docutils literal notranslate"><span class="pre">set_background</span></code> to make it easier to work with
+images having a different background color than the default white
+notebooks</p></li>
+<li><p><strong>PR #119, #121:</strong> Added <code class="docutils literal notranslate"><span class="pre">eq_hist</span></code> option for <code class="docutils literal notranslate"><span class="pre">how</span></code> in interpolate,
+performing histogram equalization on the data to reveal structure at
+every intensity level</p></li>
+<li><p><strong>PR #80, #83, #128</strong>: Greatly improved InteractiveImage performance
+and responsiveness</p></li>
+<li><p><strong>PR #74, #123:</strong> Added operators for spreading pixels (to make
+individual datapoints visible, as circles, squares, or arbitrary mask
+shapes) and compositing (for simple and flexible composition of
+images)</p></li>
+</ul>
+<p>Backwards compatibility:</p>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">low</span></code> and <code class="docutils literal notranslate"><span class="pre">high</span></code> color options to <code class="docutils literal notranslate"><span class="pre">interpolate</span></code> and <code class="docutils literal notranslate"><span class="pre">colorize</span></code> are
+now deprecated and will be removed in the next release; use
+<code class="docutils literal notranslate"><span class="pre">cmap=[low,high]</span></code> instead.</p></li>
+<li><p>The transfer function <code class="docutils literal notranslate"><span class="pre">merge</span></code> has been removed to avoid confusion.
+<code class="docutils literal notranslate"><span class="pre">stack</span></code> and others can be used instead, depending on the use case.</p></li>
+<li><p>The default <code class="docutils literal notranslate"><span class="pre">how</span></code> for <code class="docutils literal notranslate"><span class="pre">interpolate</span></code> and <code class="docutils literal notranslate"><span class="pre">colorize</span></code> is now <code class="docutils literal notranslate"><span class="pre">eq_hist</span></code> to
+reveal the structure automatically regardless of distribution.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> now has a default <code class="docutils literal notranslate"><span class="pre">dynspread</span></code> step, to make isolated points
+visible when zooming in, and the default sizes have changed.</p></li>
+</ul>
+</section>
+<section id="version-0-1-0-2016-04-01">
+<h2>Version 0.1.0 (2016-04-01)<a class="headerlink" href="#version-0-1-0-2016-04-01" title="Link to this heading">#</a></h2>
+<p>Initial public release.</p>
+</section>
+</section>
+</article>
+<footer class="prev-next-footer d-print-none">
+<div class="prev-next-area">
+<a class="left-prev" href="user_guide/Geopandas.html" title="previous page">
+<i class="fa-solid fa-angle-left"></i>
+<div class="prev-next-info">
+<p class="prev-next-subtitle">previous</p>
+<p class="prev-next-title">Geopandas</p>
+</div>
+</a>
+<a class="right-next" href="api.html" title="next page">
+<div class="prev-next-info">
+<p class="prev-next-subtitle">next</p>
+<p class="prev-next-title">API</p>
+</div>
+<i class="fa-solid fa-angle-right"></i>
+</a>
+</div>
+</footer>
+</div>
+<dialog id="pst-secondary-sidebar-modal"></dialog>
+<div class="bd-sidebar-secondary bd-toc" id="pst-secondary-sidebar"><div class="sidebar-secondary-items sidebar-secondary__inner">
+<div class="sidebar-secondary-item">
+<div class="page-toc tocsection onthispage" id="pst-page-navigation-heading-2">
+<i class="fa-solid fa-list"></i> On this page
+  </div>
+<nav aria-labelledby="pst-page-navigation-heading-2" class="bd-toc-nav page-toc">
+<ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-18-2-2025-08-05">Version 0.18.2 (2025-08-05)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-18-1-2025-05-08">Version 0.18.1 (2025-05-08)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-18-0-2025-04-10">Version 0.18.0 (2025-04-10)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-17-0-2025-01-29">Version 0.17.0 (2025-01-29)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-16-3-2024-07-04">Version 0.16.3 (2024-07-04)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-16-2-2024-05-31">Version 0.16.2 (2024-05-31)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-16-1-2024-04-19">Version 0.16.1 (2024-04-19)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-16-0-2023-10-26">Version 0.16.0 (2023-10-26)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-15-2-2023-08-17">Version 0.15.2 (2023-08-17)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-15-1-2023-07-05">Version 0.15.1 (2023-07-05)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-15-0-2023-05-30">Version 0.15.0 (2023-05-30)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-14-4-2023-02-02">Version 0.14.4 (2023-02-02)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-14-3-2022-11-17">Version 0.14.3 (2022-11-17)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-14-2-2022-08-10">Version 0.14.2 (2022-08-10)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-14-1-2022-06-21">Version 0.14.1 (2022-06-21)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-14-0-2022-04-25">Version 0.14.0 (2022-04-25)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-13-0-2021-06-10">Version 0.13.0 (2021-06-10)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-12-1-2021-03-22">Version 0.12.1 (2021-03-22)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-12-0-2021-01-07">Version 0.12.0 (2021-01-07)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-11-1-2020-08-16">Version 0.11.1 (2020-08-16)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-11-0-2020-05-25">Version 0.11.0 (2020-05-25)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-10-0-2020-01-21">Version 0.10.0 (2020-01-21)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-9-0-2019-12-08">Version 0.9.0 (2019-12-08)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-8-0-2019-10-08">Version 0.8.0 (2019-10-08)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-7-0-2019-04-08">Version 0.7.0 (2019-04-08)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-6-9-2019-01-29">Version 0.6.9 (2019-01-29)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-6-8-2018-09-11">Version 0.6.8 (2018-09-11)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-6-7-2018-07-07">Version 0.6.7 (2018-07-07)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-6-6-2018-05-20">Version 0.6.6 (2018-05-20)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-6-5-2018-02-01">Version 0.6.5 (2018-02-01)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-6-4-2017-12-05">Version 0.6.4 (2017-12-05)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-6-3-2017-12-01">Version 0.6.3 (2017-12-01)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-6-2-2017-10-25">Version 0.6.2 (2017-10-25)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-6-1-2017-09-13">Version 0.6.1 (2017-09-13)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-6-0-2017-08-19">Version 0.6.0 (2017-08-19)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-5-0-2017-05-12">Version 0.5.0 (2017-05-12)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-4-0-2016-08-18">Version 0.4.0 (2016-08-18)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-3-2-2016-07-18">Version 0.3.2 (2016-07-18)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-3-0-2016-06-23">Version 0.3.0 (2016-06-23)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-2-0-2016-04-01">Version 0.2.0 (2016-04-01)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-1-0-2016-04-01">Version 0.1.0 (2016-04-01)</a></li>
+</ul>
+</nav></div>
+</div></div>
+</div>
+<footer class="bd-footer-content">
+</footer>
+</main>
+</div>
+</div>
+<!-- Scripts loaded after <body> so the DOM is not blocked -->
+<script defer="" src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer="" src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+<footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+<div class="footer-items__start">
+<div class="footer-item"><p class="nbsite-copyright-last-updated">
+<span class="copyright">
+            © Copyright 2016-2025 Holoviz contributors.
+    </span>
+<span class="last-updated">Last updated on 2025-08-05.</span><br/>
+</p></div>
+</div>
+<div class="footer-items__end">
+<div class="footer-item">
+<p class="theme-version">
+<!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.1.
+</p></div>
+</div>
+</div>
+</footer>
+</body>
+</html>
