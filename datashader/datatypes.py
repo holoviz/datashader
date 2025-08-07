@@ -14,13 +14,7 @@ from pandas.api.extensions import (
 from numbers import Integral
 
 from pandas.api.types import pandas_dtype, is_extension_array_dtype
-
-
-try:
-    # See if we can register extension type with dask >= 1.1.0
-    from dask.dataframe.extensions import make_array_nonempty
-except ImportError:
-    make_array_nonempty = None
+from ._dependencies import dd, register_import_hook
 
 
 def _validate_ragged_properties(start_indices, flat_array):
@@ -868,5 +862,7 @@ def ragged_array_non_empty(dtype):
     return RaggedArray([[1], [1, 2]], dtype=dtype)
 
 
-if make_array_nonempty:
-    make_array_nonempty.register(RaggedDtype)(ragged_array_non_empty)
+def _register_dask_extension():
+    dd.extensions.make_array_nonempty.register(RaggedDtype)(ragged_array_non_empty)
+
+register_import_hook(dd, _register_dask_extension)

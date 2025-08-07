@@ -5,12 +5,8 @@ from datashader.data_libraries.pandas import default
 from datashader.core import bypixel
 import xarray as xr
 from datashader.utils import Dispatcher
+from .._dependencies import cupy
 
-
-try:
-    import cupy
-except Exception:
-    cupy = None
 
 glyph_dispatch = Dispatcher()
 
