@@ -1,3 +1,7 @@
+import numpy as np
+import pytest
+import xarray as xr
+
 import datashader as ds
 
 
@@ -47,3 +51,17 @@ def test_string_output():
         count += 1
 
     assert count == 20  # Update if more subclasses are added
+
+
+def test_mode_raise_error():
+    # Test for https://github.com/holoviz/datashader/issues/1435
+    xr_ds = xr.Dataset(
+        {"foo": (("x", "y"), np.arange(120).reshape(30, 4))},
+        coords={"x": np.arange(30), "y": np.arange(4)},
+    )
+    xr_ds = xr_ds.drop_indexes(("x", "y"))
+    xr_ds["x"], xr_ds["y"] = xr.broadcast(xr_ds.x, xr_ds.y)
+
+    cvs = ds.Canvas(x_range=(0, 3), y_range=(0, 4))
+    with pytest.raises(NotImplementedError):
+        cvs.quadmesh(xr_ds, x="x", y="y", agg=ds.reductions.mode("foo"))
