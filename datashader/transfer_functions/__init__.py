@@ -360,9 +360,11 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
 def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
               rescale_discrete_levels):
     if cupy and isinstance(agg.data, cupy.ndarray):
+        ascontigous = cupy.ascontiguousarray
         array = cupy.array
     else:
         array = np.array
+        ascontigous = np.ascontiguousarray
 
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
@@ -391,50 +393,71 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     data = agg_t.data.transpose([1, 2, 0])
     if da and isinstance(data, da.Array):
         data = data.compute()
-    color_data = data.copy()
+
+    H, W, C = data.shape
+    color_data = ascontigous(data.copy())
+
+    # Keep a NaN mask for later, and a non-NaN mask for averages
+    nan_mask = np.isnan(data)
+    color_mask = ~nan_mask  # bool (H, W, C)
 
     # subtract color_baseline if needed
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', r'All-NaN slice encountered')
         baseline = np.nanmin(color_data) if color_baseline is None else color_baseline
     with np.errstate(invalid='ignore'):
+        # in-place add/sub to minimize temporaries
         if baseline > 0:
-            color_data -= baseline
+            np.subtract(color_data, baseline, out=color_data, where=color_mask)
         elif baseline < 0:
-            color_data += -baseline
-        if color_data.dtype.kind != 'u' and color_baseline is not None:
-            color_data[color_data<0]=0
+            np.add(color_data, -baseline, out=color_data, where=color_mask)
 
-    color_total = nansum_missing(color_data, axis=2)
-    # dot does not handle nans, so replace with zeros
-    color_data[np.isnan(data)] = 0
+    # If an explicit baseline was given and dtype is signed, clip negatives to 0 (in-place)
+    if (color_baseline is not None) and (color_data.dtype.kind != 'u'):
+        np.maximum(color_data, 0, out=color_data)
 
-    # zero-count pixels will be 0/0, but it's safe to ignore that when dividing
+    # --- Prepare totals and zero-out NaNs once ---
+    # Use sum along last axis; NaNs contribute 0 after zeroing
+    color_total = np.nansum(color_data, axis=2)
+
+    # Replace NaNs with 0s for dot/matmul in one pass (in-place)
+    # If you don't want to mutate color_data contents further, copy first.
+    np.nan_to_num(color_data, copy=False)  # NaN -> 0
+
+    # --- Compute all 3 weighted sums in one BLAS call ---
+    # Stack weights -> (C, 3)
+    RGB = np.stack([rs, gs, bs], axis=1)  # (C,3)
+
+    # Reshape to 2D so @ uses fast GEMM: (-1, C) @ (C, 3) -> (-1, 3)
+    cd2 = color_data.reshape(-1, C)
+    rgb_sum = (cd2 @ RGB).reshape(H, W, 3)  # weighted sums for r,g,b
+
+    # Divide by totals (broadcast) once, then cast once
     with np.errstate(divide='ignore', invalid='ignore'):
-        r = (color_data.dot(rs)/color_total).astype(np.uint8)
-        g = (color_data.dot(gs)/color_total).astype(np.uint8)
-        b = (color_data.dot(bs)/color_total).astype(np.uint8)
+        rgb_array = (rgb_sum / color_total[..., None]).astype(np.uint8)
 
-    # special case -- to give an appropriate color when min_alpha != 0 and data=0,
-    # take avg color of all non-nan categories
-    color_mask = ~np.isnan(data)
+    # --- “Average color of non-NaN categories” path (also as one matmul) ---
+    # Sum of True values per pixel
     cmask_sum = np.sum(color_mask, axis=2)
 
-    with np.errstate(divide='ignore', invalid='ignore'):
-        r2 = (color_mask.dot(rs)/cmask_sum).astype(np.uint8)
-        g2 = (color_mask.dot(gs)/cmask_sum).astype(np.uint8)
-        b2 = (color_mask.dot(bs)/cmask_sum).astype(np.uint8)
+    # Cast mask to float once and reuse the same GEMM path
+    cm2 = color_mask.reshape(-1, C).astype(np.float32, copy=False)
+    rgb_avg_present = (cm2 @ RGB).reshape(H, W, 3)  # sums of rs/gs/bs over present cats
 
-    missing_colors = np.sum(color_data, axis=2) == 0
-    r = np.where(missing_colors, r2, r)
-    g = np.where(missing_colors, g2, g)
-    b = np.where(missing_colors, b2, b)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        rgb2 = (rgb_avg_present / cmask_sum[..., None]).astype(np.uint8)
+
+    # --- Fill pixels with no color mass using the avg-present fallback ---
+    # Reuse color_total instead of re-summing
+    missing_colors = (color_total == 0)
+    # Select per-channel in one shot to reduce passes
+    rgb_array[missing_colors] = rgb2[missing_colors]
 
     total = nansum_missing(data, axis=2)
     mask = np.isnan(total)
     a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels)
 
-    values = np.dstack([r, g, b, a]).view(np.uint32).reshape(a.shape)
+    values = np.dstack([rgb_array, a]).view(np.uint32).reshape(a.shape)
     if cupy and isinstance(values, cupy.ndarray):
         # Convert cupy array to numpy for final image
         values = cupy.asnumpy(values)
@@ -449,7 +472,6 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
 
 
 def _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels):
-
     if cupy and isinstance(data, cupy.ndarray):
         from ._cuda_utils import interp, masked_clip_2d
         array_module = cupy
