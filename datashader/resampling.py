@@ -990,3 +990,59 @@ def infer_interval_breaks(coord, axis=0):
     trim_last = tuple(slice(None, -1) if n == axis else slice(None)
                       for n in range(coord.ndim))
     return np.concatenate([first, coord[trim_last] + deltas, last], axis=axis)
+
+
+@ngjit
+def infer_interval_breaks_2d(coord):
+    """
+    Optimized single-pass Numba version for 2D arrays.
+    Equivalent to applying infer_interval_breaks sequentially on axis=1 then axis=0.
+    Uses padding to enable uniform processing of all points.
+
+    Parameters:
+    -----------
+    coord : ndarray
+        2D coordinate array representing grid centers
+
+    Returns:
+    --------
+    ndarray
+        2D array with interval boundaries, shape (m+1, n+1)
+    """
+    m, n = coord.shape
+
+    # Pad the input array with extrapolated boundary values
+    padded = np.empty((m + 2, n + 2), dtype=coord.dtype)
+
+    # Copy original data to center
+    padded[1:-1, 1:-1] = coord
+
+    # Extrapolate boundaries using linear extrapolation
+    for i in range(m):
+        # Left boundary: extrapolate leftward
+        padded[i+1, 0] = 2 * coord[i, 0] - coord[i, 1]
+        # Right boundary: extrapolate rightward
+        padded[i+1, n+1] = 2 * coord[i, n-1] - coord[i, n-2]
+
+    for j in range(n):
+        # Top boundary: extrapolate upward
+        padded[0, j+1] = 2 * coord[0, j] - coord[1, j]
+        # Bottom boundary: extrapolate downward
+        padded[m+1, j+1] = 2 * coord[m-1, j] - coord[m-2, j]
+
+    # Corner extrapolation
+    padded[0, 0] = 2 * padded[0, 1] - padded[0, 2]  # top-left
+    padded[0, n+1] = 2 * padded[0, n] - padded[0, n-1]  # top-right
+    padded[m+1, 0] = 2 * padded[m+1, 1] - padded[m+1, 2]  # bottom-left
+    padded[m+1, n+1] = 2 * padded[m+1, n] - padded[m+1, n-1]  # bottom-right
+
+    # Now apply uniform formula everywhere
+    result = np.empty((m + 1, n + 1), dtype=coord.dtype)
+
+    for i in range(m + 1):
+        for j in range(n + 1):
+            # Average of four surrounding points in padded space
+            result[i, j] = 0.25 * (padded[i, j] + padded[i, j+1] +
+                                   padded[i+1, j] + padded[i+1, j+1])
+
+    return result
