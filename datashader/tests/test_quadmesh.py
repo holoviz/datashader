@@ -771,3 +771,33 @@ def test_segfault_quadmesh(bounds):
     cvs.quadmesh(da, x="x", y="y")"""
 
     subprocess.run([sys.executable, "-c", textwrap.dedent(code)], check=True)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_raster_quadmesh_descending_coords(array_module):
+    """Test that quadmesh works correctly with descending y coordinates.
+    
+    Regression test for https://github.com/holoviz/datashader/issues/1438
+    where quadmesh would return all NaN values when y coordinates are 
+    descending due to negative scale factors in the QuadMeshRaster 
+    downsampling functions.
+    """
+    west = 3125000.0
+    south = 3250000.0  
+    east = 4250000.0
+    north = 4375000.0
+    
+    # Create data with descending y coordinates (high to low)
+    da = xr.DataArray(
+        array_module.ones((10, 10)),
+        dims=("x", "y"),
+        coords={
+            "x": np.linspace(3123580.0, 4250380.0, 10),
+            "y": np.linspace(4376200.0, 3249400.0, 10),  # descending!
+        },
+        name="foo",
+    )
+    
+    cvs = ds.Canvas(8, 8, x_range=(west, east), y_range=(south, north))
+    result = cvs.quadmesh(da.transpose("y", "x"), x="x", y="y")
+    assert result.isnull().sum() == 0, "quadmesh should not return all NaN values with descending coordinates"
