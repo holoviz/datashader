@@ -189,8 +189,16 @@ class QuadMeshRectilinear(_QuadMeshLike):
             else:
                 yscaled = (y_mapper2(y_breaks) - y0) / yspan
 
-            xinds = np.where((xscaled >= 0) & (xscaled <= 1))[0]
-            yinds = np.where((yscaled >= 0) & (yscaled <= 1))[0]
+            # Find intervals that overlap the canvas bounds [0,1]
+            # An interval [xscaled[i], xscaled[i+1]] overlaps [0,1] if:
+            # max(xscaled[i], xscaled[i+1]) >= 0 and min(xscaled[i], xscaled[i+1]) <= 1
+            # This handles both ascending and descending coordinate orders
+            xinds = np.where((np.maximum(xscaled[1:], xscaled[:-1]) >= 0) &
+                           (np.minimum(xscaled[1:], xscaled[:-1]) <= 1))[0]
+            yinds = np.where((np.maximum(yscaled[1:], yscaled[:-1]) >= 0) &
+                           (np.minimum(yscaled[1:], yscaled[:-1]) <= 1))[0]
+
+
             if len(xinds) == 0 or len(yinds) == 0:
                 # Nothing to do
                 return
