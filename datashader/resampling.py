@@ -997,7 +997,7 @@ def infer_interval_breaks_2d(coord):
     """
     Optimized Numba version for 2D arrays.
     Equivalent to applying infer_interval_breaks sequentially on axis=1 then axis=0.
-    ~2.1x faster than NumPy with true parallelism (nogil=True).
+    Combines both passes for interior points to avoid intermediate array.
 
     Parameters:
     -----------
@@ -1009,56 +1009,52 @@ def infer_interval_breaks_2d(coord):
     ndarray
         2D array with interval boundaries, shape (m+1, n+1)
     """
-    coord_float = coord.astype(np.float64)
-    m, n = coord_float.shape
+    m, n = coord.shape
 
-    if m == 0 or n == 0:
-        return np.empty((m + 1, n + 1), dtype=coord_float.dtype)
+    assert m > 1
+    assert n > 1
 
-    # Step 1: Process along axis=1 (expand columns)
-    temp = np.empty((m, n + 1), dtype=coord_float.dtype)
+    result = np.empty((m + 1, n + 1), dtype=coord.dtype)
 
-    if n == 1:
-        # Single column case - vectorized assignment
-        temp[:, 0] = coord_float[:, 0]
-        temp[:, 1] = coord_float[:, 0]
-    else:
-        # Multiple columns case - for loop
-        for i in range(m):
-            # Calculate first break using first delta
-            first_delta = 0.5 * (coord_float[i, 1] - coord_float[i, 0])
-            temp[i, 0] = coord_float[i, 0] - first_delta
+    # Helper function to expand a row along columns (axis=1 expansion)
+    def expand_row_cols(row_idx, out):
+        out[0] = coord[row_idx, 0] - 0.5 * (coord[row_idx, 1] - coord[row_idx, 0])
+        for j in range(n - 1):
+            out[j + 1] = coord[row_idx, j] + 0.5 * (coord[row_idx, j + 1] - coord[row_idx, j])
+        out[n] = coord[row_idx, n - 1] + 0.5 * (coord[row_idx, n - 1] - coord[row_idx, n - 2])
 
-            # Calculate middle breaks inline
-            for j in range(n - 1):
-                delta = 0.5 * (coord_float[i, j + 1] - coord_float[i, j])
-                temp[i, j + 1] = coord_float[i, j] + delta
+    # Process interior points (i=1..m-1, j=1..n-1) in a single pass
+    for i in range(1, m):
+        for j in range(1, n):
+            result[i, j] = 0.25 * (coord[i-1, j-1] + coord[i-1, j] +
+                                   coord[i, j-1] + coord[i, j])
 
-            # Calculate last break using last delta
-            last_delta = 0.5 * (coord_float[i, n - 1] - coord_float[i, n - 2])
-            temp[i, n] = coord_float[i, n - 1] + last_delta
+    # Process first and last columns for interior rows
+    for i in range(1, m):
+        # First column (j=0)
+        row_mid = 0.5 * (coord[i-1, 0] + coord[i, 0])
+        row_mid_next = 0.5 * (coord[i-1, 1] + coord[i, 1])
+        result[i, 0] = row_mid - 0.5 * (row_mid_next - row_mid)
 
-    # Step 2: Process along axis=0 (expand rows)
-    result = np.empty((m + 1, n + 1), dtype=coord_float.dtype)
+        # Last column (j=n)
+        row_mid = 0.5 * (coord[i-1, n-1] + coord[i, n-1])
+        row_mid_prev = 0.5 * (coord[i-1, n-2] + coord[i, n-2])
+        result[i, n] = row_mid + 0.5 * (row_mid - row_mid_prev)
 
-    if m == 1:
-        # Single row case - vectorized assignment
-        result[0, :] = temp[0, :]
-        result[1, :] = temp[0, :]
-    else:
-        # Multiple rows case - for loop
-        for j in range(n + 1):
-            # Calculate first break using first delta
-            first_delta = 0.5 * (temp[1, j] - temp[0, j])
-            result[0, j] = temp[0, j] - first_delta
+    # Process first and last rows - need temp storage for axis=1 expansion
+    temp_rows = np.empty((4, n + 1), dtype=coord.dtype)
 
-            # Calculate middle breaks inline
-            for i in range(m - 1):
-                delta = 0.5 * (temp[i + 1, j] - temp[i, j])
-                result[i + 1, j] = temp[i, j] + delta
+    # Expand rows 0, 1, m-2, m-1 along columns
+    expand_row_cols(0, temp_rows[0])
+    expand_row_cols(1, temp_rows[1])
+    expand_row_cols(m-2, temp_rows[2])
+    expand_row_cols(m-1, temp_rows[3])
 
-            # Calculate last break using last delta
-            last_delta = 0.5 * (temp[m - 1, j] - temp[m - 2, j])
-            result[m, j] = temp[m - 1, j] + last_delta
+    # Apply axis=0 expansion for first and last rows
+    for j in range(n + 1):
+        # First row
+        result[0, j] = temp_rows[0, j] - 0.5 * (temp_rows[1, j] - temp_rows[0, j])
+        # Last row
+        result[m, j] = temp_rows[3, j] + 0.5 * (temp_rows[3, j] - temp_rows[2, j])
 
     return result
