@@ -1012,7 +1012,10 @@ def infer_interval_breaks_2d(coord):
     m, n = coord.shape
 
     # Create minimal padded array with only boundary rows/columns
-    # Memory usage: only 2m + 2n boundary elements instead of full mn array
+    # Note it would be more efficient to track the padding in two arrays
+    # top_bottom = np.empty(2, n+2)
+    # left_right = np.empty(m+2, 2)
+    # Right now the "interior" of `padded` isn't populated
     padded = np.empty((m + 2, n + 2), dtype=coord.dtype)
 
     # Fill only the necessary boundary rows and columns
