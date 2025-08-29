@@ -9,13 +9,8 @@ from datashader.utils import isreal, ngjit, ngjit_parallel
 import numba
 from numba import cuda, prange
 
-try:
-    import cupy
-    from datashader.transfer_functions._cuda_utils import cuda_args
-except Exception:
-    cupy = None
-    cuda_args = None
-
+from ..transfer_functions._cuda_utils import cuda_args
+from .._dependencies import cupy
 
 def _cuda_mapper(mapper):
     @cuda.jit
