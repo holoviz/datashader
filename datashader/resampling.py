@@ -997,7 +997,7 @@ def infer_interval_breaks_2d(coord):
     """
     Optimized single-pass Numba version for 2D arrays.
     Equivalent to applying infer_interval_breaks sequentially on axis=1 then axis=0.
-    Uses padding to enable uniform processing of all points.
+    Uses combined padding with streamlined boundary processing.
 
     Parameters:
     -----------
@@ -1011,38 +1011,54 @@ def infer_interval_breaks_2d(coord):
     """
     m, n = coord.shape
 
-    # Pad the input array with extrapolated boundary values
+    # Create minimal padded array with only boundary rows/columns
+    # Memory usage: only 2m + 2n boundary elements instead of full mn array
     padded = np.empty((m + 2, n + 2), dtype=coord.dtype)
 
-    # Copy original data to center
-    padded[1:-1, 1:-1] = coord
+    # Fill only the necessary boundary rows and columns
+    padded[1, 1:-1] = coord[0, :]      # First row of coord
+    padded[m, 1:-1] = coord[m-1, :]    # Last row of coord
+    padded[1:-1, 1] = coord[:, 0]      # First column of coord
+    padded[1:-1, n] = coord[:, n-1]    # Last column of coord
 
-    # Extrapolate boundaries using linear extrapolation
+    # Linearly extrapolate out to next cell center
+    # Left and right boundaries
     for i in range(m):
-        # Left boundary: extrapolate leftward
         padded[i+1, 0] = 2 * coord[i, 0] - coord[i, 1]
-        # Right boundary: extrapolate rightward
         padded[i+1, n+1] = 2 * coord[i, n-1] - coord[i, n-2]
 
+    # Top and bottom boundaries
     for j in range(n):
-        # Top boundary: extrapolate upward
         padded[0, j+1] = 2 * coord[0, j] - coord[1, j]
-        # Bottom boundary: extrapolate downward
         padded[m+1, j+1] = 2 * coord[m-1, j] - coord[m-2, j]
 
     # Corner extrapolation
-    padded[0, 0] = 2 * padded[0, 1] - padded[0, 2]  # top-left
-    padded[0, n+1] = 2 * padded[0, n] - padded[0, n-1]  # top-right
-    padded[m+1, 0] = 2 * padded[m+1, 1] - padded[m+1, 2]  # bottom-left
-    padded[m+1, n+1] = 2 * padded[m+1, n] - padded[m+1, n-1]  # bottom-right
+    padded[0, 0] = 2 * padded[0, 1] - padded[0, 2]
+    padded[0, n+1] = 2 * padded[0, n] - padded[0, n-1]
+    padded[m+1, 0] = 2 * padded[m+1, 1] - padded[m+1, 2]
+    padded[m+1, n+1] = 2 * padded[m+1, n] - padded[m+1, n-1]
 
-    # Now apply uniform formula everywhere
     result = np.empty((m + 1, n + 1), dtype=coord.dtype)
 
-    for i in range(m + 1):
-        for j in range(n + 1):
-            # Average of four surrounding points in padded space
-            result[i, j] = 0.25 * (padded[i, j] + padded[i, j+1] +
-                                   padded[i+1, j] + padded[i+1, j+1])
+    # Interior points using coord directly (best cache performance)
+    for i in range(1, m):
+        for j in range(1, n):
+            result[i, j] = 0.25 * (coord[i-1, j-1] + coord[i-1, j] +
+                                   coord[i, j-1] + coord[i, j])
+
+    # Boundary points using the padded array (clean uniform processing)
+    # Top and bottom rows
+    for j in range(n+1):
+        result[0, j] = 0.25 * (padded[0, j] + padded[0, j+1] +
+                               padded[1, j] + padded[1, j+1])
+        result[m, j] = 0.25 * (padded[m, j] + padded[m, j+1] +
+                               padded[m+1, j] + padded[m+1, j+1])
+
+    # Left and right columns (skip corners)
+    for i in range(1, m):
+        result[i, 0] = 0.25 * (padded[i, 0] + padded[i, 1] +
+                               padded[i+1, 0] + padded[i+1, 1])
+        result[i, n] = 0.25 * (padded[i, n] + padded[i, n+1] +
+                               padded[i+1, n] + padded[i+1, n+1])
 
     return result
