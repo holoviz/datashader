@@ -771,3 +771,43 @@ def test_segfault_quadmesh(bounds):
     cvs.quadmesh(da, x="x", y="y")"""
 
     subprocess.run([sys.executable, "-c", textwrap.dedent(code)], check=True)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_rectilinear_quadmesh_bbox_smaller_than_grid(array_module):
+    """Test for quadmesh with non-broadcast coordinates.
+
+    This test addresses a bug where quadmesh returns all NaN values
+    when coordinates are not properly broadcast for rectilinear grids.
+    See: https://github.com/holoviz/datashader/issues/1438
+    """
+
+    west = 111_445.
+    east = 111_483.
+    south = 10_018_715.
+    north = 10_018_754.
+
+    da = xr.DataArray(
+        np.array(
+            [
+                [-0.4246922, -0.41608012, -0.40739873],
+                [-0.4381327, -0.42964128, -0.42107907],
+                [-0.45110574, -0.4427344, -0.43429095],
+            ],
+            dtype=np.float32,
+        ),
+        dims=("latitude", "longitude"),
+        coords={
+            "latitude": np.array([9_000_000., 10_000_000., 11_000_000.]),
+            "longitude": np.array([80_000., 111_000., 140_000.]),
+        },
+        name="foo",
+    )
+
+    # Canvas bbox (15-25, 150-250) overlaps with data coordinates (10-30, 100-300)
+    cvs = ds.Canvas(64, 64, x_range=(west, east), y_range=(south, north))
+    result = cvs.quadmesh(da, x="longitude", y="latitude")
+    assert np.sum(np.isnan(result)) == 0
+
+    result = cvs.quadmesh(da.isel(latitude=slice(None, None, -1)), x="longitude", y="latitude")
+    assert np.sum(np.isnan(result)) == 0
