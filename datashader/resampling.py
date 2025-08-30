@@ -990,3 +990,78 @@ def infer_interval_breaks(coord, axis=0):
     trim_last = tuple(slice(None, -1) if n == axis else slice(None)
                       for n in range(coord.ndim))
     return np.concatenate([first, coord[trim_last] + deltas, last], axis=axis)
+
+
+@ngjit
+def infer_interval_breaks_2d(coord):
+    """
+    Optimized single-pass Numba version for 2D arrays.
+    Equivalent to applying infer_interval_breaks sequentially on axis=1 then axis=0.
+    Uses combined padding with streamlined boundary processing.
+
+    Parameters:
+    -----------
+    coord : ndarray
+        2D coordinate array representing grid centers
+
+    Returns:
+    --------
+    ndarray
+        2D array with interval boundaries, shape (m+1, n+1)
+    """
+    m, n = coord.shape
+
+    # Create minimal padded array with only boundary rows/columns
+    # Note it would be more efficient to track the padding in two arrays
+    # top_bottom = np.empty(2, n+2)
+    # left_right = np.empty(m+2, 2)
+    # Right now the "interior" of `padded` isn't populated
+    padded = np.empty((m + 2, n + 2), dtype=coord.dtype)
+
+    # Fill only the necessary boundary rows and columns
+    padded[1, 1:-1] = coord[0, :]      # First row of coord
+    padded[m, 1:-1] = coord[m-1, :]    # Last row of coord
+    padded[1:-1, 1] = coord[:, 0]      # First column of coord
+    padded[1:-1, n] = coord[:, n-1]    # Last column of coord
+
+    # Linearly extrapolate out to next cell center
+    # Left and right boundaries
+    for i in range(m):
+        padded[i+1, 0] = 2 * coord[i, 0] - coord[i, 1]
+        padded[i+1, n+1] = 2 * coord[i, n-1] - coord[i, n-2]
+
+    # Top and bottom boundaries
+    for j in range(n):
+        padded[0, j+1] = 2 * coord[0, j] - coord[1, j]
+        padded[m+1, j+1] = 2 * coord[m-1, j] - coord[m-2, j]
+
+    # Corner extrapolation
+    padded[0, 0] = 2 * padded[0, 1] - padded[0, 2]
+    padded[0, n+1] = 2 * padded[0, n] - padded[0, n-1]
+    padded[m+1, 0] = 2 * padded[m+1, 1] - padded[m+1, 2]
+    padded[m+1, n+1] = 2 * padded[m+1, n] - padded[m+1, n-1]
+
+    result = np.empty((m + 1, n + 1), dtype=coord.dtype)
+
+    # Interior points using coord directly (best cache performance)
+    for i in range(1, m):
+        for j in range(1, n):
+            result[i, j] = 0.25 * (coord[i-1, j-1] + coord[i-1, j] +
+                                   coord[i, j-1] + coord[i, j])
+
+    # Boundary points using the padded array (clean uniform processing)
+    # Top and bottom rows
+    for j in range(n+1):
+        result[0, j] = 0.25 * (padded[0, j] + padded[0, j+1] +
+                               padded[1, j] + padded[1, j+1])
+        result[m, j] = 0.25 * (padded[m, j] + padded[m, j+1] +
+                               padded[m+1, j] + padded[m+1, j+1])
+
+    # Left and right columns (skip corners)
+    for i in range(1, m):
+        result[i, 0] = 0.25 * (padded[i, 0] + padded[i, 1] +
+                               padded[i+1, 0] + padded[i+1, 1])
+        result[i, n] = 0.25 * (padded[i, n] + padded[i, n+1] +
+                               padded[i+1, n] + padded[i+1, n+1])
+
+    return result
