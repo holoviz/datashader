@@ -224,12 +224,12 @@ class QuadMeshRectilinear(_QuadMeshLike):
             # Downselect xs and ys and convert to int
             xs = xscaled[xm0:xm1 + 1]
             xs *= plot_width
-            np.trunc(xs, out=xs)
+            xs = xs.astype(int)
             np.clip(xs, 0, plot_width, out=xs)
 
             ys = yscaled[ym0:ym1 + 1]
             ys *= plot_height
-            np.trunc(ys, out=ys)
+            ys = ys.astype(int)
             np.clip(ys, 0, plot_height, out=ys)
 
             # For input "column", down select to valid range
@@ -693,8 +693,8 @@ class QuadMeshCurvilinear(_QuadMeshLike):
 
             xscaled *= plot_width
             yscaled *= plot_height
-            np.trunc(xscaled, out=xscaled)
-            np.trunc(yscaled, out=yscaled)
+            xscaled = xscaled.astype(int)
+            yscaled = yscaled.astype(int)
 
             coord_dims = xr_ds.coords[x_name].dims
             aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims), aggs[0].shape[:2])
