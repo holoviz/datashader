@@ -168,12 +168,24 @@ class QuadMeshRectilinear(_QuadMeshLike):
                 if use_cuda:
                     x_centers = cupy.array(x_centers)
                 x_breaks = self.infer_interval_breaks(x_centers)
+            else:
+                # The copy is necessary given that dask_xarray calculates x_breaks once
+                # for the whole array, and then passes slices of that
+                # array in for each chunk. We use in-place ops below,
+                # so make a copy here first.
+                x_breaks = x_breaks.copy()
 
             if y_breaks is None:
                 y_centers = xr_ds[y_name].values
                 if use_cuda:
                     y_centers = cupy.array(y_centers)
                 y_breaks = self.infer_interval_breaks(y_centers)
+            else:
+                # The copy is necessary given that dask_xarray calculates y_breaks once
+                # for the whole array, and then passes slices of that
+                # array in for each chunk. We use in-place ops below,
+                # so make a copy here first.
+                y_breaks = y_breaks.copy()
 
             x0, x1, y0, y1 = bounds
             xspan = x1 - x0
