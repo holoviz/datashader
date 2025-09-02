@@ -691,10 +691,10 @@ class QuadMeshCurvilinear(_QuadMeshLike):
 
             plot_height, plot_width = aggs[0].shape[:2]
 
-            xscaled *= plot_width
-            yscaled *= plot_height
-            xscaled = xscaled.astype(int)
-            yscaled = yscaled.astype(int)
+            xs = np.empty(xscaled.shape, dtype=np.min_scalar_type(-plot_width))
+            ys = np.empty(yscaled.shape, dtype=np.min_scalar_type(-plot_height))
+            np.multiply(xscaled, plot_width, casting="unsafe", out=xs)
+            np.multiply(yscaled, plot_height, casting="unsafe", out=ys)
 
             coord_dims = xr_ds.coords[x_name].dims
             aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims), aggs[0].shape[:2])
@@ -704,7 +704,7 @@ class QuadMeshCurvilinear(_QuadMeshLike):
                 do_extend = extend_cpu
 
             do_extend(
-                plot_height, plot_width, xscaled, yscaled, *aggs_and_cols
+                plot_height, plot_width, xs, ys, *aggs_and_cols
             )
 
         return extend
