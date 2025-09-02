@@ -321,18 +321,12 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 src_j1 = int(min(raw_j1, src_h))
 
                 for out_i in range(out_w):
-                    # Calculate raw indices first
-                    raw_i0 = math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x)
-                    raw_i1 = math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x)
-
-                    # Handle negative scale_x (descending coordinates) - swap before clamping
-                    if scale_x < 0 and raw_i0 > raw_i1:
-                        raw_i0, raw_i1 = raw_i1, raw_i0
-
-                    # Now clamp to valid range
-                    src_i0 = int(max(raw_i0, 0))
-                    src_i1 = int(min(raw_i1, src_w))
-
+                    src_i0 = int(max(
+                        math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
+                    ))
+                    src_i1 = int(min(
+                        math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
+                    ))
                     for src_j in range(src_j0, src_j1):
                         for src_i in range(src_i0, src_i1):
                             append(src_j, src_i, out_i, out_j, *aggs_and_cols)
@@ -357,18 +351,12 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 src_j0 = max(raw_j0, 0)
                 src_j1 = min(raw_j1, src_h)
 
-                # Calculate raw indices first
-                raw_i0 = math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x)
-                raw_i1 = math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x)
-
-                # Handle negative scale_x (descending coordinates) - swap before clamping
-                if scale_x < 0 and raw_i0 > raw_i1:
-                    raw_i0, raw_i1 = raw_i1, raw_i0
-
-                # Now clamp to valid range
-                src_i0 = max(raw_i0, 0)
-                src_i1 = min(raw_i1, src_w)
-
+                src_i0 = max(
+                    math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
+                )
+                src_i1 = min(
+                    math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
+                )
                 for src_j in range(src_j0, src_j1):
                     for src_i in range(src_i0, src_i1):
                         append(src_j, src_i, out_i, out_j, *aggs_and_cols)
