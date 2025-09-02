@@ -9,7 +9,10 @@ from numpy import nan
 import xarray as xr
 import datashader as ds
 import pytest
+from hypothesis import given, strategies as st, settings
+from hypothesis.extra import numpy as npst
 
+from datashader.resampling import infer_interval_breaks, infer_interval_breaks_2d
 from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
 from datashader.tests.utils import dask_skip
 
@@ -811,3 +814,50 @@ def test_rectilinear_quadmesh_bbox_smaller_than_grid(array_module):
 
     result = cvs.quadmesh(da.isel(latitude=slice(None, None, -1)), x="longitude", y="latitude")
     assert np.sum(np.isnan(result)) == 0
+
+
+@given(
+    spacings=npst.arrays(
+        dtype=np.float64,
+        shape=st.tuples(
+            st.integers(min_value=2, max_value=50),
+            st.integers(min_value=2, max_value=50)
+        ),
+        elements=st.floats(
+            min_value=0.1,  # Positive spacings to ensure monotonic coordinates
+            max_value=10.0,
+            allow_nan=False,
+            allow_infinity=False
+        )
+    ),
+    start_value=st.floats(
+        min_value=-1000,
+        max_value=1000,
+        allow_nan=False,
+        allow_infinity=False
+    )
+)
+@settings(deadline=None)
+def test_infer_interval_breaks_2d_consistency(spacings, start_value):
+    """Test that infer_interval_breaks_2d matches sequential 1D application.
+
+    This verifies that:
+    infer_interval_breaks_2d(coords) ==
+    infer_interval_breaks(infer_interval_breaks(coords, axis=1), axis=0)
+
+    where coords are curvilinear coordinates constructed from cumulative sums.
+    """
+    # Construct curvilinear coordinates using cumsum of spacings
+    # This ensures monotonic coordinates which is realistic for quadmesh data
+    coords = np.cumsum(spacings, axis=0)
+    coords = np.cumsum(coords, axis=1)
+    coords = coords + start_value  # Add offset
+
+    # Compute expected result using sequential 1D operations
+    expected = infer_interval_breaks(infer_interval_breaks(coords, axis=1), axis=0)
+
+    # Compute actual result using 2D operation
+    actual = infer_interval_breaks_2d(coords)
+
+    # Compare results
+    np.testing.assert_allclose(actual, expected, rtol=1e-10, atol=1e-10)

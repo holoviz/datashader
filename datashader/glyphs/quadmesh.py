@@ -432,6 +432,10 @@ class QuadMeshCurvilinear(_QuadMeshLike):
         return self.compute_x_bounds(xr_ds), self.compute_y_bounds(xr_ds)
 
     def infer_interval_breaks(self, centers):
+        if cupy and isinstance(centers, cupy.ndarray):
+            breaks = infer_interval_breaks(centers, axis=1)
+            breaks = infer_interval_breaks(breaks, axis=0)
+            return breaks
         if centers.dtype.kind in "iu":
             centers = centers.astype(float)
         return infer_interval_breaks_2d(centers)
