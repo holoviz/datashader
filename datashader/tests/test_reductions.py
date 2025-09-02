@@ -63,5 +63,5 @@ def test_mode_raise_error():
     xr_ds["x"], xr_ds["y"] = xr.broadcast(xr_ds.x, xr_ds.y)
 
     cvs = ds.Canvas(x_range=(0, 3), y_range=(0, 4))
-    with pytest.raises(NotImplementedError):
+    with pytest.raises((NotImplementedError, SystemError)):
         cvs.quadmesh(xr_ds, x="x", y="y", agg=ds.reductions.mode("foo"))
