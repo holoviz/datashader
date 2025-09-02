@@ -890,3 +890,30 @@ def test_raster_quadmesh_descending_coords(array_module):
 
     result = cvs.quadmesh(da.isel(y=slice(None, None, -1)).transpose("y", "x"), x="x", y="y")
     assert result.isnull().sum().item() == 0
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_raster_quadmesh_descending_coords_2(array_module):
+    """
+    Regression test for https://github.com/holoviz/datashader/issues/1439
+    """
+    west=3125000.0
+    south=4375000.0
+    east=4250000.0
+    north=5500000.0
+
+    # Create data with descending y coordinates (high to low)
+    da = xr.DataArray(
+        array_module.ones((940, 868)),
+        dims=("x", "y"),
+        coords={
+            "x": np.linspace(3123580.0, 4250380.0, 940),
+            "y": np.linspace(5415400.0, 4375000.0, 868),  # descending!
+        },
+        name="foo",
+    )
+
+    cvs = ds.Canvas(256, 256, x_range=(west, east), y_range=(south, north))
+    actual = cvs.quadmesh(da.transpose("y", "x"), x="x", y="y")
+    expected = cvs.quadmesh(da.isel(y=slice(None, None, -1)).transpose("y", "x"), x="x", y="y")
+    np.testing.assert_allclose(expected, actual)

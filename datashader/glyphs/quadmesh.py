@@ -308,26 +308,30 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 offset_x, offset_y, out_w, out_h, *aggs_and_cols
         ):
             for out_j in prange(out_h):
-                src_j0 = int(max(
-                    math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y), 0
-                ))
-                src_j1 = int(min(
-                    math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
-                ))
-                # Handle negative scale_y (descending coordinates)
-                if scale_y < 0 and src_j0 > src_j1:
-                    src_j0, src_j1 = src_j1, src_j0
+                # Calculate raw indices first
+                raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
+
+                # Handle negative scale_y (descending coordinates) - swap before clamping
+                if scale_y < 0 and raw_j0 > raw_j1:
+                    raw_j0, raw_j1 = raw_j1, raw_j0
+
+                # Now clamp to valid range
+                src_j0 = int(max(raw_j0, 0))
+                src_j1 = int(min(raw_j1, src_h))
 
                 for out_i in range(out_w):
-                    src_i0 = int(max(
-                        math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
-                    ))
-                    src_i1 = int(min(
-                        math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
-                    ))
-                    # Handle negative scale_x (descending coordinates)
-                    if scale_x < 0 and src_i0 > src_i1:
-                        src_i0, src_i1 = src_i1, src_i0
+                    # Calculate raw indices first
+                    raw_i0 = math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x)
+                    raw_i1 = math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x)
+
+                    # Handle negative scale_x (descending coordinates) - swap before clamping
+                    if scale_x < 0 and raw_i0 > raw_i1:
+                        raw_i0, raw_i1 = raw_i1, raw_i0
+
+                    # Now clamp to valid range
+                    src_i0 = int(max(raw_i0, 0))
+                    src_i1 = int(min(raw_i1, src_w))
 
                     for src_j in range(src_j0, src_j1):
                         for src_i in range(src_i0, src_i1):
@@ -341,25 +345,29 @@ class QuadMeshRaster(QuadMeshRectilinear):
         ):
             out_i, out_j = cuda.grid(2)
             if out_i < out_w and out_j < out_h:
-                src_j0 = max(
-                    math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y), 0
-                )
-                src_j1 = min(
-                    math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
-                )
-                # Handle negative scale_y (descending coordinates)
-                if scale_y < 0 and src_j0 > src_j1:
-                    src_j0, src_j1 = src_j1, src_j0
+                # Calculate raw indices first
+                raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
 
-                src_i0 = max(
-                    math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
-                )
-                src_i1 = min(
-                    math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
-                )
-                # Handle negative scale_x (descending coordinates)
-                if scale_x < 0 and src_i0 > src_i1:
-                    src_i0, src_i1 = src_i1, src_i0
+                # Handle negative scale_y (descending coordinates) - swap before clamping
+                if scale_y < 0 and raw_j0 > raw_j1:
+                    raw_j0, raw_j1 = raw_j1, raw_j0
+
+                # Now clamp to valid range
+                src_j0 = max(raw_j0, 0)
+                src_j1 = min(raw_j1, src_h)
+
+                # Calculate raw indices first
+                raw_i0 = math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x)
+                raw_i1 = math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x)
+
+                # Handle negative scale_x (descending coordinates) - swap before clamping
+                if scale_x < 0 and raw_i0 > raw_i1:
+                    raw_i0, raw_i1 = raw_i1, raw_i0
+
+                # Now clamp to valid range
+                src_i0 = max(raw_i0, 0)
+                src_i1 = min(raw_i1, src_w)
 
                 for src_j in range(src_j0, src_j1):
                     for src_i in range(src_i0, src_i1):
