@@ -314,6 +314,10 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 src_j1 = int(min(
                     math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
                 ))
+                # Handle negative scale_y (descending coordinates)
+                if scale_y < 0 and src_j0 > src_j1:
+                    src_j0, src_j1 = src_j1, src_j0
+
                 for out_i in range(out_w):
                     src_i0 = int(max(
                         math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
@@ -321,6 +325,10 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     src_i1 = int(min(
                         math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
                     ))
+                    # Handle negative scale_x (descending coordinates)
+                    if scale_x < 0 and src_i0 > src_i1:
+                        src_i0, src_i1 = src_i1, src_i0
+
                     for src_j in range(src_j0, src_j1):
                         for src_i in range(src_i0, src_i1):
                             append(src_j, src_i, out_i, out_j, *aggs_and_cols)
@@ -339,12 +347,20 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 src_j1 = min(
                     math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
                 )
+                # Handle negative scale_y (descending coordinates)
+                if scale_y < 0 and src_j0 > src_j1:
+                    src_j0, src_j1 = src_j1, src_j0
+
                 src_i0 = max(
                     math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
                 )
                 src_i1 = min(
                     math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
                 )
+                # Handle negative scale_x (descending coordinates)
+                if scale_x < 0 and src_i0 > src_i1:
+                    src_i0, src_i1 = src_i1, src_i0
+
                 for src_j in range(src_j0, src_j1):
                     for src_i in range(src_i0, src_i1):
                         append(src_j, src_i, out_i, out_j, *aggs_and_cols)
