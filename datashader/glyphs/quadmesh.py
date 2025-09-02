@@ -515,17 +515,20 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             # make yincreasing an array holding whether each edge is
             # increasing vertically (+1), decreasing vertically (-1),
             # or horizontal (0).
-            yincreasing[:] = 0
             for k in range(4):
                 if yverts[k + 1] > yverts[k]:
                     yincreasing[k] = 1
                 elif yverts[k + 1] < yverts[k]:
                     yincreasing[k] = -1
+                else:
+                    yincreasing[k] = 0
 
             for yi in range(ymin, ymax):
-                eligible[:] = 1
+                for edge_i in range(4):
+                    eligible[edge_i] = 1
                 for xi in range(xmin, xmax):
-                    intersect[:] = 0
+                    for edge_i in range(4):
+                        intersect[edge_i] = 0
                     # Test edges
                     for edge_i in range(4):
                         # Skip if we already know edge is ineligible
