@@ -8,6 +8,10 @@ from datashader.resampling import infer_interval_breaks, infer_interval_breaks_2
 from datashader.utils import isreal, ngjit, ngjit_parallel
 import numba
 from numba import cuda, prange
+try:
+    import dask.array as dask_array
+except ImportError:
+    dask_array = None
 
 try:
     import cupy
@@ -432,7 +436,10 @@ class QuadMeshCurvilinear(_QuadMeshLike):
         return self.compute_x_bounds(xr_ds), self.compute_y_bounds(xr_ds)
 
     def infer_interval_breaks(self, centers):
-        if cupy and isinstance(centers, cupy.ndarray):
+        if (
+                (bool(cupy) and isinstance(centers, cupy.ndarray))
+                or (bool(dask_array) and isinstance(centers, dask_array.Array))
+            ):
             breaks = infer_interval_breaks(centers, axis=1)
             breaks = infer_interval_breaks(breaks, axis=0)
             return breaks

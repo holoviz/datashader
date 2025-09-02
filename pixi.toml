@@ -85,6 +85,7 @@ streamz = "*"
 # =================== TESTS ===================
 # =============================================
 [feature.test-core.dependencies]
+hypothesis = "*"
 psutil = "*"
 pytest = "*"
 pytest-benchmark = "*"
