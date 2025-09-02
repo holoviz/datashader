@@ -602,34 +602,34 @@ class QuadMeshCurvilinear(_QuadMeshLike):
                     *aggs_and_cols
                 )
 
-        @ngjit
+        @ngjit_parallel
         @self.expand_aggs_and_cols(append)
         def extend_cpu(plot_height, plot_width, xs, ys, *aggs_and_cols):
             # For performance, we initialize all arrays once before the loop
 
+            y_len, x_len, = xs.shape
             # xverts/yverts arrays
-            xverts = np.zeros(5, dtype=np.int32)
-            yverts = np.zeros(5, dtype=np.int32)
-
+            xverts = np.zeros((y_len, 5), dtype=np.int32)
+            yverts = np.zeros((y_len, 5), dtype=np.int32)
             # Array holding whether each edge is increasing
             # vertically (+1), decreasing vertically (-1),
             # or horizontal (0).
-            yincreasing = np.zeros(4, dtype=np.int8)
+            yincreasing = np.zeros((y_len, 4), dtype=np.int8)
 
             # Array that will hold mask of whether edges are
             # eligible for intersection tests
-            eligible = np.ones(4, dtype=np.int8)
+            eligible = np.ones((y_len, 4), dtype=np.int8)
 
             # Array that will hold a mask of whether edges
             # intersect the ray to the right of test point
-            intersect = np.zeros(4, dtype=np.int8)
-
-            y_len, x_len, = xs.shape
-            for i in range(x_len - 1):
-                for j in range(y_len - 1):
+            intersect = np.zeros((y_len, 4), dtype=np.int8)
+            for j in prange(y_len - 1):
+                for i in range(x_len - 1):
                     perform_extend(
                         i, j, plot_height, plot_width, xs, ys,
-                        xverts, yverts, yincreasing, eligible, intersect, *aggs_and_cols
+                        xverts[j,:], yverts[j, :],
+                        yincreasing[j, :], eligible[j, :], intersect[j, :],
+                        *aggs_and_cols
                     )
 
         def extend(aggs, xr_ds, vt, bounds, x_breaks=None, y_breaks=None):
