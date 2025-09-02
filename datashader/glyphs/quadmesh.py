@@ -624,11 +624,15 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             # intersect the ray to the right of test point
             intersect = np.zeros((y_len, 4), dtype=np.int8)
             for j in prange(y_len - 1):
+                xv = xverts[j,:]
+                yv = yverts[j, :]
+                yin = yincreasing[j,:]
+                el = eligible[j, :]
+                inter = intersect[j, :]
                 for i in range(x_len - 1):
                     perform_extend(
                         i, j, plot_height, plot_width, xs, ys,
-                        xverts[j,:], yverts[j, :],
-                        yincreasing[j, :], eligible[j, :], intersect[j, :],
+                        xv, yv, yin, el, inter,
                         *aggs_and_cols
                     )
 
