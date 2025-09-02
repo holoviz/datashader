@@ -121,6 +121,13 @@ jobs:
       - uses: holoviz-dev/holoviz_tasks/pixi_install@v0
         with:
           environments: ${{ matrix.environment }}
+      - name: Restore cached hypothesis directory
+        uses: actions/cache@v4
+        with:
+          path: .hypothesis/
+          key: cache-hypothesis
+          enableCrossOsArchive: true
+          save-always: true
       - name: Test Unit
         run: |
           pixi run -e ${{ matrix.environment }} test-unit $COV

@@ -48,7 +48,7 @@ Source = "https://github.com/holoviz/datashader"
 HoloViz = "https://holoviz.org/"
 
 [project.optional-dependencies]
-tests = ["pytest"]
+tests = ["pytest", "hypothesis"]
 
 [project.scripts]
 datashader = "datashader.__main:main"
