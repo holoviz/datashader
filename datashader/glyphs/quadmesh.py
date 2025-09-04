@@ -308,12 +308,18 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 offset_x, offset_y, out_w, out_h, *aggs_and_cols
         ):
             for out_j in prange(out_h):
-                src_j0 = int(max(
-                    math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y), 0
-                ))
-                src_j1 = int(min(
-                    math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
-                ))
+                # Calculate raw indices first
+                raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
+
+                # Handle negative scale_y (descending coordinates) - swap before clamping
+                if scale_y < 0 and raw_j0 > raw_j1:
+                    raw_j0, raw_j1 = raw_j1, raw_j0
+
+                # Now clamp to valid range
+                src_j0 = int(max(raw_j0, 0))
+                src_j1 = int(min(raw_j1, src_h))
+
                 for out_i in range(out_w):
                     src_i0 = int(max(
                         math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
@@ -333,12 +339,18 @@ class QuadMeshRaster(QuadMeshRectilinear):
         ):
             out_i, out_j = cuda.grid(2)
             if out_i < out_w and out_j < out_h:
-                src_j0 = max(
-                    math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y), 0
-                )
-                src_j1 = min(
-                    math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
-                )
+                # Calculate raw indices first
+                raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
+
+                # Handle negative scale_y (descending coordinates) - swap before clamping
+                if scale_y < 0 and raw_j0 > raw_j1:
+                    raw_j0, raw_j1 = raw_j1, raw_j0
+
+                # Now clamp to valid range
+                src_j0 = max(raw_j0, 0)
+                src_j1 = min(raw_j1, src_h)
+
                 src_i0 = max(
                     math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
                 )
