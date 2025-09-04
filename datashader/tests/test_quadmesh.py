@@ -30,7 +30,7 @@ except ImportError:
 try:
     import cudf
     import cupy
-    array_modules.append(cupy)
+    array_modules.append(pytest.param(cupy, marks=pytest.mark.gpu))
 except ImportError:
     cudf = None
     cupy = None
@@ -916,4 +916,4 @@ def test_raster_quadmesh_descending_coords_2(array_module):
     cvs = ds.Canvas(256, 256, x_range=(west, east), y_range=(south, north))
     actual = cvs.quadmesh(da.transpose("y", "x"), x="x", y="y")
     expected = cvs.quadmesh(da.isel(y=slice(None, None, -1)).transpose("y", "x"), x="x", y="y")
-    np.testing.assert_allclose(expected, actual)
+    assert_eq_xr(expected, actual, close=True)
