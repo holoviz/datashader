@@ -23,13 +23,15 @@ build = ["py311", "build"]
 lint = ["py311", "lint"]
 
 [dependencies]
+nomkl = "*"
+pip = "*"
+# Required
 numba = "*"
 colorcet = "*"
 multipledispatch = "*"
 numpy = "*"
 pandas = "*"
 param = "*"
-pip = "*"
 pyct = "*"
 requests = "*"
 scipy = "*"
@@ -83,6 +85,7 @@ streamz = "*"
 # =================== TESTS ===================
 # =============================================
 [feature.test-core.dependencies]
+hypothesis = "*"
 psutil = "*"
 pytest = "*"
 pytest-benchmark = "*"
