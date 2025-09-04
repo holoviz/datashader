@@ -184,8 +184,8 @@ def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
     # For downsampling, use smaller chunks to reduce memory usage
     if chunksize is None and (w < sw or h < sh):
         src_chunks = src.chunksize
-        new_chunk_h = max(32, int(src_chunks[0] / height_fraction))
-        new_chunk_w = max(32, int(src_chunks[1] / width_fraction))
+        new_chunk_h = max(32, src_chunks[0] // height_fraction)
+        new_chunk_w = max(32, src_chunks[1] // width_fraction)
         chunksize = (new_chunk_h, new_chunk_w)
 
     start_chunksize = src.chunksize if chunksize is None else chunksize
