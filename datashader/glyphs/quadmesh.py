@@ -702,21 +702,19 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             else:
                 xscaled = x_mapper2(x_breaks)
             xscaled -= x0
-            xscaled /= xspan
 
             if y_mapper is LinearAxis.mapper:
                 yscaled = y_breaks
             else:
                 yscaled = y_mapper2(y_breaks)
             yscaled -= y0
-            yscaled /= yspan
 
             plot_height, plot_width = aggs[0].shape[:2]
 
             xs = np.empty(xscaled.shape, dtype=np.min_scalar_type(-plot_width))
             ys = np.empty(yscaled.shape, dtype=np.min_scalar_type(-plot_height))
-            np.multiply(xscaled, plot_width, casting="unsafe", out=xs)
-            np.multiply(yscaled, plot_height, casting="unsafe", out=ys)
+            np.multiply(xscaled, plot_width/xspan, casting="unsafe", out=xs)
+            np.multiply(yscaled, plot_height/yspan, casting="unsafe", out=ys)
 
             coord_dims = xr_ds.coords[x_name].dims
             aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims), aggs[0].shape[:2])
