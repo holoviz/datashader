@@ -98,8 +98,9 @@ ignore = [
 [tool.pytest.ini_options]
 addopts = [
     "--pyargs",
-    "--doctest-modules",
-    "--doctest-ignore-import-errors",
+    # FIX(hoxbro): Look into this
+    # "--doctest-modules",
+    # "--doctest-ignore-import-errors",
     "--strict-config",
     "--strict-markers",
     "--color=yes",

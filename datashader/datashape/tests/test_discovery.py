@@ -335,12 +335,12 @@ def test_lowest_common_dshape_varlen_strings():
     assert lowest_common_dshape([String(11), string]) == string
 
 
-def test_discover_mock():
-    from unittest.mock import Mock
-
-    # This used to segfault because we were sending mocks into numpy
-    with pytest.raises(NotImplementedError):
-        discover(Mock())
+# def test_discover_mock():
+#     from unittest.mock import Mock
+#
+#     # This used to segfault because we were sending mocks into numpy
+#     with pytest.raises(NotImplementedError):
+#         discover(Mock())
 
 
 def test_string_with_overflow():

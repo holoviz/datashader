@@ -7,23 +7,8 @@ from datashader.glyphs.glyph import Glyph
 from datashader.utils import isreal, ngjit
 
 from numba import cuda
-
-try:
-    import cudf
-    from ..transfer_functions._cuda_utils import cuda_args
-except Exception:
-    cudf = None
-    cuda_args = None
-
-try:
-    from geopandas.array import GeometryDtype as gpd_GeometryDtype
-except ImportError:
-    gpd_GeometryDtype = type(None)
-
-try:
-    import spatialpandas
-except Exception:
-    spatialpandas = None
+from .._dependencies import cudf, gpd, spd
+from ..transfer_functions._cuda_utils import cuda_args
 
 
 def values(s):
@@ -52,7 +37,7 @@ class _GeometryLike(Glyph):
 
     @property
     def geom_dtypes(self):
-        if spatialpandas:
+        if spd:
             from spatialpandas.geometry import GeometryDtype
             return (GeometryDtype,)
         else:
@@ -79,7 +64,7 @@ class _GeometryLike(Glyph):
 
     def compute_x_bounds(self, df):
         col = df[self.geometry]
-        if isinstance(col.dtype, gpd_GeometryDtype):
+        if gpd and isinstance(col.dtype, gpd.array.GeometryDtype):
             # geopandas
             if self._cached_bounds is None:
                 self._cached_bounds = col.total_bounds
@@ -91,7 +76,7 @@ class _GeometryLike(Glyph):
 
     def compute_y_bounds(self, df):
         col = df[self.geometry]
-        if isinstance(col.dtype, gpd_GeometryDtype):
+        if gpd and isinstance(col.dtype, gpd.array.GeometryDtype):
             # geopandas
             if self._cached_bounds is None:
                 self._cached_bounds = col.total_bounds
