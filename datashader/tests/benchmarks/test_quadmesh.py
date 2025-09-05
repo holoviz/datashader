@@ -3,11 +3,11 @@ import numpy as np
 import xarray as xr
 import datashader as ds
 
-sizes = [256, 512, 1024, 2048, 4096, 8192]
+DATA_SIZES = (256, 512, 1024, 2048, 4096, 8192)
 CANVAS_SIZE = (1024, 1024)
 rng = np.random.default_rng()
 
-@pytest.fixture(params=sizes)
+@pytest.fixture(params=DATA_SIZES)
 def quadmesh_data(request, rng):
     size = request.param
     west = 3125000.0
@@ -37,7 +37,7 @@ def test_quadmesh_curvilinear(benchmark, quadmesh_data):
     def func():
         cvs = ds.Canvas(*CANVAS_SIZE, x_range=x_range, y_range=y_range)
         quadmesh = cvs.quadmesh(data, x="lon", y="lat")
-        return quadmesh.compute()
+        return quadmesh
 
     benchmark(func)
 
@@ -49,7 +49,7 @@ def test_quadmesh_raster(benchmark, quadmesh_data):
     def func():
         cvs = ds.Canvas(*CANVAS_SIZE, x_range=x_range, y_range=y_range)
         quadmesh = cvs.quadmesh(data, x="lon", y="lat")
-        return quadmesh.compute()
+        return quadmesh
 
     benchmark(func)
 
@@ -65,6 +65,6 @@ def test_quadmesh_rectilinear(benchmark, quadmesh_data):
     def func():
         cvs = ds.Canvas(*CANVAS_SIZE, x_range=x_range, y_range=y_range)
         quadmesh = cvs.quadmesh(data, x="lon", y="lat")
-        return quadmesh.compute()
+        return quadmesh
 
     benchmark(func)
