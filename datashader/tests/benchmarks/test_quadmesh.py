@@ -8,7 +8,6 @@ from . import array_params, da
 
 @pytest.fixture(params=array_params)
 def quadmesh_data(request):
-    """Create test data array for quadmesh benchmarking"""
     size, array_module = request.param
     west = 3125000.0
     south = 3250000.0
@@ -40,8 +39,10 @@ def quadmesh_data(request):
 
 @pytest.mark.benchmark(group="quadmesh")
 def test_quadmesh(benchmark, quadmesh_data):
-    """Benchmark quadmesh operation"""
-    data, x_range, y_range = quadmesh_data
-    cvs = ds.Canvas(256, 256, x_range=x_range, y_range=y_range)
+    def func():
+        data, x_range, y_range = quadmesh_data
+        cvs = ds.Canvas(256, 256, x_range=x_range, y_range=y_range)
+        quadmesh = cvs.quadmesh(data.transpose("y", "x"), x="lon", y="lat")
+        return quadmesh.compute()
 
-    benchmark(cvs.quadmesh, data.transpose("y", "x"), x="lon", y="lat")
+    benchmark(func)
