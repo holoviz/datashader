@@ -17,7 +17,7 @@ def quadmesh_data(request, rng):
 
     data = xr.DataArray(
         rng.random((size, size)),
-        dims=("x", "y"),
+        dims=("y", "x"),
         coords={
             "lon": ("x", np.linspace(3123580.0, 4250380.0, size)),
             "lat": ("y", np.linspace(4376200.0, 3249400.0, size)),
@@ -30,12 +30,13 @@ def quadmesh_data(request, rng):
 
 @pytest.mark.benchmark(group="quadmesh")
 def test_quadmesh_curvilinear(benchmark, quadmesh_data):
+    data, x_range, y_range = quadmesh_data
+    lon_coord, lat_coord = xr.broadcast(data.x, data.y)
+    data = data.assign_coords({"lon": lon_coord, "lat": lat_coord})
+
     def func():
-        data, x_range, y_range = quadmesh_data
-        lon_coord, lat_coord = xr.broadcast(data.x, data.y)
-        data = data.assign_coords({"lon": lon_coord, "lat": lat_coord})
         cvs = ds.Canvas(*CANVAS_SIZE, x_range=x_range, y_range=y_range)
-        quadmesh = cvs.quadmesh(data.transpose("y", "x"), x="lon", y="lat")
+        quadmesh = cvs.quadmesh(data, x="lon", y="lat")
         return quadmesh.compute()
 
     benchmark(func)
@@ -47,7 +48,7 @@ def test_quadmesh_raster(benchmark, quadmesh_data):
 
     def func():
         cvs = ds.Canvas(*CANVAS_SIZE, x_range=x_range, y_range=y_range)
-        quadmesh = cvs.quadmesh(data.transpose("lat", "lon"), x="lon", y="lat")
+        quadmesh = cvs.quadmesh(data, x="lon", y="lat")
         return quadmesh.compute()
 
     benchmark(func)
@@ -63,7 +64,7 @@ def test_quadmesh_rectilinear(benchmark, quadmesh_data):
 
     def func():
         cvs = ds.Canvas(*CANVAS_SIZE, x_range=x_range, y_range=y_range)
-        quadmesh = cvs.quadmesh(data.transpose("lat", "lon"), x="lon", y="lat")
+        quadmesh = cvs.quadmesh(data, x="lon", y="lat")
         return quadmesh.compute()
 
     benchmark(func)
