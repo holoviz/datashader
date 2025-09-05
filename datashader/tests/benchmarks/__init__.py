@@ -24,3 +24,16 @@ except ImportError:
     cupy = None
 
 array_params = list(itertools.product(sizes, array_modules))
+
+
+def _make_id(param):
+    size, array_module = param
+    module_name = (
+        array_module.__name__.split(".")[0]
+        if hasattr(array_module, "__name__")
+        else str(array_module)
+    )
+    return f"{size}x{size}-{module_name}"
+
+
+array_fixtures = pytest.fixture(params=array_params, ids=_make_id)

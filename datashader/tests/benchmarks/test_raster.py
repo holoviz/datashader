@@ -3,10 +3,10 @@ import numpy as np
 import xarray as xr
 import datashader as ds
 
-from . import array_params
+from . import array_fixtures
 
 
-@pytest.fixture(params=array_params)
+@array_fixtures
 def raster_data(request):
     size, array_module = request.param
     data = xr.DataArray(

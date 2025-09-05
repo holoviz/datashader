@@ -3,10 +3,10 @@ import numpy as np
 import xarray as xr
 import datashader as ds
 
-from . import array_params, da
+from . import array_fixtures, da
 
 
-@pytest.fixture(params=array_params)
+@array_fixtures
 def quadmesh_data(request):
     size, array_module = request.param
     west = 3125000.0
