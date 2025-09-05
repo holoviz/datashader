@@ -57,9 +57,9 @@ def test_quadmesh_raster(benchmark, quadmesh_data):
 def test_quadmesh_rectilinear(benchmark, quadmesh_data):
     data, x_range, y_range = quadmesh_data
     dy = (y_range[1] - y_range[0]) / data.sizes["y"]
-    deltas = rng.uniform(-dy/4, dy/4, data.sizes["y"])
-    data["y"] = ("y", data.y.data + deltas)
     data = data.swap_dims({"y": "lat", "x": "lon"})
+    deltas = rng.uniform(-dy/2, dy/2, data.sizes["lat"])
+    data["lat"] = ("lat", data.lat.data + deltas)
 
     def func():
         cvs = ds.Canvas(*CANVAS_SIZE, x_range=x_range, y_range=y_range)
