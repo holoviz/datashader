@@ -4,7 +4,8 @@ import xarray as xr
 import datashader as ds
 
 sizes = [256, 512, 1024, 2048, 4096, 8192]
-
+CANVAS_SIZE = (1024, 1024)
+rng = np.random.default_rng()
 
 @pytest.fixture(params=sizes)
 def quadmesh_data(request, rng):
@@ -23,9 +24,6 @@ def quadmesh_data(request, rng):
         },
         name="benchmark_data",
     )
-    data = data.isel(y=slice(None, None, -1))
-    lon_coord, lat_coord = xr.broadcast(data.x, data.y)
-    data = data.assign_coords({"lon": lon_coord, "lat": lat_coord})
 
     return data, (west, east), (south, north)
 
@@ -34,8 +32,38 @@ def quadmesh_data(request, rng):
 def test_quadmesh_curvilinear(benchmark, quadmesh_data):
     def func():
         data, x_range, y_range = quadmesh_data
-        cvs = ds.Canvas(1024, 1024, x_range=x_range, y_range=y_range)
+        lon_coord, lat_coord = xr.broadcast(data.x, data.y)
+        data = data.assign_coords({"lon": lon_coord, "lat": lat_coord})
+        cvs = ds.Canvas(*CANVAS_SIZE, x_range=x_range, y_range=y_range)
         quadmesh = cvs.quadmesh(data.transpose("y", "x"), x="lon", y="lat")
+        return quadmesh.compute()
+
+    benchmark(func)
+
+@pytest.mark.benchmark(group="quadmesh")
+def test_quadmesh_raster(benchmark, quadmesh_data):
+    data, x_range, y_range = quadmesh_data
+    data = data.swap_dims({"y": "lat", "x": "lon"})
+
+    def func():
+        cvs = ds.Canvas(*CANVAS_SIZE, x_range=x_range, y_range=y_range)
+        quadmesh = cvs.quadmesh(data.transpose("lat", "lon"), x="lon", y="lat")
+        return quadmesh.compute()
+
+    benchmark(func)
+
+
+@pytest.mark.benchmark(group="quadmesh")
+def test_quadmesh_rectilinear(benchmark, quadmesh_data):
+    data, x_range, y_range = quadmesh_data
+    dy = (y_range[1] - y_range[0]) / data.sizes["y"]
+    deltas = rng.uniform(-dy/4, dy/4, data.sizes["y"])
+    data["y"] = ("y", data.y.data + deltas)
+    data = data.swap_dims({"y": "lat", "x": "lon"})
+
+    def func():
+        cvs = ds.Canvas(*CANVAS_SIZE, x_range=x_range, y_range=y_range)
+        quadmesh = cvs.quadmesh(data.transpose("lat", "lon"), x="lon", y="lat")
         return quadmesh.compute()
 
     benchmark(func)
