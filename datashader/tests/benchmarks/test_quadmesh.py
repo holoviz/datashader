@@ -31,10 +31,10 @@ def quadmesh_data(request, rng):
 
 
 @pytest.mark.benchmark(group="quadmesh")
-def test_quadmesh(benchmark, quadmesh_data):
+def test_quadmesh_curvilinear(benchmark, quadmesh_data):
     def func():
         data, x_range, y_range = quadmesh_data
-        cvs = ds.Canvas(256, 256, x_range=x_range, y_range=y_range)
+        cvs = ds.Canvas(1024, 1024, x_range=x_range, y_range=y_range)
         quadmesh = cvs.quadmesh(data.transpose("y", "x"), x="lon", y="lat")
         return quadmesh.compute()
 
