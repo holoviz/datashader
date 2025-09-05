@@ -5,7 +5,7 @@ import numpy as np
 pytestmark = pytest.mark.benchmark
 
 array_modules = [np]
-sizes = [256, 512, 1024]
+sizes = [256, 512, 1024, 2048, 4096, 8192]
 
 try:
     import dask
