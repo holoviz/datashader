@@ -19,11 +19,16 @@ except ImportError:
 try:
     import cupy
 
-    array_modules.append(pytest.param(cupy, marks=pytest.mark.gpu))
+    array_modules.append(cupy)
 except ImportError:
     cupy = None
 
-array_params = list(itertools.product(sizes, array_modules))
+array_params = []
+for s, m in itertools.product(sizes, array_modules):
+    if m is cupy:
+        array_params.append(pytest.param((s, m), marks=pytest.mark.gpu))
+    else:
+        array_params.append((s, m))
 
 
 def _make_id(param):
