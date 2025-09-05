@@ -163,6 +163,27 @@ jobs:
         run: |
           pixi run -e ${{ matrix.environment }} test-unit
 
+  benchmark_test_suite:
+    name: benchmark:${{ matrix.environment }}:${{ matrix.os }}
+    needs: [pre_commit, setup, pixi_lock]
+    runs-on: ${{ matrix.os }}
+    if: needs.setup.outputs.code_change == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+        environment: ["test-313"]
+    timeout-minutes: 120
+    steps:
+      - uses: holoviz-dev/holoviz_tasks/pixi_install@v0
+        with:
+          environments: ${{ matrix.environment }}
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          token: ${{ secrets.CODSPEED_TOKEN }}
+          run: pixi run -e ${{ matrix.environment }} test-benchmark
+
   result_test_suite:
     name: result:test
     needs: [unit_test_suite, core_test_suite]
