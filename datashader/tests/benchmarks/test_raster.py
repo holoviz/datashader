@@ -3,16 +3,15 @@ import numpy as np
 import xarray as xr
 import datashader as ds
 
-from . import array_fixtures, cupy
+
+sizes = [256, 512, 1024, 2048, 4096, 8192]
 
 
-@array_fixtures
-def raster_data(request):
-    size, array_module = request.param
-    if array_module is cupy:
-        pytest.skip("not currently supported")
+@pytest.fixture(params=sizes)
+def raster_data(request, rng):
+    size = request.param
     data = xr.DataArray(
-        array_module.random.random((size, size)),
+        rng.random((size, size)),
         dims=["x", "y"],
         coords={"x": np.arange(size), "y": np.arange(size)},
         name="raster_data",

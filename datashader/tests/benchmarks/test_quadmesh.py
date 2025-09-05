@@ -3,19 +3,19 @@ import numpy as np
 import xarray as xr
 import datashader as ds
 
-from . import array_fixtures, da
+sizes = [256, 512, 1024, 2048, 4096, 8192]
 
 
-@array_fixtures
-def quadmesh_data(request):
-    size, array_module = request.param
+@pytest.fixture(params=sizes)
+def quadmesh_data(request, rng):
+    size = request.param
     west = 3125000.0
     south = 3250000.0
     east = 4250000.0
     north = 4375000.0
 
     data = xr.DataArray(
-        array_module.random.random((size, size)),
+        rng.random((size, size)),
         dims=("x", "y"),
         coords={
             "lon": ("x", np.linspace(3123580.0, 4250380.0, size)),
@@ -23,15 +23,8 @@ def quadmesh_data(request):
         },
         name="benchmark_data",
     )
-
     data = data.isel(y=slice(None, None, -1))
-
     lon_coord, lat_coord = xr.broadcast(data.x, data.y)
-    if array_module is da:
-        chunks_dict = dict(zip(data.dims, data.chunks))
-        lon_coord = lon_coord.chunk(chunks_dict)
-        lat_coord = lat_coord.chunk(chunks_dict)
-
     data = data.assign_coords({"lon": lon_coord, "lat": lat_coord})
 
     return data, (west, east), (south, north)
