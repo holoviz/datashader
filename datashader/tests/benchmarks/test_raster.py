@@ -30,4 +30,5 @@ def test_dask_raster(benchmark, raster_dask_data):
         arr = cvs.raster(raster_dask_data)
         return arr.compute()
 
+    func()  # Warmup
     benchmark(func)
