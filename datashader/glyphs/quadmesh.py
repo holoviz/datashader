@@ -643,8 +643,8 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             # For performance, we initialize all arrays once before the loop
 
             # xverts/yverts arrays
-            xverts = np.zeros(5, dtype=xs.dtype)
-            yverts = np.zeros(5, dtype=ys.dtype)
+            xverts = np.zeros(5, dtype=np.int32)
+            yverts = np.zeros(5, dtype=np.int32)
 
             # Array holding whether each edge is increasing
             # vertically (+1), decreasing vertically (-1),
