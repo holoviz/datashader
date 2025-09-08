@@ -137,9 +137,6 @@ jobs:
       - name: Test Examples
         run: |
           pixi run -e ${{ matrix.environment }} test-example
-      - name: Test Benchmark
-        run: |
-          pixi run -e ${{ matrix.environment }} test-benchmark
       - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -183,11 +180,11 @@ jobs:
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
           mode: instrumentation
-          run: pixi run -e ${{ matrix.environment }} test-benchmark-ci
+          run: pixi run -e ${{ matrix.environment }} test-benchmark
 
   result_test_suite:
     name: result:test
-    needs: [unit_test_suite, core_test_suite]
+    needs: [unit_test_suite, core_test_suite, benchmark_test_suite]
     if: always()
     runs-on: ubuntu-latest
     steps:
