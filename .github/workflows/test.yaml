@@ -183,7 +183,7 @@ jobs:
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
           mode: instrumentation
-          run: pixi run -e ${{ matrix.environment }} test-benchmark
+          run: pixi run -e ${{ matrix.environment }} test-benchmark-ci
 
   result_test_suite:
     name: result:test

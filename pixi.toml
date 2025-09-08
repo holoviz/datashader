@@ -88,15 +88,17 @@ streamz = "*"
 hypothesis = "*"
 psutil = "*"
 pytest = "*"
+pytest-benchmark = "*"
 pytest-codspeed = "*"
 pytest-cov = "*"
 pytest-github-actions-annotate-failures = "*"
 pytest-xdist = "*"
 
 [feature.test-unit-task.tasks] # So it is not showing up in the test-gpu environment
-test-unit = 'pytest datashader -n logical --dist loadgroup'
-test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --dist loadgroup', env = { NUMBA_DISABLE_JIT = '1' } }
+test-unit = 'pytest datashader -n logical --dist loadgroup --benchmark-skip'
+test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --dist loadgroup --benchmark-skip', env = { NUMBA_DISABLE_JIT = '1' } }
 test-benchmark = 'pytest datashader/tests --benchmark'
+test-benchmark-ci = 'pytest datashader/tests --benchmark --codspeed'
 
 [feature.test.dependencies]
 bokeh_sampledata = "*"
@@ -118,7 +120,7 @@ spatialpandas = "*"
 nbval = "*"
 
 [feature.test-example.tasks]
-test-example = 'pytest -n logical --dist loadscope --nbval-lax examples'
+test-example = 'pytest -n logical --dist loadscope --nbval-lax examples --benchmark-skip'
 
 [feature.test-gpu]
 channels = ["rapidsai"]
@@ -137,7 +139,7 @@ librmm = { version = "*", channel = "rapidsai" }
 rmm = { version = "*", channel = "rapidsai" }
 
 [feature.test-gpu.tasks]
-test-gpu = "python -m pytest datashader/tests -n logical --dist loadgroup --gpu"
+test-gpu = "python -m pytest datashader/tests -n logical --dist loadgroup --gpu --benchmark-skip"
 test-benchmark = 'pytest datashader/tests --benchmark --gpu'
 
 # =============================================
