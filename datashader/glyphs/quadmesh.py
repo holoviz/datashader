@@ -660,8 +660,8 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             intersect = np.zeros(4, dtype=np.int8)
 
             y_len, x_len, = xs.shape
-            for i in range(x_len - 1):
-                for j in range(y_len - 1):
+            for j in range(y_len - 1):
+                for i in range(x_len - 1):
                     perform_extend(
                         i, j, plot_height, plot_width, xs, ys,
                         xverts, yverts, yincreasing, eligible, intersect, *aggs_and_cols
