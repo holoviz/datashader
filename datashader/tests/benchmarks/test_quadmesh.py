@@ -7,6 +7,7 @@ DATA_SIZES = (256, 512, 1024, 2048, 4096, 8192)
 CANVAS_SIZE = (1024, 1024)
 rng = np.random.default_rng()
 
+
 @pytest.fixture(params=DATA_SIZES)
 def quadmesh_data(request, rng):
     size = request.param
@@ -39,7 +40,9 @@ def test_quadmesh_curvilinear(benchmark, quadmesh_data):
         quadmesh = cvs.quadmesh(data, x="lon", y="lat")
         return quadmesh
 
+    func()  # Warmup
     benchmark(func)
+
 
 @pytest.mark.benchmark(group="quadmesh")
 def test_quadmesh_raster(benchmark, quadmesh_data):
@@ -51,6 +54,7 @@ def test_quadmesh_raster(benchmark, quadmesh_data):
         quadmesh = cvs.quadmesh(data, x="lon", y="lat")
         return quadmesh
 
+    func()  # Warmup
     benchmark(func)
 
 
@@ -67,4 +71,5 @@ def test_quadmesh_rectilinear(benchmark, quadmesh_data):
         quadmesh = cvs.quadmesh(data, x="lon", y="lat")
         return quadmesh
 
+    func()  # Warmup
     benchmark(func)
