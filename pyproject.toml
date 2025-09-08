@@ -48,7 +48,7 @@ Source = "https://github.com/holoviz/datashader"
 HoloViz = "https://holoviz.org/"
 
 [project.optional-dependencies]
-tests = ["pytest"]
+tests = ["pytest", "hypothesis"]
 
 [project.scripts]
 datashader = "datashader.__main:main"
@@ -117,4 +117,6 @@ filterwarnings = [
     "ignore:The legacy Dask DataFrame implementation is deprecated:FutureWarning", # https://github.com/holoviz/spatialpandas/issues/146
     # 2025-04
     "ignore:The 'shapely.geos' module is deprecated, and will be removed in a future version:DeprecationWarning",
+    # 2025-09
+    "ignore:Signature .* for <class 'numpy.longdouble'>.*:UserWarning",
 ]

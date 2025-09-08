@@ -4,10 +4,14 @@ from toolz import memoize
 import numpy as np
 
 from datashader.glyphs.glyph import Glyph
-from datashader.resampling import infer_interval_breaks
+from datashader.resampling import infer_interval_breaks, infer_interval_breaks_2d
 from datashader.utils import isreal, ngjit, ngjit_parallel
 import numba
 from numba import cuda, prange
+try:
+    import dask.array as dask_array
+except ImportError:
+    dask_array = None
 
 try:
     import cupy
@@ -189,8 +193,13 @@ class QuadMeshRectilinear(_QuadMeshLike):
             else:
                 yscaled = (y_mapper2(y_breaks) - y0) / yspan
 
-            xinds = np.where((xscaled >= 0) & (xscaled <= 1))[0]
-            yinds = np.where((yscaled >= 0) & (yscaled <= 1))[0]
+            # Find intervals that overlap the canvas bounds [0,1]
+            # This handles both ascending and descending coordinate orders
+            xin0, xin1 = xscaled >= 0, xscaled <= 1
+            yin0, yin1 = yscaled >= 0, yscaled <= 1
+            xinds, = np.where((xin0[:-1] | xin0[1:]) & (xin1[:-1] | xin1[1:]))
+            yinds, = np.where((yin0[:-1] | yin0[1:]) & (yin1[:-1] | yin1[1:]))
+
             if len(xinds) == 0 or len(yinds) == 0:
                 # Nothing to do
                 return
@@ -299,12 +308,18 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 offset_x, offset_y, out_w, out_h, *aggs_and_cols
         ):
             for out_j in prange(out_h):
-                src_j0 = int(max(
-                    math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y), 0
-                ))
-                src_j1 = int(min(
-                    math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
-                ))
+                # Calculate raw indices first
+                raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
+
+                # Handle negative scale_y (descending coordinates) - swap before clamping
+                if scale_y < 0 and raw_j0 > raw_j1:
+                    raw_j0, raw_j1 = raw_j1, raw_j0
+
+                # Now clamp to valid range
+                src_j0 = int(max(raw_j0, 0))
+                src_j1 = int(min(raw_j1, src_h))
+
                 for out_i in range(out_w):
                     src_i0 = int(max(
                         math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
@@ -324,12 +339,18 @@ class QuadMeshRaster(QuadMeshRectilinear):
         ):
             out_i, out_j = cuda.grid(2)
             if out_i < out_w and out_j < out_h:
-                src_j0 = max(
-                    math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y), 0
-                )
-                src_j1 = min(
-                    math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y), src_h
-                )
+                # Calculate raw indices first
+                raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
+
+                # Handle negative scale_y (descending coordinates) - swap before clamping
+                if scale_y < 0 and raw_j0 > raw_j1:
+                    raw_j0, raw_j1 = raw_j1, raw_j0
+
+                # Now clamp to valid range
+                src_j0 = max(raw_j0, 0)
+                src_j1 = min(raw_j1, src_h)
+
                 src_i0 = max(
                     math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
                 )
@@ -427,10 +448,16 @@ class QuadMeshCurvilinear(_QuadMeshLike):
         return self.compute_x_bounds(xr_ds), self.compute_y_bounds(xr_ds)
 
     def infer_interval_breaks(self, centers):
-        # Infer breaks for 1D array of centers
-        breaks = infer_interval_breaks(centers, axis=1)
-        breaks = infer_interval_breaks(breaks, axis=0)
-        return breaks
+        if (
+                (bool(cupy) and isinstance(centers, cupy.ndarray))
+                or (bool(dask_array) and isinstance(centers, dask_array.Array))
+            ):
+            breaks = infer_interval_breaks(centers, axis=1)
+            breaks = infer_interval_breaks(breaks, axis=0)
+            return breaks
+        if centers.dtype.kind in "iu":
+            centers = centers.astype(float)
+        return infer_interval_breaks_2d(centers)
 
     @memoize
     def _build_extend(self, x_mapper, y_mapper, info, append, _antialias_stage_2,

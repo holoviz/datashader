@@ -90,6 +90,7 @@ datashader/.version
 /.pytest_cache
 
 .asv/
+.codspeed/
 
 # pixi + hatchling
 .pixi

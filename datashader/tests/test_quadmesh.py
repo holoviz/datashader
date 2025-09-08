@@ -9,7 +9,10 @@ from numpy import nan
 import xarray as xr
 import datashader as ds
 import pytest
+from hypothesis import given, strategies as st, settings
+from hypothesis.extra import numpy as npst
 
+from datashader.resampling import infer_interval_breaks, infer_interval_breaks_2d
 from datashader.tests.test_pandas import assert_eq_ndarray, assert_eq_xr
 from datashader.tests.utils import dask_skip
 
@@ -27,7 +30,7 @@ except ImportError:
 try:
     import cudf
     import cupy
-    array_modules.append(cupy)
+    array_modules.append(pytest.param(cupy, marks=pytest.mark.gpu))
 except ImportError:
     cudf = None
     cupy = None
@@ -771,3 +774,146 @@ def test_segfault_quadmesh(bounds):
     cvs.quadmesh(da, x="x", y="y")"""
 
     subprocess.run([sys.executable, "-c", textwrap.dedent(code)], check=True)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_rectilinear_quadmesh_bbox_smaller_than_grid(array_module):
+    """Test for quadmesh with non-broadcast coordinates.
+
+    This test addresses a bug where quadmesh returns all NaN values
+    when coordinates are not properly broadcast for rectilinear grids.
+    See: https://github.com/holoviz/datashader/issues/1438
+    """
+
+    west = 111_445.
+    east = 111_483.
+    south = 10_018_715.
+    north = 10_018_754.
+
+    da = xr.DataArray(
+        np.array(
+            [
+                [-0.4246922, -0.41608012, -0.40739873],
+                [-0.4381327, -0.42964128, -0.42107907],
+                [-0.45110574, -0.4427344, -0.43429095],
+            ],
+            dtype=np.float32,
+        ),
+        dims=("latitude", "longitude"),
+        coords={
+            "latitude": np.array([9_000_000., 10_000_000., 11_000_000.]),
+            "longitude": np.array([80_000., 111_000., 140_000.]),
+        },
+        name="foo",
+    )
+
+    # Canvas bbox (15-25, 150-250) overlaps with data coordinates (10-30, 100-300)
+    cvs = ds.Canvas(64, 64, x_range=(west, east), y_range=(south, north))
+    result = cvs.quadmesh(da, x="longitude", y="latitude")
+    assert np.sum(np.isnan(result)) == 0
+
+    result = cvs.quadmesh(da.isel(latitude=slice(None, None, -1)), x="longitude", y="latitude")
+    assert np.sum(np.isnan(result)) == 0
+
+
+@given(
+    spacings=npst.arrays(
+        dtype=np.float64,
+        shape=st.tuples(
+            st.integers(min_value=2, max_value=50),
+            st.integers(min_value=2, max_value=50)
+        ),
+        elements=st.floats(
+            min_value=0.1,  # Positive spacings to ensure monotonic coordinates
+            max_value=10.0,
+            allow_nan=False,
+            allow_infinity=False
+        )
+    ),
+    start_value=st.floats(
+        min_value=-1000,
+        max_value=1000,
+        allow_nan=False,
+        allow_infinity=False
+    )
+)
+@settings(deadline=None)
+def test_infer_interval_breaks_2d_consistency(spacings, start_value):
+    """Test that infer_interval_breaks_2d matches sequential 1D application.
+
+    This verifies that:
+    infer_interval_breaks_2d(coords) ==
+    infer_interval_breaks(infer_interval_breaks(coords, axis=1), axis=0)
+
+    where coords are curvilinear coordinates constructed from cumulative sums.
+    """
+    # Construct curvilinear coordinates using cumsum of spacings
+    # This ensures monotonic coordinates which is realistic for quadmesh data
+    coords = np.cumsum(spacings, axis=0)
+    coords = np.cumsum(coords, axis=1)
+    coords = coords + start_value  # Add offset
+
+    # Compute expected result using sequential 1D operations
+    expected = infer_interval_breaks(infer_interval_breaks(coords, axis=1), axis=0)
+
+    # Compute actual result using 2D operation
+    actual = infer_interval_breaks_2d(coords)
+
+    # Compare results
+    np.testing.assert_allclose(actual, expected, rtol=1e-10, atol=1e-10)
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_raster_quadmesh_descending_coords(array_module):
+    """
+    Regression test for https://github.com/holoviz/datashader/issues/1439
+    """
+    west = 3125000.0
+    south = 3250000.0
+    east = 4250000.0
+    north = 4375000.0
+
+    # Create data with descending y coordinates (high to low)
+    da = xr.DataArray(
+        array_module.ones((940, 940)),
+        dims=("x", "y"),
+        coords={
+            "x": np.linspace(3123580.0, 4250380.0, 940),
+            "y": np.linspace(4376200.0, 3249400.0, 940),  # descending!
+        },
+        name="foo",
+    )
+
+    cvs = ds.Canvas(256, 256, x_range=(west, east), y_range=(south, north))
+    result = cvs.quadmesh(da.transpose("y", "x"), x="x", y="y")
+    assert result.isnull().sum().item() == 0
+
+    result = cvs.quadmesh(da.isel(y=slice(None, None, -1)).transpose("y", "x"), x="x", y="y")
+    assert result.isnull().sum().item() == 0
+
+
+@pytest.mark.parametrize('array_module', array_modules)
+def test_raster_quadmesh_descending_coords_2(array_module):
+    """
+    Regression test for https://github.com/holoviz/datashader/issues/1439
+    """
+    west=3125000.0
+    south=4375000.0
+    east=4250000.0
+    north=5500000.0
+
+    # Create data with descending y coordinates (high to low)
+    da = xr.DataArray(
+        array_module.ones((940, 868)),
+        dims=("x", "y"),
+        coords={
+            "x": np.linspace(3123580.0, 4250380.0, 940),
+            "y": np.linspace(5415400.0, 4375000.0, 868),  # descending!
+        },
+        name="foo",
+    )
+
+    cvs = ds.Canvas(256, 256, x_range=(west, east), y_range=(south, north))
+    actual = cvs.quadmesh(da.transpose("y", "x"), x="x", y="y")
+    expected = cvs.quadmesh(da.isel(y=slice(None, None, -1)).transpose("y", "x"), x="x", y="y")
+    assert_eq_xr(expected, actual, close=True)
