@@ -33,17 +33,7 @@ import numpy as np
 
 from numba import prange
 from .utils import ngjit, ngjit_parallel
-
-try:
-    import dask.array as da
-    from dask.delayed import delayed
-except ImportError:
-    da, delayed = None, None
-
-try:
-    import cupy
-except ImportError:
-    cupy = None
+from ._dependencies import da, cupy
 
 
 #: Interpolation method for upsampling: Take nearest source grid cell, even if it is invalid.
@@ -246,8 +236,12 @@ def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear',
     resampled : dask.array.Array
         A resampled version of the *src* array.
     """
-    if da is None:
+    if not da:
         raise ImportError('dask is required for distributed regridding')
+
+    from dask.delayed import delayed
+
+    resample_2d_delayed = delayed(resample_2d)
     temp_chunks = compute_chunksize(src, w, h, chunksize, max_mem)
     if chunksize is None:
         chunksize = src.chunksize
@@ -260,7 +254,7 @@ def resample_2d_distributed(src, w, h, ds_method='mean', us_method='linear',
         iny0, iny1 = inds['y']
         out = chunk['out']
         chunk_array = src[iny0:iny1, inx0:inx1]
-        resampled = _resample_2d_delayed(
+        resampled = resample_2d_delayed(
                 chunk_array, out['w'], out['h'], ds_method, us_method,
                 fill_value, mode_rank, inds['xoffset'], inds['yoffset'])
         out_chunks[(i, j)] = {
@@ -349,7 +343,6 @@ def resample_2d(src, w, h, ds_method='mean', us_method='linear',
     return _mask_or_not(resampled, src, fill_value)
 
 
-_resample_2d_delayed = delayed(resample_2d) if delayed else None
 
 
 def upsample_2d(src, w, h, method=US_LINEAR, fill_value=None, out=None):

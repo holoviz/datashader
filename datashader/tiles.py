@@ -8,11 +8,7 @@ import os
 
 import numpy as np
 
-try:
-    import dask
-    import dask.bag as db
-except ImportError:
-    dask, db = None, None
+from ._dependencies import dask
 
 
 from .utils import uint32_to_uint8
@@ -58,6 +54,7 @@ def calculate_zoom_level_stats(super_tiles, load_data_func,
         if is_bool:
             span = (0, 1)
         elif dask:
+            import dask.bag as db
             b = db.from_sequence(stats)
             span = dask.compute(b.min(), b.max())
         else:
@@ -72,6 +69,9 @@ def render_tiles(full_extent, levels, load_data_func,
                  post_render_func, output_path, color_ranging_strategy='fullscan'):
     if not dask:
         raise ImportError('Dask is required for rendering tiles')
+
+    import dask.bag as db
+
     results = {}
     for level in levels:
         print('calculating statistics for level {}'.format(level))

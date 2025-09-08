@@ -3,16 +3,14 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import dask
-import dask.array as da
-import dask.dataframe as dd
-from dask.base import tokenize, compute
 
 from datashader.core import bypixel
 from datashader.utils import apply
 from datashader.compiler import compile_components
 from datashader.glyphs import Glyph, LineAxis0
 from datashader.utils import Dispatcher
+
+from .._dependencies import dask, da, dd
 
 __all__ = ()
 
@@ -50,10 +48,12 @@ def dask_pipeline(df, schema, canvas, glyph, summary, *, antialias=False, cuda=F
     return scheduler(dsk, name)
 
 
-bypixel.pipeline.register(dd.DataFrame)(dask_pipeline)
+bypixel.pipeline.lazy_register(dd, "DataFrame", dask_pipeline)
 
 
 def shape_bounds_st_and_axis(df, canvas, glyph):
+    from dask.base import compute
+
     if not canvas.x_range or not canvas.y_range:
         x_extents, y_extents = glyph.compute_bounds_dask(df)
     else:
@@ -221,6 +221,8 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
 
 @glyph_dispatch.register(LineAxis0)
 def line(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
+    from dask.base import tokenize
+
     if cuda:
         from cudf import concat
     else:

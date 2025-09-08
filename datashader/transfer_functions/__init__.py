@@ -14,15 +14,7 @@ import xarray as xr
 from datashader.colors import rgb, Sets1to3
 from datashader.utils import nansum_missing, ngjit, uint32_to_uint8
 
-try:
-    import dask.array as da
-except ImportError:
-    da = None
-
-try:
-    import cupy
-except Exception:
-    cupy = None
+from .._dependencies import da, cupy
 
 __all__ = ['Image', 'stack', 'shade', 'set_background', 'spread', 'dynspread']
 

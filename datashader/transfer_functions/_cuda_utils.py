@@ -1,30 +1,12 @@
 from __future__ import annotations
 
-from math import ceil, isnan
+from math import ceil, isnan, nan
 from packaging.version import Version
 
-try:
-    from math import nan
-except ImportError:
-    nan = float('nan')
-
 import numba
-import numpy as np
 
 from numba import cuda
-
-try:
-    import cupy
-    if cupy.result_type is np.result_type:
-        # Workaround until cupy release of https://github.com/cupy/cupy/pull/2249
-        # Without this, cupy.histogram raises an error that cupy.result_type
-        # is not defined.
-        cupy.result_type = lambda *args: np.result_type(
-            *[arg.dtype if isinstance(arg, cupy.ndarray) else arg
-              for arg in args]
-        )
-except ImportError:
-    cupy = None
+from .._dependencies import cupy
 
 
 def cuda_args(shape):
