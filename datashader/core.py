@@ -19,9 +19,13 @@ from . import reductions as rd
 
 try:
     import dask.dataframe as dd
+except ImportError:
+    dd = None
+
+try:
     import dask.array as da
 except ImportError:
-    dd, da = None, None
+    da = None
 
 try:
     import cudf
