@@ -1,18 +1,30 @@
-from . import pandas, xarray  # noqa (API import)
+from importlib.util import find_spec
+from warnings import warn
 
-try:
-    import dask as _dask  # noqa (Test dask installed)
-    from . import dask    # noqa (API import)
-except ImportError:
-    pass
+from . import pandas, xarray
 
-try:
-    import cudf as _cudf  # noqa (Test cudf installed)
-    import cupy as _cupy  # noqa (Test cupy installed)
-    from . import cudf    # noqa (API import)
 
-    import dask_cudf as _dask_cudf  # noqa (Test dask_cudf installed)
-    from . import dask_cudf         # noqa (API import)
+if find_spec("dask"):
+    if not find_spec("pyarrow"):
+        warn(
+            "dask requires pyarrow to work with datashader.",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+    else:
+        from . import dask
 
-except Exception:
-    pass
+if find_spec("cudf") and find_spec("cupy"):
+    from . import cudf
+
+    if find_spec("dask_cudf"):
+        from . import dask_cudf
+
+
+__all__ = (
+    "pandas",
+    "xarray",
+    "dask",
+    "cudf",
+    "dask_cudf",
+)
