@@ -712,10 +712,11 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             plot_height, plot_width = aggs[0].shape[:2]
 
             # dtype here matches that in perform_extend
-            xs = np.empty(xscaled.shape, dtype=np.int32)
-            ys = np.empty(yscaled.shape, dtype=np.int32)
-            np.multiply(xscaled, plot_width/xspan, casting="unsafe", out=xs)
-            np.multiply(yscaled, plot_height/yspan, casting="unsafe", out=ys)
+            xp = cupy if use_cuda else np
+            xs = xp.empty(xscaled.shape, dtype=xp.int32)
+            ys = xp.empty(yscaled.shape, dtype=xp.int32)
+            xp.multiply(xscaled, plot_width/xspan, casting="unsafe", out=xs)
+            xp.multiply(yscaled, plot_height/yspan, casting="unsafe", out=ys)
 
             coord_dims = xr_ds.coords[x_name].dims
             aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims), aggs[0].shape[:2])
