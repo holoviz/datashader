@@ -40,7 +40,6 @@ def test_quadmesh_curvilinear(benchmark, quadmesh_data):
         quadmesh = cvs.quadmesh(data, x="lon", y="lat")
         return quadmesh
 
-    func()  # Warmup
     benchmark(func)
 
 
@@ -54,7 +53,6 @@ def test_quadmesh_raster(benchmark, quadmesh_data):
         quadmesh = cvs.quadmesh(data, x="lon", y="lat")
         return quadmesh
 
-    func()  # Warmup
     benchmark(func)
 
 
@@ -71,5 +69,4 @@ def test_quadmesh_rectilinear(benchmark, quadmesh_data):
         quadmesh = cvs.quadmesh(data, x="lon", y="lat")
         return quadmesh
 
-    func()  # Warmup
     benchmark(func)

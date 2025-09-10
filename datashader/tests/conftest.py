@@ -41,3 +41,12 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture
 def rng():
     return np.random.default_rng(42)
+
+
+@pytest.fixture
+def benchmark(benchmark):
+    def warmup_and_benchmark(func, *args, **kwargs):
+        func(*args, **kwargs)  # warmup to compile numba
+        return benchmark(func, *args, **kwargs)
+
+    return warmup_and_benchmark
