@@ -127,7 +127,6 @@ jobs:
           path: .hypothesis/
           key: cache-hypothesis
           enableCrossOsArchive: true
-          save-always: true
       - name: Test Unit
         run: |
           pixi run -e ${{ matrix.environment }} test-unit $COV
