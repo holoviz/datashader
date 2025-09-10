@@ -29,4 +29,4 @@ def edges():
 @pytest.mark.parametrize('layout', [random_layout, circular_layout, forceatlas2_layout])
 @pytest.mark.benchmark(group="layout")
 def test_layout(benchmark, nodes, edges, layout):
-    benchmark(layout, nodes, edges)
+    benchmark(layout, nodes, edges, seed=1)
