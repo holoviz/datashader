@@ -172,26 +172,42 @@ class QuadMeshRectilinear(_QuadMeshLike):
                 if use_cuda:
                     x_centers = cupy.array(x_centers)
                 x_breaks = self.infer_interval_breaks(x_centers)
+            else:
+                # The copy is necessary given that dask_xarray calculates x_breaks once
+                # for the whole array, and then passes slices of that
+                # array in for each chunk. We use in-place ops below,
+                # so make a copy here first.
+                x_breaks = x_breaks.copy()
 
             if y_breaks is None:
                 y_centers = xr_ds[y_name].values
                 if use_cuda:
                     y_centers = cupy.array(y_centers)
                 y_breaks = self.infer_interval_breaks(y_centers)
+            else:
+                # The copy is necessary given that dask_xarray calculates y_breaks once
+                # for the whole array, and then passes slices of that
+                # array in for each chunk. We use in-place ops below,
+                # so make a copy here first.
+                y_breaks = y_breaks.copy()
 
             x0, x1, y0, y1 = bounds
             xspan = x1 - x0
             yspan = y1 - y0
 
             if x_mapper is LinearAxis.mapper:
-                xscaled = (x_breaks - x0) / xspan
+                xscaled = x_breaks
             else:
-                xscaled = (x_mapper2(x_breaks) - x0) / xspan
+                xscaled = x_mapper2(x_breaks)
+            xscaled -= x0
+            xscaled /= xspan
 
             if y_mapper is LinearAxis.mapper:
-                yscaled = (y_breaks - y0) / yspan
+                yscaled = y_breaks
             else:
-                yscaled = (y_mapper2(y_breaks) - y0) / yspan
+                yscaled = y_mapper2(y_breaks)
+            yscaled -= y0
+            yscaled /= yspan
 
             # Find intervals that overlap the canvas bounds [0,1]
             # This handles both ascending and descending coordinate orders
@@ -210,8 +226,15 @@ class QuadMeshRectilinear(_QuadMeshLike):
             plot_height, plot_width = aggs[0].shape[:2]
 
             # Downselect xs and ys and convert to int
-            xs = (xscaled[xm0:xm1 + 1] * plot_width).astype(int).clip(0, plot_width)
-            ys = (yscaled[ym0:ym1 + 1] * plot_height).astype(int).clip(0, plot_height)
+            xs = xscaled[xm0:xm1 + 1]
+            xs *= plot_width
+            xs = xs.astype(int)
+            np.clip(xs, 0, plot_width, out=xs)
+
+            ys = yscaled[ym0:ym1 + 1]
+            ys *= plot_height
+            ys = ys.astype(int)
+            np.clip(ys, 0, plot_height, out=ys)
 
             # For input "column", down select to valid range
             cols_full = info(xr_ds.transpose(y_name, x_name), aggs[0].shape[:2])
@@ -637,8 +660,8 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             intersect = np.zeros(4, dtype=np.int8)
 
             y_len, x_len, = xs.shape
-            for i in range(x_len - 1):
-                for j in range(y_len - 1):
+            for j in range(y_len - 1):
+                for i in range(x_len - 1):
                     perform_extend(
                         i, j, plot_height, plot_width, xs, ys,
                         xverts, yverts, yincreasing, eligible, intersect, *aggs_and_cols
@@ -675,19 +698,25 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             yspan = y1 - y0
 
             if x_mapper is LinearAxis.mapper:
-                xscaled = (x_breaks - x0) / xspan
+                xscaled = x_breaks
             else:
-                xscaled = (x_mapper2(x_breaks) - x0) / xspan
+                xscaled = x_mapper2(x_breaks)
+            xscaled -= x0
 
             if y_mapper is LinearAxis.mapper:
-                yscaled = (y_breaks - y0) / yspan
+                yscaled = y_breaks
             else:
-                yscaled = (y_mapper2(y_breaks) - y0) / yspan
+                yscaled = y_mapper2(y_breaks)
+            yscaled -= y0
 
             plot_height, plot_width = aggs[0].shape[:2]
 
-            xs = (xscaled * plot_width).astype(int)
-            ys = (yscaled * plot_height).astype(int)
+            # dtype here matches that in perform_extend
+            xp = cupy if use_cuda else np
+            xs = xp.empty(xscaled.shape, dtype=xp.int32)
+            ys = xp.empty(yscaled.shape, dtype=xp.int32)
+            xp.multiply(xscaled, plot_width/xspan, casting="unsafe", out=xs)
+            xp.multiply(yscaled, plot_height/yspan, casting="unsafe", out=ys)
 
             coord_dims = xr_ds.coords[x_name].dims
             aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims), aggs[0].shape[:2])
