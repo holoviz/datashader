@@ -122,11 +122,10 @@ jobs:
         with:
           environments: ${{ matrix.environment }}
       - name: Restore cached hypothesis directory
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: .hypothesis/
           key: cache-hypothesis
-          enableCrossOsArchive: true
       - name: Test Unit
         run: |
           pixi run -e ${{ matrix.environment }} test-unit $COV
@@ -139,6 +138,12 @@ jobs:
       - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Save hypothesis directory
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .hypothesis/
+          key: cache-hypothesis
 
   core_test_suite:
     name: core:${{ matrix.environment }}:${{ matrix.os }}
