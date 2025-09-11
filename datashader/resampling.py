@@ -179,13 +179,19 @@ def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
     chunksize : tuple(int, int)
         Size of the output chunks.
     """
+    sh, sw = src.shape
+    height_fraction, width_fraction = sh / h, sw / w
+    # For downsampling, use smaller chunks to reduce memory usage
+    if chunksize is None and (w < sw or h < sh):
+        src_chunks = src.chunksize
+        new_chunk_h = max(32, int(src_chunks[0] / height_fraction))
+        new_chunk_w = max(32, int(src_chunks[1] / width_fraction))
+        chunksize = (new_chunk_h, new_chunk_w)
+
     start_chunksize = src.chunksize if chunksize is None else chunksize
     if max_mem is None:
         return start_chunksize
 
-    sh, sw = src.shape
-    height_fraction = float(sh)/h
-    width_fraction = float(sw)/w
     ch, cw = start_chunksize
     dim = True
     nbytes = src.dtype.itemsize
