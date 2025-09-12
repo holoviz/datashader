@@ -394,9 +394,8 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     if data is color_data:
         color_data = color_data.copy()
 
-    # Keep a NaN mask for later, and a non-NaN mask for averages
     nan_mask = np.isnan(data)
-    color_mask = ~nan_mask  # bool (H, W, C)
+    color_mask = ~nan_mask
 
     # subtract color_baseline if needed
     with warnings.catch_warnings():
@@ -413,13 +412,9 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     if (color_baseline is not None) and (color_data.dtype.kind != 'u'):
         np.maximum(color_data, 0, out=color_data)
 
-    # --- Prepare totals and zero-out NaNs once ---
-    # Use sum along last axis; NaNs contribute 0 after zeroing
-    color_total = np.nansum(color_data, axis=2)
-
     # Replace NaNs with 0s for dot/matmul in one pass (in-place)
-    # If you don't want to mutate color_data contents further, copy first.
     np.nan_to_num(color_data, copy=False)  # NaN -> 0
+    color_total = np.sum(color_data, axis=2)
 
     # --- Compute all 3 weighted sums in one BLAS call ---
     # Stack weights -> (C, 3)
