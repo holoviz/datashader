@@ -356,6 +356,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
 
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
+_EINSUM_PATH_CACHE = {}
 
 def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
               rescale_discrete_levels):
@@ -389,7 +390,6 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     if da and isinstance(data, da.Array):
         data = data.compute()
 
-    H, W, C = data.shape
     color_data = np.ascontiguousarray(data)
     if data is color_data:
         color_data = color_data.copy()
@@ -416,25 +416,32 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     np.nan_to_num(color_data, copy=False)  # NaN -> 0
     color_total = np.sum(color_data, axis=2)
 
-    # --- Compute all 3 weighted sums in one BLAS call ---
-    # Stack weights -> (C, 3)
+    # --- Optimized matrix multiplication using einsum with path caching ---
     RGB = np.stack([rs, gs, bs], axis=1)  # (C,3)
 
-    # Reshape to 2D so @ uses fast GEMM: (-1, C) @ (C, 3) -> (-1, 3)
-    cd2 = color_data.reshape(-1, C)
-    rgb_sum = (cd2 @ RGB).reshape(H, W, 3)  # weighted sums for r,g,b
+    # Calculate color_data
+    cache_key = (color_data.shape, RGB.shape)
+    if cache_key not in _EINSUM_PATH_CACHE:
+        _EINSUM_PATH_CACHE[cache_key] = np.einsum_path(
+            'hwc,cr->hwr', color_data, RGB, optimize=True
+        )[0]
+
+    cached_path = _EINSUM_PATH_CACHE[cache_key]
+    rgb_sum = np.einsum('hwc,cr->hwr', color_data, RGB, optimize=cached_path)
+    rgb_avg_present = np.einsum(
+        'hwc,cr->hwr',
+        color_mask.astype(color_data.dtype, copy=False),
+        RGB,
+        optimize=cached_path,
+    )
 
     # Divide by totals (broadcast) once, then cast once
     with np.errstate(divide='ignore', invalid='ignore'):
         rgb_array = (rgb_sum / color_total[..., None]).astype(np.uint8)
 
-    # --- “Average color of non-NaN categories” path (also as one matmul) ---
+    # --- "Average color of non-NaN categories" path ---
     # Sum of True values per pixel
     cmask_sum = np.sum(color_mask, axis=2)
-
-    # Cast mask to float once and reuse the same GEMM path
-    cm2 = color_mask.reshape(-1, C).astype(np.float32, copy=False)
-    rgb_avg_present = (cm2 @ RGB).reshape(H, W, 3)  # sums of rs/gs/bs over present cats
 
     with np.errstate(divide='ignore', invalid='ignore'):
         rgb2 = (rgb_avg_present / cmask_sum[..., None]).astype(np.uint8)
@@ -449,7 +456,11 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     mask = np.isnan(total)
     a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels)
 
-    values = np.dstack([rgb_array, a]).view(np.uint32).reshape(a.shape)
+    rgba_array = np.dstack([rgb_array, a])
+    # Ensure array is contiguous for view operation
+    if not rgba_array.flags.c_contiguous:
+        rgba_array = np.ascontiguousarray(rgba_array)
+    values = rgba_array.view(np.uint32).reshape(a.shape)
     if cupy and isinstance(values, cupy.ndarray):
         # Convert cupy array to numpy for final image
         values = cupy.asnumpy(values)
