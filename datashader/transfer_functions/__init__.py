@@ -428,12 +428,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
 
     cached_path = _EINSUM_PATH_CACHE[cache_key]
     rgb_sum = np.einsum('hwc,cr->hwr', color_data, RGB, optimize=cached_path)
-    rgb_avg_present = np.einsum(
-        'hwc,cr->hwr',
-        color_mask.astype(color_data.dtype, copy=False),
-        RGB,
-        optimize=cached_path,
-    )
+    rgb_avg_present = np.einsum('hwc,cr->hwr', color_mask, RGB, optimize=cached_path)
 
     # Divide by totals (broadcast) once, then cast once
     with np.errstate(divide='ignore', invalid='ignore'):
@@ -447,10 +442,9 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
         rgb2 = (rgb_avg_present / cmask_sum[..., None]).astype(np.uint8)
 
     # --- Fill pixels with no color mass using the avg-present fallback ---
-    # Reuse color_total instead of re-summing
     missing_colors = (color_total == 0)
-    # Select per-channel in one shot to reduce passes
-    rgb_array[missing_colors] = rgb2[missing_colors]
+    if np.any(missing_colors):
+        rgb_array = np.where(missing_colors[..., None], rgb2, rgb_array)
 
     total = nansum_missing(data, axis=2)
     mask = np.isnan(total)
