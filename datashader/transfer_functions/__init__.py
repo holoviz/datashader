@@ -359,12 +359,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
 
 def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
               rescale_discrete_levels):
-    if cupy and isinstance(agg.data, cupy.ndarray):
-        ascontigous = cupy.ascontiguousarray
-        array = cupy.array
-    else:
-        array = np.array
-        ascontigous = np.ascontiguousarray
+    xp = cupy if cupy and isinstance(agg.data, cupy.ndarray) else np
 
     if not agg.ndim == 3:
         raise ValueError("agg must be 3D")
@@ -386,16 +381,18 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
                          f"fields available ({len(cats)})")
 
     colors = [rgb(color_key[c]) for c in cats]
-    rs, gs, bs = map(array, zip(*colors))
+    rs, gs, bs = map(xp.array, zip(*colors))
 
     # Reorient array (transposing the category dimension first)
-    agg_t = agg.transpose(*((agg.dims[-1],)+agg.dims[:2]))
+    agg_t = agg.transpose(*(agg.dims[-1], *agg.dims[:2]))
     data = agg_t.data.transpose([1, 2, 0])
     if da and isinstance(data, da.Array):
         data = data.compute()
 
     H, W, C = data.shape
-    color_data = ascontigous(data.copy())
+    color_data = np.ascontiguousarray(data)
+    if data is color_data:
+        color_data = color_data.copy()
 
     # Keep a NaN mask for later, and a non-NaN mask for averages
     nan_mask = np.isnan(data)
