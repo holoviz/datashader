@@ -917,3 +917,25 @@ def test_raster_quadmesh_descending_coords_2(array_module):
     actual = cvs.quadmesh(da.transpose("y", "x"), x="x", y="y")
     expected = cvs.quadmesh(da.isel(y=slice(None, None, -1)).transpose("y", "x"), x="x", y="y")
     assert_eq_xr(expected, actual, close=True)
+
+
+def test_rectilinear_extra_padding():
+    from numpy import nan
+
+    array = np.array([
+        [        nan,         nan,         nan,         nan, -1.0571312 , -0.88049114, -0.6049668],
+        [        nan,         nan,         nan,         nan, -1.2100513 , -1.0593421 , -0.7067303],
+        [        nan,         nan,         nan,         nan,         nan, -1.4044759 , -1.3233978],
+        [-1.2584106 ,         nan,         nan,         nan,         nan, -1.7786514 , -1.6885643],
+        [-0.982517  , -1.0731102 ,         nan, -1.6481969 ,         nan,         nan, -1.9483067],
+        [-0.7437196 , -0.86617017, -0.99102557, -1.4003996 , -1.6158952 , -2.17291   ,        nan],
+        [-1.3059484 , -1.280411  , -1.3395019 , -1.5458245 , -1.7065538 , -1.954555  , -2.0651925]
+    ], dtype=np.float32)
+    x = np.array([-84, -79 , -73, -67, -62, -56, -51 ])
+    y = np.array([5 , 13, 22, 30 , 39, 47, 56. ])
+    da = xr.DataArray(array, dims=("y", "x"), coords={"x": x, "y": y}, name="foo")
+
+    cvs = ds.Canvas(256, 256, x_range=(-72, -57), y_range=(26, 37))
+    actual = cvs.quadmesh(da, x="x", y="y")
+    assert actual.isel(x=1).isnull().all().item()
+    assert actual.isel(x=0).isnull().all().item()
