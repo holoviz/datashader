@@ -126,6 +126,7 @@ jobs:
         with:
           path: .hypothesis/
           key: cache-hypothesis-*
+          enableCrossOsArchive: true
       - name: Test Unit
         run: |
           pixi run -e ${{ matrix.environment }} test-unit $COV
@@ -156,8 +157,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .hypothesis/
-          key: cache-hypothesis
           restore-keys: cache-hypothesis-
+          enableCrossOsArchive: true
       - name: Save merged hypothesis cache
         uses: actions/cache/save@v4
         if: always()
