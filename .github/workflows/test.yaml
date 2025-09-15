@@ -125,7 +125,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .hypothesis/
-          key: cache-hypothesis
+          key: cache-hypothesis-*
       - name: Test Unit
         run: |
           pixi run -e ${{ matrix.environment }} test-unit $COV
@@ -143,7 +143,7 @@ jobs:
         if: always()
         with:
           path: .hypothesis/
-          key: cache-hypothesis-${{ matrix.environment }}-${{ matrix.os }}
+          key: cache-hypothesis-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.environment }}-${{ matrix.os }}
           enableCrossOsArchive: true
 
   hypothesis_cache_save:
@@ -157,14 +157,14 @@ jobs:
         with:
           path: .hypothesis/
           key: cache-hypothesis
-          restore-keys: |
-            cache-hypothesis-
+          restore-keys: cache-hypothesis-
       - name: Save merged hypothesis cache
         uses: actions/cache/save@v4
         if: always()
         with:
           path: .hypothesis/
           key: cache-hypothesis
+          enableCrossOsArchive: true
 
   core_test_suite:
     name: core:${{ matrix.environment }}:${{ matrix.os }}
