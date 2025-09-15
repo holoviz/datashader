@@ -125,7 +125,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .hypothesis/
-          key: cache-hypothesis
+          key: cache-hypothesis-${{ github.run_id }}-${{ matrix.environment }}-${{ matrix.os }}
+          restore-keys: cache-hypothesis-
       - name: Test Unit
         run: |
           pixi run -e ${{ matrix.environment }} test-unit $COV
@@ -143,7 +144,7 @@ jobs:
         if: always()
         with:
           path: .hypothesis/
-          key: cache-hypothesis
+          key: cache-hypothesis-${{ github.run_id }}-${{ matrix.environment }}-${{ matrix.os }}
 
   core_test_suite:
     name: core:${{ matrix.environment }}:${{ matrix.os }}
