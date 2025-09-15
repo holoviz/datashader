@@ -143,6 +143,27 @@ jobs:
         if: always()
         with:
           path: .hypothesis/
+          key: cache-hypothesis-${{ matrix.environment }}-${{ matrix.os }}
+          enableCrossOsArchive: true
+
+  hypothesis_cache_save:
+    name: hypothesis:save
+    needs: [unit_test_suite]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore all hypothesis caches
+        uses: actions/cache/restore@v4
+        with:
+          path: .hypothesis/
+          key: cache-hypothesis
+          restore-keys: |
+            cache-hypothesis-
+      - name: Save merged hypothesis cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .hypothesis/
           key: cache-hypothesis
 
   core_test_suite:
