@@ -12,7 +12,7 @@ import toolz as tz
 import xarray as xr
 
 from datashader.colors import rgb, Sets1to3
-from datashader.utils import nansum_missing, ngjit, uint32_to_uint8
+from datashader.utils import ngjit, uint32_to_uint8
 
 try:
     import dask.array as da
@@ -446,8 +446,10 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     if np.any(missing_colors):
         rgb_array = np.where(missing_colors[..., None], rgb2, rgb_array)
 
-    total = nansum_missing(data, axis=2)
-    mask = np.isnan(total)
+    # total = nansum_missing(data, axis=2)
+    # mask = np.isnan(total)
+    total = np.sum(data, axis=2)
+    mask = np.any(nan_mask, axis=2)
     a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels)
 
     rgba_array = np.dstack([rgb_array, a])
