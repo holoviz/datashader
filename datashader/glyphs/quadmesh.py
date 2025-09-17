@@ -220,18 +220,18 @@ class QuadMeshRectilinear(_QuadMeshLike):
                 # Nothing to do
                 return
 
-            xm0, xm1 = max(xinds.min() - 1, 0), xinds.max() + 1
-            ym0, ym1 = max(yinds.min() - 1, 0), yinds.max() + 1
+            xm0, xm1 = xinds.min(), xinds.max() + 2
+            ym0, ym1 = yinds.min(), yinds.max() + 2
 
             plot_height, plot_width = aggs[0].shape[:2]
 
             # Downselect xs and ys and convert to int
-            xs = xscaled[xm0:xm1 + 1]
+            xs = xscaled[xm0:xm1]
             xs *= plot_width
             xs = xs.astype(int)
             np.clip(xs, 0, plot_width, out=xs)
 
-            ys = yscaled[ym0:ym1 + 1]
+            ys = yscaled[ym0:ym1]
             ys *= plot_height
             ys = ys.astype(int)
             np.clip(ys, 0, plot_height, out=ys)
