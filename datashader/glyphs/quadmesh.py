@@ -211,17 +211,28 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
             # Find intervals that overlap the canvas bounds [0,1]
             # This handles both ascending and descending coordinate orders
-            xin0, xin1 = xscaled >= 0, xscaled <= 1
-            yin0, yin1 = yscaled >= 0, yscaled <= 1
-            xinds, = np.where((xin0[:-1] | xin0[1:]) & (xin1[:-1] | xin1[1:]))
-            yinds, = np.where((yin0[:-1] | yin0[1:]) & (yin1[:-1] | yin1[1:]))
+            if xscaled[0] > xscaled[1]:
+                xscaled = xscaled[::-1]
+                xr_ds = xr_ds.isel({x_name: slice(None, None, -1)})
+            if yscaled[0] > yscaled[1]:
+                yscaled = yscaled[::-1]
+                xr_ds = xr_ds.isel({y_name: slice(None, None, -1)})
 
-            if len(xinds) == 0 or len(yinds) == 0:
-                # Nothing to do
-                return
+            xm0 = max(np.searchsorted(xscaled, 0, 'right') - 1, 0)
+            xm1 = np.searchsorted(xscaled, 1, "left")
+            ym0 = max(np.searchsorted(yscaled, 0, 'right') - 1, 0)
+            ym1 = np.searchsorted(yscaled, 1, "left")
 
-            xm0, xm1 = xinds.min(), xinds.max() + 2
-            ym0, ym1 = yinds.min(), yinds.max() + 2
+            # xin0, xin1 = xscaled >= 0, xscaled <= 1
+            # yin0, yin1 = yscaled >= 0, yscaled <= 1
+            # xinds, = np.where((xin0[:-1] | xin0[1:]) & (xin1[:-1] | xin1[1:]))
+            # yinds, = np.where((yin0[:-1] | yin0[1:]) & (yin1[:-1] | yin1[1:]))
+            # if len(xinds) == 0 or len(yinds) == 0:
+            #     # Nothing to do
+            #     return
+
+            # xm0, xm1 = xinds.min(), xinds.max() + 2
+            # ym0, ym1 = yinds.min(), yinds.max() + 2
 
             plot_height, plot_width = aggs[0].shape[:2]
 
