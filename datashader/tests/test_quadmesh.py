@@ -941,7 +941,7 @@ def test_rectilinear_extra_padding():
     assert actual.isel(x=0).isnull().all().item()
 
     # make sure canvas lines up with cell edges
-    cvs = ds.Canvas(256, 256, x_range=(-70, -59), y_range=(17.5, 43))
+    cvs = ds.Canvas(256, 256, x_range=(-70, -53.5), y_range=(17.5, 43))
     # insert nans along the border and a value in the center so the data
     # that is valid for the canvas is
     # [
@@ -962,5 +962,5 @@ def test_rectilinear_extra_padding():
     actual_exact = cvs.quadmesh(da.isel(x=slice(3, 6), y=slice(2, 5)), x="x", y="y")
     assert_eq_xr(actual, actual_exact)
 
-    actual_reversed = cvs.quadmesh(da.isel(x=slice(6, 3, -1), y=slice(5, 2, -1)), x="x", y="y")
+    actual_reversed = cvs.quadmesh(da.isel(x=slice(5, 2, -1), y=slice(4, 1, -1)), x="x", y="y")
     assert_eq_xr(actual, actual_reversed)

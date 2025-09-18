@@ -223,6 +223,9 @@ class QuadMeshRectilinear(_QuadMeshLike):
             ym0 = max(np.searchsorted(yscaled, 0, 'right') - 1, 0)
             ym1 = np.searchsorted(yscaled, 1, "left")
 
+            xm1 = max(xm0 + 1, xm1)
+            ym1 = max(ym0 + 1, ym1)
+
             # xin0, xin1 = xscaled >= 0, xscaled <= 1
             # yin0, yin1 = yscaled >= 0, yscaled <= 1
             # xinds, = np.where((xin0[:-1] | xin0[1:]) & (xin1[:-1] | xin1[1:]))
@@ -237,16 +240,15 @@ class QuadMeshRectilinear(_QuadMeshLike):
             plot_height, plot_width = aggs[0].shape[:2]
 
             # Downselect xs and ys and convert to int
-            xs = xscaled[xm0:xm1]
+            xs = xscaled[xm0:xm1 + 1]
             xs *= plot_width
             xs = xs.astype(int)
             np.clip(xs, 0, plot_width, out=xs)
 
-            ys = yscaled[ym0:ym1]
+            ys = yscaled[ym0:ym1 + 1]
             ys *= plot_height
             ys = ys.astype(int)
             np.clip(ys, 0, plot_height, out=ys)
-
             # For input "column", down select to valid range
             cols_full = info(xr_ds.transpose(y_name, x_name), aggs[0].shape[:2])
             cols = tuple([c[ym0:ym1, xm0:xm1] for c in cols_full])
