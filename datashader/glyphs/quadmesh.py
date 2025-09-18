@@ -223,8 +223,10 @@ class QuadMeshRectilinear(_QuadMeshLike):
             ym0 = max(np.searchsorted(yscaled, 0, 'right') - 1, 0)
             ym1 = np.searchsorted(yscaled, 1, "left")
 
-            xm1 = max(xm0 + 1, xm1)
-            ym1 = max(ym0 + 1, ym1)
+            if xm0 == xm1:
+                xm1 += 1
+            if ym0 == ym1:
+                ym1 += 1
 
             # xin0, xin1 = xscaled >= 0, xscaled <= 1
             # yin0, yin1 = yscaled >= 0, yscaled <= 1
