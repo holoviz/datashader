@@ -942,16 +942,22 @@ def test_rectilinear_extra_padding():
 
     # make sure canvas lines up with cell edges
     cvs = ds.Canvas(256, 256, x_range=(-70, -53.5), y_range=(17.5, 43))
+
     # insert nans along the border and a value in the center so the data
     # that is valid for the canvas is
-    # [
-    #    np.nan, np.nan, np.nan
-    #    np.nan,   10  , np.nan
-    #    np.nan, np.nan, np.nan
-    # ]
     da.data[:, [3, 5]] = np.nan
     da.data[[2, 5], :] = np.nan
     da.data[3, 4] = 10
+    expected_data = np.array([
+           [np.nan, np.nan, np.nan],
+           [np.nan,   10  , np.nan],
+           [np.nan, np.nan, np.nan],
+    ])
+    np.testing.assert_array_equal(
+        da.sel(x=slice(-70, -53.5), y=slice(17.5, 43)).data,
+        expected_data,
+    )
+
     actual = cvs.quadmesh(da, x="x", y="y")
     assert actual.isel(x=0).isnull().all().item()
     assert actual.isel(x=-1).isnull().all().item()
