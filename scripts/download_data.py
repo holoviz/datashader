@@ -1,10 +1,5 @@
 from contextlib import suppress
-
-import pyct.cmd
 from packaging.version import Version
-
-pyct.cmd.fetch_data(name="data", path="examples", datasets="datasets.yml")
-
 
 with suppress(ImportError):
     import bokeh
@@ -21,4 +16,4 @@ with suppress(ImportError):
 
     gds.get_path("geoda.natregimes")
     gds.get_path("nybb")
-    gds.get_path('geoda health')
+    gds.get_path("geoda health")

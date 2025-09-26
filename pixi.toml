@@ -38,6 +38,7 @@ scipy = "*"
 setuptools = "*" # distutils for pyct
 toolz = "*"
 xarray = "*"
+fastparquet = "*"
 
 [feature.py310.dependencies]
 python = "3.10.*"
@@ -80,6 +81,7 @@ scikit-image = "*"
 shapely = ">=2.0.0"
 spatialpandas = "*"
 streamz = "*"
+hvsampledata = ">=0.1.4"
 
 # =============================================
 # =================== TESTS ===================
