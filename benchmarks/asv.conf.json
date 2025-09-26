@@ -83,9 +83,7 @@
     // new environments.  A value of ``null`` means that the variable
     // will not be set for the current combination.
     //
-    "matrix": {
-        "pyct": [],
-     },
+    "matrix": {},
 
     // Combinations of libraries/python versions can be excluded/included
     // from the set to test. Each entry is a dictionary containing additional

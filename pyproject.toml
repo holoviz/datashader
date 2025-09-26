@@ -34,7 +34,6 @@ dependencies = [
     'numpy',
     'pandas',
     'param',
-    'pyct',
     'requests',
     'scipy',
     'toolz',
@@ -49,9 +48,6 @@ HoloViz = "https://holoviz.org/"
 
 [project.optional-dependencies]
 tests = ["pytest", "hypothesis"]
-
-[project.scripts]
-datashader = "datashader.__main:main"
 
 [tool.hatch.version]
 source = "vcs"
