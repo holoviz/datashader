@@ -17,3 +17,9 @@ with suppress(ImportError):
     gds.get_path("geoda.natregimes")
     gds.get_path("nybb")
     gds.get_path("geoda health")
+
+
+with suppress(ImportError):
+    import hvsampledata as hvs
+
+    hvs.nyc_taxi_remote("pandas")
