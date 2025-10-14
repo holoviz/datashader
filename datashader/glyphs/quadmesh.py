@@ -218,10 +218,12 @@ class QuadMeshRectilinear(_QuadMeshLike):
                 yscaled = yscaled[::-1]
                 xr_ds = xr_ds.isel({y_name: slice(None, None, -1)})
 
-            xm0 = max(np.searchsorted(xscaled, 0, "right") - 1, 0)
-            xm1 = np.searchsorted(xscaled, 1, "left")
-            ym0 = max(np.searchsorted(yscaled, 0, "right") - 1, 0)
-            ym1 = np.searchsorted(yscaled, 1, "left")
+            _0 = cupy.array(0) if use_cuda else 0
+            _1 = cupy.array(1) if use_cuda else 1
+            xm0 = max(np.searchsorted(xscaled, _0, "right") - 1, 0)
+            xm1 = np.searchsorted(xscaled, _1, "left")
+            ym0 = max(np.searchsorted(yscaled, _0, "right") - 1, 0)
+            ym1 = np.searchsorted(yscaled, _1, "left")
 
             if xm0 == xm1 or ym0 == ym1:
                 return

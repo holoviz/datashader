@@ -116,6 +116,9 @@ spatialpandas = "*"
 [feature.test-example.dependencies]
 nbval = "*"
 
+[feature.test-example.target.win-64.dependencies]
+IPython = "!=9.6.0"  # https://github.com/ipython/ipython/issues/15017
+
 [feature.test-example.tasks]
 test-example = 'pytest -n logical --dist loadscope --nbval-lax examples'
 
@@ -128,7 +131,7 @@ NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS = '0'
 
 [feature.test-gpu.dependencies]
 cuda-version = "12.2.*"
-cudf = "25.08.*"
+cudf = "25.10.*"
 cupy = "*"
 dask-cudf = "*"
 dask-expr = "*"
