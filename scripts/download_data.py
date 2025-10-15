@@ -36,10 +36,29 @@ with suppress(ImportError):
 
     nyc_taxi = getattr(hvs, "nyc_taxi_remote", None)
     if nyc_taxi is None:
-        log.warning(
-            "Skipping nyc_taxi download: installed hvsampledata version has no 'nyc_taxi_remote'. "
-            "Please upgrade hvsampledata when a new release is available."
-        )
+        # Try a direct download of the parquet file as a temporary fallback.
+        URL = "https://datasets.holoviz.org/nyc_taxi/v2/nyc_taxi_wide.parq"
+
+        from pathlib import Path
+        dest = Path(hvs._DATAPATH) / "nyc_taxi_wide.parq"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            import requests
+
+            tmp = dest.with_suffix(".part")
+            with requests.get(URL, stream=True, timeout=120) as r:
+                r.raise_for_status()
+                with open(tmp, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=10_485_760):
+                        if chunk:
+                            f.write(chunk)
+            tmp.replace(dest)
+        except Exception:
+            # Fallback if requests not available or streaming fails
+            import urllib.request
+
+            urllib.request.urlretrieve(URL, dest)
+        log.info("nyc_taxi parquet downloaded to %s", dest)
     else:
         try:
             nyc_taxi("pandas")
