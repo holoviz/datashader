@@ -121,6 +121,9 @@ jobs:
       - uses: holoviz-dev/holoviz_tasks/pixi_install@v0
         with:
           environments: ${{ matrix.environment }}
+      - name: PATCH # Temp hack: Don't merge into main
+        run: |
+          pixi run -e ${{ matrix.environment }} pip install 'git+https://github.com/holoviz/hvsampledata.git@1bac391'
       - name: Restore cached hypothesis directory
         uses: actions/cache/restore@v4
         with:
