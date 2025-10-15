@@ -34,7 +34,6 @@ dependencies = [
     'numpy',
     'pandas',
     'param',
-    'pyct',
     'requests',
     'scipy',
     'toolz',
@@ -49,6 +48,7 @@ HoloViz = "https://holoviz.org/"
 
 [project.optional-dependencies]
 tests = ["pytest", "hypothesis"]
+pyct = ["pyct"]
 
 [project.scripts]
 datashader = "datashader.__main:main"
@@ -119,4 +119,6 @@ filterwarnings = [
     "ignore:The 'shapely.geos' module is deprecated, and will be removed in a future version:DeprecationWarning",
     # 2025-09
     "ignore:Signature .* for <class 'numpy.longdouble'>.*:UserWarning",
+    # 2025-10
+    "ignore:The 'pyct' package bundled as a datashader dependency is deprecated since version 0.19 and will be removed in version 0.20.*" # https://github.com/holoviz/datashader/pull/1462
 ]
