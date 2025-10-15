@@ -16,3 +16,19 @@ from . import data_libraries                             # noqa (API import)
 from pandas import __version__ as pandas_version
 if Version(pandas_version) >= Version('0.24.0'):
     from . import datatypes  # noqa (API import)
+
+# make pyct's example commands available if possible
+from functools import partial
+try:
+    from pyct.cmd import copy_examples as _copy, examples as _examples
+    copy_examples = partial(_copy,'datashader')
+    examples = partial(_examples,'datashader')
+except ImportError:
+    def _missing_cmd(*args,**kw):
+        return("install pyct to enable this command (e.g. `conda install pyct or "
+               "`pip install pyct[cmd]`)")
+    _copy = _examples = _missing_cmd
+    def err():
+        raise ValueError(_missing_cmd())
+    copy_examples = examples = err
+del partial, _examples, _copy
