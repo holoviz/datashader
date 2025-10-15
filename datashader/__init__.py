@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import warnings
-from contextlib import suppress
 from packaging.version import Version
 
 from .__version import __version__  # noqa: F401
@@ -12,18 +10,6 @@ from .glyphs import Point                                # noqa (API import)
 from .pipeline import Pipeline                           # noqa (API import)
 from . import transfer_functions as tf                   # noqa (API import)
 from . import data_libraries                             # noqa (API import)
-
-with suppress(ImportError):
-    import pyct  # noqa: F401
-
-    warnings.warn(
-        "The 'pyct' package bundled as a datashader dependency is deprecated since version 0.19 "
-        "and will be removed in version 0.20. For downloading sample datasets, "
-        "prefer using 'hvsampledata' (for example: "
-        "`hvsampledata.nyc_taxi_remote('pandas')`).",
-        category=FutureWarning,
-        stacklevel=2,
-    )
 
 # Make RaggedArray pandas extension array available for
 # pandas >= 0.24.0 is installed
