@@ -123,7 +123,7 @@ jobs:
           environments: ${{ matrix.environment }}
       - name: PATCH # Temp hack: Don't merge into main
         run: |
-          pixi run -e ${{ matrix.environment }} pip install 'git+https://github.com/holoviz/hvsampledata.git@1bac391'
+          pixi run -e ${{ matrix.environment }} pip install 'git+https://github.com/holoviz/hvsampledata.git@7baf0f1'
       - name: Restore cached hypothesis directory
         uses: actions/cache/restore@v4
         with:
