@@ -2,6 +2,14 @@ from contextlib import suppress
 from packaging.version import Version
 
 with suppress(ImportError):
+    import pyct.cmd
+    from datashader import _warn_pyct_deprecated
+
+    _warn_pyct_deprecated(stacklevel=1)
+    pyct.cmd.fetch_data(name="data", path="examples", datasets="datasets.yml")
+
+
+with suppress(ImportError):
     import bokeh
 
     # Replaced with bokeh_sampledata in 3.5
