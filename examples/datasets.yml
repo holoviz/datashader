@@ -1,0 +1,8 @@
+---
+
+data:
+
+  - url: http://s3.amazonaws.com/datashader-data/nyc_taxi.zip
+    title: 'NYC Taxi Data'
+    files:
+      - nyc_taxi.csv
