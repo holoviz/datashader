@@ -1,4 +1,3 @@
-import warnings
 from contextlib import suppress
 
 
@@ -6,14 +5,8 @@ def main(args=None):
     with suppress(ImportError):
         import pyct  # noqa: F401
 
-        warnings.warn(
-            "The 'pyct' package is deprecated since version 0.19 "
-            "and will be removed in version 0.20. For downloading sample datasets, "
-            "prefer using 'hvsampledata' (for example: "
-            "`hvsampledata.nyc_taxi_remote('pandas')`).",
-            category=FutureWarning,
-            stacklevel=2,
-        )
+        from . import _warn_pyct_deprecated
+        _warn_pyct_deprecated(stacklevel=2)
     try:
         import pyct.cmd
     except ImportError:

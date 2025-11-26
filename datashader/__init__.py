@@ -18,12 +18,35 @@ if Version(pandas_version) >= Version('0.24.0'):
     from . import datatypes  # noqa (API import)
 
 # make pyct's example/data commands available if possible
-from functools import partial
+import warnings
+from functools import partial, wraps
+
+
+def _warn_pyct_deprecated(stacklevel=2):
+    warnings.warn(
+        "The 'pyct' package is deprecated since version 0.19 "
+        "and will be removed in version 0.20. For downloading sample datasets, "
+        "prefer using 'hvsampledata' (for example: "
+        "`hvsampledata.nyc_taxi_remote('pandas')`).",
+        category=FutureWarning,
+        stacklevel=stacklevel,
+    )
+
+
+def _deprecated_pyct_wrapper(func):
+    """Wrapper to add deprecation warning to pyct functions."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        _warn_pyct_deprecated(stacklevel=2)
+        return func(*args, **kwargs)
+    return wrapper
+
+
 try:
     from pyct.cmd import copy_examples as _copy, fetch_data as _fetch, examples as _examples
-    copy_examples = partial(_copy,'datashader')
-    fetch_data = partial(_fetch,'datashader')
-    examples = partial(_examples,'datashader')
+    copy_examples = _deprecated_pyct_wrapper(partial(_copy, 'datashader'))
+    fetch_data = _deprecated_pyct_wrapper(partial(_fetch, 'datashader'))
+    examples = _deprecated_pyct_wrapper(partial(_examples, 'datashader'))
 except ImportError:
     def _missing_cmd(*args,**kw):
         return("install pyct to enable this command (e.g. `conda install pyct or "
