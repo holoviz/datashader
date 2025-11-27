@@ -18,16 +18,17 @@ if Version(pandas_version) >= Version('0.24.0'):
     from . import datatypes  # noqa (API import)
 
 # make pyct's example/data commands available if possible
-import warnings
 from functools import partial, wraps
 
 
 def _warn_pyct_deprecated(stacklevel=2):
+    import warnings
+
     warnings.warn(
-        "The 'pyct' package is deprecated since version 0.19 "
-        "and will be removed in version 0.20. For downloading sample datasets, "
-        "prefer using 'hvsampledata' (for example: "
-        "`hvsampledata.nyc_taxi_remote('pandas')`).",
+        "The 'fetch_data()', 'copy_examples()', and 'examples()' functions are "
+        "deprecated since version 0.19 and will be removed in version 0.20. "
+        "For downloading sample datasets, use 'hvsampledata' instead. "
+        "For example: `hvsampledata.nyc_taxi_remote('pandas')`.",
         category=FutureWarning,
         stacklevel=stacklevel,
     )
@@ -37,7 +38,7 @@ def _deprecated_pyct_wrapper(func):
     """Wrapper to add deprecation warning to pyct functions."""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        _warn_pyct_deprecated(stacklevel=2)
+        _warn_pyct_deprecated(stacklevel=3)
         return func(*args, **kwargs)
     return wrapper
 

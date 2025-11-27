@@ -6,7 +6,7 @@ def main(args=None):
         import pyct  # noqa: F401
 
         from . import _warn_pyct_deprecated
-        _warn_pyct_deprecated(stacklevel=2)
+        _warn_pyct_deprecated(stacklevel=3)
     try:
         import pyct.cmd
     except ImportError:

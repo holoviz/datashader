@@ -3,9 +3,7 @@ from packaging.version import Version
 
 with suppress(ImportError):
     import pyct.cmd
-    from datashader import _warn_pyct_deprecated
 
-    _warn_pyct_deprecated(stacklevel=1)
     pyct.cmd.fetch_data(name="data", path="examples", datasets="datasets.yml")
 
 

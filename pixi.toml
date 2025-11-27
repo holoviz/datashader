@@ -38,7 +38,6 @@ scipy = "*"
 setuptools = "*" # distutils for pyct
 toolz = "*"
 xarray = "*"
-pyarrow = "*"
 
 [feature.py310.dependencies]
 python = "3.10.*"
@@ -107,6 +106,7 @@ dask-geopandas = "*"
 geodatasets = "*"
 geopandas-base = "*"
 netcdf4 = "*"
+pyarrow = "*"
 pillow = "*"
 pyogrio = "*"
 rasterio = "*"
