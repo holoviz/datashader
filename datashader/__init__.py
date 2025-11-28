@@ -36,7 +36,7 @@ def _warn_pyct_deprecated(stacklevel=2):
 
 def _deprecated_pyct_wrapper(func):
     """Wrapper to add deprecation warning to pyct functions."""
-    @wraps(func)
+    @wraps(func)  # noqa: F821
     def wrapper(*args, **kwargs):
         _warn_pyct_deprecated(stacklevel=3)
         return func(*args, **kwargs)
@@ -56,4 +56,4 @@ except ImportError:
     def err():
         raise ValueError(_missing_cmd())
     fetch_data = copy_examples = examples = err
-del partial, _examples, _copy, _fetch
+del partial, wraps, _examples, _copy, _fetch
