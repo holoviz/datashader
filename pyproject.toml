@@ -85,7 +85,6 @@ select = [
     "W",
 ]
 ignore = [
-    "UP038", # isinstance and issubclass uses a |-separated union
     # The following should be enabled in the future
     "UP030",  # format-literals
     "UP031",  # printf-string-formatting
