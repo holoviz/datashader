@@ -763,7 +763,10 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
     def test_view(self):
         pass
 
-    @pytest.mark.skipif(Version(pd.__version__) < Version("1.4"), reason="Added in pandas 1.4")
+    @pytest.mark.skipif(
+        Version(pd.__version__).release < (1, 4, 0),
+        reason="Added in pandas 1.4"
+    )
     def test_tolist(self, data):
         result = data.tolist()
         expected = list(data)
@@ -771,7 +774,11 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
         for r, e in zip(result, expected):
             assert np.array_equal(r, e, equal_nan=True)
 
-    @pytest.mark.xfail(raises=AssertionError, reason="numpy shared memory object")
+    @pytest.mark.xfail(
+        Version(np.__version__).release >= (2, 0, 0),
+        raises=AssertionError,
+        reason="numpy shared memory object (Numpy 2.0)"
+    )
     def test_array_interface_copy(self, data):
         super().test_array_interface_copy(data)
 

@@ -29,7 +29,7 @@ pip = "*"
 numba = "*"
 colorcet = "*"
 multipledispatch = "*"
-numpy = ">=2.0"  #  To not TestRaggedInterface::test_array_interface_copy xfail
+numpy = "*"
 pandas = "*"
 param = "*"
 pyct = "*"
