@@ -119,3 +119,19 @@ filterwarnings = [
     # 2025-09
     "ignore:Signature .* for <class 'numpy.longdouble'>.*:UserWarning",
 ]
+
+[tool.typos.default]
+extend-ignore-re = [
+    ".*(?:#|--|//|/*).*(?:typos):\\s?ignore[^\\n]*\\n",
+    ".*(?:typos):\\s?ignore-next-line[^\\n]*\\n[^\\n]*",
+]
+
+[tool.typos.default.extend-words]
+arange = "arange"
+iy = "iy"
+nd = "nd"
+pn = "pn"
+ser = "ser"
+filetimes = "filetimes"
+UE = "UE"
+Thi = "Thi"

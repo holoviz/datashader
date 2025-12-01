@@ -61,8 +61,8 @@ or with pip:
 
 For the best performance, we recommend using conda so that you are sure
 to get numerical libraries optimized for your platform. The latest
-releases are avalailable on the pyviz channel `conda install -c pyviz
-datashader` and the latest pre-release versions are avalailable on the
+releases are available on the pyviz channel `conda install -c pyviz
+datashader` and the latest pre-release versions are available on the
 dev-labelled channel `conda install -c pyviz/label/dev datashader`.
 
 ## Fetching Examples

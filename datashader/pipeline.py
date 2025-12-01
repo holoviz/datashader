@@ -30,7 +30,7 @@ class Pipeline:
         returns another aggregate. This can be used to do preprocessing before
         passing to the ``color_fn`` function.
     color_fn : callable, optional
-        A callable that takes the output of ``tranform_fn``, and returns an
+        A callable that takes the output of ``transform_fn``, and returns an
         ``Image`` object. Default is ``shade``.
     spread_fn : callable, optional
         A callable that takes the output of ``color_fn``, and returns another

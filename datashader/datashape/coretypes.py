@@ -1388,13 +1388,13 @@ def pprint(ds, width=80):
             return result + long.replace('\n', '\n  ')
 
     elif isinstance(ds, Tuple):
-        typs = [pprint(typ, width-len(result))
+        types = [pprint(typ, width-len(result))
                 for typ in ds.dshapes]
-        short = '(%s)' % ', '.join(typs)
+        short = '(%s)' % ', '.join(types)
         if len(result + short) < width:
             return result + short
         else:
-            long = '(\n%s\n)' % ',\n'.join(typs)
+            long = '(\n%s\n)' % ',\n'.join(types)
             return result + long.replace('\n', '\n  ')
     else:
         result += str(ds)
