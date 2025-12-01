@@ -1,7 +1,7 @@
-[project]
+[workspace]
 name = "datashader"
 channels = ["pyviz/label/dev", "conda-forge"]
-platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
+platforms = ["linux-64", "osx-arm64", "win-64"]
 
 [tasks]
 download-data = "python scripts/download_data.py"
@@ -29,7 +29,7 @@ pip = "*"
 numba = "*"
 colorcet = "*"
 multipledispatch = "*"
-numpy = "*"
+numpy = ">=2.0"  #  To not TestRaggedInterface::test_array_interface_copy xfail
 pandas = "*"
 param = "*"
 pyct = "*"
@@ -116,9 +116,6 @@ spatialpandas = "*"
 
 [feature.test-example.dependencies]
 nbval = "*"
-
-[feature.test-example.target.win-64.dependencies]
-IPython = "!=9.6.0"  # https://github.com/ipython/ipython/issues/15017
 
 [feature.test-example.tasks]
 test-example = 'pytest -n logical --dist loadscope --nbval-lax examples'
