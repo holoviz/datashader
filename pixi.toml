@@ -27,8 +27,8 @@ lint = ["py311", "lint"]
 nomkl = "*"
 pip = "*"
 # Required
-numba = {version ="*", channel="numba/label/dev"}
-llvmlite = {version ="*", channel="numba/label/dev"}
+numba = { version = "*", channel = "numba/label/dev" }
+llvmlite = { version = "*", channel = "numba/label/dev" }
 colorcet = "*"
 multipledispatch = "*"
 numpy = "*"
