@@ -1,5 +1,7 @@
 # Testing GeoPandas and SpatialPandas
 
+from importlib.util import find_spec
+
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray
 import numpy as np
@@ -107,6 +109,12 @@ nybb_polygons_sol = np.array([
 ])
 
 
+def _nybb_data():
+    if find_spec("pyogrio") or find_spec("fiona"):
+        return geopandas.read_file(geodatasets.get_path("nybb"))
+    else:
+        pytest.skip("Neither pyogrio nor fiona is installed")
+
 
 @pytest.mark.skipif(not geodatasets, reason="geodatasets not installed")
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
@@ -119,7 +127,7 @@ nybb_polygons_sol = np.array([
     ],
 )
 def test_lines_geopandas(geom_type, explode, use_boundary):
-    df = geopandas.read_file(geodatasets.get_path("nybb"))
+    df = _nybb_data()
     df["col"] = np.arange(len(df))  # Extra column for aggregation.
     geometry = "boundary" if use_boundary else "geometry"
 
@@ -148,7 +156,7 @@ def test_lines_geopandas(geom_type, explode, use_boundary):
     ],
 )
 def test_lines_dask_geopandas(geom_type, explode, use_boundary, npartitions):
-    df = geopandas.read_file(geodatasets.get_path("nybb"))
+    df = _nybb_data()
     df["col"] = np.arange(len(df))  # Extra column for aggregation.
     geometry = "boundary" if use_boundary else "geometry"
 
@@ -180,7 +188,7 @@ def test_lines_dask_geopandas(geom_type, explode, use_boundary, npartitions):
     ],
 )
 def test_lines_spatialpandas(geom_type, explode, use_boundary, npartitions):
-    df = geopandas.read_file(geodatasets.get_path("nybb"))
+    df = _nybb_data()
     df["col"] = np.arange(len(df))  # Extra column for aggregation.
     geometry = "boundary" if use_boundary else "geometry"
 
@@ -205,7 +213,7 @@ def test_lines_spatialpandas(geom_type, explode, use_boundary, npartitions):
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
 @pytest.mark.parametrize("geom_type", ["multipoint", "point"])
 def test_points_geopandas(geom_type):
-    df = geopandas.read_file(geodatasets.get_path("nybb"))
+    df = _nybb_data()
 
     df["geometry"] = df["geometry"].sample_points(100, rng=93814)  # multipoint
     if geom_type == "point":
@@ -223,7 +231,7 @@ def test_points_geopandas(geom_type):
 @pytest.mark.parametrize('npartitions', [1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipoint", "point"])
 def test_points_dask_geopandas(geom_type, npartitions):
-    df = geopandas.read_file(geodatasets.get_path("nybb"))
+    df = _nybb_data()
 
     df["geometry"] = df["geometry"].sample_points(100, rng=93814)  # multipoint
     if geom_type == "point":
@@ -245,7 +253,7 @@ def test_points_dask_geopandas(geom_type, npartitions):
 @pytest.mark.parametrize('npartitions', [0, 1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipoint", "point"])
 def test_points_spatialpandas(geom_type, npartitions):
-    df = geopandas.read_file(geodatasets.get_path("nybb"))
+    df = _nybb_data()
 
     df["geometry"] = df["geometry"].sample_points(100, rng=93814)  # multipoint
     if geom_type == "point":
@@ -267,7 +275,7 @@ def test_points_spatialpandas(geom_type, npartitions):
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
 @pytest.mark.parametrize("geom_type", ["multipolygon", "polygon"])
 def test_polygons_geopandas(geom_type):
-    df = geopandas.read_file(geodatasets.get_path("nybb"))
+    df = _nybb_data()
     df["col"] = np.arange(len(df))  # Extra column for aggregation.
 
     if geom_type == "polygon":
@@ -286,7 +294,7 @@ def test_polygons_geopandas(geom_type):
 @pytest.mark.parametrize('npartitions', [1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipolygon", "polygon"])
 def test_polygons_dask_geopandas(geom_type, npartitions):
-    df = geopandas.read_file(geodatasets.get_path("nybb"))
+    df = _nybb_data()
     df["col"] = np.arange(len(df))
 
     if geom_type == "polygon":
@@ -309,7 +317,7 @@ def test_polygons_dask_geopandas(geom_type, npartitions):
 @pytest.mark.parametrize('npartitions', [0, 1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipolygon", "polygon"])
 def test_polygons_spatialpandas(geom_type, npartitions):
-    df = geopandas.read_file(geodatasets.get_path("nybb"))
+    df = _nybb_data()
     df["col"] = np.arange(len(df))
 
     if geom_type == "polygon":
