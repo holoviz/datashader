@@ -1,6 +1,6 @@
 [workspace]
 name = "datashader"
-channels = ["pyviz/label/dev", "conda-forge"]
+channels = ["pyviz/label/dev", "numba/label/dev", "conda-forge"]
 platforms = ["linux-64", "osx-arm64", "win-64"]
 
 [tasks]
@@ -12,13 +12,14 @@ setup-dev = { depends-on = ["install", "download-data", "lint-install"] }
 PYTHONIOENCODING = "utf-8"
 
 [environments]
-test-310 = ["py310", "test-core", "test", "example", "test-example", "test-unit-task"]
-test-311 = ["py311", "test-core", "test", "example", "test-example", "test-unit-task"]
-test-312 = ["py312", "test-core", "test", "example", "test-example", "test-unit-task"]
-test-313 = ["py313", "test-core", "test", "example", "test-example", "test-unit-task"]
-test-core = ["py313", "test-core", "test-unit-task"]
+test-310 = ["py310", "test-core", "optional", "test-example", "test-unit-task"]
+test-311 = ["py311", "test-core", "optional", "test-example", "test-unit-task"]
+test-312 = ["py312", "test-core", "optional", "test-example", "test-unit-task"]
+test-313 = ["py313", "test-core", "optional", "test-example", "test-unit-task"]
+test-314 = ["py314", "test-core", "optional-314", "test-example", "test-unit-task"]
+test-core = ["py314", "test-core", "test-unit-task"]
 test-gpu = ["py312", "test-core", "test-gpu"]
-docs = ["py311", "example", "doc"]
+docs = ["py311", "optional", "doc"]
 build = ["py311", "build"]
 lint = ["py311", "lint"]
 
@@ -26,7 +27,8 @@ lint = ["py311", "lint"]
 nomkl = "*"
 pip = "*"
 # Required
-numba = "*"
+numba = { version = "*", channel = "numba/label/dev" }
+llvmlite = { version = "*", channel = "numba/label/dev" }
 colorcet = "*"
 multipledispatch = "*"
 numpy = "*"
@@ -57,7 +59,13 @@ python = "3.13.*"
 [feature.py313.activation.env]
 COVERAGE_CORE = "sysmon"
 
-[feature.example.dependencies]
+[feature.py314.dependencies]
+python = "3.14.*"
+
+[feature.py314.activation.env]
+COVERAGE_CORE = "sysmon"
+
+[feature.optional.dependencies]
 bokeh = ">3.1"
 bokeh_sampledata = "*"
 dask-core = "*"
@@ -67,20 +75,51 @@ geodatasets = "*"
 geopandas-base = "*"
 graphviz = "*"
 holoviews = "*"
+hvsampledata = ">=0.1.5a3"
 matplotlib-base = ">=3.3"
+netcdf4 = "*"
 networkx = "*"
 panel = ">1.1"
 pillow = "*"
+pyarrow = "*"
 pyogrio = "*"
 pyproj = "*"
 python-graphviz = "*"
 python-snappy = "*"
 rasterio = "*"
+rioxarray = "*"
 scikit-image = "*"
 shapely = ">=2.0.0"
 spatialpandas = "*"
 streamz = "*"
+
+[feature.optional-314.dependencies]
+bokeh = ">3.1"
+bokeh_sampledata = "*"
+dask-core = "*"
+dask-geopandas = "*"
+fastparquet = "*"
+geodatasets = "*"
+geopandas-base = "*"
+graphviz = "*"
+holoviews = "*"
 hvsampledata = ">=0.1.5a3"
+matplotlib-base = ">=3.3"
+netcdf4 = "*"
+networkx = "*"
+panel = ">1.1"
+pillow = "*"
+pyarrow = "*"
+# pyogrio = "*"
+pyproj = "*"
+python-graphviz = "*"
+python-snappy = "*"
+rasterio = "*"
+rioxarray = "*"
+scikit-image = "*"
+shapely = ">=2.0.0"
+spatialpandas = "*"
+# streamz = "*"
 
 # =============================================
 # =================== TESTS ===================
@@ -98,22 +137,6 @@ pytest-xdist = "*"
 test-unit = 'pytest datashader -n logical --dist loadgroup'
 test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --dist loadgroup', env = { NUMBA_DISABLE_JIT = '1' } }
 test-benchmark = { cmd = 'pytest datashader/tests --benchmark --codspeed', env = { DASK_SCHEDULER = "single-threaded" } }
-
-[feature.test.dependencies]
-bokeh_sampledata = "*"
-dask-core = "*"
-dask-geopandas = "*"
-geodatasets = "*"
-geopandas-base = "*"
-netcdf4 = "*"
-pyarrow = "*"
-pillow = "*"
-pyogrio = "*"
-rasterio = "*"
-rioxarray = "*"
-scikit-image = "*"
-shapely = ">=2.0.0"
-spatialpandas = "*"
 
 [feature.test-example.dependencies]
 nbval = "*"

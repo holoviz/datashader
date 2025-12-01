@@ -5,7 +5,9 @@ collect_ignore_glob = [
     "tiling.ipynb",
 ]
 
-if find_spec("geopandas") is None:
+if find_spec("geopandas") is None or (
+    find_spec("pyogrio") is None and find_spec("fiona") is None
+):
     collect_ignore_glob += [
         "user_guide/13_Geopandas.ipynb",
     ]
