@@ -44,7 +44,7 @@ def reverse_dict(d):
     :note: dict order are not deterministic. As we iterate on the
         input dict, it make the output of this function depend on the
         dict order. So this function output order should be considered
-        as undeterministic.
+        as indeterministic.
 
     """
     result = {}

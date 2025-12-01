@@ -843,7 +843,7 @@ def _eq_ragged_ndarray2d(start_indices, flat_array, a):
 @jit(nopython=True, nogil=True)
 def _lexograph_lt(a1, a2):
     """
-    Compare two 1D numpy arrays lexographically
+    Compare two 1D numpy arrays lexicographically
     Parameters
     ----------
     a1: ndarray

@@ -69,7 +69,7 @@ class UsesCudaMutex(Enum):
 
 
 class Preprocess(Expr):
-    """Base clase for preprocessing steps."""
+    """Base class for preprocessing steps."""
     def __init__(self, column: str | SpecialColumn | None):
         self.column = column
 
