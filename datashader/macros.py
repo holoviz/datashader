@@ -235,7 +235,7 @@ Input function AST does not have a variable length positional argument
     )
     new_fndef_ast.args.vararg = None
 
-    # Run a new NameVistor an see if there were any other non-starred uses
+    # Run a new NameVisitor an see if there were any other non-starred uses
     # of the variable length argument. If so, raise an exception
     after_name_visitor = NameVisitor()
     after_name_visitor.visit(new_fn_ast)
