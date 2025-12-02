@@ -1,6 +1,4 @@
 """Testing the test helpers.
-
-Kill me now.
 """
 import pytest
 

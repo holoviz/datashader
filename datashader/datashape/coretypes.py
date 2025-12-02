@@ -35,8 +35,7 @@ class Type(type):
     def register(cls, name, type):
         # Don't clobber existing types.
         if name in cls._registry:
-            raise TypeError('There is another type registered with name %s'
-                            % name)
+            raise TypeError(f'There is another type registered with name {name}')
 
         cls._registry[name] = type
 
@@ -100,11 +99,11 @@ class Mono(metaclass=Type):
         return [self][key]
 
     def __repr__(self):
-        return '%s(%s)' % (
+        return '{}({})'.format(
             type(self).__name__,
             ', '.join(
                 (
-                    '%s=%r' % (slot, getattr(self, slot))
+                    f'{slot}={getattr(self, slot)!r}'
                     for slot in self.__slots__
                 ) if self._slotted else
                 map(repr, self.parameters),
@@ -122,8 +121,9 @@ class Mono(metaclass=Type):
         'leading' must be 0, and self is returned.
         """
         if leading >= 1:
-            raise IndexError(('Not enough dimensions in data shape '
-                              'to remove %d leading dimensions.') % leading)
+            raise IndexError(
+                f'Not enough dimensions in data shape to remove {leading} leading dimensions.'
+            )
         else:
             return self
 
@@ -158,7 +158,7 @@ class Mono(metaclass=Type):
             self._parameters = state
 
     def to_numpy_dtype(self):
-        raise TypeError('DataShape %s is not NumPy-compatible' % self)
+        raise TypeError(f'DataShape {self} is not NumPy-compatible')
 
 
 class Unit(Mono):
@@ -190,7 +190,7 @@ class Ellipsis(Mono):
         return str(self.typevar) + '...' if self.typevar else '...'
 
     def __repr__(self):
-        return '%s(%r)' % (type(self).__name__, str(self))
+        return f'{type(self).__name__}({str(self)!r})'
 
 
 class Null(Unit):
@@ -226,7 +226,7 @@ class Time(Unit):
         if self.tz is None:
             return basename
         else:
-            return '%s[tz=%r]' % (basename, str(self.tz))
+            return f'{basename}[tz={str(self.tz)!r}]'
 
 
 class DateTime(Unit):
@@ -247,7 +247,7 @@ class DateTime(Unit):
         if self.tz is None:
             return basename
         else:
-            return '%s[tz=%r]' % (basename, str(self.tz))
+            return f'{basename}[tz={str(self.tz)!r}]'
 
     def to_numpy_dtype(self):
         return np.dtype('datetime64[us]')
@@ -290,7 +290,7 @@ def normalize_time_unit(s):
     if s[-1] == 's' and len(s) > 2:
         return normalize_time_unit(s.rstrip('s'))
 
-    raise ValueError("Do not understand time unit %s" % s)
+    raise ValueError(f"Do not understand time unit {s}")
 
 
 class TimeDelta(Unit):
@@ -301,10 +301,10 @@ class TimeDelta(Unit):
         self.unit = normalize_time_unit(str(unit))
 
     def __str__(self):
-        return 'timedelta[unit=%r]' % self.unit
+        return f'timedelta[unit={self.unit!r}]'
 
     def to_numpy_dtype(self):
-        return np.dtype('timedelta64[%s]' % self.unit)
+        return np.dtype(f'timedelta64[{self.unit}]')
 
 
 class Units(Unit):
@@ -326,9 +326,9 @@ class Units(Unit):
 
     def __str__(self):
         if self.tp == DataShape(float64):
-            return 'units[%r]' % (self.unit)
+            return f'units[{self.unit!r}]'
         else:
-            return 'units[%r, %s]' % (self.unit, self.tp)
+            return f'units[{self.unit!r}, {self.tp}]'
 
 
 class Bytes(Unit):
@@ -385,8 +385,7 @@ class String(Unit):
         try:
             encoding = _canonical_string_encodings[encoding]
         except KeyError:
-            raise ValueError('Unsupported string encoding %s' %
-                             repr(encoding))
+            raise ValueError(f'Unsupported string encoding {encoding!r}')
 
         self.encoding = encoding
         self.fixlen = fixlen
@@ -397,16 +396,17 @@ class String(Unit):
         if self.fixlen is None and self.encoding == 'U8':
             return 'string'
         elif self.fixlen is not None and self.encoding == 'U8':
-            return 'string[%i]' % self.fixlen
+            return f'string[{self.fixlen}]'
         elif self.fixlen is None and self.encoding != 'U8':
-            return 'string[%s]' % repr(self.encoding).strip('u')
+            enc = repr(self.encoding).strip('u')
+            return f'string[{enc}]'
         else:
-            return 'string[%i, %s]' % (self.fixlen,
-                                       repr(self.encoding).strip('u'))
+            enc = repr(self.encoding).strip('u')
+            return f'string[{self.fixlen}, {enc}]'
 
     def __repr__(self):
-        s = str(self)
-        return 'ctype("%s")' % s.encode('unicode_escape').decode('ascii')
+        s = str(self).encode('unicode_escape').decode('ascii')
+        return f'ctype("{s}")'
 
     def to_numpy_dtype(self):
         """
@@ -419,9 +419,9 @@ class String(Unit):
         """
         if self.fixlen:
             if self.encoding == 'A':
-                return np.dtype('S%d' % self.fixlen)
+                return np.dtype(f'S{self.fixlen}')
             else:
-                return np.dtype('U%d' % self.fixlen)
+                return np.dtype(f'U{self.fixlen}')
 
         # Create a dtype with metadata indicating it's
         # a string in the same style as the h5py special_dtype
@@ -528,22 +528,19 @@ class DataShape(Mono):
         if len(parameters) == 1 and isinstance(parameters[0], str):
             raise TypeError("DataShape constructor for internal use.\n"
                             "Use dshape function to convert strings into "
-                            "datashapes.\nTry:\n\tdshape('%s')"
-                            % parameters[0])
+                            f"datashapes.\nTry:\n\tdshape('{parameters[0]}')")
         if len(parameters) > 0:
             self._parameters = tuple(map(_launder, parameters))
             if getattr(self._parameters[-1], 'cls', MEASURE) != MEASURE:
-                raise TypeError(('Only a measure can appear on the'
-                                 ' last position of a datashape, not %s') %
-                                repr(self._parameters[-1]))
+                raise TypeError('Only a measure can appear on the'
+                                 f' last position of a datashape, not {self._parameters[-1]!r}')
             for dim in self._parameters[:-1]:
                 if getattr(dim, 'cls', DIMENSION) != DIMENSION:
-                    raise TypeError(('Only dimensions can appear before the'
-                                     ' last position of a datashape, not %s') %
-                                    repr(dim))
+                    raise TypeError('Only dimensions can appear before the'
+                                     f' last position of a datashape, not {dim!r}')
         else:
             raise ValueError('the data shape should be constructed from 2 or'
-                             ' more parameters, only got %s' % len(parameters))
+                             f' more parameters, only got {len(parameters)}')
         self.composite = True
         self.name = kwds.get('name')
 
@@ -562,9 +559,9 @@ class DataShape(Mono):
     def __repr__(self):
         s = pprint(self)
         if '\n' in s:
-            return 'dshape("""%s""")' % s
+            return f'dshape("""{s}""")'
         else:
-            return 'dshape("%s")' % s
+            return f'dshape("{s}")'
 
     @property
     def shape(self):
@@ -586,7 +583,7 @@ class DataShape(Mono):
         """
         if leading >= len(self.parameters):
             raise IndexError('Not enough dimensions in data shape '
-                             'to remove %d leading dimensions.' % leading)
+                             f'to remove {leading} leading dimensions.')
         elif leading in [len(self.parameters) - 1, -1]:
             return DataShape(self.parameters[-1])
         else:
@@ -691,8 +688,7 @@ class DataShape(Mono):
             else:
                 ds = self.subarray(1)._subshape(index[1:])
                 return (self[0] * ds)._subshape(index[0])
-        raise TypeError('invalid index value %s of type %r' %
-                        (index, type(index).__name__))
+        raise TypeError(f'invalid index value {index} of type {type(index).__name__!r}')
 
     def __setstate__(self, state):
         self._parameters = state
@@ -723,12 +719,12 @@ class Option(Mono):
         return self.ty.itemsize
 
     def __str__(self):
-        return '?%s' % self.ty
+        return f'?{self.ty}'
 
     def to_numpy_dtype(self):
         if type(self.ty) in numpy_provides_missing:
             return self.ty.to_numpy_dtype()
-        raise TypeError('DataShape measure %s is not NumPy-compatible' % self)
+        raise TypeError(f'DataShape measure {self} is not NumPy-compatible')
 
 
 class CType(Unit):
@@ -776,7 +772,7 @@ class CType(Unit):
             return String(dt.itemsize // 4, 'U32')
         elif np.issubdtype(dt, np.str_) or np.issubdtype(dt, np.bytes_):
             return String(dt.itemsize, 'ascii')
-        raise NotImplementedError("NumPy datatype %s not supported" % dt)
+        raise NotImplementedError(f"NumPy datatype {dt} not supported")
 
     @property
     def itemsize(self):
@@ -803,8 +799,8 @@ class CType(Unit):
         return self.name
 
     def __repr__(self):
-        s = str(self)
-        return 'ctype("%s")' % s.encode('unicode_escape').decode('ascii')
+        s = str(self).encode('unicode_escape').decode('ascii')
+        return f'ctype("{s}")'
 
 
 class Fixed(Unit):
@@ -857,8 +853,8 @@ class TypeVar(Unit):
 
     def __init__(self, symbol):
         if not symbol[0].isupper():
-            raise ValueError(('TypeVar symbol %r does not '
-                              'begin with a capital') % symbol)
+            raise ValueError('TypeVar symbol {symbol!r} does not '
+                              'begin with a capital')
         self.symbol = symbol
 
     def __str__(self):
@@ -877,9 +873,8 @@ class Function(Mono):
         return self.parameters[:-1]
 
     def __str__(self):
-        return '(%s) -> %s' % (
-            ', '.join(map(str, self.argtypes)), self.restype
-        )
+        args = ', '.join(map(str, self.argtypes))
+        return f'({args}) -> {self.restype}'
 
 
 class Map(Mono):
@@ -890,9 +885,7 @@ class Map(Mono):
         self.value = _launder(value)
 
     def __str__(self):
-        return '%s[%s, %s]' % (type(self).__name__.lower(),
-                               self.key,
-                               self.value)
+        return f'{type(self).__name__.lower()}[{self.key}, {self.value}]'
 
     def to_numpy_dtype(self):
         return to_numpy_dtype(self)
@@ -926,8 +919,8 @@ class CollectionPrinter:
 
     def __repr__(self):
         s = str(self)
-        strs = ('"""%s"""' if '\n' in s else '"%s"') % s
-        return 'dshape(%s)' % strs
+        strs = f'"""{s}"""' if '\n' in s else f'"{s}"'
+        return f'dshape({strs})'
 
 
 class RecordMeta(Type):
@@ -935,26 +928,24 @@ class RecordMeta(Type):
     def _unpack_slice(s, idx):
         if not isinstance(s, slice):
             raise TypeError(
-                'invalid field specification at position %d.\n'
-                'fields must be formatted like: {name}:{type}' % idx,
+                f'invalid field specification at position {idx}.\n'
+                'fields must be formatted like: {name}:{type}'
             )
 
         name, type_ = packed = s.start, s.stop
         if name is None:
-            raise TypeError('missing field name at position %d' % idx)
+            raise TypeError(f'missing field name at position {idx}')
         if not isinstance(name, str):
             raise TypeError(
-                "field name at position %d ('%s') was not a string" % (
-                    idx, name,
-                ),
+                f"field name at position {idx} ('{name}') was not a string",
             )
         if type_ is None and s.step is None:
             raise TypeError(
-                "missing type for field '%s' at position %d" % (name, idx))
+                f"missing type for field '{name}' at position {idx}")
         if s.step is not None:
             raise TypeError(
-                "unexpected slice step for field '%s' at position %d.\n"
-                "hint: you might have a second ':'" % (name, idx),
+                f"unexpected slice step for field '{name}' at position {idx}.\n"
+                "hint: you might have a second ':'"
             )
 
         return packed
@@ -1009,7 +1000,7 @@ class Record(CollectionPrinter, Mono, metaclass=RecordMeta):
         if len(set(names)) != len(names):
             for name in set(names):
                 names.remove(name)
-            raise ValueError("duplicate field names found: %s" % names)
+            raise ValueError(f"duplicate field names found: {names}")
 
         self._parameters = tuple(zip(names, types)),
 
@@ -1047,7 +1038,7 @@ R = Record  # Alias for record literals
 
 
 def _format_categories(cats, n=10):
-    return '[%s%s]' % (
+    return '[{}{}]'.format(
         ', '.join(map(repr, cats[:n])),
         ', ...' if len(cats) > n else ''
     )
@@ -1066,7 +1057,7 @@ class Categorical(Mono):
         self.ordered = ordered
 
     def __str__(self):
-        return '%s[%s, type=%s, ordered=%s]' % (
+        return '{}[{}, type={}, ordered={}]'.format(  # noqa: UP032
             type(self).__name__.lower(),
             _format_categories(self.categories),
             self.type,
@@ -1074,7 +1065,7 @@ class Categorical(Mono):
         )
 
     def __repr__(self):
-        return '%s(categories=%s, type=%r, ordered=%s)' % (
+        return '{}(categories={}, type={!r}, ordered={})'.format(  # noqa: UP032
             type(self).__name__,
             _format_categories(self.categories),
             self.type,
@@ -1102,13 +1093,13 @@ class Tuple(CollectionPrinter, Mono):
         self.dshapes = tuple(dshapes)
 
     def __str__(self):
-        return '(%s)' % ', '.join(map(str, self.dshapes))
+        return '({})'.format(', '.join(map(str, self.dshapes)))
 
     def to_numpy_dtype(self):
         """
         To Numpy record dtype.
         """
-        return np.dtype([('f%d' % i, to_numpy_dtype(typ))
+        return np.dtype([(f'f{i}', to_numpy_dtype(typ))
                          for i, typ in enumerate(self.parameters[0])])
 
 
@@ -1264,8 +1255,8 @@ def to_numpy(ds):
             elif isinstance(dim, TypeVar):
                 shape.append(-1)
             else:
-                raise TypeError('DataShape dimension %s is not '
-                                'NumPy-compatible' % dim)
+                raise TypeError(f'DataShape dimension {dim} is not '
+                                'NumPy-compatible')
 
         # The datashape measure
         msr = ds[-1]
@@ -1373,26 +1364,26 @@ def pprint(ds, width=80):
         ds = ds[-1]
 
     if isinstance(ds, Record):
-        pairs = ['%s: %s' % (name if isidentifier(name) else
+        pairs = ['{}: {}'.format(name if isidentifier(name) else
                              repr(print_unicode_string(name)),
                              pprint(typ, width - len(result) - len(name)))
                  for name, typ in zip(ds.names, ds.types)]
-        short = '{%s}' % ', '.join(pairs)
+        short = '{%s}' % ', '.join(pairs)  # noqa: UP031
 
         if len(result + short) < width:
             return result + short
         else:
-            long = '{\n%s\n}' % ',\n'.join(pairs)
+            long = '{{\n{}\n}}'.format(',\n'.join(pairs))
             return result + long.replace('\n', '\n  ')
 
     elif isinstance(ds, Tuple):
         types = [pprint(typ, width-len(result))
                 for typ in ds.dshapes]
-        short = '(%s)' % ', '.join(types)
+        short = '({})'.format(', '.join(types))
         if len(result + short) < width:
             return result + short
         else:
-            long = '(\n%s\n)' % ',\n'.join(types)
+            long = '(\n{}\n)'.format(',\n'.join(types))
             return result + long.replace('\n', '\n  ')
     else:
         result += str(ds)
