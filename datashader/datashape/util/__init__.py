@@ -48,7 +48,7 @@ def dshape(o):
     elif isinstance(o, (list, tuple)):
         ds = coretypes.DataShape(*o)
     else:
-        raise TypeError('Cannot create dshape from object of type %s' % type(o))
+        raise TypeError(f'Cannot create dshape from object of type {type(o)}')
     validate(ds)
     return ds
 
@@ -78,10 +78,9 @@ def cat_dshapes(dslist):
     for ds in dslist[1:]:
         outer_dim_size += operator.index(ds[0])
         if ds[1:] != inner_ds:
-            raise ValueError(('The datashapes to concatenate much'
+            raise ValueError('The datashapes to concatenate much'
                               ' all match after'
-                              ' the first dimension (%s vs %s)') %
-                              (inner_ds, ds[1:]))
+                              f' the first dimension ({inner_ds} vs {ds[1:]})')
     return coretypes.DataShape(*[coretypes.Fixed(outer_dim_size)] + list(inner_ds))
 
 

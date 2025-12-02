@@ -138,8 +138,7 @@ class DataShapeParser:
                 # Look in the dtype symbol table for the option type constructor
                 option = self.syntactic_sugar(self.sym.dtype_constr,
                                               constructors[tok.id],
-                                              '%s dtype construction' %
-                                              constructors[tok.id],
+                                              f'{constructors[tok.id]} dtype construction',
                                               saved_pos - 1)
                 return coretypes.DataShape(option(ds))
         else:

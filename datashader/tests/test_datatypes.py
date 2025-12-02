@@ -27,7 +27,7 @@ def assert_ragged_arrays_equal(ra1, ra2):
 def test_construct_ragged_dtype():
     dtype = RaggedDtype()
     assert dtype.type == np.ndarray
-    assert dtype.name == 'Ragged[{subtype}]'.format(subtype=dtype.subtype)
+    assert dtype.name == f'Ragged[{dtype.subtype}]'
     assert dtype.kind == 'O'
 
 

@@ -63,9 +63,9 @@ class Image(xr.DataArray):
         b = BytesIO()
         self.to_pil().save(b, format='png')
 
+        blob = b64encode(b.getvalue()).decode('utf-8')
         h = """<img style="margin: auto; border:""" + str(self.border) + """px solid" """ + \
-            """src='data:image/png;base64,{0}'/>""".\
-                format(b64encode(b.getvalue()).decode('utf-8'))
+            f"""src='data:image/png;base64,{blob}'/>"""
         return h
 
 
@@ -101,7 +101,7 @@ class Images:
             label=i.name if hasattr(i,"name") and i.name is not None else ""
 
             htmls.append("""<td style="text-align: center"><b>""" + label +
-                         """</b><br><br>{0}</td>""".format(i._repr_html_()))
+                         f"""</b><br><br>{i._repr_html_()}</td>""")
             col+=1
             if self.num_cols is not None and col>=self.num_cols:
                 col=0
@@ -129,7 +129,7 @@ def stack(*imgs, **kwargs):
     shapes = []
     for i in imgs:
         if not isinstance(i, Image):
-            raise TypeError("Expected `Image`, got: `{0}`".format(type(i)))
+            raise TypeError(f"Expected `Image`, got: `{type(i)}`")
         elif not shapes:
             shapes.append(i.shape)
         elif shapes and i.shape not in shapes:
@@ -228,7 +228,7 @@ def _normalize_interpolate_how(how):
         return how
     elif how in _interpolate_lookup:
         return _interpolate_lookup[how]
-    raise ValueError("Unknown interpolation method: {0}".format(how))
+    raise ValueError(f"Unknown interpolation method: {how}")
 
 
 def _rescale_discrete_levels(discrete_levels, span):
@@ -346,7 +346,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
         rgba[:, :, 3] = np.where(np.isnan(scaled_data), 0, alpha).astype(np.uint8)
     else:
         raise TypeError("Expected `cmap` of `matplotlib.colors.Colormap`, "
-                        "`list`, `str`, or `tuple`; got: '{0}'".format(type(cmap)))
+                        f"`list`, `str`, or `tuple`; got: '{type(cmap)}'")
 
     img = rgba.view(np.uint32).reshape(data.shape)
 
@@ -744,7 +744,7 @@ def set_background(img, color=None, name=None):
     from datashader.composite import over
 
     if not isinstance(img, Image):
-        raise TypeError("Expected `Image`, got: `{0}`".format(type(img)))
+        raise TypeError(f"Expected `Image`, got: `{type(img)}`")
     name = img.name if name is None else name
     if color is None:
         return img
@@ -781,7 +781,7 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
         to label results for display.
     """
     if not isinstance(img, xr.DataArray):
-        raise TypeError("Expected `xr.DataArray`, got: `{0}`".format(type(img)))
+        raise TypeError(f"Expected `xr.DataArray`, got: `{type(img)}`")
     is_image = isinstance(img, Image)
     name = img.name if name is None else name
     if mask is None:

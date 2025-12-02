@@ -116,7 +116,7 @@ def compile_function_ast(fn_ast):
     assert isinstance(fn_ast, ast.Module)
     fndef_ast = fn_ast.body[0]
     assert isinstance(fndef_ast, ast.FunctionDef)
-    return compile(fn_ast, "<%s>" % fndef_ast.name, mode='exec')
+    return compile(fn_ast, f"<{fndef_ast.name}>", mode='exec')
 
 
 def function_ast_to_function(fn_ast, stacklevel=1):
@@ -240,9 +240,9 @@ Input function AST does not have a variable length positional argument
     after_name_visitor = NameVisitor()
     after_name_visitor.visit(new_fn_ast)
     if vararg_name in after_name_visitor.names:
-        raise ValueError("""\
-The variable length positional argument {n} is used in an unsupported context
-""".format(n=vararg_name))
+        raise ValueError(f"""\
+The variable length positional argument {vararg_name} is used in an unsupported context
+""")
 
     # Remove decorators if present to avoid recursion
     fndef_ast.decorator_list = []
