@@ -2323,12 +2323,12 @@ def rowmax(arr0, arr1):
     return np.maximum(arr0, arr1)
 
 def rowmin(arr0, arr1):
-    bigint = np.max([np.max(arr0), np.max(arr1)]) + 1
-    arr0[arr0 < 0] = bigint
-    arr1[arr1 < 0] = bigint
-    ret = np.minimum(arr0, arr1)
-    ret[ret == bigint] = -1
-    return ret
+    bigint = max(arr0.max(), arr1.max()) + 1
+    ret = np.minimum(
+        np.where(arr0 < 0, bigint, arr0),
+        np.where(arr1 < 0, bigint, arr1)
+    )
+    return np.where(ret == bigint, -1, ret)
 
 line_antialias_df = pd.DataFrame(dict(
     # Self-intersecting line.
