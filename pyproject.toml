@@ -85,12 +85,6 @@ select = [
     "UP",
     "W",
 ]
-ignore = [
-    # The following should be enabled in the future
-    "UP030",  # format-literals
-    "UP031",  # printf-string-formatting
-    "UP032",  # f-string
-]
 
 [tool.ruff.lint.per-file-ignores]
 "test_mpl_ext.py" = ["E402"] # Module level import not at top of file

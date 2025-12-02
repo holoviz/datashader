@@ -390,16 +390,14 @@ def generate_test_images():
                 points, name = func()
                 aggregators = draw_lines(canvas, points, antialias)
                 img = shade(aggregators, cmap=cmap01)
-                description = "{}_{}_{}".format(
-                    name, aa_descriptor, canvas_descriptor)
+                description = f"{name}_{aa_descriptor}_{canvas_descriptor}"
                 results[description] = img
 
             for func in (generate_test_006, ):
                 points, name = func()
                 aggregator = draw_multi_segment_line(canvas, points, antialias)
                 img = shade(aggregator, cmap=cmap01)
-                description = "{}_{}_{}".format(
-                    name, aa_descriptor, canvas_descriptor)
+                description = f"{name}_{aa_descriptor}_{canvas_descriptor}"
                 results[description] = img
     return results
 

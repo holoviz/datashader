@@ -240,9 +240,9 @@ Input function AST does not have a variable length positional argument
     after_name_visitor = NameVisitor()
     after_name_visitor.visit(new_fn_ast)
     if vararg_name in after_name_visitor.names:
-        raise ValueError("""\
-The variable length positional argument {n} is used in an unsupported context
-""".format(n=vararg_name))
+        raise ValueError(f"""\
+The variable length positional argument {vararg_name} is used in an unsupported context
+""")
 
     # Remove decorators if present to avoid recursion
     fndef_ast.decorator_list = []

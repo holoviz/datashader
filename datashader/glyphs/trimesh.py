@@ -38,7 +38,7 @@ class _PolygonLike(_PointLike):
     def validate(self, in_dshape):
         for col in [self.x, self.y] + list(self.z):
             if not isreal(in_dshape.measure[str(col)]):
-                raise ValueError('{} must be real'.format(col))
+                raise ValueError(f'{col} must be real')
 
     def required_columns(self):
         return [self.x, self.y] + list(self.z)

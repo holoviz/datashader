@@ -151,13 +151,13 @@ _axis_lookup = {'linear': LinearAxis(), 'log': LogAxis()}
 def validate_xy_or_geometry(glyph, x, y, geometry):
     if (geometry is None and (x is None or y is None) or
             geometry is not None and (x is not None or y is not None)):
-        raise ValueError("""
+        raise ValueError(f"""
 {glyph} coordinates may be specified by providing both the x and y arguments, or by
 providing the geometry argument. Received:
-    x: {x}
-    y: {y}
-    geometry: {geometry}
-""".format(glyph=glyph, x=repr(x), y=repr(y), geometry=repr(geometry)))
+    x: {x!r}
+    y: {y!r}
+    geometry: {geometry!r}
+""")
 
 
 class Canvas:
@@ -227,8 +227,7 @@ class Canvas:
                 raise ValueError(
                     "source must be an instance of spatialpandas.GeoDataFrame, "
                     "spatialpandas.dask.DaskGeoDataFrame, geopandas.GeoDataFrame, or "
-                    "dask_geopandas.GeoDataFrame. Received objects of type {typ}".format(
-                        typ=type(source)))
+                    f"dask_geopandas.GeoDataFrame. Received objects of type {type(source)}")
 
         return bypixel(source, self, glyph, agg)
 
@@ -390,8 +389,7 @@ class Canvas:
                 raise ValueError(
                     "source must be an instance of spatialpandas.GeoDataFrame, "
                     "spatialpandas.dask.DaskGeoDataFrame, geopandas.GeoDataFrame, or "
-                    "dask_geopandas.GeoDataFrame. Received objects of type {typ}".format(
-                        typ=type(source)))
+                    f"dask_geopandas.GeoDataFrame. Received objects of type {type(source)}")
 
         elif isinstance(source, Dataset) and isinstance(x, str) and isinstance(y, str):
             x_arr = source[x]
@@ -421,13 +419,12 @@ class Canvas:
                         isinstance(y, (list, tuple))):
                     glyph = LineAxis0Multi(tuple(x), tuple(y))
                 else:
-                    raise ValueError("""
+                    raise ValueError(f"""
 Invalid combination of x and y arguments to Canvas.line when axis=0.
     Received:
-        x: {x}
-        y: {y}
-See docstring for more information on valid usage""".format(
-                        x=repr(orig_x), y=repr(orig_y)))
+        x: {repr(orig_x)}
+        y: {repr(orig_y)}
+See docstring for more information on valid usage""")
 
             elif axis == 1:
                 if isinstance(x, (list, tuple)) and isinstance(y, (list, tuple)):
@@ -442,18 +439,17 @@ See docstring for more information on valid usage""".format(
                         isinstance(y, (Number, str))):
                     glyph = LinesAxis1Ragged(x, y)
                 else:
-                    raise ValueError("""
+                    raise ValueError(f"""
 Invalid combination of x and y arguments to Canvas.line when axis=1.
     Received:
-        x: {x}
-        y: {y}
-See docstring for more information on valid usage""".format(
-                        x=repr(orig_x), y=repr(orig_y)))
+        x: {repr(orig_x)}
+        y: {repr(orig_y)}
+See docstring for more information on valid usage""")
 
             else:
-                raise ValueError("""
+                raise ValueError(f"""
 The axis argument to Canvas.line must be 0 or 1
-    Received: {axis}""".format(axis=axis))
+    Received: {axis}""")
 
         if (line_width > 0 and ((cudf and isinstance(source, cudf.DataFrame)) or
                                (dask_cudf and isinstance(source, dask_cudf.DataFrame)))):
@@ -630,13 +626,12 @@ The axis argument to Canvas.line must be 0 or 1
                       isinstance(y, (list, tuple))):
                     glyph = AreaToZeroAxis0Multi(tuple(x), tuple(y))
                 else:
-                    raise ValueError("""
+                    raise ValueError(f"""
 Invalid combination of x and y arguments to Canvas.area when axis=0.
     Received:
-        x: {x}
-        y: {y}
-See docstring for more information on valid usage""".format(
-                        x=repr(x), y=repr(y)))
+        x: {repr(x)}
+        y: {repr(y)}
+See docstring for more information on valid usage""")
             else:
                 # y_stack is not None
                 if (isinstance(x, (Number, str)) and
@@ -650,16 +645,13 @@ See docstring for more information on valid usage""".format(
                     glyph = AreaToLineAxis0Multi(
                         tuple(x), tuple(y), tuple(y_stack))
                 else:
-                    raise ValueError("""
+                    raise ValueError(f"""
 Invalid combination of x, y, and y_stack arguments to Canvas.area when axis=0.
     Received:
-        x: {x}
-        y: {y}
-        y_stack: {y_stack}
-See docstring for more information on valid usage""".format(
-                        x=repr(orig_x),
-                        y=repr(orig_y),
-                        y_stack=repr(orig_y_stack)))
+        x: {repr(orig_x)}
+        y: {repr(orig_y)}
+        y_stack: {repr(orig_y_stack)}
+See docstring for more information on valid usage""")
 
         elif axis == 1:
             if y_stack is None:
@@ -676,13 +668,12 @@ See docstring for more information on valid usage""".format(
                       isinstance(y, (Number, str))):
                     glyph = AreaToZeroAxis1Ragged(x, y)
                 else:
-                    raise ValueError("""
+                    raise ValueError(f"""
 Invalid combination of x and y arguments to Canvas.area when axis=1.
     Received:
-        x: {x}
-        y: {y}
-See docstring for more information on valid usage""".format(
-                        x=repr(x), y=repr(y)))
+        x: {repr(x)}
+        y: {repr(y)}
+See docstring for more information on valid usage""")
             else:
                 if (isinstance(x, (list, tuple)) and
                         isinstance(y, (list, tuple)) and
@@ -703,20 +694,17 @@ See docstring for more information on valid usage""".format(
                       isinstance(y_stack, (Number, str))):
                     glyph = AreaToLineAxis1Ragged(x, y, y_stack)
                 else:
-                    raise ValueError("""
+                    raise ValueError(f"""
 Invalid combination of x, y, and y_stack arguments to Canvas.area when axis=1.
     Received:
-        x: {x}
-        y: {y}
-        y_stack: {y_stack}
-See docstring for more information on valid usage""".format(
-                        x=repr(orig_x),
-                        y=repr(orig_y),
-                        y_stack=repr(orig_y_stack)))
+        x: {repr(orig_x)}
+        y: {repr(orig_y)}
+        y_stack: {repr(orig_y_stack)}
+See docstring for more information on valid usage""")
         else:
-            raise ValueError("""
+            raise ValueError(f"""
 The axis argument to Canvas.area must be 0 or 1
-    Received: {axis}""".format(axis=axis))
+    Received: {axis}""")
 
         return bypixel(source, self, glyph, agg)
 
@@ -888,10 +876,9 @@ The axis argument to Canvas.area must be 0 or 1
             glyph = QuadMeshCurvilinear(x, y, name)
             return bypixel(source, self, glyph, agg)
         else:
-            raise ValueError("""\
+            raise ValueError(f"""\
 x- and y-coordinate arrays must have 1 or 2 dimensions.
-    Received arrays with dimensions: {dims}""".format(
-                dims=list(xarr.dims)))
+    Received arrays with dimensions: {list(xarr.dims)}""")
 
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then
@@ -1065,8 +1052,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
                               'max':'max',     rd.max:'max'}
 
         if interpolate not in upsample_methods:
-            raise ValueError('Invalid interpolate method: options include {}'.format(
-                upsample_methods))
+            raise ValueError(f'Invalid interpolate method: options include {upsample_methods}')
 
         if not isinstance(source, (DataArray, Dataset)):
             raise ValueError('Expected xarray DataArray or Dataset as '
@@ -1096,8 +1082,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             source = source[column]
 
         if agg not in downsample_methods.keys():
-            raise ValueError('Invalid aggregation method: options include {}'.format(
-                list(downsample_methods.keys())))
+            raise ValueError(f'Invalid aggregation method: options include {list(downsample_methods.keys())}')
         ds_method = downsample_methods[agg]
 
         if source.ndim not in [2, 3]:

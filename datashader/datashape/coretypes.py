@@ -459,9 +459,7 @@ class Decimal(Unit):
         self.scale = scale
 
     def __str__(self):
-        return 'decimal[precision={precision}, scale={scale}]'.format(
-            precision=self.precision, scale=self.scale
-        )
+        return f'decimal[precision={self.precision}, scale={self.scale}]'
 
     def to_numpy_dtype(self):
         """Convert a decimal datashape to a NumPy dtype.
