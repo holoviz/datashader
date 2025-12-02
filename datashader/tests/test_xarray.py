@@ -106,109 +106,157 @@ ds2ds = [ds2d_x0, ds2d_x1]
     dict(x=3, channel=10),
     dict(x=3, channel=1),
 ])
-def test_lines_xarray_common_x(ds2d, on_gpu, chunksizes):
-    source = deepcopy(ds2d)
-    if on_gpu:
+class TestLinesXarrayCommonX:
+
+    @pytest.fixture
+    def source(self, ds2d, on_gpu, chunksizes):
+        source = deepcopy(ds2d)
+        if on_gpu:
+            if chunksizes is not None:
+                pytest.skip("CUDA-dask for LinesXarrayCommonX not implemented")
+            # CPU -> GPU
+            source.name.data = cupy.asarray(source.name.data)
+
         if chunksizes is not None:
-            pytest.skip("CUDA-dask for LinesXarrayCommonX not implemented")
+            if dask is None:
+                pytest.skip("Dask not available")
+            source = source.chunk(chunksizes)
 
-        # CPU -> GPU
-        source.name.data = cupy.asarray(source.name.data)
+        return source
 
-    if chunksizes is not None:
-        if dask is None:
-            pytest.skip("Dask not available")
-        source = source.chunk(chunksizes)
+    @pytest.fixture
+    def canvas(self):
+        return ds.Canvas(plot_height=3, plot_width=7)
 
-    canvas = ds.Canvas(plot_height=3, plot_width=7)
+    @pytest.fixture
+    def sol_count(self, chunksizes):
+        sol = np.array(
+            [[0, 0, 1, 1, 0, 0, 0], [1, 2, 1, 1, 2, 2, 1], [1, 0, 0, 0, 0, 0, 1]],
+            dtype=np.uint32)
+        if chunksizes is not None and chunksizes["x"] == 3:
+            sol[:, 4] = 0
+        return sol
 
-    # Expected solutions
-    sol_count = np.array(
-        [[0, 0, 1, 1, 0, 0, 0], [1, 2, 1, 1, 2, 2, 1], [1, 0, 0, 0, 0, 0, 1]],
-        dtype=np.uint32)
-    sol_max = np.array(
-        [[nan, nan, -33, -33, nan, nan, nan], [-55, -33, -55, -55, -33, -33, -55], [-33, nan, nan, nan, nan, nan, -33]],  # noqa: E501
-        dtype=np.float64)
-    sol_min = np.array(
-        [[nan, nan, -33, -33, nan, nan, nan], [-55, -55, -55, -55, -55, -55, -55], [-33, nan, nan, nan, nan, nan, -33]],  # noqa: E501
-        dtype=np.float64)
-    sol_sum = np.array(
-        [[nan, nan, -33, -33, nan, nan, nan], [-55, -88, -55, -55, -88, -88, -55], [-33, nan, nan, nan, nan, nan, -33]],  # noqa: E501
-        dtype=np.float64)
-    sol_max_row_index = np.array(
-        [[-1, -1, 0, 0, -1, -1, -1], [1, 1, 1, 1, 1, 1, 1], [0, -1, -1, -1, -1, -1, 0]],
-        dtype=np.int64)
-    sol_min_row_index = np.array(
-        [[-1, -1, 0, 0, -1, -1, -1], [1, 0, 1, 1, 0, 0, 1], [0, -1, -1, -1, -1, -1, 0]],
-        dtype=np.int64)
+    @pytest.fixture
+    def sol_max(self, chunksizes):
+        sol = np.array(
+            [[nan, nan, -33, -33, nan, nan, nan], [-55, -33, -55, -55, -33, -33, -55], [-33, nan, nan, nan, nan, nan, -33]],  # noqa: E501
+            dtype=np.float64)
+        if chunksizes is not None and chunksizes["x"] == 3:
+            sol[:, 4] = nan
+        return sol
 
-    if chunksizes is not None and chunksizes["x"] == 3:
-        # Dask chunking in x-direction gives different (incorrect) results.
-        sol_count[:, 4] = 0
-        sol_max[:, 4] = nan
-        sol_min[:, 4] = nan
-        sol_sum[:, 4] = nan
-        sol_max_row_index[:, 4] = -1
-        sol_min_row_index[:, 4] = -1
+    @pytest.fixture
+    def sol_min(self, chunksizes):
+        sol = np.array(
+            [[nan, nan, -33, -33, nan, nan, nan], [-55, -55, -55, -55, -55, -55, -55], [-33, nan, nan, nan, nan, nan, -33]],  # noqa: E501
+            dtype=np.float64)
+        if chunksizes is not None and chunksizes["x"] == 3:
+            sol[:, 4] = nan
+        return sol
 
-    sol_first = np.select([sol_min_row_index==0, sol_min_row_index==1], value, np.nan)
-    sol_last = np.select([sol_max_row_index==0, sol_max_row_index==1], value, np.nan)
-    sol_where_max_other = np.select([sol_max==-33, sol_max==-55], other, np.nan)
-    sol_where_max_row = np.select([sol_max==-33, sol_max==-55], [0, 1], -1)
-    sol_where_min_other = np.select([sol_min==-33, sol_min==-55], other, np.nan)
-    sol_where_min_row = np.select([sol_min==-33, sol_min==-55], [0, 1], -1)
+    @pytest.fixture
+    def sol_sum(self, chunksizes):
+        sol = np.array(
+            [[nan, nan, -33, -33, nan, nan, nan], [-55, -88, -55, -55, -88, -88, -55], [-33, nan, nan, nan, nan, nan, -33]],  # noqa: E501
+            dtype=np.float64)
+        if chunksizes is not None and chunksizes["x"] == 3:
+            sol[:, 4] = nan
+        return sol
 
-    # count
-    agg = canvas.line(source, x="x", y="name", agg=ds.count())
-    assert_eq_ndarray(agg.x_range, (0, 4), close=True)
-    assert_eq_ndarray(agg.y_range, (0, 2), close=True)
-    assert_eq_ndarray(agg.data, sol_count)
-    assert isinstance(agg.data, cupy.ndarray if on_gpu else np.ndarray)
+    @pytest.fixture
+    def sol_max_row_index(self, chunksizes):
+        sol = np.array(
+            [[-1, -1, 0, 0, -1, -1, -1], [1, 1, 1, 1, 1, 1, 1], [0, -1, -1, -1, -1, -1, 0]],
+            dtype=np.int64)
+        if chunksizes is not None and chunksizes["x"] == 3:
+            sol[:, 4] = -1
+        return sol
 
-    # any
-    agg = canvas.line(source, x="x", y="name", agg=ds.any())
-    assert_eq_ndarray(agg.data, sol_count > 0)
+    @pytest.fixture
+    def sol_min_row_index(self, chunksizes):
+        sol = np.array(
+            [[-1, -1, 0, 0, -1, -1, -1], [1, 0, 1, 1, 0, 0, 1], [0, -1, -1, -1, -1, -1, 0]],
+            dtype=np.int64)
+        if chunksizes is not None and chunksizes["x"] == 3:
+            sol[:, 4] = -1
+        return sol
 
-    # max
-    agg = canvas.line(source, x="x", y="name", agg=ds.max("value"))
-    assert_eq_ndarray(agg.data, sol_max)
+    @pytest.fixture
+    def sol_first(self, sol_min_row_index):
+        return np.select([sol_min_row_index==0, sol_min_row_index==1], value, np.nan)
 
-    # min
-    agg = canvas.line(source, x="x", y="name", agg=ds.min("value"))
-    assert_eq_ndarray(agg.data, sol_min)
+    @pytest.fixture
+    def sol_last(self, sol_max_row_index):
+        return np.select([sol_max_row_index==0, sol_max_row_index==1], value, np.nan)
 
-    # sum
-    agg = canvas.line(source, x="x", y="name", agg=ds.sum("value"))
-    assert_eq_ndarray(agg.data, sol_sum)
+    @pytest.fixture
+    def sol_where_max_other(self, sol_max):
+        return np.select([sol_max==-33, sol_max==-55], other, np.nan)
 
-    # _max_row_index
-    agg = canvas.line(source, x="x", y="name", agg=ds._max_row_index())
-    assert_eq_ndarray(agg.data, sol_max_row_index)
+    @pytest.fixture
+    def sol_where_max_row(self, sol_max):
+        return np.select([sol_max==-33, sol_max==-55], [0, 1], -1)
 
-    # _min_row_index
-    agg = canvas.line(source, x="x", y="name", agg=ds._min_row_index())
-    assert_eq_ndarray(agg.data, sol_min_row_index)
+    @pytest.fixture
+    def sol_where_min_other(self, sol_min):
+        return np.select([sol_min==-33, sol_min==-55], other, np.nan)
 
-    # first
-    agg = canvas.line(source, x="x", y="name", agg=ds.first("value"))
-    assert_eq_ndarray(agg.data, sol_first)
+    @pytest.fixture
+    def sol_where_min_row(self, sol_min):
+        return np.select([sol_min==-33, sol_min==-55], [0, 1], -1)
 
-    # last
-    agg = canvas.line(source, x="x", y="name", agg=ds.last("value"))
-    assert_eq_ndarray(agg.data, sol_last)
+    def test_count(self, canvas, source, sol_count, on_gpu):
+        agg = canvas.line(source, x="x", y="name", agg=ds.count())
+        assert_eq_ndarray(agg.x_range, (0, 4), close=True)
+        assert_eq_ndarray(agg.y_range, (0, 2), close=True)
+        assert_eq_ndarray(agg.data, sol_count)
+        assert isinstance(agg.data, cupy.ndarray if on_gpu else np.ndarray)
 
-    # where(max) returning other row
-    agg = canvas.line(source, x="x", y="name", agg=ds.where(ds.max("value"), "other"))
-    assert_eq_ndarray(agg.data, sol_where_max_other)
+    def test_any(self, canvas, source, sol_count):
+        agg = canvas.line(source, x="x", y="name", agg=ds.any())
+        assert_eq_ndarray(agg.data, sol_count > 0)
 
-    # where(max) returning row index
-    agg = canvas.line(source, x="x", y="name", agg=ds.where(ds.max("value")))
-    assert_eq_ndarray(agg.data, sol_where_max_row)
+    def test_max(self, canvas, source, sol_max):
+        agg = canvas.line(source, x="x", y="name", agg=ds.max("value"))
+        assert_eq_ndarray(agg.data, sol_max)
 
-    # where(min) returning other row
-    agg = canvas.line(source, x="x", y="name", agg=ds.where(ds.min("value"), "other"))
-    assert_eq_ndarray(agg.data, sol_where_min_other)
+    def test_min(self, canvas, source, sol_min):
+        agg = canvas.line(source, x="x", y="name", agg=ds.min("value"))
+        assert_eq_ndarray(agg.data, sol_min)
 
-    # where(min) returning row index
-    agg = canvas.line(source, x="x", y="name", agg=ds.where(ds.min("value")))
-    assert_eq_ndarray(agg.data, sol_where_min_row)
+    def test_sum(self, canvas, source, sol_sum):
+        agg = canvas.line(source, x="x", y="name", agg=ds.sum("value"))
+        assert_eq_ndarray(agg.data, sol_sum)
+
+    def test_max_row_index(self, canvas, source, sol_max_row_index):
+        agg = canvas.line(source, x="x", y="name", agg=ds._max_row_index())
+        assert_eq_ndarray(agg.data, sol_max_row_index)
+
+    def test_min_row_index(self, canvas, source, sol_min_row_index):
+        agg = canvas.line(source, x="x", y="name", agg=ds._min_row_index())
+        assert_eq_ndarray(agg.data, sol_min_row_index)
+
+    def test_first(self, canvas, source, sol_first):
+        agg = canvas.line(source, x="x", y="name", agg=ds.first("value"))
+        assert_eq_ndarray(agg.data, sol_first)
+
+    def test_last(self, canvas, source, sol_last):
+        agg = canvas.line(source, x="x", y="name", agg=ds.last("value"))
+        assert_eq_ndarray(agg.data, sol_last)
+
+    def test_where_max_other(self, canvas, source, sol_where_max_other):
+        agg = canvas.line(source, x="x", y="name", agg=ds.where(ds.max("value"), "other"))
+        assert_eq_ndarray(agg.data, sol_where_max_other)
+
+    def test_where_max_row_index(self, canvas, source, sol_where_max_row):
+        agg = canvas.line(source, x="x", y="name", agg=ds.where(ds.max("value")))
+        assert_eq_ndarray(agg.data, sol_where_max_row)
+
+    def test_where_min_other(self, canvas, source, sol_where_min_other):
+        agg = canvas.line(source, x="x", y="name", agg=ds.where(ds.min("value"), "other"))
+        assert_eq_ndarray(agg.data, sol_where_min_other)
+
+    def test_where_min_row_index(self, canvas, source, sol_where_min_row):
+        agg = canvas.line(source, x="x", y="name", agg=ds.where(ds.min("value")))
+        assert_eq_ndarray(agg.data, sol_where_min_row)
