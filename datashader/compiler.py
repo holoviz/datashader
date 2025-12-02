@@ -460,12 +460,16 @@ def make_append(bases, cols, calls, glyph, antialias):
         signature = ["aa_factor", "prev_aa_factor"] + signature
 
     if ndims is None:
-        code = ('def append(x, y, {0}):\n'
-                '    {1}').format(', '.join(signature), '\n    '.join(body))
+        code = 'def append(x, y, {}):\n    {}'.format(
+            ', '.join(signature),
+            '\n    '.join(body)
+        )
     else:
-        code = ('def append({0}, x, y, {1}):\n'
-                '    {2}'
-                ).format(subscript, ', '.join(signature), '\n    '.join(body))
+        code = 'def append({}, x, y, {}):\n    {}'.format(
+            subscript,
+            ', '.join(signature),
+            '\n    '.join(body)
+        )
     logger.debug(code)
     exec(code, namespace)
     return ngjit(namespace['append']), any_uses_cuda_mutex

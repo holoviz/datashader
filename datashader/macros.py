@@ -116,7 +116,7 @@ def compile_function_ast(fn_ast):
     assert isinstance(fn_ast, ast.Module)
     fndef_ast = fn_ast.body[0]
     assert isinstance(fndef_ast, ast.FunctionDef)
-    return compile(fn_ast, "<%s>" % fndef_ast.name, mode='exec')
+    return compile(fn_ast, f"<{fndef_ast.name}>", mode='exec')
 
 
 def function_ast_to_function(fn_ast, stacklevel=1):

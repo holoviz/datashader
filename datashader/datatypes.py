@@ -143,7 +143,7 @@ class RaggedDtype(ExtensionDtype):
     @classmethod
     def construct_from_string(cls, string):
         if not isinstance(string, str):
-            raise TypeError("'construct_from_string' expects a string, got %s" % type(string))
+            raise TypeError(f"'construct_from_string' expects a string, got {type(string)}")
 
         # lowercase string
         string = string.lower()

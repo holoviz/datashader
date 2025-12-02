@@ -201,9 +201,9 @@ def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
             "Given the memory constraints the resampling operation "
             "could not find a chunksize that avoids loading too much "
             "data into memory. Either relax the memory constraint to "
-            "a minimum of %d bytes or resample to a larger grid size. "
+            f"a minimum of %{min_mem} bytes or resample to a larger grid size. "
             "Note: A future implementation could handle this condition "
-            "by declaring temporary arrays." % min_mem)
+            "by declaring temporary arrays.")
     return ch, cw
 
 

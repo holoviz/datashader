@@ -828,16 +828,14 @@ The axis argument to Canvas.area must be 0 or 1
         if (yarr.ndim > 1 or xarr.ndim > 1) and xarr.dims != yarr.dims:
             raise ValueError("Ensure that x- and y-coordinate arrays "
                              "share the same dimensions. x-coordinates "
-                             "are indexed by %s dims while "
-                             "y-coordinates are indexed by %s dims." %
-                             (xarr.dims, yarr.dims))
+                             f"are indexed by {xarr.dims} dims while "
+                             f"y-coordinates are indexed by {yarr.dims} dims.")
 
         if (name is not None
                 and agg.column is not None
                 and agg.column != name):
-            raise ValueError('DataArray name %r does not match '
-                             'supplied reduction %s.' %
-                             (source.name, agg))
+            raise ValueError(f'DataArray name {source.name!r} does not match '
+                             f'supplied reduction {agg}.')
 
         if xarr.ndim == 1:
             xaxis_linear = self.x_axis is _axis_lookup["linear"]
@@ -1056,38 +1054,38 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
 
         if not isinstance(source, (DataArray, Dataset)):
             raise ValueError('Expected xarray DataArray or Dataset as '
-                             'the data source, found %s.'
-                             % type(source).__name__)
+                             f'the data source, found {type(source).__name__}.')
 
         column = None
         if isinstance(agg, rd.Reduction):
             agg, column = type(agg), agg.column
             if (isinstance(source, DataArray) and column is not None
                 and source.name != column):
-                agg_repr = '%s(%r)' % (agg.__name__, column)
-                raise ValueError('DataArray name %r does not match '
-                                 'supplied reduction %s.' %
-                                 (source.name, agg_repr))
+                agg_repr = f'{agg.__name__}({column!r})'
+                raise ValueError(f'DataArray name {source.name!r} does not match '
+                                 f'supplied reduction {agg_repr}.')
 
         if isinstance(source, Dataset):
             data_vars = list(source.data_vars)
             if column is None:
                 raise ValueError('When supplying a Dataset the agg reduction '
                                  'must specify the variable to aggregate. '
-                                 'Available data_vars include: %r.' % data_vars)
+                                 f'Available data_vars include: {data_vars!r}.')
             elif column not in source.data_vars:
-                raise KeyError('Supplied reduction column %r not found '
+                raise KeyError(f'Supplied reduction column {column!r} not found '
                                'in Dataset, expected one of the following '
-                               'data variables: %r.' % (column, data_vars))
+                               f'data variables: {data_vars!r}.')
             source = source[column]
 
         if agg not in downsample_methods.keys():
-            raise ValueError(f'Invalid aggregation method: options include {list(downsample_methods.keys())}')
+            raise ValueError(
+                f'Invalid aggregation method: options include {list(downsample_methods)}'
+            )
         ds_method = downsample_methods[agg]
 
         if source.ndim not in [2, 3]:
             raise ValueError('Raster aggregation expects a 2D or 3D '
-                             'DataArray, found %s dimensions' % source.ndim)
+                             f'DataArray, found {source.ndim} dimensions')
 
         res = calc_res(source)
         ydim, xdim = source.dims[-2:]

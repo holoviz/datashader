@@ -63,9 +63,9 @@ class Image(xr.DataArray):
         b = BytesIO()
         self.to_pil().save(b, format='png')
 
+        blob = b64encode(b.getvalue()).decode('utf-8')
         h = """<img style="margin: auto; border:""" + str(self.border) + """px solid" """ + \
-            """src='data:image/png;base64,{0}'/>""".\
-                format(b64encode(b.getvalue()).decode('utf-8'))
+            f"""src='data:image/png;base64,{blob}'/>"""
         return h
 
 
