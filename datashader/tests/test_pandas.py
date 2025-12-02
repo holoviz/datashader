@@ -2800,75 +2800,102 @@ class TestLineAntialias:
 
 
 
-def test_line_antialias_summary():
-    kwargs = dict(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], line_width=1)
+class TestLineAntialiasSummary:
 
-    x_range = y_range = (-0.1875, 1.1875)
-    cvs = ds.Canvas(plot_width=11, plot_height=11, x_range=x_range, y_range=y_range)
+    @pytest.fixture
+    def cvs(self):
+        x_range = y_range = (-0.1875, 1.1875)
+        return ds.Canvas(plot_width=11, plot_height=11, x_range=x_range, y_range=y_range)
 
-    # Precalculate expected solutions
-    sol_count = nansum(line_antialias_sol_0, line_antialias_sol_1)
-    sol_count_intersect = nansum(line_antialias_sol_0_intersect, line_antialias_sol_1)
-    sol_min = 3*nanmin(line_antialias_sol_0, line_antialias_sol_1)
-    sol_first = 3*np.where(np.isnan(line_antialias_sol_0), line_antialias_sol_1,
-                           line_antialias_sol_0)
-    sol_last = 3*np.where(np.isnan(line_antialias_sol_1), line_antialias_sol_0,
+    @pytest.fixture
+    def line_kwargs(self):
+        return dict(source=line_antialias_df, x=["x0", "x1"], y=["y0", "y1"], line_width=1)
+
+    @pytest.fixture
+    def sol_count(self):
+        return nansum(line_antialias_sol_0, line_antialias_sol_1)
+
+    @pytest.fixture
+    def sol_count_intersect(self):
+        return nansum(line_antialias_sol_0_intersect, line_antialias_sol_1)
+
+    @pytest.fixture
+    def sol_min(self):
+        return 3*nanmin(line_antialias_sol_0, line_antialias_sol_1)
+
+    @pytest.fixture
+    def sol_first(self):
+        return 3*np.where(np.isnan(line_antialias_sol_0), line_antialias_sol_1,
+                          line_antialias_sol_0)
+
+    @pytest.fixture
+    def sol_last(self):
+        return 3*np.where(np.isnan(line_antialias_sol_1), line_antialias_sol_0,
                           line_antialias_sol_1)
 
-    # Summary of count and sum using self_intersect=True
-    agg = cvs.line(
-        agg=ds.summary(
-            count=ds.count("value", self_intersect=True),
-            sum=ds.sum("value", self_intersect=True),
-        ), **kwargs)
-    assert_eq_ndarray(agg["count"].data, sol_count_intersect, close=True)
-    assert_eq_ndarray(agg["sum"].data, 3*sol_count_intersect, close=True)
+    def test_summary_count_sum_intersect_true(self, cvs, line_kwargs, sol_count_intersect):
+        agg = cvs.line(
+            agg=ds.summary(
+                count=ds.count("value", self_intersect=True),
+                sum=ds.sum("value", self_intersect=True),
+            ), **line_kwargs)
+        assert_eq_ndarray(agg["count"].data, sol_count_intersect, close=True)
+        assert_eq_ndarray(agg["sum"].data, 3*sol_count_intersect, close=True)
 
-    # Summary of count and sum using self_intersect=False
-    agg = cvs.line(
-        agg=ds.summary(
-            count=ds.count("value", self_intersect=False),
-            sum=ds.sum("value", self_intersect=False),
-        ), **kwargs)
-    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
-    assert_eq_ndarray(agg["sum"].data, 3*sol_count, close=True)
+    def test_summary_count_sum_intersect_false(self, cvs, line_kwargs, sol_count):
+        agg = cvs.line(
+            agg=ds.summary(
+                count=ds.count("value", self_intersect=False),
+                sum=ds.sum("value", self_intersect=False),
+            ), **line_kwargs)
+        assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+        assert_eq_ndarray(agg["sum"].data, 3*sol_count, close=True)
 
-    # Summary of count/sum with mix of self_intersect will force self_intersect=False for both
-    agg = cvs.line(
-        agg=ds.summary(
-            count=ds.count("value", self_intersect=True),
-            sum=ds.sum("value", self_intersect=False),
-        ), **kwargs)
-    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
-    assert_eq_ndarray(agg["sum"].data, 3*sol_count, close=True)
+    def test_summary_count_sum_intersect_mixed(self, cvs, line_kwargs, sol_count):
+        agg = cvs.line(
+            agg=ds.summary(
+                count=ds.count("value", self_intersect=True),
+                sum=ds.sum("value", self_intersect=False),
+            ), **line_kwargs)
+        assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+        assert_eq_ndarray(agg["sum"].data, 3*sol_count, close=True)
 
-    # min, first and last also force use of self_intersect=False
-    agg = cvs.line(
-        agg=ds.summary(
-            count=ds.count("value", self_intersect=True),
-            min=ds.min("value"),
-        ), **kwargs)
-    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
-    assert_eq_ndarray(agg["min"].data, sol_min, close=True)
+    def test_summary_count_min(self, cvs, line_kwargs, sol_count, sol_min):
+        agg = cvs.line(
+            agg=ds.summary(
+                count=ds.count("value", self_intersect=True),
+                min=ds.min("value"),
+            ), **line_kwargs)
+        assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+        assert_eq_ndarray(agg["min"].data, sol_min, close=True)
 
-    agg = cvs.line(
-        agg=ds.summary(
-            count=ds.count("value", self_intersect=True),
-            first=ds.first("value"),
-        ), **kwargs)
-    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
-    assert_eq_ndarray(agg["first"].data, sol_first, close=True)
+    def test_summary_count_first(self, cvs, line_kwargs, sol_count, sol_first):
+        agg = cvs.line(
+            agg=ds.summary(
+                count=ds.count("value", self_intersect=True),
+                first=ds.first("value"),
+            ), **line_kwargs)
+        assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+        assert_eq_ndarray(agg["first"].data, sol_first, close=True)
 
-    agg = cvs.line(
-        agg=ds.summary(
-            count=ds.count("value", self_intersect=True),
-            last=ds.last("value"),
-        ), **kwargs)
-    assert_eq_ndarray(agg["count"].data, sol_count, close=True)
-    assert_eq_ndarray(agg["last"].data, sol_last, close=True)
+    def test_summary_count_last(self, cvs, line_kwargs, sol_count, sol_last):
+        agg = cvs.line(
+            agg=ds.summary(
+                count=ds.count("value", self_intersect=True),
+                last=ds.last("value"),
+            ), **line_kwargs)
+        assert_eq_ndarray(agg["count"].data, sol_count, close=True)
+        assert_eq_ndarray(agg["last"].data, sol_last, close=True)
 
-    assert_eq_ndarray(agg.x_range, x_range, close=True)
-    assert_eq_ndarray(agg.y_range, y_range, close=True)
+    def test_ranges(self, cvs, line_kwargs):
+        x_range = y_range = (-0.1875, 1.1875)
+        agg = cvs.line(
+            agg=ds.summary(
+                count=ds.count("value", self_intersect=True),
+                last=ds.last("value"),
+            ), **line_kwargs)
+        assert_eq_ndarray(agg.x_range, x_range, close=True)
+        assert_eq_ndarray(agg.y_range, y_range, close=True)
 
 
 line_antialias_nan_sol_intersect = np.array([
