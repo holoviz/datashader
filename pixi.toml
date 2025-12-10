@@ -1,6 +1,6 @@
 [workspace]
 name = "datashader"
-channels = ["pyviz/label/dev", "numba/label/dev", "conda-forge"]
+channels = ["pyviz/label/dev", "conda-forge"]
 platforms = ["linux-64", "osx-arm64", "win-64"]
 
 [tasks]
@@ -16,7 +16,7 @@ test-310 = ["py310", "test-core", "optional", "test-example", "test-unit-task"]
 test-311 = ["py311", "test-core", "optional", "test-example", "test-unit-task"]
 test-312 = ["py312", "test-core", "optional", "test-example", "test-unit-task"]
 test-313 = ["py313", "test-core", "optional", "test-example", "test-unit-task"]
-test-314 = ["py314", "test-core", "optional-314", "test-example", "test-unit-task"]
+test-314 = ["py314", "test-core", "optional", "test-example", "test-unit-task"]
 test-core = ["py314", "test-core", "test-unit-task"]
 test-gpu = ["py312", "test-core", "test-gpu"]
 docs = ["py311", "optional", "doc"]
@@ -27,8 +27,8 @@ lint = ["py311", "lint"]
 nomkl = "*"
 pip = "*"
 # Required
-numba = { version = "*", channel = "numba/label/dev" }
-llvmlite = { version = "*", channel = "numba/label/dev" }
+numba = "*"
+llvmlite = "*"
 colorcet = "*"
 multipledispatch = "*"
 numpy = "*"
@@ -71,6 +71,7 @@ bokeh_sampledata = "*"
 dask-core = "*"
 dask-geopandas = "*"
 fastparquet = "*"
+fiona = "*"
 geodatasets = "*"
 geopandas-base = "*"
 graphviz = "*"
@@ -82,7 +83,6 @@ networkx = "*"
 panel = ">1.1"
 pillow = "*"
 pyarrow = "*"
-pyogrio = "*"
 pyproj = "*"
 python-graphviz = "*"
 python-snappy = "*"
@@ -91,35 +91,6 @@ rioxarray = "*"
 scikit-image = "*"
 shapely = ">=2.0.0"
 spatialpandas = "*"
-streamz = "*"
-
-[feature.optional-314.dependencies]
-bokeh = ">3.1"
-bokeh_sampledata = "*"
-dask-core = "*"
-dask-geopandas = "*"
-fastparquet = "*"
-geodatasets = "*"
-geopandas-base = "*"
-graphviz = "*"
-holoviews = "*"
-hvsampledata = ">=0.1.5a3"
-matplotlib-base = ">=3.3"
-netcdf4 = "*"
-networkx = "*"
-panel = ">1.1"
-pillow = "*"
-pyarrow = "*"
-# pyogrio = "*"
-pyproj = "*"
-python-graphviz = "*"
-python-snappy = "*"
-rasterio = "*"
-rioxarray = "*"
-scikit-image = "*"
-shapely = ">=2.0.0"
-spatialpandas = "*"
-# streamz = "*"
 
 # =============================================
 # =================== TESTS ===================
