@@ -79,7 +79,7 @@ def _dask_cudf_DataFrame(*args, **kwargs):
         # As of dask-cudf version 24.06, dask-cudf is not
         # compatible with spatialpandas version 0.4.10
         pytest.skip("dask-cudf currently does not work with spatialpandas")
-    cdf = cudf.DataFrame.from_pandas(pd.DataFrame(*args, **kwargs), nan_as_null=False)
+    cdf = cudf.DataFrame(pd.DataFrame(*args, **kwargs), nan_as_null=False)
     return dask_cudf.from_cudf(cdf, npartitions=2)
 
 

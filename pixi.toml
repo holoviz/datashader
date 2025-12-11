@@ -124,10 +124,9 @@ NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS = '0'
 
 [feature.test-gpu.dependencies]
 cuda-version = "12.2.*"
-cudf = "25.10.*"
+cudf = "25.12.*"
 cupy = "*"
 dask-cudf = "*"
-dask-expr = "*"
 librmm = { version = "*", channel = "rapidsai" }
 rmm = { version = "*", channel = "rapidsai" }
 

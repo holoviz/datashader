@@ -42,12 +42,12 @@ class Line:
             self.df = dd.from_pandas(self.df, npartitions=4)
         elif data_library == DataLibrary.CuDF:
             if cudf:
-                self.df = cudf.DataFrame.from_pandas(self.df)
+                self.df = cudf.DataFrame(self.df)
             else:
                 raise NotImplementedError("CuDF not available")
         elif data_library == DataLibrary.DaskCuDF:
             if dask_cudf:
-                cdf = cudf.DataFrame.from_pandas(self.df)
+                cdf = cudf.DataFrame(self.df)
                 self.df = dask_cudf.from_cudf(cdf, npartitions=4)
             else:
                 raise NotImplementedError("Dask-cuDF not available")
