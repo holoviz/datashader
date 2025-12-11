@@ -60,7 +60,7 @@ def _pandas():
 
 
 def _cudf():
-    return cudf.DataFrame.from_pandas(_pandas())
+    return cudf.DataFrame(_pandas())
 
 
 _backends = [
@@ -84,7 +84,7 @@ def _cudf_DataFrame(*args, **kwargs):
     import cudf
     if kwargs.pop("geo", False):
         pytest.skip("cudf currently does not work with spatialpandas")
-    return cudf.DataFrame.from_pandas(
+    return cudf.DataFrame(
         pd.DataFrame(*args, **kwargs), nan_as_null=False
     )
 
@@ -187,7 +187,7 @@ def test_cudf_concat():
 
     with pytest.raises(NotImplementedError):
         dfp = pd.DataFrame({'y': [0, 1]})
-        dfc = cudf.from_pandas(dfp)
+        dfc = cudf.DataFrame(dfp)
         cudf.concat((dfc["y"], dfc["y"]), axis=1)
 
 
