@@ -970,3 +970,31 @@ def test_rectilinear_extra_padding():
 
     actual_reversed = cvs.quadmesh(da.isel(x=slice(5, 2, -1), y=slice(4, 1, -1)), x="x", y="y")
     assert_eq_xr(actual, actual_reversed)
+
+
+@pytest.mark.parametrize('xp', array_modules)
+def test_quadmesh_3d(rng, xp):
+    cvs = ds.Canvas(
+        plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
+    )
+
+    N = 100
+    band = [0, 1, 2]
+    data = xp.array(rng.random((N, N, len(band))))
+    da = xr.DataArray(
+        data,
+        coords={
+            "x": np.linspace(-1, 1, N),
+            "y": np.linspace(-1, 1, N),
+            "band": band,
+        },
+        dims=("y", "x", "band"),
+        name="foo"
+    )
+    agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
+
+    for n in band:
+        output = agg_3d.isel(band=n)
+        expected = cvs.quadmesh(da.isel(band=n))
+        expected = expected.assign_coords(band=n)
+        assert_eq_xr(output, expected)

@@ -15,6 +15,11 @@ from xarray import DataArray
 import datashader.datashape as datashape
 
 try:
+    import dask.array as da
+except ImportError:
+    da = None
+
+try:
     import dask.dataframe as dd
 except ImportError:
     dd = None
@@ -23,6 +28,11 @@ try:
     from datashader.datatypes import RaggedDtype
 except ImportError:
     RaggedDtype = type(None)
+
+try:
+    import cupy as cp
+except Exception:
+    cp = None
 
 try:
     import cudf
@@ -1017,3 +1027,20 @@ def uint32_to_uint8(img):
 def uint8_to_uint32(img):
     """Cast a 4-channel uint8 RGBA array to uint32 raster"""
     return img.view(dtype=np.uint32).reshape(img.shape[:-1])
+
+
+def get_array_namespace(array):
+    if cp and isinstance(array, cp.ndarray):
+        return cp
+    elif da and isinstance(array, da.Array):
+        return da
+    elif array_namespace := getattr(array, "__array_namespace__", None):
+        return array_namespace()
+    elif isinstance(array, np.ndarray):
+        return np
+    else:
+        raise TypeError(
+            "Unsupported array type. "
+            "Expected a NumPy, Dask, CuPy, or other array-like object with an "
+            "__array_namespace__ method."
+        )
