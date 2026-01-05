@@ -117,6 +117,8 @@ def _extract_points_from_nodes(nodes, params, dtype=None, rng=None):
 
     if params.x in nodes.columns and params.y in nodes.columns:
         points = np.asarray(nodes[[params.x, params.y]])
+        if not points.flags.writeable: # Pandas 3's Copy-On-Write
+            points = points.copy()
     else:
         points = np.asarray(rng.random((len(nodes), params.dim)), dtype=dtype)
     return points
