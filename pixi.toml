@@ -16,8 +16,8 @@ test-310 = ["py310", "test-core", "optional", "test-example", "test-unit-task"]
 test-311 = ["py311", "test-core", "optional", "test-example", "test-unit-task"]
 test-312 = ["py312", "test-core", "optional", "test-example", "test-unit-task"]
 test-313 = ["py313", "test-core", "optional", "test-example", "test-unit-task"]
-test-314 = ["py314", "test-core", "optional", "test-example", "test-unit-task"]
-test-core = ["py314", "test-core", "test-unit-task"]
+test-314 = ["py314", "test-core", "optional", "test-example", "test-unit-task", "pandas3"]
+test-core = ["py314", "test-core", "test-unit-task", "pandas3"]
 test-gpu = ["py312", "test-core", "test-gpu"]
 docs = ["py311", "optional", "doc"]
 build = ["py311", "build"]
@@ -64,6 +64,12 @@ python = "3.14.*"
 
 [feature.py314.activation.env]
 COVERAGE_CORE = "sysmon"
+
+[feature.pandas3]
+channels = ["conda-forge/label/pandas_rc"]
+
+[feature.pandas3.dependencies]
+pandas = { version = "3.0.*", channel = "conda-forge/label/pandas_rc" }
 
 [feature.optional.dependencies]
 bokeh = ">3.1"
