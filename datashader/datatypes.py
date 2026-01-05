@@ -15,6 +15,7 @@ from numbers import Integral
 
 from pandas.api.types import pandas_dtype, is_extension_array_dtype
 
+PANDAS_VERSION = Version(pd.__version__).release
 
 try:
     # See if we can register extension type with dask >= 1.1.0
@@ -419,7 +420,10 @@ Cannot check equality of RaggedArray of length {len(self)} with:
             for selected_index in selected_indices:
                 data.append(self[selected_index])
 
-            return RaggedArray(data, dtype=self.flat_array.dtype)
+            arr = RaggedArray(data, dtype=self.flat_array.dtype)
+            if hasattr(self, "_readonly"):
+                arr._readonly = self._readonly
+            return arr
 
         elif isinstance(item, (np.ndarray, ExtensionArray, list, tuple)):
             if isinstance(item, (np.ndarray, ExtensionArray)):
@@ -443,7 +447,7 @@ Cannot check equality of RaggedArray of length {len(self)} with:
                 # check for NA values
                 isna = pd.isna(item)
                 if isna.any():
-                    if Version(pd.__version__) > Version('1.0.1'):
+                    if PANDAS_VERSION > (1, 0, 1):
                         item[isna] = False
                     else:
                         raise ValueError(
@@ -456,7 +460,10 @@ Cannot check equality of RaggedArray of length {len(self)} with:
                     if m:
                         data.append(self[i])
 
-                return RaggedArray(data, dtype=self.flat_array.dtype)
+                arr = RaggedArray(data, dtype=self.flat_array.dtype)
+                if hasattr(self, "_readonly"):
+                    arr._readonly = self._readonly
+                return arr
             elif kind in ('i', 'u'):
                 if any(pd.isna(item)):
                     raise ValueError(
@@ -496,12 +503,18 @@ Cannot check equality of RaggedArray of length {len(self)} with:
             [_RaggedElement.array_or_nan(v) for v in uniques],
             dtype=self.dtype)
 
-    def fillna(self, value=None, method=None, limit=None):
+    def fillna(self, value=None, method=None, limit=None, copy=True):
         # Override in RaggedArray to handle ndarray fill values
         from pandas.util._validators import validate_fillna_kwargs
         from pandas.core.missing import get_fill_func
 
-        value, method = validate_fillna_kwargs(value, method)
+        if getattr(self, "_readonly", None) and not copy:
+            raise ValueError("Cannot modify read-only array")
+
+        if value is not None or method is not None:
+            value, method = validate_fillna_kwargs(value, method)
+        else:
+            return self if copy else self.copy()
 
         mask = self.isna()
 
@@ -514,8 +527,10 @@ Cannot check equality of RaggedArray of length {len(self)} with:
         if mask.any():
             if method is not None:
                 func = get_fill_func(method)
-                new_values = func(self.astype(object), limit=limit,
-                                  mask=mask)
+                kwargs = {"limit": limit, "mask": mask}
+                if PANDAS_VERSION >= (3, 0, 0):
+                    kwargs["copy"] = copy
+                new_values = func(self.astype(object), **kwargs)
                 new_values = self._from_sequence(new_values, dtype=self.dtype)
             else:
                 # fill with value
@@ -526,7 +541,7 @@ Cannot check equality of RaggedArray of length {len(self)} with:
 
                 new_values = self._from_sequence(new_values, dtype=self.dtype)
         else:
-            new_values = self.copy()
+            new_values = self.copy() if copy else self
         return new_values
 
     def shift(self, periods=1, fill_value=None):
