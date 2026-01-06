@@ -514,7 +514,7 @@ Cannot check equality of RaggedArray of length {len(self)} with:
         if value is not None or method is not None:
             value, method = validate_fillna_kwargs(value, method)
         else:
-            return self if copy else self.copy()
+            return self.copy() if copy else self
 
         mask = self.isna()
 
