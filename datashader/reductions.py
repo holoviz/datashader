@@ -2148,9 +2148,15 @@ class summary(Expr):
     performed in two stages.
     """
     def __init__(self, **kwargs):
-        ks, vs = zip(*sorted(kwargs.items()))
-        self.keys = ks
-        self.values = vs
+        self._collection = kwargs
+
+    @property
+    def keys(self):
+        return list(self._collection)
+
+    @property
+    def values(self):
+        return list(self._collection.values())
 
     def __hash__(self):
         return hash((type(self), tuple(self.keys), tuple(self.values)))
