@@ -147,12 +147,56 @@ class QuadMeshRectilinear(_QuadMeshLike):
             if i < (xs.shape[0] - 1) and j < (ys.shape[0] - 1):
                 perform_extend(i, j, xs, ys, shape, *aggs_and_cols)
 
-        @ngjit
-        @self.expand_aggs_and_cols(append)
-        def extend_cpu(xs, ys, shape, *aggs_and_cols):
-            for i in range(len(xs) - 1):
-                for j in range(len(ys) - 1):
-                    perform_extend(i, j, xs, ys, shape, *aggs_and_cols)
+        def make_extend_cpu(is_3d, n_arrays):
+            """
+            Create extend_cpu function for 2D or 3D data.
+
+            For 3D, n_arrays is the total number of arrays (aggs + cols).
+            - n_arrays=2: simple reduction (1 agg + 1 col), e.g., sum, min, max
+            - n_arrays=3: compound reduction (2 aggs + 1 col), e.g., mean, std, var
+
+            Note: We use explicit parameters for 3D instead of a decorator because:
+            - Numba requires compile-time knowledge of function signatures
+            - We need to slice arrays at dimension z, which requires explicit access
+            - Closures and dynamic code generation don't work well with numba's compilation
+            """
+            if is_3d:
+                # Use explicit parameters and prange for parallel execution
+                if n_arrays == 2:
+                    @ngjit_parallel
+                    def extend_cpu_3d(xs, ys, shape, nz, agg, col):
+                        for z in prange(nz):
+                            for i in range(len(xs) - 1):
+                                for j in range(len(ys) - 1):
+                                    perform_extend(i, j, xs, ys, shape, agg[z], col[z])
+                elif n_arrays == 3:
+                    @ngjit_parallel
+                    def extend_cpu_3d(xs, ys, shape, nz, agg0, agg1, col):
+                        for z in prange(nz):
+                            for i in range(len(xs) - 1):
+                                for j in range(len(ys) - 1):
+                                    perform_extend(i, j, xs, ys, shape, agg0[z], agg1[z], col[z])
+                elif n_arrays == 4:
+                    @ngjit_parallel
+                    def extend_cpu_3d(xs, ys, shape, nz, agg0, agg1, agg2, col):
+                        for z in prange(nz):
+                            for i in range(len(xs) - 1):
+                                for j in range(len(ys) - 1):
+                                    perform_extend(i, j, xs, ys, shape, agg0[z], agg1[z], agg2[z], col[z])
+                else:
+                    raise NotImplementedError(
+                        f"3D quadmesh with {n_arrays} arrays not yet supported. "
+                        f"Only 2 (simple), 3 (compound), or 4 arrays are supported."
+                    )
+                return extend_cpu_3d
+            else:
+                @ngjit
+                @self.expand_aggs_and_cols(append)
+                def extend_cpu_2d(xs, ys, shape, *aggs_and_cols):
+                    for i in range(len(xs) - 1):
+                        for j in range(len(ys) - 1):
+                            perform_extend(i, j, xs, ys, shape, *aggs_and_cols)
+                return extend_cpu_2d
 
         def extend(aggs, xr_ds, vt, bounds, x_breaks=None, y_breaks=None):
             from datashader.core import LinearAxis
@@ -228,7 +272,15 @@ class QuadMeshRectilinear(_QuadMeshLike):
             if xm0 == xm1 or ym0 == ym1:
                 return
 
-            plot_height, plot_width = aggs[0].shape[:2]
+            # Check if this is 3D quadmesh FIRST
+            is_3d = aggs[0].ndim == 3
+
+            if is_3d:
+                # 3D case: agg shape is (nz, height, width)
+                nz, plot_height, plot_width = aggs[0].shape
+            else:
+                # 2D case: agg shape is (height, width)
+                plot_height, plot_width = aggs[0].shape
 
             # Downselect xs and ys and convert to int
             xs = xscaled[xm0:xm1 + 1]
@@ -240,18 +292,41 @@ class QuadMeshRectilinear(_QuadMeshLike):
             ys *= plot_height
             ys = ys.astype(int)
             np.clip(ys, 0, plot_height, out=ys)
-            # For input "column", down select to valid range
-            cols_full = info(xr_ds.transpose(y_name, x_name), aggs[0].shape[:2])
-            cols = tuple([c[ym0:ym1, xm0:xm1] for c in cols_full])
 
-            aggs_and_cols = aggs + cols
+            if is_3d:
+                # For input "column", down select to valid range
+                # info extracts data with shape (nz, ny, nx) after transpose(..., y, x)
+                cols_full = info(xr_ds.transpose(..., y_name, x_name), aggs[0].shape)
+                cols = tuple([c[:, ym0:ym1, xm0:xm1] for c in cols_full])
 
-            if use_cuda:
-                do_extend = extend_cuda[cuda_args(xr_ds[name].shape)]
+                # Combine all aggs and cols (for compound reductions like mean)
+                aggs_and_cols = aggs + cols
+
+                # Use 3D version of extend_cpu
+                if use_cuda:
+                    # TODO: Implement CUDA path for 3D
+                    raise NotImplementedError("CUDA not yet supported for 3D quadmesh")
+                else:
+                    do_extend = make_extend_cpu(is_3d=True, n_arrays=len(aggs_and_cols))
+
+                # Pass full 3D arrays - loop over z happens inside numba function
+                do_extend(xs, ys, (plot_height, plot_width), nz, *aggs_and_cols)
             else:
-                do_extend = extend_cpu
+                # 2D case: agg shape is (height, width)
+                plot_height, plot_width = aggs[0].shape
 
-            do_extend(xs, ys, tuple(aggs[0].shape), *aggs_and_cols)
+                # For input "column", down select to valid range
+                cols_full = info(xr_ds.transpose(y_name, x_name), aggs[0].shape)
+                cols = tuple([c[ym0:ym1, xm0:xm1] for c in cols_full])
+
+                aggs_and_cols = aggs + cols
+
+                if use_cuda:
+                    do_extend = extend_cuda[cuda_args(xr_ds[name].shape)]
+                else:
+                    do_extend = make_extend_cpu(is_3d=False, n_arrays=len(aggs_and_cols))
+
+                do_extend(xs, ys, (plot_height, plot_width), *aggs_and_cols)
 
         return extend
 

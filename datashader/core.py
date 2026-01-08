@@ -835,8 +835,8 @@ The axis argument to Canvas.area must be 0 or 1
             raise ValueError(f'DataArray name {source.name!r} does not match '
                              f'supplied reduction {agg}.')
 
-        if source[name].ndim == 3:
-            return self._quadmesh_3d(source, x, y, name, xarr, yarr, agg)
+        # if source[name].ndim == 3:
+        #     return self._quadmesh_3d(source, x, y, name, xarr, yarr, agg)
         return self._quadmesh_2d(source, x, y, name, xarr, yarr, agg)
 
     def _quadmesh_2d(self, source, x, y, name, xarr, yarr, agg):
