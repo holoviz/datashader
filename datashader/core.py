@@ -780,7 +780,23 @@ The axis argument to Canvas.area must be 0 or 1
         return bypixel(source, self, glyph, agg)
 
     def quadmesh(self, source, x=None, y=None, agg=None):
-        """Samples a recti- or curvi-linear quadmesh by canvas size and bounds.
+        r"""Samples a raster, rectilinear or curvilinear quadmesh by canvas size and bounds.
+
+        +---------------------+---------------------+---------------------+
+        |   RASTER            |   RECTILINEAR       |   CURVILINEAR       |
+        +---------------------+---------------------+---------------------+
+        | Regular spacing     | Variable spacing    | Variable 2D spacing |
+        | o---o---o---o---o   | o-o---o----o-o      |    o---o---o---o    |
+        | |   |   |   |   |   | | |   |    | |      |   /   /   /   /     |
+        | o---o---o---o---o   | o-o---o----o-o      |  o----o--o---o      |
+        | |   |   |   |   |   | | |   |    | |      | /   /    /  /       |
+        | o---o---o---o---o   | o-o---o----o-o      | o--o----o---o       |
+        | |   |   |   |   |   | | |   |    | |      |  \   \    \  \      |
+        | o---o---o---o---o   | o-o---o----o-o      |   o---o---o---o     |
+        | `dx = dy = constant`  | `dx` & `dy` vary in 1D  | `dx` & `dy` vary in 2D  |
+        | `x[i] = i * dx`       | `x[i], y[j]`          | `x[i,j], y[i,j]`      |
+        | `y[j] = j * dy`       |                     |                     |
+        +---------------------+---------------------+---------------------+
 
         Parameters
         ----------
@@ -795,6 +811,10 @@ The axis argument to Canvas.area must be 0 or 1
         Returns
         -------
         data : xarray.DataArray
+
+        Note
+        ----
+        Table from EarthMover
         """
         # Determine reduction operation
         from .reductions import mean as mean_rnd
