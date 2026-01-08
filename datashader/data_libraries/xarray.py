@@ -35,7 +35,13 @@ def xarray_pipeline(xr_ds, schema, canvas, glyph, summary, *, antialias=False):
 
 
 def quadmesh_default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=False):
-    third_dim = next(iter(source.coords.keys() - {glyph.x, glyph.y}), None)
+    # Get the dimensions used by the x and y coordinates
+    # For rectilinear, glyph.x/y are 1D dimension names (e.g., 'x', 'y')
+    # For curvilinear, glyph.x/y are 2D coordinate names (e.g., 'lon', 'lat')
+    x_dims = set(source.coords[glyph.x].dims) if glyph.x in source.coords else {glyph.x}
+    y_dims = set(source.coords[glyph.y].dims) if glyph.y in source.coords else {glyph.y}
+    coord_dims = x_dims | y_dims
+    third_dim = next(iter(set(source.dims) - coord_dims), None)
     if not third_dim:
         return default(glyph, source, schema, canvas, summary, antialias=antialias, cuda=cuda)
 
