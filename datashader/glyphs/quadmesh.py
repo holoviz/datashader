@@ -746,6 +746,84 @@ class QuadMeshCurvilinear(_QuadMeshLike):
                         xverts, yverts, yincreasing, eligible, intersect, *aggs_and_cols
                     )
 
+        def make_extend_cpu_3d(n_arrays):
+            """
+            Create extend_cpu function for 3D data (curvilinear case).
+
+            n_arrays is the total number of arrays (aggs + cols).
+            - n_arrays=2: simple reduction (1 agg + 1 col), e.g., sum, min, max
+            - n_arrays=3: compound reduction (2 aggs + 1 col), e.g., mean, std, var
+            - n_arrays=4: compound reduction (3 aggs + 1 col), e.g., var with mean
+
+            Note: We use explicit parameters instead of a decorator because:
+            - Numba requires compile-time knowledge of function signatures
+            - We need to slice arrays at dimension z, which requires explicit access
+            """
+            # Use explicit parameters and prange for parallel execution
+            if n_arrays == 2:
+                @ngjit_parallel
+                def extend_cpu_3d(plot_height, plot_width, xs, ys, nz, agg, col):
+                    y_len, x_len = xs.shape
+                    for z in prange(nz):
+                        # Allocate arrays per thread to avoid race conditions
+                        xverts = np.zeros(5, dtype=np.int32)
+                        yverts = np.zeros(5, dtype=np.int32)
+                        yincreasing = np.zeros(4, dtype=np.int8)
+                        eligible = np.ones(4, dtype=np.int8)
+                        intersect = np.zeros(4, dtype=np.int8)
+
+                        for j in range(y_len - 1):
+                            for i in range(x_len - 1):
+                                perform_extend(
+                                    i, j, plot_height, plot_width, xs, ys,
+                                    xverts, yverts, yincreasing, eligible, intersect,
+                                    agg[z], col[z]
+                                )
+            elif n_arrays == 3:
+                @ngjit_parallel
+                def extend_cpu_3d(plot_height, plot_width, xs, ys, nz, agg0, agg1, col):
+                    y_len, x_len = xs.shape
+                    for z in prange(nz):
+                        # Allocate arrays per thread to avoid race conditions
+                        xverts = np.zeros(5, dtype=np.int32)
+                        yverts = np.zeros(5, dtype=np.int32)
+                        yincreasing = np.zeros(4, dtype=np.int8)
+                        eligible = np.ones(4, dtype=np.int8)
+                        intersect = np.zeros(4, dtype=np.int8)
+
+                        for j in range(y_len - 1):
+                            for i in range(x_len - 1):
+                                perform_extend(
+                                    i, j, plot_height, plot_width, xs, ys,
+                                    xverts, yverts, yincreasing, eligible, intersect,
+                                    agg0[z], agg1[z], col[z]
+                                )
+            elif n_arrays == 4:
+                @ngjit_parallel
+                def extend_cpu_3d(plot_height, plot_width, xs, ys, nz, agg0, agg1, agg2, col):
+                    y_len, x_len = xs.shape
+                    for z in prange(nz):
+                        # Allocate arrays per thread to avoid race conditions
+                        xverts = np.zeros(5, dtype=np.int32)
+                        yverts = np.zeros(5, dtype=np.int32)
+                        yincreasing = np.zeros(4, dtype=np.int8)
+                        eligible = np.ones(4, dtype=np.int8)
+                        intersect = np.zeros(4, dtype=np.int8)
+
+                        for j in range(y_len - 1):
+                            for i in range(x_len - 1):
+                                perform_extend(
+                                    i, j, plot_height, plot_width, xs, ys,
+                                    xverts, yverts, yincreasing, eligible, intersect,
+                                    agg0[z], agg1[z], agg2[z], col[z]
+                                )
+            else:
+                raise NotImplementedError(
+                    f"3D quadmesh curvilinear with {n_arrays} arrays not yet supported. "
+                    f"Only 2 (simple), 3 (compound), or 4 arrays are supported."
+                )
+            return extend_cpu_3d
+
         def extend(aggs, xr_ds, vt, bounds, x_breaks=None, y_breaks=None):
             from datashader.core import LinearAxis
             use_cuda = cupy and isinstance(xr_ds[name].data, cupy.ndarray)
@@ -788,7 +866,18 @@ class QuadMeshCurvilinear(_QuadMeshLike):
                 yscaled = y_mapper2(y_breaks)
             yscaled -= y0
 
-            plot_height, plot_width = aggs[0].shape[:2]
+            # Check if this is 3D quadmesh
+            # For curvilinear, aggs can be 3D even for 2D input (one agg per data row)
+            # so we check the input data dimensions instead
+            is_3d = xr_ds[name].ndim == 3
+
+            if is_3d:
+                # 3D case: agg shape is (nz, height, width)
+                nz, plot_height, plot_width = aggs[0].shape
+            else:
+                # 2D case: agg shape is (height, width)
+                # Use shape[:2] to handle potential extra dimensions
+                plot_height, plot_width = aggs[0].shape[:2]
 
             # dtype here matches that in perform_extend
             xp = cupy if use_cuda else np
@@ -798,14 +887,33 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             xp.multiply(yscaled, plot_height/yspan, casting="unsafe", out=ys)
 
             coord_dims = xr_ds.coords[x_name].dims
-            aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims), aggs[0].shape[:2])
-            if use_cuda:
-                do_extend = extend_cuda[cuda_args(xr_ds[name].shape)]
-            else:
-                do_extend = extend_cpu
 
-            do_extend(
-                plot_height, plot_width, xs, ys, *aggs_and_cols
-            )
+            if is_3d:
+                # For 3D, need to get full 3D shape for info call
+                # info extracts data with shape matching aggs[0].shape
+                # Use ... to handle the band dimension
+                cols = info(xr_ds.transpose(..., *coord_dims), aggs[0].shape)
+                aggs_and_cols = aggs + cols
+
+                # Use 3D version of extend_cpu
+                if use_cuda:
+                    # TODO: Implement CUDA path for 3D curvilinear
+                    raise NotImplementedError("CUDA not yet supported for 3D quadmesh curvilinear")
+                else:
+                    do_extend = make_extend_cpu_3d(n_arrays=len(aggs_and_cols))
+
+                # Pass full 3D arrays - loop over z happens inside numba function
+                do_extend(plot_height, plot_width, xs, ys, nz, *aggs_and_cols)
+            else:
+                # 2D case
+                aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims), aggs[0].shape[:2])
+                if use_cuda:
+                    do_extend = extend_cuda[cuda_args(xr_ds[name].shape)]
+                else:
+                    do_extend = extend_cpu
+
+                do_extend(
+                    plot_height, plot_width, xs, ys, *aggs_and_cols
+                )
 
         return extend
