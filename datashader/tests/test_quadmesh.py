@@ -972,7 +972,6 @@ def test_rectilinear_extra_padding():
     assert_eq_xr(actual, actual_reversed)
 
 
-@pytest.mark.xfail(reason="3D raster quadmesh optimization not yet implemented", raises=NotImplementedError)
 @pytest.mark.parametrize('xp', array_modules)
 def test_quadmesh_3d_raster(rng, xp):
     cvs = ds.Canvas(

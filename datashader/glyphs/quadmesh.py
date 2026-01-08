@@ -359,10 +359,6 @@ class _QuadMesh3DExtendMixin:
 
 class QuadMeshRaster(QuadMeshRectilinear):
     def is_upsample(self, source, x, y, name, x_range, y_range, out_w, out_h):
-        # Don't use raster optimization for 3D quadmesh (not implemented yet)
-        if source[name].ndim == 3:
-            raise NotImplementedError("3D quadmesh raster optimization not implemented")
-
         # Check upsampling in x
         src_w = len(source[x])
         if x_range is None:
@@ -411,6 +407,17 @@ class QuadMeshRaster(QuadMeshRectilinear):
                         agg[out_j, out_i] = np.nan
                     else:
                         agg[out_j, out_i] = col[src_j, src_i]
+
+        @ngjit_parallel
+        def upsample_cpu_3d(
+                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                offset_x, offset_y, out_w, out_h, nz, agg, col
+        ):
+            for z in prange(nz):
+                upsample_cpu(
+                    src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                    offset_x, offset_y, out_w, out_h, agg[z], col[z]
+                )
 
         @cuda.jit
         def upsample_cuda(
@@ -486,6 +493,100 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     for src_i in range(src_i0, src_i1):
                         append(src_j, src_i, out_i, out_j, *aggs_and_cols)
 
+        # 3D downsample functions with explicit parameters
+        # Note: We use explicit parameters instead of decorator because:
+        # - Numba requires compile-time knowledge of function signatures
+        # - We need to slice arrays at dimension z, which requires explicit access
+        @ngjit_parallel
+        def downsample_cpu_3d_2(
+                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                offset_x, offset_y, out_w, out_h, nz, agg, col
+        ):
+            for z in prange(nz):
+                for out_j in prange(out_h):
+                    # Calculate raw indices first
+                    raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                    raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
+
+                    # Handle negative scale_y (descending coordinates) - swap before clamping
+                    if scale_y < 0 and raw_j0 > raw_j1:
+                        raw_j0, raw_j1 = raw_j1, raw_j0
+
+                    # Now clamp to valid range
+                    src_j0 = int(max(raw_j0, 0))
+                    src_j1 = int(min(raw_j1, src_h))
+
+                    for out_i in range(out_w):
+                        src_i0 = int(max(
+                            math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
+                        ))
+                        src_i1 = int(min(
+                            math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
+                        ))
+                        for src_j in range(src_j0, src_j1):
+                            for src_i in range(src_i0, src_i1):
+                                append(src_j, src_i, out_i, out_j, agg[z], col[z])
+
+        @ngjit_parallel
+        def downsample_cpu_3d_3(
+                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                offset_x, offset_y, out_w, out_h, nz, agg0, agg1, col
+        ):
+            for z in prange(nz):
+                for out_j in prange(out_h):
+                    # Calculate raw indices first
+                    raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                    raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
+
+                    # Handle negative scale_y (descending coordinates) - swap before clamping
+                    if scale_y < 0 and raw_j0 > raw_j1:
+                        raw_j0, raw_j1 = raw_j1, raw_j0
+
+                    # Now clamp to valid range
+                    src_j0 = int(max(raw_j0, 0))
+                    src_j1 = int(min(raw_j1, src_h))
+
+                    for out_i in range(out_w):
+                        src_i0 = int(max(
+                            math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
+                        ))
+                        src_i1 = int(min(
+                            math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
+                        ))
+                        for src_j in range(src_j0, src_j1):
+                            for src_i in range(src_i0, src_i1):
+                                append(src_j, src_i, out_i, out_j, agg0[z], agg1[z], col[z])
+
+        @ngjit_parallel
+        def downsample_cpu_3d_4(
+                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                offset_x, offset_y, out_w, out_h, nz, agg0, agg1, agg2, col
+        ):
+            for z in prange(nz):
+                for out_j in prange(out_h):
+                    # Calculate raw indices first
+                    raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                    raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
+
+                    # Handle negative scale_y (descending coordinates) - swap before clamping
+                    if scale_y < 0 and raw_j0 > raw_j1:
+                        raw_j0, raw_j1 = raw_j1, raw_j0
+
+                    # Now clamp to valid range
+                    src_j0 = int(max(raw_j0, 0))
+                    src_j1 = int(min(raw_j1, src_h))
+
+                    for out_i in range(out_w):
+                        src_i0 = int(max(
+                            math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
+                        ))
+                        src_i1 = int(min(
+                            math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
+                        ))
+                        for src_j in range(src_j0, src_j1):
+                            for src_i in range(src_i0, src_i1):
+                                append(src_j, src_i, out_i, out_j, agg0[z], agg1[z], agg2[z], col[z])
+
         def extend(aggs, xr_ds, vt, bounds,
                    scale_x=None, scale_y=None, translate_x=None, translate_y=None,
                    offset_x=None, offset_y=None, src_xbinsize=None, src_ybinsize=None):
@@ -494,15 +595,9 @@ class QuadMeshRaster(QuadMeshRectilinear):
             # Check if 3D and get dimensions
             is_3d, nz, out_h, out_w = _QuadMesh3DExtendMixin._get_shape_info(aggs)
 
-            # For 3D raster, we don't have optimized upsample/downsample yet
-            # This shouldn't be reached since is_upsample returns False for 3D,
-            # but if it does, raise an error rather than trying to handle it
-            if is_3d:
-                raise NotImplementedError(
-                    "3D quadmesh raster optimization not implemented. "
-                    "This is a bug - is_upsample should have returned False for 3D data, "
-                    "causing the code to use QuadMeshRectilinear instead."
-                )
+            # CUDA not implemented for 3D yet
+            if is_3d and use_cuda:
+                raise NotImplementedError("3D quadmesh raster with CUDA not implemented yet")
 
             # Compute output constants
             out_x0, out_x1, out_y0, out_y1 = bounds
@@ -510,8 +605,15 @@ class QuadMeshRaster(QuadMeshRectilinear):
             out_ybinsize = math.fabs((out_y1 - out_y0) / out_h)
 
             # Compute source constants
-            xr_ds = xr_ds.transpose(y_name, x_name)
-            src_h, src_w = xr_ds[name].shape
+            # For 3D, need to transpose with the third dimension first
+            if is_3d:
+                # Get the third dimension name (e.g., 'band')
+                third_dim = [d for d in xr_ds[name].dims if d not in (x_name, y_name)][0]
+                xr_ds = xr_ds.transpose(third_dim, y_name, x_name)
+                nz_src, src_h, src_w = xr_ds[name].shape
+            else:
+                xr_ds = xr_ds.transpose(y_name, x_name)
+                src_h, src_w = xr_ds[name].shape
             if (scale_x is None or scale_y is None or
                     translate_x is None or translate_y is None or
                     offset_x is None or offset_y is None or
@@ -546,26 +648,59 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 return
             elif src_xbinsize >= out_xbinsize and src_ybinsize >= out_ybinsize:
                 # Upsample
-                if use_cuda:
-                    do_sampling = upsample_cuda[cuda_args((out_w, out_h))]
+                if is_3d:
+                    # 3D upsample
+                    return upsample_cpu_3d(
+                        src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                        offset_x, offset_y, out_w, out_h, nz, aggs[0], cols[0]
+                    )
                 else:
-                    do_sampling = upsample_cpu
-                return do_sampling(
-                    src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                    offset_x, offset_y, out_w, out_h, aggs[0], cols[0]
-                )
+                    # 2D upsample
+                    if use_cuda:
+                        do_sampling = upsample_cuda[cuda_args((out_w, out_h))]
+                    else:
+                        do_sampling = upsample_cpu
+                    return do_sampling(
+                        src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                        offset_x, offset_y, out_w, out_h, aggs[0], cols[0]
+                    )
             else:
                 # Downsample. Note that caller is responsible for making sure to not
                 # mix upsampling and downsampling.
-                if use_cuda:
-                    do_sampling = downsample_cuda[cuda_args((out_w, out_h))]
+                if is_3d:
+                    # 3D downsample - choose function based on n_arrays
+                    n_arrays = len(aggs_and_cols)
+                    if n_arrays == 2:
+                        return downsample_cpu_3d_2(
+                            src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                            offset_x, offset_y, out_w, out_h, nz, aggs[0], cols[0]
+                        )
+                    elif n_arrays == 3:
+                        return downsample_cpu_3d_3(
+                            src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                            offset_x, offset_y, out_w, out_h, nz, aggs[0], aggs[1], cols[0]
+                        )
+                    elif n_arrays == 4:
+                        return downsample_cpu_3d_4(
+                            src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                            offset_x, offset_y, out_w, out_h, nz, aggs[0], aggs[1], aggs[2], cols[0]
+                        )
+                    else:
+                        raise NotImplementedError(
+                            f"3D quadmesh raster with {n_arrays} arrays not supported. "
+                            f"Only 2 (simple), 3 (compound), or 4 arrays are supported."
+                        )
                 else:
-                    do_sampling = downsample_cpu
+                    # 2D downsample
+                    if use_cuda:
+                        do_sampling = downsample_cuda[cuda_args((out_w, out_h))]
+                    else:
+                        do_sampling = downsample_cpu
 
-                return do_sampling(
-                    src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                    offset_x, offset_y, out_w, out_h, *aggs_and_cols
-                )
+                    return do_sampling(
+                        src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                        offset_x, offset_y, out_w, out_h, *aggs_and_cols
+                    )
 
         return extend
 
