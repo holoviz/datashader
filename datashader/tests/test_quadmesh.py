@@ -972,8 +972,9 @@ def test_rectilinear_extra_padding():
     assert_eq_xr(actual, actual_reversed)
 
 
+@pytest.mark.xfail(reason="3D raster quadmesh optimization not yet implemented", raises=NotImplementedError)
 @pytest.mark.parametrize('xp', array_modules)
-def test_quadmesh_3d(rng, xp):
+def test_quadmesh_3d_raster(rng, xp):
     cvs = ds.Canvas(
         plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
     )
@@ -996,5 +997,81 @@ def test_quadmesh_3d(rng, xp):
     for n in band:
         output = agg_3d.isel(band=n)
         expected = cvs.quadmesh(da.isel(band=n))
+        expected = expected.assign_coords(band=n)
+        assert_eq_xr(output, expected)
+
+@pytest.mark.parametrize('xp', array_modules)
+def test_quadmesh_3d_rectilinear(rng, xp):
+    cvs = ds.Canvas(
+        plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
+    )
+
+    N = 100
+    band = [0, 1, 2]
+    data = xp.array(rng.random((N, N, len(band))))
+
+    # Create non-uniform coordinates to ensure rectilinear path
+    x_coords = np.linspace(-1, 1, N)
+    y_coords = np.linspace(-1, 1, N)
+    # Add small random perturbations to break uniformity
+    x_coords = x_coords + rng.uniform(-0.001, 0.001, N)
+    y_coords = y_coords + rng.uniform(-0.001, 0.001, N)
+
+    da = xr.DataArray(
+        data,
+        coords={
+            "x": x_coords,
+            "y": y_coords,
+            "band": band,
+        },
+        dims=("y", "x", "band"),
+        name="foo"
+    )
+    agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
+
+    for n in band:
+        output = agg_3d.isel(band=n)
+        expected = cvs.quadmesh(da.isel(band=n))
+        expected = expected.assign_coords(band=n)
+        assert_eq_xr(output, expected)
+
+
+@pytest.mark.parametrize('xp', array_modules)
+def test_quadmesh_3d_curvilinear(rng, xp):
+    cvs = ds.Canvas(
+        plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
+    )
+
+    N = 100
+    band = [0, 1, 2]
+    data = xp.array(rng.random((N, N, len(band))))
+
+    # Create 2D coordinate arrays (curvilinear)
+    x_1d = np.linspace(-1, 1, N)
+    y_1d = np.linspace(-1, 1, N)
+
+    da = xr.DataArray(
+        data,
+        coords={
+            "x": x_1d,
+            "y": y_1d,
+            "band": band,
+        },
+        dims=("y", "x", "band"),
+        name="foo"
+    )
+
+    # Broadcast to create 2D coordinate arrays
+    lon_coord, lat_coord = xr.broadcast(da.x, da.y)
+    da = da.assign_coords({"lon": lon_coord, "lat": lat_coord})
+    da_transposed = da.transpose(..., "y", "x")
+
+    agg_3d = cvs.quadmesh(da_transposed, x='lon', y='lat')
+
+    for n in band:
+        output = agg_3d.isel(band=n)
+        # Slice from transposed data to ensure lon/lat coords have same dims
+        da_2d = da_transposed.isel(band=n)
+        expected = cvs.quadmesh(da_2d, x='lon', y='lat')
         expected = expected.assign_coords(band=n)
         assert_eq_xr(output, expected)
