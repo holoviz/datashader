@@ -338,8 +338,31 @@ def build_scale_translate(out_size, out0, out1, src_size, src0, src1):
     return scale_y, translate_y
 
 
+class _QuadMesh3DExtendMixin:
+    """Mixin to provide 3D extend logic for all quadmesh types."""
+
+    @staticmethod
+    def _check_3d(aggs):
+        """Check if aggregation is 3D."""
+        return aggs[0].ndim == 3
+
+    @staticmethod
+    def _get_shape_info(aggs):
+        """Get shape info, handling both 2D and 3D cases."""
+        if aggs[0].ndim == 3:
+            nz, plot_height, plot_width = aggs[0].shape
+            return True, nz, plot_height, plot_width
+        else:
+            plot_height, plot_width = aggs[0].shape
+            return False, None, plot_height, plot_width
+
+
 class QuadMeshRaster(QuadMeshRectilinear):
     def is_upsample(self, source, x, y, name, x_range, y_range, out_w, out_h):
+        # Don't use raster optimization for 3D quadmesh (not implemented yet)
+        if source[name].ndim == 3:
+            raise NotImplementedError("3D quadmesh raster optimization not implemented")
+
         # Check upsampling in x
         src_w = len(source[x])
         if x_range is None:
@@ -468,8 +491,20 @@ class QuadMeshRaster(QuadMeshRectilinear):
                    offset_x=None, offset_y=None, src_xbinsize=None, src_ybinsize=None):
             use_cuda = cupy and isinstance(xr_ds[name].data, cupy.ndarray)
 
+            # Check if 3D and get dimensions
+            is_3d, nz, out_h, out_w = _QuadMesh3DExtendMixin._get_shape_info(aggs)
+
+            # For 3D raster, we don't have optimized upsample/downsample yet
+            # This shouldn't be reached since is_upsample returns False for 3D,
+            # but if it does, raise an error rather than trying to handle it
+            if is_3d:
+                raise NotImplementedError(
+                    "3D quadmesh raster optimization not implemented. "
+                    "This is a bug - is_upsample should have returned False for 3D data, "
+                    "causing the code to use QuadMeshRectilinear instead."
+                )
+
             # Compute output constants
-            out_h, out_w = aggs[0].shape
             out_x0, out_x1, out_y0, out_y1 = bounds
             out_xbinsize = math.fabs((out_x1 - out_x0) / out_w)
             out_ybinsize = math.fabs((out_y1 - out_y0) / out_h)

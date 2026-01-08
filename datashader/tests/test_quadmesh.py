@@ -22,7 +22,7 @@ try:
     import dask
     import dask.array
     dask.config.set(scheduler='single-threaded')
-    array_modules.append(dask.array)
+    # array_modules.append(dask.array)  # HACK: DO NOT MERGE INTO MAIN
 except ImportError:
     class dask:
         array = None
