@@ -411,17 +411,6 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     else:
                         agg[out_j, out_i] = col[src_j, src_i]
 
-        @ngjit_parallel
-        def upsample_cpu_3d(
-                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                offset_x, offset_y, out_w, out_h, nz, agg, col
-        ):
-            for z in prange(nz):
-                upsample_cpu(
-                    src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                    offset_x, offset_y, out_w, out_h, agg[z], col[z]
-                )
-
         @cuda.jit
         def upsample_cuda(
                 src_w, src_h, translate_x, translate_y, scale_x, scale_y,
@@ -497,7 +486,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
                         append(src_j, src_i, out_i, out_j, *aggs_and_cols)
 
 
-        # upsample_cpu_3d = _make_3d_from_2d(upsample_cpu, 10)
+        upsample_cpu_3d = _make_3d_from_2d(upsample_cpu, 10)
         downsample_cpu_3d = _make_3d_from_2d(downsample_cpu, 10)
 
         def extend(aggs, xr_ds, vt, bounds,
@@ -562,13 +551,12 @@ class QuadMeshRaster(QuadMeshRectilinear):
             elif src_xbinsize >= out_xbinsize and src_ybinsize >= out_ybinsize:
                 # Upsample
                 if is_3d:
-                    # 3D upsample
-                    return upsample_cpu_3d(
+                    do_sampling = upsample_cpu_3d(len(aggs_and_cols))
+                    return do_sampling(
                         src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                        offset_x, offset_y, out_w, out_h, nz, aggs[0], cols[0]
+                        offset_x, offset_y, out_w, out_h, nz, *aggs_and_cols,
                     )
                 else:
-                    # 2D upsample
                     if use_cuda:
                         do_sampling = upsample_cuda[cuda_args((out_w, out_h))]
                     else:
