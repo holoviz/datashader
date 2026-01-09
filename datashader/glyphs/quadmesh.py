@@ -8,7 +8,6 @@ from datashader.resampling import infer_interval_breaks, infer_interval_breaks_2
 from datashader.utils import isreal, ngjit, ngjit_parallel
 import numba
 from numba import cuda, prange
-from datashader.macros import expand_varargs
 
 try:
     import dask.array as dask_array
@@ -21,6 +20,72 @@ try:
 except Exception:
     cupy = None
     cuda_args = None
+
+
+def _inner_make_3d_func_from_2d(*, n_arrays, func, prefix_idx):
+    # Generate the 3D function source
+    array_list = [f"arr{i}" for i in range(n_arrays)]
+    prefix_str = ', '.join([f"pre{i}" for i in range(prefix_idx)])
+    arrays_str = ', '.join(array_list)
+    func_3d_args = f"{prefix_str}, nz, {arrays_str}"
+    func_2d_args = f"{prefix_str}, " + ", ".join(f"{p}[z]" for p in array_list)
+
+    func_source = f"""\
+def func_3d({func_3d_args}):
+    for z in prange(nz):
+        func({func_2d_args})"""
+
+    # Compile the function
+    local_vars = {'prange': prange, 'func': func}
+    exec(func_source, local_vars)
+    return local_vars["func_3d"]
+
+
+def _make_3d_from_2d(func, prefix_idx):
+    """
+    Factory function that generates cached 3D wrappers from 2D quadmesh functions.
+
+    This helper eliminates boilerplate by automatically generating 3D wrapper functions
+    that loop over the z-dimension (bands) and call a 2D function for each slice. It
+    replaces ~10 lines of repetitive code per factory with a single function call.
+
+    For example, if func is extend_cpu(xs, ys, shape, *aggs_and_cols) then prefix_idx is 3:
+
+        @ngjit_parallel
+        def func_3d(arg0, arg1, arg2, nz, arr0, arr1, arr2):
+            for z in prange(nz):
+                func(arg0, arg1, arg2, arr0[z], arr1[z], arr2[z])
+
+    Parameters
+    ----------
+    func : callable
+        The 2D function to wrap. Should accept (prefix_params..., *aggs_and_cols).
+        May be decorated by @ngjit and @expand_aggs_and_cols.
+    prefix_idx : int
+        Number of prefix parameters to extract from func's signature.
+        These are the non-array parameters that come before *aggs_and_cols.
+        Examples:
+        - extend_cpu(xs, ys, shape, *aggs_and_cols) -> prefix_idx=3
+        - downsample_cpu(src_w, src_h, ..., out_h, *aggs_and_cols) -> prefix_idx=10
+
+    Returns
+    -------
+    callable
+        A factory function factory_3d(n_arrays) that returns cached compiled 3D wrappers.
+        The factory maintains an internal cache keyed by n_arrays.
+
+    """
+    cache = {}
+    def factory_3d(n_arrays):
+        if n_arrays not in cache:
+            func_3d = _inner_make_3d_func_from_2d(
+                n_arrays=n_arrays,
+                func=func,
+                prefix_idx=prefix_idx
+            )
+            cache[n_arrays] = ngjit_parallel(func_3d)
+        return cache[n_arrays]
+    return factory_3d
 
 
 def _cuda_mapper(mapper):
@@ -156,19 +221,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
                 for j in range(len(ys) - 1):
                     perform_extend(i, j, xs, ys, shape, *aggs_and_cols)
 
-        # Cache for 3D compiled functions to avoid expensive expand_varargs re-compilation
-        _extend_cpu_3d_cache = {}
-
-        def make_extend_cpu_3d(n_arrays):
-            if n_arrays not in _extend_cpu_3d_cache:
-                @ngjit_parallel
-                @expand_varargs(n_arrays)
-                def extend_cpu_3d(xs, ys, shape, nz, *aggs_and_cols):
-                    for z in prange(nz):
-                        extend_cpu(xs, ys, shape, *[ac[z] for ac in aggs_and_cols])
-
-                _extend_cpu_3d_cache[n_arrays] = extend_cpu_3d
-            return _extend_cpu_3d_cache[n_arrays]
+        extend_cpu_3d = _make_3d_from_2d(extend_cpu, 3)
 
         def extend(aggs, xr_ds, vt, bounds, x_breaks=None, y_breaks=None):
             from datashader.core import LinearAxis
@@ -279,7 +332,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
                     # TODO: Implement CUDA path for 3D
                     raise NotImplementedError("CUDA not yet supported for 3D quadmesh")
                 else:
-                    do_extend = make_extend_cpu_3d(n_arrays=len(aggs_and_cols))
+                    do_extend = extend_cpu_3d(n_arrays=len(aggs_and_cols))
 
                 # Pass full 3D arrays - loop over z happens inside numba function
                 do_extend(xs, ys, (plot_height, plot_width), nz, *aggs_and_cols)
@@ -465,25 +518,9 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     for src_i in range(src_i0, src_i1):
                         append(src_j, src_i, out_i, out_j, *aggs_and_cols)
 
-        # Cache for 3D compiled functions to avoid expensive expand_varargs re-compilation
-        _downsample_cpu_3d_cache = {}
 
-        def make_downsample_cpu_3d(n_arrays):
-            if n_arrays not in _downsample_cpu_3d_cache:
-                @ngjit_parallel
-                @expand_varargs(n_arrays)
-                def downsample_cpu_3d(
-                        src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                        offset_x, offset_y, out_w, out_h, nz, *aggs_and_cols
-                ):
-                    for z in prange(nz):
-                        downsample_cpu(
-                            src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                            offset_x, offset_y, out_w, out_h, *[ac[z] for ac in aggs_and_cols]
-                        )
-
-                _downsample_cpu_3d_cache[n_arrays] = downsample_cpu_3d
-            return _downsample_cpu_3d_cache[n_arrays]
+        # upsample_cpu_3d = _make_3d_from_2d(upsample_cpu, 10)
+        downsample_cpu_3d = _make_3d_from_2d(downsample_cpu, 10)
 
         def extend(aggs, xr_ds, vt, bounds,
                    scale_x=None, scale_y=None, translate_x=None, translate_y=None,
@@ -566,9 +603,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 # Downsample. Note that caller is responsible for making sure to not
                 # mix upsampling and downsampling.
                 if is_3d:
-                    # 3D downsample - create function based on n_arrays using factory
-                    n_arrays = len(aggs_and_cols)
-                    downsample_fn = make_downsample_cpu_3d(n_arrays)
+                    downsample_fn = downsample_cpu_3d(len(aggs_and_cols))
                     return downsample_fn(
                         src_w, src_h, translate_x, translate_y, scale_x, scale_y,
                         offset_x, offset_y, out_w, out_h, nz, *aggs_and_cols
@@ -799,19 +834,7 @@ class QuadMeshCurvilinear(_QuadMeshLike):
                         xverts, yverts, yincreasing, eligible, intersect, *aggs_and_cols
                     )
 
-        # Cache for 3D compiled functions to avoid expensive expand_varargs re-compilation
-        _extend_cpu_3d_cache = {}
-
-        def make_extend_cpu_3d(n_arrays):
-            if n_arrays not in _extend_cpu_3d_cache:
-                @ngjit_parallel
-                @expand_varargs(n_arrays)
-                def extend_cpu_3d(plot_height, plot_width, xs, ys, nz, *aggs_and_cols):
-                    for z in prange(nz):
-                        extend_cpu(plot_height, plot_width, xs, ys, *[ac[z] for ac in aggs_and_cols])
-
-                _extend_cpu_3d_cache[n_arrays] = extend_cpu_3d
-            return _extend_cpu_3d_cache[n_arrays]
+        extend_cpu_3d = _make_3d_from_2d(extend_cpu, 4)
 
         def extend(aggs, xr_ds, vt, bounds, x_breaks=None, y_breaks=None):
             from datashader.core import LinearAxis
@@ -889,7 +912,7 @@ class QuadMeshCurvilinear(_QuadMeshLike):
                     # TODO: Implement CUDA path for 3D curvilinear
                     raise NotImplementedError("CUDA not yet supported for 3D quadmesh curvilinear")
                 else:
-                    do_extend = make_extend_cpu_3d(n_arrays=len(aggs_and_cols))
+                    do_extend = extend_cpu_3d(n_arrays=len(aggs_and_cols))
 
                 # Pass full 3D arrays - loop over z happens inside numba function
                 do_extend(plot_height, plot_width, xs, ys, nz, *aggs_and_cols)
