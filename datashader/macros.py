@@ -89,31 +89,9 @@ class _ReplaceVar(ast.NodeTransformer):
 
 class ExpandVarargTransformerStarred(ExpandVarargTransformer):
     def visit_Starred(self, node):
-        # Handle simple case: *vararg
-        if hasattr(node.value, "id") and node.value.id == self.starred_name:
+        if (value_id := getattr(node.value, "id", None)) and value_id == self.starred_name:
             return [ast.Name(id=name, ctx=node.ctx) for name in
                     self.expand_names]
-
-        # Handle list comprehension case: *[expr for var in vararg]
-        elif isinstance(node.value, ast.ListComp):
-            listcomp = node.value
-            # Check if there's a single generator that iterates over our vararg
-            if (len(listcomp.generators) == 1 and
-                hasattr(listcomp.generators[0].iter, 'id') and
-                listcomp.generators[0].iter.id == self.starred_name):
-
-                # Get the target variable and element expression
-                target_var = listcomp.generators[0].target.id
-                elt_expr = listcomp.elt
-
-                # Create expanded expressions by substituting each expand_name
-                expanded_exprs = []
-                for name in self.expand_names:
-                    new_expr = _ReplaceVar(target_var, name).visit(copy.deepcopy(elt_expr))
-                    expanded_exprs.append(new_expr)
-
-                return expanded_exprs
-
         return node
 
 def function_to_ast(fn):
