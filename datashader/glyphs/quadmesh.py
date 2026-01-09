@@ -149,6 +149,9 @@ class QuadMeshRectilinear(_QuadMeshLike):
             if i < (xs.shape[0] - 1) and j < (ys.shape[0] - 1):
                 perform_extend(i, j, xs, ys, shape, *aggs_and_cols)
 
+        # Cache for 3D compiled functions to avoid expensive expand_varargs re-compilation
+        _extend_cpu_3d_cache = {}
+
         def make_extend_cpu(is_3d, n_arrays):
             """
             Create extend_cpu function for 2D or 3D data.
@@ -163,15 +166,18 @@ class QuadMeshRectilinear(_QuadMeshLike):
             - Closures and dynamic code generation don't work well with numba's compilation
             """
             if is_3d:
-                @ngjit_parallel
-                @expand_varargs(n_arrays)
-                def extend_cpu_3d(xs, ys, shape, nz, *aggs_and_cols):
-                    for z in prange(nz):
-                        for i in range(len(xs) - 1):
-                            for j in range(len(ys) - 1):
-                                perform_extend(i, j, xs, ys, shape, *[ac[z] for ac in aggs_and_cols])
+                # Check cache first to avoid expensive expand_varargs
+                if n_arrays not in _extend_cpu_3d_cache:
+                    @ngjit_parallel
+                    @expand_varargs(n_arrays)
+                    def extend_cpu_3d(xs, ys, shape, nz, *aggs_and_cols):
+                        for z in prange(nz):
+                            for i in range(len(xs) - 1):
+                                for j in range(len(ys) - 1):
+                                    perform_extend(i, j, xs, ys, shape, *[ac[z] for ac in aggs_and_cols])
 
-                return extend_cpu_3d
+                    _extend_cpu_3d_cache[n_arrays] = extend_cpu_3d
+                return _extend_cpu_3d_cache[n_arrays]
             else:
                 @ngjit
                 @self.expand_aggs_and_cols(append)
@@ -476,38 +482,44 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     for src_i in range(src_i0, src_i1):
                         append(src_j, src_i, out_i, out_j, *aggs_and_cols)
 
+        # Cache for 3D compiled functions to avoid expensive expand_varargs re-compilation
+        _downsample_cpu_3d_cache = {}
+
         def make_downsample_cpu_3d(n_arrays):
-            @ngjit_parallel
-            @expand_varargs(n_arrays)
-            def downsample_cpu_3d(
-                    src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                    offset_x, offset_y, out_w, out_h, nz, *aggs_and_cols
-            ):
-                for z in prange(nz):
-                    for out_j in prange(out_h):
-                        # Calculate raw indices first
-                        raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
-                        raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
+            # Check cache first to avoid expensive expand_varargs
+            if n_arrays not in _downsample_cpu_3d_cache:
+                @ngjit_parallel
+                @expand_varargs(n_arrays)
+                def downsample_cpu_3d(
+                        src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                        offset_x, offset_y, out_w, out_h, nz, *aggs_and_cols
+                ):
+                    for z in prange(nz):
+                        for out_j in prange(out_h):
+                            # Calculate raw indices first
+                            raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                            raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
 
-                        # Handle negative scale_y (descending coordinates) - swap before clamping
-                        if scale_y < 0 and raw_j0 > raw_j1:
-                            raw_j0, raw_j1 = raw_j1, raw_j0
+                            # Handle negative scale_y (descending coordinates) - swap before clamping
+                            if scale_y < 0 and raw_j0 > raw_j1:
+                                raw_j0, raw_j1 = raw_j1, raw_j0
 
-                        # Now clamp to valid range
-                        src_j0 = int(max(raw_j0, 0))
-                        src_j1 = int(min(raw_j1, src_h))
+                            # Now clamp to valid range
+                            src_j0 = int(max(raw_j0, 0))
+                            src_j1 = int(min(raw_j1, src_h))
 
-                        for out_i in range(out_w):
-                            src_i0 = int(max(
-                                math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
-                            ))
-                            src_i1 = int(min(
-                                math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
-                            ))
-                            for src_j in range(src_j0, src_j1):
-                                for src_i in range(src_i0, src_i1):
-                                    append(src_j, src_i, out_i, out_j, *[ac[z] for ac in aggs_and_cols])
-            return downsample_cpu_3d
+                            for out_i in range(out_w):
+                                src_i0 = int(max(
+                                    math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
+                                ))
+                                src_i1 = int(min(
+                                    math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
+                                ))
+                                for src_j in range(src_j0, src_j1):
+                                    for src_i in range(src_i0, src_i1):
+                                        append(src_j, src_i, out_i, out_j, *[ac[z] for ac in aggs_and_cols])
+                _downsample_cpu_3d_cache[n_arrays] = downsample_cpu_3d
+            return _downsample_cpu_3d_cache[n_arrays]
 
         def extend(aggs, xr_ds, vt, bounds,
                    scale_x=None, scale_y=None, translate_x=None, translate_y=None,
@@ -823,6 +835,9 @@ class QuadMeshCurvilinear(_QuadMeshLike):
                         xverts, yverts, yincreasing, eligible, intersect, *aggs_and_cols
                     )
 
+        # Cache for 3D compiled functions to avoid expensive expand_varargs re-compilation
+        _extend_cpu_3d_cache = {}
+
         def make_extend_cpu_3d(n_arrays):
             """
             Create extend_cpu function for 3D data (curvilinear case).
@@ -835,27 +850,30 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             Note: We use explicit parameters and the expand_varargs macro to handle
             variable number of arrays while being compatible with numba compilation.
             """
-            @ngjit_parallel
-            @expand_varargs(n_arrays)
-            def extend_cpu_3d(plot_height, plot_width, xs, ys, nz, *aggs_and_cols):
-                y_len, x_len = xs.shape
-                for z in prange(nz):
-                    # Allocate arrays per thread to avoid race conditions
-                    xverts = np.zeros(5, dtype=np.int32)
-                    yverts = np.zeros(5, dtype=np.int32)
-                    yincreasing = np.zeros(4, dtype=np.int8)
-                    eligible = np.ones(4, dtype=np.int8)
-                    intersect = np.zeros(4, dtype=np.int8)
+            # Check cache first to avoid expensive expand_varargs
+            if n_arrays not in _extend_cpu_3d_cache:
+                @ngjit_parallel
+                @expand_varargs(n_arrays)
+                def extend_cpu_3d(plot_height, plot_width, xs, ys, nz, *aggs_and_cols):
+                    y_len, x_len = xs.shape
+                    for z in prange(nz):
+                        # Allocate arrays per thread to avoid race conditions
+                        xverts = np.zeros(5, dtype=np.int32)
+                        yverts = np.zeros(5, dtype=np.int32)
+                        yincreasing = np.zeros(4, dtype=np.int8)
+                        eligible = np.ones(4, dtype=np.int8)
+                        intersect = np.zeros(4, dtype=np.int8)
 
-                    for j in range(y_len - 1):
-                        for i in range(x_len - 1):
-                            perform_extend(
-                                i, j, plot_height, plot_width, xs, ys,
-                                xverts, yverts, yincreasing, eligible, intersect,
-                                *[ac[z] for ac in aggs_and_cols]
-                            )
+                        for j in range(y_len - 1):
+                            for i in range(x_len - 1):
+                                perform_extend(
+                                    i, j, plot_height, plot_width, xs, ys,
+                                    xverts, yverts, yincreasing, eligible, intersect,
+                                    *[ac[z] for ac in aggs_and_cols]
+                                )
 
-            return extend_cpu_3d
+                _extend_cpu_3d_cache[n_arrays] = extend_cpu_3d
+            return _extend_cpu_3d_cache[n_arrays]
 
         def extend(aggs, xr_ds, vt, bounds, x_breaks=None, y_breaks=None):
             from datashader.core import LinearAxis
