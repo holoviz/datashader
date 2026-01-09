@@ -159,20 +159,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
         # Cache for 3D compiled functions to avoid expensive expand_varargs re-compilation
         _extend_cpu_3d_cache = {}
 
-        def make_extend_cpu(n_arrays):
-            """
-            Create extend_cpu function for 2D or 3D data.
-
-            For 3D, n_arrays is the total number of arrays (aggs + cols).
-            - n_arrays=2: simple reduction (1 agg + 1 col), e.g., sum, min, max
-            - n_arrays=3: compound reduction (2 aggs + 1 col), e.g., mean, std, var
-
-            Note: We use explicit parameters for 3D instead of a decorator because:
-            - Numba requires compile-time knowledge of function signatures
-            - We need to slice arrays at dimension z, which requires explicit access
-            - Closures and dynamic code generation don't work well with numba's compilation
-            """
-            # Check cache first to avoid expensive expand_varargs
+        def make_extend_cpu_3d(n_arrays):
             if n_arrays not in _extend_cpu_3d_cache:
                 @ngjit_parallel
                 @expand_varargs(n_arrays)
@@ -292,7 +279,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
                     # TODO: Implement CUDA path for 3D
                     raise NotImplementedError("CUDA not yet supported for 3D quadmesh")
                 else:
-                    do_extend = make_extend_cpu(n_arrays=len(aggs_and_cols))
+                    do_extend = make_extend_cpu_3d(n_arrays=len(aggs_and_cols))
 
                 # Pass full 3D arrays - loop over z happens inside numba function
                 do_extend(xs, ys, (plot_height, plot_width), nz, *aggs_and_cols)
@@ -482,7 +469,6 @@ class QuadMeshRaster(QuadMeshRectilinear):
         _downsample_cpu_3d_cache = {}
 
         def make_downsample_cpu_3d(n_arrays):
-            # Check cache first to avoid expensive expand_varargs
             if n_arrays not in _downsample_cpu_3d_cache:
                 @ngjit_parallel
                 @expand_varargs(n_arrays)
@@ -817,18 +803,6 @@ class QuadMeshCurvilinear(_QuadMeshLike):
         _extend_cpu_3d_cache = {}
 
         def make_extend_cpu_3d(n_arrays):
-            """
-            Create extend_cpu function for 3D data (curvilinear case).
-
-            n_arrays is the total number of arrays (aggs + cols).
-            - n_arrays=2: simple reduction (1 agg + 1 col), e.g., sum, min, max
-            - n_arrays=3: compound reduction (2 aggs + 1 col), e.g., mean, std, var
-            - n_arrays=4: compound reduction (3 aggs + 1 col), e.g., var with mean
-
-            Note: We use explicit parameters and the expand_varargs macro to handle
-            variable number of arrays while being compatible with numba compilation.
-            """
-            # Check cache first to avoid expensive expand_varargs
             if n_arrays not in _extend_cpu_3d_cache:
                 @ngjit_parallel
                 @expand_varargs(n_arrays)
