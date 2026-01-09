@@ -8,6 +8,8 @@ from datashader.resampling import infer_interval_breaks, infer_interval_breaks_2
 from datashader.utils import isreal, ngjit, ngjit_parallel
 import numba
 from numba import cuda, prange
+from datashader.macros import expand_varargs
+
 try:
     import dask.array as dask_array
 except ImportError:
@@ -161,33 +163,14 @@ class QuadMeshRectilinear(_QuadMeshLike):
             - Closures and dynamic code generation don't work well with numba's compilation
             """
             if is_3d:
-                # Use explicit parameters and prange for parallel execution
-                if n_arrays == 2:
-                    @ngjit_parallel
-                    def extend_cpu_3d(xs, ys, shape, nz, agg, col):
-                        for z in prange(nz):
-                            for i in range(len(xs) - 1):
-                                for j in range(len(ys) - 1):
-                                    perform_extend(i, j, xs, ys, shape, agg[z], col[z])
-                elif n_arrays == 3:
-                    @ngjit_parallel
-                    def extend_cpu_3d(xs, ys, shape, nz, agg0, agg1, col):
-                        for z in prange(nz):
-                            for i in range(len(xs) - 1):
-                                for j in range(len(ys) - 1):
-                                    perform_extend(i, j, xs, ys, shape, agg0[z], agg1[z], col[z])
-                elif n_arrays == 4:
-                    @ngjit_parallel
-                    def extend_cpu_3d(xs, ys, shape, nz, agg0, agg1, agg2, col):
-                        for z in prange(nz):
-                            for i in range(len(xs) - 1):
-                                for j in range(len(ys) - 1):
-                                    perform_extend(i, j, xs, ys, shape, agg0[z], agg1[z], agg2[z], col[z])
-                else:
-                    raise NotImplementedError(
-                        f"3D quadmesh with {n_arrays} arrays not yet supported. "
-                        f"Only 2 (simple), 3 (compound), or 4 arrays are supported."
-                    )
+                @ngjit_parallel
+                @expand_varargs(n_arrays)
+                def extend_cpu_3d(xs, ys, shape, nz, *aggs_and_cols):
+                    for z in prange(nz):
+                        for i in range(len(xs) - 1):
+                            for j in range(len(ys) - 1):
+                                perform_extend(i, j, xs, ys, shape, *[ac[z] for ac in aggs_and_cols])
+
                 return extend_cpu_3d
             else:
                 @ngjit
@@ -493,99 +476,38 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     for src_i in range(src_i0, src_i1):
                         append(src_j, src_i, out_i, out_j, *aggs_and_cols)
 
-        # 3D downsample functions with explicit parameters
-        # Note: We use explicit parameters instead of decorator because:
-        # - Numba requires compile-time knowledge of function signatures
-        # - We need to slice arrays at dimension z, which requires explicit access
-        @ngjit_parallel
-        def downsample_cpu_3d_2(
-                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                offset_x, offset_y, out_w, out_h, nz, agg, col
-        ):
-            for z in prange(nz):
-                for out_j in prange(out_h):
-                    # Calculate raw indices first
-                    raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
-                    raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
+        def make_downsample_cpu_3d(n_arrays):
+            @ngjit_parallel
+            @expand_varargs(n_arrays)
+            def downsample_cpu_3d(
+                    src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                    offset_x, offset_y, out_w, out_h, nz, *aggs_and_cols
+            ):
+                for z in prange(nz):
+                    for out_j in prange(out_h):
+                        # Calculate raw indices first
+                        raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
+                        raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
 
-                    # Handle negative scale_y (descending coordinates) - swap before clamping
-                    if scale_y < 0 and raw_j0 > raw_j1:
-                        raw_j0, raw_j1 = raw_j1, raw_j0
+                        # Handle negative scale_y (descending coordinates) - swap before clamping
+                        if scale_y < 0 and raw_j0 > raw_j1:
+                            raw_j0, raw_j1 = raw_j1, raw_j0
 
-                    # Now clamp to valid range
-                    src_j0 = int(max(raw_j0, 0))
-                    src_j1 = int(min(raw_j1, src_h))
+                        # Now clamp to valid range
+                        src_j0 = int(max(raw_j0, 0))
+                        src_j1 = int(min(raw_j1, src_h))
 
-                    for out_i in range(out_w):
-                        src_i0 = int(max(
-                            math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
-                        ))
-                        src_i1 = int(min(
-                            math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
-                        ))
-                        for src_j in range(src_j0, src_j1):
-                            for src_i in range(src_i0, src_i1):
-                                append(src_j, src_i, out_i, out_j, agg[z], col[z])
-
-        @ngjit_parallel
-        def downsample_cpu_3d_3(
-                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                offset_x, offset_y, out_w, out_h, nz, agg0, agg1, col
-        ):
-            for z in prange(nz):
-                for out_j in prange(out_h):
-                    # Calculate raw indices first
-                    raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
-                    raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
-
-                    # Handle negative scale_y (descending coordinates) - swap before clamping
-                    if scale_y < 0 and raw_j0 > raw_j1:
-                        raw_j0, raw_j1 = raw_j1, raw_j0
-
-                    # Now clamp to valid range
-                    src_j0 = int(max(raw_j0, 0))
-                    src_j1 = int(min(raw_j1, src_h))
-
-                    for out_i in range(out_w):
-                        src_i0 = int(max(
-                            math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
-                        ))
-                        src_i1 = int(min(
-                            math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
-                        ))
-                        for src_j in range(src_j0, src_j1):
-                            for src_i in range(src_i0, src_i1):
-                                append(src_j, src_i, out_i, out_j, agg0[z], agg1[z], col[z])
-
-        @ngjit_parallel
-        def downsample_cpu_3d_4(
-                src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                offset_x, offset_y, out_w, out_h, nz, agg0, agg1, agg2, col
-        ):
-            for z in prange(nz):
-                for out_j in prange(out_h):
-                    # Calculate raw indices first
-                    raw_j0 = math.floor(scale_y * (out_j + 0.0) + translate_y - offset_y)
-                    raw_j1 = math.floor(scale_y * (out_j + 1.0) + translate_y - offset_y)
-
-                    # Handle negative scale_y (descending coordinates) - swap before clamping
-                    if scale_y < 0 and raw_j0 > raw_j1:
-                        raw_j0, raw_j1 = raw_j1, raw_j0
-
-                    # Now clamp to valid range
-                    src_j0 = int(max(raw_j0, 0))
-                    src_j1 = int(min(raw_j1, src_h))
-
-                    for out_i in range(out_w):
-                        src_i0 = int(max(
-                            math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
-                        ))
-                        src_i1 = int(min(
-                            math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
-                        ))
-                        for src_j in range(src_j0, src_j1):
-                            for src_i in range(src_i0, src_i1):
-                                append(src_j, src_i, out_i, out_j, agg0[z], agg1[z], agg2[z], col[z])
+                        for out_i in range(out_w):
+                            src_i0 = int(max(
+                                math.floor(scale_x * (out_i + 0.0) + translate_x - offset_x), 0
+                            ))
+                            src_i1 = int(min(
+                                math.floor(scale_x * (out_i + 1.0) + translate_x - offset_x), src_w
+                            ))
+                            for src_j in range(src_j0, src_j1):
+                                for src_i in range(src_i0, src_i1):
+                                    append(src_j, src_i, out_i, out_j, *[ac[z] for ac in aggs_and_cols])
+            return downsample_cpu_3d
 
         def extend(aggs, xr_ds, vt, bounds,
                    scale_x=None, scale_y=None, translate_x=None, translate_y=None,
@@ -668,28 +590,13 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 # Downsample. Note that caller is responsible for making sure to not
                 # mix upsampling and downsampling.
                 if is_3d:
-                    # 3D downsample - choose function based on n_arrays
+                    # 3D downsample - create function based on n_arrays using factory
                     n_arrays = len(aggs_and_cols)
-                    if n_arrays == 2:
-                        return downsample_cpu_3d_2(
-                            src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                            offset_x, offset_y, out_w, out_h, nz, aggs[0], cols[0]
-                        )
-                    elif n_arrays == 3:
-                        return downsample_cpu_3d_3(
-                            src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                            offset_x, offset_y, out_w, out_h, nz, aggs[0], aggs[1], cols[0]
-                        )
-                    elif n_arrays == 4:
-                        return downsample_cpu_3d_4(
-                            src_w, src_h, translate_x, translate_y, scale_x, scale_y,
-                            offset_x, offset_y, out_w, out_h, nz, aggs[0], aggs[1], aggs[2], cols[0]
-                        )
-                    else:
-                        raise NotImplementedError(
-                            f"3D quadmesh raster with {n_arrays} arrays not supported. "
-                            f"Only 2 (simple), 3 (compound), or 4 arrays are supported."
-                        )
+                    downsample_fn = make_downsample_cpu_3d(n_arrays)
+                    return downsample_fn(
+                        src_w, src_h, translate_x, translate_y, scale_x, scale_y,
+                        offset_x, offset_y, out_w, out_h, nz, *aggs_and_cols
+                    )
                 else:
                     # 2D downsample
                     if use_cuda:
@@ -925,73 +832,29 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             - n_arrays=3: compound reduction (2 aggs + 1 col), e.g., mean, std, var
             - n_arrays=4: compound reduction (3 aggs + 1 col), e.g., var with mean
 
-            Note: We use explicit parameters instead of a decorator because:
-            - Numba requires compile-time knowledge of function signatures
-            - We need to slice arrays at dimension z, which requires explicit access
+            Note: We use explicit parameters and the expand_varargs macro to handle
+            variable number of arrays while being compatible with numba compilation.
             """
-            # Use explicit parameters and prange for parallel execution
-            if n_arrays == 2:
-                @ngjit_parallel
-                def extend_cpu_3d(plot_height, plot_width, xs, ys, nz, agg, col):
-                    y_len, x_len = xs.shape
-                    for z in prange(nz):
-                        # Allocate arrays per thread to avoid race conditions
-                        xverts = np.zeros(5, dtype=np.int32)
-                        yverts = np.zeros(5, dtype=np.int32)
-                        yincreasing = np.zeros(4, dtype=np.int8)
-                        eligible = np.ones(4, dtype=np.int8)
-                        intersect = np.zeros(4, dtype=np.int8)
+            @ngjit_parallel
+            @expand_varargs(n_arrays)
+            def extend_cpu_3d(plot_height, plot_width, xs, ys, nz, *aggs_and_cols):
+                y_len, x_len = xs.shape
+                for z in prange(nz):
+                    # Allocate arrays per thread to avoid race conditions
+                    xverts = np.zeros(5, dtype=np.int32)
+                    yverts = np.zeros(5, dtype=np.int32)
+                    yincreasing = np.zeros(4, dtype=np.int8)
+                    eligible = np.ones(4, dtype=np.int8)
+                    intersect = np.zeros(4, dtype=np.int8)
 
-                        for j in range(y_len - 1):
-                            for i in range(x_len - 1):
-                                perform_extend(
-                                    i, j, plot_height, plot_width, xs, ys,
-                                    xverts, yverts, yincreasing, eligible, intersect,
-                                    agg[z], col[z]
-                                )
-            elif n_arrays == 3:
-                @ngjit_parallel
-                def extend_cpu_3d(plot_height, plot_width, xs, ys, nz, agg0, agg1, col):
-                    y_len, x_len = xs.shape
-                    for z in prange(nz):
-                        # Allocate arrays per thread to avoid race conditions
-                        xverts = np.zeros(5, dtype=np.int32)
-                        yverts = np.zeros(5, dtype=np.int32)
-                        yincreasing = np.zeros(4, dtype=np.int8)
-                        eligible = np.ones(4, dtype=np.int8)
-                        intersect = np.zeros(4, dtype=np.int8)
+                    for j in range(y_len - 1):
+                        for i in range(x_len - 1):
+                            perform_extend(
+                                i, j, plot_height, plot_width, xs, ys,
+                                xverts, yverts, yincreasing, eligible, intersect,
+                                *[ac[z] for ac in aggs_and_cols]
+                            )
 
-                        for j in range(y_len - 1):
-                            for i in range(x_len - 1):
-                                perform_extend(
-                                    i, j, plot_height, plot_width, xs, ys,
-                                    xverts, yverts, yincreasing, eligible, intersect,
-                                    agg0[z], agg1[z], col[z]
-                                )
-            elif n_arrays == 4:
-                @ngjit_parallel
-                def extend_cpu_3d(plot_height, plot_width, xs, ys, nz, agg0, agg1, agg2, col):
-                    y_len, x_len = xs.shape
-                    for z in prange(nz):
-                        # Allocate arrays per thread to avoid race conditions
-                        xverts = np.zeros(5, dtype=np.int32)
-                        yverts = np.zeros(5, dtype=np.int32)
-                        yincreasing = np.zeros(4, dtype=np.int8)
-                        eligible = np.ones(4, dtype=np.int8)
-                        intersect = np.zeros(4, dtype=np.int8)
-
-                        for j in range(y_len - 1):
-                            for i in range(x_len - 1):
-                                perform_extend(
-                                    i, j, plot_height, plot_width, xs, ys,
-                                    xverts, yverts, yincreasing, eligible, intersect,
-                                    agg0[z], agg1[z], agg2[z], col[z]
-                                )
-            else:
-                raise NotImplementedError(
-                    f"3D quadmesh curvilinear with {n_arrays} arrays not yet supported. "
-                    f"Only 2 (simple), 3 (compound), or 4 arrays are supported."
-                )
             return extend_cpu_3d
 
         def extend(aggs, xr_ds, vt, bounds, x_breaks=None, y_breaks=None):
