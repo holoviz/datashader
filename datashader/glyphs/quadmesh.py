@@ -134,6 +134,25 @@ class _QuadMeshLike(Glyph):
     def y_label(self):
         return self.y
 
+    @staticmethod
+    def _get_shape_info(aggs):
+        """
+        Get shape info, handling both 2D and 3D cases.
+
+        Returns
+        -------
+        tuple
+            (is_3d, nz, plot_height, plot_width)
+            For 2D: (False, None, height, width)
+            For 3D: (True, nz, height, width)
+        """
+        if aggs[0].ndim == 3:
+            nz, plot_height, plot_width = aggs[0].shape
+            return True, nz, plot_height, plot_width
+        else:
+            plot_height, plot_width = aggs[0].shape
+            return False, None, plot_height, plot_width
+
 
 class QuadMeshRectilinear(_QuadMeshLike):
     def _compute_bounds_from_1d_centers(
@@ -297,15 +316,8 @@ class QuadMeshRectilinear(_QuadMeshLike):
             if xm0 == xm1 or ym0 == ym1:
                 return
 
-            # Check if this is 3D quadmesh FIRST
-            is_3d = aggs[0].ndim == 3
-
-            if is_3d:
-                # 3D case: agg shape is (nz, height, width)
-                nz, plot_height, plot_width = aggs[0].shape
-            else:
-                # 2D case: agg shape is (height, width)
-                plot_height, plot_width = aggs[0].shape
+            # Get shape info for 3D or 2D case
+            is_3d, nz, plot_height, plot_width = self._get_shape_info(aggs)
 
             # Downselect xs and ys and convert to int
             xs = xscaled[xm0:xm1 + 1]
@@ -319,38 +331,23 @@ class QuadMeshRectilinear(_QuadMeshLike):
             np.clip(ys, 0, plot_height, out=ys)
 
             if is_3d:
-                # For input "column", down select to valid range
-                # info extracts data with shape (nz, ny, nx) after transpose(..., y, x)
                 cols_full = info(xr_ds.transpose(..., y_name, x_name), aggs[0].shape)
                 cols = tuple([c[:, ym0:ym1, xm0:xm1] for c in cols_full])
-
-                # Combine all aggs and cols (for compound reductions like mean)
                 aggs_and_cols = aggs + cols
-
-                # Use 3D version of extend_cpu
                 if use_cuda:
-                    # TODO: Implement CUDA path for 3D
                     raise NotImplementedError("CUDA not yet supported for 3D quadmesh")
                 else:
                     do_extend = extend_cpu_3d(n_arrays=len(aggs_and_cols))
 
-                # Pass full 3D arrays - loop over z happens inside numba function
                 do_extend(xs, ys, (plot_height, plot_width), nz, *aggs_and_cols)
             else:
-                # 2D case: agg shape is (height, width)
-                plot_height, plot_width = aggs[0].shape
-
-                # For input "column", down select to valid range
                 cols_full = info(xr_ds.transpose(y_name, x_name), aggs[0].shape)
                 cols = tuple([c[ym0:ym1, xm0:xm1] for c in cols_full])
-
                 aggs_and_cols = aggs + cols
-
                 if use_cuda:
                     do_extend = extend_cuda[cuda_args(xr_ds[name].shape)]
                 else:
                     do_extend = extend_cpu
-
                 do_extend(xs, ys, (plot_height, plot_width), *aggs_and_cols)
 
         return extend
@@ -361,25 +358,6 @@ def build_scale_translate(out_size, out0, out1, src_size, src0, src1):
     translate_y = src_size * (out0 - src0) / (src1 - src0)
     scale_y = (src_size * (out1 - out0)) / (out_size * (src1 - src0))
     return scale_y, translate_y
-
-
-class _QuadMesh3DExtendMixin:
-    """Mixin to provide 3D extend logic for all quadmesh types."""
-
-    @staticmethod
-    def _check_3d(aggs):
-        """Check if aggregation is 3D."""
-        return aggs[0].ndim == 3
-
-    @staticmethod
-    def _get_shape_info(aggs):
-        """Get shape info, handling both 2D and 3D cases."""
-        if aggs[0].ndim == 3:
-            nz, plot_height, plot_width = aggs[0].shape
-            return True, nz, plot_height, plot_width
-        else:
-            plot_height, plot_width = aggs[0].shape
-            return False, None, plot_height, plot_width
 
 
 class QuadMeshRaster(QuadMeshRectilinear):
@@ -527,8 +505,8 @@ class QuadMeshRaster(QuadMeshRectilinear):
                    offset_x=None, offset_y=None, src_xbinsize=None, src_ybinsize=None):
             use_cuda = cupy and isinstance(xr_ds[name].data, cupy.ndarray)
 
-            # Check if 3D and get dimensions
-            is_3d, nz, out_h, out_w = _QuadMesh3DExtendMixin._get_shape_info(aggs)
+            # Get shape info for 3D or 2D case
+            is_3d, nz, out_h, out_w = self._get_shape_info(aggs)
 
             # CUDA not implemented for 3D yet
             if is_3d and use_cuda:
@@ -901,23 +879,14 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             coord_dims = xr_ds.coords[x_name].dims
 
             if is_3d:
-                # For 3D, need to get full 3D shape for info call
-                # info extracts data with shape matching aggs[0].shape
-                # Use ... to handle the band dimension
-                cols = info(xr_ds.transpose(..., *coord_dims), aggs[0].shape)
-                aggs_and_cols = aggs + cols
-
-                # Use 3D version of extend_cpu
+                aggs_and_cols = aggs + info(xr_ds.transpose(..., *coord_dims), aggs[0].shape)
                 if use_cuda:
-                    # TODO: Implement CUDA path for 3D curvilinear
                     raise NotImplementedError("CUDA not yet supported for 3D quadmesh curvilinear")
                 else:
                     do_extend = extend_cpu_3d(n_arrays=len(aggs_and_cols))
 
-                # Pass full 3D arrays - loop over z happens inside numba function
                 do_extend(plot_height, plot_width, xs, ys, nz, *aggs_and_cols)
             else:
-                # 2D case
                 aggs_and_cols = aggs + info(xr_ds.transpose(*coord_dims), aggs[0].shape[:2])
                 if use_cuda:
                     do_extend = extend_cuda[cuda_args(xr_ds[name].shape)]
