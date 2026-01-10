@@ -22,7 +22,7 @@ try:
     import dask
     import dask.array
     dask.config.set(scheduler='single-threaded')
-    # array_modules.append(dask.array)  # HACK: DO NOT MERGE INTO MAIN
+    array_modules.append(dask.array)
 except ImportError:
     class dask:
         array = None
@@ -991,8 +991,8 @@ def test_quadmesh_3d_raster(rng, xp, size):
         dims=("y", "x", "band"),
         name="foo"
     )
-    agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
 
+    agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
     for n in band:
         output = agg_3d.isel(band=n)
         expected = cvs.quadmesh(da.isel(band=n))
@@ -1026,8 +1026,8 @@ def test_quadmesh_3d_rectilinear(rng, xp, size):
         dims=("y", "x", "band"),
         name="foo"
     )
-    agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
 
+    agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
     for n in band:
         output = agg_3d.isel(band=n)
         expected = cvs.quadmesh(da.isel(band=n))
@@ -1046,31 +1046,24 @@ def test_quadmesh_3d_curvilinear(rng, xp, size):
     data = xp.array(rng.random((size, size, len(band))))
 
     # Create 2D coordinate arrays (curvilinear)
-    x_1d = np.linspace(-1, 1, size)
-    y_1d = np.linspace(-1, 1, size)
+    x_1d = xp.linspace(-1, 1, size)
+    y_1d = xp.linspace(-1, 1, size)
+    x_2d, y_2d = xp.meshgrid(x_1d, y_1d, indexing='xy')
 
     da = xr.DataArray(
         data,
         coords={
-            "x": x_1d,
-            "y": y_1d,
+            "x": (["y", "x"], x_2d),
+            "y": (["y", "x"], y_2d),
             "band": band,
         },
         dims=("y", "x", "band"),
         name="foo"
     )
 
-    # Broadcast to create 2D coordinate arrays
-    lon_coord, lat_coord = xr.broadcast(da.x, da.y)
-    da = da.assign_coords({"lon": lon_coord, "lat": lat_coord})
-    da_transposed = da.transpose(..., "y", "x")
-
-    agg_3d = cvs.quadmesh(da_transposed, x='lon', y='lat')
-
+    agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
     for n in band:
         output = agg_3d.isel(band=n)
-        # Slice from transposed data to ensure lon/lat coords have same dims
-        da_2d = da_transposed.isel(band=n)
-        expected = cvs.quadmesh(da_2d, x='lon', y='lat')
+        expected = cvs.quadmesh(da.isel(band=n), x='x', y='y')
         expected = expected.assign_coords(band=n)
         assert_eq_xr(output, expected)
