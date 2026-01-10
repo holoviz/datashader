@@ -1009,8 +1009,8 @@ def _create_xy_coords(rng, xp, size, quadmesh_type):
             return s, s
         case "rectilinear":
             return (
-                s + rng.uniform(-0.001, 0.001, size),
-                s + rng.uniform(-0.001, 0.001, size),
+                s + xp.array(rng.uniform(-0.001, 0.001, size)),
+                s + xp.array(rng.uniform(-0.001, 0.001, size)),
             )
         case "curvilinear":
             x_2d, y_2d = xp.meshgrid(s, s, indexing='xy')
@@ -1037,10 +1037,12 @@ def test_quadmesh_3d(rng, xp, size, quadmesh_type):
         name="foo"
     )
 
+    # downsample for cupy give small rounding error
+    close = True if xp == cupy and size == 64 else False
     with force_quadmesh_type(quadmesh_type):
         agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
         for n in band:
             output = agg_3d.isel(band=n)
             expected = cvs.quadmesh(da.isel(band=n), x='x', y='y')
             expected = expected.assign_coords(band=n)
-            assert_eq_xr(output, expected)
+            assert_eq_xr(output, expected, close=close)
