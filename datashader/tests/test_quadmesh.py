@@ -1002,98 +1002,42 @@ def test_rectilinear_extra_padding():
     assert_eq_xr(actual, actual_reversed)
 
 
+def _create_xy_coords(rng, xp, size, quadmesh_type):
+    s = xp.linspace(-1, 1, size)
+    match quadmesh_type:
+        case "raster":
+            return s, s
+        case "rectilinear":
+            return (
+                s + rng.uniform(-0.001, 0.001, size),
+                s + rng.uniform(-0.001, 0.001, size),
+            )
+        case "curvilinear":
+            x_2d, y_2d = xp.meshgrid(s, s, indexing='xy')
+            return (["y", "x"], x_2d), (["y", "x"], y_2d)
+        case _:
+            raise ValueError(f"Unknown quadmesh_type: {quadmesh_type}")
+
+
 @pytest.mark.parametrize('xp', array_modules)
 @pytest.mark.parametrize('size', [16, 64], ids=["upsample", "downsample"])
-def test_quadmesh_3d_raster(rng, xp, size):
+@pytest.mark.parametrize('quadmesh_type', ["raster", "rectilinear", "curvilinear"])
+def test_quadmesh_3d(rng, xp, size, quadmesh_type):
     cvs = ds.Canvas(
         plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
     )
 
     band = [0, 1, 2]
     data = xp.array(rng.random((size, size, len(band))))
+    x, y = _create_xy_coords(rng, xp, size, quadmesh_type)
     da = xr.DataArray(
         data,
-        coords={
-            "x": np.linspace(-1, 1, size),
-            "y": np.linspace(-1, 1, size),
-            "band": band,
-        },
+        coords={"x": x, "y": y, "band": band},
         dims=("y", "x", "band"),
         name="foo"
     )
 
-    with force_quadmesh_type("raster"):
-        agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
-        for n in band:
-            output = agg_3d.isel(band=n)
-            expected = cvs.quadmesh(da.isel(band=n))
-            expected = expected.assign_coords(band=n)
-            assert_eq_xr(output, expected)
-
-@pytest.mark.parametrize('xp', array_modules)
-@pytest.mark.parametrize('size', [16, 64], ids=["upsample", "downsample"])
-def test_quadmesh_3d_rectilinear(rng, xp, size):
-    cvs = ds.Canvas(
-        plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
-    )
-
-    band = [0, 1, 2]
-    data = xp.array(rng.random((size, size, len(band))))
-
-    # Create non-uniform coordinates to ensure rectilinear path
-    x_coords = np.linspace(-1, 1, size)
-    y_coords = np.linspace(-1, 1, size)
-    # Add small random perturbations to break uniformity
-    x_coords = x_coords + rng.uniform(-0.001, 0.001, size)
-    y_coords = y_coords + rng.uniform(-0.001, 0.001, size)
-
-    da = xr.DataArray(
-        data,
-        coords={
-            "x": x_coords,
-            "y": y_coords,
-            "band": band,
-        },
-        dims=("y", "x", "band"),
-        name="foo"
-    )
-
-    with force_quadmesh_type("rectilinear"):
-        agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
-        for n in band:
-            output = agg_3d.isel(band=n)
-            expected = cvs.quadmesh(da.isel(band=n))
-            expected = expected.assign_coords(band=n)
-            assert_eq_xr(output, expected)
-
-
-@pytest.mark.parametrize('xp', array_modules)
-@pytest.mark.parametrize('size', [16, 64], ids=["upsample", "downsample"])
-def test_quadmesh_3d_curvilinear(rng, xp, size):
-    cvs = ds.Canvas(
-        plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
-    )
-
-    band = [0, 1, 2]
-    data = xp.array(rng.random((size, size, len(band))))
-
-    # Create 2D coordinate arrays (curvilinear)
-    x_1d = xp.linspace(-1, 1, size)
-    y_1d = xp.linspace(-1, 1, size)
-    x_2d, y_2d = xp.meshgrid(x_1d, y_1d, indexing='xy')
-
-    da = xr.DataArray(
-        data,
-        coords={
-            "x": (["y", "x"], x_2d),
-            "y": (["y", "x"], y_2d),
-            "band": band,
-        },
-        dims=("y", "x", "band"),
-        name="foo"
-    )
-
-    with force_quadmesh_type("curvilinear"):
+    with force_quadmesh_type(quadmesh_type):
         agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
         for n in band:
             output = agg_3d.isel(band=n)
