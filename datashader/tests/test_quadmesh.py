@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 import sys
 import textwrap
+from contextlib import contextmanager
+from unittest.mock import patch
 
 import numpy as np
 from numpy import nan
@@ -34,6 +36,34 @@ try:
 except ImportError:
     cudf = None
     cupy = None
+
+
+@contextmanager
+def force_quadmesh_type(quadmesh_type):
+    from datashader.glyphs.quadmesh import QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvilinear
+
+    original_raster_init = QuadMeshRaster.__init__
+    original_rectilinear_init = QuadMeshRectilinear.__init__
+    original_curvilinear_init = QuadMeshCurvilinear.__init__
+
+    def raster(self, *args, **kwargs):
+        assert quadmesh_type == 'raster'
+        return original_raster_init(self, *args, **kwargs)
+
+    def rectilinear(self, *args, **kwargs):
+        assert quadmesh_type == 'rectilinear'
+        return original_rectilinear_init(self, *args, **kwargs)
+
+    def curvilinear(self, *args, **kwargs):
+        assert quadmesh_type == 'curvilinear'
+        return original_curvilinear_init(self, *args, **kwargs)
+
+    with (
+        patch.object(QuadMeshRaster, '__init__', raster),
+        patch.object(QuadMeshRectilinear, '__init__', rectilinear),
+        patch.object(QuadMeshCurvilinear, '__init__', curvilinear)
+    ):
+        yield
 
 
 # Raster
@@ -992,12 +1022,13 @@ def test_quadmesh_3d_raster(rng, xp, size):
         name="foo"
     )
 
-    agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
-    for n in band:
-        output = agg_3d.isel(band=n)
-        expected = cvs.quadmesh(da.isel(band=n))
-        expected = expected.assign_coords(band=n)
-        assert_eq_xr(output, expected)
+    with force_quadmesh_type("raster"):
+        agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
+        for n in band:
+            output = agg_3d.isel(band=n)
+            expected = cvs.quadmesh(da.isel(band=n))
+            expected = expected.assign_coords(band=n)
+            assert_eq_xr(output, expected)
 
 @pytest.mark.parametrize('xp', array_modules)
 @pytest.mark.parametrize('size', [16, 64], ids=["upsample", "downsample"])
@@ -1027,12 +1058,13 @@ def test_quadmesh_3d_rectilinear(rng, xp, size):
         name="foo"
     )
 
-    agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
-    for n in band:
-        output = agg_3d.isel(band=n)
-        expected = cvs.quadmesh(da.isel(band=n))
-        expected = expected.assign_coords(band=n)
-        assert_eq_xr(output, expected)
+    with force_quadmesh_type("rectilinear"):
+        agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
+        for n in band:
+            output = agg_3d.isel(band=n)
+            expected = cvs.quadmesh(da.isel(band=n))
+            expected = expected.assign_coords(band=n)
+            assert_eq_xr(output, expected)
 
 
 @pytest.mark.parametrize('xp', array_modules)
@@ -1061,9 +1093,10 @@ def test_quadmesh_3d_curvilinear(rng, xp, size):
         name="foo"
     )
 
-    agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
-    for n in band:
-        output = agg_3d.isel(band=n)
-        expected = cvs.quadmesh(da.isel(band=n), x='x', y='y')
-        expected = expected.assign_coords(band=n)
-        assert_eq_xr(output, expected)
+    with force_quadmesh_type("curvilinear"):
+        agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
+        for n in band:
+            output = agg_3d.isel(band=n)
+            expected = cvs.quadmesh(da.isel(band=n), x='x', y='y')
+            expected = expected.assign_coords(band=n)
+            assert_eq_xr(output, expected)
