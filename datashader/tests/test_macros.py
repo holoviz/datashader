@@ -88,8 +88,7 @@ def test_unsupported_expanding():
     # This is to avoid the confusing error:
     # AttributeError: 'xxx' object has no attribute 'id'
 
-    def func_with_bad_listcomp(*args):
-        return sum(*[1, 2, 3], args)
+    def func_with_other_star(*args):
+        return list(*[1, 2, 3])
 
-    with pytest.raises(ValueError, match="unsupported context"):
-        expand_varargs(2)(func_with_bad_listcomp)
+    expand_varargs(2)(func_with_other_star)

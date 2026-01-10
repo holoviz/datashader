@@ -973,19 +973,19 @@ def test_rectilinear_extra_padding():
 
 
 @pytest.mark.parametrize('xp', array_modules)
-def test_quadmesh_3d_raster(rng, xp):
+@pytest.mark.parametrize('size', [16, 64], ids=["upsample", "downsample"])
+def test_quadmesh_3d_raster(rng, xp, size):
     cvs = ds.Canvas(
         plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
     )
 
-    N = 100
     band = [0, 1, 2]
-    data = xp.array(rng.random((N, N, len(band))))
+    data = xp.array(rng.random((size, size, len(band))))
     da = xr.DataArray(
         data,
         coords={
-            "x": np.linspace(-1, 1, N),
-            "y": np.linspace(-1, 1, N),
+            "x": np.linspace(-1, 1, size),
+            "y": np.linspace(-1, 1, size),
             "band": band,
         },
         dims=("y", "x", "band"),
@@ -1000,21 +1000,21 @@ def test_quadmesh_3d_raster(rng, xp):
         assert_eq_xr(output, expected)
 
 @pytest.mark.parametrize('xp', array_modules)
-def test_quadmesh_3d_rectilinear(rng, xp):
+@pytest.mark.parametrize('size', [16, 64], ids=["upsample", "downsample"])
+def test_quadmesh_3d_rectilinear(rng, xp, size):
     cvs = ds.Canvas(
         plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
     )
 
-    N = 100
     band = [0, 1, 2]
-    data = xp.array(rng.random((N, N, len(band))))
+    data = xp.array(rng.random((size, size, len(band))))
 
     # Create non-uniform coordinates to ensure rectilinear path
-    x_coords = np.linspace(-1, 1, N)
-    y_coords = np.linspace(-1, 1, N)
+    x_coords = np.linspace(-1, 1, size)
+    y_coords = np.linspace(-1, 1, size)
     # Add small random perturbations to break uniformity
-    x_coords = x_coords + rng.uniform(-0.001, 0.001, N)
-    y_coords = y_coords + rng.uniform(-0.001, 0.001, N)
+    x_coords = x_coords + rng.uniform(-0.001, 0.001, size)
+    y_coords = y_coords + rng.uniform(-0.001, 0.001, size)
 
     da = xr.DataArray(
         data,
@@ -1036,18 +1036,18 @@ def test_quadmesh_3d_rectilinear(rng, xp):
 
 
 @pytest.mark.parametrize('xp', array_modules)
-def test_quadmesh_3d_curvilinear(rng, xp):
+@pytest.mark.parametrize('size', [16, 64], ids=["upsample", "downsample"])
+def test_quadmesh_3d_curvilinear(rng, xp, size):
     cvs = ds.Canvas(
         plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
     )
 
-    N = 100
     band = [0, 1, 2]
-    data = xp.array(rng.random((N, N, len(band))))
+    data = xp.array(rng.random((size, size, len(band))))
 
     # Create 2D coordinate arrays (curvilinear)
-    x_1d = np.linspace(-1, 1, N)
-    y_1d = np.linspace(-1, 1, N)
+    x_1d = np.linspace(-1, 1, size)
+    y_1d = np.linspace(-1, 1, size)
 
     da = xr.DataArray(
         data,
