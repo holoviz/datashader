@@ -12,7 +12,7 @@ from xarray import DataArray, Dataset
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
-from .utils import get_indices, dshape_from_pandas, dshape_from_dask, get_array_namespace
+from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
@@ -816,7 +816,7 @@ The axis argument to Canvas.area must be 0 or 1
         ----
         Table from EarthMover
         """
-        # Determine reduction operation
+        from .glyphs import QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvilinear
         from .reductions import mean as mean_rnd
 
         if isinstance(source, Dataset):
@@ -854,14 +854,6 @@ The axis argument to Canvas.area must be 0 or 1
                 and agg.column != name):
             raise ValueError(f'DataArray name {source.name!r} does not match '
                              f'supplied reduction {agg}.')
-
-        # if source[name].ndim == 3:
-        #     return self._quadmesh_3d(source, x, y, name, xarr, yarr, agg)
-        return self._quadmesh_2d(source, x, y, name, xarr, yarr, agg)
-
-    def _quadmesh_2d(self, source, x, y, name, xarr, yarr, agg):
-        """Process 2D quadmesh data."""
-        from .glyphs import QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvilinear
 
         if xarr.ndim == 1:
             xaxis_linear = self.x_axis is _axis_lookup["linear"]
@@ -903,34 +895,6 @@ The axis argument to Canvas.area must be 0 or 1
             raise ValueError(f"""\
 x- and y-coordinate arrays must have 1 or 2 dimensions.
     Received arrays with dimensions: {list(xarr.dims)}""")
-
-    def _quadmesh_3d(self, source, x, y, name, xarr, yarr, agg):
-        """Handle 3D quadmesh data by processing each band separately."""
-        data_array = source[name]
-        band_dim, ydim, xdim = data_array.dims
-
-        results = [
-            self._quadmesh_2d(
-                data_array.isel({band_dim: i}).to_dataset(),
-                x,
-                y,
-                name,
-                xarr,
-                yarr,
-                agg
-            ) for i in range(data_array.sizes[band_dim])
-        ]
-        xp = get_array_namespace(results[0].data)
-        stacked_data = xp.stack([r.data for r in results], axis=0)
-
-        coords = {
-            band_dim: data_array.coords[band_dim],
-            ydim: results[0].coords[ydim],
-            xdim: results[0].coords[xdim]
-        }
-        dims = [band_dim, ydim, xdim]
-        attrs = dict(results[0].attrs)
-        return DataArray(stacked_data, coords=coords, dims=dims, attrs=attrs)
 
     # TODO re 'untested', below: Consider replacing with e.g. a 3x3
     # array in the call to Canvas (plot_height=3,plot_width=3), then

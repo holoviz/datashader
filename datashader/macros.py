@@ -76,17 +76,6 @@ class ExpandVarargTransformer(ast.NodeTransformer):
         self.expand_names = expand_names
 
 
-class _ReplaceVar(ast.NodeTransformer):
-    def __init__(self, old_name, new_name):
-        self.old_name = old_name
-        self.new_name = new_name
-
-    def visit_Name(self, node):
-        if node.id == self.old_name:
-            return ast.Name(id=self.new_name, ctx=node.ctx)
-        return node
-
-
 class ExpandVarargTransformerStarred(ExpandVarargTransformer):
     def visit_Starred(self, node):
         if (value_id := getattr(node.value, "id", None)) and value_id == self.starred_name:

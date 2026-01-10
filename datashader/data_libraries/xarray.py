@@ -34,14 +34,19 @@ def xarray_pipeline(xr_ds, schema, canvas, glyph, summary, *, antialias=False):
             glyph, xr_ds, schema, canvas, summary, antialias=antialias, cuda=cuda)
 
 
-def quadmesh_default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=False):
+def _extract_third_dim(glyph, source):
     # Get the dimensions used by the x and y coordinates
     # For rectilinear, glyph.x/y are 1D dimension names (e.g., 'x', 'y')
     # For curvilinear, glyph.x/y are 2D coordinate names (e.g., 'lon', 'lat')
     x_dims = set(source.coords[glyph.x].dims) if glyph.x in source.coords else {glyph.x}
     y_dims = set(source.coords[glyph.y].dims) if glyph.y in source.coords else {glyph.y}
     coord_dims = x_dims | y_dims
-    third_dim = next(iter(set(source.dims) - coord_dims), None)
+    return next(iter(set(source.dims) - coord_dims), None)
+
+
+@glyph_dispatch.register(_QuadMeshLike)
+def quadmesh_default(glyph, source, schema, canvas, summary, *, antialias=False, cuda=False):
+    third_dim = _extract_third_dim(glyph, source)
     if not third_dim:
         return default(glyph, source, schema, canvas, summary, antialias=antialias, cuda=cuda)
 
@@ -83,5 +88,4 @@ def quadmesh_default(glyph, source, schema, canvas, summary, *, antialias=False,
     )
 
 # Default to default pandas implementation
-glyph_dispatch.register(_QuadMeshLike)(quadmesh_default)
 glyph_dispatch.register(LinesXarrayCommonX)(default)

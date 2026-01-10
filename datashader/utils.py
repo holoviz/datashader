@@ -1036,11 +1036,5 @@ def get_array_namespace(array):
         return da
     elif array_namespace := getattr(array, "__array_namespace__", None):
         return array_namespace()
-    elif isinstance(array, np.ndarray):
-        return np
     else:
-        raise TypeError(
-            "Unsupported array type. "
-            "Expected a NumPy, Dask, CuPy, or other array-like object with an "
-            "__array_namespace__ method."
-        )
+        return np

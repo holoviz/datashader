@@ -62,11 +62,9 @@ def _make_3d_from_2d(func, prefix_idx):
         The 2D function to wrap. Should accept (prefix_params..., *aggs_and_cols).
         May be decorated by @ngjit and @expand_aggs_and_cols.
     prefix_idx : int
-        Number of prefix parameters to extract from func's signature.
-        These are the non-array parameters that come before *aggs_and_cols.
-        Examples:
+        These are the parameters that come before *aggs_and_cols.
+        Example:
         - extend_cpu(xs, ys, shape, *aggs_and_cols) -> prefix_idx=3
-        - downsample_cpu(src_w, src_h, ..., out_h, *aggs_and_cols) -> prefix_idx=10
 
     Returns
     -------
@@ -844,18 +842,8 @@ class QuadMeshCurvilinear(_QuadMeshLike):
                 yscaled = y_mapper2(y_breaks)
             yscaled -= y0
 
-            # Check if this is 3D quadmesh
-            # For curvilinear, aggs can be 3D even for 2D input (one agg per data row)
-            # so we check the input data dimensions instead
-            is_3d = xr_ds[name].ndim == 3
-
-            if is_3d:
-                # 3D case: agg shape is (nz, height, width)
-                nz, plot_height, plot_width = aggs[0].shape
-            else:
-                # 2D case: agg shape is (height, width)
-                # Use shape[:2] to handle potential extra dimensions
-                plot_height, plot_width = aggs[0].shape[:2]
+            # Get shape info for 3D or 2D case
+            is_3d, nz, plot_height, plot_width = self._get_shape_info(aggs)
 
             # dtype here matches that in perform_extend
             xp = cupy if use_cuda else np
