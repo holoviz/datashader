@@ -122,10 +122,6 @@ def _make_3d_from_2d_cuda(kernel_2d, prefix_idx):
         A factory function factory_3d(grid_shape) that returns a wrapper function
         for launching kernels in parallel streams.
     """
-    # Global stream pool for parallel 3D CUDA kernel launches
-    global _cuda_stream_pool
-    if _cuda_stream_pool is None:
-        _cuda_stream_pool = _CUDAStreamPool()
 
     def factory_3d(grid_shape):
         """
@@ -141,6 +137,11 @@ def _make_3d_from_2d_cuda(kernel_2d, prefix_idx):
         callable
             Wrapper function that launches 2D kernel in parallel streams for each z-slice.
         """
+        # Global stream pool for parallel 3D CUDA kernel launches
+        global _cuda_stream_pool
+        if _cuda_stream_pool is None:
+            _cuda_stream_pool = _CUDAStreamPool()
+
         def wrapper(*args):
             # Split args: prefix, nz, arrays
             prefix_args = args[:prefix_idx]

@@ -40,29 +40,15 @@ except ImportError:
 
 @contextmanager
 def force_quadmesh_type(quadmesh_type):
-    from datashader.glyphs.quadmesh import QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvilinear
+    from datashader.glyphs.quadmesh import _QuadMeshLike
 
-    original_raster_init = QuadMeshRaster.__init__
-    original_rectilinear_init = QuadMeshRectilinear.__init__
-    original_curvilinear_init = QuadMeshCurvilinear.__init__
+    original_init = _QuadMeshLike.__init__
 
-    def raster(self, *args, **kwargs):
-        assert quadmesh_type == 'raster'
-        return original_raster_init(self, *args, **kwargs)
+    def patch_init(self, *args, **kwargs):
+        assert f"quadmesh{quadmesh_type}" == type(self).__name__.lower()
+        return original_init(self, *args, **kwargs)
 
-    def rectilinear(self, *args, **kwargs):
-        assert quadmesh_type == 'rectilinear'
-        return original_rectilinear_init(self, *args, **kwargs)
-
-    def curvilinear(self, *args, **kwargs):
-        assert quadmesh_type == 'curvilinear'
-        return original_curvilinear_init(self, *args, **kwargs)
-
-    with (
-        patch.object(QuadMeshRaster, '__init__', raster),
-        patch.object(QuadMeshRectilinear, '__init__', rectilinear),
-        patch.object(QuadMeshCurvilinear, '__init__', curvilinear)
-    ):
+    with patch.object(_QuadMeshLike, '__init__', patch_init):
         yield
 
 
