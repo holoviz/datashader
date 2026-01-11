@@ -43,13 +43,17 @@ def force_quadmesh_type(quadmesh_type):
     from datashader.glyphs.quadmesh import _QuadMeshLike
 
     original_init = _QuadMeshLike.__init__
+    called = [False]
 
     def patch_init(self, *args, **kwargs):
         assert f"quadmesh{quadmesh_type}" == type(self).__name__.lower()
+        called[0] = True
         return original_init(self, *args, **kwargs)
 
     with patch.object(_QuadMeshLike, '__init__', patch_init):
         yield
+
+    assert called[0]
 
 
 # Raster

@@ -339,7 +339,6 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
             # Convert from bin centers to interval edges
             if x_breaks is None:
-                # Use .data when CUDA to preserve CuPy arrays, otherwise use .values
                 if use_cuda:
                     x_centers = xr_ds[x_name].data
                     if not isinstance(x_centers, cupy.ndarray):
@@ -355,7 +354,6 @@ class QuadMeshRectilinear(_QuadMeshLike):
                 x_breaks = x_breaks.copy()
 
             if y_breaks is None:
-                # Use .data when CUDA to preserve CuPy arrays, otherwise use .values
                 if use_cuda:
                     y_centers = xr_ds[y_name].data
                     if not isinstance(y_centers, cupy.ndarray):
@@ -913,7 +911,6 @@ class QuadMeshCurvilinear(_QuadMeshLike):
 
             # Convert from bin centers to interval edges
             if x_breaks is None:
-                # Use .data when CUDA to preserve CuPy arrays, otherwise use .values
                 if use_cuda:
                     x_centers = xr_ds[x_name].data
                     if not isinstance(x_centers, cupy.ndarray):
@@ -923,7 +920,6 @@ class QuadMeshCurvilinear(_QuadMeshLike):
                 x_breaks = self.infer_interval_breaks(x_centers)
 
             if y_breaks is None:
-                # Use .data when CUDA to preserve CuPy arrays, otherwise use .values
                 if use_cuda:
                     y_centers = xr_ds[y_name].data
                     if not isinstance(y_centers, cupy.ndarray):
