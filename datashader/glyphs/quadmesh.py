@@ -632,7 +632,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
                 offset_x = offset_y = 0
 
             # Build aggs_and_cols tuple
-            cols = info(xr_ds, aggs[0].shape[:2])
+            cols = info(xr_ds, aggs[0].shape[-2:])
             aggs_and_cols = tuple(aggs) + tuple(cols)
 
             if src_h == 0 or src_w == 0 or out_h == 0 or out_w == 0:
