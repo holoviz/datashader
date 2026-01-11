@@ -21,6 +21,7 @@ def _flatten_dask_keys(keys_array):
     else:
         return keys_array
 
+# TODO(hoxbro): Look into quadmesh `combine` for 3D
 
 def dask_xarray_pipeline(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=False):
     dsk, name = dask_glyph_dispatch(
@@ -68,13 +69,14 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Detect third dimension for 3D data
-    third_dim = _extract_third_dim(glyph, xr_ds)
+    third_dim, is_third_chunked = _extract_third_dim(glyph, xr_ds), False
     if third_dim:
         height, width = shape
         shape = (len(xr_ds.coords[third_dim]), height, width)
+        is_third_chunked = third_dim in xr_ds.chunks and len(xr_ds.chunks[third_dim]) > 1
 
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
+    create, info, append, combine_org, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
         compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
@@ -135,13 +137,29 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
         )
         y_breaks_chunk = y_breaks[y_breaks_slice]
 
+        if is_third_chunked:
+            chunk_shape = (np_arr.shape[0], shape[1], shape[2])
+        else:
+            chunk_shape = shape
+
         # Initialize aggregation buffers
-        aggs = create(shape)
+        aggs = create(chunk_shape)
 
         # Perform aggregation
         extend(aggs, chunk_ds, st, bounds,
                x_breaks=x_breaks_chunk, y_breaks=y_breaks_chunk)
         return aggs
+
+    # Create band-aware combine function
+    if is_third_chunked:
+        def combine_band(base_tuples):
+            # For band-chunked data, concatenate along band dimension
+            # Bands are independent, so no reduction combine needed
+            return tuple(np.concatenate(list(bs), axis=0)
+                         for bs in zip(*base_tuples))
+        combine = combine_band
+    else:
+        combine = combine_org
 
     name = tokenize(xr_ds.__dask_tokenize__(), canvas, glyph, summary)
     keys = _flatten_dask_keys(xr_ds.__dask_keys__()[0])
@@ -165,14 +183,15 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
     # Detect third dimension for 3D data
-    third_dim = _extract_third_dim(glyph, xr_ds)
-    out_shape = shape  # Keep 2D shape for scale/translate computation
+    third_dim, is_third_chunked = _extract_third_dim(glyph, xr_ds), False
+    out_shape = shape
     if third_dim:
         height, width = shape
         shape = (len(xr_ds.coords[third_dim]), height, width)
+        is_third_chunked = third_dim in xr_ds.chunks and len(xr_ds.chunks[third_dim]) > 1
 
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
+    create, info, append, combine_org, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
         compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
@@ -241,8 +260,13 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
         y_chunk_number = inds[ydim_ind]
         offset_y = chunk_inds[y_name][y_chunk_number]
 
+        if is_third_chunked:
+            chunk_shape = (np_arr.shape[0], shape[1], shape[2])
+        else:
+            chunk_shape = shape
+
         # Initialize aggregation buffers
-        aggs = create(shape)
+        aggs = create(chunk_shape)
 
         # Perform aggregation
         extend(aggs, chunk_ds, st, bounds,
@@ -252,6 +276,17 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
                src_xbinsize=xbinsize, src_ybinsize=ybinsize)
 
         return aggs
+
+    if is_third_chunked:
+        def combine_band(base_tuples):
+            # For band-chunked data, concatenate along band dimension
+            # Bands are independent, so no reduction combine needed
+            bases = tuple(np.concatenate(list(bs), axis=0)
+                         for bs in zip(*base_tuples))
+            return bases
+        combine = combine_band
+    else:
+        combine = combine_org
 
     name = tokenize(xr_ds.__dask_tokenize__(), canvas, glyph, summary)
     keys = _flatten_dask_keys(xr_ds.__dask_keys__()[0])
