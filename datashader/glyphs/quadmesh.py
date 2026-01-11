@@ -41,7 +41,7 @@ def func_3d({func_3d_args}):
     return local_vars["func_3d"]
 
 
-def _make_3d_from_2d(func, prefix_idx):
+def _make_3d_from_2d(func, prefix_idx, parallel=True):
     """
     Factory function that generates cached 3D wrappers from 2D quadmesh functions.
 
@@ -65,6 +65,8 @@ def _make_3d_from_2d(func, prefix_idx):
         These are the parameters that come before *aggs_and_cols.
         Example:
         - extend_cpu(xs, ys, shape, *aggs_and_cols) -> prefix_idx=3
+    parallel : bool, optional
+        Whether to use prange for parallel execution over z-dimension (default True).
 
     Returns
     -------
@@ -74,6 +76,8 @@ def _make_3d_from_2d(func, prefix_idx):
 
     """
     cache = {}
+    decorator = ngjit_parallel if parallel else ngjit
+
     def factory_3d(n_arrays):
         if n_arrays not in cache:
             func_3d = _inner_make_3d_func_from_2d(
@@ -81,7 +85,7 @@ def _make_3d_from_2d(func, prefix_idx):
                 func=func,
                 prefix_idx=prefix_idx
             )
-            cache[n_arrays] = ngjit_parallel(func_3d)
+            cache[n_arrays] = decorator(func_3d)
         return cache[n_arrays]
     return factory_3d
 
@@ -576,8 +580,10 @@ class QuadMeshRaster(QuadMeshRectilinear):
                     for src_i in range(src_i0, src_i1):
                         append(src_j, src_i, out_i, out_j, *aggs_and_cols)
 
-        upsample_cpu_3d = _make_3d_from_2d(upsample_cpu, 10)
-        downsample_cpu_3d = _make_3d_from_2d(downsample_cpu, 10)
+        # We don't parallelize cpu since 2d funcs are already parallelized
+        # and expect out_h >> zdimension
+        upsample_cpu_3d = _make_3d_from_2d(upsample_cpu, 10, parallel=False)
+        downsample_cpu_3d = _make_3d_from_2d(downsample_cpu, 10, parallel=False)
         upsample_cuda_3d = _make_3d_from_2d_cuda(upsample_cuda, 10)
         downsample_cuda_3d = _make_3d_from_2d_cuda(downsample_cuda, 10)
 
