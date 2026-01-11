@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 import sys
 import textwrap
+from contextlib import contextmanager
+from unittest.mock import patch
 
 import numpy as np
 from numpy import nan
@@ -34,6 +36,24 @@ try:
 except ImportError:
     cudf = None
     cupy = None
+
+
+@contextmanager
+def force_quadmesh_type(quadmesh_type):
+    from datashader.glyphs.quadmesh import _QuadMeshLike
+
+    original_init = _QuadMeshLike.__init__
+    called = [False]
+
+    def patch_init(self, *args, **kwargs):
+        assert f"quadmesh{quadmesh_type}" == type(self).__name__.lower()
+        called[0] = True
+        return original_init(self, *args, **kwargs)
+
+    with patch.object(_QuadMeshLike, '__init__', patch_init):
+        yield
+
+    assert called[0]
 
 
 # Raster
@@ -970,3 +990,49 @@ def test_rectilinear_extra_padding():
 
     actual_reversed = cvs.quadmesh(da.isel(x=slice(5, 2, -1), y=slice(4, 1, -1)), x="x", y="y")
     assert_eq_xr(actual, actual_reversed)
+
+
+def _create_xy_coords(rng, xp, size, quadmesh_type):
+    s = xp.linspace(-1, 1, size)
+    match quadmesh_type:
+        case "raster":
+            return s, s
+        case "rectilinear":
+            return (
+                s + xp.array(rng.uniform(-0.001, 0.001, size)),
+                s + xp.array(rng.uniform(-0.001, 0.001, size)),
+            )
+        case "curvilinear":
+            x_2d, y_2d = xp.meshgrid(s, s, indexing='xy')
+            return (["y", "x"], x_2d), (["y", "x"], y_2d)
+        case _:
+            raise ValueError(f"Unknown quadmesh_type: {quadmesh_type}")
+
+
+@pytest.mark.parametrize('xp', array_modules)
+@pytest.mark.parametrize('size', [16, 64], ids=["upsample", "downsample"])
+@pytest.mark.parametrize('quadmesh_type', ["raster", "rectilinear", "curvilinear"])
+def test_quadmesh_3d(rng, xp, size, quadmesh_type):
+    cvs = ds.Canvas(
+        plot_height=32, plot_width=32, x_range=(-1, 1), y_range=(-1, 1)
+    )
+
+    band = [0, 1, 2]
+    data = xp.array(rng.random((size, size, len(band))))
+    x, y = _create_xy_coords(rng, xp, size, quadmesh_type)
+    da = xr.DataArray(
+        data,
+        coords={"x": x, "y": y, "band": band},
+        dims=("y", "x", "band"),
+        name="foo"
+    )
+
+    # downsample for cupy give small rounding error
+    close = True if xp == cupy and size == 64 else False
+    with force_quadmesh_type(quadmesh_type):
+        agg_3d = cvs.quadmesh(da.transpose(..., "y", "x"), x='x', y='y')
+        for n in band:
+            output = agg_3d.isel(band=n)
+            expected = cvs.quadmesh(da.isel(band=n), x='x', y='y')
+            expected = expected.assign_coords(band=n)
+            assert_eq_xr(output, expected, close=close)

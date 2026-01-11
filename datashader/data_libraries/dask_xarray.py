@@ -4,6 +4,7 @@ from datashader.glyphs.line import LinesXarrayCommonX
 from datashader.glyphs.quadmesh import (
     QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvilinear, build_scale_translate
 )
+from .xarray import _extract_third_dim
 from datashader.utils import apply
 import dask
 import numpy as np
@@ -12,6 +13,15 @@ from dask.base import tokenize, compute
 from dask.array.overlap import overlap
 dask_glyph_dispatch = Dispatcher()
 
+
+def _flatten_dask_keys(keys_array):
+    """Recursively flatten dask keys array for any number of dimensions."""
+    if isinstance(keys_array[0], (list, tuple)) and not isinstance(keys_array[0][0], str):
+        return [item for sublist in keys_array for item in _flatten_dask_keys(sublist)]
+    else:
+        return keys_array
+
+# TODO(hoxbro): Look into quadmesh `combine` for 3D
 
 def dask_xarray_pipeline(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=False):
     dsk, name = dask_glyph_dispatch(
@@ -58,8 +68,15 @@ def shape_bounds_st_and_axis(xr_ds, canvas, glyph):
 def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
+    # Detect third dimension for 3D data
+    third_dim, is_third_chunked = _extract_third_dim(glyph, xr_ds), False
+    if third_dim:
+        height, width = shape
+        shape = (len(xr_ds.coords[third_dim]), height, width)
+        is_third_chunked = third_dim in xr_ds.chunks and len(xr_ds.chunks[third_dim]) > 1
+
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
+    create, info, append, combine_org, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
         compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
@@ -120,20 +137,44 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
         )
         y_breaks_chunk = y_breaks[y_breaks_slice]
 
+        if is_third_chunked:
+            chunk_shape = (np_arr.shape[0], shape[1], shape[2])
+        else:
+            chunk_shape = shape
+
         # Initialize aggregation buffers
-        aggs = create(shape)
+        aggs = create(chunk_shape)
 
         # Perform aggregation
         extend(aggs, chunk_ds, st, bounds,
                x_breaks=x_breaks_chunk, y_breaks=y_breaks_chunk)
         return aggs
 
+    # Create band-aware combine function
+    if is_third_chunked:
+        def combine_band(base_tuples):
+            # For band-chunked data, concatenate along band dimension
+            # Bands are independent, so no reduction combine needed
+            return tuple(np.concatenate(list(bs), axis=0)
+                         for bs in zip(*base_tuples))
+        combine = combine_band
+    else:
+        combine = combine_org
+
     name = tokenize(xr_ds.__dask_tokenize__(), canvas, glyph, summary)
-    keys = [k for row in xr_ds.__dask_keys__()[0] for k in row]
+    keys = _flatten_dask_keys(xr_ds.__dask_keys__()[0])
     keys2 = [(name, i) for i in range(len(keys))]
-    dsk = dict((k2, (chunk, k, k[1], k[2])) for (k2, k) in zip(keys2, keys))
+    dsk = dict((k2, (chunk, k, *k[1:])) for (k2, k) in zip(keys2, keys))
+
+    # Prepare coords and dims for 3D data
+    coords_dict = axis.copy()
+    dims_list = [glyph.y_label, glyph.x_label]
+    if third_dim:
+        coords_dict[third_dim] = xr_ds.coords[third_dim]
+        dims_list = [third_dim, glyph.y_label, glyph.x_label]
+
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+                 dict(cuda=cuda, coords=coords_dict, dims=dims_list,
                       attrs=dict(x_range=x_range, y_range=y_range)))
     return dsk, name
 
@@ -141,8 +182,16 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
 def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
 
+    # Detect third dimension for 3D data
+    third_dim, is_third_chunked = _extract_third_dim(glyph, xr_ds), False
+    out_shape = shape
+    if third_dim:
+        height, width = shape
+        shape = (len(xr_ds.coords[third_dim]), height, width)
+        is_third_chunked = third_dim in xr_ds.chunks and len(xr_ds.chunks[third_dim]) > 1
+
     # Compile functions
-    create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
+    create, info, append, combine_org, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
         compile_components(summary, schema, glyph, antialias=antialias, cuda=cuda, partitioned=True)
     x_mapper = canvas.x_axis.mapper
     y_mapper = canvas.y_axis.mapper
@@ -177,7 +226,7 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
     ybinsize = abs(float(xr_ds[y_name][1] - xr_ds[y_name][0]))
 
     # Compute scale/translate
-    out_h, out_w = shape
+    out_h, out_w = out_shape
     src_h, src_w = [xr_ds[glyph.name].shape[i] for i in [ydim_ind, xdim_ind]]
     out_x0, out_x1, out_y0, out_y1 = bounds
     scale_y, translate_y = build_scale_translate(
@@ -211,8 +260,13 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
         y_chunk_number = inds[ydim_ind]
         offset_y = chunk_inds[y_name][y_chunk_number]
 
+        if is_third_chunked:
+            chunk_shape = (np_arr.shape[0], shape[1], shape[2])
+        else:
+            chunk_shape = shape
+
         # Initialize aggregation buffers
-        aggs = create(shape)
+        aggs = create(chunk_shape)
 
         # Perform aggregation
         extend(aggs, chunk_ds, st, bounds,
@@ -223,18 +277,43 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
 
         return aggs
 
+    if is_third_chunked:
+        def combine_band(base_tuples):
+            # For band-chunked data, concatenate along band dimension
+            # Bands are independent, so no reduction combine needed
+            bases = tuple(np.concatenate(list(bs), axis=0)
+                         for bs in zip(*base_tuples))
+            return bases
+        combine = combine_band
+    else:
+        combine = combine_org
+
     name = tokenize(xr_ds.__dask_tokenize__(), canvas, glyph, summary)
-    keys = [k for row in xr_ds.__dask_keys__()[0] for k in row]
+    keys = _flatten_dask_keys(xr_ds.__dask_keys__()[0])
     keys2 = [(name, i) for i in range(len(keys))]
-    dsk = dict((k2, (chunk, k, k[1], k[2])) for (k2, k) in zip(keys2, keys))
+    dsk = dict((k2, (chunk, k, *k[1:])) for (k2, k) in zip(keys2, keys))
+
+    # Prepare coords and dims for 3D data
+    coords_dict = axis.copy()
+    dims_list = [glyph.y_label, glyph.x_label]
+    if third_dim:
+        coords_dict[third_dim] = xr_ds.coords[third_dim]
+        dims_list = [third_dim, glyph.y_label, glyph.x_label]
+
     dsk[name] = (apply, finalize, [(combine, keys2)],
-                 dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+                 dict(cuda=cuda, coords=coords_dict, dims=dims_list,
                       attrs=dict(x_range=x_range, y_range=y_range)))
     return dsk, name
 
 
 def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=False):
     shape, bounds, st, axis = shape_bounds_st_and_axis(xr_ds, canvas, glyph)
+
+    # Detect third dimension for 3D data
+    third_dim = _extract_third_dim(glyph, xr_ds)
+    if third_dim:
+        height, width = shape
+        shape = (len(xr_ds.coords[third_dim]), height, width)
 
     # Compile functions
     create, info, append, combine, finalize, antialias_stage_2, antialias_stage_2_funcs, _ = \
@@ -259,20 +338,29 @@ def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
 
     var_name = list(xr_ds.data_vars.keys())[0]
 
-    # Validate coordinates
+    # Validate coordinates - for 3D, compare only spatial dimensions (exclude third_dim)
+    if third_dim:
+        expected_dims = tuple(d for d in xr_ds[glyph.name].dims if d != third_dim)
+        expected_chunks = tuple(
+            c for d, c in zip(xr_ds[glyph.name].dims, xr_ds[glyph.name].chunks) if d != third_dim
+        )
+    else:
+        expected_dims = xr_ds[glyph.name].dims
+        expected_chunks = xr_ds[glyph.name].chunks
+
     err_msg = (
         "DataArray {name} is backed by a Dask array, \n"
         "but coordinate {coord} is not backed by a Dask array with identical \n"
         "dimension order and chunks"
     )
     if (not isinstance(x_centers, dask.array.Array) or
-            xr_ds[glyph.name].dims != xr_ds[glyph.x].dims or
-            xr_ds[glyph.name].chunks != xr_ds[glyph.x].chunks):
+            xr_ds[glyph.x].dims != expected_dims or
+            xr_ds[glyph.x].chunks != expected_chunks):
         raise ValueError(err_msg.format(name=glyph.name, coord=glyph.x))
 
     if (not isinstance(y_centers, dask.array.Array) or
-            xr_ds[glyph.name].dims != xr_ds[glyph.y].dims or
-            xr_ds[glyph.name].chunks != xr_ds[glyph.y].chunks):
+            xr_ds[glyph.y].dims != expected_dims or
+            xr_ds[glyph.y].chunks != expected_chunks):
         raise ValueError(err_msg.format(name=glyph.name, coord=glyph.y))
 
     # Make sure coordinates are floats so that overlap with nan will behave properly
@@ -324,9 +412,9 @@ def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
 
     result_name = tokenize(xr_ds.__dask_tokenize__(), canvas, glyph, summary)
 
-    z_keys = [k for row in zs.__dask_keys__() for k in row]
-    x_overlap_keys = [k for row in x_overlapped_centers.__dask_keys__() for k in row]
-    y_overlap_keys = [k for row in y_overlapped_centers.__dask_keys__() for k in row]
+    z_keys = _flatten_dask_keys(zs.__dask_keys__())
+    x_overlap_keys = _flatten_dask_keys(x_overlapped_centers.__dask_keys__())
+    y_overlap_keys = _flatten_dask_keys(y_overlapped_centers.__dask_keys__())
 
     result_keys = [(result_name, i) for i in range(len(z_keys))]
 
@@ -337,9 +425,16 @@ def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
         )
     )
 
+    # Prepare coords and dims for 3D data
+    coords_dict = axis.copy()
+    dims_list = [glyph.y_label, glyph.x_label]
+    if third_dim:
+        coords_dict[third_dim] = xr_ds.coords[third_dim]
+        dims_list = [third_dim, glyph.y_label, glyph.x_label]
+
     dsk[result_name] = (
         apply, finalize, [(combine, result_keys)],
-        dict(cuda=cuda, coords=axis, dims=[glyph.y_label, glyph.x_label],
+        dict(cuda=cuda, coords=coords_dict, dims=dims_list,
              attrs=dict(x_range=x_range, y_range=y_range))
     )
 

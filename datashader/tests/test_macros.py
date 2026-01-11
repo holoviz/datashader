@@ -1,10 +1,12 @@
 from __future__ import annotations
+
+import inspect
 import warnings
+
 import pytest
+from numba import jit
 
 from datashader.macros import expand_varargs
-import inspect
-from numba import jit
 
 
 # Example functions to test expand_varargs on
@@ -80,3 +82,13 @@ def test_numba_jit_expanded_function():
         expand_varargs(2)(function_with_vararg_call_numba)
     )
     assert function_with_vararg_call_numba(1, 2, 3, 4) == jit_fn(1, 2, 3, 4)
+
+
+def test_unsupported_expanding():
+    # This is to avoid the confusing error:
+    # AttributeError: 'xxx' object has no attribute 'id'
+
+    def func_with_other_star(*args):
+        return list(*[1, 2, 3])
+
+    expand_varargs(2)(func_with_other_star)

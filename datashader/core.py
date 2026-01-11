@@ -780,7 +780,23 @@ The axis argument to Canvas.area must be 0 or 1
         return bypixel(source, self, glyph, agg)
 
     def quadmesh(self, source, x=None, y=None, agg=None):
-        """Samples a recti- or curvi-linear quadmesh by canvas size and bounds.
+        r"""Samples a raster, rectilinear or curvilinear quadmesh by canvas size and bounds.
+
+        +---------------------+---------------------+---------------------+
+        |   RASTER            |   RECTILINEAR       |   CURVILINEAR       |
+        +---------------------+---------------------+---------------------+
+        | Regular spacing     | Variable spacing    | Variable 2D spacing |
+        | o---o---o---o---o   | o-o---o----o-o      |    o---o---o---o    |
+        | |   |   |   |   |   | | |   |    | |      |   /   /   /   /     |
+        | o---o---o---o---o   | o-o---o----o-o      |  o----o--o---o      |
+        | |   |   |   |   |   | | |   |    | |      | /   /    /  /       |
+        | o---o---o---o---o   | o-o---o----o-o      | o--o----o---o       |
+        | |   |   |   |   |   | | |   |    | |      |  \   \    \  \      |
+        | o---o---o---o---o   | o-o---o----o-o      |   o---o---o---o     |
+        | `dx = dy = constant`  | `dx` & `dy` vary in 1D  | `dx` & `dy` vary in 2D  |
+        | `x[i] = i * dx`       | `x[i], y[j]`          | `x[i,j], y[i,j]`      |
+        | `y[j] = j * dy`       |                     |                     |
+        +---------------------+---------------------+---------------------+
 
         Parameters
         ----------
@@ -795,10 +811,12 @@ The axis argument to Canvas.area must be 0 or 1
         Returns
         -------
         data : xarray.DataArray
+
+        Note
+        ----
+        Table from EarthMover
         """
         from .glyphs import QuadMeshRaster, QuadMeshRectilinear, QuadMeshCurvilinear
-
-        # Determine reduction operation
         from .reductions import mean as mean_rnd
 
         if isinstance(source, Dataset):
@@ -819,7 +837,7 @@ The axis argument to Canvas.area must be 0 or 1
             agg = mean_rnd(name)
 
         if x is None and y is None:
-            y, x = source[name].dims
+            y, x = source[name].dims[-2:]
         elif not x or not y:
             raise ValueError("Either specify both x and y coordinates"
                              "or allow them to be inferred.")
