@@ -7,6 +7,7 @@ import inspect
 import ast
 import textwrap
 
+prop_re = re.compile(r"^_(\d+)$")
 
 class NameVisitor(ast.NodeVisitor):
     """
@@ -44,7 +45,6 @@ class NameVisitor(ast.NodeVisitor):
         -------
         list of str
         """
-        prop_re = re.compile(r"^_(\d+)$")
         matching_names = [n for n in self.names if prop_re.match(n)]
         if matching_names:
             start_number = max([int(n[1:]) for n in matching_names]) + 1
@@ -75,8 +75,6 @@ class ExpandVarargTransformer(ast.NodeTransformer):
         self.starred_name = starred_name
         self.expand_names = expand_names
 
-
-class ExpandVarargTransformerStarred(ExpandVarargTransformer):
     def visit_Starred(self, node):
         if (value_id := getattr(node.value, "id", None)) and value_id == self.starred_name:
             return [ast.Name(id=name, ctx=node.ctx) for name in
@@ -218,9 +216,7 @@ Input function AST does not have a variable length positional argument
     expand_names = before_name_visitor.get_new_names(expand_number)
 
     # Replace use of *args in function body
-    expand_transformer = ExpandVarargTransformerStarred
-
-    new_fn_ast = expand_transformer(
+    new_fn_ast = ExpandVarargTransformer(
         vararg_name, expand_names
     ).visit(fn_ast)
 
