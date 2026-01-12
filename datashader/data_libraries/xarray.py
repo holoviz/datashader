@@ -35,13 +35,16 @@ def xarray_pipeline(xr_ds, schema, canvas, glyph, summary, *, antialias=False):
 
 
 def _extract_third_dim(glyph, source):
-    # Get the dimensions used by the x and y coordinates
-    # For rectilinear, glyph.x/y are 1D dimension names (e.g., 'x', 'y')
-    # For curvilinear, glyph.x/y are 2D coordinate names (e.g., 'lon', 'lat')
     x_dims = set(source.coords[glyph.x].dims) if glyph.x in source.coords else {glyph.x}
     y_dims = set(source.coords[glyph.y].dims) if glyph.y in source.coords else {glyph.y}
-    coord_dims = x_dims | y_dims
-    return next(iter(set(source.dims) - coord_dims), None)
+    dims = set(source.dims) - (x_dims | y_dims)
+    match len(dims):
+        case 0:
+            return None
+        case 1:
+            return next(iter(dims))
+        case _:
+            raise ValueError("Only one additional dimension supported for QuadMesh glyphs.")
 
 
 @glyph_dispatch.register(_QuadMeshLike)

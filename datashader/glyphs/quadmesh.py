@@ -24,16 +24,13 @@ except Exception:
 
 def _inner_make_3d_func_from_2d(*, n_arrays, func, prefix_idx):
     # Generate the 3D function source
-    array_list = [f"arr{i}" for i in range(n_arrays)]
     prefix_str = ', '.join([f"pre{i}" for i in range(prefix_idx)])
-    arrays_str = ', '.join(array_list)
-    func_3d_args = f"{prefix_str}, nz, {arrays_str}"
-    func_2d_args = f"{prefix_str}, " + ", ".join(f"{p}[z]" for p in array_list)
-
+    arrays_str = ', '.join([f"arr{i}" for i in range(n_arrays)])
+    array_idx_str = ', '.join([f"arr{i}[z]" for i in range(n_arrays)])
     func_source = f"""\
-def func_3d({func_3d_args}):
+def func_3d({prefix_str}, nz, {arrays_str}):
     for z in prange(nz):
-        func({func_2d_args})"""
+        func({prefix_str}, {array_idx_str})"""
 
     # Compile the function
     local_vars = {'prange': prange, 'func': func}
@@ -66,7 +63,7 @@ def _make_3d_from_2d(func, prefix_idx, parallel=True):
         Example:
         - extend_cpu(xs, ys, shape, *aggs_and_cols) -> prefix_idx=3
     parallel : bool, optional
-        Whether to use prange for parallel execution over z-dimension (default True).
+        Whether to use parallel execution over z-dimension (default True).
 
     Returns
     -------
@@ -344,9 +341,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
             # Convert from bin centers to interval edges
             if x_breaks is None:
                 if use_cuda:
-                    x_centers = xr_ds[x_name].data
-                    if not isinstance(x_centers, cupy.ndarray):
-                        x_centers = cupy.array(x_centers)
+                    x_centers = cupy.array(xr_ds[x_name].data)
                 else:
                     x_centers = xr_ds[x_name].values
                 x_breaks = self.infer_interval_breaks(x_centers)
@@ -359,9 +354,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
             if y_breaks is None:
                 if use_cuda:
-                    y_centers = xr_ds[y_name].data
-                    if not isinstance(y_centers, cupy.ndarray):
-                        y_centers = cupy.array(y_centers)
+                    y_centers = cupy.array(xr_ds[y_name].data)
                 else:
                     y_centers = xr_ds[y_name].values
                 y_breaks = self.infer_interval_breaks(y_centers)
@@ -411,8 +404,6 @@ class QuadMeshRectilinear(_QuadMeshLike):
 
             # Get shape info for 3D or 2D case
             is_3d, nz, plot_height, plot_width = self._get_shape_info(aggs)
-
-            # Use the appropriate array module for clipping
             xp = cupy if use_cuda else np
 
             # Downselect xs and ys and convert to int
@@ -581,7 +572,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
                         append(src_j, src_i, out_i, out_j, *aggs_and_cols)
 
         # We don't parallelize cpu since 2d funcs are already parallelized
-        # and expect out_h >> zdimension
+        # and expect out_h >> z-dimension
         upsample_cpu_3d = _make_3d_from_2d(upsample_cpu, 10, parallel=False)
         downsample_cpu_3d = _make_3d_from_2d(downsample_cpu, 10, parallel=False)
         upsample_cuda_3d = _make_3d_from_2d_cuda(upsample_cuda, 10)
