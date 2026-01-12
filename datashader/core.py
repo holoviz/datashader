@@ -837,7 +837,10 @@ The axis argument to Canvas.area must be 0 or 1
             agg = mean_rnd(name)
 
         if x is None and y is None:
-            y, x = source[name].dims[-2:]
+            if len(source[name].dims) == 2:
+                y, x = source[name].dims
+            else:
+                raise ValueError("x and y must be specified if dims is not 2D.")
         elif not x or not y:
             raise ValueError("Either specify both x and y coordinates"
                              "or allow them to be inferred.")

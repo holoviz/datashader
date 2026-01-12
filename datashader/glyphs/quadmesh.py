@@ -909,18 +909,14 @@ class QuadMeshCurvilinear(_QuadMeshLike):
             # Convert from bin centers to interval edges
             if x_breaks is None:
                 if use_cuda:
-                    x_centers = xr_ds[x_name].data
-                    if not isinstance(x_centers, cupy.ndarray):
-                        x_centers = cupy.array(x_centers)
+                    x_centers = cupy.array(xr_ds[x_name].data)
                 else:
                     x_centers = xr_ds[x_name].values
                 x_breaks = self.infer_interval_breaks(x_centers)
 
             if y_breaks is None:
                 if use_cuda:
-                    y_centers = xr_ds[y_name].data
-                    if not isinstance(y_centers, cupy.ndarray):
-                        y_centers = cupy.array(y_centers)
+                    y_centers = cupy.array(xr_ds[y_name].data)
                 else:
                     y_centers = xr_ds[y_name].values
                 y_breaks = self.infer_interval_breaks(y_centers)
