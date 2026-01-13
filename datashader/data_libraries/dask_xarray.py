@@ -9,17 +9,9 @@ from datashader.utils import apply
 import dask
 import numpy as np
 import xarray as xr
-from dask.base import tokenize, compute
+from dask.base import tokenize, compute, flatten
 from dask.array.overlap import overlap
 dask_glyph_dispatch = Dispatcher()
-
-
-def _flatten_dask_keys(keys_array):
-    """Recursively flatten dask keys array for any number of dimensions."""
-    if isinstance(keys_array[0], (list, tuple)) and not isinstance(keys_array[0][0], str):
-        return [item for sublist in keys_array for item in _flatten_dask_keys(sublist)]
-    else:
-        return keys_array
 
 
 def _prepare_3d_coords_and_dims(third_dim, xr_ds, axis, glyph):
@@ -161,7 +153,7 @@ def dask_rectilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
         return aggs
 
     name = tokenize(xr_ds.__dask_tokenize__(), canvas, glyph, summary)
-    keys = _flatten_dask_keys(xr_ds.__dask_keys__()[0])
+    keys = tuple(flatten(xr_ds.__dask_keys__()[0]))
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k, *k[1:])) for (k2, k) in zip(keys2, keys))
 
@@ -258,7 +250,7 @@ def dask_raster(glyph, xr_ds, schema, canvas, summary, *, antialias=False, cuda=
         return aggs
 
     name = tokenize(xr_ds.__dask_tokenize__(), canvas, glyph, summary)
-    keys = _flatten_dask_keys(xr_ds.__dask_keys__()[0])
+    keys = tuple(flatten(xr_ds.__dask_keys__()[0]))
     keys2 = [(name, i) for i in range(len(keys))]
     dsk = dict((k2, (chunk, k, *k[1:])) for (k2, k) in zip(keys2, keys))
 
@@ -368,9 +360,9 @@ def dask_curvilinear(glyph, xr_ds, schema, canvas, summary, *, antialias=False, 
 
     result_name = tokenize(xr_ds.__dask_tokenize__(), canvas, glyph, summary)
 
-    z_keys = _flatten_dask_keys(zs.__dask_keys__())
-    x_overlap_keys = _flatten_dask_keys(x_overlapped_centers.__dask_keys__())
-    y_overlap_keys = _flatten_dask_keys(y_overlapped_centers.__dask_keys__())
+    z_keys = tuple(flatten(zs.__dask_keys__()))
+    x_overlap_keys = tuple(flatten(x_overlapped_centers.__dask_keys__()))
+    y_overlap_keys = tuple(flatten(y_overlapped_centers.__dask_keys__()))
 
     result_keys = [(result_name, i) for i in range(len(z_keys))]
 
