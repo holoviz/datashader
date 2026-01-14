@@ -16,6 +16,7 @@ from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
+from .datashape import int64, Record
 
 try:
     import dask.dataframe as dd
@@ -1326,8 +1327,43 @@ def bypixel(source, canvas, glyph, agg, *, antialias=False):
     agg : Reduction
     """
     source, dshape = _bypixel_sanitise(source, glyph, agg)
-
     schema = dshape.measure
+
+    dtypes, x, y = dict(source.dtypes), str(glyph.x), str(glyph.y)
+    xkind, ykind = dtypes[x].kind, dtypes[y].kind
+    is_temporal = {}
+    if xkind in "Mm":
+        source_x = source[x]
+        if getattr(dtypes[x], "tz", None):
+            source_x = source_x.dt.tz_localize(None)
+            dtypes[x] = source_x.dtype
+        source[x] = source_x.astype(np.int64, copy=False)
+        is_temporal[x] = True
+        cx_range = canvas.x_range
+        if cx_range:
+            fn = (lambda x: pd.to_datetime(x).tz_localize(None)) if xkind == "M" else pd.to_timedelta
+            canvas.x_range = tuple(
+                fn(cx_range).to_numpy().astype(dtypes[x]).astype(np.int64)
+            )
+    if ykind in "Mm":
+        source_y = source[y]
+        if getattr(dtypes[y], "tz", None):
+            source_y = source_y.dt.tz_localize(None)
+            dtypes[y] = source_y.dtype
+        source[y] = source_y.astype(np.int64, copy=False)
+        is_temporal[y] = True
+        cy_range = canvas.y_range
+        if cy_range:
+            fn = (lambda x: pd.to_datetime(x).tz_localize(None)) if ykind == "M" else pd.to_timedelta
+            canvas.y_range = tuple(
+                fn(cy_range).to_numpy().astype(dtypes[x]).astype(np.int64)
+            )
+    if is_temporal:
+        schema = Record([
+            (n, int64) if is_temporal.get(n) else (n, schema.types[idx])
+            for idx, n in enumerate(schema.names)
+        ])
+
     glyph.validate(schema)
     agg.validate(schema)
     canvas.validate()
@@ -1335,7 +1371,21 @@ def bypixel(source, canvas, glyph, agg, *, antialias=False):
     # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
-        return bypixel.pipeline(source, schema, canvas, glyph, agg, antialias=antialias)
+        output = bypixel.pipeline(source, schema, canvas, glyph, agg, antialias=antialias)
+
+    # converted to float by compute_scale_and_translate
+    if xkind in "Mm":
+        output[x] = output[x].data.astype(np.int64).view(dtypes[x])
+        output.attrs["x_range"] = tuple(np.asarray(output.attrs["x_range"]).astype(dtypes[x]))
+        if cx_range:
+            canvas.x_range = cx_range
+    if ykind in "Mm":
+        output[y] = output[y].data.astype(np.int64).view(dtypes[y])
+        output.attrs["y_range"] = tuple(np.asarray(output.attrs["y_range"]).astype(dtypes[y]))
+        if cy_range:
+            canvas.y_range = cy_range
+
+    return output
 
 
 def _bypixel_sanitise(source, glyph, agg):
