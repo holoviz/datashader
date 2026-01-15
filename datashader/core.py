@@ -11,12 +11,11 @@ from packaging.version import Version
 from xarray import DataArray, Dataset
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
-    dshape_from_xarray_dataset
+    dshape_from_xarray_dataset, _categorize_dask_columns
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
-from .datashape import int64, Record
 
 try:
     import dask.dataframe as dd
@@ -1310,85 +1309,7 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         else:
             return None
 
-
-def bypixel(source, canvas, glyph, agg, *, antialias=False):
-    """Compute an aggregate grouped by pixel sized bins.
-
-    Aggregate input data ``source`` into a grid with shape and axis matching
-    ``canvas``, mapping data to bins by ``glyph``, and aggregating by reduction
-    ``agg``.
-
-    Parameters
-    ----------
-    source : pandas.DataFrame, dask.DataFrame
-        Input datasource
-    canvas : Canvas
-    glyph : Glyph
-    agg : Reduction
-    """
-    source, dshape = _bypixel_sanitise(source, glyph, agg)
-    schema = dshape.measure
-
-    dtypes, x, y = dict(source.dtypes), str(glyph.x), str(glyph.y)
-    xkind, ykind = dtypes[x].kind, dtypes[y].kind
-    is_temporal = {}
-    if xkind in "Mm":
-        source_x = source[x]
-        if getattr(dtypes[x], "tz", None):
-            source_x = source_x.dt.tz_localize(None)
-            dtypes[x] = source_x.dtype
-        source[x] = source_x.astype(np.int64, copy=False)
-        is_temporal[x] = True
-        cx_range = canvas.x_range
-        if cx_range:
-            fn = (lambda x: pd.to_datetime(x).tz_localize(None)) if xkind == "M" else pd.to_timedelta
-            canvas.x_range = tuple(
-                fn(cx_range).to_numpy().astype(dtypes[x]).astype(np.int64)
-            )
-    if ykind in "Mm":
-        source_y = source[y]
-        if getattr(dtypes[y], "tz", None):
-            source_y = source_y.dt.tz_localize(None)
-            dtypes[y] = source_y.dtype
-        source[y] = source_y.astype(np.int64, copy=False)
-        is_temporal[y] = True
-        cy_range = canvas.y_range
-        if cy_range:
-            fn = (lambda x: pd.to_datetime(x).tz_localize(None)) if ykind == "M" else pd.to_timedelta
-            canvas.y_range = tuple(
-                fn(cy_range).to_numpy().astype(dtypes[x]).astype(np.int64)
-            )
-    if is_temporal:
-        schema = Record([
-            (n, int64) if is_temporal.get(n) else (n, schema.types[idx])
-            for idx, n in enumerate(schema.names)
-        ])
-
-    glyph.validate(schema)
-    agg.validate(schema)
-    canvas.validate()
-
-    # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
-    with warnings.catch_warnings():
-        warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
-        output = bypixel.pipeline(source, schema, canvas, glyph, agg, antialias=antialias)
-
-    # converted to float by compute_scale_and_translate
-    if xkind in "Mm":
-        output[x] = output[x].data.astype(np.int64).view(dtypes[x])
-        output.attrs["x_range"] = tuple(np.asarray(output.attrs["x_range"]).astype(dtypes[x]))
-        if cx_range:
-            canvas.x_range = cx_range
-    if ykind in "Mm":
-        output[y] = output[y].data.astype(np.int64).view(dtypes[y])
-        output.attrs["y_range"] = tuple(np.asarray(output.attrs["y_range"]).astype(dtypes[y]))
-        if cy_range:
-            canvas.y_range = cy_range
-
-    return output
-
-
-def _bypixel_sanitise(source, glyph, agg):
+def _sanitize_xarray(source, canvas, glyph, agg):
     # Convert 1D xarray DataArrays and DataSets into Dask DataFrames
     if isinstance(source, DataArray) and source.ndim == 1:
         if not source.name:
@@ -1402,9 +1323,10 @@ def _bypixel_sanitise(source, glyph, agg):
             source = source.to_dask_dataframe()
         else:
             source = source.to_dataframe()
+    return source
 
-    if (isinstance(source, pd.DataFrame) or
-            (cudf and isinstance(source, cudf.DataFrame))):
+def _sanitize_dataframe(source, canvas, glyph, agg):
+    if isinstance(source, (pd.DataFrame, cudf.DataFrame) if cudf else pd.DataFrame):
         # Avoid datashape.Categorical instantiation bottleneck
         # by only retaining the necessary columns:
         # https://github.com/bokeh/datashader/issues/396
@@ -1422,16 +1344,107 @@ def _bypixel_sanitise(source, glyph, agg):
             if (sindex is not None and
                     getattr(source[glyph.geometry].array, "_sindex", None) is None):
                 source[glyph.geometry].array._sindex = sindex
-        dshape = dshape_from_pandas(source)
     elif dd and isinstance(source, dd.DataFrame):
-        dshape, source = dshape_from_dask(source)
-    elif isinstance(source, Dataset):
-        # Multi-dimensional Dataset
-        dshape = dshape_from_xarray_dataset(source)
-    else:
-        raise ValueError("source must be a pandas or dask DataFrame")
+        # Categorize unknown categorical columns (memoized)
+        source = _categorize_dask_columns(source)
+    return source
 
-    return source, dshape
+
+def _patch_temporal(source, canvas, glyph, agg):
+    if not hasattr(glyph, "x") or not hasattr(glyph, "y"):
+        return source, lambda x: x
+    x, y = str(glyph.x), str(glyph.y)
+    dtypes = dict(source.dtypes)
+    if x not in dtypes or y not in dtypes:
+        return source, lambda x: x
+    xkind, ykind = dtypes[x].kind, dtypes[y].kind
+    is_temporal, original_ranges = {}, {}
+
+    # Handle temporal types (datetime64='M', timedelta64='m')
+    for col, kind, range_attr in ((x, xkind, 'x_range'), (y, ykind, 'y_range')):
+        if kind in "Mm":
+            # Remove timezone if present and convert to int64
+            source_col = source[col]
+            if getattr(dtypes[col], "tz", None):
+                source_col = source_col.dt.tz_localize(None)
+                dtypes[col] = source_col.dtype
+            source[col] = source_col.astype(np.int64, copy=False)
+            is_temporal[col] = True
+
+            # Convert canvas range to int64, preserving original
+            canvas_range = getattr(canvas, range_attr)
+            if canvas_range:
+                original_ranges[range_attr] = canvas_range
+                fn = (
+                    (lambda x: pd.to_datetime(x).tz_localize(None))
+                    if kind == "M" else pd.to_timedelta
+                )
+                setattr(canvas, range_attr, tuple(
+                    fn(canvas_range).to_numpy().astype(dtypes[col]).astype(np.int64)
+                ))
+
+    def post_temporal(output):
+        if not is_temporal:
+            return output
+
+        # Restore temporal types in output (converted to float by compute_scale_and_translate)
+        for col, kind, range_attr in ((x, xkind, 'x_range'), (y, ykind, 'y_range')):
+            if kind in "Mm":
+                output[col] = output[col].data.astype(np.int64).view(dtypes[col])
+                output.attrs[range_attr] = tuple(
+                    np.asarray(output.attrs[range_attr]).astype(dtypes[col])
+                )
+        return output
+
+    return source, post_temporal
+
+
+def _get_schema(source):
+    """Extract schema from the data source."""
+    if isinstance(source, (pd.DataFrame, cudf.DataFrame) if cudf else pd.DataFrame):
+        return dshape_from_pandas(source).measure
+    elif dd and isinstance(source, dd.DataFrame):
+        return dshape_from_dask(source).measure
+    elif isinstance(source, Dataset):
+        return dshape_from_xarray_dataset(source).measure
+    else:
+        raise ValueError("source must be a pandas, dask, cuDF DataFrame or xarray Dataset")
+
+
+def bypixel(source, canvas, glyph, agg, *, antialias=False):
+    """Compute an aggregate grouped by pixel sized bins.
+
+    Aggregate input data ``source`` into a grid with shape and axis matching
+    ``canvas``, mapping data to bins by ``glyph``, and aggregating by reduction
+    ``agg``.
+
+    Parameters
+    ----------
+    source : pandas.DataFrame, dask.DataFrame
+        Input datasource
+    canvas : Canvas
+    glyph : Glyph
+    agg : Reduction
+    """
+    # Pre functions, note order matters
+    source = _sanitize_xarray(source, canvas, glyph, agg)
+    source = _sanitize_dataframe(source, canvas, glyph, agg)
+    source, post_temporal = _patch_temporal(source, canvas, glyph, agg)
+
+    schema = _get_schema(source)
+    glyph.validate(schema)
+    agg.validate(schema)
+    canvas.validate()
+
+    # All-NaN objects (e.g. chunks of arrays with no data) are valid in Datashader
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+        output = bypixel.pipeline(source, schema, canvas, glyph, agg, antialias=antialias)
+
+    # Post functions
+    output = post_temporal(output)
+
+    return output
 
 
 def _cols_to_keep(columns, glyph, agg):
