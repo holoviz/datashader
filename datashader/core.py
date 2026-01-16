@@ -1352,11 +1352,11 @@ def _sanitize_dataframe(source, canvas, glyph, agg):
 
 def _patch_temporal(source, canvas, glyph, agg):
     if not hasattr(glyph, "x") or not hasattr(glyph, "y"):
-        return source, lambda x: x
+        return source, None
     x, y = str(glyph.x), str(glyph.y)
     dtypes = dict(source.dtypes)
     if x not in dtypes or y not in dtypes:
-        return source, lambda x: x
+        return source, None
     xkind, ykind = dtypes[x].kind, dtypes[y].kind
     is_temporal, original_ranges = {}, {}
 
@@ -1383,10 +1383,10 @@ def _patch_temporal(source, canvas, glyph, agg):
                     fn(canvas_range).to_numpy().astype(dtypes[col]).astype(np.int64)
                 ))
 
-    def post_temporal(output):
-        if not is_temporal:
-            return output
+    if not is_temporal:
+        return source, None
 
+    def post_temporal(output):
         # Restore temporal types in output (converted to float by compute_scale_and_translate)
         for col, kind, range_attr in ((x, xkind, 'x_range'), (y, ykind, 'y_range')):
             if kind in "Mm":
@@ -1442,7 +1442,7 @@ def bypixel(source, canvas, glyph, agg, *, antialias=False):
         output = bypixel.pipeline(source, schema, canvas, glyph, agg, antialias=antialias)
 
     # Post functions
-    output = post_temporal(output)
+    output = post_temporal(output) if post_temporal else output
 
     return output
 
