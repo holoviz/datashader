@@ -186,7 +186,7 @@ def default(glyph, df, schema, canvas, summary, *, antialias=False, cuda=False):
             # assert len(x) == 1 and isinstance(x[0], np.ndarray)
             return x
         else:
-            raise TypeError("Unknown type %s in wrapped_combine" % type(x))
+            raise TypeError(f"Unknown type {type(x)} in wrapped_combine")
 
     local_axis = axis
 

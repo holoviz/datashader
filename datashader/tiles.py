@@ -74,12 +74,11 @@ def render_tiles(full_extent, levels, load_data_func,
         raise ImportError('Dask is required for rendering tiles')
     results = {}
     for level in levels:
-        print('calculating statistics for level {}'.format(level))
+        print(f'calculating statistics for level {level}')
         super_tiles, span = calculate_zoom_level_stats(list(gen_super_tiles(full_extent, level)),
                                                        load_data_func, rasterize_func,
                                                        color_ranging_strategy=color_ranging_strategy)
-        print('rendering {} supertiles for zoom level {} with span={}'.format(len(super_tiles),
-                                                                              level, span))
+        print(f'rendering {len(super_tiles)} supertiles for zoom level {level} with span={span}')
         b = db.from_sequence(super_tiles)
         b.map(render_super_tile, span, output_path, shader_func, post_render_func).compute()
         results[level] = dict(success=True, stats=span, supertile_count=len(super_tiles))
@@ -399,7 +398,7 @@ class FileSystemTileRenderer(TileRenderer):
 
     def render(self, da, level):
         for img, x, y, z in super().render(da, level):
-            tile_file_name = '{}.{}'.format(y, self.tile_format.lower())
+            tile_file_name = f'{y}.{self.tile_format.lower()}'
             tile_directory = os.path.join(self.output_location, str(z), str(x))
             output_file = os.path.join(tile_directory, tile_file_name)
             _create_dir(tile_directory)
@@ -421,11 +420,11 @@ class S3TileRenderer(TileRenderer):
         bucket = s3_info.netloc
         client = boto3.client('s3')
         for img, x, y, z in super().render(da, level):
-            tile_file_name = '{}.{}'.format(y, self.tile_format.lower())
+            tile_file_name = f'{y}.{self.tile_format.lower()}'
             key = os.path.join(s3_info.path, str(z), str(x), tile_file_name).lstrip('/')
             output_buf = BytesIO()
             img.save(output_buf, self.tile_format)
             output_buf.seek(0)
             client.put_object(Body=output_buf, Bucket=bucket, Key=key, ACL='public-read')
 
-        return 'https://{}.s3.amazonaws.com/{}'.format(bucket, s3_info.path)
+        return f'https://{bucket}.s3.amazonaws.com/{s3_info.path}'

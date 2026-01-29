@@ -131,8 +131,8 @@ def test_timedelta_nano():
 def test_timedelta_aliases():
     for alias in _unit_aliases:
         a = alias + 's'
-        assert (dshape('timedelta[unit=%r]' % a) ==
-                dshape('timedelta[unit=%r]' % _unit_aliases[alias]))
+        assert (dshape(f'timedelta[unit={a!r}]') ==
+                dshape(f'timedelta[unit={_unit_aliases[alias]!r}]'))
 
 
 class TestFromNumPyDtype:
@@ -150,18 +150,18 @@ class TestFromNumPyDtype:
         keys = 'h', 'm', 's', 'ms', 'us', 'ns', 'ps', 'fs', 'as'
         for k in keys:
             assert from_numpy((2,),
-                              np.dtype('M8[%s]' % k)) == dshape('2 * datetime')
+                              np.dtype(f'M8[{k}]')) == dshape('2 * datetime')
 
     def test_date(self):
         for d in ('D', 'M', 'Y', 'W'):
             assert from_numpy((2,),
-                              np.dtype('M8[%s]' % d)) == dshape('2 * date')
+                              np.dtype(f'M8[{d}]')) == dshape('2 * date')
 
     def test_timedelta(self):
         for d in _units:
             assert from_numpy((2,),
-                              np.dtype('m8[%s]' % d)) == \
-                dshape('2 * timedelta[unit=%r]' % d)
+                              np.dtype(f'm8[{d}]')) == \
+                dshape(f'2 * timedelta[unit={d!r}]')
 
     def test_ascii_string(self):
         assert (from_numpy((2,), np.dtype('S7')) ==
@@ -363,7 +363,7 @@ def test_option_datetime_to_numpy():
                          ['Y', 'M', 'D', 'h', 'm', 's', 'ms', 'us', 'ns'])
 def test_option_timedelta_to_numpy(unit):
     assert (Option(TimeDelta(unit=unit)).to_numpy_dtype() ==
-            np.dtype('timedelta64[%s]' % unit))
+            np.dtype(f'timedelta64[{unit}]'))
 
 
 def unique(x):
@@ -378,21 +378,21 @@ def unique(x):
 def test_categorical(data):
     c = Categorical(tuple(unique(data)))
     assert list(unique(c.categories)) == list(unique(data))
-    assert str(c) == 'categorical[[%s], type=%s, ordered=False]' % (
+    assert str(c) == 'categorical[[{}], type={}, ordered=False]'.format(
         ', '.join(map(repr, c.categories)), c.type
     )
     assert (
-        repr(c) == 'Categorical(categories=[%s], type=%r, ordered=False)' % (
+        repr(c) == 'Categorical(categories=[{}], type={!r}, ordered=False)'.format(
             ', '.join(map(repr, c.categories)), c.type
         )
     )
     assert (
-        dshape("categorical[[%s], type=%s, ordered=False]" % (
+        dshape("categorical[[{}], type={}, ordered=False]".format(
             ', '.join(map(repr, c.categories)), c.type
         )) == DataShape(c)
     )
     assert (
-        dshape("categorical[[%s], type=%s, ordered=False]" % (
+        dshape("categorical[[{}], type={}, ordered=False]".format(
             ', '.join(map(repr, c.categories)), c.type
         )) == DataShape(c)
     )
@@ -401,7 +401,7 @@ def test_categorical(data):
 def test_long_categorical_repr():
     cats = list('abcdefghijklmnopqrstuvwxyz')
     c = Categorical(cats, ordered=True)
-    assert str(c) == 'categorical[[%s, ...], type=%s, ordered=True]' % (
+    assert str(c) == 'categorical[[{}, ...], type={}, ordered=True]'.format(
         ', '.join(map(repr, cats[:10])),
         c.type
     )
@@ -464,12 +464,12 @@ def test_datetime_with_tz_not_a_string():
 
 @pytest.mark.parametrize('unit', _units)
 def test_timedelta_repr(unit):
-    assert repr(TimeDelta(unit=unit)) == 'TimeDelta(unit=%r)' % unit
+    assert repr(TimeDelta(unit=unit)) == f'TimeDelta(unit={unit!r})'
 
 
 @pytest.mark.parametrize('unit', _units)
 def test_timedelta_str(unit):
-    assert str(TimeDelta(unit=unit)) == 'timedelta[unit=%r]' % unit
+    assert str(TimeDelta(unit=unit)) == f'timedelta[unit={unit!r}]'
 
 
 def test_unit_construction():

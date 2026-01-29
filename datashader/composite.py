@@ -19,11 +19,13 @@ def validate_operator(how, is_image):
     name = how if is_image else how + '_arr'
     if is_image:
         if name not in image_operators:
-            raise ValueError('Operator %r not one of the supported image operators: %s'
-                            % (how, ', '.join(repr(el) for el in image_operators)))
+            image_repr = ', '.join(repr(el) for el in image_operators)
+            msg =f'Operator {how!r} not one of the supported image operators: {image_repr}'
+            raise ValueError(msg)
     elif name not in array_operators:
-        raise ValueError('Operator %r not one of the supported array operators: %s'
-                        % (how, ', '.join(repr(el[:-4]) for el in array_operators)))
+        array_repr = ', '.join(repr(el[:-4]) for el in array_operators)
+        msg = f'Operator {how!r} not one of the supported array operators: {array_repr}'
+        raise ValueError(msg)
 
 
 @nb.jit('(uint32,)', nopython=True, nogil=True, cache=True)

@@ -61,9 +61,9 @@ class _GeometryLike(Glyph):
     def validate(self, in_dshape):
         if not isinstance(in_dshape[str(self.geometry)], self.geom_dtypes):
             raise ValueError(
-                '{col} must be an array with one of the following types: {typs}'.format(
+                '{col} must be an array with one of the following types: {types}'.format(
                     col=self.geometry,
-                    typs=', '.join(typ.__name__ for typ in self.geom_dtypes)
+                    types=', '.join(typ.__name__ for typ in self.geom_dtypes)
                 ))
 
     @property

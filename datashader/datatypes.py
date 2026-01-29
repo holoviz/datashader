@@ -15,6 +15,7 @@ from numbers import Integral
 
 from pandas.api.types import pandas_dtype, is_extension_array_dtype
 
+PANDAS_VERSION = Version(pd.__version__).release
 
 try:
     # See if we can register extension type with dask >= 1.1.0
@@ -48,19 +49,17 @@ def _validate_ragged_properties(start_indices, flat_array):
     if (not isinstance(start_indices, np.ndarray) or
             start_indices.dtype.kind != 'u' or
             start_indices.ndim != 1):
-        raise ValueError("""
+        raise ValueError(f"""
 The start_indices property of a RaggedArray must be a 1D numpy array of
 unsigned integers (start_indices.dtype.kind == 'u')
-    Received value of type {typ}: {v}""".format(
-            typ=type(start_indices), v=repr(start_indices)))
+    Received value of type {type(start_indices)}: {repr(start_indices)}""")
 
     # Validate flat_array
     if (not isinstance(flat_array, np.ndarray) or
             flat_array.ndim != 1):
-        raise ValueError("""
+        raise ValueError(f"""
 The flat_array property of a RaggedArray must be a 1D numpy array
-    Received value of type {typ}: {v}""".format(
-            typ=type(flat_array), v=repr(flat_array)))
+    Received value of type {type(flat_array)}: {repr(flat_array)}""")
 
     # Validate start_indices values
     # We don't need to check start_indices < 0 because we already know that it
@@ -73,10 +72,9 @@ The flat_array property of a RaggedArray must be a 1D numpy array
     if invalid_inds.any():
         some_invalid_vals = start_indices[invalid_inds[:10]]
 
-        raise ValueError("""
-Elements of start_indices must be less than the length of flat_array ({m})
-    Invalid values include: {vals}""".format(
-            m=len(flat_array), vals=repr(some_invalid_vals)))
+        raise ValueError(f"""
+Elements of start_indices must be less than the length of flat_array ({len(flat_array)})
+    Invalid values include: {repr(some_invalid_vals)}""")
 
 
 # Internal ragged element array wrapper that provides
@@ -134,7 +132,7 @@ class RaggedDtype(ExtensionDtype):
 
     @property
     def name(self):
-        return 'Ragged[{subtype}]'.format(subtype=self.subtype)
+        return f'Ragged[{self.subtype}]'
 
     def __repr__(self):
         return self.name
@@ -146,7 +144,7 @@ class RaggedDtype(ExtensionDtype):
     @classmethod
     def construct_from_string(cls, string):
         if not isinstance(string, str):
-            raise TypeError("'construct_from_string' expects a string, got %s" % type(string))
+            raise TypeError(f"'construct_from_string' expects a string, got {type(string)}")
 
         # lowercase string
         string = string.lower()
@@ -200,8 +198,7 @@ class RaggedDtype(ExtensionDtype):
         elif dtype_string == 'ragged':
             subtype_string = 'float64'
         else:
-            raise ValueError("Cannot parse {dtype_string}".format(
-                dtype_string=dtype_string))
+            raise ValueError(f"Cannot parse {dtype_string}")
         return subtype_string
 
 
@@ -325,12 +322,10 @@ class RaggedArray(ExtensionArray):
     def __eq__(self, other):
         if isinstance(other, RaggedArray):
             if len(other) != len(self):
-                raise ValueError("""
+                raise ValueError(f"""
 Cannot check equality of RaggedArray values of unequal length
-    len(ra1) == {len_ra1}
-    len(ra2) == {len_ra2}""".format(
-                    len_ra1=len(self),
-                    len_ra2=len(other)))
+    len(ra1) == {len(self)}
+    len(ra2) == {len(other)}""")
 
             result = _eq_ragged_ragged(
                 self.start_indices, self.flat_array,
@@ -362,9 +357,9 @@ Cannot check equality of RaggedArray values of unequal length
                 result = _eq_ragged_ndarray2d(
                     self.start_indices, self.flat_array, other_array)
             else:
-                raise ValueError("""
-Cannot check equality of RaggedArray of length {ra_len} with:
-    {other}""".format(ra_len=len(self), other=repr(other)))
+                raise ValueError(f"""
+Cannot check equality of RaggedArray of length {len(self)} with:
+    {repr(other)}""")
 
         return result
 
@@ -403,7 +398,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
                    "arrays are valid indices.")
         if isinstance(item, Integral):
             if item < -len(self) or item >= len(self):
-                raise IndexError("{item} is out of bounds".format(item=item))
+                raise IndexError(f"{item} is out of bounds")
             else:
                 # Convert negative item index
                 if item < 0:
@@ -425,7 +420,10 @@ Cannot check equality of RaggedArray of length {ra_len} with:
             for selected_index in selected_indices:
                 data.append(self[selected_index])
 
-            return RaggedArray(data, dtype=self.flat_array.dtype)
+            arr = RaggedArray(data, dtype=self.flat_array.dtype)
+            if hasattr(self, "_readonly"):
+                arr._readonly = self._readonly
+            return arr
 
         elif isinstance(item, (np.ndarray, ExtensionArray, list, tuple)):
             if isinstance(item, (np.ndarray, ExtensionArray)):
@@ -442,14 +440,14 @@ Cannot check equality of RaggedArray of length {ra_len} with:
                 # Check mask length is compatible
                 if len(item) != len(self):
                     raise IndexError(
-                        "Boolean index has wrong length: {} instead of {}"
-                        .format(len(item), len(self))
+                        f"Boolean index has wrong length: {len(item)} instead of {len(self)}"
+
                     )
 
                 # check for NA values
                 isna = pd.isna(item)
                 if isna.any():
-                    if Version(pd.__version__) > Version('1.0.1'):
+                    if PANDAS_VERSION > (1, 0, 1):
                         item[isna] = False
                     else:
                         raise ValueError(
@@ -462,7 +460,10 @@ Cannot check equality of RaggedArray of length {ra_len} with:
                     if m:
                         data.append(self[i])
 
-                return RaggedArray(data, dtype=self.flat_array.dtype)
+                arr = RaggedArray(data, dtype=self.flat_array.dtype)
+                if hasattr(self, "_readonly"):
+                    arr._readonly = self._readonly
+                return arr
             elif kind in ('i', 'u'):
                 if any(pd.isna(item)):
                     raise ValueError(
@@ -502,26 +503,34 @@ Cannot check equality of RaggedArray of length {ra_len} with:
             [_RaggedElement.array_or_nan(v) for v in uniques],
             dtype=self.dtype)
 
-    def fillna(self, value=None, method=None, limit=None):
+    def fillna(self, value=None, method=None, limit=None, copy=True):
         # Override in RaggedArray to handle ndarray fill values
         from pandas.util._validators import validate_fillna_kwargs
         from pandas.core.missing import get_fill_func
 
-        value, method = validate_fillna_kwargs(value, method)
+        if getattr(self, "_readonly", None) and not copy:
+            raise ValueError("Cannot modify read-only array")
+
+        if value is not None or method is not None:
+            value, method = validate_fillna_kwargs(value, method)
+        else:
+            return self.copy() if copy else self
 
         mask = self.isna()
 
         if isinstance(value, RaggedArray):
             if len(value) != len(self):
-                raise ValueError("Length of 'value' does not match. Got ({}) "
-                                 " expected {}".format(len(value), len(self)))
+                raise ValueError(f"Length of 'value' does not match. Got ({len(value)}) "
+                                 f" expected {len(self)}")
             value = value[mask]
 
         if mask.any():
             if method is not None:
                 func = get_fill_func(method)
-                new_values = func(self.astype(object), limit=limit,
-                                  mask=mask)
+                kwargs = {"limit": limit, "mask": mask}
+                if PANDAS_VERSION >= (3, 0, 0):
+                    kwargs["copy"] = copy
+                new_values = func(self.astype(object), **kwargs)
                 new_values = self._from_sequence(new_values, dtype=self.dtype)
             else:
                 # fill with value
@@ -532,7 +541,7 @@ Cannot check equality of RaggedArray of length {ra_len} with:
 
                 new_values = self._from_sequence(new_values, dtype=self.dtype)
         else:
-            new_values = self.copy()
+            new_values = self.copy() if copy else self
         return new_values
 
     def shift(self, periods=1, fill_value=None):
@@ -577,9 +586,8 @@ Cannot check equality of RaggedArray of length {ra_len} with:
         if allow_fill:
             invalid_inds = [i for i in indices if i < -1]
             if invalid_inds:
-                raise ValueError("""
-Invalid indices for take with allow_fill True: {inds}""".format(
-                    inds=invalid_inds[:9]))
+                raise ValueError(f"""
+Invalid indices for take with allow_fill True: {invalid_inds[:9]}""")
             sequence = [self[i] if i >= 0 else fill_value
                         for i in indices]
         else:
@@ -843,7 +851,7 @@ def _eq_ragged_ndarray2d(start_indices, flat_array, a):
 @jit(nopython=True, nogil=True)
 def _lexograph_lt(a1, a2):
     """
-    Compare two 1D numpy arrays lexographically
+    Compare two 1D numpy arrays lexicographically
     Parameters
     ----------
     a1: ndarray
