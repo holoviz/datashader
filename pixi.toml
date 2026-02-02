@@ -18,7 +18,7 @@ test-312 = ["py312", "test-core", "optional", "test-example", "test-unit-task"]
 test-313 = ["py313", "test-core", "optional", "test-example", "test-unit-task"]
 test-314 = ["py314", "test-core", "optional", "test-example", "test-unit-task", "pandas3"]
 test-core = ["py314", "test-core", "test-unit-task", "pandas3"]
-test-gpu = ["py312", "test-core", "test-gpu"]
+test-gpu = ["py313", "test-core", "test-gpu"]
 docs = ["py311", "optional", "doc"]
 build = ["py311", "build"]
 lint = ["py311", "lint"]
@@ -129,7 +129,7 @@ platforms = ["linux-64"]
 NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS = '0'
 
 [feature.test-gpu.dependencies]
-cuda-version = "12.2.*"
+cuda-version = "13.1.*"
 cudf = "25.12.*"
 cupy = "*"
 dask-cudf = "*"
