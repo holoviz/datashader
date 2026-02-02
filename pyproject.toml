@@ -113,6 +113,8 @@ filterwarnings = [
     "ignore:The 'shapely.geos' module is deprecated, and will be removed in a future version:DeprecationWarning",
     # 2025-09
     "ignore:Signature .* for <class 'numpy.longdouble'>.*:UserWarning",
+    # 2026-02
+    "ignore:The cuda.core.experimental namespace is deprecated:DeprecationWarning:numba.cuda", # https://github.com/rapidsai/cudf/pull/20933
 ]
 
 [tool.typos.default]
