@@ -89,7 +89,8 @@ def _make_3d_from_2d(func, prefix_idx, parallel=True):
 
 
 class _CUDAStreamPool:
-    def __init__(self, max_streams=16):
+    def __init__(self, max_streams=5):
+        # max_streams chosen based on https://forums.developer.nvidia.com/t/how-many-streams-maximum-number-of-streams/6571/4
         self.streams = [cuda.stream() for _ in range(max_streams)]
 
     def get_streams(self, n_required):
