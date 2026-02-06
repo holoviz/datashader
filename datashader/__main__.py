@@ -1,6 +1,10 @@
+
+
 def main(args=None):
     try:
         import pyct.cmd
+        from . import _warn_pyct_deprecated
+        _warn_pyct_deprecated(stacklevel=3)
     except ImportError:
         import sys
         from . import _missing_cmd

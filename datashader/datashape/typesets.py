@@ -47,9 +47,8 @@ class TypeSet(Unit):
 
     def __repr__(self):
         if self.name:
-            return '{%s}' % (self.name,)
-        return "%s(%s, name=%s)" % (self.__class__.__name__, self._set,
-                                    self.name)
+            return f'{{{self.name}}}'
+        return f"{self.__class__.__name__}({self._set}, name={self.name})"
 
     def __or__(self, other):
         return TypeSet(*chain(self, other))
@@ -89,8 +88,9 @@ class TypesetRegistry:
 
     def register_typeset(self, name, typeset):
         if name in self.registry:
-            raise TypeError("TypeSet %s already defined with types %s" %
-                            (name, self.registry[name].types))
+            raise TypeError(
+                f"TypeSet {name} already defined with types {self.registry[name].types}"
+            )
         self.registry[name] = typeset
         return typeset
 

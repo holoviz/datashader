@@ -319,7 +319,7 @@ def make_info(cols, cuda, uses_cuda_mutex: bool):
 
 
 def make_append(bases, cols, calls, glyph, antialias):
-    names = ('_{0}'.format(i) for i in count())
+    names = (f'_{i}' for i in count())
     inputs = list(bases) + list(cols)
     namespace = {}
     need_isnull = any(call[3] for call in calls)
@@ -366,14 +366,14 @@ def make_append(bases, cols, calls, glyph, antialias):
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
         if categorical and isinstance(cols[0], category_codes):
-            args.extend('{0}[{1}]'.format(arg_lk[col], subscript) for col in cols[1:])
+            args.extend(f'{arg_lk[col]}[{subscript}]' for col in cols[1:])
         elif ndims is None:
-            args.extend('{0}'.format(arg_lk[i]) for i in cols)
+            args.extend(f'{arg_lk[i]}' for i in cols)
         elif categorical:
-            args.extend('{0}[{1}][1]'.format(arg_lk[i], subscript)
+            args.extend(f'{arg_lk[i]}[{subscript}][1]'
                         for i in cols)
         else:
-            args.extend('{0}[{1}]'.format(arg_lk[i], subscript)
+            args.extend(f'{arg_lk[i]}[{subscript}]'
                         for i in cols)
 
         if categorical:
@@ -450,7 +450,7 @@ def make_append(bases, cols, calls, glyph, antialias):
 
         prev_local_cuda_mutex = local_cuda_mutex
 
-    body = head + ['{0} = {1}[y, x]'.format(name, arg_lk[agg])
+    body = head + [f'{name} = {arg_lk[agg]}[y, x]'
                    for agg, name in local_lk.items()] + body
 
     if global_cuda_mutex:
@@ -460,12 +460,16 @@ def make_append(bases, cols, calls, glyph, antialias):
         signature = ["aa_factor", "prev_aa_factor"] + signature
 
     if ndims is None:
-        code = ('def append(x, y, {0}):\n'
-                '    {1}').format(', '.join(signature), '\n    '.join(body))
+        code = 'def append(x, y, {}):\n    {}'.format(
+            ', '.join(signature),
+            '\n    '.join(body)
+        )
     else:
-        code = ('def append({0}, x, y, {1}):\n'
-                '    {2}'
-                ).format(subscript, ', '.join(signature), '\n    '.join(body))
+        code = 'def append({}, x, y, {}):\n    {}'.format(
+            subscript,
+            ', '.join(signature),
+            '\n    '.join(body)
+        )
     logger.debug(code)
     exec(code, namespace)
     return ngjit(namespace['append']), any_uses_cuda_mutex

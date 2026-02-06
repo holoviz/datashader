@@ -119,7 +119,7 @@ class Dispatcher:
         for cls in getmro(typ)[1:]:
             if cls in lk:
                 return lk[cls](head, *rest, **kwargs)
-        raise TypeError("No dispatch for {0} type".format(typ))
+        raise TypeError(f"No dispatch for {typ} type")
 
 
 def isrealfloat(dt):
@@ -431,10 +431,7 @@ def dshape_from_pandas_helper(col):
         if categories.dtype.kind == 'U':
             categories = categories.astype('object')
 
-        cat_dshape = datashape.dshape('{} * {}'.format(
-            len(col.cat.categories),
-            categories.dtype,
-        ))
+        cat_dshape = datashape.dshape(f'{len(col.cat.categories)} * {categories.dtype}')
         return datashape.Categorical(categories,
                                      type=cat_dshape,
                                      ordered=col.cat.ordered)

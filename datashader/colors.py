@@ -117,12 +117,12 @@ def rgb(x):
         elif x in color_lookup:
             return hex_to_rgb(color_lookup[x])
         else:
-            raise ValueError("Unknown color: '{0}'".format(x))
+            raise ValueError(f"Unknown color: '{x}'")
     elif isinstance(x, tuple) and len(x) == 3:
         if min(x) < 0 or max(x) > 255:
             raise ValueError("Invalid RGB tuple")
     else:
-        raise TypeError("Don't know how to convert {0} to RGB".format(x))
+        raise TypeError(f"Don't know how to convert {x} to RGB")
     return x
 
 #   Example palettes

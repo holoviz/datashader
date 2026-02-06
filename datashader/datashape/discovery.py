@@ -55,15 +55,15 @@ def discover(obj, **kwargs):
     if hasattr(obj, 'shape') and hasattr(obj, 'dtype'):
         warn(
             dedent(
-                """\
+                f"""\
                 array-like discovery is deprecated.
-                Please write an explicit discover function for type '%s'.
-                """ % type_name,
+                Please write an explicit discover function for type '{type_name}'.
+                """,
             ),
             DeprecationWarning,
         )
         return from_numpy(obj.shape, obj.dtype)
-    raise NotImplementedError("Don't know how to discover type %r" % type_name)
+    raise NotImplementedError(f"Don't know how to discover type {type_name!r}")
 
 
 @dispatch(int)

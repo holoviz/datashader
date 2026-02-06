@@ -1,9 +1,10 @@
 from contextlib import suppress
-
-import pyct.cmd
 from packaging.version import Version
 
-pyct.cmd.fetch_data(name="data", path="examples", datasets="datasets.yml")
+with suppress(ImportError):
+    import pyct.cmd
+
+    pyct.cmd.fetch_data(name="data", path="examples", datasets="datasets.yml")
 
 
 with suppress(ImportError):
@@ -21,4 +22,10 @@ with suppress(ImportError):
 
     gds.get_path("geoda.natregimes")
     gds.get_path("nybb")
-    gds.get_path('geoda health')
+    gds.get_path("geoda health")
+
+
+with suppress(ImportError):
+    import hvsampledata as hvs
+
+    path = hvs.download("nyc_taxi_remote")
