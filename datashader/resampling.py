@@ -155,9 +155,13 @@ def map_chunks(in_shape, out_shape, out_chunks):
 def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
     """
     Attempts to compute a chunksize for the resampling output array
-    that is as close as possible to the input array chunksize, while
-    also respecting the maximum memory constraint to avoid loading
-    to much data into memory at the same time.
+
+    If chunksize is not specified, for downsampling, output chunks are scaled
+    inversely to the downsampling factor to bound memory usage per chunk. For
+    upsampling, the chunk size is inherited from the source array.
+
+    If max_mem is specified, chunks are further reduced to respect the memory
+    constraint.
 
     Parameters
     ----------
@@ -167,10 +171,10 @@ def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
         New grid width
     h : int
         New grid height
-    chunksize : tuple(int, int) (optional)
-        Size of the output chunks. By default the chunk size is
-        inherited from the *src* array.
-    max_mem : int (optional)
+    chunksize : tuple[int, int] | None
+        Size of the output chunks. By default computed automatically
+        based on the resampling direction.
+    max_mem : int | None
         The maximum number of bytes that should be loaded into memory
         during the regridding operation.
 
@@ -181,7 +185,6 @@ def compute_chunksize(src, w, h, chunksize=None, max_mem=None):
     """
     sh, sw = src.shape
     height_fraction, width_fraction = sh / h, sw / w
-    # For downsampling, use smaller chunks to reduce memory usage
     if chunksize is None and (w < sw or h < sh):
         src_chunks = src.chunksize
         new_chunk_h = max(32, int(src_chunks[0] / height_fraction))
