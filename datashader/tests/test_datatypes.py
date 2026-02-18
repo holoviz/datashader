@@ -732,6 +732,34 @@ class TestRaggedGetitem(eb.BaseGetitemTests):
     def test_take_pandas_style_negative_raises(self, data, na_value):
         super().test_take_pandas_style_negative_raises(data, na_value)
 
+    @pytest.mark.skipif(PANDAS_VERSION < (3, 0, 1), reason="Added in pandas 3.0.1")
+    def test_array_item(self, data):
+        arr = data[:1]
+        # Replaced following line from pandas test
+        # assert arr.item() == data[0]
+        np.testing.assert_array_equal(arr.item(), data[0])
+
+        msg = "can only convert an array of size 1 to a Python scalar"
+        with pytest.raises(ValueError, match=msg):
+            data[:2].item()
+        with pytest.raises(ValueError, match=msg):
+            data[:0].item()
+
+    @pytest.mark.skipif(PANDAS_VERSION < (3, 0, 1), reason="Added in pandas 3.0.1")
+    def test_array_item_with_index(self, data):
+        # Replaced following lines from pandas test
+        # assert data.item(0) == data[0]
+        # assert data.item(-1) == data[-1]
+        np.testing.assert_array_equal(data.item(0), data[0])
+        np.testing.assert_array_equal(data.item(-1), data[-1])
+
+        with pd._testing.external_error_raised(IndexError):
+            data.item(len(data))
+
+        msg = "index must be an integer"
+        with pytest.raises(TypeError, match=msg):
+            data.item([0])
+
 
 class TestRaggedGroupby(eb.BaseGroupbyTests):
     @pytest.mark.skip(reason="agg not supported")
