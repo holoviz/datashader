@@ -2,6 +2,7 @@ from __future__ import annotations
 from copy import deepcopy
 import numpy as np
 from numpy import nan
+import pandas as pd
 import xarray as xr
 
 import datashader as ds
@@ -45,6 +46,18 @@ dims = ['y', 'x']
 
 def assert_eq(agg, b):
     assert agg.equals(b)
+
+
+def test_summary_name_conflicts_with_by_dimension():
+    source = xr.Dataset(coords={
+        "x": xr.DataArray(np.array([0, 0, 1, 1]), dims="record"),
+        "y": xr.DataArray(np.array([0, 1, 0, 1]), dims="record"),
+        "foo foo": xr.DataArray(pd.Categorical(["a", "a", "b", "b"]), dims="record"),
+    })
+    agg = ds.summary(**{"foo foo": ds.by("foo foo")})
+    msg = "Invalid summary reduction name 'foo foo': it conflicts with a generated dimension name"
+    with pytest.raises(ValueError, match=msg):
+        c.points(source, "x", "y", agg)
 
 
 @pytest.mark.parametrize("source", [xda, xdda, xds, xdds])
