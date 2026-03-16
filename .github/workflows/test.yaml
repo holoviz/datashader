@@ -50,10 +50,10 @@ jobs:
       matrix: ${{ env.MATRIX }}
       code_change: ${{ steps.filter.outputs.code }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: github.event_name != 'pull_request'
       - name: Check for code changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -122,7 +122,7 @@ jobs:
         with:
           environments: ${{ matrix.environment }}
       - name: Restore cached hypothesis directory
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .hypothesis/
           key: cache-hypothesis-${{ github.run_id }}-${{ matrix.environment }}-${{ matrix.os }}
@@ -136,11 +136,11 @@ jobs:
       - name: Test Examples
         run: |
           pixi run -e ${{ matrix.environment }} test-example
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Save hypothesis directory
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: always()
         with:
           path: .hypothesis/
@@ -184,7 +184,7 @@ jobs:
         uses: CodSpeedHQ/action@v4
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
-          mode: instrumentation
+          mode: simulation
           run: pixi run -e ${{ matrix.environment }} test-benchmark
 
   result_test_suite:

@@ -2,7 +2,7 @@ exclude: (\.(js|svg)$)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
     hooks:
       - id: check-builtin-literals
       - id: check-case-conflict
@@ -13,16 +13,16 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.7
+    rev: 4924b0e01e032fea073ad04a1c5cfa7e4add0afb # frozen: v0.15.6
     hooks:
       - id: ruff-check
         files: datashader/
   - repo: https://github.com/crate-ci/typos
-    rev: v1.40.0
+    rev: 631208b7aac2daa8b707f55e7331f9112b0e062d # frozen: v1.44.0
     hooks:
       - id: typos
   - repo: https://github.com/hoxbro/clean_notebook
-    rev: v0.1.17
+    rev: 2e6f506fab3cdfbe16bc18fd0d24e828db773b74 # frozen: v0.2.1
     hooks:
       - id: clean-notebook
 
