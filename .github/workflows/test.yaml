@@ -184,7 +184,7 @@ jobs:
         uses: CodSpeedHQ/action@v4
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
-          mode: instrumentation
+          mode: simulation
           run: pixi run -e ${{ matrix.environment }} test-benchmark
 
   result_test_suite:
