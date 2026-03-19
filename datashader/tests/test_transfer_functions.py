@@ -3,6 +3,9 @@ from __future__ import annotations
 from io import BytesIO
 
 import numpy as np
+import pandas as pd
+import datashader as ds
+
 import xarray as xr
 import pytest
 import datashader.transfer_functions as tf
@@ -491,6 +494,27 @@ def test_shade_category(array):
     assert ((img.data[0,1] >> 24) & 0xFF) == 20 # min alpha
     assert ((img.data[1,0] >> 24) & 0xFF) == 20 # min alpha
     assert ((img.data[1,1] >> 24) & 0xFF) == 20 # min alpha
+
+
+def test_shade_category_mixed_nan():
+    df = pd.DataFrame({
+        'x': [0.25, 0.25, 0.75, 0.75, 0.75],
+        'y': [0.5,  0.5,  0.5,  0.5,  0.5],
+        'cat': pd.Categorical(['a', 'b', 'a', 'b', 'c']),
+        'val': [1.0, 2.0, 1.0, 2.0, 3.0]
+    })
+
+    canvas = ds.Canvas(plot_width=2, plot_height=1, x_range=(0, 1), y_range=(0, 1))
+    agg = canvas.points(df, 'x', 'y', agg=ds.by('cat', ds.mean('val')))
+
+    assert np.isnan(agg.data[0, 0, 2])
+    assert not np.any(np.isnan(agg.data[0, 1, :]))
+
+    img = tf.shade(agg, color_key={'a': 'red', 'b': 'green', 'c': 'blue'})
+
+    alpha = img.data.view(np.uint8).reshape((*img.shape, 4))[..., 3]
+    assert alpha[0, 0] > 0
+    assert alpha[0, 1] > 0
 
 
 def test_shade_zeros(array):
