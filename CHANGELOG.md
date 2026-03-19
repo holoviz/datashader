@@ -1364,7 +1364,7 @@ New features and improvements
 - More options for network/graph plotting (configurable column names,
   control over weights usage; #488,
   [#494](https://github.com/holoviz/datashader/pull/494))
-- For lines plots (time series, trajectory, networ graphs), switch
+- For lines plots (time series, trajectory, network graphs), switch
   line-clipping algorithm from Cohen-Sutherland to Liang-Barsky. The
   performance gains for random lines range from 50-75% improvement for a
   million lines.
