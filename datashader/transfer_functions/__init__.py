@@ -398,9 +398,12 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
         baseline = np.nanmin(color_data) if color_baseline is None else color_baseline
     with np.errstate(invalid='ignore'):
         # in-place add/sub to minimize temporaries
-        if baseline > 0:
+        # CuPy ufuncs don't support the `where` kwarg
+        if cupy and isinstance(color_data, cupy.ndarray):
+            color_data[color_mask] -= baseline
+        elif baseline > 0:
             np.subtract(color_data, baseline, out=color_data, where=color_mask)
-        elif baseline < 0:
+        else:
             np.add(color_data, -baseline, out=color_data, where=color_mask)
 
     # If an explicit baseline was given and dtype is signed, clip negatives to 0 (in-place)
