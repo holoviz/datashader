@@ -51,9 +51,6 @@ HoloViz = "https://holoviz.org/"
 [project.optional-dependencies]
 tests = ["pytest", "hypothesis"]
 
-[project.scripts]
-datashader = "datashader.__main:main"
-
 [tool.hatch.version]
 source = "vcs"
 raw-options = { version_scheme = "no-guess-dev" }
