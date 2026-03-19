@@ -55,7 +55,7 @@ HoloViz = "https://holoviz.org/"
 "Issue Tracker" = "https://github.com/holoviz/datashader/issues?q=sort%3Aupdated-desc+is%3Aissue+is%3Aopen"
 Repository = "https://github.com/holoviz/datashader"
 
-[project.optional-dependencies]
+[dependency-groups]
 tests = ["pytest", "hypothesis"]
 
 [project.scripts]
