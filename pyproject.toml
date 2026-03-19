@@ -44,9 +44,16 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://datashader.org"
-Source = "https://github.com/holoviz/datashader"
+Blog = "https://blog.holoviz.org/"
+Changelog = "https://github.com/holoviz/datashader/blob/main/CHANGELOG.md"
+Discord = "https://discord.gg/AXRHnJU6sP"
+Discourse = "https://discourse.holoviz.org"
+Discussions = "https://github.com/holoviz/datashader/discussions"
+Documentation = "https://datashader.org"
+Funding = "https://opencollective.com/holoviz"
 HoloViz = "https://holoviz.org/"
+"Issue Tracker" = "https://github.com/holoviz/datashader/issues?q=sort%3Aupdated-desc+is%3Aissue+is%3Aopen"
+Repository = "https://github.com/holoviz/datashader"
 
 [project.optional-dependencies]
 tests = ["pytest", "hypothesis"]
