@@ -388,7 +388,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     if da and isinstance(data, da.Array):
         data = data.compute()
 
-    color_data = xp.array(data, dtype=np.float32, order='C', copy=True)
+    color_data = xp.array(data, order='C', copy=True)
     nan_mask = np.isnan(data)
     color_mask = ~nan_mask
 
@@ -409,6 +409,9 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     # If an explicit baseline was given and dtype is signed, clip negatives to 0 (in-place)
     if (color_baseline is not None) and (color_data.dtype.kind != 'u'):
         np.maximum(color_data, 0, out=color_data)
+
+    # Cast to float32 after subtraction to avoid precision loss
+    color_data = color_data.astype(np.float32)
 
     # Replace NaNs with 0s for dot/matmul in one pass (in-place)
     np.nan_to_num(color_data, copy=False)  # NaN -> 0
