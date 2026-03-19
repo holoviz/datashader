@@ -439,10 +439,10 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     mask = np.isnan(total)
     a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels)
 
-    rgba_array = np.dstack([rgb_array, a])
-    # Ensure array is contiguous for view operation
-    if not rgba_array.flags.c_contiguous:
-        rgba_array = np.ascontiguousarray(rgba_array)
+    # Pre-allocate RGBA array to avoid dstack intermediate allocation
+    rgba_array = xp.empty((a.shape[0], a.shape[1], 4), dtype=np.uint8)
+    rgba_array[..., :3] = rgb_array
+    rgba_array[..., 3] = a
     values = rgba_array.view(np.uint32).reshape(a.shape)
     if cupy and isinstance(values, cupy.ndarray):
         # Convert cupy array to numpy for final image
