@@ -388,10 +388,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     if da and isinstance(data, da.Array):
         data = data.compute()
 
-    color_data = np.ascontiguousarray(data)
-    if data is color_data:
-        color_data = color_data.copy()
-
+    color_data = xp.array(data, dtype=np.float32, order='C', copy=True)
     nan_mask = np.isnan(data)
     color_mask = ~nan_mask
 
@@ -414,7 +411,9 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     np.nan_to_num(color_data, copy=False)  # NaN -> 0
     color_total = np.sum(color_data, axis=2)
 
-    RGB = np.stack([rs, gs, bs], axis=1)
+    # Convert color_mask to float32 once for reuse in matmul and sum
+    color_mask = color_mask.astype(np.float32)
+    RGB = np.stack([rs, gs, bs], axis=1).astype(np.float32)  # (C,3)
 
     # matmul: (H,W,C) @ (C,3) -> (H,W,3), directly maps to BLAS gemm
     rgb_sum = color_data @ RGB
