@@ -356,8 +356,6 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
 
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
-_EINSUM_PATH_CACHE = {}
-
 def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
               rescale_discrete_levels):
     xp = cupy if cupy and isinstance(agg.data, cupy.ndarray) else np
@@ -416,19 +414,11 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     np.nan_to_num(color_data, copy=False)  # NaN -> 0
     color_total = np.sum(color_data, axis=2)
 
-    # --- Optimized matrix multiplication using einsum with path caching ---
-    RGB = np.stack([rs, gs, bs], axis=1)  # (C,3)
+    RGB = np.stack([rs, gs, bs], axis=1)
 
-    # Calculate color_data
-    cache_key = (color_data.shape, RGB.shape)
-    if cache_key not in _EINSUM_PATH_CACHE:
-        _EINSUM_PATH_CACHE[cache_key] = np.einsum_path(
-            'hwc,cr->hwr', color_data, RGB, optimize=True
-        )[0]
-
-    cached_path = _EINSUM_PATH_CACHE[cache_key]
-    rgb_sum = np.einsum('hwc,cr->hwr', color_data, RGB, optimize=cached_path)
-    rgb_avg_present = np.einsum('hwc,cr->hwr', color_mask, RGB, optimize=cached_path)
+    # matmul: (H,W,C) @ (C,3) -> (H,W,3), directly maps to BLAS gemm
+    rgb_sum = color_data @ RGB
+    rgb_avg_present = color_mask @ RGB
 
     # Divide by totals (broadcast) once, then cast once
     with np.errstate(divide='ignore', invalid='ignore'):
