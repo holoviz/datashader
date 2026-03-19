@@ -6,18 +6,13 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+a[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+b[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+rc[0-9]+"
-  # Dry-run only
   workflow_dispatch:
   schedule:
     - cron: "0 16 * * SUN"
 
-defaults:
-  run:
-    shell: bash -e {0}
-
 env:
-  PYTHON_VERSION: "3.11"
   PACKAGE: "datashader"
+  PYTHON_VERSION: "3.10"
 
 jobs:
   waiting_room:
@@ -52,7 +47,7 @@ jobs:
         if: always()
         with:
           name: conda
-          path: dist/*.tar.bz2
+          path: dist/*.conda
           if-no-files-found: error
 
   conda_publish:
@@ -60,33 +55,29 @@ jobs:
     runs-on: ubuntu-latest
     needs: [conda_build, waiting_room]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    defaults:
-      run:
-        shell: bash -el {0}
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: conda
+          name: artifacts-conda
           path: dist/
-      - name: Set environment variables
-        run: |
-          echo "TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-          echo "CONDA_FILE=$(ls dist/*.tar.bz2)" >> $GITHUB_ENV
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: astral-sh/setup-uv@v7
         with:
-          miniconda-version: "latest"
-          channels: "conda-forge"
-      - name: conda setup
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: false
+      - name: anaconda setup
         run: |
-          conda install -y anaconda-client
-      - name: conda dev upload
-        if: contains(env.TAG, 'a') || contains(env.TAG, 'b') || contains(env.TAG, 'rc')
+          anaconda() { uvx --from anaconda-client binstar "$@"; }
+          anaconda --version
+      - name: anaconda dev upload
+        if: contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc')
         run: |
-          anaconda --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev $CONDA_FILE
-      - name: conda main upload
-        if: (!(contains(env.TAG, 'a') || contains(env.TAG, 'b') || contains(env.TAG, 'rc')))
+          anaconda() { uvx --from anaconda-client binstar "$@"; }
+          anaconda --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev dist/*.conda
+      - name: anaconda upload
+        if: (!(contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc')))
         run: |
-          anaconda --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev --label=main $CONDA_FILE
+          anaconda() { uvx --from anaconda-client binstar "$@"; }
+          anaconda --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev --label=main dist/*.conda
 
   pip_build:
     name: Build PyPI
