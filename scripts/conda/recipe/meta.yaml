@@ -15,6 +15,7 @@ build:
 requirements:
   build:
     - python {{ project['requires-python'] }}
+    - pip
     {% for dep in pyproject['build-system']['requires'] %}
     - {{ dep }}
     {% endfor %}
@@ -33,6 +34,6 @@ test:
     - pip
 
 about:
-  home: {{ project['urls']['Homepage'] }}
+  home: {{ project['urls']['Documentation'] }}
   summary: {{ project['description'] }}
-  license: {{ project['license']['text'] }}
+  license: {{ project['license'] }}
