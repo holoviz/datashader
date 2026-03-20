@@ -53,17 +53,13 @@ jobs:
   conda_publish:
     name: Publish Conda
     runs-on: ubuntu-latest
-    needs: [conda_build]
-    # needs: [conda_build, waiting_room]
-    # if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: [conda_build, waiting_room]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/download-artifact@v8
         with:
           name: artifacts-conda
           path: dist/
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
       - name: anaconda setup
         run: |
           pipx install anaconda-client
@@ -71,13 +67,11 @@ jobs:
       - name: anaconda dev upload
         if: contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc')
         run: |
-          binstar --version
-          # binstar --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev dist/*.conda
+          binstar --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev dist/*.conda
       - name: anaconda upload
         if: (!(contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc')))
         run: |
-          binstar --version
-          # binstar --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev --label=main dist/*.conda
+          binstar --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev --label=main dist/*.conda
 
   pip_build:
     name: Build PyPI
