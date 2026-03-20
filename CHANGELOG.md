@@ -1,3 +1,54 @@
+# Version 0.19.0 (2026-03-20)
+
+This release brings band-wise 2D support to `quadmesh`, several `QuadMesh` bug
+fixes, significant performance improvements to `colorize` and `QuadMesh` mesh
+operations, removal of the CLI, and compatibility updates for Pandas 3.0,
+Python 3.14, and cuDF 26.02.
+
+Thanks to first time contributor [@dcherian](https://github.com/dcherian), and regular contributors [@Azaya89](https://github.com/Azaya89), [@philippjfr](https://github.com/philippjfr), and [@hoxbro](https://github.com/hoxbro).
+
+Features:
+
+- Make `quadmesh` support band-wise 2D ([#1472](https://github.com/holoviz/datashader/pull/1472))
+
+Breaking Changes:
+
+- Remove the CLI interface which been broken since version 0.17.0 ([#1484](https://github.com/holoviz/datashader/pull/1484))
+- Deprecate `copy_examples`, `fetch_data` and `examples` with expected removal in version 0.20.0 ([#1462](https://github.com/holoviz/datashader/pull/1462))
+
+Bug Fixes:
+
+- Support `dask.array` without `dask.dataframe` ([#1454](https://github.com/holoviz/datashader/pull/1454))
+- Improve `compute_chunksize` for downsampled data ([#1448](https://github.com/holoviz/datashader/pull/1448))
+- Handle descending coordinates in `QuadMeshRaster` downsampling ([#1441](https://github.com/holoviz/datashader/pull/1441))
+- Propagate `NotImplementedError` for `mode` ([#1436](https://github.com/holoviz/datashader/pull/1436))
+- Fix bug in `QuadMeshRectilinear` ([#1459](https://github.com/holoviz/datashader/pull/1459))
+- Fix rendering viewport fully contained in one cell ([#1442](https://github.com/holoviz/datashader/pull/1442))
+
+Performance:
+
+- Reorder loops in `QuadMeshCurvilinear` ([#1449](https://github.com/holoviz/datashader/pull/1449))
+- Interval bounds updates ([#1446](https://github.com/holoviz/datashader/pull/1446))
+- Use more inplace operations in `quadmesh` ([#1444](https://github.com/holoviz/datashader/pull/1444))
+- Use numba for faster estimation of `QuadMeshCurvilinear` bounds ([#1443](https://github.com/holoviz/datashader/pull/1443))
+- Optimize colorize using matrix multiplication, inplace operations, and `float32` conversion ([#1437](https://github.com/holoviz/datashader/pull/1437))
+
+Compatibility:
+
+- Pandas 3.0 ([#1473](https://github.com/holoviz/datashader/pull/1473), [#1474](https://github.com/holoviz/datashader/pull/1474), [#1480](https://github.com/holoviz/datashader/pull/1480))
+- Python 3.14 ([#1466](https://github.com/holoviz/datashader/pull/1466))
+- cuDF 26.02 ([#1434](https://github.com/holoviz/datashader/pull/1434), [#1464](https://github.com/holoviz/datashader/pull/1464), [#1471](https://github.com/holoviz/datashader/pull/1471), [#1478](https://github.com/holoviz/datashader/pull/1478))
+
+Tests:
+
+- Refactor slow tests to run better in parallel ([#1468](https://github.com/holoviz/datashader/pull/1468))
+- Add benchmark to CI ([#1450](https://github.com/holoviz/datashader/pull/1450), [#1451](https://github.com/holoviz/datashader/pull/1451), [#1453](https://github.com/holoviz/datashader/pull/1453), [#1455](https://github.com/holoviz/datashader/pull/1455), [#1457](https://github.com/holoviz/datashader/pull/1457), [#1476](https://github.com/holoviz/datashader/pull/1476))
+
+Maintenance:
+
+- Reduce size of `assets/images` ([#1479](https://github.com/holoviz/datashader/pull/1479))
+- Replace direct download of NYC Taxi with `hvsampledata` ([#1462](https://github.com/holoviz/datashader/pull/1462))
+
 # Version 0.18.2 (2025-08-05)
 
 This release fixes a bug that caused a segmentation fault for quadmesh
