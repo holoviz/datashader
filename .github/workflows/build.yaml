@@ -60,24 +60,18 @@ jobs:
         with:
           name: artifacts-conda
           path: dist/
-      - uses: astral-sh/setup-uv@v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          enable-cache: false
       - name: anaconda setup
         run: |
-          anaconda() { uvx --from anaconda-client binstar "$@"; }
-          anaconda --version
+          pipx install anaconda-client
+          binstar --version
       - name: anaconda dev upload
         if: contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc')
         run: |
-          anaconda() { uvx --from anaconda-client binstar "$@"; }
-          anaconda --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev dist/*.conda
+          binstar --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev dist/*.conda
       - name: anaconda upload
         if: (!(contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc')))
         run: |
-          anaconda() { uvx --from anaconda-client binstar "$@"; }
-          anaconda --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev --label=main dist/*.conda
+          binstar --token ${{ secrets.CONDA_UPLOAD_TOKEN }} upload --user pyviz --label=dev --label=main dist/*.conda
 
   pip_build:
     name: Build PyPI
