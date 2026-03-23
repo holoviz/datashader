@@ -3,27 +3,59 @@ name = "datashader"
 channels = ["pyviz/label/dev", "conda-forge"]
 platforms = ["linux-64", "osx-arm64", "win-64"]
 
-[tasks]
-download-data = "python scripts/download_data.py"
-install = "python -m pip install --no-deps --disable-pip-version-check -e ."
-setup-dev = { depends-on = ["install", "download-data", "lint-install"] }
-
-[activation.env]
-PYTHONIOENCODING = "utf-8"
-
 [environments]
-test-310 = ["py310", "test-core", "optional", "test-example", "test-unit-task"]
-test-311 = ["py311", "test-core", "optional", "test-example", "test-unit-task"]
-test-312 = ["py312", "test-core", "optional", "test-example", "test-unit-task"]
-test-313 = ["py313", "test-core", "optional", "test-example", "test-unit-task"]
-test-314 = ["py314", "test-core", "optional", "test-example", "test-unit-task"]
-test-core = ["py314", "test-core", "test-unit-task"]
-test-gpu = ["py313", "test-core", "test-gpu"]
-docs = ["py311", "optional", "doc"]
-build = ["py311", "build"]
-lint = ["py311", "lint"]
+default = [
+    "required",
+    "py313",
+    "optional",
+    "test-core",
+    "test-example",
+    "test-unit-task",
+    "lint",
+    "dev",
+]
 
-[dependencies]
+[environments.test-310]
+features = ["required", "py310", "optional", "test-core", "test-example", "test-unit-task"]
+no-default-feature = true
+
+[environments.test-311]
+features = ["required", "py311", "optional", "test-core", "test-example", "test-unit-task"]
+no-default-feature = true
+
+[environments.test-312]
+features = ["required", "py312", "optional", "test-core", "test-example", "test-unit-task"]
+no-default-feature = true
+
+[environments.test-313]
+features = ["required", "py313", "optional", "test-core", "test-example", "test-unit-task"]
+no-default-feature = true
+
+[environments.test-314]
+features = ["required", "py314", "optional", "test-core", "test-example", "test-unit-task"]
+no-default-feature = true
+
+[environments.test-core]
+features = ["required", "py314", "test-core", "test-unit-task"]
+no-default-feature = true
+
+[environments.test-gpu]
+features = ["required", "py313", "test-core", "test-gpu"]
+no-default-feature = true
+
+[environments.docs]
+features = ["required", "py311", "optional", "doc"]
+no-default-feature = true
+
+[environments.build]
+features = ["required", "py311", "build"]
+no-default-feature = true
+
+[environments.lint]
+features = ["lint"]
+no-default-feature = true
+
+[feature.required.dependencies]
 nomkl = "*"
 pip = "*"
 # Required
@@ -40,6 +72,13 @@ scipy = "*"
 setuptools = "*" # distutils for pyct
 toolz = "*"
 xarray = "*"
+
+[feature.required.tasks]
+download-data = "python scripts/download_data.py"
+install = "python -m pip install --no-deps --disable-pip-version-check -e ."
+
+[feature.required.activation.env]
+PYTHONIOENCODING = "utf-8"
 
 [feature.py310.dependencies]
 python = "3.10.*"
@@ -61,6 +100,7 @@ COVERAGE_CORE = "sysmon"
 
 [feature.py314.dependencies]
 python = "3.14.*"
+python-gil = "*"
 
 [feature.py314.activation.env]
 COVERAGE_CORE = "sysmon"
@@ -91,6 +131,15 @@ rioxarray = "*"
 scikit-image = "*"
 shapely = ">=2.0.0"
 spatialpandas = "*"
+
+[feature.dev.dependencies]
+jupyterlab = "*"
+jupyterlab-myst = "*"
+setuptools_scm = "*"
+
+[feature.dev.tasks]
+lab = 'jupyter lab'
+setup-dev = { depends-on = ["install", "download-data", "lint-install"] }
 
 # =============================================
 # =================== TESTS ===================
