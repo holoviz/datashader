@@ -63,9 +63,16 @@ class Glyph(Expr):
         else:
             return Glyph._compute_bounds_numba(s)
 
+
+    @staticmethod
+    def _compute_bounds_numba(arr):
+        if arr.dtype.kind == "i":
+            return Glyph._compute_bounds_numba_int(arr)
+        return Glyph._compute_bounds_numba_float(arr)
+
     @staticmethod
     @ngjit
-    def _compute_bounds_numba(arr):
+    def _compute_bounds_numba_float(arr):
         minval = np.inf
         maxval = -np.inf
         for x in arr:
@@ -74,7 +81,20 @@ class Glyph(Expr):
                     minval = x
                 if x > maxval:
                     maxval = x
+        return minval, maxval
 
+    @staticmethod
+    @ngjit
+    def _compute_bounds_numba_int(arr):
+        minval = 2 ** 64 // 2 - 1
+        maxval = - 2 ** 64 // 2
+        natval = - 2 ** 64 // 2
+        for x in arr:
+            if x != natval:
+                if x < minval:
+                    minval = x
+                if x > maxval:
+                    maxval = x
         return minval, maxval
 
     @staticmethod

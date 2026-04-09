@@ -320,7 +320,7 @@ def test_spatial_index_not_dropped():
     glyph = ds.glyphs.polygon.PolygonGeom('some_geom')
     agg = ds.count()
 
-    df2, _ = ds.core._bypixel_sanitise(df, glyph, agg)
+    df2 = ds.core._sanitize_dataframe(df, None, glyph, agg)
 
     assert df2.columns == ['some_geom']
     assert df2.some_geom.array._sindex == df.some_geom.array._sindex
