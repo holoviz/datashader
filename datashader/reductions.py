@@ -2171,6 +2171,27 @@ class summary(Expr):
         for v in self.values:
             v.validate(input_dshape)
 
+        for key, value in zip(self.keys, self.values, strict=True):
+            # Summary keys become Dataset variable names. They cannot collide with
+            # extra dimensions introduced by reductions (e.g. by(cat_column)).
+            dim_names = set()
+            stack = [value]
+            while stack:
+                reduction = stack.pop()
+                if isinstance(reduction, by):
+                    dim_names.add(reduction.cat_column)
+                    stack.append(reduction.reduction)
+                elif isinstance(reduction, where):
+                    stack.append(reduction.selector)
+                elif isinstance(reduction, FloatingNReduction):
+                    dim_names.add("n")
+
+            if key in dim_names:
+                raise ValueError(
+                    f"Invalid summary reduction name {key!r}: it conflicts with "
+                    f"a generated dimension name. Rename the summary key or reduction."
+                )
+
         # Check that any included FloatingNReductions have the same n values.
         n_values = []
         for v in self.values:
