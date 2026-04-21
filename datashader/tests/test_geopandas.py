@@ -5,7 +5,6 @@ from importlib.util import find_spec
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray
 import numpy as np
-from numpy import nan
 import pytest
 
 try:
@@ -35,28 +34,28 @@ try:
 except ImportError:
     spatialpandas = None
 
-
+_ = np.nan  # done for visual clarity in test data
 nybb_lines_sol = np.array([
-    [ 0.,  0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
-    [ 0., nan,  0.,  0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
-    [ 0.,  0., nan, nan,  0.,  0., nan, nan, nan, nan, nan,  1.,  1.,  1., nan, nan, nan, nan, nan, nan],  # noqa: E501
-    [nan,  0., nan, nan, nan,  0.,  0.,  0.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan, nan, nan],  # noqa: E501
-    [nan,  0.,  0., nan, nan, nan,  0.,  0.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1., nan],  # noqa: E501
-    [nan,  0.,  0., nan, nan, nan,  0.,  2.,  2., nan, nan,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1., nan],  # noqa: E501
-    [nan,  0.,  0.,  0.,  0.,  0.,  0.,  2., nan, nan, nan, nan,  2.,  2.,  2.,  2.,  1.,  1.,  1., nan],  # noqa: E501
-    [nan, nan,  0.,  0., nan,  0.,  0.,  2.,  2.,  2., nan, nan, nan,  2.,  2.,  1.,  1., nan,  1.,  1.],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  2., nan, nan,  2.,  2.,  2., nan, nan, nan,  1.,  1.],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  2., nan,  2.,  2.,  2., nan, nan, nan, nan,  1.],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  2.,  2., nan, nan, nan, nan, nan,  1.,  1.],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan,  3., nan,  3.,  2., nan, nan, nan, nan, nan, nan, nan,  1.],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  3., nan, nan,  1., nan, nan,  1.,  1.,  1.],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3., nan,  3.,  3.,  4.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  4.,  4.,  4.,  4.,  4.,  4.,  1., nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4., nan,  4.,  4.,  4.,  4., nan, nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4., nan, nan,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4., nan, nan,  4.,  4.,  4., nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4., nan, nan,  4.,  4.,  4., nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4., nan, nan, nan, nan, nan],  # noqa: E501
+    [0, 0, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [0, _, 0, 0, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [0, 0, _, _, 0, 0, _, _, _, _, _, 1, 1, 1, _, _, _, _, _, _],
+    [_, 0, _, _, _, 0, 0, 0, 2, 2, 2, 2, 2, 2, 1, 1, _, _, _, _],
+    [_, 0, 0, _, _, _, 0, 0, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, _],
+    [_, 0, 0, _, _, _, 0, 2, 2, _, _, 2, 2, 2, 2, 2, 1, 1, 1, _],
+    [_, 0, 0, 0, 0, 0, 0, 2, _, _, _, _, 2, 2, 2, 2, 1, 1, 1, _],
+    [_, _, 0, 0, _, 0, 0, 2, 2, 2, _, _, _, 2, 2, 1, 1, _, 1, 1],
+    [_, _, _, _, _, _, _, _, 3, 2, _, _, 2, 2, 2, _, _, _, 1, 1],
+    [_, _, _, _, _, _, _, 3, 3, 3, 2, _, 2, 2, 2, _, _, _, _, 1],
+    [_, _, _, _, _, _, _, _, 3, 3, 3, 2, 2, _, _, _, _, _, 1, 1],
+    [_, _, _, _, _, _, _, _, 3, _, 3, 2, _, _, _, _, _, _, _, 1],
+    [_, _, _, _, _, _, _, _, 3, 3, 3, 3, _, _, 1, _, _, 1, 1, 1],
+    [_, _, _, _, _, _, _, _, _, 3, _, 3, 3, 4, 1, 1, 1, 1, 1, _],
+    [_, _, _, _, _, _, _, _, _, 3, 3, 4, 4, 4, 4, 4, 4, 1, _, _],
+    [_, _, _, _, _, _, _, _, _, _, 3, 4, _, 4, 4, 4, 4, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, 3, 4, _, _, 4, 4, 4, 4, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, 4, 4, _, _, 4, 4, 4, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, 4, 4, _, _, 4, 4, 4, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, 4, 4, 4, _, _, _, _, _],
 ])
 
 # This data is for checking repeatability in our tests, not correctness.
@@ -86,26 +85,26 @@ nybb_points_sol = np.array([
 
 
 nybb_polygons_sol = np.array([
-    [ 0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
-    [ 0.,  0.,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
-    [nan,  0.,  0.,  0.,  0., nan, nan, nan, nan, nan, nan,  1., nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
-    [nan, nan,  0.,  0.,  0.,  0., nan,  0., nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan],  # noqa: E501
-    [nan, nan,  0.,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan, nan],  # noqa: E501
-    [nan, nan,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan],  # noqa: E501
-    [nan, nan,  0.,  0.,  0.,  0.,  0., nan,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1., nan, nan],  # noqa: E501
-    [nan, nan, nan,  0., nan, nan, nan, nan,  2.,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan,  3.,  2.,  2.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  3.,  2.,  2.,  2.,  1.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  2.,  1.,  1.,  1.,  1.,  1.,  1.,  1., nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  1.,  4., nan,  1.,  1.,  1., nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  3.,  4.,  4., nan, nan, nan, nan, nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4., nan, nan, nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  3.,  4.,  4.,  4.,  4.,  4.,  4., nan, nan],  # noqa: E501
-    [nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,  4.,  4.,  4., nan, nan, nan, nan, nan],  # noqa: E501
+    [0, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [0, 0, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, 0, 0, 0, 0, _, _, _, _, _, _, 1, _, _, _, _, _, _, _, _],
+    [_, _, 0, 0, 0, 0, _, 0, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, 0, 0, 0, 0, 0, 0, _, 2, 2, 2, 2, 2, 2, 1, 1, _, _, _],
+    [_, _, 0, 0, 0, 0, 0, _, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, _, _],
+    [_, _, 0, 0, 0, 0, 0, _, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, _, _],
+    [_, _, _, 0, _, _, _, _, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, _],
+    [_, _, _, _, _, _, _, _, 3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, _],
+    [_, _, _, _, _, _, _, 3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1, 1, _],
+    [_, _, _, _, _, _, _, _, _, 3, 3, 2, 1, 1, 1, 1, 1, 1, 1, _],
+    [_, _, _, _, _, _, _, _, _, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [_, _, _, _, _, _, _, _, _, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [_, _, _, _, _, _, _, _, _, _, 3, 3, 1, 4, _, 1, 1, 1, _, _],
+    [_, _, _, _, _, _, _, _, _, _, 3, 3, 4, 4, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, 3, 4, 4, 4, 4, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, 3, 4, 4, 4, 4, 4, 4, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, 4, 4, 4, 4, 4, 4, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, 3, 4, 4, 4, 4, 4, 4, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, 4, 4, 4, _, _, _, _, _],
 ])
 
 
@@ -309,6 +308,38 @@ def test_polygons_dask_geopandas(geom_type, npartitions):
     canvas = ds.Canvas(plot_height=20, plot_width=20)
     agg = canvas.polygons(source=df, geometry="geometry", agg=ds.max("col"))
     assert_eq_ndarray(agg.data, nybb_polygons_sol)
+
+
+@pytest.mark.skipif(not geopandas, reason="geopandas not installed")
+def test_polygons_touching_at_vertex():
+    # Test for https://github.com/holoviz/datashader/issues/1494
+    from shapely.geometry import MultiPolygon, Polygon
+
+    polys = [
+        MultiPolygon([Polygon([(-2.0, 0.0), (-1.0, -1.0), (0.0, 0.0), (-1.0, 1.0)])]),
+        MultiPolygon([Polygon([(0.0, 0.0), (1.0, -1.0), (2.0, 0.0), (1.0, 1.0)])]),
+    ]
+    df = geopandas.GeoDataFrame(
+        {"polygons": polys, "v": [1.0, 2.0]}, geometry="polygons",
+    )
+    canvas = ds.Canvas(
+        plot_width=20, plot_height=10, x_range=(-2.0, 2.0), y_range=(-1.0, 1.0),
+    )
+    agg = canvas.polygons(df, geometry="polygons", agg=ds.mean("v")).values
+
+    expected = np.array([
+        [_, _, _, _, 1, 1, _, _, _, _, _, _, _, _, 2, 2, _, _, _, _],
+        [_, _, _, 1, 1, 1, 1, _, _, _, _, _, _, 2, 2, 2, 2, _, _, _],
+        [_, _, 1, 1, 1, 1, 1, 1, _, _, _, _, 2, 2, 2, 2, 2, 2, _, _],
+        [_, 1, 1, 1, 1, 1, 1, 1, 1, _, _, 2, 2, 2, 2, 2, 2, 2, 2, _],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+        [_, 1, 1, 1, 1, 1, 1, 1, 1, _, _, 2, 2, 2, 2, 2, 2, 2, 2, _],
+        [_, _, 1, 1, 1, 1, 1, 1, _, _, _, _, 2, 2, 2, 2, 2, 2, _, _],
+        [_, _, _, 1, 1, 1, 1, _, _, _, _, _, _, 2, 2, 2, 2, _, _, _],
+        [_, _, _, _, 1, 1, _, _, _, _, _, _, _, _, 2, 2, _, _, _, _],
+    ])
+    assert_eq_ndarray(agg, expected)
 
 
 @pytest.mark.skipif(not geodatasets, reason="geodatasets not installed")
