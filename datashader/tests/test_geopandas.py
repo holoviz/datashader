@@ -34,7 +34,7 @@ try:
 except ImportError:
     spatialpandas = None
 
-_ = np.nan  # done for visual clarity in test data
+_ = np.nan  # To reduce visual noise in test data
 nybb_lines_sol = np.array([
     [0, 0, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [0, _, 0, 0, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
