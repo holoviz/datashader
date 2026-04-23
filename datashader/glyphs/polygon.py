@@ -221,7 +221,7 @@ def _build_draw_polygon(append, map_onto_pixel, x_mapper, y_mapper, expand_aggs_
                         # Compute cross product of B and A
                         bxa = (bx * ay - by * ax)
 
-                        if bxa < 0 or (bxa == 0 and yincreasing[ei]):
+                        if bxa < 0 or (bxa == 0 and yincreasing[ei] > 0):
                             # Edge to the right
                             winding_number += yincreasing[ei]
                         else:
