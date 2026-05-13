@@ -43,7 +43,7 @@ jobs:
     name: Run pre-commit
     runs-on: "ubuntu-latest"
     steps:
-      - uses: holoviz-dev/holoviz_tasks/pre-commit@v0
+      - uses: holoviz-dev/holoviz_tasks/pre-commit@ffddda04b2894fea39b407f64d3622d2f19e5a9f # v1
 
   setup:
     name: Setup workflow
@@ -52,12 +52,12 @@ jobs:
       matrix: ${{ env.MATRIX }}
       code_change: ${{ steps.filter.outputs.code }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: github.event_name != 'pull_request'
         with:
           persist-credentials: false
       - name: Check for code changes
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
         id: filter
         with:
           filters: |
@@ -110,7 +110,7 @@ jobs:
     name: Pixi lock
     runs-on: ubuntu-latest
     steps:
-      - uses: holoviz-dev/holoviz_tasks/pixi_lock@v0
+      - uses: holoviz-dev/holoviz_tasks/pixi-lock@ffddda04b2894fea39b407f64d3622d2f19e5a9f # v1
         with:
           cache: ${{ github.event.inputs.cache == 'true' || github.event.inputs.cache == '' }}
 
@@ -124,11 +124,11 @@ jobs:
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     timeout-minutes: 120
     steps:
-      - uses: holoviz-dev/holoviz_tasks/pixi_install@v0
+      - uses: holoviz-dev/holoviz_tasks/pixi-install@ffddda04b2894fea39b407f64d3622d2f19e5a9f # v1
         with:
           environments: ${{ matrix.environment }}
       - name: Restore cached hypothesis directory
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .hypothesis/
           key: cache-hypothesis-${{ github.run_id }}-${{ matrix.environment }}-${{ matrix.os }}
@@ -142,11 +142,11 @@ jobs:
       - name: Test Examples
         run: |
           pixi run -e "${ENV}" test-example
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Save hypothesis directory
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         if: always()
         with:
           path: .hypothesis/
@@ -164,7 +164,7 @@ jobs:
         environment: ["test-core"]
     timeout-minutes: 120
     steps:
-      - uses: holoviz-dev/holoviz_tasks/pixi_install@v0
+      - uses: holoviz-dev/holoviz_tasks/pixi-install@ffddda04b2894fea39b407f64d3622d2f19e5a9f # v1
         with:
           environments: ${{ matrix.environment }}
       - name: Test Unit
@@ -183,11 +183,11 @@ jobs:
         environment: ["test-313"]
     timeout-minutes: 120
     steps:
-      - uses: holoviz-dev/holoviz_tasks/pixi_install@v0
+      - uses: holoviz-dev/holoviz_tasks/pixi-install@ffddda04b2894fea39b407f64d3622d2f19e5a9f # v1
         with:
           environments: ${{ matrix.environment }}
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@3194d9a39c4d46684cb44bf7207fc56626aad8fd # v4
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
           mode: simulation
