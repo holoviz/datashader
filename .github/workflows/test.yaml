@@ -123,6 +123,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     timeout-minutes: 120
+    env:
+      ENV: ${{ matrix.environment }}
     steps:
       - uses: holoviz-dev/holoviz_tasks/pixi-install@ffddda04b2894fea39b407f64d3622d2f19e5a9f # v1
         with:
@@ -163,6 +165,8 @@ jobs:
         os: ["ubuntu-latest"]
         environment: ["test-core"]
     timeout-minutes: 120
+    env:
+      ENV: ${{ matrix.environment }}
     steps:
       - uses: holoviz-dev/holoviz_tasks/pixi-install@ffddda04b2894fea39b407f64d3622d2f19e5a9f # v1
         with:
@@ -182,6 +186,8 @@ jobs:
         os: ["ubuntu-latest"]
         environment: ["test-313"]
     timeout-minutes: 120
+    env:
+      ENV: ${{ matrix.environment }}
     steps:
       - uses: holoviz-dev/holoviz_tasks/pixi-install@ffddda04b2894fea39b407f64d3622d2f19e5a9f # v1
         with:
