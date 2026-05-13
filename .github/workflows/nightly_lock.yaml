@@ -7,6 +7,12 @@ on:
 env:
   PACKAGE: "datashader"
 
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pixi_lock:
     if: ${{ !github.event.repository.fork }}

@@ -23,6 +23,8 @@ on:
   schedule:
     - cron: "0 16 * * SUN"
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -52,6 +54,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         if: github.event_name != 'pull_request'
+        with:
+          persist-credentials: false
       - name: Check for code changes
         uses: dorny/paths-filter@v4
         id: filter
@@ -64,12 +68,14 @@ jobs:
               - 'pyproject.toml'
               - '.github/workflows/test.yaml'
       - name: Set matrix option
+        env:
+          GITHUB_EVENT_INPUTS_TARGET: ${{ github.event.inputs.target }}
         run: |
-          if [[ '${{ github.event_name }}' == 'workflow_dispatch' ]]; then
-            OPTION=${{ github.event.inputs.target }}
-          elif [[ '${{ github.event_name }}' == 'schedule' ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == 'workflow_dispatch' ]]; then
+            OPTION=${GITHUB_EVENT_INPUTS_TARGET}
+          elif [[ "${GITHUB_EVENT_NAME}" == 'schedule' ]]; then
             OPTION="full"
-          elif [[ '${{ github.event_name }}' == 'push' && '${{ github.ref_type }}' == 'tag' ]]; then
+          elif [[ "${GITHUB_EVENT_NAME}" == 'push' && "${GITHUB_REF_TYPE}" == 'tag' ]]; then
             OPTION="full"
           else
             OPTION="default"
@@ -129,13 +135,13 @@ jobs:
           restore-keys: cache-hypothesis-
       - name: Test Unit
         run: |
-          pixi run -e ${{ matrix.environment }} test-unit $COV
+          pixi run -e "${ENV}" test-unit $COV
       - name: Test Unit (without JIT)
         run: |
-          pixi run -e ${{ matrix.environment }} test-unit-nojit $COV
+          pixi run -e "${ENV}" test-unit-nojit $COV
       - name: Test Examples
         run: |
-          pixi run -e ${{ matrix.environment }} test-example
+          pixi run -e "${ENV}" test-example
       - uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -163,7 +169,7 @@ jobs:
           environments: ${{ matrix.environment }}
       - name: Test Unit
         run: |
-          pixi run -e ${{ matrix.environment }} test-unit
+          pixi run -e "${ENV}" test-unit
 
   benchmark_test_suite:
     name: benchmark:${{ matrix.environment }}:${{ matrix.os }}
@@ -185,7 +191,7 @@ jobs:
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
           mode: simulation
-          run: pixi run -e ${{ matrix.environment }} test-benchmark
+          run: pixi run -e "${ENV}" test-benchmark
 
   result_test_suite:
     name: result:test

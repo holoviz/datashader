@@ -10,6 +10,12 @@ on:
   schedule:
     - cron: "0 16 * * SUN"
 
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   PACKAGE: "datashader"
   PYTHON_VERSION: "3.10"
@@ -135,6 +141,8 @@ jobs:
       TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v8
         with:
           pattern: artifacts-*
