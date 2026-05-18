@@ -41,6 +41,7 @@ dependencies = [
     'toolz',
     'packaging',
     'xarray',
+    'narwhals',
 ]
 
 [project.urls]
