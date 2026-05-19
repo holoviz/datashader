@@ -34,23 +34,10 @@ with suppress(ImportError):
 
 with suppress(ImportError):
     import geodatasets as gds
-    import pooch
 
     retry(gds.get_path, "geoda.natregimes")
-    # retry(gds.get_path, "nybb")
+    retry(gds.get_path, "nybb")
     retry(gds.get_path, "geoda health")
-
-    # https://github.com/geopandas/geodatasets/issues/35
-    _nybb = gds.data.query_name("nybb")
-    _UA = "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0"
-    _downloader = pooch.HTTPDownloader(headers={"User-Agent": _UA})
-    retry(
-        gds.api.CACHE.fetch,
-        _nybb.filename,
-        processor=pooch.Unzip(members=_nybb.members),
-        downloader=_downloader,
-    )
-
 
 
 with suppress(ImportError):
