@@ -1,4 +1,4 @@
-# Version 0.19.1 (2026-05-18)
+# Version 0.19.1 (2026-05-19)
 
 Many thanks to [@hoxbro](https://github.com/hoxbro) for their contributions.
 
