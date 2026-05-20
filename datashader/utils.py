@@ -482,6 +482,11 @@ def dshape_from_xarray_dataset(xr_ds):
     ])
 
 
+def dshape_from_narwhals(df):
+    """Return a datashape.DataShape object given a narwhals dataframe.
+    """
+    pass
+
 def dataframe_from_multiple_sequences(x_values, y_values):
    """
    Converts a set of multiple sequences (eg: time series), stored as a 2 dimensional
