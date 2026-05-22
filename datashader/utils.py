@@ -482,10 +482,17 @@ def dshape_from_xarray_dataset(xr_ds):
     ])
 
 
+def dshape_from_narwhals_helper(col):
+    """Return an object from datashader.datashape.coretypes given a column from a narwhals dataframe.
+    """
+    pass
+
 def dshape_from_narwhals(df):
     """Return a datashape.DataShape object given a narwhals dataframe.
     """
-    pass
+    return len(df) * datashape.Record([
+        (k, dshape_from_narwhals_helper(df[k])) for k in df.columns
+    ])
 
 def dataframe_from_multiple_sequences(x_values, y_values):
    """
