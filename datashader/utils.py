@@ -504,6 +504,9 @@ def dshape_from_narwhals_helper(col):
     if dtype in _NARWHALS_TO_DATASHAPE:
         return _NARWHALS_TO_DATASHAPE[dtype]
     
+    if dtype == nw.String:
+        return datashape.Option(datashape.string)
+    
     if isinstance(dtype, nw.Datetime):
         return datashape.Option(datashape.DateTime(tz=dtype.time_zone))
     raise TypeError(f"narwhals {dtype} not supported")
