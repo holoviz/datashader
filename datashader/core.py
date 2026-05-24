@@ -11,7 +11,7 @@ import narwhals as nw
 from packaging.version import Version
 from xarray import DataArray, Dataset
 
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
+from .utils import Dispatcher, dshape_from_narwhals, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
@@ -1400,6 +1400,12 @@ def _bypixel_sanitise(source, glyph, agg):
     elif isinstance(source, Dataset):
         # Multi-dimensional Dataset
         dshape = dshape_from_xarray_dataset(source)
+    elif isinstance((nw_source := nw.from_native(source, eager_only=True, pass_through=True)), nw.DataFrame):
+        source = nw_source
+        cols_to_keep = _cols_to_keep(source.columns, glyph, agg)
+        if len(cols_to_keep) < len(source.columns):
+            source = source.select(cols_to_keep)
+        dshape = dshape_from_narwhals(source)
     else:
         raise ValueError("source must be a pandas or dask DataFrame")
 
