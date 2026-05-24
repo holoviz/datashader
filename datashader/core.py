@@ -1407,7 +1407,7 @@ def _bypixel_sanitise(source, glyph, agg):
             source = source.select(cols_to_keep)
         dshape = dshape_from_narwhals(source)
     else:
-        raise ValueError("source must be a pandas or dask DataFrame")
+        raise ValueError("source must be a pandas or dask DataFrame, or a narwhals-supported eager dataframe (e.g. polars or pyarrow)")
 
     return source, dshape
 
