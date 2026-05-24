@@ -501,6 +501,21 @@ def dshape_from_narwhals_helper(col):
     """Return an object from datashader.datashape.coretypes given a column from a narwhals dataframe.
     """
     dtype = col.dtype
+    
+    if dtype == nw.Categorical or isinstance(dtype, nw.Enum):
+        if isinstance(dtype, nw.Enum):
+            categories = dtype.categories
+            ordered = True
+        else:
+            categories = col.cat.get_categories().to_list()
+            ordered = False
+        categories = np.array(categories)
+        if categories.dtype.kind == 'U':
+            categories = categories.astype('object')
+        cat_dshape = datashape.dshape(f'{len(categories)} * {categories.dtype}')
+        return datashape.Categorical(categories, type=cat_dshape, ordered=ordered)
+
+    
     if dtype in _NARWHALS_TO_DATASHAPE:
         return _NARWHALS_TO_DATASHAPE[dtype]
     
