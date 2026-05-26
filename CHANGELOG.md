@@ -1,3 +1,19 @@
+# Version 0.19.1 (2026-05-19)
+
+Many thanks to [@hoxbro](https://github.com/hoxbro) for their contributions.
+
+### Bug Fixes
+
+- Improve overlapping edges for polygons to not cancel out ([#1495](https://github.com/holoviz/datashader/pull/1495))
+
+### Compatibility
+
+- cuDF 26.04 ([#1492](https://github.com/holoviz/datashader/pull/1492))
+
+### CI/CD
+
+- Use trusted publisher for PyPI and use `zizmor` ([#1489](https://github.com/holoviz/datashader/pull/1489), [#1497](https://github.com/holoviz/datashader/pull/1497))
+
 # Version 0.19.0 (2026-03-20)
 
 This release brings band-wise 2D support to `quadmesh`, several `QuadMesh` bug

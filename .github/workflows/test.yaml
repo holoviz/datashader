@@ -67,7 +67,6 @@ jobs:
               - 'pixi.toml'
               - 'pyproject.toml'
               - '.github/workflows/test.yaml'
-              - 'scripts/download_data.py'
       - name: Set matrix option
         env:
           GITHUB_EVENT_INPUTS_TARGET: ${{ github.event.inputs.target }}
