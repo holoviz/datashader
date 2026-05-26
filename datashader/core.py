@@ -7,7 +7,7 @@ import contextlib
 
 import numpy as np
 import pandas as pd
-import narwhals as nw
+import narwhals.stable.v2 as nw
 from packaging.version import Version
 from xarray import DataArray, Dataset
 

@@ -8,7 +8,7 @@ from inspect import getmro
 import numba as nb
 import numpy as np
 import pandas as pd
-import narwhals as nw
+import narwhals.stable.v2 as nw
 
 from toolz import memoize
 from xarray import DataArray

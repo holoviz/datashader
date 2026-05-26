@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import narwhals as nw
+import narwhals.stable.v2 as nw
 
 from datashader.core import bypixel
 from datashader.data_libraries.pandas import default
