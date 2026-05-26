@@ -4,6 +4,7 @@ from numpy import nan
 import numpy as np
 import pandas as pd
 import xarray as xr
+import narwhals.stable.v2 as nw
 
 import datashader as ds
 
@@ -58,6 +59,8 @@ def _pandas():
     df_pd.at[2, 'plusminus'] = nan
     return df_pd
 
+def _narwhals():
+    return nw.from_native(_pandas())
 
 def _cudf():
     return cudf.DataFrame(_pandas())
@@ -65,6 +68,7 @@ def _cudf():
 
 _backends = [
     pytest.param(_pandas, id="pandas"),
+    pytest.param(_narwhals, id="narwhals"),
     pytest.param(_cudf, marks=pytest.mark.gpu, id="cudf"),
 ]
 
@@ -88,8 +92,14 @@ def _cudf_DataFrame(*args, **kwargs):
         pd.DataFrame(*args, **kwargs), nan_as_null=False
     )
 
+def _narwhals_DataFrame(*args, **kwargs):
+    if kwargs.pop("geo", False):
+        pytest.skip("Narwhals does not work with spatialpandas")
+    return nw.from_native(pd.DataFrame(*args, **kwargs))
+
 _backends = [
     pytest.param(_pandas_DataFrame, id="pandas"),
+    pytest.param(_narwhals_DataFrame, id="narwhals"),
     pytest.param(_cudf_DataFrame, marks=pytest.mark.gpu, id="cudf"),
 ]
 
@@ -173,6 +183,8 @@ def values(s):
         except AttributeError:
             # to_array is deprecated from cudf 22.02
             return s.to_array(fillna=np.nan)
+    elif isinstance(s, nw.Series):
+        return s.to_numpy()
     else:
         return s.values
 
@@ -215,18 +227,18 @@ def test_any(df):
 
 
 def test_sum(df):
-    out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T,
+    out = xr.DataArray(values(df["i32"]).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.sum('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.sum('i64')), out)
-    out = xr.DataArray(np.nansum(values(df.f64).reshape((2, 2, 5)), axis=2).T,
+    out = xr.DataArray(np.nansum(values(df["f64"]).reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.sum('f32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.sum('f64')), out)
 
 
 def test_min(df):
-    out = xr.DataArray(values(df.i64).reshape((2, 2, 5)).min(axis=2).astype('f8').T,
+    out = xr.DataArray(values(df["i64"]).reshape((2, 2, 5)).min(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.min('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.min('i64')), out)
@@ -235,7 +247,7 @@ def test_min(df):
 
 
 def test_max(df):
-    out = xr.DataArray(values(df.i64).reshape((2, 2, 5)).max(axis=2).astype('f8').T,
+    out = xr.DataArray(values(df["i64"]).reshape((2, 2, 5)).max(axis=2).astype('f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.max('i64')), out)
@@ -696,33 +708,33 @@ def test_summary_different_n(df):
 
 
 def test_mean(df):
-    out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
+    out = xr.DataArray(values(df["i32"]).reshape((2, 2, 5)).mean(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.mean('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.mean('i64')), out)
-    out = xr.DataArray(np.nanmean(values(df.f64).reshape((2, 2, 5)), axis=2).T,
+    out = xr.DataArray(np.nanmean(values(df["f64"]).reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.mean('f32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.mean('f64')), out)
 
 
 def test_var(df):
-    out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).var(axis=2, dtype='f8').T,
+    out = xr.DataArray(values(df["i32"]).reshape((2, 2, 5)).var(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.var('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.var('i64')), out)
-    out = xr.DataArray(np.nanvar(values(df.f64).reshape((2, 2, 5)), axis=2).T,
+    out = xr.DataArray(np.nanvar(values(df["f64"]).reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.var('f32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.var('f64')), out)
 
 
 def test_std(df):
-    out = xr.DataArray(values(df.i32).reshape((2, 2, 5)).std(axis=2, dtype='f8').T,
+    out = xr.DataArray(values(df["i32"]).reshape((2, 2, 5)).std(axis=2, dtype='f8').T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.std('i32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.std('i64')), out)
-    out = xr.DataArray(np.nanstd(values(df.f64).reshape((2, 2, 5)), axis=2).T,
+    out = xr.DataArray(np.nanstd(values(df["f64"]).reshape((2, 2, 5)), axis=2).T,
                        coords=coords, dims=dims)
     assert_eq_xr(c.points(df, 'x', 'y', ds.std('f32')), out)
     assert_eq_xr(c.points(df, 'x', 'y', ds.std('f64')), out)
@@ -1072,8 +1084,8 @@ def test_multiple_aggregates(df):
 
     def f(x):
         return xr.DataArray(x, coords=coords, dims=dims)
-    assert_eq_xr(agg.f64_mean, f(np.nanmean(values(df.f64).reshape((2, 2, 5)), axis=2).T))
-    assert_eq_xr(agg.i32_sum, f(values(df.i32).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
+    assert_eq_xr(agg.f64_mean, f(np.nanmean(values(df["f64"]).reshape((2, 2, 5)), axis=2).T))
+    assert_eq_xr(agg.i32_sum, f(values(df["i32"]).reshape((2, 2, 5)).sum(axis=2, dtype='f8').T))
     assert_eq_xr(agg.i32_count, f(np.array([[5, 5], [5, 5]], dtype='i4')))
 
 
@@ -1717,13 +1729,13 @@ if sp:
     )
 @pytest.mark.parametrize('df_args,cvs_kwargs', line_manual_range_params)
 def test_line_manual_range(DataFrame, df_args, cvs_kwargs):
-    if cudf and DataFrame is _cudf_DataFrame:
+    if (cudf and DataFrame is _cudf_DataFrame) or DataFrame is _narwhals_DataFrame:
         if (isinstance(getattr(df_args[0].get('x', []), 'dtype', ''), RaggedDtype) or
                 sp and isinstance(
                     getattr(df_args[0].get('geom', []), 'dtype', ''), LineDtype
                 )
         ):
-            pytest.skip("cudf DataFrames do not support extension types")
+            pytest.skip("cudf / Narwhals DataFrames do not support extension types")
 
     df = DataFrame(geo='geometry' in cvs_kwargs, *df_args)
 
@@ -1809,15 +1821,15 @@ if sp:
 @pytest.mark.parametrize('df_args,cvs_kwargs', line_autorange_params)
 @pytest.mark.parametrize('line_width', [0, 1])
 def test_line_autorange(DataFrame, df_args, cvs_kwargs, line_width):
-    if cudf and DataFrame is _cudf_DataFrame:
+    if (cudf and DataFrame is _cudf_DataFrame) or DataFrame is _narwhals_DataFrame:
         if (isinstance(getattr(df_args[0].get('x', []), 'dtype', ''), RaggedDtype) or
                 sp and isinstance(
                     getattr(df_args[0].get('geom', []), 'dtype', ''), LineDtype
                 )
         ):
-            pytest.skip("cudf DataFrames do not support extension types")
+            pytest.skip("cudf / Narwhals DataFrames do not support extension types")
 
-        if line_width > 0:
+        if line_width > 0 and DataFrame is not _narwhals_DataFrame:
             pytest.skip("cudf DataFrames do not support antialiased lines")
 
     df = DataFrame(geo='geometry' in cvs_kwargs, *df_args)
@@ -1999,9 +2011,9 @@ def test_line_autorange_axis1_ragged():
     }), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
-    if cudf and DataFrame is _cudf_DataFrame:
+    if (cudf and DataFrame is _cudf_DataFrame) or DataFrame is _narwhals_DataFrame:
         if isinstance(getattr(df_kwargs['data'].get('x', []), 'dtype', ''), RaggedDtype):
-            pytest.skip("cudf DataFrames do not support extension types")
+            pytest.skip("cudf / Narwhals DataFrames do not support extension types")
 
     df = DataFrame(**df_kwargs)
 
@@ -2078,9 +2090,9 @@ def test_area_to_zero_fixedrange(DataFrame, df_kwargs, cvs_kwargs):
     }), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
-    if cudf and DataFrame is _cudf_DataFrame:
+    if (cudf and DataFrame is _cudf_DataFrame) or DataFrame is _narwhals_DataFrame:
         if isinstance(getattr(df_kwargs['data'].get('x', []), 'dtype', ''), RaggedDtype):
-            pytest.skip("cudf DataFrames do not support extension types")
+            pytest.skip("cudf / Narwhals DataFrames do not support extension types")
 
     df = DataFrame(**df_kwargs)
 
@@ -2144,9 +2156,9 @@ def test_area_to_zero_autorange(DataFrame, df_kwargs, cvs_kwargs):
     }), dict(x='x', y='y', axis=1))
 ])
 def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
-    if cudf and DataFrame is _cudf_DataFrame:
+    if (cudf and DataFrame is _cudf_DataFrame) or DataFrame is _narwhals_DataFrame:
         if isinstance(getattr(df_kwargs['data'].get('x', []), 'dtype', ''), RaggedDtype):
-            pytest.skip("cudf DataFrames do not support extension types")
+            pytest.skip("cudf / Narwhals DataFrames do not support extension types")
 
     df = DataFrame(**df_kwargs)
 
@@ -2235,9 +2247,9 @@ def test_area_to_zero_autorange_gap(DataFrame, df_kwargs, cvs_kwargs):
     }), dict(x='x', y='y', y_stack='y_stack', axis=1))
 ])
 def test_area_to_line_autorange(DataFrame, df_kwargs, cvs_kwargs):
-    if cudf and DataFrame is _cudf_DataFrame:
+    if (cudf and DataFrame is _cudf_DataFrame) or DataFrame is _narwhals_DataFrame:
         if isinstance(getattr(df_kwargs['data'].get('x', []), 'dtype', ''), RaggedDtype):
-            pytest.skip("cudf DataFrames do not support extension types")
+            pytest.skip("cudf / Narwhals DataFrames do not support extension types")
 
     df = DataFrame(**df_kwargs)
 
