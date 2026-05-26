@@ -1400,14 +1400,16 @@ def _bypixel_sanitise(source, glyph, agg):
     elif isinstance(source, Dataset):
         # Multi-dimensional Dataset
         dshape = dshape_from_xarray_dataset(source)
-    elif isinstance((nw_source := nw.from_native(source, eager_only=True, pass_through=True)), nw.DataFrame):
+    elif isinstance((
+        nw_source := nw.from_native(source, eager_only=True, pass_through=True)
+    ), nw.DataFrame):
         source = nw_source
         cols_to_keep = _cols_to_keep(source.columns, glyph, agg)
         if len(cols_to_keep) < len(source.columns):
             source = source.select(cols_to_keep)
         dshape = dshape_from_narwhals(source)
     else:
-        raise ValueError("source must be a pandas or dask DataFrame, or a narwhals-supported eager dataframe (e.g. polars or pyarrow)")
+        raise ValueError("source must be a pandas or dask DataFrame, or a narwhals-supported eager dataframe (e.g. polars or pyarrow)")  # noqa: E501
 
     return source, dshape
 

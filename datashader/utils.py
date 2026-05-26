@@ -498,10 +498,11 @@ _NARWHALS_TO_DATASHAPE = {
 }
 
 def dshape_from_narwhals_helper(col):
-    """Return an object from datashader.datashape.coretypes given a column from a narwhals dataframe.
+    """Return an object from datashader.datashape.coretypes given a column from a
+    narwhals dataframe.
     """
     dtype = col.dtype
-    
+
     if dtype == nw.Categorical or isinstance(dtype, nw.Enum):
         if isinstance(dtype, nw.Enum):
             categories = dtype.categories
@@ -515,13 +516,13 @@ def dshape_from_narwhals_helper(col):
         cat_dshape = datashape.dshape(f'{len(categories)} * {categories.dtype}')
         return datashape.Categorical(categories, type=cat_dshape, ordered=ordered)
 
-    
+
     if dtype in _NARWHALS_TO_DATASHAPE:
         return _NARWHALS_TO_DATASHAPE[dtype]
-    
+
     if dtype == nw.String:
         return datashape.Option(datashape.string)
-    
+
     if isinstance(dtype, nw.Datetime):
         return datashape.Option(datashape.DateTime(tz=dtype.time_zone))
     raise TypeError(f"narwhals {dtype} not supported")
