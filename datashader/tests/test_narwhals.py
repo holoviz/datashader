@@ -21,7 +21,13 @@ pl = pytest.importorskip("polars")
 pa = pytest.importorskip("pyarrow")
 
 def _polars():
-    return pl.from_pandas(_pandas())
+    df_pd = _pandas()
+    # Polars Categoricals share a global pool.
+    # Closest pandas-like (per-column category list) behavior is Polars Enum.
+    # https://docs.pola.rs/user-guide/expressions/categorical-data-and-enums/
+
+    schema_overrides={c: pl.Enum(df_pd[c].cat.categories) for c in ["cat", "cat2", "onecat"]}
+    return pl.from_pandas(df_pd, nan_to_null=False, schema_overrides=schema_overrides)
 
 
 def _pyarrow():
