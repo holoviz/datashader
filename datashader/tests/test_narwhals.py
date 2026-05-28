@@ -202,3 +202,14 @@ def test_categorical_max_n(df):
         if n == 1:
             assert_eq_ndarray(agg[..., 0].data,
                               c.points(df, 'x', 'y', ds.by('cat2', ds.max('f32'))).data)
+
+def test_categorical_min_row_index(df):
+    solution = np.array([[[0, 1, 2, 3], [12, 13, 10, 11]], [[8, 5, 6, 7], [16, 17, 18, 15]]])
+    agg = c.points(df, 'x', 'y', ds.by('cat2', ds._min_row_index()))
+    assert_eq_ndarray(agg.data, solution)
+
+
+def test_categorical_max_row_index(df):
+    solution = np.array([[[4, 1, 2, 3], [12, 13, 14, 11]], [[8, 9, 6, 7], [16, 17, 18, 19]]])
+    agg = c.points(df, 'x', 'y', ds.by('cat2', ds._max_row_index()))
+    assert_eq_ndarray(agg.data, solution)
