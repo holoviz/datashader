@@ -82,13 +82,7 @@ line-length = 100
 fix = true
 
 [tool.ruff.lint]
-select = [
-    "E",
-    "F",
-    "NPY",
-    "UP",
-    "W",
-]
+select = ["E", "F", "NPY", "UP", "W"]
 
 [tool.ruff.lint.per-file-ignores]
 "test_mpl_ext.py" = ["E402"] # Module level import not at top of file
