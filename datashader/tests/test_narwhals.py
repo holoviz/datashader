@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 
+from datashader import datashape
+from datashader.utils import dshape_from_narwhals, dshape_from_pandas
 import pytest
 
 import datashader as ds
 import numpy as np
 import xarray as xr
 from numpy import nan
+import narwhals as nw
+
 from datashader.tests.test_pandas import (
     _pandas,
     assert_eq_ndarray,
@@ -1071,3 +1075,162 @@ def test_categorical_where_last_n(df):
             assert_eq_ndarray(agg[:, :, :, 0].data,
                               c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'),
                                                                              'reverse'))).data)
+
+def test_min_n(df):
+    solution = np.array([[[-3, -1, 0, 4, nan, nan], [-13, -11, 10, 12, 14, nan]],
+                         [[-9, -7, -5, 6, 8, nan], [-19, -17, -15, 16, 18, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.min_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.min('plusminus')).data)
+
+
+def test_max_n(df):
+    solution = np.array([[[4, 0, -1, -3, nan, nan], [14, 12, 10, -11, -13, nan]],
+                         [[8, 6, -5, -7, -9, nan], [18, 16, -15, -17, -19, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.max_n('plusminus', n=n))
+        out = solution[:, :, :n]
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data, c.points(df, 'x', 'y', ds.max('plusminus')).data)
+
+def test_one_category(df):
+    # Issue #1142.
+    assert len(df['onecat'].unique()) == 1
+    sol = np.array([[[5], [5]], [[5], [5]]])
+    out = xr.DataArray(sol, coords=coords + [['one']], dims=(dims + ['onecat']))
+    agg = c.points(df, 'x', 'y', ds.by('onecat', ds.count('i32')))
+    assert agg.shape == (2, 2, 1)
+    assert_eq_xr(agg, out)
+
+def test_categorical_count_binning(df):
+    sol = np.array([[[5, 0, 0, 0],
+                     [0, 0, 5, 0]],
+                    [[0, 5, 0, 0],
+                     [0, 0, 0, 5]]])
+
+    # add an extra category (this will count nans and out of bounds)
+    sol = np.append(sol, [[[0], [0]],[[0], [0]]], axis=2)
+
+    # categorizing by binning the integer arange columns using [0,20] into 4 bins. Same result as
+    # for count_cat
+    for col in 'i32', 'i64':
+        out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
+        agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
+        assert_eq_xr(agg, out)
+
+    # as above, but for the float arange columns. Element 2 has a nan, so the first bin is one
+    # short, and the nan bin is +1
+    sol[0, 0, 0] = 4
+    sol[0, 0, 4] = 1
+
+    for col in 'f32', 'f64':
+        out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
+        agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.count()))
+        assert_eq_xr(agg, out)
+
+def test_categorical_max2(df):
+    sol = np.array([[[  4, nan, nan, nan],
+                     [nan, nan,  14, nan]],
+                    [[nan,   9, nan, nan],
+                     [nan, nan, nan,  19]]])
+    out = xr.DataArray(sol, coords=coords + [['a', 'b', 'c', 'd']], dims=(dims + ['cat']))
+    agg = c.points(df, 'x', 'y', ds.by('cat', ds.max('i32')))
+    assert_eq_xr(agg, out)
+
+    # categorizing by (cat_int-10)%4 ought to give the same result
+    out = xr.DataArray(sol, coords=coords + [range(4)], dims=(dims + ['cat_int']))
+
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.max('i32')))
+    assert_eq_xr(agg, out)
+
+    agg = c.points(df, 'x', 'y',
+                   ds.by(ds.category_modulo('cat_int', modulo=4, offset=10), ds.max('i64')))
+    assert_eq_xr(agg, out)
+
+
+def test_categorical_max_binning(df):
+    sol = np.array([[[  4, nan, nan, nan],
+                     [nan, nan,  14, nan]],
+                    [[nan,   9, nan, nan],
+                     [nan, nan, nan,  19]]])
+
+    sol = np.append(sol, [[[nan], [nan]],[[nan], [nan]]], axis=2)
+
+    for col in 'f32', 'f64':
+        out = xr.DataArray(sol, coords=coords + [range(5)], dims=(dims + [col]))
+        agg = c.points(df, 'x', 'y', ds.by(ds.category_binning(col, 0, 20, 4), ds.max(col)))
+        assert_eq_xr(agg, out)
+
+def test_where_min_row_index(df):
+    out = xr.DataArray([[0, 10], [-5, -15]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds._min_row_index(), 'plusminus')), out)
+
+
+def test_where_max_row_index(df):
+    out = xr.DataArray([[4, 14], [-9, -19]], coords=coords, dims=dims)
+    assert_eq_xr(c.points(df, 'x', 'y', ds.where(ds._max_row_index(), 'plusminus')), out)
+
+
+def test_where_min_n_row_index(df):
+    sol = np.array([[[  0,  -1, nan,  -3,   4, nan],
+                     [ 10, -11,  12, -13,  14, nan]],
+                    [[ -5,   6,  -7,   8,  -9, nan],
+                     [-15,  16, -17,  18, -19, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.where(ds._min_n_row_index(n=n), 'plusminus'))
+        out = sol[:, :, :n]
+        print(n, agg.data.tolist())
+        print(' ', out.tolist())
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y',
+                                       ds.where(ds._min_row_index(), 'plusminus')).data)
+
+
+def test_where_max_n_row_index(df):
+    sol = np.array([[[  4,  -3, nan,  -1,   0, nan],
+                     [ 14, -13,  12, -11,  10, nan]],
+                    [[ -9,   8,  -7,   6,  -5, nan],
+                     [-19,  18, -17,  16, -15, nan]]])
+    for n in range(1, 7):
+        agg = c.points(df, 'x', 'y', ds.where(ds._max_n_row_index(n=n), 'plusminus'))
+        out = sol[:, :, :n]
+        print(n, agg.data.tolist())
+        print(' ', out.tolist())
+        assert_eq_ndarray(agg.data, out)
+        if n == 1:
+            assert_eq_ndarray(agg[:, :, 0].data,
+                              c.points(df, 'x', 'y',
+                                       ds.where(ds._max_row_index(), 'plusminus')).data)
+
+def test_dshape_matches_pandas(df):
+    pd_df = _pandas()
+    cols = [c for c in pd_df.columns if c not in ("cat", "cat2", "onecat")]
+    nw_df = nw.from_native(df).select(cols)
+    assert dshape_from_narwhals(nw_df) == dshape_from_pandas(pd_df[cols])
+
+def test_dshape_unsupported_raises():
+    df = pl.DataFrame({"x": [[1, 2], [3, 4]]})  # list column
+    with pytest.raises(TypeError, match=r"narwhals .* not supported"):
+        dshape_from_narwhals(nw.from_native(df))
+
+def test_sanitise_unsupported_raises():
+    cvs = ds.Canvas(plot_width=2, plot_height=2)
+    with pytest.raises(ValueError,
+                       match="source must be a pandas or dask DataFrame, "
+                       "or a narwhals-supported eager dataframe"):
+        cvs.points([1, 2, 3], 'x', 'y')
+
+def test_dshape_polars_native_categorical():
+    df = pl.DataFrame({"col": ["a", "b", "a", "c", "d", "c", "d"]},
+                      schema={"col": pl.Categorical})
+    out = dshape_from_narwhals(nw.from_native(df))
+    expected = datashape.dshape("7 * { col: categorical[['a', 'b', 'c', 'd']," \
+    "type=object, ordered=False] }")
+    assert out == expected
