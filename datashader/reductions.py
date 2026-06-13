@@ -1533,6 +1533,16 @@ class _first_n_or_last_n(FloatingNReduction):
 
 
 class first_n(_first_n_or_last_n):
+    """First ``n`` values encountered in ``column``, in the order they were encountered.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. If the data type is floating point,
+        ``NaN`` values in the column are skipped.
+    n : int, optional
+        Number of values to retain per pixel. Defaults to 1.
+    """
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
         return (AntialiasStage2(AntialiasCombination.FIRST, array_module.nan, n_reduction=True),)
 
