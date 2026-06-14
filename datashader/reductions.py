@@ -1455,7 +1455,7 @@ class last(_first_or_last):
 
 
 class FloatingNReduction(OptionalFieldReduction):
-    """ Base class for reductions that return ``n`` floating-point values per pixel.
+    """Base class for reductions that return ``n`` floating-point values per pixel.
     """
     def __init__(self, column=None, n=1):
         super().__init__(column)
