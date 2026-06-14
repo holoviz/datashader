@@ -1627,6 +1627,16 @@ class last_n(_first_n_or_last_n):
 
 
 class max_n(FloatingNReduction):
+    """Largest ``n`` values of all elements in ``column``, in descending order.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to aggregate over. Column data type must be numeric.
+        ``NaN`` values in the column are skipped.
+    n : int, optional
+        Number of values to retain per pixel. Defaults to 1.
+    """
     def uses_cuda_mutex(self) -> UsesCudaMutex:
         return UsesCudaMutex.Local
 
