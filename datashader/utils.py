@@ -8,6 +8,7 @@ from inspect import getmro
 import numba as nb
 import numpy as np
 import pandas as pd
+import narwhals.stable.v2 as nw
 
 from toolz import memoize
 from xarray import DataArray
@@ -481,6 +482,57 @@ def dshape_from_xarray_dataset(xr_ds):
         for k in list(xr_ds.data_vars) + list(xr_ds.coords)
     ])
 
+_NARWHALS_TO_DATASHAPE = {
+    nw.Int8: datashape.int8,
+    nw.Int16: datashape.int16,
+    nw.Int32: datashape.int32,
+    nw.Int64: datashape.int64,
+    nw.UInt8: datashape.uint8,
+    nw.UInt16: datashape.uint16,
+    nw.UInt32: datashape.uint32,
+    nw.UInt64: datashape.uint64,
+    nw.Float32: datashape.float32,
+    nw.Float64: datashape.float64,
+    nw.Boolean: datashape.bool_,
+    nw.Date: datashape.date_,
+}
+
+def dshape_from_narwhals_helper(col):
+    """Return an object from datashader.datashape.coretypes given a column from a
+    narwhals dataframe.
+    """
+    dtype = col.dtype
+
+    if dtype == nw.Categorical or isinstance(dtype, nw.Enum):
+        if isinstance(dtype, nw.Enum):
+            categories = dtype.categories
+            ordered = True
+        else:
+            categories = col.cat.get_categories().to_list()
+            ordered = False
+        categories = np.array(categories)
+        if categories.dtype.kind == 'U':
+            categories = categories.astype('object')
+        cat_dshape = datashape.dshape(f'{len(categories)} * {categories.dtype}')
+        return datashape.Categorical(categories, type=cat_dshape, ordered=ordered)
+
+
+    if dtype in _NARWHALS_TO_DATASHAPE:
+        return _NARWHALS_TO_DATASHAPE[dtype]
+
+    if dtype == nw.String:
+        return datashape.Option(datashape.string)
+
+    if isinstance(dtype, nw.Datetime):
+        return datashape.Option(datashape.DateTime(tz=dtype.time_zone))
+    raise TypeError(f"narwhals {dtype} not supported")
+
+def dshape_from_narwhals(df):
+    """Return a datashape.DataShape object given a narwhals dataframe.
+    """
+    return len(df) * datashape.Record([
+        (k, dshape_from_narwhals_helper(df[k])) for k in df.columns
+    ])
 
 def dataframe_from_multiple_sequences(x_values, y_values):
    """
