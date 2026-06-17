@@ -460,8 +460,8 @@ def test_raster_single_pixel_range_with_padding():
 @dask_skip
 @pytest.mark.parametrize(
     'in_size, out_size, agg',
-    product(range(5, 8), range(2, 5),
-            ['mean', 'min', 'max', 'first', 'last', 'var', 'std', 'mode']))
+    list(product(range(5, 8), range(2, 5),
+            ['mean', 'min', 'max', 'first', 'last', 'var', 'std', 'mode'])))
 def test_raster_distributed_downsample(in_size, out_size, agg):
     """
     Ensure that distributed regrid is equivalent to regular regrid.
@@ -486,7 +486,7 @@ def test_raster_distributed_downsample(in_size, out_size, agg):
 
 
 @dask_skip
-@pytest.mark.parametrize('in_size, out_size', product(range(2, 5), range(7, 9)))
+@pytest.mark.parametrize('in_size, out_size', list(product(range(2, 5), range(7, 9))))
 def test_raster_distributed_upsample(in_size, out_size):
     """
     Ensure that distributed regrid is equivalent to regular regrid.
