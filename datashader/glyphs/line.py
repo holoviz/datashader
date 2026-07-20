@@ -561,7 +561,7 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
             # Use type to decide whether geometry represents a closed .
             # We skip for closed geometries so as not to double count the first/last
             # pixel
-            if isinstance(geom_array, (PolygonArray, MultiPolygonArray)):
+            if isinstance(geom_array, PolygonArray | MultiPolygonArray):
                 # Convert polygon array to multi line of boundary
                 geom_array = geom_array.boundary
                 closed_rings = True
@@ -1972,9 +1972,10 @@ def _build_extend_line_axis1_geopandas(draw_segment, expand_aggs_and_cols, antia
                             np.isfinite(x1) and np.isfinite(y1)):
                         continue
 
-                    # In GeoPandas, start1 and stop1 are vertex offsets, unlike SpatialPandas where they are flat
-                    # coordinate offsets. Consequently, the loop for k starts at 2 * start1 rather than start1.
-                    # We multiply the vertex indices by 2 to compare correctly with the coordinate index k.
+                    # In GeoPandas, start1 and stop1 are vertex offsets, unlike SpatialPandas
+                    # where they are flat coordinate offsets. Consequently, the loop for k starts at
+                    # 2 * start1 rather than start1. We multiply the vertex indices by 2 to compare
+                    # correctly with the coordinate index k.
                     segment_start = (
                             ((k == (2 * start1)) and not closed_rings) or
                             ((k > (2 * start1)) and
@@ -2039,9 +2040,10 @@ def _build_extend_line_axis1_geopandas(draw_segment, expand_aggs_and_cols, antia
                             np.isfinite(x1) and np.isfinite(y1)):
                         continue
 
-                    # In GeoPandas, start1 and stop1 are vertex offsets, unlike SpatialPandas where they are flat
-                    # coordinate offsets. Consequently, the loop for k starts at 2 * start1 rather than start1.
-                    # We multiply the vertex indices by 2 to compare correctly with the coordinate index k.
+                    # In GeoPandas, start1 and stop1 are vertex offsets, unlike SpatialPandas
+                    # where they are flat coordinate offsets. Consequently, the loop for k starts at
+                    # 2 * start1 rather than start1. We multiply the vertex indices by 2 to compare
+                    # correctly with the coordinate index k.
                     segment_start = (
                             ((k == (2 * start1)) and not closed_rings) or
                             ((k > (2 * start1)) and
