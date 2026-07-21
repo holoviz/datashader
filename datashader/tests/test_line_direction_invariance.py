@@ -47,4 +47,3 @@ def test_tiled_boundary_invariance():
     img_rev = cvs.line(gdf_rev, geometry="geometry", agg=ds.count(), line_width=1).fillna(0).values
 
     np.testing.assert_allclose(img_fwd, img_rev, atol=1e-6)
-
