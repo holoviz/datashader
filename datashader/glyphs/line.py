@@ -1972,10 +1972,8 @@ def _build_extend_line_axis1_geopandas(draw_segment, expand_aggs_and_cols, antia
                             np.isfinite(x1) and np.isfinite(y1)):
                         continue
 
-                    # In GeoPandas, start1 and stop1 are vertex offsets, unlike SpatialPandas
-                    # where they are flat coordinate offsets. Consequently, the loop for k starts at
-                    # 2 * start1 rather than start1. We multiply the vertex indices by 2 to compare
-                    # correctly with the coordinate index k.
+                    # start1/stop1 are vertex offsets (unlike SpatialPandas flat coordinate
+                    # offsets), so scale by 2 to compare against coordinate index k.
                     segment_start = (
                             ((k == (2 * start1)) and not closed_rings) or
                             ((k > (2 * start1)) and
@@ -2040,10 +2038,8 @@ def _build_extend_line_axis1_geopandas(draw_segment, expand_aggs_and_cols, antia
                             np.isfinite(x1) and np.isfinite(y1)):
                         continue
 
-                    # In GeoPandas, start1 and stop1 are vertex offsets, unlike SpatialPandas
-                    # where they are flat coordinate offsets. Consequently, the loop for k starts at
-                    # 2 * start1 rather than start1. We multiply the vertex indices by 2 to compare
-                    # correctly with the coordinate index k.
+                    # start1/stop1 are vertex offsets (unlike SpatialPandas flat coordinate
+                    # offsets), so scale by 2 to compare against coordinate index k.
                     segment_start = (
                             ((k == (2 * start1)) and not closed_rings) or
                             ((k > (2 * start1)) and
