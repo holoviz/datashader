@@ -364,3 +364,18 @@ def test_polygons_spatialpandas(geom_type, npartitions):
     canvas = ds.Canvas(plot_height=20, plot_width=20)
     agg = canvas.polygons(source=df, geometry="geometry", agg=ds.max("col"))
     assert_eq_ndarray(agg.data, nybb_polygons_sol)
+
+
+@pytest.mark.skipif(not geopandas, reason="geopandas not installed")
+@pytest.mark.parametrize(["start", "end"], ([(2.0, 5.0), (8.0, 5.0)], [(2.0, 2.0), (15.0, 8.0)]))
+def test_geopandas_line_direction_invariance(start, end):
+    import shapely
+
+    gdf_fwd = geopandas.GeoDataFrame(geometry=[shapely.LineString([start, end])])
+    gdf_rev = geopandas.GeoDataFrame(geometry=[shapely.LineString([end, start])])
+
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
+    img_fwd = cvs.line(gdf_fwd, geometry="geometry", agg=ds.count(), line_width=1).fillna(0).values
+    img_rev = cvs.line(gdf_rev, geometry="geometry", agg=ds.count(), line_width=1).fillna(0).values
+
+    np.testing.assert_allclose(img_fwd, img_rev, atol=1e-6)

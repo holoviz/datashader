@@ -561,7 +561,7 @@ class LineAxis1Geometry(_GeometryLike, _AntiAliasedLine):
             # Use type to decide whether geometry represents a closed .
             # We skip for closed geometries so as not to double count the first/last
             # pixel
-            if isinstance(geom_array, PolygonArray | MultiPolygonArray):
+            if isinstance(geom_array, (PolygonArray, MultiPolygonArray)):
                 # Convert polygon array to multi line of boundary
                 geom_array = geom_array.boundary
                 closed_rings = True
