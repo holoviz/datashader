@@ -379,3 +379,20 @@ def test_geopandas_line_direction_invariance(start, end):
     img_rev = cvs.line(gdf_rev, geometry="geometry", agg=ds.count(), line_width=1).fillna(0).values
 
     np.testing.assert_allclose(img_fwd, img_rev, atol=1e-6)
+
+
+@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
+@pytest.mark.parametrize(["start", "end"], ([(2.0, 5.0), (8.0, 5.0)], [(2.0, 2.0), (15.0, 8.0)]))
+def test_spatialpandas_line_direction_invariance(start, end):
+    from spatialpandas.geometry import Line, LineArray
+
+    line_fwd = Line([*start, *end])
+    line_rev = Line([*end, *start])
+    gdf_fwd = spatialpandas.GeoDataFrame({"geometry": LineArray([line_fwd])})
+    gdf_rev = spatialpandas.GeoDataFrame({"geometry": LineArray([line_rev])})
+
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
+    img_fwd = cvs.line(gdf_fwd, geometry="geometry", agg=ds.count(), line_width=1).fillna(0).values
+    img_rev = cvs.line(gdf_rev, geometry="geometry", agg=ds.count(), line_width=1).fillna(0).values
+
+    np.testing.assert_allclose(img_fwd, img_rev, atol=1e-6)
