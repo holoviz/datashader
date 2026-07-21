@@ -367,7 +367,7 @@ def test_polygons_spatialpandas(geom_type, npartitions):
 
 
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
-@pytest.mark.parametrize(["start", "end"], ([(2.0, 5.0), (8.0, 5.0)], [(2.0, 2.0), (15.0, 8.0)]))
+@pytest.mark.parametrize(["start", "end"], ([(2, 5), (8, 5)], [(2, 2), (15, 8)]))
 def test_geopandas_line_direction_invariance(start, end):
     import shapely
 
@@ -375,14 +375,14 @@ def test_geopandas_line_direction_invariance(start, end):
     gdf_rev = geopandas.GeoDataFrame(geometry=[shapely.LineString([end, start])])
 
     cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
-    img_fwd = cvs.line(gdf_fwd, geometry="geometry", agg=ds.count(), line_width=1).fillna(0).values
-    img_rev = cvs.line(gdf_rev, geometry="geometry", agg=ds.count(), line_width=1).fillna(0).values
+    img_fwd = cvs.line(gdf_fwd, geometry="geometry", agg=ds.count(), line_width=1)
+    img_rev = cvs.line(gdf_rev, geometry="geometry", agg=ds.count(), line_width=1)
 
-    np.testing.assert_allclose(img_fwd, img_rev, atol=1e-6)
+    assert_eq_ndarray(img_fwd.data, img_rev.data)
 
 
 @pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
-@pytest.mark.parametrize(["start", "end"], ([(2.0, 5.0), (8.0, 5.0)], [(2.0, 2.0), (15.0, 8.0)]))
+@pytest.mark.parametrize(["start", "end"], ([(2, 5), (8, 5)], [(2, 2), (15, 8)]))
 def test_spatialpandas_line_direction_invariance(start, end):
     from spatialpandas.geometry import Line, LineArray
 
@@ -392,7 +392,24 @@ def test_spatialpandas_line_direction_invariance(start, end):
     gdf_rev = spatialpandas.GeoDataFrame({"geometry": LineArray([line_rev])})
 
     cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
-    img_fwd = cvs.line(gdf_fwd, geometry="geometry", agg=ds.count(), line_width=1).fillna(0).values
-    img_rev = cvs.line(gdf_rev, geometry="geometry", agg=ds.count(), line_width=1).fillna(0).values
+    img_fwd = cvs.line(gdf_fwd, geometry="geometry", agg=ds.count(), line_width=1)
+    img_rev = cvs.line(gdf_rev, geometry="geometry", agg=ds.count(), line_width=1)
 
-    np.testing.assert_allclose(img_fwd, img_rev, atol=1e-6)
+    assert_eq_ndarray(img_fwd.data, img_rev.data)
+
+
+@pytest.mark.skipif(not geopandas, reason="geopandas not installed")
+@pytest.mark.skipif(not spatialpandas, reason="spatialpandas not installed")
+@pytest.mark.parametrize(["start", "end"], ([(2, 5), (8, 5)], [(2, 2), (15, 8)]))
+def test_spatialpandas_geopandas_line(start, end):
+    import shapely
+    from spatialpandas.geometry import Line, LineArray
+
+    spd_df = spatialpandas.GeoDataFrame({"geometry": LineArray([Line([*start, *end])])})
+    gpd_df = geopandas.GeoDataFrame(geometry=[shapely.LineString([end, start])])
+
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
+    img_spd = cvs.line(spd_df, geometry="geometry", agg=ds.count(), line_width=1)
+    img_gpd = cvs.line(gpd_df, geometry="geometry", agg=ds.count(), line_width=1)
+
+    assert_eq_ndarray(img_spd.data, img_gpd.data)
