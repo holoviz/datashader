@@ -1972,15 +1972,17 @@ def _build_extend_line_axis1_geopandas(draw_segment, expand_aggs_and_cols, antia
                             np.isfinite(x1) and np.isfinite(y1)):
                         continue
 
+                    # start1/stop1 are vertex offsets (unlike SpatialPandas flat coordinate
+                    # offsets), so scale by 2 to compare against coordinate index k.
                     segment_start = (
-                            (k == start1 and not closed_rings) or
-                            (k > start1 and
+                            ((k == (2 * start1)) and not closed_rings) or
+                            ((k > (2 * start1)) and
                              (not np.isfinite(values[k - 2]) or not np.isfinite(values[k - 1])))
                     )
 
                     segment_end = (
-                            (not closed_rings and k == stop1-4) or
-                            (k < stop1-4 and
+                            (not closed_rings and (k == (2 * stop1 - 4))) or
+                            ((k < (2 * stop1 - 4)) and
                              (not np.isfinite(values[k + 4]) or not np.isfinite(values[k + 5])))
                     )
 
@@ -2036,15 +2038,17 @@ def _build_extend_line_axis1_geopandas(draw_segment, expand_aggs_and_cols, antia
                             np.isfinite(x1) and np.isfinite(y1)):
                         continue
 
+                    # start1/stop1 are vertex offsets (unlike SpatialPandas flat coordinate
+                    # offsets), so scale by 2 to compare against coordinate index k.
                     segment_start = (
-                            (k == start1 and not closed_rings) or
-                            (k > start1 and
+                            ((k == (2 * start1)) and not closed_rings) or
+                            ((k > (2 * start1)) and
                              (not np.isfinite(values[k - 2]) or not np.isfinite(values[k - 1])))
                     )
 
                     segment_end = (
-                            (not closed_rings and k == stop1-4) or
-                            (k < stop1-4 and
+                            (not closed_rings and (k == (2 * stop1 - 4))) or
+                            ((k < (2 * stop1 - 4)) and
                              (not np.isfinite(values[k + 4]) or not np.isfinite(values[k + 5])))
                     )
 
