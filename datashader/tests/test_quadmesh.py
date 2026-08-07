@@ -29,10 +29,11 @@ except ImportError:
     class dask:
         array = None
 
+array_modules_with_xfail = [*array_modules]
+
 try:
     import cudf
     import cupy
-    array_modules_with_xfail = [*array_modules]
     array_modules.append(pytest.param(cupy, marks=pytest.mark.gpu))
     array_modules_with_xfail.append(
         pytest.param(
