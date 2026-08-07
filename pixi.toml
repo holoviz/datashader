@@ -172,8 +172,8 @@ platforms = ["linux-64"]
 NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS = '0'
 
 [feature.test-gpu.dependencies]
-cuda-version = "13.1.*"
-cudf = "26.06.*"
+cuda-version = "13.3.*"
+cudf = "26.08.*"
 cupy = "*"
 dask-cudf = "*"
 librmm = { version = "*", channel = "rapidsai" }
