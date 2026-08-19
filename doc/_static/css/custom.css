@@ -3,3 +3,15 @@
     --pst-color-link: rgb(119,76,154);
     --pst-color-link-hover: rgb(183,133,220);
 }
+
+/* Keep datashader's _repr_html_ image output white in dark mode instead of
+   the theme's dimmed gray box + extra padding. */
+html[data-theme="dark"] .bd-content div.cell_output .text_html:not(:has(table.dataframe)) {
+    background-color: transparent !important;
+    padding: 0 !important;
+}
+
+html[data-theme="dark"] .bd-content div.cell_output .text_html:not(:has(table.dataframe)) img {
+    background-color: white !important;
+    filter: none !important;
+}
