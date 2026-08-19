@@ -111,6 +111,8 @@ filterwarnings = [
     "ignore:The 'shapely.geos' module is deprecated, and will be removed in a future version:DeprecationWarning",
     # 2025-09
     "ignore:Signature .* for <class 'numpy.longdouble'>.*:UserWarning",
+    # 2026-08
+    "ignore:Setting the shape on a NumPy array has been deprecated in NumPy 2.5:DeprecationWarning:rioxarray._io", # https://github.com/rasterio/rasterio/issues/3592
 ]
 
 [tool.typos.default]
