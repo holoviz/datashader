@@ -113,6 +113,7 @@ filterwarnings = [
     "ignore:Signature .* for <class 'numpy.longdouble'>.*:UserWarning",
     # 2026-08
     "ignore:Setting the shape on a NumPy array has been deprecated in NumPy 2.5:DeprecationWarning:rioxarray._io", # https://github.com/rasterio/rasterio/issues/3592
+    "ignore:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning:fastparquet", # https://github.com/dask/fastparquet/pull/981
 ]
 
 [tool.typos.default]
