@@ -166,3 +166,41 @@ def max_arr(src, dst):
 @arr_operator
 def min_arr(src, dst):
     return min(src, dst)
+
+
+@nb.jit(nogil=True, cache=True, inline='always')
+def _image_op(code, src, dst):
+    if code == 0:
+        return over(src, dst)
+    elif code == 1:
+        return add(src, dst)
+    elif code == 2:
+        return saturate(src, dst)
+    return source(src, dst)
+
+
+@nb.jit(nogil=True, cache=True)
+def spread_image(arr, mask, out, code):
+    """Spread kernel for images, compositing with ``image_operators[code]``.
+
+    Module-level, so numba can cache it: a closure capturing the image
+    operators gets a different cache key in every process.
+    """
+    M, N = arr.shape
+    w = mask.shape[0]
+    for y in range(M):
+        for x in range(N):
+            el = arr[y, x]
+            # Skip if data is transparent
+            if (int(el) >> 24) & 255:
+                for i in range(w):
+                    for j in range(w):
+                        # Skip if mask is False at this value
+                        if mask[i, j]:
+                            if el == 0:
+                                result = out[i + y, j + x]
+                            if out[i + y, j + x] == 0:
+                                result = el
+                            else:
+                                result = _image_op(code, el, out[i + y, j + x])
+                            out[i + y, j + x] = result
