@@ -189,6 +189,13 @@ def eq_hist(data, mask=None, nbins=256*256):
 
     data2 = data if mask is None else data[~mask]
 
+    if array_module is np and (data2.dtype == bool or np.issubdtype(data2.dtype, np.integer)):
+        out = _eq_hist_integer(data, data2, nbins)
+        if out is not None:
+            out, discrete_levels = out
+            return out if mask is None else np.where(mask, np.nan, out), discrete_levels
+
+    grid = None
     # Run more accurate value counting if data is of boolean or integer type
     # and unique value array is smaller than nbins.
     if data2.dtype == bool or (array_module.issubdtype(data2.dtype, array_module.integer) and
@@ -203,6 +210,7 @@ def eq_hist(data, mask=None, nbins=256*256):
     else:
         hist, bin_edges = array_module.histogram(data2, bins=nbins)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        grid = bin_centers
         keep_mask = (hist > 0)
         discrete_levels = array_module.count_nonzero(keep_mask)
         if discrete_levels != len(hist):
@@ -211,8 +219,43 @@ def eq_hist(data, mask=None, nbins=256*256):
             bin_centers = bin_centers[keep_mask]
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
-    out = interp(data, bin_centers, cdf).reshape(data.shape)
+    if grid is not None and array_module is np and discrete_levels >= 2 and grid[1] > grid[0]:
+        from ._cpu_utils import interp_with_lut
+        # The histogram bins form a uniform grid, which gives a good first
+        # guess for the interval of each value instead of a binary search.
+        lut = np.cumsum(keep_mask) - 1
+        inv_step = 1.0 / (grid[1] - grid[0])
+        out = interp_with_lut(
+            data.ravel(), bin_centers, cdf, lut, grid[0], inv_step,
+        ).reshape(data.shape)
+    else:
+        out = interp(data, bin_centers, cdf).reshape(data.shape)
     return out if mask is None else array_module.where(mask, array_module.nan, out), discrete_levels
+
+
+def _eq_hist_integer(data, data2, nbins):
+    """Exact eq_hist for integer data using ``bincount`` and a direct lookup.
+
+    Equivalent to the ``unique`` + ``interp`` path, but O(n) instead of
+    O(n log n). Returns None when the value range is too wide for exact
+    counting, so the caller falls back to a binned histogram.
+    """
+    is_bool = data2.dtype == bool
+    if is_bool:
+        data, data2 = data.view(np.uint8), data2.view(np.uint8)
+    vmin, vmax = data2.min(), data2.max()
+    # Same (possibly wrapping) arithmetic as ``np.ptp`` in the original check.
+    if not is_bool and np.ptp(np.array([vmin, vmax])) >= nbins:
+        return None
+    vmin, vmax = int(vmin), int(vmax)
+    hist = np.bincount(np.subtract(data2.ravel(), vmin, dtype=np.intp),
+                       minlength=vmax - vmin + 1)
+    discrete_levels = np.count_nonzero(hist)
+    cdf = hist.cumsum()
+    cdf = cdf / float(cdf[-1])
+    # Values outside [vmin, vmax] only occur where masked, and interp would clamp them.
+    idx = np.subtract(np.clip(data, vmin, vmax), vmin, dtype=np.intp)
+    return np.take(cdf, idx), discrete_levels
 
 
 
@@ -301,7 +344,8 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
 
         # Transform span
         if span is None:
-            masked_data = np.where(~mask, data, np.nan)
+            # Built-in interpolaters already set masked values to NaN.
+            masked_data = data if isinstance(how, str) else np.where(~mask, data, np.nan)
             span = np.nanmin(masked_data), np.nanmax(masked_data)
 
             if rescale_discrete_levels and discrete_levels is not None:  # Only valid for eq_hist
@@ -321,11 +365,17 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
         span = np.linspace(span[0], span[1], len(cmap))
-        r = np.nan_to_num(interp(data, span, rspan, left=255), copy=False).astype(np.uint8)
-        g = np.nan_to_num(interp(data, span, gspan, left=255), copy=False).astype(np.uint8)
-        b = np.nan_to_num(interp(data, span, bspan, left=255), copy=False).astype(np.uint8)
-        a = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
-        rgba = np.dstack([r, g, b, a])
+        # interp only yields NaN for NaN input (never inf), so zeroing NaNs
+        # is equivalent to nan_to_num and avoids its extra passes.
+        xp = cupy if cupy and isinstance(data, cupy.ndarray) else np
+        nan = xp.isnan(data)
+        channels = []
+        for cspan in (rspan, gspan, bspan):
+            c = interp(data, span, cspan, left=255)
+            xp.copyto(c, 0, where=nan)
+            channels.append(c.astype(np.uint8))
+        channels.append(xp.where(nan, 0, alpha).astype(np.uint8))
+        rgba = xp.dstack(channels)
     elif isinstance(cmap, str) or isinstance(cmap, tuple):
         color = rgb(cmap)
         aspan = np.arange(min_alpha, alpha+1)
@@ -355,6 +405,22 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
         img = cupy.asnumpy(img)
 
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
+
+def _sum_last_axis(a):
+    """``a.sum(axis=-1)`` for a short last axis, bit-identical to NumPy.
+
+    NumPy's reduction over a short contiguous last axis is slow, so sum
+    slices instead. Integer sums are exact in any order; NumPy sums floats
+    sequentially below 8 elements (pairwise above), so only use it there.
+    """
+    n = a.shape[-1]
+    if n == 0 or a.dtype.kind not in 'biuf' or (a.dtype.kind == 'f' and n >= 8):
+        return a.sum(axis=-1)
+    acc = a[..., 0].astype(np.add.reduce(np.zeros(1, dtype=a.dtype)).dtype)
+    for k in range(1, n):
+        acc += a[..., k]
+    return acc
+
 
 def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
               rescale_discrete_levels):
@@ -413,9 +479,12 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     # Cast to float32 after subtraction to avoid precision loss
     color_data = color_data.astype(np.float32)
 
+    sum_last_axis = _sum_last_axis if xp is np else lambda a: a.sum(axis=-1)
+
     # Replace NaNs with 0s for dot/matmul in one pass (in-place)
-    np.nan_to_num(color_data, copy=False)  # NaN -> 0
-    color_total = np.sum(color_data, axis=2)
+    if data.dtype.kind == 'f':
+        np.nan_to_num(color_data, copy=False)  # NaN -> 0
+    color_total = sum_last_axis(color_data)
 
     # Convert color_mask to float32 once for reuse in matmul and sum
     color_mask = color_mask.astype(np.float32)
@@ -431,7 +500,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
 
     # --- "Average color of non-NaN categories" path ---
     # Sum of True values per pixel
-    cmask_sum = np.sum(color_mask, axis=2)
+    cmask_sum = sum_last_axis(color_mask)
 
     with np.errstate(divide='ignore', invalid='ignore'):
         rgb2 = (rgb_avg_present / cmask_sum[..., None]).astype(np.uint8)
@@ -441,7 +510,17 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     if np.any(missing_colors):
         rgb_array = np.where(missing_colors[..., None], rgb2, rgb_array)
 
-    total = nansum_missing(data, axis=2)
+    if xp is not np:
+        total = nansum_missing(data, axis=2)
+    elif data.dtype.kind == 'f':
+        # Same as nansum_missing, reusing nan_mask
+        total = _sum_last_axis(np.where(nan_mask, 0, data))
+        all_empty = nan_mask[..., 0].copy()
+        for k in range(1, nan_mask.shape[-1]):
+            all_empty &= nan_mask[..., k]
+        total[all_empty] = np.nan
+    else:
+        total = _sum_last_axis(data)
     mask = np.isnan(total)
     a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels)
 
@@ -982,6 +1061,11 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         # Convert img.data to numpy array before passing to nb.jit kernels
         img.data = cupy.asnumpy(img.data)
 
+    if not is_image and len(img.shape) != 2:
+        data = img.data
+        masked = np.logical_not(np.isnan(data)) if float_type else (data != 0)
+        flat_mask = np.sum(masked, axis=2, dtype='uint32')
+
     px_=0
     for px in range(1, max_px + 1):
         px_=px
@@ -990,9 +1074,7 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         elif len(img.shape) == 2:
             density = _array_density(img.data, float_type, px*2)
         else:
-            masked = np.logical_not(np.isnan(img)) if float_type else (img != 0)
-            flat_mask = np.sum(masked, axis=2, dtype='uint32')
-            density = _array_density(flat_mask.data, False, px*2)
+            density = _array_density(flat_mask, False, px*2)
         if density > threshold:
             px_=px_-1
             break
@@ -1017,14 +1099,18 @@ def _array_density(arr, float_type, px=1):
             el = arr[y, x]
             if (float_type and not np.isnan(el)) or (not float_type and el!=0):
                 cnt += 1
+                # Includes self, so a second hit means a real neighbor.
                 neighbors = 0
                 for i in     range(max(0, y - px), min(y + px + 1, M)):
                     for j in range(max(0, x - px), min(x + px + 1, N)):
                         if ((float_type and not np.isnan(arr[i, j])) or
                             (not float_type and arr[i, j] != 0)):
                             neighbors += 1
-                if neighbors>1: # (excludes self)
-                    has_neighbors += 1
+                            if neighbors > 1:
+                                break
+                    if neighbors > 1:
+                        has_neighbors += 1
+                        break
     return has_neighbors/cnt if cnt else np.inf
 
 
@@ -1046,6 +1132,9 @@ def _rgb_density(arr, px=1):
                     for j in range(max(0, x - px), min(x + px + 1, N)):
                         if (arr[i, j] >> 24) & 255:
                             neighbors += 1
-                if neighbors>1: # (excludes self)
-                    has_neighbors += 1
+                            if neighbors > 1:
+                                break
+                    if neighbors > 1:
+                        has_neighbors += 1
+                        break
     return has_neighbors/cnt if cnt else np.inf

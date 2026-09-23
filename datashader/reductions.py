@@ -10,6 +10,7 @@ import xarray as xr
 
 from datashader.antialias import AntialiasCombination, AntialiasStage2
 from datashader.utils import isminus1, isnull
+import numba as nb
 from numba import cuda as nb_cuda
 
 try:
@@ -1548,7 +1549,7 @@ class first_n(_first_n_or_last_n):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, inline="always")
     def _append(x, y, agg, field):
         if not isnull(field):
             # Check final value first for quick abort.
@@ -1645,7 +1646,7 @@ class max_n(FloatingNReduction):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, inline="always")
     def _append(x, y, agg, field):
         if not isnull(field):
             # Linear walk along stored values.
@@ -1735,7 +1736,7 @@ class min_n(FloatingNReduction):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, inline="always")
     def _append(x, y, agg, field):
         if not isnull(field):
             # Linear walk along stored values.
