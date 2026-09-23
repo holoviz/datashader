@@ -12,7 +12,7 @@ import toolz as tz
 import xarray as xr
 
 from datashader.colors import rgb, Sets1to3
-from datashader.utils import ngjit, uint32_to_uint8, nansum_missing
+from datashader.utils import uint32_to_uint8, nansum_missing
 
 try:
     import dask.array as da
@@ -929,7 +929,7 @@ def _build_int_kernel(how, mask_size, ignore_zeros):
 
     validate_operator(how, is_image=False)
     op = composite_op_lookup[how + "_arr"]
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def stencilled(arr, mask, out):
         M, N = arr.shape
         for y in range(M):
@@ -955,7 +955,7 @@ def _build_float_kernel(how, mask_size):
 
     validate_operator(how, is_image=False)
     op = composite_op_lookup[how + "_arr"]
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def stencilled(arr, mask, out):
         M, N = arr.shape
         for y in range(M):
@@ -977,33 +977,13 @@ def _build_float_kernel(how, mask_size):
 @tz.memoize
 def _build_spread_kernel(how, is_image):
     """Build a spreading kernel for a given composite operator"""
-    from datashader.composite import composite_op_lookup, validate_operator
+    from datashader.composite import image_operators, spread_image, validate_operator
 
     validate_operator(how, is_image=True)
-    op = composite_op_lookup[how + ("" if is_image else "_arr")]
+    code = image_operators.index(how)
 
-    @ngjit
     def kernel(arr, mask, out):
-        M, N = arr.shape
-        w = mask.shape[0]
-        for y in range(M):
-            for x in range(N):
-                el = arr[y, x]
-                # Skip if data is transparent
-                process_image = is_image and ((int(el) >> 24) & 255) # Transparent pixel
-                process_array = (not is_image) and (not np.isnan(el))
-                if process_image or process_array:
-                    for i in range(w):
-                        for j in range(w):
-                            # Skip if mask is False at this value
-                            if mask[i, j]:
-                                if el==0:
-                                    result = out[i + y, j + x]
-                                if out[i + y, j + x]==0:
-                                    result = el
-                                else:
-                                    result = op(el, out[i + y, j + x])
-                                out[i + y, j + x] = result
+        spread_image(arr, mask, out, code)
     return kernel
 
 
