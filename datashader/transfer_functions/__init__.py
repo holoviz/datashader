@@ -353,11 +353,17 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
         span = np.linspace(span[0], span[1], len(cmap))
-        r = np.nan_to_num(interp(data, span, rspan, left=255), copy=False).astype(np.uint8)
-        g = np.nan_to_num(interp(data, span, gspan, left=255), copy=False).astype(np.uint8)
-        b = np.nan_to_num(interp(data, span, bspan, left=255), copy=False).astype(np.uint8)
-        a = np.where(np.isnan(data), 0, alpha).astype(np.uint8)
-        rgba = np.dstack([r, g, b, a])
+        # interp only yields NaN for NaN input (never inf), so zeroing NaNs
+        # is equivalent to nan_to_num and avoids its extra passes.
+        xp = cupy if cupy and isinstance(data, cupy.ndarray) else np
+        nan = xp.isnan(data)
+        channels = []
+        for cspan in (rspan, gspan, bspan):
+            c = interp(data, span, cspan, left=255)
+            xp.copyto(c, 0, where=nan)
+            channels.append(c.astype(np.uint8))
+        channels.append(xp.where(nan, 0, alpha).astype(np.uint8))
+        rgba = xp.dstack(channels)
     elif isinstance(cmap, str) or isinstance(cmap, tuple):
         color = rgb(cmap)
         aspan = np.arange(min_alpha, alpha+1)
