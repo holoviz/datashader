@@ -394,6 +394,22 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
 
     return Image(img, coords=agg.coords, dims=agg.dims, name=name)
 
+def _sum_last_axis(a):
+    """``a.sum(axis=-1)`` for a short last axis, bit-identical to NumPy.
+
+    NumPy's reduction over a short contiguous last axis is slow, so sum
+    slices instead. Integer sums are exact in any order; NumPy sums floats
+    sequentially below 8 elements (pairwise above), so only use it there.
+    """
+    n = a.shape[-1]
+    if n == 0 or a.dtype.kind not in 'biuf' or (a.dtype.kind == 'f' and n >= 8):
+        return a.sum(axis=-1)
+    acc = a[..., 0].astype(np.add.reduce(np.zeros(1, dtype=a.dtype)).dtype)
+    for k in range(1, n):
+        acc += a[..., k]
+    return acc
+
+
 def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
               rescale_discrete_levels):
     xp = cupy if cupy and isinstance(agg.data, cupy.ndarray) else np
@@ -451,9 +467,12 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     # Cast to float32 after subtraction to avoid precision loss
     color_data = color_data.astype(np.float32)
 
+    sum_last_axis = _sum_last_axis if xp is np else lambda a: a.sum(axis=-1)
+
     # Replace NaNs with 0s for dot/matmul in one pass (in-place)
-    np.nan_to_num(color_data, copy=False)  # NaN -> 0
-    color_total = np.sum(color_data, axis=2)
+    if data.dtype.kind == 'f':
+        np.nan_to_num(color_data, copy=False)  # NaN -> 0
+    color_total = sum_last_axis(color_data)
 
     # Convert color_mask to float32 once for reuse in matmul and sum
     color_mask = color_mask.astype(np.float32)
@@ -469,7 +488,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
 
     # --- "Average color of non-NaN categories" path ---
     # Sum of True values per pixel
-    cmask_sum = np.sum(color_mask, axis=2)
+    cmask_sum = sum_last_axis(color_mask)
 
     with np.errstate(divide='ignore', invalid='ignore'):
         rgb2 = (rgb_avg_present / cmask_sum[..., None]).astype(np.uint8)
@@ -479,7 +498,17 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     if np.any(missing_colors):
         rgb_array = np.where(missing_colors[..., None], rgb2, rgb_array)
 
-    total = nansum_missing(data, axis=2)
+    if xp is not np:
+        total = nansum_missing(data, axis=2)
+    elif data.dtype.kind == 'f':
+        # Same as nansum_missing, reusing nan_mask
+        total = _sum_last_axis(np.where(nan_mask, 0, data))
+        all_empty = nan_mask[..., 0].copy()
+        for k in range(1, nan_mask.shape[-1]):
+            all_empty &= nan_mask[..., k]
+        total[all_empty] = np.nan
+    else:
+        total = _sum_last_axis(data)
     mask = np.isnan(total)
     a = _interpolate_alpha(data, total, mask, how, alpha, span, min_alpha, rescale_discrete_levels)
 
