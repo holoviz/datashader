@@ -114,6 +114,8 @@ filterwarnings = [
     # 2026-08
     "ignore:Setting the shape on a NumPy array has been deprecated in NumPy 2.5:DeprecationWarning:rioxarray._io", # https://github.com/rasterio/rasterio/issues/3592
     "ignore:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning:fastparquet", # https://github.com/dask/fastparquet/pull/981
+    # 2026-09
+    "ignore:Use `@` matmul instead of `\\*` mul:Warning:rioxarray", # https://github.com/corteva/rioxarray/issues/937
 ]
 
 [tool.typos.default]

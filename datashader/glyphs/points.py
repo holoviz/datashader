@@ -281,6 +281,9 @@ class MultiPointGeoPandas(_GeometryLike):
             xmin, xmax, ymin, ymax = bounds
             geometry = df[geometry_name].array
 
+            if len(geometry) == 0:
+                return
+
             ragged = shapely.to_ragged_array(geometry)
             geometry_type = ragged[0]
 

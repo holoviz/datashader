@@ -5,6 +5,7 @@ from importlib.util import find_spec
 import datashader as ds
 from datashader.tests.test_pandas import assert_eq_ndarray
 import numpy as np
+import pandas as pd
 import pytest
 
 try:
@@ -413,3 +414,45 @@ def test_spatialpandas_geopandas_line(start, end):
     img_gpd = cvs.line(gpd_df, geometry="geometry", agg=ds.count(), line_width=1)
 
     assert_eq_ndarray(img_spd.data, img_gpd.data)
+
+
+@pytest.mark.skipif(not geopandas, reason="geopandas not installed")
+@pytest.mark.parametrize("glyph", ["line", "points", "polygons"])
+@pytest.mark.parametrize("line_width", [0, 1])
+@pytest.mark.parametrize("agg", [ds.count(), ds.max("col"), ds.count_cat("cat")])
+def test_geopandas_empty_viewport(glyph, line_width, agg):
+    import shapely
+
+    if glyph == "points":
+        geometry = [shapely.Point(0, 0), shapely.Point(10, 10)]
+    elif glyph == "polygons":
+        line = shapely.LineString([(0, 0), (10, 10)])
+        geometry = [line.buffer(1)]
+    else:
+        line = shapely.LineString([(0, 0), (10, 10)])
+        geometry = [line]
+
+    df = geopandas.GeoDataFrame(geometry=geometry)
+    df["col"] = np.arange(len(df))
+    df["cat"] = pd.Categorical(["a", "b"][:len(df)])
+
+    kwargs = {"line_width": line_width} if glyph == "line" else {}
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(100, 110), y_range=(100, 110))
+    out = getattr(cvs, glyph)(df, geometry="geometry", agg=agg, **kwargs)
+
+    assert out.shape[:2] == (10, 10)
+    assert np.all(np.isnan(out.data) | (out.data == 0))
+
+
+@pytest.mark.skipif(not geopandas, reason="geopandas not installed")
+@pytest.mark.parametrize("glyph", ["line", "points", "polygons"])
+def test_geopandas_empty_dataframe(glyph):
+    import shapely
+
+    df = geopandas.GeoDataFrame(geometry=shapely.from_wkt([]))
+
+    cvs = ds.Canvas(plot_width=10, plot_height=10, x_range=(0, 10), y_range=(0, 10))
+    out = getattr(cvs, glyph)(df, geometry="geometry", agg=ds.count())
+
+    assert out.shape == (10, 10)
+    assert np.all(out.data == 0)
