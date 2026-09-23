@@ -332,7 +332,8 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
 
         # Transform span
         if span is None:
-            masked_data = np.where(~mask, data, np.nan)
+            # Built-in interpolaters already set masked values to NaN.
+            masked_data = data if isinstance(how, str) else np.where(~mask, data, np.nan)
             span = np.nanmin(masked_data), np.nanmax(masked_data)
 
             if rescale_discrete_levels and discrete_levels is not None:  # Only valid for eq_hist
