@@ -1,10 +1,8 @@
 import numba as nb
 import numpy as np
 
-from datashader.utils import ngjit
 
-
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def masked_clip_2d(data, mask, lower, upper):
     """
     Clip the elements of an input array between lower and upper bounds,
