@@ -195,6 +195,7 @@ def eq_hist(data, mask=None, nbins=256*256):
             out, discrete_levels = out
             return out if mask is None else np.where(mask, np.nan, out), discrete_levels
 
+    grid = None
     # Run more accurate value counting if data is of boolean or integer type
     # and unique value array is smaller than nbins.
     if data2.dtype == bool or (array_module.issubdtype(data2.dtype, array_module.integer) and
@@ -209,6 +210,7 @@ def eq_hist(data, mask=None, nbins=256*256):
     else:
         hist, bin_edges = array_module.histogram(data2, bins=nbins)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        grid = bin_centers
         keep_mask = (hist > 0)
         discrete_levels = array_module.count_nonzero(keep_mask)
         if discrete_levels != len(hist):
@@ -217,7 +219,17 @@ def eq_hist(data, mask=None, nbins=256*256):
             bin_centers = bin_centers[keep_mask]
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
-    out = interp(data, bin_centers, cdf).reshape(data.shape)
+    if grid is not None and array_module is np and discrete_levels >= 2 and grid[1] > grid[0]:
+        from ._cpu_utils import interp_with_lut
+        # The histogram bins form a uniform grid, which gives a good first
+        # guess for the interval of each value instead of a binary search.
+        lut = np.cumsum(keep_mask) - 1
+        inv_step = 1.0 / (grid[1] - grid[0])
+        out = interp_with_lut(
+            data.ravel(), bin_centers, cdf, lut, grid[0], inv_step,
+        ).reshape(data.shape)
+    else:
+        out = interp(data, bin_centers, cdf).reshape(data.shape)
     return out if mask is None else array_module.where(mask, array_module.nan, out), discrete_levels
 
 
