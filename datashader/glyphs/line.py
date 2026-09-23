@@ -632,7 +632,19 @@ class LinesXarrayCommonX(LinesAxis1):
         return self.maybe_expand_bounds(bounds)
 
     def compute_bounds_dask(self, xr_ds):
-        return self.compute_x_bounds(xr_ds), self.compute_y_bounds(xr_ds)
+        import warnings
+
+        import dask
+        import dask.array as da
+
+        # Reduce chunk-wise in one pass, instead of loading the arrays with `.values`.
+        x, y = xr_ds[self.x].data, xr_ds[self.y].data
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+            xmin, xmax, ymin, ymax = dask.compute(
+                da.nanmin(x), da.nanmax(x), da.nanmin(y), da.nanmax(y))
+        return (self.maybe_expand_bounds((float(xmin), float(xmax))),
+                self.maybe_expand_bounds((float(ymin), float(ymax))))
 
     def validate(self, in_dshape):
         if not isreal(in_dshape.measure[str(self.x)]):
