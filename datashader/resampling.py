@@ -31,8 +31,8 @@ from math import floor, ceil
 
 import numpy as np
 
+import numba as nb
 from numba import prange
-from .utils import ngjit_cached, ngjit_parallel_cached
 
 try:
     import dask.array as da
@@ -494,7 +494,7 @@ def _get_fill_value(fill_value, src, out):
     return fill_value
 
 
-@ngjit_cached
+@nb.jit(nogil=True, cache=True)
 def _get_dimensions(src, out):
     src_w = src.shape[-1]
     src_h = src.shape[-2]
@@ -557,7 +557,7 @@ def _resample_2d(src, mask, use_mask, ds_method, us_method, fill_value,
     return src
 
 
-@ngjit_parallel_cached
+@nb.jit(nogil=True, parallel=True, cache=True)
 def _upsample_2d_nearest(src, mask, use_mask, fill_value, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
     x0_off, x1_off = x_offset
@@ -586,7 +586,7 @@ def _upsample_2d_nearest(src, mask, use_mask, fill_value, x_offset, y_offset, ou
     return out
 
 
-@ngjit_parallel_cached
+@nb.jit(nogil=True, parallel=True, cache=True)
 def _upsample_2d_linear(src, mask, use_mask, fill_value, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
     x0_off, x1_off = x_offset
@@ -662,7 +662,7 @@ UPSAMPLING_METHODS = {US_LINEAR: _upsample_2d_linear,
                       US_NEAREST: _upsample_2d_nearest}
 
 
-@ngjit_parallel_cached
+@nb.jit(nogil=True, parallel=True, cache=True)
 def _downsample_2d_first_last(src, mask, use_mask, method, fill_value,
                               mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
@@ -710,7 +710,7 @@ def _downsample_2d_first_last(src, mask, use_mask, method, fill_value,
     return out
 
 
-@ngjit_parallel_cached
+@nb.jit(nogil=True, parallel=True, cache=True)
 def _downsample_2d_min_max(src, mask, use_mask, method, fill_value,
                            mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
@@ -763,7 +763,7 @@ def _downsample_2d_min_max(src, mask, use_mask, method, fill_value,
     return out
 
 
-@ngjit_parallel_cached
+@nb.jit(nogil=True, parallel=True, cache=True)
 def _downsample_2d_mode(src, mask, use_mask, method, fill_value,
                         mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
@@ -849,7 +849,7 @@ def _downsample_2d_mode(src, mask, use_mask, method, fill_value,
     return out
 
 
-@ngjit_parallel_cached
+@nb.jit(nogil=True, parallel=True, cache=True)
 def _downsample_2d_mean(src, mask, use_mask, method, fill_value,
                         mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
@@ -906,7 +906,7 @@ def _downsample_2d_mean(src, mask, use_mask, method, fill_value,
     return out
 
 
-@ngjit_parallel_cached
+@nb.jit(nogil=True, parallel=True, cache=True)
 def _downsample_2d_std_var(src, mask, use_mask, method, fill_value,
                            mode_rank, x_offset, y_offset, out):
     src_w, src_h, out_w, out_h = _get_dimensions(src, out)
@@ -1001,7 +1001,7 @@ def infer_interval_breaks(coord, axis=0):
     return np.concatenate([first, coord[trim_last] + deltas, last], axis=axis)
 
 
-@ngjit_parallel_cached
+@nb.jit(nogil=True, parallel=True, cache=True)
 def infer_interval_breaks_2d(coord):
     """
     Optimized single-pass Numba version for 2D arrays.
