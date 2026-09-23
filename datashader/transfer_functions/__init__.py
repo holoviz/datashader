@@ -982,6 +982,11 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         # Convert img.data to numpy array before passing to nb.jit kernels
         img.data = cupy.asnumpy(img.data)
 
+    if not is_image and len(img.shape) != 2:
+        data = img.data
+        masked = np.logical_not(np.isnan(data)) if float_type else (data != 0)
+        flat_mask = np.sum(masked, axis=2, dtype='uint32')
+
     px_=0
     for px in range(1, max_px + 1):
         px_=px
@@ -990,9 +995,7 @@ def dynspread(img, threshold=0.5, max_px=3, shape='circle', how=None, name=None)
         elif len(img.shape) == 2:
             density = _array_density(img.data, float_type, px*2)
         else:
-            masked = np.logical_not(np.isnan(img)) if float_type else (img != 0)
-            flat_mask = np.sum(masked, axis=2, dtype='uint32')
-            density = _array_density(flat_mask.data, False, px*2)
+            density = _array_density(flat_mask, False, px*2)
         if density > threshold:
             px_=px_-1
             break
@@ -1017,14 +1020,18 @@ def _array_density(arr, float_type, px=1):
             el = arr[y, x]
             if (float_type and not np.isnan(el)) or (not float_type and el!=0):
                 cnt += 1
+                # Includes self, so a second hit means a real neighbor.
                 neighbors = 0
                 for i in     range(max(0, y - px), min(y + px + 1, M)):
                     for j in range(max(0, x - px), min(x + px + 1, N)):
                         if ((float_type and not np.isnan(arr[i, j])) or
                             (not float_type and arr[i, j] != 0)):
                             neighbors += 1
-                if neighbors>1: # (excludes self)
-                    has_neighbors += 1
+                            if neighbors > 1:
+                                break
+                    if neighbors > 1:
+                        has_neighbors += 1
+                        break
     return has_neighbors/cnt if cnt else np.inf
 
 
@@ -1046,6 +1053,9 @@ def _rgb_density(arr, px=1):
                     for j in range(max(0, x - px), min(x + px + 1, N)):
                         if (arr[i, j] >> 24) & 255:
                             neighbors += 1
-                if neighbors>1: # (excludes self)
-                    has_neighbors += 1
+                            if neighbors > 1:
+                                break
+                    if neighbors > 1:
+                        has_neighbors += 1
+                        break
     return has_neighbors/cnt if cnt else np.inf
