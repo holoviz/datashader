@@ -52,11 +52,6 @@ class VisibleDeprecationWarning(UserWarning):
 ngjit = nb.jit(nopython=True, nogil=True)
 ngjit_parallel = nb.jit(nopython=True, nogil=True, parallel=True)
 
-# On-disk cached variants. Only for module-level functions: numba can't cache
-# closures or functions generated with exec, which also use ngjit.
-ngjit_cached = nb.jit(nopython=True, nogil=True, cache=True)
-ngjit_parallel_cached = nb.jit(nopython=True, nogil=True, parallel=True, cache=True)
-
 # Get and save the Numba version, will be used to limit functionality
 numba_version = tuple([int(x) for x in re.match(
                             r"([0-9]+)\.([0-9]+)\.([0-9]+)",
