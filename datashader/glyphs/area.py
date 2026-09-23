@@ -1078,7 +1078,7 @@ def _build_draw_trapezoid_y(append, map_onto_pixel, expand_aggs_and_cols):
     """Specialize a plotting kernel for drawing a trapezoid with two
     sides parallel to the y-axis"""
 
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def clamp_y_indices(ystarti, ystopi, ymaxi):
         """Utility function to compute clamped y-indices"""
 
