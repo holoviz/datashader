@@ -38,7 +38,7 @@ def masked_clip_2d(data, mask, lower, upper):
                 data[i, j] = upper
 
 
-@nb.jit(nopython=True, nogil=True, cache=True)
+@nb.jit(nogil=True, cache=True)
 def interp_with_lut(x, xp, fp, lut, g0, inv_step):
     """``np.interp(x, xp, fp)`` for 1D float ``x``, bit-identical to NumPy.
 
