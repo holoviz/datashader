@@ -1941,6 +1941,9 @@ def _build_extend_line_axis1_geopandas(draw_segment, expand_aggs_and_cols, antia
     def extend_cpu(
         sx, tx, sy, ty, xmin, xmax, ymin, ymax, geometry, antialias_stage_2, *aggs_and_cols
     ):
+        if len(geometry) == 0:
+            return
+
         coords, offsets, outer_offsets, closed_rings = _process_geometry(geometry)
         extend_cpu_numba(
             sx, tx, sy, ty, xmin, xmax, ymin, ymax, coords, offsets, outer_offsets, closed_rings,
@@ -2003,6 +2006,9 @@ def _build_extend_line_axis1_geopandas(draw_segment, expand_aggs_and_cols, antia
     def extend_cpu_antialias_2agg(
         sx, tx, sy, ty, xmin, xmax, ymin, ymax, geometry, antialias_stage_2, *aggs_and_cols
     ):
+        if len(geometry) == 0:
+            return
+
         coords, offsets, outer_offsets, closed_rings = _process_geometry(geometry)
         n_aggs = len(antialias_stage_2[0])
         aggs_and_accums = tuple((agg, agg.copy()) for agg in aggs_and_cols[:n_aggs])
