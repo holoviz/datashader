@@ -410,16 +410,13 @@ def _convert_graph_to_edge_segments(nodes, edges, params):
         else:
             segment_class = EdgelessUnweightedSegment
 
-    df = df.filter(items=segment_class.get_merged_columns(params))
-
-    edge_segments = []
-    for tup in df.itertuples():
-        edge = (tup.src_x, tup.src_y, tup.dst_x, tup.dst_y)
-        if include_edge_id:
-            edge = (tup.edge_id,) + edge
-        if include_weight:
-            edge += (getattr(tup, params.weight),)
-        edge_segments.append(segment_class.create_segment(edge))
+    id_cols = ['edge_id'] if include_edge_id else []
+    weight_cols = [params.weight] if include_weight else []
+    start = df[id_cols + ['src_x', 'src_y'] + weight_cols].to_numpy(np.float32)
+    end = df[id_cols + ['dst_x', 'dst_y'] + weight_cols].to_numpy(np.float32)
+    # Each segments[i] is a C-contiguous (2, ndims) view, as the numba kernels require.
+    segments = np.ascontiguousarray(np.stack([start, end], axis=1))
+    edge_segments = list(segments)
 
     return edge_segments, segment_class
 
@@ -434,9 +431,15 @@ def _convert_edge_segments_to_dataframe(edge_segments, segment_class, params):
     """
 
     # Need to put an array of NaNs with size point_dims between edges
-    delimiters = np.full((len(edge_segments), 1, segment_class.ndims), np.nan)
-    combined = list(itertools.chain(*zip(edge_segments, delimiters)))
-    df = DataFrame(np.concatenate(combined))
+    if edge_segments and len({s.shape for s in edge_segments}) == 1:
+        n_points, ndims = edge_segments[0].shape
+        combined = np.full((len(edge_segments), n_points + 1, ndims), np.nan)
+        combined[:, :n_points] = np.stack(edge_segments)
+        df = DataFrame(combined.reshape(-1, ndims))
+    else:
+        delimiters = np.full((len(edge_segments), 1, segment_class.ndims), np.nan)
+        combined = list(itertools.chain(*zip(edge_segments, delimiters)))
+        df = DataFrame(np.concatenate(combined))
     df.columns = segment_class.get_columns(params)
     return df
 
