@@ -484,7 +484,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
         y_name = self.y
         name = self.name
 
-        @ngjit_parallel
+        @numba.jit(nogil=True, parallel=True, cache=True)
         def upsample_cpu(
                 src_w, src_h, translate_x, translate_y, scale_x, scale_y,
                 offset_x, offset_y, out_w, out_h, agg, col
