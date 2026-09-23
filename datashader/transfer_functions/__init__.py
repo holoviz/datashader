@@ -977,13 +977,13 @@ def _build_float_kernel(how, mask_size):
 @tz.memoize
 def _build_spread_kernel(how, is_image):
     """Build a spreading kernel for a given composite operator"""
-    from datashader.composite import image_operators, spread_image, validate_operator
+    from datashader.composite import _spread_image, image_operators, validate_operator
 
     validate_operator(how, is_image=True)
     code = image_operators.index(how)
 
     def kernel(arr, mask, out):
-        spread_image(arr, mask, out, code)
+        _spread_image(arr, mask, out, code)
     return kernel
 
 

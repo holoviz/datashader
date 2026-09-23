@@ -180,7 +180,7 @@ def _image_op(code, src, dst):
 
 
 @nb.jit(nogil=True, cache=True)
-def spread_image(arr, mask, out, code):
+def _spread_image(arr, mask, out, code):
     """Spread kernel for images, compositing with ``image_operators[code]``.
 
     Module-level, so numba can cache it: a closure capturing the image
