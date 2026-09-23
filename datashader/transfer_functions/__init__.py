@@ -189,6 +189,12 @@ def eq_hist(data, mask=None, nbins=256*256):
 
     data2 = data if mask is None else data[~mask]
 
+    if array_module is np and (data2.dtype == bool or np.issubdtype(data2.dtype, np.integer)):
+        out = _eq_hist_integer(data, data2, nbins)
+        if out is not None:
+            out, discrete_levels = out
+            return out if mask is None else np.where(mask, np.nan, out), discrete_levels
+
     # Run more accurate value counting if data is of boolean or integer type
     # and unique value array is smaller than nbins.
     if data2.dtype == bool or (array_module.issubdtype(data2.dtype, array_module.integer) and
@@ -213,6 +219,31 @@ def eq_hist(data, mask=None, nbins=256*256):
     cdf = cdf / float(cdf[-1])
     out = interp(data, bin_centers, cdf).reshape(data.shape)
     return out if mask is None else array_module.where(mask, array_module.nan, out), discrete_levels
+
+
+def _eq_hist_integer(data, data2, nbins):
+    """Exact eq_hist for integer data using ``bincount`` and a direct lookup.
+
+    Equivalent to the ``unique`` + ``interp`` path, but O(n) instead of
+    O(n log n). Returns None when the value range is too wide for exact
+    counting, so the caller falls back to a binned histogram.
+    """
+    is_bool = data2.dtype == bool
+    if is_bool:
+        data, data2 = data.view(np.uint8), data2.view(np.uint8)
+    vmin, vmax = data2.min(), data2.max()
+    # Same (possibly wrapping) arithmetic as ``np.ptp`` in the original check.
+    if not is_bool and np.ptp(np.array([vmin, vmax])) >= nbins:
+        return None
+    vmin, vmax = int(vmin), int(vmax)
+    hist = np.bincount(np.subtract(data2.ravel(), vmin, dtype=np.intp),
+                       minlength=vmax - vmin + 1)
+    discrete_levels = np.count_nonzero(hist)
+    cdf = hist.cumsum()
+    cdf = cdf / float(cdf[-1])
+    # Values outside [vmin, vmax] only occur where masked, and interp would clamp them.
+    idx = np.subtract(np.clip(data, vmin, vmax), vmin, dtype=np.intp)
+    return np.take(cdf, idx), discrete_levels
 
 
 
