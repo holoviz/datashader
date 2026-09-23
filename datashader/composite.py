@@ -64,7 +64,7 @@ def operator(f):
     """Define and register a new image composite operator"""
 
     if jit_enabled:
-        f2 = nb.vectorize(f)
+        f2 = nb.vectorize(f, cache=True)
         f2._compile_for_argtys((nb.types.uint32, nb.types.uint32))
         f2._frozen = True
     else:
@@ -131,7 +131,7 @@ def arr_operator(f):
     """Define and register a new array composite operator"""
 
     if jit_enabled:
-        f2 = nb.vectorize(f)
+        f2 = nb.vectorize(f, cache=True)
         f2._compile_for_argtys(
            (nb.types.int32, nb.types.int32))
         f2._compile_for_argtys(
