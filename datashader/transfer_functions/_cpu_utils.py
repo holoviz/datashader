@@ -37,7 +37,7 @@ def masked_clip_2d(data, mask, lower, upper):
 
 
 @nb.jit(nogil=True, cache=True)
-def interp_with_lut(x, xp, fp, lut, g0, inv_step):
+def _interp_with_lut(x, xp, fp, lut, g0, inv_step):
     """``np.interp(x, xp, fp)`` for 1D float ``x``, bit-identical to NumPy.
 
     Instead of a binary search per element, the interval is guessed from a

@@ -220,12 +220,12 @@ def eq_hist(data, mask=None, nbins=256*256):
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
     if grid is not None and array_module is np and discrete_levels >= 2 and grid[1] > grid[0]:
-        from ._cpu_utils import interp_with_lut
+        from ._cpu_utils import _interp_with_lut
         # The histogram bins form a uniform grid, which gives a good first
         # guess for the interval of each value instead of a binary search.
         lut = np.cumsum(keep_mask) - 1
         inv_step = 1.0 / (grid[1] - grid[0])
-        out = interp_with_lut(
+        out = _interp_with_lut(
             data.ravel(), bin_centers, cdf, lut, grid[0], inv_step,
         ).reshape(data.shape)
     else:
