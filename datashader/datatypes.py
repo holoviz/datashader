@@ -665,7 +665,7 @@ Invalid indices for take with allow_fill True: {invalid_inds[:9]}""")
         raise NotImplementedError(msg)
 
 
-@jit(nopython=True, nogil=True)
+@jit(nogil=True, cache=True)
 def _eq_ragged_ragged(start_indices1,
                       flat_array1,
                       start_indices2,
@@ -723,7 +723,7 @@ def _eq_ragged_ragged(start_indices1,
     return result
 
 
-@jit(nopython=True, nogil=True)
+@jit(nogil=True, cache=True)
 def _eq_ragged_scalar(start_indices, flat_array, val):
     """
     Compare elements of a RaggedArray with a scalar array
@@ -805,7 +805,7 @@ def _eq_ragged_ndarray1d(start_indices, flat_array, a):
     return result
 
 
-@jit(nopython=True, nogil=True)
+@jit(nogil=True, cache=True)
 def _eq_ragged_ndarray2d(start_indices, flat_array, a):
     """
     Compare a RaggedArray with rows of a 2D numpy object array
@@ -848,7 +848,7 @@ def _eq_ragged_ndarray2d(start_indices, flat_array, a):
     return result
 
 
-@jit(nopython=True, nogil=True)
+@jit(nogil=True, cache=True)
 def _lexograph_lt(a1, a2):
     """
     Compare two 1D numpy arrays lexicographically

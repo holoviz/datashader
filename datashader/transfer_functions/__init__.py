@@ -12,7 +12,7 @@ import toolz as tz
 import xarray as xr
 
 from datashader.colors import rgb, Sets1to3
-from datashader.utils import ngjit, uint32_to_uint8, nansum_missing
+from datashader.utils import uint32_to_uint8, nansum_missing
 
 try:
     import dask.array as da
@@ -220,12 +220,12 @@ def eq_hist(data, mask=None, nbins=256*256):
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
     if grid is not None and array_module is np and discrete_levels >= 2 and grid[1] > grid[0]:
-        from ._cpu_utils import interp_with_lut
+        from ._cpu_utils import _interp_with_lut
         # The histogram bins form a uniform grid, which gives a good first
         # guess for the interval of each value instead of a binary search.
         lut = np.cumsum(keep_mask) - 1
         inv_step = 1.0 / (grid[1] - grid[0])
-        out = interp_with_lut(
+        out = _interp_with_lut(
             data.ravel(), bin_centers, cdf, lut, grid[0], inv_step,
         ).reshape(data.shape)
     else:
@@ -925,11 +925,12 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
 @tz.memoize
 def _build_int_kernel(how, mask_size, ignore_zeros):
     """Build a spreading kernel for a given composite operator"""
-    from datashader.composite import composite_op_lookup, validate_operator
+    from datashader import composite
 
-    validate_operator(how, is_image=False)
-    op = composite_op_lookup[how + "_arr"]
-    @ngjit
+    composite.validate_operator(how, is_image=False)
+    # Capture the module and an int, not the operator, so the cache key is stable.
+    code = composite.array_operators.index(how + "_arr")
+    @nb.jit(nogil=True, cache=True)
     def stencilled(arr, mask, out):
         M, N = arr.shape
         for y in range(M):
@@ -943,7 +944,7 @@ def _build_int_kernel(how, mask_size, ignore_zeros):
                             elif ignore_zeros and out[i + y, j + x]==0:
                                 result = el
                             else:
-                                result = op(el, out[i + y, j + x])
+                                result = composite._arr_op(code, el, out[i + y, j + x])
                             out[i + y, j + x] = result
     return stencilled
 
@@ -951,11 +952,11 @@ def _build_int_kernel(how, mask_size, ignore_zeros):
 @tz.memoize
 def _build_float_kernel(how, mask_size):
     """Build a spreading kernel for a given composite operator"""
-    from datashader.composite import composite_op_lookup, validate_operator
+    from datashader import composite
 
-    validate_operator(how, is_image=False)
-    op = composite_op_lookup[how + "_arr"]
-    @ngjit
+    composite.validate_operator(how, is_image=False)
+    code = composite.array_operators.index(how + "_arr")
+    @nb.jit(nogil=True, cache=True)
     def stencilled(arr, mask, out):
         M, N = arr.shape
         for y in range(M):
@@ -969,7 +970,7 @@ def _build_float_kernel(how, mask_size):
                             elif np.isnan(out[i + y, j + x]):
                                 result = el
                             else:
-                                result = op(el, out[i + y, j + x])
+                                result = composite._arr_op(code, el, out[i + y, j + x])
                             out[i + y, j + x] = result
     return stencilled
 
@@ -977,33 +978,13 @@ def _build_float_kernel(how, mask_size):
 @tz.memoize
 def _build_spread_kernel(how, is_image):
     """Build a spreading kernel for a given composite operator"""
-    from datashader.composite import composite_op_lookup, validate_operator
+    from datashader.composite import _spread_image, image_operators, validate_operator
 
     validate_operator(how, is_image=True)
-    op = composite_op_lookup[how + ("" if is_image else "_arr")]
+    code = image_operators.index(how)
 
-    @ngjit
     def kernel(arr, mask, out):
-        M, N = arr.shape
-        w = mask.shape[0]
-        for y in range(M):
-            for x in range(N):
-                el = arr[y, x]
-                # Skip if data is transparent
-                process_image = is_image and ((int(el) >> 24) & 255) # Transparent pixel
-                process_array = (not is_image) and (not np.isnan(el))
-                if process_image or process_array:
-                    for i in range(w):
-                        for j in range(w):
-                            # Skip if mask is False at this value
-                            if mask[i, j]:
-                                if el==0:
-                                    result = out[i + y, j + x]
-                                if out[i + y, j + x]==0:
-                                    result = el
-                                else:
-                                    result = op(el, out[i + y, j + x])
-                                out[i + y, j + x] = result
+        _spread_image(arr, mask, out, code)
     return kernel
 
 

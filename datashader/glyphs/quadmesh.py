@@ -440,7 +440,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
         return extend
 
 
-@ngjit
+@numba.jit(nogil=True, cache=True)
 def build_scale_translate(out_size, out0, out1, src_size, src0, src1):
     translate_y = src_size * (out0 - src0) / (src1 - src0)
     scale_y = (src_size * (out1 - out0)) / (out_size * (src1 - src0))
@@ -484,7 +484,7 @@ class QuadMeshRaster(QuadMeshRectilinear):
         y_name = self.y
         name = self.name
 
-        @ngjit_parallel
+        @numba.jit(nogil=True, parallel=True, cache=True)
         def upsample_cpu(
                 src_w, src_h, translate_x, translate_y, scale_x, scale_y,
                 offset_x, offset_y, out_w, out_h, agg, col

@@ -6,6 +6,7 @@ from datashader.glyphs.glyph import Glyph
 from datashader.glyphs.line import _build_map_onto_pixel_for_line, _clipt
 from datashader.glyphs.points import _PointLike
 from datashader.utils import isnull, isreal, ngjit
+import numba as nb
 from numba import cuda
 
 try:
@@ -1077,7 +1078,7 @@ def _build_draw_trapezoid_y(append, map_onto_pixel, expand_aggs_and_cols):
     """Specialize a plotting kernel for drawing a trapezoid with two
     sides parallel to the y-axis"""
 
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def clamp_y_indices(ystarti, ystopi, ymaxi):
         """Utility function to compute clamped y-indices"""
 
@@ -1320,7 +1321,7 @@ def _build_draw_trapezoid_y(append, map_onto_pixel, expand_aggs_and_cols):
     return draw_trapezoid_y
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _skip_or_clip_trapezoid_y(
         x0, x1, y0, y1, y2, y3, xmin, xmax, ymin, ymax
 ):
