@@ -925,10 +925,11 @@ def spread(img, px=1, shape='circle', how=None, mask=None, name=None):
 @tz.memoize
 def _build_int_kernel(how, mask_size, ignore_zeros):
     """Build a spreading kernel for a given composite operator"""
-    from datashader.composite import composite_op_lookup, validate_operator
+    from datashader import composite
 
-    validate_operator(how, is_image=False)
-    op = composite_op_lookup[how + "_arr"]
+    composite.validate_operator(how, is_image=False)
+    # Capture the module and an int, not the operator, so the cache key is stable.
+    code = composite.array_operators.index(how + "_arr")
     @nb.jit(nogil=True, cache=True)
     def stencilled(arr, mask, out):
         M, N = arr.shape
@@ -943,7 +944,7 @@ def _build_int_kernel(how, mask_size, ignore_zeros):
                             elif ignore_zeros and out[i + y, j + x]==0:
                                 result = el
                             else:
-                                result = op(el, out[i + y, j + x])
+                                result = composite._arr_op(code, el, out[i + y, j + x])
                             out[i + y, j + x] = result
     return stencilled
 
@@ -951,10 +952,10 @@ def _build_int_kernel(how, mask_size, ignore_zeros):
 @tz.memoize
 def _build_float_kernel(how, mask_size):
     """Build a spreading kernel for a given composite operator"""
-    from datashader.composite import composite_op_lookup, validate_operator
+    from datashader import composite
 
-    validate_operator(how, is_image=False)
-    op = composite_op_lookup[how + "_arr"]
+    composite.validate_operator(how, is_image=False)
+    code = composite.array_operators.index(how + "_arr")
     @nb.jit(nogil=True, cache=True)
     def stencilled(arr, mask, out):
         M, N = arr.shape
@@ -969,7 +970,7 @@ def _build_float_kernel(how, mask_size):
                             elif np.isnan(out[i + y, j + x]):
                                 result = el
                             else:
-                                result = op(el, out[i + y, j + x])
+                                result = composite._arr_op(code, el, out[i + y, j + x])
                             out[i + y, j + x] = result
     return stencilled
 

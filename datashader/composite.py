@@ -56,34 +56,18 @@ if jit_enabled:
     extract_scaled.disable_compile()
     combine_scaled.disable_compile()
 
-# Lookup table for storing compositing operators by function name
-composite_op_lookup = {}
 
-
-def operator(f):
-    """Define and register a new image composite operator"""
-
-    if jit_enabled:
-        f2 = nb.vectorize(f, cache=True)
-        f2._compile_for_argtys((nb.types.uint32, nb.types.uint32))
-        f2._frozen = True
-    else:
-        f2 = np.vectorize(f)
-
-    composite_op_lookup[f.__name__] = f2
-    return f2
-
-
-@operator
-def source(src, dst):
+# Scalar kernels. The public operators of the same name are built from them below.
+@nb.jit(nogil=True, cache=True)
+def _source(src, dst):
     if src & 0xff000000:
         return src
     else:
         return dst
 
 
-@operator
-def over(src, dst):
+@nb.jit(nogil=True, cache=True)
+def _over(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
 
@@ -97,8 +81,8 @@ def over(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-@operator
-def add(src, dst):
+@nb.jit(nogil=True, cache=True)
+def _add(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
 
@@ -111,8 +95,8 @@ def add(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-@operator
-def saturate(src, dst):
+@nb.jit(nogil=True, cache=True)
+def _saturate(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
 
@@ -126,57 +110,96 @@ def saturate(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-
-def arr_operator(f):
-    """Define and register a new array composite operator"""
-
-    if jit_enabled:
-        f2 = nb.vectorize(f, cache=True)
-        f2._compile_for_argtys(
-           (nb.types.int32, nb.types.int32))
-        f2._compile_for_argtys(
-           (nb.types.int64, nb.types.int64))
-        f2._compile_for_argtys(
-            (nb.types.float32, nb.types.float32))
-        f2._compile_for_argtys(
-            (nb.types.float64, nb.types.float64))
-        f2._frozen = True
-    else:
-        f2 = np.vectorize(f)
-
-    composite_op_lookup[f.__name__] = f2
-    return f2
-
-
-@arr_operator
-def source_arr(src, dst):
+@nb.jit(nogil=True, cache=True)
+def _source_arr(src, dst):
     if src:
         return src
     else:
         return dst
 
-@arr_operator
-def add_arr(src, dst):
+
+@nb.jit(nogil=True, cache=True)
+def _add_arr(src, dst):
     return src + dst
 
-@arr_operator
-def max_arr(src, dst):
+
+@nb.jit(nogil=True, cache=True)
+def _max_arr(src, dst):
     return max(src, dst)
 
-@arr_operator
-def min_arr(src, dst):
+
+@nb.jit(nogil=True, cache=True)
+def _min_arr(src, dst):
     return min(src, dst)
+
+
+# Jitted code selects an operator by its index in `image_operators` or
+# `array_operators`: a closure capturing a compiled function gets a different
+# cache key in every process, but one capturing an int doesn't.
+_image_scalars = (_over, _add, _saturate, _source)
+_arr_scalars = (_add_arr, _max_arr, _min_arr, _source_arr)
 
 
 @nb.jit(nogil=True, cache=True, inline='always')
 def _image_op(code, src, dst):
     if code == 0:
-        return over(src, dst)
+        return _over(src, dst)
     elif code == 1:
-        return add(src, dst)
+        return _add(src, dst)
     elif code == 2:
-        return saturate(src, dst)
-    return source(src, dst)
+        return _saturate(src, dst)
+    return _source(src, dst)
+
+
+@nb.jit(nogil=True, cache=True, inline='always')
+def _arr_op(code, src, dst):
+    if code == 0:
+        return _add_arr(src, dst)
+    elif code == 1:
+        return _max_arr(src, dst)
+    elif code == 2:
+        return _min_arr(src, dst)
+    return _source_arr(src, dst)
+
+
+# Numba caches a gufunc's loop wrapper on disk, but not a `nb.vectorize` one.
+# Explicit signatures, so a warm import doesn't load the scalar kernels.
+def _image_ufunc(code):
+    if not jit_enabled:
+        return np.vectorize(_image_scalars[code])
+
+    def kernel(src, dst, out):
+        out[0] = _image_op(code, src, dst)
+
+    kernel.__name__ = image_operators[code]
+    return nb.guvectorize(["void(uint32, uint32, uint32[:])"], "(),()->()", cache=True)(kernel)
+
+
+_ARR_TYPES = ("int32", "int64", "float32", "float64")
+
+
+def _arr_ufunc(code, out_types=_ARR_TYPES):
+    if not jit_enabled:
+        return np.vectorize(_arr_scalars[code])
+
+    def kernel(src, dst, out):
+        out[0] = _arr_op(code, src, dst)
+
+    kernel.__name__ = array_operators[code]
+    sigs = [f"void({t}, {t}, {o}[:])" for t, o in zip(_ARR_TYPES, out_types)]
+    return nb.guvectorize(sigs, "(),()->()", cache=True)(kernel)
+
+
+over, add, saturate, source = map(_image_ufunc, range(len(image_operators)))
+# `int32 + int32` is `int64` in numba.
+add_arr = _arr_ufunc(0, out_types=("int64", "int64", "float32", "float64"))
+max_arr, min_arr, source_arr = map(_arr_ufunc, range(1, len(array_operators)))
+
+# Lookup table for storing compositing operators by function name
+composite_op_lookup = dict(zip(
+    image_operators + array_operators,
+    (over, add, saturate, source, add_arr, max_arr, min_arr, source_arr),
+))
 
 
 @nb.jit(nogil=True, cache=True)
