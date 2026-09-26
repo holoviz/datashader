@@ -56,34 +56,18 @@ if jit_enabled:
     extract_scaled.disable_compile()
     combine_scaled.disable_compile()
 
-# Lookup table for storing compositing operators by function name
-composite_op_lookup = {}
 
-
-def operator(f):
-    """Define and register a new image composite operator"""
-
-    if jit_enabled:
-        f2 = nb.vectorize(f, cache=True)
-        f2._compile_for_argtys((nb.types.uint32, nb.types.uint32))
-        f2._frozen = True
-    else:
-        f2 = np.vectorize(f)
-
-    composite_op_lookup[f.__name__] = f2
-    return f2
-
-
-@operator
-def source(src, dst):
+# Scalar kernels. The public operators of the same name are built from them below.
+@nb.jit(nogil=True, cache=True)
+def _source(src, dst):
     if src & 0xff000000:
         return src
     else:
         return dst
 
 
-@operator
-def over(src, dst):
+@nb.jit(nogil=True, cache=True)
+def _over(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
 
@@ -97,8 +81,8 @@ def over(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-@operator
-def add(src, dst):
+@nb.jit(nogil=True, cache=True)
+def _add(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
 
@@ -111,8 +95,8 @@ def add(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-@operator
-def saturate(src, dst):
+@nb.jit(nogil=True, cache=True)
+def _saturate(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
 
@@ -126,57 +110,168 @@ def saturate(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-
-def arr_operator(f):
-    """Define and register a new array composite operator"""
-
-    if jit_enabled:
-        f2 = nb.vectorize(f, cache=True)
-        f2._compile_for_argtys(
-           (nb.types.int32, nb.types.int32))
-        f2._compile_for_argtys(
-           (nb.types.int64, nb.types.int64))
-        f2._compile_for_argtys(
-            (nb.types.float32, nb.types.float32))
-        f2._compile_for_argtys(
-            (nb.types.float64, nb.types.float64))
-        f2._frozen = True
-    else:
-        f2 = np.vectorize(f)
-
-    composite_op_lookup[f.__name__] = f2
-    return f2
-
-
-@arr_operator
-def source_arr(src, dst):
+@nb.jit(nogil=True, cache=True)
+def _source_arr(src, dst):
     if src:
         return src
     else:
         return dst
 
-@arr_operator
-def add_arr(src, dst):
+
+@nb.jit(nogil=True, cache=True)
+def _add_arr(src, dst):
     return src + dst
 
-@arr_operator
-def max_arr(src, dst):
+
+@nb.jit(nogil=True, cache=True)
+def _max_arr(src, dst):
     return max(src, dst)
 
-@arr_operator
-def min_arr(src, dst):
+
+@nb.jit(nogil=True, cache=True)
+def _min_arr(src, dst):
     return min(src, dst)
 
 
+# Jitted code selects an operator by its index in `image_operators` or
+# `array_operators`: a closure capturing a compiled function gets a different
+# cache key in every process, but one capturing an int doesn't.
 @nb.jit(nogil=True, cache=True, inline='always')
 def _image_op(code, src, dst):
     if code == 0:
-        return over(src, dst)
+        return _over(src, dst)
     elif code == 1:
-        return add(src, dst)
+        return _add(src, dst)
     elif code == 2:
-        return saturate(src, dst)
-    return source(src, dst)
+        return _saturate(src, dst)
+    return _source(src, dst)
+
+
+@nb.jit(nogil=True, cache=True, inline='always')
+def _arr_op(code, src, dst):
+    if code == 0:
+        return _add_arr(src, dst)
+    elif code == 1:
+        return _max_arr(src, dst)
+    elif code == 2:
+        return _min_arr(src, dst)
+    return _source_arr(src, dst)
+
+
+# Elementwise loops over flat arrays, written out per operator. A cached
+# `nb.guvectorize` would be shorter, but its disk cache segfaults when
+# parallel processes fill a fresh cache.
+@nb.jit(nogil=True, cache=True)
+def _over_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _over(src[i], dst[i])
+
+
+@nb.jit(nogil=True, cache=True)
+def _add_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _add(src[i], dst[i])
+
+
+@nb.jit(nogil=True, cache=True)
+def _saturate_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _saturate(src[i], dst[i])
+
+
+@nb.jit(nogil=True, cache=True)
+def _source_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _source(src[i], dst[i])
+
+
+@nb.jit(nogil=True, cache=True)
+def _add_arr_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _add_arr(src[i], dst[i])
+
+
+@nb.jit(nogil=True, cache=True)
+def _max_arr_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _max_arr(src[i], dst[i])
+
+
+@nb.jit(nogil=True, cache=True)
+def _min_arr_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _min_arr(src[i], dst[i])
+
+
+@nb.jit(nogil=True, cache=True)
+def _source_arr_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _source_arr(src[i], dst[i])
+
+
+def _apply(loop, src, dst, dtype, out_dtype):
+    src, dst = np.asarray(src, dtype=dtype), np.asarray(dst, dtype=dtype)
+    shape = np.broadcast_shapes(src.shape, dst.shape)
+    src, dst = np.broadcast_to(src, shape), np.broadcast_to(dst, shape)
+    out = np.empty(shape, dtype=out_dtype)
+    loop(src.reshape(-1), dst.reshape(-1), out.reshape(-1))
+    return out if out.ndim else out[()]
+
+
+_ARR_DTYPES = tuple(map(np.dtype, ("int32", "int64", "float32", "float64")))
+
+
+def _arr_dtype(src, dst):
+    # The first supported type both inputs cast to safely, as ufunc loop selection does.
+    dtype = np.result_type(src, dst)
+    for t in _ARR_DTYPES:
+        if np.can_cast(dtype, t):
+            return t
+    raise TypeError(f"Unsupported dtype for array composite operators: {dtype}")
+
+
+def over(src, dst):
+    return _apply(_over_loop, src, dst, np.uint32, np.uint32)
+
+
+def add(src, dst):
+    return _apply(_add_loop, src, dst, np.uint32, np.uint32)
+
+
+def saturate(src, dst):
+    return _apply(_saturate_loop, src, dst, np.uint32, np.uint32)
+
+
+def source(src, dst):
+    return _apply(_source_loop, src, dst, np.uint32, np.uint32)
+
+
+def add_arr(src, dst):
+    dtype = _arr_dtype(src, dst)
+    # `int32 + int32` is `int64` in numba.
+    out_dtype = np.dtype("int64") if dtype == np.int32 else dtype
+    return _apply(_add_arr_loop, src, dst, dtype, out_dtype)
+
+
+def max_arr(src, dst):
+    dtype = _arr_dtype(src, dst)
+    return _apply(_max_arr_loop, src, dst, dtype, dtype)
+
+
+def min_arr(src, dst):
+    dtype = _arr_dtype(src, dst)
+    return _apply(_min_arr_loop, src, dst, dtype, dtype)
+
+
+def source_arr(src, dst):
+    dtype = _arr_dtype(src, dst)
+    return _apply(_source_arr_loop, src, dst, dtype, dtype)
+
+# Lookup table for storing compositing operators by function name
+composite_op_lookup = dict(zip(
+    image_operators + array_operators,
+    (over, add, saturate, source, add_arr, max_arr, min_arr, source_arr),
+))
 
 
 @nb.jit(nogil=True, cache=True)
