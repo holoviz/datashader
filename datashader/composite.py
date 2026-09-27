@@ -158,52 +158,66 @@ def _arr_op(code, src, dst):
     return _source_arr(src, dst)
 
 
+def _loop_sigs(types, out_types=None):
+    # Inputs are read-only broadcast views with any strides.
+    inp = [nb.types.Array(t, 1, "A", readonly=True) for t in types]
+    out = [nb.types.Array(t, 1, "C") for t in (out_types or types)]
+    return [nb.void(i, i, o) for i, o in zip(inp, out)]
+
+
+_ARR_TYPES = (nb.int32, nb.int64, nb.float32, nb.float64)
+_IMAGE_SIGS = _loop_sigs((nb.uint32,))
+_ARR_SIGS = _loop_sigs(_ARR_TYPES)
+# `int32 + int32` is `int64` in numba.
+_ADD_ARR_SIGS = _loop_sigs(_ARR_TYPES, (nb.int64, nb.int64, nb.float32, nb.float64))
+
+
 # Elementwise loops over flat arrays, written out per operator. A cached
 # `nb.guvectorize` would be shorter, but its disk cache segfaults when
 # parallel processes fill a fresh cache.
-@nb.jit(nogil=True, cache=True)
+@nb.jit(_IMAGE_SIGS, nogil=True, cache=True)
 def _over_loop(src, dst, out):
     for i in range(out.size):
         out[i] = _over(src[i], dst[i])
 
 
-@nb.jit(nogil=True, cache=True)
+@nb.jit(_IMAGE_SIGS, nogil=True, cache=True)
 def _add_loop(src, dst, out):
     for i in range(out.size):
         out[i] = _add(src[i], dst[i])
 
 
-@nb.jit(nogil=True, cache=True)
+@nb.jit(_IMAGE_SIGS, nogil=True, cache=True)
 def _saturate_loop(src, dst, out):
     for i in range(out.size):
         out[i] = _saturate(src[i], dst[i])
 
 
-@nb.jit(nogil=True, cache=True)
+@nb.jit(_IMAGE_SIGS, nogil=True, cache=True)
 def _source_loop(src, dst, out):
     for i in range(out.size):
         out[i] = _source(src[i], dst[i])
 
 
-@nb.jit(nogil=True, cache=True)
+@nb.jit(_ADD_ARR_SIGS, nogil=True, cache=True)
 def _add_arr_loop(src, dst, out):
     for i in range(out.size):
         out[i] = _add_arr(src[i], dst[i])
 
 
-@nb.jit(nogil=True, cache=True)
+@nb.jit(_ARR_SIGS, nogil=True, cache=True)
 def _max_arr_loop(src, dst, out):
     for i in range(out.size):
         out[i] = _max_arr(src[i], dst[i])
 
 
-@nb.jit(nogil=True, cache=True)
+@nb.jit(_ARR_SIGS, nogil=True, cache=True)
 def _min_arr_loop(src, dst, out):
     for i in range(out.size):
         out[i] = _min_arr(src[i], dst[i])
 
 
-@nb.jit(nogil=True, cache=True)
+@nb.jit(_ARR_SIGS, nogil=True, cache=True)
 def _source_arr_loop(src, dst, out):
     for i in range(out.size):
         out[i] = _source_arr(src[i], dst[i])
