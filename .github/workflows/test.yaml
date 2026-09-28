@@ -17,11 +17,9 @@ on:
           - full
           - downstream
       cache:
-        description: "Use cache"
+        description: "If disabled, upstream packages are updated"
         type: boolean
         default: true
-  schedule:
-    - cron: "0 16 * * SUN"
 
 permissions: {}
 
@@ -37,16 +35,19 @@ env:
   DISPLAY: ":99.0"
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   COV: "--cov=./datashader --cov-report=xml"
+  UPSTREAM_PACKAGES: "param colorcet"
 
 jobs:
   pre_commit:
-    name: Run pre-commit
+    name: pre-commit
     runs-on: "ubuntu-latest"
     steps:
       - uses: holoviz-dev/holoviz_tasks/pre-commit@17107a157b32cc1bd2a09c71fbdbc74603efdb40 # v1.0.15
+        env:
+          SKIP: pixi
 
   setup:
-    name: Setup workflow
+    name: setup:test
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ env.MATRIX }}
@@ -65,6 +66,7 @@ jobs:
               - 'datashader/**'
               - 'examples/**'
               - 'pixi.toml'
+              - 'pixi.lock'
               - 'pyproject.toml'
               - '.github/workflows/test.yaml'
       - name: Set matrix option
@@ -73,7 +75,7 @@ jobs:
         run: |
           if [[ "${GITHUB_EVENT_NAME}" == 'workflow_dispatch' ]]; then
             OPTION=${GITHUB_EVENT_INPUTS_TARGET}
-          elif [[ "${GITHUB_EVENT_NAME}" == 'schedule' ]]; then
+          elif [[ "${GITHUB_EVENT_NAME}" == 'pull_request' && "${GITHUB_HEAD_REF}" == 'renovate/lock-file-maintenance-pixi-lock' ]]; then
             OPTION="full"
           elif [[ "${GITHUB_EVENT_NAME}" == 'push' && "${GITHUB_REF_TYPE}" == 'tag' ]]; then
             OPTION="full"
@@ -106,19 +108,19 @@ jobs:
           }')
           echo "MATRIX=$MATRIX" >> $GITHUB_ENV
 
-  pixi_lock:
-    name: Pixi lock
+  pixi_lock_diff:
+    name: pixi-diff
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
-      - uses: holoviz-dev/holoviz_tasks/pixi-lock@17107a157b32cc1bd2a09c71fbdbc74603efdb40 # v1.0.15
-        with:
-          cache: ${{ github.event.inputs.cache == 'true' || github.event.inputs.cache == '' }}
+      - uses: holoviz-dev/holoviz_tasks/pixi-diff@17107a157b32cc1bd2a09c71fbdbc74603efdb40 # v1.0.15
 
   unit_test_suite:
     name: unit:${{ matrix.environment }}:${{ matrix.os }}
-    needs: [pre_commit, setup, pixi_lock]
+    needs: [pre_commit, setup]
     runs-on: ${{ matrix.os }}
-    if: needs.setup.outputs.code_change == 'true'
+    if: github.event_name != 'push' && needs.setup.outputs.code_change == 'true'
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
@@ -129,6 +131,10 @@ jobs:
       - uses: holoviz-dev/holoviz_tasks/pixi-install@17107a157b32cc1bd2a09c71fbdbc74603efdb40 # v1.0.15
         with:
           environments: ${{ matrix.environment }}
+      - name: Update upstream packages
+        if: github.event.inputs.cache == 'false'
+        run: |
+          pixi update ${UPSTREAM_PACKAGES} -e "${ENV}"
       - name: Restore cached hypothesis directory
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
@@ -156,9 +162,9 @@ jobs:
 
   core_test_suite:
     name: core:${{ matrix.environment }}:${{ matrix.os }}
-    needs: [pre_commit, setup, pixi_lock]
+    needs: [pre_commit, setup]
     runs-on: ${{ matrix.os }}
-    if: needs.setup.outputs.code_change == 'true'
+    if: github.event_name != 'push' && needs.setup.outputs.code_change == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -171,13 +177,17 @@ jobs:
       - uses: holoviz-dev/holoviz_tasks/pixi-install@17107a157b32cc1bd2a09c71fbdbc74603efdb40 # v1.0.15
         with:
           environments: ${{ matrix.environment }}
+      - name: Update upstream packages
+        if: github.event.inputs.cache == 'false'
+        run: |
+          pixi update ${UPSTREAM_PACKAGES} -e "${ENV}"
       - name: Test Unit
         run: |
           pixi run -e "${ENV}" test-unit
 
   benchmark_test_suite:
     name: benchmark:${{ matrix.environment }}:${{ matrix.os }}
-    needs: [pre_commit, setup, pixi_lock]
+    needs: [pre_commit, setup]
     runs-on: ${{ matrix.os }}
     if: needs.setup.outputs.code_change == 'true'
     strategy:

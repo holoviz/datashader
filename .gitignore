@@ -94,5 +94,5 @@ datashader/.version
 
 # pixi + hatchling
 .pixi
-pixi.lock
+!pixi.lock
 _version.py
