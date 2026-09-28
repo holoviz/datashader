@@ -9,7 +9,7 @@ import datashader as ds
 import numpy as np
 import xarray as xr
 from numpy import nan
-import narwhals as nw
+import narwhals.stable.v2 as nw
 
 from datashader.tests.test_pandas import (
     _pandas,
