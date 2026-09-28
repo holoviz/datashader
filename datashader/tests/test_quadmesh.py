@@ -29,10 +29,19 @@ except ImportError:
     class dask:
         array = None
 
+array_modules_with_xfail = [*array_modules]
+
 try:
     import cudf
     import cupy
     array_modules.append(pytest.param(cupy, marks=pytest.mark.gpu))
+    array_modules_with_xfail.append(
+        pytest.param(
+            cupy,
+            marks=(pytest.mark.gpu, pytest.mark.xfail(reason="negative strides bug: https://github.com/cupy/cupy/issues/10172"))
+        )
+    )
+
 except ImportError:
     cudf = None
     cupy = None
@@ -406,7 +415,7 @@ def test_rectilinear_quadmesh_autorange_chunked():
     assert_eq_ndarray(res.y_range, (0.5, 3.5), close=True)
 
 
-@pytest.mark.parametrize('array_module', array_modules)
+@pytest.mark.parametrize('array_module', array_modules_with_xfail)
 def test_rect_quadmesh_autorange_reversed(array_module):
     c = ds.Canvas(plot_width=8, plot_height=4)
     da = xr.DataArray(
@@ -883,7 +892,7 @@ def test_infer_interval_breaks_2d_consistency(spacings, start_value):
     np.testing.assert_allclose(actual, expected, rtol=1e-10, atol=1e-10)
 
 
-@pytest.mark.parametrize('array_module', array_modules)
+@pytest.mark.parametrize('array_module', array_modules_with_xfail)
 def test_raster_quadmesh_descending_coords(array_module):
     """
     Regression test for https://github.com/holoviz/datashader/issues/1439
@@ -912,7 +921,7 @@ def test_raster_quadmesh_descending_coords(array_module):
     assert result.isnull().sum().item() == 0
 
 
-@pytest.mark.parametrize('array_module', array_modules)
+@pytest.mark.parametrize('array_module', array_modules_with_xfail)
 def test_raster_quadmesh_descending_coords_2(array_module):
     """
     Regression test for https://github.com/holoviz/datashader/issues/1439

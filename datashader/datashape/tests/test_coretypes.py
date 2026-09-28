@@ -535,9 +535,9 @@ def test_slice_subshape_bad_types():
 
 
 @pytest.mark.parametrize(['base', 'expected'],
-                         zip([timedelta_, date_, datetime_],
+                         list(zip([timedelta_, date_, datetime_],
                              ['timedelta64[us]', 'datetime64[D]',
-                              'datetime64[us]']))
+                              'datetime64[us]'])))
 def test_option_to_numpy_dtype(base, expected):
     assert Option(base).to_numpy_dtype() == np.dtype(expected)
 

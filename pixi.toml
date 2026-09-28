@@ -2,6 +2,19 @@
 name = "datashader"
 channels = ["pyviz/label/dev", "conda-forge"]
 platforms = ["linux-64", "osx-arm64", "win-64"]
+preview = ["pixi-build"]
+requires-pixi = ">=0.68.1"
+
+[package]
+name = "datashader"
+version = "9999.0.0" # dynamic versioning: https://github.com/prefix-dev/pixi/issues/5360
+
+[package.build]
+backend = { name = "pixi-build-python", version = ">=0.4.4" }
+
+[package.host-dependencies]
+hatchling = "*"
+hatch-vcs = "*"
 
 [environments]
 default = [
@@ -57,7 +70,7 @@ no-default-feature = true
 
 [feature.required.dependencies]
 nomkl = "*"
-pip = "*"
+datashader = { path = "." }
 # Required
 numba = "*"
 llvmlite = "*"
@@ -76,7 +89,6 @@ narwhals = ">2"
 
 [feature.required.tasks]
 download-data = "python scripts/download_data.py"
-install = "python -m pip install --no-deps --disable-pip-version-check -e ."
 
 [feature.required.activation.env]
 PYTHONIOENCODING = "utf-8"
@@ -137,11 +149,12 @@ spatialpandas = "*"
 [feature.dev.dependencies]
 jupyterlab = "*"
 jupyterlab-myst = "*"
+pip = "*"
 setuptools_scm = "*"
 
 [feature.dev.tasks]
 lab = 'jupyter lab'
-setup-dev = { depends-on = ["install", "download-data", "lint-install"] }
+setup-dev = { depends-on = ["download-data", "lint-install"] }
 
 # =============================================
 # =================== TESTS ===================
@@ -174,8 +187,8 @@ platforms = ["linux-64"]
 NUMBA_CUDA_LOW_OCCUPANCY_WARNINGS = '0'
 
 [feature.test-gpu.dependencies]
-cuda-version = "13.1.*"
-cudf = "26.04.*"
+cuda-version = "13.3.*"
+cudf = "26.08.*"
 cupy = "*"
 dask-cudf = "*"
 librmm = { version = "*", channel = "rapidsai" }
@@ -197,13 +210,12 @@ sphinx-reredirects = "*"
 [feature.doc.tasks]
 _docs-generate-rst = 'nbsite generate-rst --org holoviz --project-name datashader'
 _docs-generate = 'nbsite build --what=html --output=builtdocs --org holoviz --project-name datashader'
-_docs-install = 'python -m pip install --no-deps --disable-pip-version-check -e .'
 
 [feature.doc.tasks.docs-build]
 depends-on = ['_docs-generate-rst', '_docs-generate']
 
 [feature.doc.tasks.docs-build-full]
-depends-on = ['_docs-install', 'download-data', '_docs-generate-rst', '_docs-generate']
+depends-on = ['download-data','_docs-generate-rst', '_docs-generate']
 
 [feature.doc.activation.env]
 HV_DOCS_BUILD = "1"

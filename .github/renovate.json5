@@ -1,0 +1,71 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended", ":enablePreCommit"],
+  enabledManagers: ["github-actions", "pre-commit", "pixi"],
+  lockFileMaintenance: { enabled: true },
+  schedule: ["before 5am on the 1st day of the month"],
+
+  automerge: true,
+  commitMessagePrefix: "chore(bot):",
+  prConcurrentLimit: 0,
+  prCreation: "immediate",
+  prHourlyLimit: 0,
+
+  internalChecksFilter: "strict",
+  minimumReleaseAge: "7 days",
+  separateMajorMinor: false,
+
+  packageRules: [
+    {
+      groupName: "GitHub Actions",
+      matchManagers: ["github-actions"],
+      pinDigests: true,
+    },
+    {
+      groupName: "HoloViz Github Actions",
+      matchManagers: ["github-actions"],
+      matchPackageNames: ["holoviz-dev/holoviz_tasks"],
+      minimumReleaseAge: null,
+      schedule: ["before 5am"],
+      pinDigests: true,
+    },
+    {
+      groupName: "pre-commit",
+      matchManagers: ["pre-commit"],
+    },
+    {
+      matchManagers: ["pixi"],
+      enabled: false, // We don't want updates pixi.toml
+    },
+    {
+      groupName: "cudf",
+      matchManagers: ["pixi"],
+      matchPackageNames: ["cudf"],
+      minimumReleaseAge: null,
+      schedule: ["before 5am"], // Happens every second month
+      enabled: true,
+      automerge: false, // Need to run outside CI
+      commitMessagePrefix: "compat:",
+    },
+
+    {
+      groupName: "Pixi Lock",
+      matchManagers: ["pixi"],
+      matchUpdateTypes: ["lockFileMaintenance"],
+      description: "Weekly update of Pixi Lock",
+      schedule: ["before 5am on monday"],
+      automergeSchedule: ["after 5am on monday"], // avoid multiple PRs in the same day
+      minimumReleaseAge: null,
+      commitMessageAction: "Update",
+      commitMessageTopic: "pixi.lock",
+      branchTopic: "pixi-lock",
+      labels: ["run-build-ci", "run-docs-ci"],
+      enabled: true,
+    },
+  ],
+  vulnerabilityAlerts: {
+    enabled: true,
+    minimumReleaseAge: null,
+    vulnerabilityFixStrategy: "lowest",
+  },
+}

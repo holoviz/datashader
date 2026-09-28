@@ -83,13 +83,7 @@ line-length = 100
 fix = true
 
 [tool.ruff.lint]
-select = [
-    "E",
-    "F",
-    "NPY",
-    "UP",
-    "W",
-]
+select = ["E", "F", "NPY", "UP", "W"]
 
 [tool.ruff.lint.per-file-ignores]
 "test_mpl_ext.py" = ["E402"] # Module level import not at top of file
@@ -118,6 +112,11 @@ filterwarnings = [
     "ignore:The 'shapely.geos' module is deprecated, and will be removed in a future version:DeprecationWarning",
     # 2025-09
     "ignore:Signature .* for <class 'numpy.longdouble'>.*:UserWarning",
+    # 2026-08
+    "ignore:Setting the shape on a NumPy array has been deprecated in NumPy 2.5:DeprecationWarning:rioxarray._io", # https://github.com/rasterio/rasterio/issues/3592
+    "ignore:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning:fastparquet", # https://github.com/dask/fastparquet/pull/981
+    # 2026-09
+    "ignore:Use `@` matmul instead of `\\*` mul:Warning:rioxarray", # https://github.com/corteva/rioxarray/issues/937
 ]
 
 [tool.typos.default]
