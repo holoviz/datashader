@@ -508,7 +508,7 @@ def dshape_from_narwhals_helper(col):
             categories = dtype.categories
             ordered = True
         else:
-            categories = col.cat.get_categories().to_list()
+            categories = col.unique().to_list()
             ordered = False
         categories = np.array(categories)
         if categories.dtype.kind == 'U':
