@@ -25,6 +25,14 @@ repos:
     rev: 2e6f506fab3cdfbe16bc18fd0d24e828db773b74 # frozen: v0.2.1
     hooks:
       - id: clean-notebook
+  - repo: local
+    hooks:
+      - id: pixi
+        name: check pixi
+        entry: pixi lock --check
+        language: system
+        files: ^pixi
+        pass_filenames: false
 
 ci:
   autofix_prs: false
