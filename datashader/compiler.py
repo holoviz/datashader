@@ -141,7 +141,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
 
     create = make_create(bases, dshapes, cuda)
     append, any_uses_cuda_mutex = make_append(bases, cols, calls, glyph, antialias)
-    info = make_info(cols, cuda, any_uses_cuda_mutex)
+    info = make_info(tuple(cols), cuda, any_uses_cuda_mutex)
     combine = make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned)
     finalize = make_finalize(bases, agg, schema, cuda, partitioned)
 
@@ -244,8 +244,7 @@ def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned
                 f"        {func.__name__}(aggs_and_copies[{i}][1], aggs_and_copies[{i}][0])")
     code = "\n".join(lines)
     logger.debug(code)
-    exec(code, namespace)
-    aa_stage_2_accumulate = ngjit(namespace["aa_stage_2_accumulate"])
+    aa_stage_2_accumulate = _compile_generated(code, namespace, "aa_stage_2_accumulate")
 
     # aa_stage_2_clear
     if np.any(np.isnan(aa_zeroes)):
@@ -256,17 +255,29 @@ def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned
         lines.append(f"    aggs_and_copies[{i}][0].fill({aa_zero})")
     code = "\n".join(lines)
     logger.debug(code)
+    aa_stage_2_clear = _compile_generated(code, namespace, "aa_stage_2_clear")
+
+    return aa_stage_2_accumulate, aa_stage_2_clear, _aa_stage_2_copy_back
+
+
+@nb.jit(nogil=True, cache=True)
+def _aa_stage_2_copy_back(aggs_and_copies):
+    # Numba access to heterogeneous tuples is only permitted using literal_unroll.
+    for agg_and_copy in literal_unroll(aggs_and_copies):
+        agg_and_copy[0][:] = agg_and_copy[1][:]
+
+
+def _compile_generated(code, namespace, name):
+    # Reductions differing only in parameters such as n or categories generate identical
+    # code, and numba never frees compiled code, so share one dispatcher between them.
+    return _compile_generated_cached(code, tuple(sorted(namespace.items())), name)
+
+
+@memoize
+def _compile_generated_cached(code, namespace_items, name):
+    namespace = dict(namespace_items)
     exec(code, namespace)
-    aa_stage_2_clear = ngjit(namespace["aa_stage_2_clear"])
-
-    # aa_stage_2_copy_back
-    @nb.jit(nogil=True, cache=True)
-    def aa_stage_2_copy_back(aggs_and_copies):
-        # Numba access to heterogeneous tuples is only permitted using literal_unroll.
-        for agg_and_copy in literal_unroll(aggs_and_copies):
-            agg_and_copy[0][:] = agg_and_copy[1][:]
-
-    return aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back
+    return ngjit(namespace[name])
 
 
 def traverse_aggregation(agg):
@@ -302,6 +313,7 @@ def make_create(bases, dshapes, cuda):
     return lambda shape: tuple(c(shape, array_module) for c in creators)
 
 
+@memoize
 def make_info(cols, cuda, uses_cuda_mutex: bool):
     def info(df, canvas_shape):
         ret = tuple(c.apply(df, cuda) for c in cols)
@@ -472,8 +484,7 @@ def make_append(bases, cols, calls, glyph, antialias):
             '\n    '.join(body)
         )
     logger.debug(code)
-    exec(code, namespace)
-    return ngjit(namespace['append']), any_uses_cuda_mutex
+    return _compile_generated(code, namespace, 'append'), any_uses_cuda_mutex
 
 
 def make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned):
