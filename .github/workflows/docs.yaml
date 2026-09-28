@@ -120,13 +120,3 @@ jobs:
       - name: check for failures
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: echo job failed && exit 1
-
-  result_docs_build:
-    name: result:docs
-    needs: [setup, docs_build, docs_publish]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: check for failures
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
-        run: echo job failed && exit 1
