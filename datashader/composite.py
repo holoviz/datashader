@@ -9,10 +9,13 @@ from __future__ import annotations
 import numba as nb
 import numpy as np
 import os
+import sys
+import warnings
+from functools import cache, partial
 
 image_operators = ('over', 'add', 'saturate', 'source')
 array_operators = ('add_arr', 'max_arr', 'min_arr', 'source_arr')
-__all__ = ('composite_op_lookup', 'validate_operator') + image_operators + array_operators
+__all__ = ('composite_op_lookup', 'validate_operator')
 
 
 def validate_operator(how, is_image):
@@ -223,7 +226,17 @@ def _source_arr_loop(src, dst, out):
         out[i] = _source_arr(src[i], dst[i])
 
 
+def _dask_array_module(*args):
+    da = sys.modules.get("dask.array")
+    if da is not None and any(isinstance(x, da.Array) for x in args):
+        return da
+
+
 def _apply(loop, src, dst, dtype, out_dtype):
+    if da := _dask_array_module(src, dst):
+        src, dst = da.broadcast_arrays(da.asarray(src), da.asarray(dst))
+        func = partial(_apply, loop, dtype=dtype, out_dtype=out_dtype)
+        return da.map_blocks(func, src, dst, dtype=out_dtype)
     src, dst = np.asarray(src, dtype=dtype), np.asarray(dst, dtype=dtype)
     shape = np.broadcast_shapes(src.shape, dst.shape)
     src, dst = np.broadcast_to(src, shape), np.broadcast_to(dst, shape)
@@ -237,55 +250,119 @@ _ARR_DTYPES = tuple(map(np.dtype, ("int32", "int64", "float32", "float64")))
 
 def _arr_dtype(src, dst):
     # The first supported type both inputs cast to safely, as ufunc loop selection does.
-    dtype = np.result_type(src, dst)
+    dtype = np.result_type(*(getattr(x, "dtype", x) for x in (src, dst)))
     for t in _ARR_DTYPES:
         if np.can_cast(dtype, t):
             return t
     raise TypeError(f"Unsupported dtype for array composite operators: {dtype}")
 
 
-def over(src, dst):
+def _over_op(src, dst):
     return _apply(_over_loop, src, dst, np.uint32, np.uint32)
 
 
-def add(src, dst):
+def _add_op(src, dst):
     return _apply(_add_loop, src, dst, np.uint32, np.uint32)
 
 
-def saturate(src, dst):
+def _saturate_op(src, dst):
     return _apply(_saturate_loop, src, dst, np.uint32, np.uint32)
 
 
-def source(src, dst):
+def _source_op(src, dst):
     return _apply(_source_loop, src, dst, np.uint32, np.uint32)
 
 
-def add_arr(src, dst):
+def _add_arr_op(src, dst):
     dtype = _arr_dtype(src, dst)
     # `int32 + int32` is `int64` in numba.
     out_dtype = np.dtype("int64") if dtype == np.int32 else dtype
     return _apply(_add_arr_loop, src, dst, dtype, out_dtype)
 
 
-def max_arr(src, dst):
+def _max_arr_op(src, dst):
     dtype = _arr_dtype(src, dst)
     return _apply(_max_arr_loop, src, dst, dtype, dtype)
 
 
-def min_arr(src, dst):
+def _min_arr_op(src, dst):
     dtype = _arr_dtype(src, dst)
     return _apply(_min_arr_loop, src, dst, dtype, dtype)
 
 
-def source_arr(src, dst):
+def _source_arr_op(src, dst):
     dtype = _arr_dtype(src, dst)
     return _apply(_source_arr_loop, src, dst, dtype, dtype)
 
 # Lookup table for storing compositing operators by function name
 composite_op_lookup = dict(zip(
     image_operators + array_operators,
-    (over, add, saturate, source, add_arr, max_arr, min_arr, source_arr),
+    (_over_op, _add_op, _saturate_op, _source_op,
+     _add_arr_op, _max_arr_op, _min_arr_op, _source_arr_op),
 ))
+
+
+_IMAGE_ARGTYS = ((nb.types.uint32, nb.types.uint32),)
+_ARR_ARGTYS = tuple((t, t) for t in (nb.types.int32, nb.types.int64,
+                                      nb.types.float32, nb.types.float64))
+
+
+def _warn_deprecated(name):
+    warnings.warn(
+        f"'datashader.composite.{name}' is deprecated since version 0.20 and will be "
+        "removed in version 0.21. Use 'composite_op_lookup' or the 'how' argument of "
+        "'tf.stack' and 'tf.spread' instead.",
+        category=FutureWarning,
+        stacklevel=3,
+    )
+
+
+def _vectorize(f, argtys):
+    if not jit_enabled:
+        return np.vectorize(f)
+    f2 = nb.vectorize(f)
+    for tys in argtys:
+        f2._compile_for_argtys(tys)
+    f2._frozen = True
+    return f2
+
+
+def _operator(f):
+    """Define and register a new image composite operator"""
+    f2 = _vectorize(f, _IMAGE_ARGTYS)
+    composite_op_lookup[f.__name__] = f2
+    return f2
+
+
+def _arr_operator(f):
+    """Define and register a new array composite operator"""
+    f2 = _vectorize(f, _ARR_ARGTYS)
+    composite_op_lookup[f.__name__] = f2
+    return f2
+
+
+@cache
+def _deprecated_ufunc(name):
+    kernel = globals()[f"_{name}"]
+
+    def f(src, dst):
+        return kernel(src, dst)
+
+    f.__name__ = f.__qualname__ = name
+    argtys = _IMAGE_ARGTYS if name in image_operators else _ARR_ARGTYS
+    return _vectorize(f, argtys)
+
+
+def __getattr__(name):
+    if name in ("operator", "arr_operator"):
+        obj = globals()[f"_{name}"]
+    elif name in image_operators or name in array_operators:
+        # Built on first access; compiling the ufuncs at import is slow.
+        obj = _deprecated_ufunc(name)
+    else:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    _warn_deprecated(name)
+    return obj
 
 
 @nb.jit(nogil=True, cache=True)

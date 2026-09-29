@@ -834,7 +834,7 @@ def set_background(img, color=None, name=None):
         The background color. Can be specified either by name, hexcode, or as a
         tuple of ``(red, green, blue)`` values.
     """
-    from datashader.composite import over
+    from datashader.composite import _over_op
 
     if not isinstance(img, Image):
         raise TypeError(f"Expected `Image`, got: `{type(img)}`")
@@ -842,7 +842,7 @@ def set_background(img, color=None, name=None):
     if color is None:
         return img
     background = np.uint8(rgb(color) + (255,)).view('uint32')[0]
-    data = over(img.data, background)
+    data = _over_op(img.data, background)
     return Image(data, coords=img.coords, dims=img.dims, name=name)
 
 
