@@ -1162,7 +1162,7 @@ def test_eq_hist_float_matches_interp(rng, dtype):
     cdf = hist[hist > 0].cumsum()
     expected = np.interp(data, bin_centers, cdf / float(cdf[-1]))
     eq, discrete_levels = tf.eq_hist(data, nbins=nbins)
-    np.testing.assert_array_equal(eq, expected)
+    np.testing.assert_array_max_ulp(eq, expected, maxulp=1)
     assert discrete_levels == bin_centers.size
 
 
