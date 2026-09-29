@@ -226,7 +226,7 @@ def eq_hist(data, mask=None, nbins=256*256):
         lut = np.cumsum(keep_mask) - 1
         inv_step = 1.0 / (grid[1] - grid[0])
         out = interp_with_lut(
-            data.ravel(), bin_centers, cdf, lut, grid[0], inv_step,
+            data.ravel(), bin_centers.astype(np.float64), cdf, lut, grid[0], inv_step,
         ).reshape(data.shape)
     else:
         out = interp(data, bin_centers, cdf).reshape(data.shape)
@@ -247,9 +247,8 @@ def _eq_hist_integer(data, data2, nbins):
     # Same (possibly wrapping) arithmetic as ``np.ptp`` in the original check.
     if not is_bool and np.ptp(np.array([vmin, vmax])) >= nbins:
         return None
-    vmin, vmax = int(vmin), int(vmax)
     hist = np.bincount(np.subtract(data2.ravel(), vmin, dtype=np.intp),
-                       minlength=vmax - vmin + 1)
+                       minlength=int(vmax) - int(vmin) + 1)
     discrete_levels = np.count_nonzero(hist)
     cdf = hist.cumsum()
     cdf = cdf / float(cdf[-1])
@@ -414,7 +413,8 @@ def _sum_last_axis(a):
     sequentially below 8 elements (pairwise above), so only use it there.
     """
     n = a.shape[-1]
-    if n == 0 or a.dtype.kind not in 'biuf' or (a.dtype.kind == 'f' and n >= 8):
+    if (n == 0 or a.dtype.kind not in 'biuf'
+            or (a.dtype.kind == 'f' and (n >= 8 or a.dtype.itemsize < 4))):
         return a.sum(axis=-1)
     acc = a[..., 0].astype(np.add.reduce(np.zeros(1, dtype=a.dtype)).dtype)
     for k in range(1, n):
