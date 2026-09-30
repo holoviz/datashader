@@ -96,6 +96,40 @@ def test_saturate():
     np.testing.assert_equal(_saturate_op(src, half_purple), o)
 
 
+image_ops = [_over_op, _add_op, _saturate_op, _source_op]
+
+
+@pytest.mark.parametrize("op", image_ops)
+@pytest.mark.parametrize(
+    "d",
+    [np.array([1, 2], "uint8"), np.array([1, 2], "uint16"), np.array([True, False]), 5],
+    ids=["uint8", "uint16", "bool", "pyint"],
+)
+def test_image_operators_safe_cast(op, d):
+    s = np.array([0x7dff0000, 0xff00ff00], dtype="uint32")
+    out = op(s, d)
+    assert out.dtype == np.uint32
+    np.testing.assert_equal(out, op(s, np.asarray(d, dtype="uint32")))
+
+
+@pytest.mark.parametrize("op", image_ops)
+@pytest.mark.parametrize(
+    "d",
+    [np.array([1, 2], "int32"), np.array([1.0, np.nan]), 1.5, [1, 2]],
+    ids=["int32", "float64", "pyfloat", "list"],
+)
+def test_image_operators_unsafe_cast(op, d):
+    s = np.array([0x7dff0000, 0xff00ff00], dtype="uint32")
+    with pytest.raises(TypeError, match="Unsupported dtype for image composite operators"):
+        op(s, d)
+
+
+@pytest.mark.parametrize("op", image_ops)
+def test_image_operators_python_ints(op):
+    with pytest.raises(TypeError, match="Unsupported dtype for image composite operators"):
+        op(1, 2)
+
+
 arr_refs = {
     _add_arr_op: np.add,
     _max_arr_op: np.maximum,
@@ -144,6 +178,14 @@ def test_array_operators_dtype(op, dtype, loop_dtype):
 def test_array_operators_python_scalar(op, s, d):
     out = op(s, d)
     ref = _arr_ref(op, s, np.asarray(d, dtype=s.dtype))
+    assert out.dtype == ref.dtype
+    np.testing.assert_equal(out, ref)
+
+
+@pytest.mark.parametrize("op", arr_refs)
+def test_array_operators_list(op):
+    out = op([0, 1, 5], [4, 0, 1])
+    ref = _arr_ref(op, np.array([0, 1, 5]), np.array([4, 0, 1]))
     assert out.dtype == ref.dtype
     np.testing.assert_equal(out, ref)
 

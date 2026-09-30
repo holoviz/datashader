@@ -12,6 +12,7 @@ import os
 import sys
 import warnings
 from functools import cache, partial
+from numbers import Number
 
 image_operators = ('over', 'add', 'saturate', 'source')
 array_operators = ('add_arr', 'max_arr', 'min_arr', 'source_arr')
@@ -61,6 +62,7 @@ if jit_enabled:
 
 
 # Scalar kernels. The public operators of the same name are built from them below.
+# Image kernels are inlined, as a call per pixel makes `spread` ~50% slower.
 @nb.jit(nogil=True, cache=True)
 def _source(src, dst):
     if src & 0xff000000:
@@ -69,7 +71,7 @@ def _source(src, dst):
         return dst
 
 
-@nb.jit(nogil=True, cache=True)
+@nb.jit(nogil=True, cache=True, inline='always')
 def _over(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
@@ -84,7 +86,7 @@ def _over(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-@nb.jit(nogil=True, cache=True)
+@nb.jit(nogil=True, cache=True, inline='always')
 def _add(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
@@ -98,7 +100,7 @@ def _add(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-@nb.jit(nogil=True, cache=True)
+@nb.jit(nogil=True, cache=True, inline='always')
 def _saturate(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
@@ -248,9 +250,26 @@ def _apply(loop, src, dst, dtype, out_dtype):
 _ARR_DTYPES = tuple(map(np.dtype, ("int32", "int64", "float32", "float64")))
 
 
+def _result_type(src, dst):
+    # Python scalars stay weak, so a uint32 array with `5` stays uint32.
+    return np.result_type(*(
+        x if isinstance(x, Number)
+        else x.dtype if hasattr(x, "dtype")
+        else np.asarray(x).dtype
+        for x in (src, dst)
+    ))
+
+
+def _image_dtype(src, dst):
+    dtype = _result_type(src, dst)
+    if not np.can_cast(dtype, np.uint32):
+        raise TypeError(f"Unsupported dtype for image composite operators: {dtype}")
+    return np.uint32
+
+
 def _arr_dtype(src, dst):
     # The first supported type both inputs cast to safely, as ufunc loop selection does.
-    dtype = np.result_type(*(getattr(x, "dtype", x) for x in (src, dst)))
+    dtype = _result_type(src, dst)
     for t in _ARR_DTYPES:
         if np.can_cast(dtype, t):
             return t
@@ -258,19 +277,23 @@ def _arr_dtype(src, dst):
 
 
 def _over_op(src, dst):
-    return _apply(_over_loop, src, dst, np.uint32, np.uint32)
+    dtype = _image_dtype(src, dst)
+    return _apply(_over_loop, src, dst, dtype, dtype)
 
 
 def _add_op(src, dst):
-    return _apply(_add_loop, src, dst, np.uint32, np.uint32)
+    dtype = _image_dtype(src, dst)
+    return _apply(_add_loop, src, dst, dtype, dtype)
 
 
 def _saturate_op(src, dst):
-    return _apply(_saturate_loop, src, dst, np.uint32, np.uint32)
+    dtype = _image_dtype(src, dst)
+    return _apply(_saturate_loop, src, dst, dtype, dtype)
 
 
 def _source_op(src, dst):
-    return _apply(_source_loop, src, dst, np.uint32, np.uint32)
+    dtype = _image_dtype(src, dst)
+    return _apply(_source_loop, src, dst, dtype, dtype)
 
 
 def _add_arr_op(src, dst):
