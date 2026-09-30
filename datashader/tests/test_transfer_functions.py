@@ -629,6 +629,12 @@ def test_stack():
     np.testing.assert_equal(img.data, out)
 
 
+def test_stack_misaligned_coords():
+    img = tf.Image(img2.data, coords=[np.array([0, 2]), np.array([4, 6])], dims=dims)
+    with pytest.raises(TypeError, match="Unsupported dtype for image composite operators"):
+        tf.stack(img1, img)
+
+
 def test_masks():
     # Square
     mask = tf._square_mask(2)
