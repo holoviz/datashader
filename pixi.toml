@@ -28,10 +28,6 @@ default = [
     "dev",
 ]
 
-[environments.test-310]
-features = ["required", "py310", "optional", "test-core", "test-example", "test-unit-task"]
-no-default-feature = true
-
 [environments.test-311]
 features = ["required", "py311", "optional", "test-core", "test-example", "test-unit-task"]
 no-default-feature = true
@@ -95,9 +91,6 @@ download-data = "python scripts/download_data.py"
 
 [feature.required.activation.env]
 PYTHONIOENCODING = "utf-8"
-
-[feature.py310.dependencies]
-python = "3.10.*"
 
 [feature.py311.dependencies]
 python = "3.11.*"
