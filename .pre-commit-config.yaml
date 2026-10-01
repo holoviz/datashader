@@ -13,12 +13,12 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 4924b0e01e032fea073ad04a1c5cfa7e4add0afb # frozen: v0.15.6
+    rev: 2eeb5678de71a00c0902cbda7105d328432f72cb # frozen: v0.16.8
     hooks:
       - id: ruff-check
         files: datashader/
   - repo: https://github.com/crate-ci/typos
-    rev: 631208b7aac2daa8b707f55e7331f9112b0e062d # frozen: v1.44.0
+    rev: 512fc24f32f44ab01972217aaaf3dc86ec234d53 # frozen: v1.50.2
     hooks:
       - id: typos
   - repo: https://github.com/hoxbro/clean_notebook

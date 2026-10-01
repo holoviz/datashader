@@ -1,5 +1,4 @@
 from importlib.util import find_spec
-from packaging.version import Version
 
 collect_ignore_glob = [
     "tiling.ipynb",
@@ -18,16 +17,15 @@ if find_spec("spatialpandas") is None:
         "user_guide/8_Polygons.ipynb",
     ]
 
-if find_spec("dask") is not None:
-    import dask
+if find_spec("pyarrow") is None and find_spec("fastparquet") is None:
+    collect_ignore_glob += [
+        "getting_started/1_Introduction.ipynb",
+    ]
 
-    # Spatialpandas does not support dask-expr, which is
-    # only available from this version.
-    if Version(dask.__version__).release >= (2025, 1, 0):
-        collect_ignore_glob += [
-            "user_guide/8_Polygons.ipynb",
-        ]
-
+if find_spec("pyarrow") is None or find_spec("dask") is None:
+    collect_ignore_glob += [
+        "user_guide/6_Trimesh.ipynb",
+    ]
 
 def pytest_runtest_makereport(item, call):
     """

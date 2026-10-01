@@ -30,7 +30,7 @@ try:
     from dask.context import config
     config.set(scheduler='synchronous')
 except ImportError:
-    pytestmark = pytest.importorskip("dask")
+    pytestmark = pytest.mark.skip(reason='dask not installed')
 
 
 def _dask():

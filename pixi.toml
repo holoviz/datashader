@@ -28,10 +28,6 @@ default = [
     "dev",
 ]
 
-[environments.test-310]
-features = ["required", "py310", "optional", "test-core", "test-example", "test-unit-task"]
-no-default-feature = true
-
 [environments.test-311]
 features = ["required", "py311", "optional", "test-core", "test-example", "test-unit-task"]
 no-default-feature = true
@@ -46,6 +42,10 @@ no-default-feature = true
 
 [environments.test-314]
 features = ["required", "py314", "optional", "test-core", "test-example", "test-unit-task"]
+no-default-feature = true
+
+[environments.test-315]
+features = ["required", "py315", "optional-315", "test-core", "test-example", "test-unit-task"]
 no-default-feature = true
 
 [environments.test-core]
@@ -93,9 +93,6 @@ download-data = "python scripts/download_data.py"
 [feature.required.activation.env]
 PYTHONIOENCODING = "utf-8"
 
-[feature.py310.dependencies]
-python = "3.10.*"
-
 [feature.py311.dependencies]
 python = "3.11.*"
 
@@ -116,6 +113,16 @@ python = "3.14.*"
 python-gil = "*"
 
 [feature.py314.activation.env]
+COVERAGE_CORE = "sysmon"
+
+[feature.py315]
+channels = ["conda-forge/label/python_rc"]
+
+[feature.py315.dependencies]
+python = "3.15.*"
+_python_rc = "*"
+
+[feature.py315.activation.env]
 COVERAGE_CORE = "sysmon"
 
 [feature.optional.dependencies]
@@ -145,6 +152,33 @@ rioxarray = "*"
 scikit-image = "*"
 shapely = ">=2.0.0"
 spatialpandas = "*"
+
+[feature.optional-315.dependencies]
+bokeh = ">3.1"
+bokeh_sampledata = "*"
+dask-core = "*"
+dask-geopandas = "*"
+# fastparquet = "*"
+# fiona = "*"
+geodatasets = "*"
+geopandas-base = "*"
+graphviz = "*"
+holoviews = "*"
+hvsampledata = ">=0.1.5a3"
+matplotlib-base = ">=3.3"
+netcdf4 = "*"
+networkx = "*"
+panel = ">1.1"
+pillow = "*"
+# pyarrow = "*"
+pyproj = "*"
+python-graphviz = "*"
+# python-snappy = "*"
+# rasterio = "*"
+# rioxarray = "*"
+# scikit-image = "*"
+shapely = ">=2.0.0"
+# spatialpandas = "*"
 
 [feature.dev.dependencies]
 jupyterlab = "*"
@@ -215,7 +249,7 @@ _docs-generate = 'nbsite build --what=html --output=builtdocs --org holoviz --pr
 depends-on = ['_docs-generate-rst', '_docs-generate']
 
 [feature.doc.tasks.docs-build-full]
-depends-on = ['download-data','_docs-generate-rst', '_docs-generate']
+depends-on = ['download-data', '_docs-generate-rst', '_docs-generate']
 
 [feature.doc.activation.env]
 HV_DOCS_BUILD = "1"
