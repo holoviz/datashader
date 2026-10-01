@@ -1288,10 +1288,10 @@ def test_points_on_edge():
     sol = np.array([[2, 2, 2],
                     [0, 0, 0],
                     [1, 0, 1]], dtype='int32')
-    out = xr.DataArray(sol,
-                       coords=[('x', [0.5, 1.5, 2.5]),
-                               ('y', [0.5, 1.5, 2.5])],
-                       dims=['y', 'x'])
+    out = xr.DataArray(
+        sol,
+        coords=[('y', [0.5, 1.5, 2.5]), ('x', [0.5, 1.5, 2.5])],
+    )
 
     assert_eq_xr(agg, out)
 
@@ -1308,10 +1308,10 @@ def test_lines_on_edge():
     sol = np.array([[1, 1, 1],
                     [0, 0, 1],
                     [1, 1, 1]], dtype='int32')
-    out = xr.DataArray(sol,
-                       coords=[('x', [0.5, 1.5, 2.5]),
-                               ('y', [0.5, 1.5, 2.5])],
-                       dims=['y', 'x'])
+    out = xr.DataArray(
+        sol,
+        coords=[('y', [0.5, 1.5, 2.5]), ('x', [0.5, 1.5, 2.5])]
+    )
 
     assert_eq_xr(agg, out)
 
