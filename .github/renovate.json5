@@ -3,7 +3,7 @@
   extends: ["config:recommended", ":enablePreCommit"],
   enabledManagers: ["github-actions", "pre-commit", "pixi"],
   lockFileMaintenance: { enabled: true },
-  schedule: ["before 5am on the 1st day of the month"],
+  schedule: ["* * 1 * *"],
 
   automerge: true,
   commitMessagePrefix: "chore(bot):",
