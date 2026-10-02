@@ -1,4 +1,4 @@
-from . import pandas, xarray  # noqa (API import)
+from . import pandas, xarray, narwhals  # noqa (API import)
 
 try:
     import dask as _dask  # noqa (Test dask installed)

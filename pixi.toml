@@ -85,6 +85,7 @@ scipy = "*"
 setuptools = "*" # distutils for pyct
 toolz = "*"
 xarray = "*"
+narwhals = ">2"
 
 [feature.required.tasks]
 download-data = "python scripts/download_data.py"
@@ -141,6 +142,7 @@ netcdf4 = "*"
 networkx = "*"
 panel = ">1.1"
 pillow = "*"
+polars = "*"
 pyarrow = "*"
 pyproj = "*"
 python-graphviz = "*"
