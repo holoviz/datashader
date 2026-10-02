@@ -2,6 +2,19 @@
 name = "datashader"
 channels = ["pyviz/label/dev", "conda-forge"]
 platforms = ["linux-64", "osx-arm64", "win-64"]
+preview = ["pixi-build"]
+requires-pixi = ">=0.68.1"
+
+[package]
+name = "datashader"
+version = "9999.0.0" # dynamic versioning: https://github.com/prefix-dev/pixi/issues/5360
+
+[package.build]
+backend = { name = "pixi-build-python", version = ">=0.4.4" }
+
+[package.host-dependencies]
+hatchling = "*"
+hatch-vcs = "*"
 
 [environments]
 default = [
@@ -14,10 +27,6 @@ default = [
     "lint",
     "dev",
 ]
-
-[environments.test-310]
-features = ["required", "py310", "optional", "test-core", "test-example", "test-unit-task"]
-no-default-feature = true
 
 [environments.test-311]
 features = ["required", "py311", "optional", "test-core", "test-example", "test-unit-task"]
@@ -33,6 +42,10 @@ no-default-feature = true
 
 [environments.test-314]
 features = ["required", "py314", "optional", "test-core", "test-example", "test-unit-task"]
+no-default-feature = true
+
+[environments.test-315]
+features = ["required", "py315", "optional-315", "test-core", "test-example", "test-unit-task"]
 no-default-feature = true
 
 [environments.test-core]
@@ -57,7 +70,7 @@ no-default-feature = true
 
 [feature.required.dependencies]
 nomkl = "*"
-pip = "*"
+datashader = { path = "." }
 # Required
 numba = "*"
 llvmlite = "*"
@@ -75,13 +88,9 @@ xarray = "*"
 
 [feature.required.tasks]
 download-data = "python scripts/download_data.py"
-install = "python -m pip install --no-deps --disable-pip-version-check -e ."
 
 [feature.required.activation.env]
 PYTHONIOENCODING = "utf-8"
-
-[feature.py310.dependencies]
-python = "3.10.*"
 
 [feature.py311.dependencies]
 python = "3.11.*"
@@ -103,6 +112,16 @@ python = "3.14.*"
 python-gil = "*"
 
 [feature.py314.activation.env]
+COVERAGE_CORE = "sysmon"
+
+[feature.py315]
+channels = ["conda-forge/label/python_rc"]
+
+[feature.py315.dependencies]
+python = "3.15.*"
+_python_rc = "*"
+
+[feature.py315.activation.env]
 COVERAGE_CORE = "sysmon"
 
 [feature.optional.dependencies]
@@ -132,14 +151,42 @@ scikit-image = "*"
 shapely = ">=2.0.0"
 spatialpandas = "*"
 
+[feature.optional-315.dependencies]
+bokeh = ">3.1"
+bokeh_sampledata = "*"
+dask-core = "*"
+dask-geopandas = "*"
+# fastparquet = "*"
+# fiona = "*"
+geodatasets = "*"
+geopandas-base = "*"
+graphviz = "*"
+holoviews = "*"
+hvsampledata = ">=0.1.5a3"
+matplotlib-base = ">=3.3"
+netcdf4 = "*"
+networkx = "*"
+panel = ">1.1"
+pillow = "*"
+# pyarrow = "*"
+pyproj = "*"
+python-graphviz = "*"
+# python-snappy = "*"
+# rasterio = "*"
+# rioxarray = "*"
+# scikit-image = "*"
+shapely = ">=2.0.0"
+# spatialpandas = "*"
+
 [feature.dev.dependencies]
 jupyterlab = "*"
 jupyterlab-myst = "*"
+pip = "*"
 setuptools_scm = "*"
 
 [feature.dev.tasks]
 lab = 'jupyter lab'
-setup-dev = { depends-on = ["install", "download-data", "lint-install"] }
+setup-dev = { depends-on = ["download-data", "lint-install"] }
 
 # =============================================
 # =================== TESTS ===================
@@ -156,7 +203,7 @@ pytest-xdist = "*"
 [feature.test-unit-task.tasks] # So it is not showing up in the test-gpu environment
 test-unit = 'pytest datashader -n logical --dist loadgroup'
 test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --dist loadgroup', env = { NUMBA_DISABLE_JIT = '1' } }
-test-benchmark = { cmd = 'pytest datashader/tests --benchmark --codspeed', env = { DASK_SCHEDULER = "single-threaded" } }
+test-benchmark = { cmd = 'pytest datashader/tests --benchmark --codspeed', env = { DASK_SCHEDULER = "single-threaded", NUMBA_NUM_THREADS = "1", PYTHONHASHSEED = "0" } }
 
 [feature.test-example.dependencies]
 nbval = "*"
@@ -181,7 +228,7 @@ rmm = { version = "*", channel = "rapidsai" }
 
 [feature.test-gpu.tasks]
 test-gpu = "python -m pytest datashader/tests -n logical --dist loadgroup --gpu"
-test-benchmark = { cmd = 'pytest datashader/tests --gpu --benchmark --codspeed', env = { DASK_SCHEDULER = "single-threaded" } }
+test-benchmark = { cmd = 'pytest datashader/tests --gpu --benchmark --codspeed', env = { DASK_SCHEDULER = "single-threaded", NUMBA_NUM_THREADS = "1", PYTHONHASHSEED = "0" } }
 
 # =============================================
 # =================== DOCS ====================
@@ -195,13 +242,12 @@ sphinx-reredirects = "*"
 [feature.doc.tasks]
 _docs-generate-rst = 'nbsite generate-rst --org holoviz --project-name datashader'
 _docs-generate = 'nbsite build --what=html --output=builtdocs --org holoviz --project-name datashader'
-_docs-install = 'python -m pip install --no-deps --disable-pip-version-check -e .'
 
 [feature.doc.tasks.docs-build]
 depends-on = ['_docs-generate-rst', '_docs-generate']
 
 [feature.doc.tasks.docs-build-full]
-depends-on = ['_docs-install', 'download-data', '_docs-generate-rst', '_docs-generate']
+depends-on = ['download-data', '_docs-generate-rst', '_docs-generate']
 
 [feature.doc.activation.env]
 HV_DOCS_BUILD = "1"
