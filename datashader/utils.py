@@ -595,7 +595,7 @@ def apply(func, args, kwargs=None):
         return func(*args)
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def isnull(val):
     """
     Equivalent to isnan for floats, but also numba compatible with integers
@@ -603,7 +603,7 @@ def isnull(val):
     return not (val <= 0 or val > 0)
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def isminus1(val):
     """
     Check for -1 which is equivalent to NaN for some integer aggregations
@@ -611,7 +611,7 @@ def isminus1(val):
     return val == -1
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanfirst_in_place(ret, other):
     """First of 2 arrays but taking nans into account.
     Return the first array.
@@ -623,7 +623,7 @@ def nanfirst_in_place(ret, other):
             ret[i] = other[i]
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanlast_in_place(ret, other):
     """Last of 2 arrays but taking nans into account.
     Return the first array.
@@ -635,7 +635,7 @@ def nanlast_in_place(ret, other):
             ret[i] = other[i]
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanmax_in_place(ret, other):
     """Max of 2 arrays but taking nans into account.  Could use np.nanmax but
     would need to replace zeros with nans where both arrays are nans.
@@ -651,7 +651,7 @@ def nanmax_in_place(ret, other):
             ret[i] = other[i]
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanmin_in_place(ret, other):
     """Min of 2 arrays but taking nans into account.  Could use np.nanmin but
     would need to replace zeros with nans where both arrays are nans.
@@ -668,7 +668,7 @@ def nanmin_in_place(ret, other):
             ret[i] = other[i]
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def shift_and_insert(target, value, index):
     """Insert a value into a 1D array at a particular index, but before doing
     that shift the previous values along one to make room. For use in
@@ -697,7 +697,7 @@ def shift_and_insert(target, value, index):
     return index + 1
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _nanfirst_n_impl(ret_pixel, other_pixel):
     """Single pixel implementation of nanfirst_n_in_place.
     ret_pixel and other_pixel are both 1D arrays of the same length.
@@ -721,7 +721,7 @@ def _nanfirst_n_impl(ret_pixel, other_pixel):
                     break
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanfirst_n_in_place_4d(ret, other):
     """3d version of nanfirst_n_in_place_4d, taking arrays of shape (ny, nx, n).
     """
@@ -732,7 +732,7 @@ def nanfirst_n_in_place_4d(ret, other):
                 _nanfirst_n_impl(ret[y, x, cat], other[y, x, cat])
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanfirst_n_in_place_3d(ret, other):
     """3d version of nanfirst_n_in_place_4d, taking arrays of shape (ny, nx, n).
     """
@@ -742,7 +742,7 @@ def nanfirst_n_in_place_3d(ret, other):
             _nanfirst_n_impl(ret[y, x], other[y, x])
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _nanlast_n_impl(ret_pixel, other_pixel):
     """Single pixel implementation of nanlast_n_in_place.
     ret_pixel and other_pixel are both 1D arrays of the same length.
@@ -764,7 +764,7 @@ def _nanlast_n_impl(ret_pixel, other_pixel):
                 break
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanlast_n_in_place_4d(ret, other):
     """3d version of nanfirst_n_in_place_4d, taking arrays of shape (ny, nx, n).
     """
@@ -775,7 +775,7 @@ def nanlast_n_in_place_4d(ret, other):
                 _nanlast_n_impl(ret[y, x, cat], other[y, x, cat])
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanlast_n_in_place_3d(ret, other):
     """3d version of nanlast_n_in_place_4d, taking arrays of shape (ny, nx, n).
     """
@@ -785,7 +785,7 @@ def nanlast_n_in_place_3d(ret, other):
             _nanlast_n_impl(ret[y, x], other[y, x])
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _nanmax_n_impl(ret_pixel, other_pixel):
     """Single pixel implementation of nanmax_n_in_place.
     ret_pixel and other_pixel are both 1D arrays of the same length.
@@ -807,7 +807,7 @@ def _nanmax_n_impl(ret_pixel, other_pixel):
                     break
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanmax_n_in_place_4d(ret, other):
     """Combine two max-n arrays, taking nans into account. Max-n arrays are 4D
     with shape (ny, nx, ncat, n) where ny and nx are the number of pixels,
@@ -823,7 +823,7 @@ def nanmax_n_in_place_4d(ret, other):
                 _nanmax_n_impl(ret[y, x, cat], other[y, x, cat])
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanmax_n_in_place_3d(ret, other):
     """3d version of nanmax_n_in_place_4d, taking arrays of shape (ny, nx, n).
     """
@@ -833,7 +833,7 @@ def nanmax_n_in_place_3d(ret, other):
             _nanmax_n_impl(ret[y, x], other[y, x])
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _nanmin_n_impl(ret_pixel, other_pixel):
     """Single pixel implementation of nanmin_n_in_place.
     ret_pixel and other_pixel are both 1D arrays of the same length.
@@ -855,7 +855,7 @@ def _nanmin_n_impl(ret_pixel, other_pixel):
                     break
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanmin_n_in_place_4d(ret, other):
     """Combine two min-n arrays, taking nans into account. Min-n arrays are 4D
     with shape (ny, nx, ncat, n) where ny and nx are the number of pixels,
@@ -871,7 +871,7 @@ def nanmin_n_in_place_4d(ret, other):
                 _nanmin_n_impl(ret[y, x, cat], other[y, x, cat])
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nanmin_n_in_place_3d(ret, other):
     """3d version of nanmin_n_in_place_4d, taking arrays of shape (ny, nx, n).
     """
@@ -881,7 +881,7 @@ def nanmin_n_in_place_3d(ret, other):
             _nanmin_n_impl(ret[y, x], other[y, x])
 
 
-@ngjit_parallel
+@nb.jit(nogil=True, parallel=True, cache=True)
 def nansum_in_place(ret, other):
     """Sum of 2 arrays but taking nans into account.  Could use np.nansum but
     would need to replace zeros with nans where both arrays are nans.
@@ -897,7 +897,7 @@ def nansum_in_place(ret, other):
             ret[i] += other[i]
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def row_max_in_place(ret, other):
     """Maximum of 2 arrays of row indexes.
     Row indexes are integers from 0 upwards, missing data is -1.
@@ -910,7 +910,7 @@ def row_max_in_place(ret, other):
             ret[i] = other[i]
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def row_min_in_place(ret, other):
     """Minimum of 2 arrays of row indexes.
     Row indexes are integers from 0 upwards, missing data is -1.
@@ -923,7 +923,7 @@ def row_min_in_place(ret, other):
             ret[i] = other[i]
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _row_max_n_impl(ret_pixel, other_pixel):
     """Single pixel implementation of row_max_n_in_place.
     ret_pixel and other_pixel are both 1D arrays of the same length.
@@ -945,7 +945,7 @@ def _row_max_n_impl(ret_pixel, other_pixel):
                     break
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def row_max_n_in_place_4d(ret, other):
     """Combine two row_max_n signed integer arrays.
     Equivalent to nanmax_n_in_place with -1 replacing NaN for missing data.
@@ -958,7 +958,7 @@ def row_max_n_in_place_4d(ret, other):
                 _row_max_n_impl(ret[y, x, cat], other[y, x, cat])
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def row_max_n_in_place_3d(ret, other):
     ny, nx, _n = ret.shape
     for y in range(ny):
@@ -966,7 +966,7 @@ def row_max_n_in_place_3d(ret, other):
             _row_max_n_impl(ret[y, x], other[y, x])
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _row_min_n_impl(ret_pixel, other_pixel):
     """Single pixel implementation of row_min_n_in_place.
     ret_pixel and other_pixel are both 1D arrays of the same length.
@@ -988,7 +988,7 @@ def _row_min_n_impl(ret_pixel, other_pixel):
                     break
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def row_min_n_in_place_4d(ret, other):
     """Combine two row_min_n signed integer arrays.
     Equivalent to nanmin_n_in_place with -1 replacing NaN for missing data.
@@ -1001,7 +1001,7 @@ def row_min_n_in_place_4d(ret, other):
                 _row_min_n_impl(ret[y, x, cat], other[y, x, cat])
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def row_min_n_in_place_3d(ret, other):
     ny, nx, _n = ret.shape
     for y in range(ny):

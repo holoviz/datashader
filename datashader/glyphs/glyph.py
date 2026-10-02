@@ -5,11 +5,12 @@ import warnings
 import os
 from math import isnan
 
+import numba as nb
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-from datashader.utils import Expr, ngjit
+from datashader.utils import Expr
 from datashader.macros import expand_varargs
 
 try:
@@ -64,7 +65,7 @@ class Glyph(Expr):
             return Glyph._compute_bounds_numba(s)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _compute_bounds_numba(arr):
         minval = np.inf
         maxval = -np.inf
@@ -78,7 +79,7 @@ class Glyph(Expr):
         return minval, maxval
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _compute_bounds_2d(vals):
         minval = np.inf
         maxval = -np.inf

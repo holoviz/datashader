@@ -186,7 +186,7 @@ def cooling(matrix, points, temperature, params):
     _cooling(matrix, points, temperature, **c_params)
 
 
-@nb.jit(nopython=True, nogil=True, parallel=True)
+@nb.jit(nogil=True, parallel=True, cache=True)
 def _cooling(matrix, points, temperature, iterations, dim, k, nohubs, linlog):
     dt = temperature / float(iterations + 1)
     displacement = np.zeros((dim, len(points)))
