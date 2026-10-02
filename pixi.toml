@@ -203,7 +203,7 @@ pytest-xdist = "*"
 [feature.test-unit-task.tasks] # So it is not showing up in the test-gpu environment
 test-unit = 'pytest datashader -n logical --dist loadgroup'
 test-unit-nojit = { cmd = 'pytest datashader -k "not test_tiles" -n logical --dist loadgroup', env = { NUMBA_DISABLE_JIT = '1' } }
-test-benchmark = { cmd = 'pytest datashader/tests --benchmark --codspeed', env = { DASK_SCHEDULER = "single-threaded" } }
+test-benchmark = { cmd = 'pytest datashader/tests --benchmark --codspeed', env = { DASK_SCHEDULER = "single-threaded", NUMBA_NUM_THREADS = "1", PYTHONHASHSEED = "0" } }
 
 [feature.test-example.dependencies]
 nbval = "*"
@@ -228,7 +228,7 @@ rmm = { version = "*", channel = "rapidsai" }
 
 [feature.test-gpu.tasks]
 test-gpu = "python -m pytest datashader/tests -n logical --dist loadgroup --gpu"
-test-benchmark = { cmd = 'pytest datashader/tests --gpu --benchmark --codspeed', env = { DASK_SCHEDULER = "single-threaded" } }
+test-benchmark = { cmd = 'pytest datashader/tests --gpu --benchmark --codspeed', env = { DASK_SCHEDULER = "single-threaded", NUMBA_NUM_THREADS = "1", PYTHONHASHSEED = "0" } }
 
 # =============================================
 # =================== DOCS ====================

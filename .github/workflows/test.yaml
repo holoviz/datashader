@@ -208,6 +208,7 @@ jobs:
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
           mode: simulation
+          exclude-allocations: true
           run: pixi run -e "${ENV}" test-benchmark
 
   result_test_suite:
