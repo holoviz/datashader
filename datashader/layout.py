@@ -192,12 +192,20 @@ def _cooling(matrix, points, temperature, iterations, dim, k, nohubs, linlog):
     displacement = np.zeros((dim, len(points)))
     for iteration in range(iterations):
         displacement *= 0
+        # Keep each coordinate contiguous for the pairwise force calculation.
+        coordinate_rows = points.T.copy()
         for i in nb.prange(matrix.shape[0]):
-            # difference between this row's node position and all others
-            delta = (points[i] - points).T
+            # Build contiguous coordinate differences without singleton broadcasting.
+            delta = np.empty((dim, len(points)), dtype=points.dtype)
+            distance_squared = np.zeros(len(points), dtype=points.dtype)
+            for axis in range(dim):
+                for other in range(len(points)):
+                    difference = coordinate_rows[axis, i] - coordinate_rows[axis, other]
+                    delta[axis, other] = difference
+                    distance_squared[other] += difference ** 2
 
             # distance between points
-            distance = np.sqrt((delta ** 2).sum(axis=0))
+            distance = np.sqrt(distance_squared)
 
             # enforce minimum distance of 0.01
             distance = np.where(distance < 0.01, 0.01, distance)
@@ -212,7 +220,9 @@ def _cooling(matrix, points, temperature, iterations, dim, k, nohubs, linlog):
                 dist = dist / float(ai.sum(axis=1) + 1)
             if linlog:
                 dist = np.log(dist + 1)
-            displacement[:, i] += (delta * (dist - ai * distance / k)).sum(axis=1)
+            weights = dist - ai * distance / k
+            for axis in range(dim):
+                displacement[axis, i] += (delta[axis] * weights).sum()
 
         # update points
         length = np.sqrt((displacement ** 2).sum(axis=0))
