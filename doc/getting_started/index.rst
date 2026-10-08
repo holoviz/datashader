@@ -68,7 +68,7 @@ Developer Instructions
 
 2. Clone the datashader git repository if you do not already have it::
 
-    git clone git://github.com/holoviz/datashader.git
+    git clone https://github.com/holoviz/datashader.git
 
 3. Set up a new conda environment with all of the dependencies needed to run the examples::
 
