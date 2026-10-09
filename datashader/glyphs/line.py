@@ -698,6 +698,7 @@ class LinesXarrayCommonX(LinesAxis1):
         return extend
 
 
+@memoize
 def _build_map_onto_pixel_for_line(x_mapper, y_mapper, want_antialias=False):
     @ngjit
     def map_onto_pixel_snap(sx, tx, sy, ty, xmin, xmax, ymin, ymax, x, y):
@@ -836,6 +837,7 @@ def _x_intercept(y, cx0, cy0, cx1, cy1):
     return cx0 + frac*(cx1 - cx0)
 
 
+@memoize
 def _build_full_antialias(expand_aggs_and_cols):
     """Specialize antialiased line drawing algorithm for a given append/axis combination"""
     @ngjit
@@ -996,6 +998,7 @@ def _build_full_antialias(expand_aggs_and_cols):
     return _full_antialias
 
 
+@memoize
 def _build_bresenham(expand_aggs_and_cols):
     """Specialize a bresenham kernel for a given append/axis combination"""
     @nb.jit(nogil=True, inline="always")
