@@ -457,21 +457,34 @@ def dshape_from_pandas(df):
     return len(df) * datashape.Record([(k, dshape_from_pandas_helper(df[k]))
                                        for k in df.columns])
 
+@memoize(key=lambda args, kwargs: tuple(args[0].__dask_keys__()))
+def _categorize_dask_columns(df):
+    """Categorize unknown categorical columns in a dask DataFrame.
+
+    Returns the categorized DataFrame. Memoized to avoid redundant computation.
+    """
+    cat_columns = [
+        col for col in df.columns
+        if (
+            isinstance(df[col].dtype, (
+                type(pd.Categorical.dtype),
+                pd.api.types.CategoricalDtype,
+            )) and not getattr(df[col].cat, 'known', True)
+       )
+    ]
+    if cat_columns:
+        return df.categorize(cat_columns, index=False)
+    return df
+
 
 @memoize(key=lambda args, kwargs: tuple(args[0].__dask_keys__()))
 def dshape_from_dask(df):
     """Return a datashape.DataShape object given a dask dataframe."""
-    cat_columns = [
-        col for col in df.columns
-        if (isinstance(df[col].dtype, type(pd.Categorical.dtype)) or
-            isinstance(df[col].dtype, pd.api.types.CategoricalDtype))
-           and not getattr(df[col].cat, 'known', True)]
-    df = df.categorize(cat_columns, index=False)
     # get_partition(0) used below because categories are sometimes repeated
     # for dask-cudf DataFrames with multiple partitions
     return datashape.var * datashape.Record([
         (k, dshape_from_pandas_helper(df[k].get_partition(0))) for k in df.columns
-    ]), df
+    ])
 
 
 def dshape_from_xarray_dataset(xr_ds):
