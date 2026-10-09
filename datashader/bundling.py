@@ -39,16 +39,14 @@ import param
 import numba as nb
 import itertools
 
-from .utils import ngjit
-
 SegmentLength  = namedtuple('SegmentLength', ['min', 'max', 'mean'])
 segment_length_type = nb.types.NamedUniTuple(nb.float64, 3, SegmentLength)
 
 
 @nb.jit(
     nb.float32(nb.float32[::1], nb.float32[::1]),
-    nopython=True,
     nogil=True,
+    cache=True,
     fastmath=True,
     locals={"result": nb.float32, "diff": nb.float32},
 )
@@ -62,8 +60,8 @@ def distance_between(a, b):
 
 @nb.jit(
     nb.float32[:,::1](nb.float32[:,::1], nb.float32[:,::1], nb.uint16[::1], nb.int64),
-    nopython=True,
     nogil=True,
+    cache=True,
     fastmath=True,
     locals={
         'next_point': nb.float32[::1],
@@ -108,8 +106,8 @@ def resample_segment(segments, new_segments, n_points_to_add, ndims):
 
 @nb.jit(
     nb.types.Tuple((nb.boolean, nb.uint64, nb.uint16[::1]))(nb.float32[:,::1], segment_length_type),
-    nopython=True,
     nogil=True,
+    cache=True,
     fastmath=True,
     locals={
         'next_point': nb.float32[::1],
@@ -154,8 +152,8 @@ def calculate_resampling(segments, squared_segment_length):
 
 @nb.jit(
     nb.float32[:, ::1](nb.float32[:, ::1], segment_length_type, nb.int64),
-    nopython=True,
     nogil=True,
+    cache=True,
 )
 def resample_edge(segments, squared_segment_length, ndims):
     change, total_resamples, n_points_to_add = calculate_resampling(segments,
@@ -174,8 +172,8 @@ def resample_edges(edge_segments, squared_segment_length, ndims):
 
 @nb.jit(
     nb.void(nb.float32[:,::1], nb.float32, nb.int64, nb.int64),
-    nopython=True,
     nogil=True,
+    cache=True,
     fastmath=True,
     locals={
         "i": nb.uint16,
@@ -202,8 +200,8 @@ def smooth(edge_segments, tension, idx, idy):
 @nb.jit(
     nb.float32[:,::1](nb.float32[:,::1], nb.float32[:,::1], nb.float32[:,::1], nb.int64, nb.float64,
                       segment_length_type, nb.uint64, nb.uint64, nb.int64),
-    nopython=True,
     nogil=True,
+    cache=True,
     fastmath=True,
     locals={'it': nb.uint8, "i": nb.uint16, "x": nb.uint16, "y": nb.uint16}
 )
@@ -243,8 +241,8 @@ def draw_to_surface(edge_segments, bandwidth, accuracy, accumulator):
 
 @nb.jit(
     nb.void(nb.float32[:,::1], nb.float32[:,::1]),
-    nopython=True,
     nogil=True,
+    cache=True,
     fastmath=True,
 )
 def normalize_gradients(vert, horiz):
@@ -283,13 +281,13 @@ class UnweightedSegment(BaseSegment):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def create_segment(edge):
         return np.array([[edge[0], edge[1], edge[2]], [edge[0], edge[3], edge[4]]],
                         dtype=np.float32)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def accumulate(img, points, accuracy):
         for point in points:
             img[int(point[1] * accuracy), int(point[2] * accuracy)] += 1
@@ -308,12 +306,12 @@ class EdgelessUnweightedSegment(BaseSegment):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y']
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def create_segment(edge):
         return np.array([[edge[0], edge[1]], [edge[2], edge[3]]], dtype=np.float32)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def accumulate(img, points, accuracy):
         for point in points:
             img[int(point[0] * accuracy), int(point[1] * accuracy)] += 1
@@ -332,13 +330,13 @@ class WeightedSegment(BaseSegment):
         return ['edge_id', 'src_x', 'src_y', 'dst_x', 'dst_y', params.weight]
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def create_segment(edge):
         return np.array([[edge[0], edge[1], edge[2], edge[5]],
                          [edge[0], edge[3], edge[4], edge[5]]], dtype=np.float32)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def accumulate(img, points, accuracy):
         for point in points:
             img[int(point[1] * accuracy), int(point[2] * accuracy)] += point[3]
@@ -357,13 +355,13 @@ class EdgelessWeightedSegment(BaseSegment):
         return ['src_x', 'src_y', 'dst_x', 'dst_y', params.weight]
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def create_segment(edge):
         return np.array([[edge[0], edge[1], edge[4]], [edge[2], edge[3], edge[4]]],
                         dtype=np.float32)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def accumulate(img, points, accuracy):
         for point in points:
             img[int(point[0] * accuracy), int(point[1] * accuracy)] += point[2]

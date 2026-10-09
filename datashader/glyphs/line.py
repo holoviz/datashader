@@ -744,7 +744,7 @@ def _build_map_onto_pixel_for_line(x_mapper, y_mapper, want_antialias=False):
         return map_onto_pixel_snap
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _liang_barsky(xmin, xmax, ymin, ymax, x0, x1, y0, y1, skip):
     """ An implementation of the Liang-Barsky line clipping algorithm.
 
@@ -793,7 +793,7 @@ def _liang_barsky(xmin, xmax, ymin, ymax, x0, x1, y0, y1, skip):
     return x0, x1, y0, y1, skip, clipped_start, clipped_end
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _clipt(p, q, t0, t1):
     accept = True
     if p < 0 and q < 0:
@@ -813,19 +813,19 @@ def _clipt(p, q, t0, t1):
     return t0, t1, accept
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _clamp(x, low, high):
     # Clamp ``x`` in the range ``low`` to ``high``.
     return max(low, min(x, high))
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _linearstep(edge0, edge1, x):
     t = _clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0)
     return t
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _x_intercept(y, cx0, cy0, cx1, cy1):
     # Return x value of intercept between line at constant y and line
     # between corner points.
