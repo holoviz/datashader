@@ -6,6 +6,7 @@ from toolz import memoize
 from datashader.antialias import two_stage_agg
 from datashader.glyphs.points import _PointLike, _GeometryLike
 from datashader.utils import isnull, isreal, ngjit
+import numba as nb
 from numba import cuda
 import numba.types as nb_types
 
@@ -632,7 +633,19 @@ class LinesXarrayCommonX(LinesAxis1):
         return self.maybe_expand_bounds(bounds)
 
     def compute_bounds_dask(self, xr_ds):
-        return self.compute_x_bounds(xr_ds), self.compute_y_bounds(xr_ds)
+        import warnings
+
+        import dask
+        import dask.array as da
+
+        # Reduce chunk-wise in one pass, instead of loading the arrays with `.values`.
+        x, y = xr_ds[self.x].data, xr_ds[self.y].data
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
+            xmin, xmax, ymin, ymax = dask.compute(
+                da.nanmin(x), da.nanmax(x), da.nanmin(y), da.nanmax(y))
+        return (self.maybe_expand_bounds((float(xmin), float(xmax))),
+                self.maybe_expand_bounds((float(ymin), float(ymax))))
 
     def validate(self, in_dshape):
         if not isreal(in_dshape.measure[str(self.x)]):
@@ -985,7 +998,7 @@ def _build_full_antialias(expand_aggs_and_cols):
 
 def _build_bresenham(expand_aggs_and_cols):
     """Specialize a bresenham kernel for a given append/axis combination"""
-    @ngjit
+    @nb.jit(nogil=True, inline="always")
     @expand_aggs_and_cols
     def _bresenham(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start,
                    x0, x1, y0, y1, clipped, append, *aggs_and_cols):
@@ -1040,7 +1053,7 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, line_width
         _bresenham = _build_bresenham(expand_aggs_and_cols)
         _full_antialias = None
 
-    @ngjit
+    @nb.jit(nogil=True, inline="always")
     @expand_aggs_and_cols
     def draw_segment(
             i, sx, tx, sy, ty, xmin, xmax, ymin, ymax, segment_start, segment_end,
@@ -1099,7 +1112,7 @@ def _build_draw_segment(append, map_onto_pixel, expand_aggs_and_cols, line_width
 def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, antialias_stage_2_funcs):
     use_2_stage_agg = antialias_stage_2_funcs is not None
 
-    @ngjit
+    @nb.jit(nogil=True, inline="always")
     @expand_aggs_and_cols
     def perform_extend_line(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                             plot_start, xs, ys, buffer, *aggs_and_cols):
@@ -1154,7 +1167,7 @@ def _build_extend_line_axis0_multi(draw_segment, expand_aggs_and_cols, antialias
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = antialias_stage_2_funcs
     use_2_stage_agg = antialias_stage_2_funcs is not None
 
-    @ngjit
+    @nb.jit(nogil=True, inline="always")
     @expand_aggs_and_cols
     def perform_extend_line(i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                             plot_start, xs, ys, buffer, *aggs_and_cols):
@@ -1247,7 +1260,7 @@ def _build_extend_line_axis1_none_constant(draw_segment, expand_aggs_and_cols,
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = antialias_stage_2_funcs
     use_2_stage_agg = antialias_stage_2_funcs is not None
 
-    @ngjit
+    @nb.jit(nogil=True, inline="always")
     @expand_aggs_and_cols
     def perform_extend_line(
             i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
@@ -1343,7 +1356,7 @@ def _build_extend_line_axis1_x_constant(draw_segment, expand_aggs_and_cols,
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = antialias_stage_2_funcs
     use_2_stage_agg = antialias_stage_2_funcs is not None
 
-    @ngjit
+    @nb.jit(nogil=True, inline="always")
     @expand_aggs_and_cols
     def perform_extend_line(
             i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, buffer, *aggs_and_cols
@@ -1442,7 +1455,7 @@ def _build_extend_line_axis1_y_constant(draw_segment, expand_aggs_and_cols,
         aa_stage_2_accumulate, aa_stage_2_clear, aa_stage_2_copy_back = antialias_stage_2_funcs
     use_2_stage_agg = antialias_stage_2_funcs is not None
 
-    @ngjit
+    @nb.jit(nogil=True, inline="always")
     @expand_aggs_and_cols
     def perform_extend_line(
             i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, buffer, *aggs_and_cols

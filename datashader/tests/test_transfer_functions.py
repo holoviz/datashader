@@ -1153,6 +1153,37 @@ def test_eq_hist(rng):
     check_eq_hist_cdf_slope(eq)
 
 
+@pytest.mark.parametrize('dtype', ['f4', 'f8'])
+def test_eq_hist_float_matches_interp(rng, dtype):
+    nbins = 256 * 256
+    data = rng.lognormal(sigma=3, size=(60, 70)).astype(dtype)
+    hist, bin_edges = np.histogram(data, bins=nbins)
+    bin_centers = ((bin_edges[:-1] + bin_edges[1:]) / 2)[hist > 0]
+    cdf = hist[hist > 0].cumsum()
+    expected = np.interp(data, bin_centers, cdf / float(cdf[-1]))
+    eq, discrete_levels = tf.eq_hist(data, nbins=nbins)
+    np.testing.assert_array_max_ulp(eq, expected, maxulp=1)
+    assert discrete_levels == bin_centers.size
+
+
+def test_eq_hist_uint64_above_int64_max():
+    data = np.array([[2**63, 2**63 + 1], [2**63 + 5, 2**63]], dtype='u8')
+    eq, discrete_levels = tf.eq_hist(data)
+    np.testing.assert_array_equal(eq, [[0.5, 0.75], [1.0, 0.5]])
+    assert discrete_levels == 3
+
+
+@pytest.mark.parametrize('dtype', ['f2', 'f4', 'f8', 'i4', 'u1'])
+@pytest.mark.parametrize('n', [1, 2, 5, 7, 8, 9])
+def test_sum_last_axis_matches_numpy(rng, dtype, n):
+    from datashader.transfer_functions import _sum_last_axis
+    data = (rng.lognormal(sigma=3, size=(100, 100, n)) % 200).astype(dtype)
+    expected = data.sum(axis=-1)
+    result = _sum_last_axis(data)
+    assert result.dtype == expected.dtype
+    np.testing.assert_array_equal(result, expected)
+
+
 def test_Image_to_pil():
     PIL = pytest.importorskip('PIL')
     img = img1.to_pil()
