@@ -517,10 +517,7 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     elif data.dtype.kind == 'f':
         # Same as nansum_missing, reusing nan_mask
         total = _sum_last_axis(np.where(nan_mask, 0, data))
-        all_empty = nan_mask[..., 0].copy()
-        for k in range(1, nan_mask.shape[-1]):
-            all_empty &= nan_mask[..., k]
-        total[all_empty] = np.nan
+        total[cmask_sum == 0] = np.nan
     else:
         total = _sum_last_axis(data)
     mask = np.isnan(total)
