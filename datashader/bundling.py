@@ -414,7 +414,7 @@ def _convert_graph_to_edge_segments(nodes, edges, params):
     weight_cols = [params.weight] if include_weight else []
     start = df[id_cols + ['src_x', 'src_y'] + weight_cols].to_numpy(np.float32)
     end = df[id_cols + ['dst_x', 'dst_y'] + weight_cols].to_numpy(np.float32)
-    # Each segments[i] is a C-contiguous (2, ndims) view, as the numba kernels require.
+    # The numba kernels require C-contiguous segments.
     segments = np.ascontiguousarray(np.stack([start, end], axis=1))
     edge_segments = list(segments)
 

@@ -638,7 +638,7 @@ class LinesXarrayCommonX(LinesAxis1):
         import dask
         import dask.array as da
 
-        # Reduce chunk-wise in one pass, instead of loading the arrays with `.values`.
+        # Avoids materializing the full arrays.
         x, y = xr_ds[self.x].data, xr_ds[self.y].data
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')

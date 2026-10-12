@@ -223,8 +223,6 @@ def eq_hist(data, mask=None, nbins=256*256):
     cdf = cdf / float(cdf[-1])
     if grid is not None and array_module is np and discrete_levels >= 2 and grid[1] > grid[0]:
         from ._cpu_utils import _interp_with_lut
-        # The histogram bins form a uniform grid, which gives a good first
-        # guess for the interval of each value instead of a binary search.
         lut = np.cumsum(keep_mask) - 1
         inv_step = 1.0 / (grid[1] - grid[0])
         out = _interp_with_lut(
@@ -246,7 +244,7 @@ def _eq_hist_integer(data, data2, nbins):
     if is_bool:
         data, data2 = data.view(np.uint8), data2.view(np.uint8)
     vmin, vmax = data2.min(), data2.max()
-    # Wraps like ``np.ptp`` in the original check; ``vmax - vmin`` would warn on overflow.
+    # Wraps like the `ptp` check in eq_hist; `vmax - vmin` would warn on overflow.
     if not is_bool and np.subtract(vmax, vmin) >= nbins:
         return None
     hist = np.bincount(np.subtract(data2.ravel(), vmin, dtype=np.intp),
@@ -366,8 +364,7 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
     if isinstance(cmap, list):
         rspan, gspan, bspan = np.array(list(zip(*map(rgb, cmap))))
         span = np.linspace(span[0], span[1], len(cmap))
-        # interp only yields NaN for NaN input (never inf), so zeroing NaNs
-        # is equivalent to nan_to_num and avoids its extra passes.
+        # interp never yields inf, so zeroing NaNs matches nan_to_num.
         xp = cupy if cupy and isinstance(data, cupy.ndarray) else np
         nan = xp.isnan(data)
         channels = []
@@ -515,7 +512,6 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     if xp is not np:
         total = nansum_missing(data, axis=2)
     elif data.dtype.kind == 'f':
-        # Same as nansum_missing, reusing nan_mask
         total = _sum_last_axis(np.where(nan_mask, 0, data))
         total[cmask_sum == 0] = np.nan
     else:
