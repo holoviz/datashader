@@ -189,17 +189,19 @@ def eq_hist(data, mask=None, nbins=256*256):
 
     data2 = data if mask is None else data[~mask]
 
-    if array_module is np and (data2.dtype == bool or np.issubdtype(data2.dtype, np.integer)):
-        out = _eq_hist_integer(data, data2, nbins)
-        if out is not None:
-            out, discrete_levels = out
+    is_discrete = data2.dtype == bool or array_module.issubdtype(data2.dtype, array_module.integer)
+    if array_module is np and is_discrete:
+        res = _eq_hist_integer(data, data2, nbins)
+        if res is not None:
+            out, discrete_levels = res
             return out if mask is None else np.where(mask, np.nan, out), discrete_levels
+        # The range is known to be at least nbins, so skip the ptp pass below.
+        is_discrete = False
 
     grid = None
     # Run more accurate value counting if data is of boolean or integer type
     # and unique value array is smaller than nbins.
-    if data2.dtype == bool or (array_module.issubdtype(data2.dtype, array_module.integer) and
-                               array_module.ptp(data2) < nbins):
+    if data2.dtype == bool or (is_discrete and array_module.ptp(data2) < nbins):
         values, counts = array_module.unique(data2, return_counts=True)
         vmin, vmax = values[0].item(), values[-1].item()  # Convert from arrays to scalars.
         interval = vmax-vmin
