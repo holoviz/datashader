@@ -228,6 +228,7 @@ def test_points_geopandas(geom_type):
 
 @pytest.mark.skipif(not geodatasets, reason="geodatasets not installed")
 @pytest.mark.skipif(not geopandas, reason="geopandas not installed")
+@pytest.mark.skipif(not dd, reason="dask.dataframe not installed")
 @pytest.mark.parametrize('npartitions', [1, 2, 5])
 @pytest.mark.parametrize("geom_type", ["multipoint", "point"])
 def test_points_dask_geopandas(geom_type, npartitions):
