@@ -136,7 +136,6 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
     nan_check_cols = list(c[3] for c in calls if c[3] is not None)
     cols = list(unique(cols + nan_check_cols))
 
-    # Masked columns get a missing-value mask column, used to skip missing rows
     masks = {
         c.column: extract_mask(c.column) for c in cols
         if isinstance(c, extract) and c.column in schema.dict
@@ -320,7 +319,6 @@ def make_info(cols, cuda, uses_cuda_mutex: bool, masks=None):
         if masks else [False] * len(cols)
 
     def info(df, canvas_shape):
-        # Extract each masked column once for both its values and its mask
         extracted = {}
         ret = []
         for c, is_masked in zip(cols, masked):
@@ -405,8 +403,7 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
         else:
             for col in cols:
                 if masks and isinstance(col, extract) and col.column in masks:
-                    # Read into locals before the branch below, otherwise
-                    # numba keeps the refcount calls and it is much slower
+                    # Reading inside the branch keeps numba's refcount calls (much slower)
                     value, missing = next(names), next(names)
                     body.append(f'{value} = {arg_lk[col]}[{subscript}]')
                     body.append(
