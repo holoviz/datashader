@@ -6,8 +6,8 @@ from xarray import DataArray
 
 from datashader.datashape import dshape
 from datashader.utils import (
-    Dispatcher, _extract_values_and_mask, apply, calc_res, dshape_from_pandas, isreal,
-    orient_array,
+    Dispatcher, _column_values_and_mask, _extract_values_and_mask, apply, calc_res,
+    dshape_from_pandas, isreal, orient_array,
 )
 
 
@@ -184,3 +184,10 @@ def test_extract_values_and_mask_no_copy():
     arrow = pa.array([1.0, None, 3.0])
     values, _ = _extract_values_and_mask(arrow)
     assert values.ctypes.data == arrow.buffers()[1].address
+
+
+def test_column_values_and_mask_series_no_copy():
+    series = pd.Series([1.0, None, 3.0], dtype="Float64")
+    values, mask = _column_values_and_mask(series)
+    assert np.shares_memory(values, series.array._data)
+    assert np.shares_memory(mask, series.array._mask)
