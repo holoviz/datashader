@@ -24,6 +24,11 @@ try:
 except ImportError:
     cupy, cudf = None, None
 
+try:
+    import pyarrow as pa
+except ImportError:
+    pa = None
+
 def _pandas():
     """
     x          0  0   0  0  0   0   0  0  0  0   1   1  1   1  1    1  1   1  1   1
@@ -3538,6 +3543,10 @@ def test_categorical_where_last_n(df):
                                                                             'reverse'))).data)
 
 
+skip_no_pyarrow = pytest.mark.skipif(pa is None, reason="pyarrow is not installed")
+_ARROW_FLOAT = pytest.param("float64[pyarrow]", marks=skip_no_pyarrow)
+_ARROW_INT = pytest.param("int32[pyarrow]", marks=skip_no_pyarrow)
+
 _masked_reductions = [
     ds.count(), ds.count("v"), ds.any("v"), ds.sum("v"), ds.min("v"), ds.max("v"),
     ds.mean("v"), ds.var("v"), ds.std("v"), ds.first("v"), ds.last("v"),
@@ -3561,10 +3570,9 @@ def _masked_frames(dtype, n=200, seed=1):
     return nan_df, masked_df
 
 
-@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]"])
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
 @pytest.mark.parametrize("reduction", _masked_reductions, ids=repr)
 def test_points_masked(dtype, reduction):
-    pytest.importorskip("nanoarrow")
     nan_df, masked_df = _masked_frames(dtype)
     cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
     expected = cvs.points(nan_df, "x", "y", reduction)
@@ -3572,10 +3580,9 @@ def test_points_masked(dtype, reduction):
     assert_eq_xr(actual, expected)
 
 
-@pytest.mark.parametrize("dtype", ["Int64", "int32[pyarrow]"])
+@pytest.mark.parametrize("dtype", ["Int64", _ARROW_INT])
 @pytest.mark.parametrize("reduction", [ds.count("v"), ds.sum("v"), ds.max("v")], ids=repr)
 def test_points_masked_int(dtype, reduction):
-    pytest.importorskip("nanoarrow")
     nan_df, _ = _masked_frames("Float64")
     masked_df = nan_df.assign(v=nan_df["v"].astype(dtype))
     cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
@@ -3584,9 +3591,8 @@ def test_points_masked_int(dtype, reduction):
     np.testing.assert_array_equal(actual.values.astype(float), expected.values)
 
 
-@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]"])
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
 def test_points_masked_sliced(dtype):
-    pytest.importorskip("nanoarrow")
     nan_df, masked_df = _masked_frames(dtype)
     cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
     expected = cvs.points(nan_df.iloc[13:], "x", "y", ds.sum("v"))
@@ -3594,9 +3600,8 @@ def test_points_masked_sliced(dtype):
     assert_eq_xr(actual, expected)
 
 
+@skip_no_pyarrow
 def test_points_masked_arrow_chunks():
-    pa = pytest.importorskip("pyarrow")
-    pytest.importorskip("nanoarrow")
     nan_df, masked_df = _masked_frames("float64[pyarrow]")
     chunked = pd.DataFrame({
         k: pd.Series(pa.chunked_array([arr[:50], arr[50:51], arr[51:]]), dtype="float64[pyarrow]")
@@ -3609,9 +3614,8 @@ def test_points_masked_arrow_chunks():
         )
 
 
-@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]"])
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
 def test_points_masked_no_nulls(dtype):
-    pytest.importorskip("nanoarrow")
     nan_df, _ = _masked_frames(dtype)
     nan_df = nan_df.fillna(0.5)
     masked_df = nan_df.astype(dtype)
@@ -3621,9 +3625,8 @@ def test_points_masked_no_nulls(dtype):
     )
 
 
-@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]"])
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
 def test_points_masked_auto_bounds(dtype):
-    pytest.importorskip("nanoarrow")
     nan_df, masked_df = _masked_frames(dtype)
     cvs = ds.Canvas(plot_width=7, plot_height=5)
     expected = cvs.points(nan_df, "x", "y", ds.sum("v"))
@@ -3634,17 +3637,15 @@ def test_points_masked_auto_bounds(dtype):
 
 
 def test_points_masked_where_raises():
-    pytest.importorskip("nanoarrow")
     _, masked_df = _masked_frames("Float64")
     cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
     with pytest.raises(NotImplementedError, match="masked"):
         cvs.points(masked_df, "x", "y", ds.where(ds.max("v")))
 
 
-@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]", "Int64", "int32[pyarrow]"])
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT, "Int64", _ARROW_INT])
 @pytest.mark.parametrize("reduction", [ds.count("v"), ds.sum("v"), ds.max("v")], ids=repr)
 def test_points_masked_by(dtype, reduction):
-    pytest.importorskip("nanoarrow")
     nan_df, _ = _masked_frames("Float64")
     nan_df["cat"] = pd.Categorical(np.arange(len(nan_df)) % 3)
     masked_df = nan_df.assign(v=nan_df["v"].astype(dtype))
@@ -3663,10 +3664,9 @@ _masked_line_specs = {
 }
 
 
-@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]", "Int64"])
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT, "Int64"])
 @pytest.mark.parametrize("spec", list(_masked_line_specs))
 def test_line_masked(dtype, spec):
-    pytest.importorskip("nanoarrow")
     rng = np.random.default_rng(3)
     n = 30
     scale = 100 if dtype == "Int64" else 1
@@ -3691,8 +3691,6 @@ def test_line_masked(dtype, spec):
 
 
 def _dict_source(kind, nan_df):
-    pa = pytest.importorskip("pyarrow")
-    pytest.importorskip("nanoarrow")
     out = {}
     for k, v in nan_df.items():
         v = v.to_numpy()
@@ -3711,7 +3709,11 @@ def _dict_source(kind, nan_df):
     return out
 
 
-_dict_kinds = ["numpy", "np.ma", "Float64", "arrow", "arrow chunked"]
+_dict_kinds = [
+    "numpy", "np.ma", "Float64",
+    pytest.param("arrow", marks=skip_no_pyarrow),
+    pytest.param("arrow chunked", marks=skip_no_pyarrow),
+]
 
 
 @pytest.mark.parametrize("kind", _dict_kinds)
