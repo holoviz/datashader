@@ -114,12 +114,8 @@ python-gil = "*"
 [feature.py314.activation.env]
 COVERAGE_CORE = "sysmon"
 
-[feature.py315]
-channels = ["conda-forge/label/python_rc"]
-
 [feature.py315.dependencies]
 python = "3.15.*"
-_python_rc = "*"
 
 [feature.py315.activation.env]
 COVERAGE_CORE = "sysmon"
@@ -157,7 +153,7 @@ bokeh_sampledata = "*"
 dask-core = "*"
 dask-geopandas = "*"
 # fastparquet = "*"
-# fiona = "*"
+fiona = "*"
 geodatasets = "*"
 geopandas-base = "*"
 graphviz = "*"
@@ -172,8 +168,8 @@ pillow = "*"
 pyproj = "*"
 python-graphviz = "*"
 # python-snappy = "*"
-# rasterio = "*"
-# rioxarray = "*"
+rasterio = "*"
+rioxarray = "*"
 # scikit-image = "*"
 shapely = ">=2.0.0"
 # spatialpandas = "*"
