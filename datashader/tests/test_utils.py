@@ -211,3 +211,9 @@ def test_column_values_and_mask_series_no_copy():
     values, mask = _column_values_and_mask(series)
     assert np.shares_memory(values, series.array._data)
     assert np.shares_memory(mask, series.array._mask)
+
+
+@skip_no_pyarrow
+def test_dshape_from_pandas_arrow_bool_not_option():
+    df = pd.DataFrame({"v": pd.array([True, None], dtype="bool[pyarrow]")})
+    assert dshape_from_pandas(df).measure["v"] == dshape("bool").measure

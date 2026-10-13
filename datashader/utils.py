@@ -423,8 +423,9 @@ def _is_masked(col):
     elif isinstance(dtype, BaseMaskedDtype):
         dtype = dtype.numpy_dtype
     elif isinstance(dtype, pd.ArrowDtype):
+        # Arrow bools are bit-packed, so they cannot be viewed as a numpy array
         try:
-            dtype = dtype.numpy_dtype
+            return dtype.numpy_dtype.kind in "iuf"
         except NotImplementedError:
             return False
     elif isinstance(dtype, (np.dtype, pd.api.extensions.ExtensionDtype)):
@@ -544,10 +545,16 @@ def _columns_to_2d(df, names):
 class _ArraySource:
     """Dict of equal-length 1D arrays used as a source in place of a DataFrame.
 
-    Columns can be numpy arrays, np.ma arrays, pandas arrays or Arrow arrays
-    (anything with ``__arrow_c_stream__`` or ``__arrow_c_array__``).
+    Columns can be numpy arrays, np.ma arrays, pandas arrays, Arrow arrays
+    (anything with ``__arrow_c_stream__`` or ``__arrow_c_array__``), or
+    sequences such as lists, which are converted with ``np.asarray``.
     """
     def __init__(self, data):
+        data = {
+            name: col if hasattr(col, "dtype") or hasattr(col, "__arrow_c_stream__")
+            or hasattr(col, "__arrow_c_array__") else np.asarray(col)
+            for name, col in data.items()
+        }
         lengths = set()
         for name, col in data.items():
             if hasattr(col, "__cuda_array_interface__"):

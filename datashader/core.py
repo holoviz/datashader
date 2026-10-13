@@ -13,7 +13,8 @@ from xarray import DataArray, Dataset
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
 from .utils import (
-    _ArraySource, _dshape_from_array_source, get_indices, dshape_from_pandas, dshape_from_dask,
+    _ArraySource, _dshape_from_array_source, _is_masked_dshape, get_indices, dshape_from_pandas,
+    dshape_from_dask,
 )
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
@@ -191,8 +192,9 @@ class Canvas:
 
         Parameters
         ----------
-        source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
-            The input datasource.
+        source : pandas.DataFrame, dask.DataFrame, xarray.DataArray/Dataset, or dict
+            The input datasource. A dict maps column names to equal-length 1D
+            arrays: numpy, ``np.ma``, pandas or Arrow arrays, or lists.
         x, y : str
             Column names for the x and y coordinates of each point. If provided,
             the geometry argument may not also be provided.
@@ -249,8 +251,10 @@ class Canvas:
 
         Parameters
         ----------
-        source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
-            The input datasource.
+        source : pandas.DataFrame, dask.DataFrame, xarray.DataArray/Dataset, or dict
+            The input datasource. A dict maps column names to equal-length 1D
+            arrays: numpy, ``np.ma``, pandas or Arrow arrays, or lists. A dict is
+            supported for multiple lines (``axis=0``) and for ``axis=1``.
         x, y : str or number or list or tuple or np.ndarray
             Specification of the x and y coordinates of each vertex
             * str or number: Column labels in source
@@ -1351,6 +1355,12 @@ def bypixel(source, canvas, glyph, agg, *, antialias=False):
     source, dshape = _bypixel_sanitise(source, glyph, agg)
 
     schema = dshape.measure
+    required_columns = getattr(glyph, "required_columns", list)()
+    masked = [col for col in required_columns
+              if col in schema.dict and _is_masked_dshape(schema[col])]
+    if masked and type(glyph) not in _masked_column_glyphs():
+        raise NotImplementedError(
+            f"masked columns {masked} are not supported for {type(glyph).__name__} glyphs")
     glyph.validate(schema)
     agg.validate(schema)
     canvas.validate()
@@ -1377,15 +1387,14 @@ def _bypixel_sanitise(source, glyph, agg):
             source = source.to_dataframe()
 
     if isinstance(source, dict):
-        from .glyphs import (
-            LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant, Point,
-        )
-        supported = (Point, LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant)
-        if type(glyph) not in supported:
+        if type(glyph) not in _array_source_glyphs():
             raise NotImplementedError(
                 f"dict sources are not supported for {type(glyph).__name__} glyphs")
         cols_to_keep = _cols_to_keep(source.keys(), glyph, agg)
-        source = _ArraySource({col: source[col] for col in cols_to_keep if col in source})
+        missing = [col for col in cols_to_keep if col not in source]
+        if missing:
+            raise ValueError(f"dict source is missing columns: {missing}")
+        source = _ArraySource({col: source[col] for col in cols_to_keep})
         dshape = _dshape_from_array_source(source)
     elif (isinstance(source, pd.DataFrame) or
             (cudf and isinstance(source, cudf.DataFrame))):
@@ -1413,9 +1422,21 @@ def _bypixel_sanitise(source, glyph, agg):
         # Multi-dimensional Dataset
         dshape = dshape_from_xarray_dataset(source)
     else:
-        raise ValueError("source must be a pandas or dask DataFrame")
+        raise ValueError("source must be a pandas or dask DataFrame, or a dict of arrays")
 
     return source, dshape
+
+
+def _array_source_glyphs():
+    from .glyphs import (
+        LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant, Point,
+    )
+    return (Point, LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant)
+
+
+def _masked_column_glyphs():
+    from .glyphs import LineAxis0
+    return _array_source_glyphs() + (LineAxis0,)
 
 
 def _cols_to_keep(columns, glyph, agg):

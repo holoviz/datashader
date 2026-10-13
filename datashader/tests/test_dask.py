@@ -21,7 +21,7 @@ except ImportError:
     sp = None
 
 from datashader.tests.test_pandas import (
-    assert_eq_xr, assert_eq_ndarray, values
+    _ARROW_FLOAT, _masked_frames, assert_eq_xr, assert_eq_ndarray, values
 )
 
 
@@ -2535,3 +2535,48 @@ def test_series_reset_index(ddf, npartitions):
         dims=['i32', 'index'],
     )
     assert_eq_xr(out, expected)
+
+
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT, "Int64"])
+@pytest.mark.parametrize(
+    "reduction",
+    [ds.count("v"), ds.sum("v"), ds.max("v"), ds.mean("v"), ds.first("v"), ds.last_n("v", n=2)],
+    ids=repr,
+)
+def test_points_masked(npartitions, dtype, reduction):
+    nan_df, _ = _masked_frames("Float64")
+    masked_df = nan_df.astype({"x": "Float64", "y": "Float64", "v": dtype})
+    expected = ds.Canvas(plot_width=7, plot_height=5).points(nan_df, "x", "y", reduction)
+    actual = ds.Canvas(plot_width=7, plot_height=5).points(
+        dd.from_pandas(masked_df, npartitions=npartitions), "x", "y", reduction
+    )
+    np.testing.assert_array_equal(actual.values.astype(float), expected.values.astype(float))
+    assert actual.attrs["x_range"] == expected.attrs["x_range"]
+
+
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
+def test_line_masked(npartitions, dtype):
+    rng = np.random.default_rng(3)
+    n = 30
+    nan_df = pd.DataFrame({
+        f"{k}{j}": np.where(rng.random(n) < 0.2, np.nan, rng.uniform(0, 1, n))
+        for k in "xy" for j in range(3)
+    })
+    kwargs = dict(x=["x0", "x1", "x2"], y=["y0", "y1", "y2"], axis=1)
+    cvs = ds.Canvas(plot_width=9, plot_height=7)
+    expected = cvs.line(nan_df, **kwargs)
+    actual = cvs.line(dd.from_pandas(nan_df.astype(dtype), npartitions=npartitions), **kwargs)
+    assert_eq_xr(actual, expected)
+
+
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
+@pytest.mark.parametrize("reduction", [ds.first("v"), ds.last("v"), ds.max("v")], ids=repr)
+def test_points_masked_by(npartitions, dtype, reduction):
+    nan_df, masked_df = _masked_frames(dtype)
+    nan_df["cat"] = masked_df["cat"] = pd.Categorical(np.arange(len(nan_df)) % 3)
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    expected = cvs.points(nan_df, "x", "y", ds.by("cat", reduction))
+    actual = cvs.points(
+        dd.from_pandas(masked_df, npartitions=npartitions), "x", "y", ds.by("cat", reduction)
+    )
+    assert_eq_xr(actual, expected)
