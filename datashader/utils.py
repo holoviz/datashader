@@ -457,11 +457,17 @@ _ARROW_DTYPES = {
 }
 
 
+_ARROW_TIME_UNITS = {"s": "s", "m": "ms", "u": "us", "n": "ns"}
+
+
 def _extract_values_and_mask(obj):
-    # pandas Series has __arrow_c_stream__, which would copy the mask
-    arr = getattr(obj, "array", obj)
-    if isinstance(arr, (np.ma.MaskedArray, BaseMaskedArray)):
-        return arr._data, (arr._mask if arr._mask.any() else None)
+    if isinstance(obj, pd.Series):
+        # Series.__arrow_c_stream__ copies the mask and needs pandas 3
+        obj = obj.array
+        if isinstance(obj, pd.arrays.ArrowExtensionArray):
+            obj = obj._pa_array
+    if isinstance(obj, (np.ma.MaskedArray, BaseMaskedArray)):
+        return obj._data, (obj._mask if obj._mask.any() else None)
     if not (hasattr(obj, "__arrow_c_stream__") or hasattr(obj, "__arrow_c_array__")):
         return obj, None
 
@@ -470,9 +476,9 @@ def _extract_values_and_mask(obj):
     stream = na.c_array_stream(obj)
     fmt = stream.get_schema().format
     if fmt.startswith("ts"):
-        dtype = f"datetime64[{fmt[2]}s]"
+        dtype = f"datetime64[{_ARROW_TIME_UNITS[fmt[2]]}]"
     elif fmt.startswith("tD"):
-        dtype = f"timedelta64[{fmt[2]}s]"
+        dtype = f"timedelta64[{_ARROW_TIME_UNITS[fmt[2]]}]"
     elif fmt in _ARROW_DTYPES:
         dtype = _ARROW_DTYPES[fmt]
     else:
