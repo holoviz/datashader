@@ -520,12 +520,15 @@ def _columns_to_2d(df, names):
     cols = [df[name] for name in names]
     if isinstance(df, pd.DataFrame) and not any(_is_masked(col) for col in cols):
         return df.loc[:, list(names)].to_numpy()
+    values, valids = zip(*(_column_values_and_mask(col) for col in cols))
+    if all(valid is None for valid in valids):
+        return np.column_stack(values)
     out = np.empty((len(df), len(cols)), dtype=np.float64)
-    for j, col in enumerate(cols):
-        values, valid = _column_values_and_mask(col)
-        out[:, j] = values
+    for j, (vals, valid) in enumerate(zip(values, valids)):
+        out[:, j] = vals
         if valid is not None:
-            out[~valid, j] = np.nan
+            # valid is newly allocated by _extract_values_and_mask, so it is inverted in place
+            np.copyto(out[:, j], np.nan, where=np.logical_not(valid, out=valid))
     return out
 
 
