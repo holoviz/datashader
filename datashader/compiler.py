@@ -12,7 +12,7 @@ from .antialias import AntialiasCombination
 from .reductions import (
     SpecialColumn, UsesCudaMutex, by, category_codes, extract, extract_mask, summary,
 )
-from .utils import (_is_masked_dshape, _is_valid, isnull, ngjit,
+from .utils import (_column_values_and_mask, _is_masked_dshape, _is_valid, isnull, ngjit,
     nanmax_in_place, nanmin_in_place, nansum_in_place, nanfirst_in_place, nanlast_in_place,
     nanmax_n_in_place_3d, nanmax_n_in_place_4d, nanmin_n_in_place_3d, nanmin_n_in_place_4d,
     nanfirst_n_in_place_3d, nanfirst_n_in_place_4d, nanlast_n_in_place_3d, nanlast_n_in_place_4d,
@@ -152,7 +152,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
 
     create = make_create(bases, dshapes, cuda)
     append, any_uses_cuda_mutex = make_append(bases, cols, calls, glyph, antialias, masks)
-    info = make_info(tuple(cols), cuda, any_uses_cuda_mutex)
+    info = make_info(tuple(cols), cuda, any_uses_cuda_mutex, tuple(masks))
     combine = make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned)
     finalize = make_finalize(bases, agg, schema, cuda, partitioned)
 
@@ -315,9 +315,22 @@ def make_create(bases, dshapes, cuda):
 
 
 @memoize
-def make_info(cols, cuda, uses_cuda_mutex: bool):
+def make_info(cols, cuda, uses_cuda_mutex: bool, masks=None):
+    masked = [isinstance(c, (extract, extract_mask)) and c.column in masks for c in cols] \
+        if masks else [False] * len(cols)
+
     def info(df, canvas_shape):
-        ret = tuple(c.apply(df, cuda) for c in cols)
+        # Extract each masked column once for both its values and its mask
+        extracted = {}
+        ret = []
+        for c, is_masked in zip(cols, masked):
+            if is_masked:
+                if c.column not in extracted:
+                    extracted[c.column] = _column_values_and_mask(df[c.column])
+                ret.append(extracted[c.column][isinstance(c, extract_mask)])
+            else:
+                ret.append(c.apply(df, cuda))
+        ret = tuple(ret)
         if uses_cuda_mutex:
             import cupy  # Guaranteed to be available if uses_cuda_mutex is True
             import numba
