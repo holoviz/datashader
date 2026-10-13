@@ -6,9 +6,12 @@ import re
 from inspect import getmro
 
 import numba as nb
+from numba.extending import overload
 import numpy as np
 import pandas as pd
 
+from pandas.core.arrays.masked import BaseMaskedArray
+from pandas.core.dtypes.dtypes import BaseMaskedDtype
 from toolz import memoize
 from xarray import DataArray
 
@@ -411,6 +414,185 @@ def lnglat_to_meters(longitude, latitude):
     return (easting, northing)
 
 
+def _is_masked(col):
+    """Return whether ``col`` is a numeric column that stores missing values
+    in a separate mask (np.ma, pandas nullable or Arrow)."""
+    dtype = getattr(col, "dtype", None)
+    if isinstance(col, np.ma.MaskedArray):
+        pass
+    elif isinstance(dtype, BaseMaskedDtype):
+        dtype = dtype.numpy_dtype
+    elif isinstance(dtype, pd.ArrowDtype):
+        try:
+            dtype = dtype.numpy_dtype
+        except NotImplementedError:
+            return False
+    elif isinstance(dtype, (np.dtype, pd.api.extensions.ExtensionDtype)):
+        return False
+    elif hasattr(col, "__arrow_c_stream__") or hasattr(col, "__arrow_c_array__"):
+        return _arrow_format(col) in _ARROW_DTYPES
+    else:
+        return False
+    return dtype.kind in "biuf"
+
+
+def _arrow_format(col):
+    import nanoarrow as na
+
+    return na.c_array_stream(col).get_schema().format
+
+
+_ARROW_DTYPES = {
+    "c": "int8",
+    "C": "uint8",
+    "s": "int16",
+    "S": "uint16",
+    "i": "int32",
+    "I": "uint32",
+    "l": "int64",
+    "L": "uint64",
+    "e": "float16",
+    "f": "float32",
+    "g": "float64",
+}
+
+
+def _extract_values_and_mask(obj):
+    if not (hasattr(obj, "__arrow_c_stream__") or hasattr(obj, "__arrow_c_array__")):
+        if isinstance(obj, (np.ma.MaskedArray, BaseMaskedArray)):
+            return obj._data, (~obj._mask if obj._mask.any() else None)
+        return obj, None
+
+    import nanoarrow as na
+
+    stream = na.c_array_stream(obj)
+    fmt = stream.get_schema().format
+    if fmt.startswith("ts"):
+        dtype = f"datetime64[{fmt[2]}s]"
+    elif fmt.startswith("tD"):
+        dtype = f"timedelta64[{fmt[2]}s]"
+    elif fmt in _ARROW_DTYPES:
+        dtype = _ARROW_DTYPES[fmt]
+    else:
+        raise NotImplementedError(f"Arrow format {fmt!r} is not supported")
+    views = [chunk.view() for chunk in stream]
+
+    values = [np.asarray(v.buffer(1))[v.offset : v.offset + v.length].view(dtype) for v in views]
+    if len(values) == 1:
+        values = values[0]
+    else:
+        values = np.concatenate(values) if values else np.array([], dtype=dtype)
+
+    if not any(v.null_count for v in views):
+        return values, None
+    v = views[0]
+    if len(views) == 1 and v.offset % 8:
+        start, shift = divmod(v.offset, 8)
+        valid = np.unpackbits(
+            np.asarray(v.buffer(0))[start:],
+            bitorder="little",
+            count=shift + v.length,
+        )[shift:].view(np.bool_)
+        return values, valid
+
+    valid = np.empty(len(values), dtype=np.bool_)
+    pos = 0
+    for v in views:
+        if v.null_count:
+            v.buffer(0).unpack_bits_into(valid, v.offset, v.length, pos)
+        else:
+            valid[pos : pos + v.length] = True
+        pos += v.length
+    return values, valid
+
+
+def _column_values_and_mask(col):
+    """Return the values of ``col`` as a numpy array and a bool validity mask
+    (True = present), or ``None`` as the mask if there are no missing values."""
+    if _is_masked(col):
+        return _extract_values_and_mask(col)
+    return getattr(col, "values", col), None
+
+
+def _columns_to_2d(df, names):
+    """Return columns ``names`` of ``df`` as a ``(rows, columns)`` array, with
+    missing values of masked columns set to NaN."""
+    cols = [df[name] for name in names]
+    if isinstance(df, pd.DataFrame) and not any(_is_masked(col) for col in cols):
+        return df.loc[:, list(names)].to_numpy()
+    out = np.empty((len(df), len(cols)), dtype=np.float64)
+    for j, col in enumerate(cols):
+        values, valid = _column_values_and_mask(col)
+        out[:, j] = values
+        if valid is not None:
+            out[~valid, j] = np.nan
+    return out
+
+
+class _ArraySource:
+    """Dict of equal-length 1D arrays used as a source in place of a DataFrame.
+
+    Columns can be numpy arrays, np.ma arrays, pandas arrays or Arrow arrays
+    (anything with ``__arrow_c_stream__`` or ``__arrow_c_array__``).
+    """
+    def __init__(self, data):
+        lengths = set()
+        for name, col in data.items():
+            if hasattr(col, "__cuda_array_interface__"):
+                raise NotImplementedError("dict sources do not support GPU arrays")
+            if getattr(col, "ndim", 1) != 1:
+                raise ValueError(f"dict source column {name!r} must be 1D")
+            lengths.add(len(col))
+        if len(lengths) > 1:
+            raise ValueError("dict source columns must all have the same length")
+        self._data = dict(data)
+        self._length = lengths.pop() if lengths else 0
+
+    @property
+    def columns(self):
+        return list(self._data)
+
+    def __getitem__(self, name):
+        return self._data[name]
+
+    def __len__(self):
+        return self._length
+
+
+def _dshape_from_array_source(source):
+    fields = []
+    for name in source.columns:
+        col = source[name]
+        if _is_masked(col):
+            dtype = getattr(col, "dtype", None)
+            dtype = getattr(dtype, "numpy_dtype", dtype)
+            if not isinstance(dtype, np.dtype):
+                dtype = np.dtype(_ARROW_DTYPES[_arrow_format(col)])
+            dshape = datashape.Option(datashape.CType.from_numpy_dtype(dtype))
+        else:
+            dshape = datashape.CType.from_numpy_dtype(np.asarray(col).dtype)
+        fields.append((name, dshape))
+    return len(source) * datashape.Record(fields)
+
+
+def _is_masked_dshape(dt):
+    """Return whether a column with datashape ``dt`` is a masked numeric column."""
+    return isinstance(dt, datashape.Option) and (
+        dt.ty in datashape.typesets.real or dt.ty == datashape.bool_
+    )
+
+
+def _is_valid(valid, i):
+    return valid is None or valid[i]
+
+
+@overload(_is_valid)
+def _is_valid_overload(valid, i):
+    if isinstance(valid, nb.types.NoneType):
+        return lambda valid, i: True
+    return lambda valid, i: valid[i]
+
+
 # Heavily inspired by odo
 def dshape_from_pandas_helper(col):
     """Return an object from datashader.datashape.coretypes given a column from a pandas
@@ -446,6 +628,8 @@ def dshape_from_pandas_helper(col):
     elif gpd_GeometryDtype and isinstance(col.dtype, gpd_GeometryDtype):
         return col.dtype
     dshape = datashape.CType.from_numpy_dtype(col.dtype)
+    if _is_masked(col):
+        return datashape.Option(dshape)
     dshape = datashape.string if dshape == datashape.object_ else dshape
     if dshape in (datashape.string, datashape.datetime_):
         return datashape.Option(dshape)
