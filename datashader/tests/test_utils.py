@@ -152,7 +152,7 @@ def test_extract_values_and_mask(name):
     values, mask = _extract_values_and_mask(col)
     assert isinstance(values, np.ndarray)
     assert len(values) == 4
-    np.testing.assert_array_equal(mask, [True, False, True, True])
+    np.testing.assert_array_equal(mask, [False, True, False, False])
     np.testing.assert_array_equal(values[[0, 2, 3]], [1, 3, 4])
 
 
@@ -179,6 +179,7 @@ def test_extract_values_and_mask_no_copy():
     masked = pd.array([1.0, None, 3.0], dtype="Float64")
     values, mask = _extract_values_and_mask(masked)
     assert np.shares_memory(values, masked._data)
+    assert np.shares_memory(mask, masked._mask)
 
     arrow = pa.array([1.0, None, 3.0])
     values, _ = _extract_values_and_mask(arrow)

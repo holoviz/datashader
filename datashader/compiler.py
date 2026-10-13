@@ -12,7 +12,7 @@ from .antialias import AntialiasCombination
 from .reductions import (
     SpecialColumn, UsesCudaMutex, by, category_codes, extract, extract_mask, summary,
 )
-from .utils import (_column_values_and_mask, _is_masked_dshape, _is_valid, isnull, ngjit,
+from .utils import (_column_values_and_mask, _is_masked_dshape, _is_missing, isnull, ngjit,
     nanmax_in_place, nanmin_in_place, nansum_in_place, nanfirst_in_place, nanlast_in_place,
     nanmax_n_in_place_3d, nanmax_n_in_place_4d, nanmin_n_in_place_3d, nanmin_n_in_place_4d,
     nanfirst_n_in_place_3d, nanfirst_n_in_place_4d, nanlast_n_in_place_3d, nanlast_n_in_place_4d,
@@ -136,7 +136,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
     nan_check_cols = list(c[3] for c in calls if c[3] is not None)
     cols = list(unique(cols + nan_check_cols))
 
-    # Masked columns get a validity mask column, used to skip missing rows
+    # Masked columns get a missing-value mask column, used to skip missing rows
     masks = {
         c.column: extract_mask(c.column) for c in cols
         if isinstance(c, extract) and c.column in schema.dict
@@ -353,7 +353,7 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
     if need_isnull:
         namespace["isnull"] = isnull
     if masks:
-        namespace["_is_valid"] = _is_valid
+        namespace["_is_missing"] = _is_missing
     global_cuda_mutex = any(call[6] == UsesCudaMutex.Global for call in calls)
     any_uses_cuda_mutex = any(call[6] != UsesCudaMutex.No for call in calls)
     if any_uses_cuda_mutex:
@@ -407,11 +407,11 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
                 if masks and isinstance(col, extract) and col.column in masks:
                     # Read into locals before the branch below, otherwise
                     # numba keeps the refcount calls and it is much slower
-                    value, valid = next(names), next(names)
+                    value, missing = next(names), next(names)
                     body.append(f'{value} = {arg_lk[col]}[{subscript}]')
                     body.append(
-                        f'{valid} = _is_valid({arg_lk[masks[col.column]]}, {subscript})')
-                    conditions.append(valid)
+                        f'{missing} = _is_missing({arg_lk[masks[col.column]]}, {subscript})')
+                    conditions.append(f'not {missing}')
                     args.append(value)
                 else:
                     args.append(f'{arg_lk[col]}[{subscript}]')

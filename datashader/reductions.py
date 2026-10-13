@@ -121,7 +121,7 @@ class extract(Preprocess):
 
 
 class extract_mask(Preprocess):
-    """Extract the validity mask (True = present) of a masked column, or
+    """Extract the missing-value mask (True = missing) of a masked column, or
     ``None`` if it has no missing values."""
     def apply(self, df, cuda):
         if cuda:
