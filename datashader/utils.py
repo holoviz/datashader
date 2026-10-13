@@ -458,9 +458,12 @@ _ARROW_DTYPES = {
 
 
 def _extract_values_and_mask(obj):
+    # Before the Arrow check, as a Series of a masked dtype would otherwise
+    # be converted to Arrow, which copies the mask
+    arr = getattr(obj, "array", obj)
+    if isinstance(arr, (np.ma.MaskedArray, BaseMaskedArray)):
+        return arr._data, (arr._mask if arr._mask.any() else None)
     if not (hasattr(obj, "__arrow_c_stream__") or hasattr(obj, "__arrow_c_array__")):
-        if isinstance(obj, (np.ma.MaskedArray, BaseMaskedArray)):
-            return obj._data, (obj._mask if obj._mask.any() else None)
         return obj, None
 
     import nanoarrow as na
