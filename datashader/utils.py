@@ -460,7 +460,7 @@ _ARROW_DTYPES = {
 def _extract_values_and_mask(obj):
     if not (hasattr(obj, "__arrow_c_stream__") or hasattr(obj, "__arrow_c_array__")):
         if isinstance(obj, (np.ma.MaskedArray, BaseMaskedArray)):
-            return obj._data, (~obj._mask if obj._mask.any() else None)
+            return obj._data, (obj._mask if obj._mask.any() else None)
         return obj, None
 
     import nanoarrow as na
@@ -488,27 +488,29 @@ def _extract_values_and_mask(obj):
     v = views[0]
     if len(views) == 1 and v.offset % 8:
         start, shift = divmod(v.offset, 8)
-        valid = np.unpackbits(
+        mask = np.unpackbits(
             np.asarray(v.buffer(0))[start:],
             bitorder="little",
             count=shift + v.length,
         )[shift:].view(np.bool_)
-        return values, valid
+        np.logical_not(mask, out=mask)
+        return values, mask
 
-    valid = np.empty(len(values), dtype=np.bool_)
+    mask = np.empty(len(values), dtype=np.bool_)
     pos = 0
     for v in views:
         if v.null_count:
-            v.buffer(0).unpack_bits_into(valid, v.offset, v.length, pos)
+            v.buffer(0).unpack_bits_into(mask, v.offset, v.length, pos)
         else:
-            valid[pos : pos + v.length] = True
+            mask[pos : pos + v.length] = True
         pos += v.length
-    return values, valid
+    np.logical_not(mask, out=mask)
+    return values, mask
 
 
 def _column_values_and_mask(col):
-    """Return the values of ``col`` as a numpy array and a bool validity mask
-    (True = present), or ``None`` as the mask if there are no missing values."""
+    """Return the values of ``col`` as a numpy array and a bool missing-value mask
+    (True = missing), or ``None`` as the mask if there are no missing values."""
     if _is_masked(col):
         return _extract_values_and_mask(col)
     return getattr(col, "values", col), None
@@ -520,15 +522,14 @@ def _columns_to_2d(df, names):
     cols = [df[name] for name in names]
     if isinstance(df, pd.DataFrame) and not any(_is_masked(col) for col in cols):
         return df.loc[:, list(names)].to_numpy()
-    values, valids = zip(*(_column_values_and_mask(col) for col in cols))
-    if all(valid is None for valid in valids):
+    values, masks = zip(*(_column_values_and_mask(col) for col in cols))
+    if all(mask is None for mask in masks):
         return np.column_stack(values)
     out = np.empty((len(df), len(cols)), dtype=np.float64)
-    for j, (vals, valid) in enumerate(zip(values, valids)):
+    for j, (vals, mask) in enumerate(zip(values, masks)):
         out[:, j] = vals
-        if valid is not None:
-            # valid is newly allocated by _extract_values_and_mask, so it is inverted in place
-            np.copyto(out[:, j], np.nan, where=np.logical_not(valid, out=valid))
+        if mask is not None:
+            np.copyto(out[:, j], np.nan, where=mask)
     return out
 
 
@@ -585,15 +586,15 @@ def _is_masked_dshape(dt):
     )
 
 
-def _is_valid(valid, i):
-    return valid is None or valid[i]
+def _is_missing(mask, i):
+    return mask is not None and mask[i]
 
 
-@overload(_is_valid)
-def _is_valid_overload(valid, i):
-    if isinstance(valid, nb.types.NoneType):
-        return lambda valid, i: True
-    return lambda valid, i: valid[i]
+@overload(_is_missing)
+def _is_missing_overload(mask, i):
+    if isinstance(mask, nb.types.NoneType):
+        return lambda mask, i: False
+    return lambda mask, i: mask[i]
 
 
 # Heavily inspired by odo

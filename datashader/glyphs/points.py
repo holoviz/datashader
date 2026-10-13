@@ -4,7 +4,7 @@ import numpy as np
 from toolz import memoize
 
 from datashader.glyphs.glyph import Glyph
-from datashader.utils import _column_values_and_mask, _is_valid, isreal, ngjit
+from datashader.utils import _column_values_and_mask, _is_missing, isreal, ngjit
 
 from numba import cuda
 
@@ -214,9 +214,9 @@ class Point(_PointLike):
         @ngjit
         @self.expand_aggs_and_cols(append)
         def extend_cpu_masked(sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys,
-                              x_valid, y_valid, xxmax, yymax, *aggs_and_cols):
+                              x_mask, y_mask, xxmax, yymax, *aggs_and_cols):
             for i in range(xs.shape[0]):
-                if _is_valid(x_valid, i) and _is_valid(y_valid, i):
+                if not (_is_missing(x_mask, i) or _is_missing(y_mask, i)):
                     _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
                                            xs, ys, xxmax, yymax, *aggs_and_cols)
 
@@ -240,11 +240,11 @@ class Point(_PointLike):
                 ys = values(df[y_name])
                 do_extend = extend_cuda[cuda_args(xs.shape[0])]
             else:
-                xs, x_valid = _column_values_and_mask(df[x_name])
-                ys, y_valid = _column_values_and_mask(df[y_name])
-                if x_valid is not None or y_valid is not None:
+                xs, x_mask = _column_values_and_mask(df[x_name])
+                ys, y_mask = _column_values_and_mask(df[y_name])
+                if x_mask is not None or y_mask is not None:
                     extend_cpu_masked(
-                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, x_valid, y_valid,
+                        sx, tx, sy, ty, xmin, xmax, ymin, ymax, xs, ys, x_mask, y_mask,
                         xxmax, yymax, *aggs_and_cols
                     )
                     return

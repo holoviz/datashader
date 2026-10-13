@@ -58,9 +58,9 @@ class Glyph(Expr):
             else:
                 return Glyph._compute_bounds_numba(s.values.ravel())
         else:
-            values, valid = _column_values_and_mask(s)
-            if valid is not None:
-                return Glyph._compute_bounds_masked_numba(values, valid)
+            values, mask = _column_values_and_mask(s)
+            if mask is not None:
+                return Glyph._compute_bounds_masked_numba(values, mask)
             return Glyph._compute_bounds_numba(values)
 
     @staticmethod
@@ -79,12 +79,12 @@ class Glyph(Expr):
 
     @staticmethod
     @ngjit
-    def _compute_bounds_masked_numba(arr, valid):
+    def _compute_bounds_masked_numba(arr, mask):
         minval = np.inf
         maxval = -np.inf
         for i in range(arr.shape[0]):
             x = arr[i]
-            if valid[i] and not isnan(x):
+            if not mask[i] and not isnan(x):
                 if x < minval:
                     minval = x
                 if x > maxval:
