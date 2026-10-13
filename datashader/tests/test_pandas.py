@@ -3764,3 +3764,25 @@ def test_dict_source_unsupported_glyph():
     cvs = ds.Canvas(plot_width=7, plot_height=5)
     with pytest.raises(NotImplementedError, match="dict"):
         cvs.line({"x": np.zeros(3), "y": np.zeros(3)}, "x", "y")
+
+
+def test_points_dict_source_lists():
+    source = {"x": [0.1, 0.6, 0.9], "y": [0.1, 0.6, 0.2], "v": [1, 2, 3]}
+    cvs = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
+    assert_eq_xr(
+        cvs.points(source, "x", "y", ds.sum("v")),
+        cvs.points(pd.DataFrame(source), "x", "y", ds.sum("v")),
+    )
+
+
+def test_dict_source_missing_column():
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+    with pytest.raises(ValueError, match="'y'"):
+        cvs.points({"x": np.zeros(3)}, "x", "y")
+
+
+def test_area_masked_raises():
+    df = pd.DataFrame({"x": [0.1, 0.5, 0.9], "y": pd.array([0.1, None, 0.3], dtype="Float64")})
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+    with pytest.raises(NotImplementedError, match="masked"):
+        cvs.area(df, "x", "y")

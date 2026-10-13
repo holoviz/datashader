@@ -141,8 +141,15 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
         if isinstance(c, extract) and c.column in schema.dict
         and _is_masked_dshape(schema[c.column])
     }
-    if masks and any(b.is_where() for b in bases):
-        raise NotImplementedError("where reductions do not support masked columns")
+    if masks and cuda:
+        raise NotImplementedError("Masked columns are not supported on the GPU")
+    for b in bases:
+        if masks and b.is_where():
+            w = b.reduction if isinstance(b, by) else b
+            # A row skipped by the NaN check never reads the selector or lookup column
+            if w.selector.column in masks or (
+                    w.column in masks and w.column != w._nan_check_column):
+                raise NotImplementedError("where reductions do not support masked columns")
     cols += list(masks.values())
 
     # List of temps needed
@@ -384,6 +391,13 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
         func = "cuda_mutex_lock" if lock else "cuda_mutex_unlock"
         return f'{func}({arg_lk["_cuda_mutex"]}, (y, x))'
 
+    def nan_check(nan_check_column) -> str:
+        condition = f'not isnull({arg_lk[nan_check_column]}[{subscript}])'
+        if masks and nan_check_column.column in masks:
+            mask = arg_lk[masks[nan_check_column.column]]
+            condition = f'not _is_missing({mask}, {subscript}) and {condition}'
+        return condition
+
     for index, (func, bases, cols, nan_check_column, temps, _, uses_cuda_mutex, categorical) \
             in enumerate(calls):
         local_cuda_mutex = not global_cuda_mutex and uses_cuda_mutex == UsesCudaMutex.Local
@@ -392,6 +406,7 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
         logger.debug(f"func {func_name} {func}")
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
+        pre = []
         conditions = []
         if categorical and isinstance(cols[0], category_codes):
             args.extend(f'{arg_lk[col]}[{subscript}]' for col in cols[1:])
@@ -405,8 +420,8 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
                 if masks and isinstance(col, extract) and col.column in masks:
                     # Reading inside the branch keeps numba's refcount calls (much slower)
                     value, missing = next(names), next(names)
-                    body.append(f'{value} = {arg_lk[col]}[{subscript}]')
-                    body.append(
+                    pre.append(f'{value} = {arg_lk[col]}[{subscript}]')
+                    pre.append(
                         f'{missing} = _is_missing({arg_lk[masks[col.column]]}, {subscript})')
                     conditions.append(f'not {missing}')
                     args.append(value)
@@ -461,12 +476,12 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
             # If nan_check_column is defined then need to check if value of
             # correct row in that column is NaN and if so do nothing. This
             # check needs to occur before the where.selector is called.
+            body[-1:-1] = pre
             if nan_check_column is None:
                 whitespace = ''
             else:
-                var = f"{arg_lk[nan_check_column]}[{subscript}]"
                 prev_body = body[-1]
-                body[-1] = f'if not isnull({var}):'
+                body[-1] = f'if {nan_check(nan_check_column)}:'
                 body.append(f'    {prev_body}')
                 whitespace = '    '
 
@@ -475,9 +490,9 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
         else:
             if local_cuda_mutex and not prev_local_cuda_mutex:
                 body.append(get_cuda_mutex_call(True))
+            body.extend(pre)
             if nan_check_column:
-                var = f"{arg_lk[nan_check_column]}[{subscript}]"
-                conditions.append(f'not isnull({var})')
+                conditions.append(nan_check(nan_check_column))
             if conditions:
                 body.append(f'if {" and ".join(conditions)}:')
                 body.append(f'    {func_name}(x, y, {", ".join(args)})')
