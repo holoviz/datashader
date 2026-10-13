@@ -85,6 +85,7 @@ scipy = "*"
 setuptools = "*" # distutils for pyct
 toolz = "*"
 xarray = "*"
+nanoarrow = "*"
 
 [feature.required.tasks]
 download-data = "python scripts/download_data.py"
