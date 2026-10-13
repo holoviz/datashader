@@ -12,7 +12,9 @@ from xarray import DataArray, Dataset
 
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
-from .utils import get_indices, dshape_from_pandas, dshape_from_dask
+from .utils import (
+    _ArraySource, _dshape_from_array_source, get_indices, dshape_from_pandas, dshape_from_dask,
+)
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
 from . import reductions as rd
@@ -1374,7 +1376,18 @@ def _bypixel_sanitise(source, glyph, agg):
         else:
             source = source.to_dataframe()
 
-    if (isinstance(source, pd.DataFrame) or
+    if isinstance(source, dict):
+        from .glyphs import (
+            LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant, Point,
+        )
+        supported = (Point, LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant)
+        if type(glyph) not in supported:
+            raise NotImplementedError(
+                f"dict sources are not supported for {type(glyph).__name__} glyphs")
+        cols_to_keep = _cols_to_keep(source.keys(), glyph, agg)
+        source = _ArraySource({col: source[col] for col in cols_to_keep if col in source})
+        dshape = _dshape_from_array_source(source)
+    elif (isinstance(source, pd.DataFrame) or
             (cudf and isinstance(source, cudf.DataFrame))):
         # Avoid datashape.Categorical instantiation bottleneck
         # by only retaining the necessary columns:

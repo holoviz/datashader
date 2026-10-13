@@ -3536,3 +3536,229 @@ def test_categorical_where_last_n(df):
             assert_eq_ndarray(agg[:, :, :, 0].data,
                               c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'),
                                                                             'reverse'))).data)
+
+
+_masked_reductions = [
+    ds.count(), ds.count("v"), ds.any("v"), ds.sum("v"), ds.min("v"), ds.max("v"),
+    ds.mean("v"), ds.var("v"), ds.std("v"), ds.first("v"), ds.last("v"),
+    ds.first_n("v", n=2), ds.last_n("v", n=2), ds.max_n("v", n=2), ds.min_n("v", n=2),
+]
+
+
+def _masked_frames(dtype, n=200, seed=1):
+    rng = np.random.default_rng(seed)
+    data = {
+        "x": rng.uniform(0, 1, n),
+        "y": rng.uniform(0, 1, n),
+        "v": rng.integers(-50, 50, n).astype(float),
+    }
+    nulls = {k: rng.random(n) < 0.2 for k in data}
+    nan_df = pd.DataFrame({k: np.where(nulls[k], np.nan, v) for k, v in data.items()})
+    masked_df = pd.DataFrame({
+        k: pd.Series(pd.array(np.where(nulls[k], None, v).tolist(), dtype=dtype))
+        for k, v in data.items()
+    })
+    return nan_df, masked_df
+
+
+@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]"])
+@pytest.mark.parametrize("reduction", _masked_reductions, ids=repr)
+def test_points_masked(dtype, reduction):
+    pytest.importorskip("nanoarrow")
+    nan_df, masked_df = _masked_frames(dtype)
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    expected = cvs.points(nan_df, "x", "y", reduction)
+    actual = cvs.points(masked_df, "x", "y", reduction)
+    assert_eq_xr(actual, expected)
+
+
+@pytest.mark.parametrize("dtype", ["Int64", "int32[pyarrow]"])
+@pytest.mark.parametrize("reduction", [ds.count("v"), ds.sum("v"), ds.max("v")], ids=repr)
+def test_points_masked_int(dtype, reduction):
+    pytest.importorskip("nanoarrow")
+    nan_df, _ = _masked_frames("Float64")
+    masked_df = nan_df.assign(v=nan_df["v"].astype(dtype))
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    expected = cvs.points(nan_df, "x", "y", reduction)
+    actual = cvs.points(masked_df, "x", "y", reduction)
+    np.testing.assert_array_equal(actual.values.astype(float), expected.values)
+
+
+@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]"])
+def test_points_masked_sliced(dtype):
+    pytest.importorskip("nanoarrow")
+    nan_df, masked_df = _masked_frames(dtype)
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    expected = cvs.points(nan_df.iloc[13:], "x", "y", ds.sum("v"))
+    actual = cvs.points(masked_df.iloc[13:], "x", "y", ds.sum("v"))
+    assert_eq_xr(actual, expected)
+
+
+def test_points_masked_arrow_chunks():
+    pa = pytest.importorskip("pyarrow")
+    pytest.importorskip("nanoarrow")
+    nan_df, masked_df = _masked_frames("float64[pyarrow]")
+    chunked = pd.DataFrame({
+        k: pd.Series(pa.chunked_array([arr[:50], arr[50:51], arr[51:]]), dtype="float64[pyarrow]")
+        for k, arr in ((k, pa.array(masked_df[k])) for k in masked_df.columns)
+    })
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    for reduction in [ds.sum("v"), ds.first("v"), ds.last("v")]:
+        assert_eq_xr(
+            cvs.points(chunked, "x", "y", reduction), cvs.points(nan_df, "x", "y", reduction)
+        )
+
+
+@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]"])
+def test_points_masked_no_nulls(dtype):
+    pytest.importorskip("nanoarrow")
+    nan_df, _ = _masked_frames(dtype)
+    nan_df = nan_df.fillna(0.5)
+    masked_df = nan_df.astype(dtype)
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    assert_eq_xr(
+        cvs.points(masked_df, "x", "y", ds.sum("v")), cvs.points(nan_df, "x", "y", ds.sum("v"))
+    )
+
+
+@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]"])
+def test_points_masked_auto_bounds(dtype):
+    pytest.importorskip("nanoarrow")
+    nan_df, masked_df = _masked_frames(dtype)
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+    expected = cvs.points(nan_df, "x", "y", ds.sum("v"))
+    actual = cvs.points(masked_df, "x", "y", ds.sum("v"))
+    assert_eq_xr(actual, expected)
+    assert actual.attrs["x_range"] == expected.attrs["x_range"]
+    assert actual.attrs["y_range"] == expected.attrs["y_range"]
+
+
+def test_points_masked_where_raises():
+    pytest.importorskip("nanoarrow")
+    _, masked_df = _masked_frames("Float64")
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    with pytest.raises(NotImplementedError, match="masked"):
+        cvs.points(masked_df, "x", "y", ds.where(ds.max("v")))
+
+
+@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]", "Int64", "int32[pyarrow]"])
+@pytest.mark.parametrize("reduction", [ds.count("v"), ds.sum("v"), ds.max("v")], ids=repr)
+def test_points_masked_by(dtype, reduction):
+    pytest.importorskip("nanoarrow")
+    nan_df, _ = _masked_frames("Float64")
+    nan_df["cat"] = pd.Categorical(np.arange(len(nan_df)) % 3)
+    masked_df = nan_df.assign(v=nan_df["v"].astype(dtype))
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    expected = cvs.points(nan_df, "x", "y", ds.by("cat", reduction))
+    actual = cvs.points(masked_df, "x", "y", ds.by("cat", reduction))
+    assert_eq_xr(actual, expected)
+
+
+_masked_line_specs = {
+    "LineAxis0": dict(x="x0", y="y0", axis=0),
+    "LineAxis0Multi": dict(x=["x0", "x1"], y=["y0", "y1"], axis=0),
+    "LinesAxis1": dict(x=["x0", "x1", "x2"], y=["y0", "y1", "y2"], axis=1),
+    "LinesAxis1XConstant": dict(x=np.array([0.1, 0.5, 0.9]), y=["y0", "y1", "y2"], axis=1),
+    "LinesAxis1YConstant": dict(x=["x0", "x1", "x2"], y=np.array([0.1, 0.5, 0.9]), axis=1),
+}
+
+
+@pytest.mark.parametrize("dtype", ["Float64", "float64[pyarrow]", "Int64"])
+@pytest.mark.parametrize("spec", list(_masked_line_specs))
+def test_line_masked(dtype, spec):
+    pytest.importorskip("nanoarrow")
+    rng = np.random.default_rng(3)
+    n = 30
+    scale = 100 if dtype == "Int64" else 1
+    data = {f"{k}{j}": np.round(rng.uniform(0, 1, n) * scale) for k in "xy" for j in range(3)}
+    data["v"] = rng.integers(0, 10, n).astype(float)
+    nan_df = pd.DataFrame({
+        k: np.where(rng.random(n) < 0.2, np.nan, v) for k, v in data.items()
+    })
+    masked_df = nan_df.astype(dtype)
+    rng_ = (0, scale)
+    cvs = ds.Canvas(plot_width=9, plot_height=7, x_range=rng_, y_range=rng_)
+    kwargs = _masked_line_specs[spec]
+    if scale != 1:
+        kwargs = {k: v * scale if isinstance(v, np.ndarray) else v for k, v in kwargs.items()}
+    for agg in [ds.count(), ds.sum("v")]:
+        expected = cvs.line(nan_df, agg=agg, **kwargs)
+        actual = cvs.line(masked_df, agg=agg, **kwargs)
+        assert_eq_xr(actual, expected)
+    actual = ds.Canvas(plot_width=9, plot_height=7).line(masked_df, **kwargs)
+    expected = ds.Canvas(plot_width=9, plot_height=7).line(nan_df, **kwargs)
+    assert_eq_xr(actual, expected)
+
+
+def _dict_source(kind, nan_df):
+    pa = pytest.importorskip("pyarrow")
+    pytest.importorskip("nanoarrow")
+    out = {}
+    for k, v in nan_df.items():
+        v = v.to_numpy()
+        missing = np.isnan(v)
+        if kind == "numpy":
+            out[k] = v
+        elif kind == "np.ma":
+            out[k] = np.ma.masked_array(np.where(missing, 0, v), mask=missing)
+        elif kind == "Float64":
+            out[k] = pd.array(v, dtype="Float64")
+        elif kind == "arrow":
+            out[k] = pa.array(v, mask=missing)
+        elif kind == "arrow chunked":
+            arr = pa.array(v, mask=missing)
+            out[k] = pa.chunked_array([arr[:77], arr[77:]])
+    return out
+
+
+_dict_kinds = ["numpy", "np.ma", "Float64", "arrow", "arrow chunked"]
+
+
+@pytest.mark.parametrize("kind", _dict_kinds)
+@pytest.mark.parametrize("reduction", [ds.count(), ds.sum("v"), ds.first("v")], ids=repr)
+def test_points_dict_source(kind, reduction):
+    nan_df, _ = _masked_frames("Float64")
+    source = _dict_source(kind, nan_df)
+    source["unused"] = np.zeros((3, 3))
+    for cvs in [
+        ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1)),
+        ds.Canvas(plot_width=7, plot_height=5),
+    ]:
+        assert_eq_xr(
+            cvs.points(source, "x", "y", reduction), cvs.points(nan_df, "x", "y", reduction)
+        )
+
+
+@pytest.mark.parametrize("kind", _dict_kinds)
+@pytest.mark.parametrize("spec", ["LineAxis0Multi", "LinesAxis1", "LinesAxis1XConstant",
+                                  "LinesAxis1YConstant"])
+def test_line_dict_source(kind, spec):
+    rng = np.random.default_rng(3)
+    n = 30
+    nan_df = pd.DataFrame({
+        f"{k}{j}": np.where(rng.random(n) < 0.2, np.nan, rng.uniform(0, 1, n))
+        for k in "xy" for j in range(3)
+    })
+    source = _dict_source(kind, nan_df)
+    cvs = ds.Canvas(plot_width=9, plot_height=7)
+    kwargs = _masked_line_specs[spec]
+    assert_eq_xr(cvs.line(source, **kwargs), cvs.line(nan_df, **kwargs))
+
+
+@pytest.mark.parametrize(
+    ("source", "match"),
+    [
+        ({"x": np.zeros((2, 2)), "y": np.zeros(2)}, "1D"),
+        ({"x": np.zeros(3), "y": np.zeros(2)}, "same length"),
+    ],
+)
+def test_dict_source_invalid(source, match):
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+    with pytest.raises(ValueError, match=match):
+        cvs.points(source, "x", "y")
+
+
+def test_dict_source_unsupported_glyph():
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+    with pytest.raises(NotImplementedError, match="dict"):
+        cvs.line({"x": np.zeros(3), "y": np.zeros(3)}, "x", "y")

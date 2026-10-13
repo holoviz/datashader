@@ -6,10 +6,9 @@ import os
 from math import isnan
 
 import numpy as np
-import pandas as pd
 import xarray as xr
 
-from datashader.utils import Expr, ngjit
+from datashader.utils import Expr, _column_values_and_mask, ngjit
 from datashader.macros import expand_varargs
 
 try:
@@ -53,15 +52,16 @@ class Glyph(Expr):
         if cudf and isinstance(s, cudf.Series):
             s = s.nans_to_nulls()
             return (s.min(), s.max())
-        elif isinstance(s, pd.Series):
-            return Glyph._compute_bounds_numba(s.values)
         elif isinstance(s, xr.DataArray):
             if cp and isinstance(s.data, cp.ndarray):
                 return (s.min().item(), s.max().item())
             else:
                 return Glyph._compute_bounds_numba(s.values.ravel())
         else:
-            return Glyph._compute_bounds_numba(s)
+            values, valid = _column_values_and_mask(s)
+            if valid is not None:
+                return Glyph._compute_bounds_masked_numba(values, valid)
+            return Glyph._compute_bounds_numba(values)
 
     @staticmethod
     @ngjit
@@ -70,6 +70,21 @@ class Glyph(Expr):
         maxval = -np.inf
         for x in arr:
             if not isnan(x):
+                if x < minval:
+                    minval = x
+                if x > maxval:
+                    maxval = x
+
+        return minval, maxval
+
+    @staticmethod
+    @ngjit
+    def _compute_bounds_masked_numba(arr, valid):
+        minval = np.inf
+        maxval = -np.inf
+        for i in range(arr.shape[0]):
+            x = arr[i]
+            if valid[i] and not isnan(x):
                 if x < minval:
                     minval = x
                 if x > maxval:

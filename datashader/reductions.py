@@ -9,7 +9,7 @@ from toolz import concat, unique
 import xarray as xr
 
 from datashader.antialias import AntialiasCombination, AntialiasStage2
-from datashader.utils import isminus1, isnull
+from datashader.utils import _column_values_and_mask, isminus1, isnull
 from numba import cuda as nb_cuda
 
 try:
@@ -117,7 +117,16 @@ class extract(Preprocess):
             else:
                 return df[self.column].data
         else:
-            return df[self.column].values
+            return _column_values_and_mask(df[self.column])[0]
+
+
+class extract_mask(Preprocess):
+    """Extract the validity mask (True = present) of a masked column, or
+    ``None`` if it has no missing values."""
+    def apply(self, df, cuda):
+        if cuda:
+            raise NotImplementedError("Masked columns are not supported on the GPU")
+        return _column_values_and_mask(df[self.column])[1]
 
 
 class CategoryPreprocess(Preprocess):
