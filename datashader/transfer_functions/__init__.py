@@ -195,7 +195,6 @@ def eq_hist(data, mask=None, nbins=256*256):
         if res is not None:
             out, discrete_levels = res
             return out if mask is None else np.where(mask, np.nan, out), discrete_levels
-        # The range is known to be at least nbins, so skip the ptp pass below.
         is_discrete = False
 
     grid = None
@@ -244,7 +243,6 @@ def _eq_hist_integer(data, data2, nbins):
     if is_bool:
         data, data2 = data.view(np.uint8), data2.view(np.uint8)
     vmin, vmax = data2.min(), data2.max()
-    # Wraps like the `ptp` check in eq_hist; `vmax - vmin` would warn on overflow.
     if not is_bool and np.subtract(vmax, vmin) >= nbins:
         return None
     hist = np.bincount(np.subtract(data2.ravel(), vmin, dtype=np.intp),

@@ -1,5 +1,7 @@
 from __future__ import annotations
 import math
+import warnings
+
 import numpy as np
 from toolz import memoize
 
@@ -633,7 +635,6 @@ class LinesXarrayCommonX(LinesAxis1):
         return self.maybe_expand_bounds(bounds)
 
     def compute_bounds_dask(self, xr_ds):
-        import warnings
 
         import dask
         import dask.array as da
