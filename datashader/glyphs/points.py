@@ -186,8 +186,6 @@ class Point(_PointLike):
         x_name = self.x
         y_name = self.y
 
-        # Inlined, as with larger appends (e.g. max_n) LLVM otherwise keeps a
-        # per-point call with array reference counting.
         @nb.jit(nogil=True, inline="always")
         @self.expand_aggs_and_cols(append)
         def _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax,
