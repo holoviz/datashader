@@ -3905,7 +3905,8 @@ def _narwhals_source(backend, nan_df):
 
 
 _narwhals_backends = [
-    "pandas Float64",
+    # narwhals converts pandas to Arrow with pyarrow for __arrow_c_stream__
+    pytest.param("pandas Float64", marks=skip_no_pyarrow),
     pytest.param("pandas arrow", marks=skip_no_pyarrow),
     pytest.param("pyarrow", marks=skip_no_pyarrow),
     "polars",
