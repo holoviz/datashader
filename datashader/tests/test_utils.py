@@ -135,6 +135,7 @@ _masked_inputs = {
     "Float64 array": lambda: pd.array([1.0, None, 3.0, 4.0], dtype="Float64"),
     "arrow": lambda: pd.Series([1.0, None, 3.0, 4.0], dtype="float64[pyarrow]"),
     "arrow int": lambda: pd.Series([1, None, 3, 4], dtype="int32[pyarrow]"),
+    "arrow pd.array": lambda: pd.array([1.0, None, 3.0, 4.0], dtype="float64[pyarrow]"),
     "arrow sliced": lambda: pd.Series([0.0, 1.0, None, 3.0, 4.0], dtype="float64[pyarrow]")[1:],
     "arrow chunked": lambda: pd.Series(
         pa.chunked_array([[1.0], [None, 3.0], [4.0]]), dtype="float64[pyarrow]"
@@ -222,3 +223,11 @@ def test_dshape_from_pandas_arrow_bool_not_option():
 def test_array_source_wraps_numpy_without_copy():
     x = np.arange(5.0)
     assert np.shares_memory(_ArraySource({"x": x})["x"].to_numpy(), x)
+
+
+@skip_no_pyarrow
+@pytest.mark.parametrize("wrap", [pd.Series, lambda arr: arr], ids=["Series", "pd.array"])
+def test_extract_values_and_mask_pandas_arrow_no_copy(wrap):
+    arr = pd.array([1.0, None, 3.0], dtype="float64[pyarrow]")
+    values, _ = _extract_values_and_mask(wrap(arr))
+    assert values.ctypes.data == arr.__arrow_array__().chunk(0).buffers()[1].address

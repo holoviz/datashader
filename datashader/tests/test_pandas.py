@@ -3721,6 +3721,8 @@ def _dict_source(kind, nan_df):
             out[k] = np.ma.masked_array(np.where(missing, 0, v), mask=missing)
         elif kind == "Float64":
             out[k] = pd.array(v, dtype="Float64")
+        elif kind == "arrow pd.array":
+            out[k] = pd.array(np.where(missing, None, v).tolist(), dtype="float64[pyarrow]")
         elif kind == "arrow":
             out[k] = pa.array(v, mask=missing)
         elif kind == "arrow chunked":
@@ -3733,6 +3735,7 @@ _dict_kinds = [
     "numpy", "np.ma", "Float64",
     pytest.param("arrow", marks=skip_no_pyarrow),
     pytest.param("arrow chunked", marks=skip_no_pyarrow),
+    pytest.param("arrow pd.array", marks=skip_no_pyarrow),
 ]
 
 

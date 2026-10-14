@@ -469,14 +469,15 @@ def _extract_values_and_mask(obj):
     result must not be modified. Arrow data is read with nanoarrow; chunks
     are concatenated and the validity bitmap is unpacked.
 
-    This relies on private pandas attributes: ``_data`` and ``_mask`` of
-    ``BaseMaskedArray`` and ``_pa_array`` of ``ArrowExtensionArray``.
+    This relies on the private pandas attributes ``_data`` and ``_mask`` of
+    ``BaseMaskedArray``.
     """
     if isinstance(obj, pd.Series):
         # Series.__arrow_c_stream__ copies the mask and needs pandas 3
         obj = obj.array
-        if isinstance(obj, pd.arrays.ArrowExtensionArray):
-            obj = obj._pa_array
+    if isinstance(obj, pd.arrays.ArrowExtensionArray):
+        # Returns the stored ChunkedArray without copying
+        obj = obj.__arrow_array__()
     if isinstance(obj, (np.ma.MaskedArray, BaseMaskedArray)):
         return obj._data, (obj._mask if obj._mask.any() else None)
     if not (hasattr(obj, "__arrow_c_stream__") or hasattr(obj, "__arrow_c_array__")):
