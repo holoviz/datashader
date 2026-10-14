@@ -563,6 +563,17 @@ def _columns_to_2d(df, names):
     return out
 
 
+def _columns_from_arrow_stream(obj):
+    """Return the columns of a table exposing ``__arrow_c_stream__`` (pyarrow
+    Table, polars or narwhals DataFrame, ...) as a dict of Arrow arrays."""
+    import nanoarrow as na
+
+    table = na.Array(obj)
+    if table.schema.type != na.Type.STRUCT:
+        raise ValueError("an Arrow stream source must be a table")
+    return {field.name: table.child(i) for i, field in enumerate(table.schema.fields)}
+
+
 class _ArraySource:
     """Dict of equal-length 1D arrays used as a source in place of a DataFrame.
 
