@@ -13,8 +13,8 @@ from xarray import DataArray, Dataset
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
 from .utils import (
-    _ArraySource, _dshape_from_array_source, _is_masked_dshape, get_indices, dshape_from_pandas,
-    dshape_from_dask,
+    _ArraySource, _dshape_from_array_source, _is_masked, _is_masked_dshape, get_indices,
+    dshape_from_pandas, dshape_from_dask,
 )
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
@@ -971,6 +971,13 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             else:
                 raise ValueError('Invalid interpolate method: options include {}'.format(
                     ['linear','nearest']))
+
+        # The mesh would turn masked columns into object columns
+        masked = [col for frame in (vertices, simplices) for col in frame.columns
+                  if _is_masked(frame[col])]
+        if masked:
+            raise NotImplementedError(
+                f"masked columns {masked} are not supported for trimesh glyphs")
 
         # Validation is done inside the [pd]d_mesh utility functions
         if source is None:
