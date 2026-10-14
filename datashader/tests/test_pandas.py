@@ -6,6 +6,7 @@ import pandas as pd
 import xarray as xr
 
 import datashader as ds
+import datashader.utils as du
 
 import pytest
 
@@ -3855,3 +3856,19 @@ def test_points_dict_source_by(kind, reduction):
     df = nan_df.assign(cat=source["cat"], i=source["i"])
     cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
     assert_eq_xr(cvs.points(source, "x", "y", reduction), cvs.points(df, "x", "y", reduction))
+
+
+@pytest.mark.parametrize("where", ["vertices", "simplices", "mesh"])
+def test_trimesh_masked_raises(where):
+    verts = pd.DataFrame({"x": [0.0, 1.0, 0.0, 1.0], "y": [0.0, 0.0, 1.0, 1.0]})
+    tris = pd.DataFrame({"v0": [0, 1], "v1": [1, 3], "v2": [2, 2]})
+    if where == "vertices":
+        verts["z"] = pd.array([1.0, None, 3.0, 4.0], dtype="Float64")
+    else:
+        tris["w"] = pd.array([1.0, None], dtype="Float64")
+    mesh = du.mesh(verts, tris.astype({"w": "float64"})) if where == "mesh" else None
+    if mesh is not None:
+        mesh["w"] = pd.array([1.0, 1.0, 1.0, None, None, None], dtype="Float64")
+    cvs = ds.Canvas(plot_width=5, plot_height=5)
+    with pytest.raises(NotImplementedError, match="masked"):
+        cvs.trimesh(verts, tris, mesh=mesh)
