@@ -553,10 +553,10 @@ class count(SelfIntersectingOptionalFieldReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if not isnull(field):
-            agg[y, x] += 1
-            return 0
-        return -1
+        # Always writing avoids a branch on NaN, which mispredicts when NaNs are scattered
+        valid = not isnull(field)
+        agg[y, x] += valid
+        return 0 if valid else -1
 
     @staticmethod
     @ngjit
@@ -957,11 +957,11 @@ class _sum_zero(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if not isnull(field):
-            # agg[y, x] cannot be null as initialised to zero.
-            agg[y, x] += field
-            return 0
-        return -1
+        # Always writing avoids a branch on NaN, which mispredicts when NaNs are scattered.
+        # agg[y, x] cannot be null as initialised to zero.
+        valid = not isnull(field)
+        agg[y, x] += field if valid else 0.0
+        return 0 if valid else -1
 
     @staticmethod
     @ngjit
@@ -1055,13 +1055,12 @@ class sum(SelfIntersectingFloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if not isnull(field):
-            if isnull(agg[y, x]):
-                agg[y, x] = field
-            else:
-                agg[y, x] += field
-            return 0
-        return -1
+        # Always writing avoids a branch on NaN, which mispredicts when NaNs are scattered
+        valid = not isnull(field)
+        current = agg[y, x]
+        total = field if isnull(current) else current + field
+        agg[y, x] = total if valid else current
+        return 0 if valid else -1
 
     @staticmethod
     @ngjit
@@ -1177,10 +1176,11 @@ class min(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if not isnull(field) and (isnull(agg[y, x]) or agg[y, x] > field):
-            agg[y, x] = field
-            return 0
-        return -1
+        # Always writing avoids branches that mispredict when updates are irregular
+        current = agg[y, x]
+        update = (not isnull(field)) & (isnull(current) | (current > field))
+        agg[y, x] = field if update else current
+        return 0 if update else -1
 
     @staticmethod
     @ngjit
@@ -1222,10 +1222,11 @@ class max(FloatingReduction):
     @staticmethod
     @ngjit
     def _append(x, y, agg, field):
-        if not isnull(field) and (isnull(agg[y, x]) or agg[y, x] < field):
-            agg[y, x] = field
-            return 0
-        return -1
+        # Always writing avoids branches that mispredict when updates are irregular
+        current = agg[y, x]
+        update = (not isnull(field)) & (isnull(current) | (current < field))
+        agg[y, x] = field if update else current
+        return 0 if update else -1
 
     @staticmethod
     @ngjit
