@@ -30,6 +30,11 @@ try:
 except ImportError:
     pa = None
 
+try:
+    import polars as pl
+except ImportError:
+    pl = None
+
 def _pandas():
     """
     x          0  0   0  0  0   0   0  0  0  0   1   1  1   1  1    1  1   1  1   1
@@ -3545,6 +3550,7 @@ def test_categorical_where_last_n(df):
 
 
 skip_no_pyarrow = pytest.mark.skipif(pa is None, reason="pyarrow is not installed")
+skip_no_polars = pytest.mark.skipif(pl is None, reason="polars is not installed")
 _ARROW_FLOAT = pytest.param("float64[pyarrow]", marks=skip_no_pyarrow)
 _ARROW_INT = pytest.param("int32[pyarrow]", marks=skip_no_pyarrow)
 
@@ -3739,6 +3745,8 @@ def _dict_source(kind, nan_df):
         elif kind == "arrow chunked":
             arr = pa.array(v, mask=missing)
             out[k] = pa.chunked_array([arr[:77], arr[77:]])
+        elif kind == "polars":
+            out[k] = pl.Series(k, v, nan_to_null=True)
     return out
 
 
@@ -3747,6 +3755,7 @@ _dict_kinds = [
     pytest.param("arrow", marks=skip_no_pyarrow),
     pytest.param("arrow chunked", marks=skip_no_pyarrow),
     pytest.param("arrow pd.array", marks=skip_no_pyarrow),
+    pytest.param("polars", marks=skip_no_polars),
 ]
 
 
@@ -3899,25 +3908,26 @@ def _narwhals_source(backend, nan_df):
     elif backend == "pyarrow":
         native = pa.table({k: pa.array(v.to_numpy(), from_pandas=True) for k, v in nan_df.items()})
     elif backend == "polars":
-        pl = pytest.importorskip("polars")
         native = pl.from_pandas(nan_df, nan_to_null=True)
     return nw.from_native(native, eager_only=True)
 
 
 _narwhals_backends = [
-    # narwhals converts pandas to Arrow with pyarrow for __arrow_c_stream__
     pytest.param("pandas Float64", marks=skip_no_pyarrow),
     pytest.param("pandas arrow", marks=skip_no_pyarrow),
     pytest.param("pyarrow", marks=skip_no_pyarrow),
-    "polars",
+    pytest.param("polars", marks=skip_no_polars),
 ]
 
 
+@pytest.mark.parametrize("native", [False, True], ids=["narwhals", "native"])
 @pytest.mark.parametrize("backend", _narwhals_backends)
 @pytest.mark.parametrize("reduction", [ds.count(), ds.sum("v"), ds.first("v")], ids=repr)
-def test_points_narwhals(backend, reduction):
+def test_points_narwhals(backend, reduction, native):
     nan_df, _ = _masked_frames("Float64")
     source = _narwhals_source(backend, nan_df)
+    if native:
+        source = source.to_native()
     for cvs in [
         ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1)),
         ds.Canvas(plot_width=7, plot_height=5),
