@@ -21,7 +21,7 @@ except ImportError:
     sp = None
 
 from datashader.tests.test_pandas import (
-    _ARROW_FLOAT, _masked_frames, assert_eq_xr, assert_eq_ndarray, values
+    _ARROW_FLOAT, _masked_frames, _to_masked, assert_eq_xr, assert_eq_ndarray, values
 )
 
 
@@ -2545,7 +2545,9 @@ def test_series_reset_index(ddf, npartitions):
 )
 def test_points_masked(npartitions, dtype, reduction):
     nan_df, _ = _masked_frames("Float64")
-    masked_df = nan_df.astype({"x": "Float64", "y": "Float64", "v": dtype})
+    masked_df = _to_masked(nan_df[["x", "y"]], "Float64").assign(
+        v=_to_masked(nan_df[["v"]], dtype)["v"]
+    )
     expected = ds.Canvas(plot_width=7, plot_height=5).points(nan_df, "x", "y", reduction)
     actual = ds.Canvas(plot_width=7, plot_height=5).points(
         dd.from_pandas(masked_df, npartitions=npartitions), "x", "y", reduction
@@ -2565,7 +2567,9 @@ def test_line_masked(npartitions, dtype):
     kwargs = dict(x=["x0", "x1", "x2"], y=["y0", "y1", "y2"], axis=1)
     cvs = ds.Canvas(plot_width=9, plot_height=7)
     expected = cvs.line(nan_df, **kwargs)
-    actual = cvs.line(dd.from_pandas(nan_df.astype(dtype), npartitions=npartitions), **kwargs)
+    actual = cvs.line(
+        dd.from_pandas(_to_masked(nan_df, dtype), npartitions=npartitions), **kwargs
+    )
     assert_eq_xr(actual, expected)
 
 
@@ -2594,3 +2598,17 @@ def test_points_masked_where(npartitions, dtype, reduction):
     expected = cvs.points(nan_df, "x", "y", reduction)
     actual = cvs.points(dd.from_pandas(masked_df, npartitions=npartitions), "x", "y", reduction)
     assert_eq_xr(actual, expected)
+
+
+# With npartitions=1 this raises IndexError, also on main
+@pytest.mark.parametrize("npartitions", [2, 4])
+@pytest.mark.parametrize("dtype", [None, "Float64"])
+def test_summary_where_shared_first_selector(npartitions, dtype):
+    nan_df, _ = _masked_frames("Float64")
+    nan_df["w"] = nan_df["v"][::-1].to_numpy()
+    source = nan_df if dtype is None else _to_masked(nan_df, dtype)
+    agg = ds.summary(a=ds.where(ds.first("v")), b=ds.where(ds.first("v"), "w"))
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    expected = cvs.points(nan_df, "x", "y", agg)
+    actual = cvs.points(dd.from_pandas(source, npartitions=npartitions), "x", "y", agg)
+    xr.testing.assert_equal(actual, expected)

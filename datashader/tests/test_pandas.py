@@ -3564,11 +3564,22 @@ def _masked_frames(dtype, n=200, seed=1):
     }
     nulls = {k: rng.random(n) < 0.2 for k in data}
     nan_df = pd.DataFrame({k: np.where(nulls[k], np.nan, v) for k, v in data.items()})
-    masked_df = pd.DataFrame({
-        k: pd.Series(pd.array(np.where(nulls[k], None, v).tolist(), dtype=dtype))
-        for k, v in data.items()
-    })
-    return nan_df, masked_df
+    return nan_df, _to_masked(nan_df, dtype)
+
+
+def _to_masked(nan_df, dtype):
+    # 1e6 behind the mask makes a test fail if the mask is ignored
+    dt = pd.api.types.pandas_dtype(dtype)
+    out = {}
+    for name, col in nan_df.items():
+        null = col.isna().to_numpy()
+        data = np.where(null, 1e6, col.to_numpy()).astype(dt.numpy_dtype)
+        if isinstance(dt, pd.ArrowDtype):
+            arr = pd.arrays.ArrowExtensionArray(pa.array(data, type=dt.pyarrow_dtype, mask=null))
+        else:
+            arr = type(pd.array([], dtype=dt))(data, null)
+        out[name] = pd.Series(arr, index=nan_df.index)
+    return pd.DataFrame(out)
 
 
 @pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
@@ -3585,7 +3596,7 @@ def test_points_masked(dtype, reduction):
 @pytest.mark.parametrize("reduction", [ds.count("v"), ds.sum("v"), ds.max("v")], ids=repr)
 def test_points_masked_int(dtype, reduction):
     nan_df, _ = _masked_frames("Float64")
-    masked_df = nan_df.assign(v=nan_df["v"].astype(dtype))
+    masked_df = nan_df.assign(v=_to_masked(nan_df[["v"]], dtype)["v"])
     cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
     expected = cvs.points(nan_df, "x", "y", reduction)
     actual = cvs.points(masked_df, "x", "y", reduction)
@@ -3668,7 +3679,7 @@ def test_points_masked_where(dtype, reduction):
 def test_points_masked_by(dtype, reduction):
     nan_df, _ = _masked_frames("Float64")
     nan_df["cat"] = pd.Categorical(np.arange(len(nan_df)) % 3)
-    masked_df = nan_df.assign(v=nan_df["v"].astype(dtype))
+    masked_df = nan_df.assign(v=_to_masked(nan_df[["v"]], dtype)["v"])
     cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
     expected = cvs.points(nan_df, "x", "y", ds.by("cat", reduction))
     actual = cvs.points(masked_df, "x", "y", ds.by("cat", reduction))
@@ -3695,7 +3706,7 @@ def test_line_masked(dtype, spec):
     nan_df = pd.DataFrame({
         k: np.where(rng.random(n) < 0.2, np.nan, v) for k, v in data.items()
     })
-    masked_df = nan_df.astype(dtype)
+    masked_df = _to_masked(nan_df, dtype)
     rng_ = (0, scale)
     cvs = ds.Canvas(plot_width=9, plot_height=7, x_range=rng_, y_range=rng_)
     kwargs = _masked_line_specs[spec]
@@ -3718,9 +3729,9 @@ def _dict_source(kind, nan_df):
         if kind == "numpy":
             out[k] = v
         elif kind == "np.ma":
-            out[k] = np.ma.masked_array(np.where(missing, 0, v), mask=missing)
+            out[k] = np.ma.masked_array(np.where(missing, 1e6, v), mask=missing)
         elif kind == "Float64":
-            out[k] = pd.array(v, dtype="Float64")
+            out[k] = pd.arrays.FloatingArray(np.where(missing, 1e6, v), missing)
         elif kind == "arrow pd.array":
             out[k] = pd.array(np.where(missing, None, v).tolist(), dtype="float64[pyarrow]")
         elif kind == "arrow":
@@ -3834,7 +3845,7 @@ def test_area_masked(source, spec):
     if source == "dict np.ma":
         masked = _dict_source("np.ma", nan_df)
     else:
-        masked = nan_df.astype(source)
+        masked = _to_masked(nan_df, source)
     cvs = ds.Canvas(plot_width=9, plot_height=7)
     kwargs = _masked_area_specs[spec]
     assert_eq_xr(cvs.area(masked, **kwargs), cvs.area(nan_df, **kwargs))
@@ -3865,15 +3876,17 @@ def test_points_dict_source_by(kind, reduction):
 def test_trimesh_masked_raises(where):
     verts = pd.DataFrame({"x": [0.0, 1.0, 0.0, 1.0], "y": [0.0, 0.0, 1.0, 1.0]})
     tris = pd.DataFrame({"v0": [0, 1], "v1": [1, 3], "v2": [2, 2]})
+    mesh = None
     if where == "vertices":
         verts["z"] = pd.array([1.0, None, 3.0, 4.0], dtype="Float64")
-    else:
+    elif where == "simplices":
         tris["w"] = pd.array([1.0, None], dtype="Float64")
-    mesh = du.mesh(verts, tris.astype({"w": "float64"})) if where == "mesh" else None
-    if mesh is not None:
+    else:
+        tris["w"] = [1.0, 2.0]
+        mesh = du.mesh(verts, tris)
         mesh["w"] = pd.array([1.0, 1.0, 1.0, None, None, None], dtype="Float64")
     cvs = ds.Canvas(plot_width=5, plot_height=5)
-    with pytest.raises(NotImplementedError, match="masked"):
+    with pytest.raises(NotImplementedError, match="Triangles" if mesh is not None else "trimesh"):
         cvs.trimesh(verts, tris, mesh=mesh)
 
 
