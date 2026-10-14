@@ -471,8 +471,21 @@ def make_append(bases, cols, calls, glyph, antialias):
             '\n    '.join(body)
         )
     logger.debug(code)
-    exec(code, namespace)
-    return ngjit(namespace['append']), any_uses_cuda_mutex
+    return _jit_append(code, namespace), any_uses_cuda_mutex
+
+
+_append_cache = {}
+
+
+def _jit_append(code, namespace):
+    # compile_components is memoized on the full schema and glyph, so identical
+    # append code is generated for many inputs. Reusing the jitted function lets
+    # numba and the glyph's memoized extend functions reuse their compilations.
+    key = (code, tuple(sorted(namespace.items())))
+    if key not in _append_cache:
+        exec(code, namespace)
+        _append_cache[key] = ngjit(namespace['append'])
+    return _append_cache[key]
 
 
 def make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned):
