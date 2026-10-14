@@ -2600,8 +2600,12 @@ def test_points_masked_where(npartitions, dtype, reduction):
     assert_eq_xr(actual, expected)
 
 
-# With npartitions=1 this raises IndexError, also on main
-@pytest.mark.parametrize("npartitions", [2, 4])
+@pytest.mark.parametrize("npartitions", [
+    pytest.param(1, marks=pytest.mark.xfail(
+        raises=IndexError, strict=True, reason="IndexError with one partition, also on main")),
+    2,
+    4,
+])
 @pytest.mark.parametrize("dtype", [None, "Float64"])
 def test_summary_where_shared_first_selector(npartitions, dtype):
     nan_df, _ = _masked_frames("Float64")
