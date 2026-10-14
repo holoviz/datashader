@@ -253,8 +253,7 @@ class Canvas:
         ----------
         source : pandas.DataFrame, dask.DataFrame, xarray.DataArray/Dataset, or dict
             The input datasource. A dict maps column names to equal-length 1D
-            arrays: numpy, ``np.ma``, pandas or Arrow arrays, or lists. A dict is
-            supported for multiple lines (``axis=0``) and for ``axis=1``.
+            arrays: numpy, ``np.ma``, pandas or Arrow arrays, or lists.
         x, y : str or number or list or tuple or np.ndarray
             Specification of the x and y coordinates of each vertex
             * str or number: Column labels in source
@@ -1387,7 +1386,7 @@ def _bypixel_sanitise(source, glyph, agg):
             source = source.to_dataframe()
 
     if isinstance(source, dict):
-        if type(glyph) not in _array_source_glyphs():
+        if type(glyph) not in _masked_column_glyphs():
             raise NotImplementedError(
                 f"dict sources are not supported for {type(glyph).__name__} glyphs")
         cols_to_keep = _cols_to_keep(source.keys(), glyph, agg)
@@ -1427,16 +1426,14 @@ def _bypixel_sanitise(source, glyph, agg):
     return source, dshape
 
 
-def _array_source_glyphs():
-    from .glyphs import (
-        LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant, Point,
-    )
-    return (Point, LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant)
-
-
 def _masked_column_glyphs():
-    from .glyphs import LineAxis0
-    return _array_source_glyphs() + (LineAxis0,)
+    """Glyphs that support masked columns and dict sources."""
+    from .glyphs import (
+        LineAxis0, LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant, Point,
+    )
+    return (
+        Point, LineAxis0, LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant,
+    )
 
 
 def _cols_to_keep(columns, glyph, agg):
