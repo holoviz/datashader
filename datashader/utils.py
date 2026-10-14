@@ -527,40 +527,55 @@ def _extract_values_and_mask(obj):
     return values, mask
 
 
+def _readonly(arr):
+    """Return a read-only view of a numpy array, other objects unchanged.
+
+    numba compiles a separate specialization for read-only and writable
+    arrays. Arrow buffers are always read-only, so all columns passed to
+    numba are made read-only to share one specialization.
+    """
+    if isinstance(arr, np.ndarray) and arr.flags.writeable:
+        arr = arr.view()
+        arr.flags.writeable = False
+    return arr
+
+
 def _column_values_and_mask(col):
-    """Return the values of ``col`` as a numpy array and a bool missing-value mask
-    (True = missing), or ``None`` as the mask if there are no missing values."""
+    """Return the values of ``col`` as a read-only numpy array and a bool
+    missing-value mask (True = missing), or ``None`` as the mask if there are no
+    missing values."""
     if _is_masked(col):
-        return _extract_values_and_mask(col)
-    return getattr(col, "values", col), None
+        values, mask = _extract_values_and_mask(col)
+        return _readonly(values), _readonly(mask)
+    return _readonly(getattr(col, "values", col)), None
 
 
 def _column_with_nan(col):
-    """Return the values of ``col``, as a float copy with missing values set
-    to NaN if it has any."""
+    """Return the values of ``col`` as a read-only array, as a float copy with
+    missing values set to NaN if it has any."""
     values, mask = _column_values_and_mask(col)
     if mask is None:
         return values
     out = values.astype(np.float64)
     out[mask] = np.nan
-    return out
+    return _readonly(out)
 
 
 def _columns_to_2d(df, names):
-    """Return columns ``names`` of ``df`` as a ``(rows, columns)`` array, with
-    missing values of masked columns set to NaN."""
+    """Return columns ``names`` of ``df`` as a read-only ``(rows, columns)``
+    array, with missing values of masked columns set to NaN."""
     cols = [df[name] for name in names]
     if isinstance(df, pd.DataFrame) and not any(_is_masked(col) for col in cols):
-        return df.loc[:, list(names)].to_numpy()
+        return _readonly(df.loc[:, list(names)].to_numpy())
     values, masks = zip(*(_column_values_and_mask(col) for col in cols))
     if all(mask is None for mask in masks):
-        return np.column_stack(values)
+        return _readonly(np.column_stack(values))
     out = np.empty((len(df), len(cols)), dtype=np.float64)
     for j, (vals, mask) in enumerate(zip(values, masks)):
         out[:, j] = vals
         if mask is not None:
             np.copyto(out[:, j], np.nan, where=mask)
-    return out
+    return _readonly(out)
 
 
 def _columns_from_arrow_stream(obj):
