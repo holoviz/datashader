@@ -462,6 +462,16 @@ _ARROW_TIME_UNITS = {"s": "s", "m": "ms", "u": "us", "n": "ns"}
 
 
 def _extract_values_and_mask(obj):
+    """Return the values of ``obj`` as a numpy array and a bool mask where True
+    means missing, or ``None`` as the mask if there are no missing values.
+
+    Values and masks are returned without copying where possible, so the
+    result must not be modified. Arrow data is read with nanoarrow; chunks
+    are concatenated and the validity bitmap is unpacked.
+
+    This relies on private pandas attributes: ``_data`` and ``_mask`` of
+    ``BaseMaskedArray`` and ``_pa_array`` of ``ArrowExtensionArray``.
+    """
     if isinstance(obj, pd.Series):
         # Series.__arrow_c_stream__ copies the mask and needs pandas 3
         obj = obj.array
