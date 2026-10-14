@@ -2580,3 +2580,17 @@ def test_points_masked_by(npartitions, dtype, reduction):
         dd.from_pandas(masked_df, npartitions=npartitions), "x", "y", ds.by("cat", reduction)
     )
     assert_eq_xr(actual, expected)
+
+
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
+@pytest.mark.parametrize(
+    "reduction",
+    [ds.where(ds.max("v")), ds.where(ds.min("v"), "y"), ds.where(ds.first("v"), "y")],
+    ids=repr,
+)
+def test_points_masked_where(npartitions, dtype, reduction):
+    nan_df, masked_df = _masked_frames(dtype)
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    expected = cvs.points(nan_df, "x", "y", reduction)
+    actual = cvs.points(dd.from_pandas(masked_df, npartitions=npartitions), "x", "y", reduction)
+    assert_eq_xr(actual, expected)
