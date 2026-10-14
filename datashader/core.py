@@ -488,8 +488,9 @@ The axis argument to Canvas.line must be 0 or 1
 
         Parameters
         ----------
-        source : pandas.DataFrame, dask.DataFrame, or xarray.DataArray/Dataset
-            The input datasource.
+        source : pandas.DataFrame, dask.DataFrame, xarray.DataArray/Dataset, or dict
+            The input datasource. A dict maps column names to equal-length 1D
+            arrays: numpy, ``np.ma``, pandas or Arrow arrays, or lists.
         x, y : str or number or list or tuple or np.ndarray
             Specification of the x and y coordinates of each vertex of the
             line defining the starting edge of the area region.
@@ -1429,10 +1430,16 @@ def _bypixel_sanitise(source, glyph, agg):
 def _masked_column_glyphs():
     """Glyphs that support masked columns and dict sources."""
     from .glyphs import (
-        LineAxis0, LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant, Point,
+        AreaToLineAxis0, AreaToLineAxis0Multi, AreaToLineAxis1, AreaToLineAxis1XConstant,
+        AreaToLineAxis1YConstant, AreaToZeroAxis0, AreaToZeroAxis0Multi, AreaToZeroAxis1,
+        AreaToZeroAxis1XConstant, AreaToZeroAxis1YConstant, LineAxis0, LineAxis0Multi,
+        LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant, Point,
     )
     return (
         Point, LineAxis0, LineAxis0Multi, LinesAxis1, LinesAxis1XConstant, LinesAxis1YConstant,
+        AreaToZeroAxis0, AreaToLineAxis0, AreaToZeroAxis0Multi, AreaToLineAxis0Multi,
+        AreaToZeroAxis1, AreaToLineAxis1, AreaToZeroAxis1XConstant, AreaToLineAxis1XConstant,
+        AreaToZeroAxis1YConstant, AreaToLineAxis1YConstant,
     )
 
 

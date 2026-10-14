@@ -3781,7 +3781,7 @@ def test_dict_source_invalid(source, match):
 def test_dict_source_unsupported_glyph():
     cvs = ds.Canvas(plot_width=7, plot_height=5)
     with pytest.raises(NotImplementedError, match="dict"):
-        cvs.area({"x": np.zeros(3), "y": np.zeros(3)}, "x", "y")
+        cvs.line({"x": np.zeros(3), "y": np.zeros(3)}, "x", "y", axis=1)
 
 
 def test_points_dict_source_lists():
@@ -3799,11 +3799,41 @@ def test_dict_source_missing_column():
         cvs.points({"x": np.zeros(3)}, "x", "y")
 
 
-def test_area_masked_raises():
-    df = pd.DataFrame({"x": [0.1, 0.5, 0.9], "y": pd.array([0.1, None, 0.3], dtype="Float64")})
-    cvs = ds.Canvas(plot_width=7, plot_height=5)
-    with pytest.raises(NotImplementedError, match="masked"):
-        cvs.area(df, "x", "y")
+_c3 = np.array([0.1, 0.5, 0.9])
+_masked_area_specs = {
+    "AreaToZeroAxis0": dict(x="x0", y="y0", axis=0),
+    "AreaToLineAxis0": dict(x="x0", y="y0", y_stack="y1", axis=0),
+    "AreaToZeroAxis0Multi": dict(x=["x0", "x1"], y=["y0", "y1"], axis=0),
+    "AreaToLineAxis0Multi": dict(x=["x0", "x1"], y=["y0", "y1"], y_stack=["y2", "y0"], axis=0),
+    "AreaToZeroAxis1": dict(x=["x0", "x1", "x2"], y=["y0", "y1", "y2"], axis=1),
+    "AreaToLineAxis1": dict(
+        x=["x0", "x1", "x2"], y=["y0", "y1", "y2"], y_stack=["y2", "y0", "y1"], axis=1
+    ),
+    "AreaToZeroAxis1XConstant": dict(x=_c3, y=["y0", "y1", "y2"], axis=1),
+    "AreaToLineAxis1XConstant": dict(
+        x=_c3, y=["y0", "y1", "y2"], y_stack=["y2", "y0", "y1"], axis=1
+    ),
+    "AreaToZeroAxis1YConstant": dict(x=["x0", "x1", "x2"], y=_c3, axis=1),
+    "AreaToLineAxis1YConstant": dict(x=["x0", "x1", "x2"], y=_c3, y_stack=_c3[::-1], axis=1),
+}
+
+
+@pytest.mark.parametrize("source", ["Float64", _ARROW_FLOAT, "dict np.ma"])
+@pytest.mark.parametrize("spec", list(_masked_area_specs))
+def test_area_masked(source, spec):
+    rng = np.random.default_rng(4)
+    n = 30
+    nan_df = pd.DataFrame({
+        f"{k}{j}": np.where(rng.random(n) < 0.2, np.nan, rng.uniform(0, 1, n))
+        for k in "xy" for j in range(3)
+    })
+    if source == "dict np.ma":
+        masked = _dict_source("np.ma", nan_df)
+    else:
+        masked = nan_df.astype(source)
+    cvs = ds.Canvas(plot_width=9, plot_height=7)
+    kwargs = _masked_area_specs[spec]
+    assert_eq_xr(cvs.area(masked, **kwargs), cvs.area(nan_df, **kwargs))
 
 
 @pytest.mark.parametrize("kind", _dict_kinds)
