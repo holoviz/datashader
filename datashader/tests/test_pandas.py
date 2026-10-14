@@ -3872,3 +3872,60 @@ def test_trimesh_masked_raises(where):
     cvs = ds.Canvas(plot_width=5, plot_height=5)
     with pytest.raises(NotImplementedError, match="masked"):
         cvs.trimesh(verts, tris, mesh=mesh)
+
+
+def _narwhals_source(backend, nan_df):
+    nw = pytest.importorskip("narwhals")
+    if backend == "pandas Float64":
+        native = nan_df.astype("Float64")
+    elif backend == "pandas arrow":
+        native = nan_df.astype("float64[pyarrow]")
+    elif backend == "pyarrow":
+        native = pa.table({k: pa.array(v.to_numpy(), from_pandas=True) for k, v in nan_df.items()})
+    elif backend == "polars":
+        pl = pytest.importorskip("polars")
+        native = pl.from_pandas(nan_df, nan_to_null=True)
+    return nw.from_native(native, eager_only=True)
+
+
+_narwhals_backends = [
+    "pandas Float64",
+    pytest.param("pandas arrow", marks=skip_no_pyarrow),
+    pytest.param("pyarrow", marks=skip_no_pyarrow),
+    "polars",
+]
+
+
+@pytest.mark.parametrize("backend", _narwhals_backends)
+@pytest.mark.parametrize("reduction", [ds.count(), ds.sum("v"), ds.first("v")], ids=repr)
+def test_points_narwhals(backend, reduction):
+    nan_df, _ = _masked_frames("Float64")
+    source = _narwhals_source(backend, nan_df)
+    for cvs in [
+        ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1)),
+        ds.Canvas(plot_width=7, plot_height=5),
+    ]:
+        assert_eq_xr(
+            cvs.points(source, "x", "y", reduction), cvs.points(nan_df, "x", "y", reduction)
+        )
+
+
+@pytest.mark.parametrize("backend", _narwhals_backends)
+def test_line_narwhals(backend):
+    rng = np.random.default_rng(3)
+    n = 30
+    nan_df = pd.DataFrame({
+        f"{k}{j}": np.where(rng.random(n) < 0.2, np.nan, rng.uniform(0, 1, n))
+        for k in "xy" for j in range(3)
+    })
+    source = _narwhals_source(backend, nan_df)
+    cvs = ds.Canvas(plot_width=9, plot_height=7)
+    kwargs = _masked_line_specs["LinesAxis1"]
+    assert_eq_xr(cvs.line(source, **kwargs), cvs.line(nan_df, **kwargs))
+
+
+@skip_no_pyarrow
+def test_arrow_stream_source_not_table():
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+    with pytest.raises(ValueError, match="table"):
+        cvs.points(pa.chunked_array([[1.0, 2.0]]), "x", "y")

@@ -13,8 +13,8 @@ from xarray import DataArray, Dataset
 from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
 from .utils import (
-    _ArraySource, _dshape_from_array_source, _is_masked, _is_masked_dshape, get_indices,
-    dshape_from_pandas, dshape_from_dask,
+    _ArraySource, _columns_from_arrow_stream, _dshape_from_array_source, _is_masked,
+    _is_masked_dshape, get_indices, dshape_from_pandas, dshape_from_dask,
 )
 from .utils import Expr # noqa (API import)
 from .resampling import resample_2d, resample_2d_distributed
@@ -1392,6 +1392,12 @@ def _bypixel_sanitise(source, glyph, agg):
             source = source.to_dask_dataframe()
         else:
             source = source.to_dataframe()
+
+    if hasattr(source, "__arrow_c_stream__") and not (
+            isinstance(source, pd.DataFrame)
+            or (cudf and isinstance(source, cudf.DataFrame))
+            or (dd and isinstance(source, dd.DataFrame))):
+        source = _columns_from_arrow_stream(source)
 
     if isinstance(source, dict):
         if type(glyph) not in _masked_column_glyphs():
