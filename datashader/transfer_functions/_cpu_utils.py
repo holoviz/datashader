@@ -26,15 +26,17 @@ def masked_clip_2d(data, mask, lower, upper):
     None
         data array is modified in-place
     """
+    # Selecting between values of the same dtype avoids casting int64 to float64
+    bounds = np.empty(2, dtype=data.dtype)
+    bounds[0] = lower
+    bounds[1] = upper
+    lower_cast, upper_cast = bounds[0], bounds[1]
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
-            if mask[i, j]:
-                continue
+            # Always writing back lets LLVM vectorize the loop
             val = data[i, j]
-            if val < lower:
-                data[i, j] = lower
-            elif val > upper:
-                data[i, j] = upper
+            clipped = lower_cast if val < lower else (upper_cast if val > upper else val)
+            data[i, j] = val if mask[i, j] else clipped
 
 
 @ngjit
