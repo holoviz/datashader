@@ -3732,8 +3732,7 @@ def test_points_dict_source(kind, reduction):
 
 
 @pytest.mark.parametrize("kind", _dict_kinds)
-@pytest.mark.parametrize("spec", ["LineAxis0Multi", "LinesAxis1", "LinesAxis1XConstant",
-                                  "LinesAxis1YConstant"])
+@pytest.mark.parametrize("spec", list(_masked_line_specs))
 def test_line_dict_source(kind, spec):
     rng = np.random.default_rng(3)
     n = 30
@@ -3763,7 +3762,7 @@ def test_dict_source_invalid(source, match):
 def test_dict_source_unsupported_glyph():
     cvs = ds.Canvas(plot_width=7, plot_height=5)
     with pytest.raises(NotImplementedError, match="dict"):
-        cvs.line({"x": np.zeros(3), "y": np.zeros(3)}, "x", "y")
+        cvs.area({"x": np.zeros(3), "y": np.zeros(3)}, "x", "y")
 
 
 def test_points_dict_source_lists():

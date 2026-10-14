@@ -525,6 +525,17 @@ def _column_values_and_mask(col):
     return getattr(col, "values", col), None
 
 
+def _column_with_nan(col):
+    """Return the values of ``col``, as a float copy with missing values set
+    to NaN if it has any."""
+    values, mask = _column_values_and_mask(col)
+    if mask is None:
+        return values
+    out = values.astype(np.float64)
+    out[mask] = np.nan
+    return out
+
+
 def _columns_to_2d(df, names):
     """Return columns ``names`` of ``df`` as a ``(rows, columns)`` array, with
     missing values of masked columns set to NaN."""
