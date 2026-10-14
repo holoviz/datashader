@@ -18,6 +18,8 @@ except Exception:
     cudf = None
     cp = None
 
+_NAN_IF_MISSING = np.array([0.0, np.nan])
+
 
 class Glyph(Expr):
     """Base class for glyphs."""
@@ -83,12 +85,11 @@ class Glyph(Expr):
         minval = np.inf
         maxval = -np.inf
         for i in range(arr.shape[0]):
-            x = arr[i]
-            if not mask[i] and not isnan(x):
-                if x < minval:
-                    minval = x
-                if x > maxval:
-                    maxval = x
+            # Masked values become NaN. Comparisons with NaN are false, so NaN is
+            # skipped without a branch, which lets LLVM vectorize the loop
+            x = arr[i] + _NAN_IF_MISSING[np.intp(mask[i])]
+            minval = x if x < minval else minval
+            maxval = x if x > maxval else maxval
 
         return minval, maxval
 
