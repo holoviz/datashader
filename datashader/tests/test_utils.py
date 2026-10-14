@@ -17,6 +17,13 @@ except ImportError:
 
 skip_no_pyarrow = pytest.mark.skipif(pa is None, reason="pyarrow is not installed")
 
+try:
+    import polars as pl
+except ImportError:
+    pl = None
+
+skip_no_polars = pytest.mark.skipif(pl is None, reason="polars is not installed")
+
 
 def test_Dispatcher():
     foo = Dispatcher()
@@ -142,6 +149,12 @@ _masked_inputs = {
     ),
     "pa.Array": lambda: pa.array([1.0, None, 3.0, 4.0]),
     "pa.ChunkedArray sliced": lambda: pa.chunked_array([[0.0, 1.0, None], [3.0, 4.0]]).slice(1),
+    "polars": lambda: pl.Series([1.0, None, 3.0, 4.0]),
+    "polars int": lambda: pl.Series([1, None, 3, 4]),
+    "polars sliced": lambda: pl.Series([0.0, 1.0, None, 3.0, 4.0])[1:],
+    "polars chunked": lambda: pl.concat(
+        [pl.Series([1.0]), pl.Series([None, 3.0]), pl.Series([4.0])], rechunk=False
+    ),
 }
 
 
@@ -149,6 +162,7 @@ _masked_inputs = {
     "name",
     [
         name if name in ("np.ma", "Float64", "Int32", "Float64 array")
+        else pytest.param(name, marks=skip_no_polars) if name.startswith("polars")
         else pytest.param(name, marks=skip_no_pyarrow)
         for name in _masked_inputs
     ],
