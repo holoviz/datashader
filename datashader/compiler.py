@@ -412,16 +412,13 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
         else:
             for col in cols:
                 if masks and isinstance(col, extract) and col.column in masks:
-                    # Reading inside the branch keeps numba's refcount calls (much slower)
+                    # Reductions skip NaN, and a call inside a branch is not inlined
+                    # by numba, which made count and std 6-8x slower
                     value, missing = next(names), next(names)
                     head.append(f'{value} = {arg_lk[col]}[{subscript}]')
                     head.append(
                         f'{missing} = _is_missing({arg_lk[masks[col.column]]}, {subscript})')
-                    if is_where_call[index]:
-                        # A where reduction stores the lookup value, so missing becomes NaN
-                        head.append(f'{value} = nan if {missing} else {value}')
-                    else:
-                        conditions.append(f'not {missing}')
+                    head.append(f'{value} = nan if {missing} else {value}')
                     args.append(value)
                 else:
                     args.append(f'{arg_lk[col]}[{subscript}]')
