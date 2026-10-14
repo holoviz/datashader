@@ -558,7 +558,9 @@ class _ArraySource:
 
     Columns can be numpy arrays, np.ma arrays, pandas arrays, Arrow arrays
     (anything with ``__arrow_c_stream__`` or ``__arrow_c_array__``), or
-    sequences such as lists, which are converted with ``np.asarray``.
+    sequences such as lists, which are converted with ``np.asarray``. numpy
+    arrays and ``pd.Categorical`` are wrapped in a ``pd.Series`` without
+    copying, so categorizers can use them like DataFrame columns.
     """
     def __init__(self, data):
         data = {
@@ -575,7 +577,10 @@ class _ArraySource:
             lengths.add(len(col))
         if len(lengths) > 1:
             raise ValueError("dict source columns must all have the same length")
-        self._data = dict(data)
+        self._data = {
+            name: pd.Series(col, copy=False) if _is_plain_or_categorical(col) else col
+            for name, col in data.items()
+        }
         self._length = lengths.pop() if lengths else 0
 
     @property
@@ -589,11 +594,19 @@ class _ArraySource:
         return self._length
 
 
+def _is_plain_or_categorical(col):
+    return isinstance(col, pd.Categorical) or (
+        isinstance(col, np.ndarray) and not isinstance(col, np.ma.MaskedArray)
+    )
+
+
 def _dshape_from_array_source(source):
     fields = []
     for name in source.columns:
         col = source[name]
-        if _is_masked(col):
+        if isinstance(col, pd.Series):
+            dshape = dshape_from_pandas_helper(col)
+        elif _is_masked(col):
             dtype = getattr(col, "dtype", None)
             dtype = getattr(dtype, "numpy_dtype", dtype)
             if not isinstance(dtype, np.dtype):

@@ -6,7 +6,7 @@ from xarray import DataArray
 
 from datashader.datashape import dshape
 from datashader.utils import (
-    Dispatcher, _column_values_and_mask, _extract_values_and_mask, apply, calc_res,
+    Dispatcher, _ArraySource, _column_values_and_mask, _extract_values_and_mask, apply, calc_res,
     dshape_from_pandas, isreal, orient_array,
 )
 
@@ -217,3 +217,8 @@ def test_column_values_and_mask_series_no_copy():
 def test_dshape_from_pandas_arrow_bool_not_option():
     df = pd.DataFrame({"v": pd.array([True, None], dtype="bool[pyarrow]")})
     assert dshape_from_pandas(df).measure["v"] == dshape("bool").measure
+
+
+def test_array_source_wraps_numpy_without_copy():
+    x = np.arange(5.0)
+    assert np.shares_memory(_ArraySource({"x": x})["x"].to_numpy(), x)
