@@ -3636,11 +3636,30 @@ def test_points_masked_auto_bounds(dtype):
     assert actual.attrs["y_range"] == expected.attrs["y_range"]
 
 
-def test_points_masked_where_raises():
-    _, masked_df = _masked_frames("Float64")
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
+@pytest.mark.parametrize(
+    "reduction",
+    [
+        ds.where(ds.max("v")),
+        ds.where(ds.min("v"), "w"),
+        ds.where(ds.first("v"), "w"),
+        ds.where(ds.max_n("v", n=2), "w"),
+        ds.where(ds.max("x"), "w"),
+        ds.by("cat", ds.where(ds.max("v"), "w")),
+        ds.summary(a=ds.where(ds.max("v"), "w"), b=ds.where(ds.max("v"), "y")),
+    ],
+    ids=repr,
+)
+def test_points_masked_where(dtype, reduction):
+    nan_df, masked_df = _masked_frames(dtype)
+    _, masked_w = _masked_frames(dtype, seed=2)
+    nan_w, _ = _masked_frames(dtype, seed=2)
+    nan_df["w"], masked_df["w"] = nan_w["v"], masked_w["v"]
+    nan_df["cat"] = masked_df["cat"] = pd.Categorical(np.arange(len(nan_df)) % 3)
     cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
-    with pytest.raises(NotImplementedError, match="masked"):
-        cvs.points(masked_df, "x", "y", ds.where(ds.max("v")))
+    expected = cvs.points(nan_df, "x", "y", reduction)
+    actual = cvs.points(masked_df, "x", "y", reduction)
+    xr.testing.assert_equal(actual, expected)
 
 
 @pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT, "Int64", _ARROW_INT])

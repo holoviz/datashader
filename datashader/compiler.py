@@ -143,13 +143,6 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
     }
     if masks and cuda:
         raise NotImplementedError("Masked columns are not supported on the GPU")
-    for b in bases:
-        if masks and b.is_where():
-            w = b.reduction if isinstance(b, by) else b
-            # A row skipped by the NaN check never reads the selector or lookup column
-            if w.selector.column in masks or (
-                    w.column in masks and w.column != w._nan_check_column):
-                raise NotImplementedError("where reductions do not support masked columns")
     cols += list(masks.values())
 
     # List of temps needed
@@ -359,6 +352,8 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
         namespace["isnull"] = isnull
     if masks:
         namespace["_is_missing"] = _is_missing
+        namespace["nan"] = np.nan
+    is_where_call = [len(call[1]) == 1 and call[1][0].is_where() for call in calls]
     global_cuda_mutex = any(call[6] == UsesCudaMutex.Global for call in calls)
     any_uses_cuda_mutex = any(call[6] != UsesCudaMutex.No for call in calls)
     if any_uses_cuda_mutex:
@@ -406,7 +401,6 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
         logger.debug(f"func {func_name} {func}")
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
-        pre = []
         conditions = []
         if categorical and isinstance(cols[0], category_codes):
             args.extend(f'{arg_lk[col]}[{subscript}]' for col in cols[1:])
@@ -420,10 +414,14 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
                 if masks and isinstance(col, extract) and col.column in masks:
                     # Reading inside the branch keeps numba's refcount calls (much slower)
                     value, missing = next(names), next(names)
-                    pre.append(f'{value} = {arg_lk[col]}[{subscript}]')
-                    pre.append(
+                    head.append(f'{value} = {arg_lk[col]}[{subscript}]')
+                    head.append(
                         f'{missing} = _is_missing({arg_lk[masks[col.column]]}, {subscript})')
-                    conditions.append(f'not {missing}')
+                    if is_where_call[index]:
+                        # A where reduction stores the lookup value, so missing becomes NaN
+                        head.append(f'{value} = nan if {missing} else {value}')
+                    else:
+                        conditions.append(f'not {missing}')
                     args.append(value)
                 else:
                     args.append(f'{arg_lk[col]}[{subscript}]')
@@ -476,7 +474,6 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
             # If nan_check_column is defined then need to check if value of
             # correct row in that column is NaN and if so do nothing. This
             # check needs to occur before the where.selector is called.
-            body[-1:-1] = pre
             if nan_check_column is None:
                 whitespace = ''
             else:
@@ -490,10 +487,15 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
         else:
             if local_cuda_mutex and not prev_local_cuda_mutex:
                 body.append(get_cuda_mutex_call(True))
-            body.extend(pre)
             if nan_check_column:
                 conditions.append(nan_check(nan_check_column))
-            if conditions:
+            next_is_where = index + 1 < len(calls) and is_where_call[index + 1]
+            if conditions and next_is_where:
+                # The following where reduction needs the selector call as one expression
+                body.append(
+                    f'{func_name}(x, y, {", ".join(args)}) '
+                    f'if {" and ".join(conditions)} else -1')
+            elif conditions:
                 body.append(f'if {" and ".join(conditions)}:')
                 body.append(f'    {func_name}(x, y, {", ".join(args)})')
             else:
