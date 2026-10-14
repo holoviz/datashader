@@ -412,8 +412,7 @@ def make_append(bases, cols, calls, glyph, antialias, masks=None):
         else:
             for col in cols:
                 if masks and isinstance(col, extract) and col.column in masks:
-                    # Reductions skip NaN, and a call inside a branch is not inlined
-                    # by numba, which made count and std 6-8x slower
+                    # Reductions skip NaN, and numba does not inline a call inside a branch
                     value, missing = next(names), next(names)
                     head.append(f'{value} = {arg_lk[col]}[{subscript}]')
                     head.append(
