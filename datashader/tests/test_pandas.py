@@ -3785,3 +3785,24 @@ def test_area_masked_raises():
     cvs = ds.Canvas(plot_width=7, plot_height=5)
     with pytest.raises(NotImplementedError, match="masked"):
         cvs.area(df, "x", "y")
+
+
+@pytest.mark.parametrize("kind", _dict_kinds)
+@pytest.mark.parametrize(
+    "reduction",
+    [
+        ds.by("cat", ds.count()),
+        ds.by("cat", ds.sum("v")),
+        ds.by(ds.category_binning("v", 0, 50, 5), ds.count()),
+        ds.by(ds.category_modulo("i", 3), ds.max("v")),
+    ],
+    ids=repr,
+)
+def test_points_dict_source_by(kind, reduction):
+    nan_df, _ = _masked_frames("Float64")
+    source = _dict_source(kind, nan_df)
+    source["cat"] = pd.Categorical(np.arange(len(nan_df)) % 3)
+    source["i"] = np.arange(len(nan_df))
+    df = nan_df.assign(cat=source["cat"], i=source["i"])
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    assert_eq_xr(cvs.points(source, "x", "y", reduction), cvs.points(df, "x", "y", reduction))

@@ -9,7 +9,7 @@ from toolz import concat, unique
 import xarray as xr
 
 from datashader.antialias import AntialiasCombination, AntialiasStage2
-from datashader.utils import _column_values_and_mask, isminus1, isnull
+from datashader.utils import _column_values_and_mask, _column_with_nan, isminus1, isnull
 from numba import cuda as nb_cuda
 
 try:
@@ -254,7 +254,7 @@ class category_binning(category_modulo):
                 values = cp.array(df[self.column].to_gpu_array(fillna=True))
             nan_values = cp.isnan(values)
         else:
-            values = df[self.column].to_numpy()
+            values = _column_with_nan(df[self.column])
             nan_values = np.isnan(values)
 
         index_float = (values - self.bin0) / self.binsize
@@ -311,7 +311,7 @@ class category_values(CategoryPreprocess):
             if self.column == SpecialColumn.RowIndex:
                 b = extract(SpecialColumn.RowIndex).apply(df, cuda)
             else:
-                b = df[self.column].values
+                b = _column_with_nan(df[self.column])
             return np.stack((a, b), axis=-1)
 
 
