@@ -476,7 +476,6 @@ def _extract_values_and_mask(obj):
         # Series.__arrow_c_stream__ copies the mask and needs pandas 3
         obj = obj.array
     if isinstance(obj, pd.arrays.ArrowExtensionArray):
-        # Returns the stored ChunkedArray without copying
         obj = obj.__arrow_array__()
     if isinstance(obj, (np.ma.MaskedArray, BaseMaskedArray)):
         return obj._data, (obj._mask if obj._mask.any() else None)
