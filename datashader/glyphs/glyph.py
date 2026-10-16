@@ -3,7 +3,6 @@ from packaging.version import Version
 import inspect
 import warnings
 import os
-from math import isnan
 
 import numpy as np
 import pandas as pd
@@ -69,11 +68,10 @@ class Glyph(Expr):
         minval = np.inf
         maxval = -np.inf
         for x in arr:
-            if not isnan(x):
-                if x < minval:
-                    minval = x
-                if x > maxval:
-                    maxval = x
+            # Comparisons with NaN are false, so NaN is skipped without a branch,
+            # which lets LLVM vectorize the loop
+            minval = x if x < minval else minval
+            maxval = x if x > maxval else maxval
 
         return minval, maxval
 
@@ -84,12 +82,11 @@ class Glyph(Expr):
         maxval = -np.inf
         for i in range(vals.shape[0]):
             for j in range(vals.shape[1]):
-                v = vals[i][j]
-                if not np.isnan(v):
-                    if v < minval:
-                        minval = v
-                    if v > maxval:
-                        maxval = v
+                v = vals[i, j]
+                # Comparisons with NaN are false, so NaN is skipped without a branch,
+                # which lets LLVM vectorize the loop
+                minval = v if v < minval else minval
+                maxval = v if v > maxval else maxval
 
         return minval, maxval
 
