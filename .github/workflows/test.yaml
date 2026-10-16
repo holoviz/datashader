@@ -34,7 +34,7 @@ defaults:
 env:
   DISPLAY: ":99.0"
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  COV: "--cov=./datashader --cov-report=xml"
+  COV: "--cov=./datashader --cov-report=xml --cov-append"
   UPSTREAM_PACKAGES: "param colorcet"
 
 jobs:
