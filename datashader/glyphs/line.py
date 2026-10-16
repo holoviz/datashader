@@ -5,7 +5,7 @@ from toolz import memoize
 
 from datashader.antialias import two_stage_agg
 from datashader.glyphs.points import _PointLike, _GeometryLike
-from datashader.utils import isnull, isreal, ngjit
+from datashader.utils import _column_with_nan, _columns_to_2d, isnull, isreal, ngjit
 from numba import cuda
 import numba.types as nb_types
 
@@ -90,8 +90,8 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
                 ys = self.to_cupy_array(df, y_name)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, x_name].to_numpy()
-                ys = df.loc[:, y_name].to_numpy()
+                xs = _column_with_nan(df[x_name])
+                ys = _column_with_nan(df[y_name])
                 do_extend = extend_cpu
 
             # line may be clipped, then mapped to pixels
@@ -182,8 +182,8 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
-                ys = df.loc[:, list(y_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
+                ys = _columns_to_2d(df, y_names)
                 do_extend = extend_cpu
 
             # line may be clipped, then mapped to pixels
@@ -295,8 +295,8 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
-                ys = df.loc[:, list(y_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
+                ys = _columns_to_2d(df, y_names)
                 do_extend = extend_cpu
 
             do_extend(
@@ -370,7 +370,7 @@ class LinesAxis1XConstant(LinesAxis1):
                 do_extend = extend_cuda[cuda_args(ys.shape)]
             else:
                 xs = x_values
-                ys = df.loc[:, list(y_names)].to_numpy()
+                ys = _columns_to_2d(df, y_names)
                 do_extend = extend_cpu
 
             do_extend(
@@ -443,7 +443,7 @@ class LinesAxis1YConstant(LinesAxis1):
                 ys = cp.asarray(y_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
                 ys = y_values
                 do_extend = extend_cpu
 

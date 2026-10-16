@@ -1,9 +1,28 @@
 from __future__ import annotations
 import numpy as np
+import pandas as pd
+import pytest
 from xarray import DataArray
 
 from datashader.datashape import dshape
-from datashader.utils import Dispatcher, apply, calc_res, isreal, orient_array
+from datashader.utils import (
+    Dispatcher, _ArraySource, _column_values_and_mask, _extract_values_and_mask, apply, calc_res,
+    dshape_from_pandas, isreal, orient_array,
+)
+
+try:
+    import pyarrow as pa
+except ImportError:
+    pa = None
+
+skip_no_pyarrow = pytest.mark.skipif(pa is None, reason="pyarrow is not installed")
+
+try:
+    import polars as pl
+except ImportError:
+    pl = None
+
+skip_no_polars = pytest.mark.skipif(pl is None, reason="polars is not installed")
 
 
 def test_Dispatcher():
@@ -93,3 +112,136 @@ def test_orient_array():
     xarr = DataArray(z, coords=dict(x=x[::-1], y=y[::-1]), dims=dims)
     arr = orient_array(xarr)
     assert np.array_equal(arr, z[::-1, ::-1])
+
+
+@pytest.mark.parametrize(
+    ("dtype", "expected"),
+    [
+        ("Float64", "?float64"),
+        ("Float32", "?float32"),
+        ("Int64", "?int64"),
+        ("Int32", "?int32"),
+        pytest.param("float64[pyarrow]", "?float64", marks=skip_no_pyarrow),
+        pytest.param("int32[pyarrow]", "?int32", marks=skip_no_pyarrow),
+    ],
+)
+def test_dshape_from_pandas_masked(dtype, expected):
+    df = pd.DataFrame({"v": pd.array([1, None, 3], dtype=dtype)})
+    assert dshape_from_pandas(df).measure["v"] == dshape(expected).measure
+
+
+def test_dshape_from_pandas_numpy_not_option():
+    df = pd.DataFrame({"v": np.array([1.0, np.nan])})
+    assert dshape_from_pandas(df).measure["v"] == dshape("float64").measure
+
+
+_masked_inputs = {
+    "np.ma": lambda: np.ma.masked_array([1.0, 2.0, 3.0, 4.0], mask=[False, True, False, False]),
+    "Float64": lambda: pd.Series([1.0, None, 3.0, 4.0], dtype="Float64"),
+    "Int32": lambda: pd.Series([1, None, 3, 4], dtype="Int32"),
+    "Float64 array": lambda: pd.array([1.0, None, 3.0, 4.0], dtype="Float64"),
+    "arrow": lambda: pd.Series([1.0, None, 3.0, 4.0], dtype="float64[pyarrow]"),
+    "arrow int": lambda: pd.Series([1, None, 3, 4], dtype="int32[pyarrow]"),
+    "arrow pd.array": lambda: pd.array([1.0, None, 3.0, 4.0], dtype="float64[pyarrow]"),
+    "arrow sliced": lambda: pd.Series([0.0, 1.0, None, 3.0, 4.0], dtype="float64[pyarrow]")[1:],
+    "arrow chunked": lambda: pd.Series(
+        pa.chunked_array([[1.0], [None, 3.0], [4.0]]), dtype="float64[pyarrow]"
+    ),
+    "pa.Array": lambda: pa.array([1.0, None, 3.0, 4.0]),
+    "pa.ChunkedArray sliced": lambda: pa.chunked_array([[0.0, 1.0, None], [3.0, 4.0]]).slice(1),
+    "polars": lambda: pl.Series([1.0, None, 3.0, 4.0]),
+    "polars int": lambda: pl.Series([1, None, 3, 4]),
+    "polars sliced": lambda: pl.Series([0.0, 1.0, None, 3.0, 4.0])[1:],
+    "polars chunked": lambda: pl.concat(
+        [pl.Series([1.0]), pl.Series([None, 3.0]), pl.Series([4.0])], rechunk=False
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        name if name in ("np.ma", "Float64", "Int32", "Float64 array")
+        else pytest.param(name, marks=skip_no_polars) if name.startswith("polars")
+        else pytest.param(name, marks=skip_no_pyarrow)
+        for name in _masked_inputs
+    ],
+)
+def test_extract_values_and_mask(name):
+    values, mask = _extract_values_and_mask(_masked_inputs[name]())
+    assert isinstance(values, np.ndarray)
+    assert len(values) == 4
+    np.testing.assert_array_equal(mask, [False, True, False, False])
+    np.testing.assert_array_equal(values[[0, 2, 3]], [1, 3, 4])
+
+
+@pytest.mark.parametrize(
+    "make_col",
+    [
+        pytest.param(lambda: np.array([1.0, np.nan]), id="numpy"),
+        pytest.param(lambda: np.ma.masked_array([1.0, 2.0]), id="np.ma nomask"),
+        pytest.param(lambda: pd.Series([1.0, 2.0], dtype="Float64"), id="Float64"),
+        pytest.param(
+            lambda: pd.Series([1.0, 2.0], dtype="float64[pyarrow]"),
+            id="arrow",
+            marks=skip_no_pyarrow,
+        ),
+    ],
+)
+def test_extract_values_and_mask_no_nulls(make_col):
+    col = make_col()
+    values, mask = _extract_values_and_mask(col)
+    assert mask is None
+    np.testing.assert_array_equal(values, [1.0, col[1]])
+
+
+def test_extract_values_and_mask_no_copy():
+    masked = pd.array([1.0, None, 3.0], dtype="Float64")
+    values, mask = _extract_values_and_mask(masked)
+    assert np.shares_memory(values, masked._data)
+    assert np.shares_memory(mask, masked._mask)
+
+
+@skip_no_pyarrow
+def test_extract_values_and_mask_arrow_no_copy():
+    arrow = pa.array([1.0, None, 3.0])
+    values, _ = _extract_values_and_mask(arrow)
+    assert values.ctypes.data == arrow.buffers()[1].address
+
+
+@skip_no_pyarrow
+@pytest.mark.parametrize("unit", ["s", "ms", "us", "ns"])
+@pytest.mark.parametrize("kind", ["timestamp", "duration"])
+def test_extract_values_and_mask_arrow_temporal(kind, unit):
+    arrow = pa.array([1, None, 3], type=getattr(pa, kind)(unit))
+    values, mask = _extract_values_and_mask(arrow)
+    np_kind = "datetime64" if kind == "timestamp" else "timedelta64"
+    assert values.dtype == np.dtype(f"{np_kind}[{unit}]")
+    np.testing.assert_array_equal(mask, [False, True, False])
+    np.testing.assert_array_equal(values[[0, 2]].view("int64"), [1, 3])
+
+
+def test_column_values_and_mask_series_no_copy():
+    series = pd.Series([1.0, None, 3.0], dtype="Float64")
+    values, mask = _column_values_and_mask(series)
+    assert np.shares_memory(values, series.array._data)
+    assert np.shares_memory(mask, series.array._mask)
+
+
+@skip_no_pyarrow
+def test_dshape_from_pandas_arrow_bool_not_option():
+    df = pd.DataFrame({"v": pd.array([True, None], dtype="bool[pyarrow]")})
+    assert dshape_from_pandas(df).measure["v"] == dshape("bool").measure
+
+
+def test_array_source_wraps_numpy_without_copy():
+    x = np.arange(5.0)
+    assert np.shares_memory(_ArraySource({"x": x})["x"].to_numpy(), x)
+
+
+@skip_no_pyarrow
+@pytest.mark.parametrize("wrap", [pd.Series, lambda arr: arr], ids=["Series", "pd.array"])
+def test_extract_values_and_mask_pandas_arrow_no_copy(wrap):
+    arr = pd.array([1.0, None, 3.0], dtype="float64[pyarrow]")
+    values, _ = _extract_values_and_mask(wrap(arr))
+    assert values.ctypes.data == arr.__arrow_array__().chunk(0).buffers()[1].address

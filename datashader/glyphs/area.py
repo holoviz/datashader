@@ -5,7 +5,7 @@ from toolz import memoize
 from datashader.glyphs.glyph import Glyph
 from datashader.glyphs.line import _build_map_onto_pixel_for_line, _clipt
 from datashader.glyphs.points import _PointLike
-from datashader.utils import isnull, isreal, ngjit
+from datashader.utils import _column_with_nan, _columns_to_2d, isnull, isreal, ngjit
 from numba import cuda
 
 try:
@@ -122,8 +122,8 @@ class AreaToZeroAxis0(_PointLike):
                 ys = self.to_cupy_array(df, y_name)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df[x_name].values
-                ys = df[y_name].values
+                xs = _column_with_nan(df[x_name])
+                ys = _column_with_nan(df[y_name])
                 do_extend = extend_cpu
 
             do_extend(
@@ -208,9 +208,9 @@ class AreaToLineAxis0(_AreaToLineLike):
                 ys1 = self.to_cupy_array(df, y_stack_name)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df[x_name].values
-                ys0 = df[y_name].values
-                ys1 = df[y_stack_name].values
+                xs = _column_with_nan(df[x_name])
+                ys0 = _column_with_nan(df[y_name])
+                ys1 = _column_with_nan(df[y_stack_name])
                 do_extend = extend_cpu
 
             do_extend(
@@ -300,8 +300,8 @@ class AreaToZeroAxis0Multi(_PointLike):
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
-                ys = df.loc[:, list(y_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
+                ys = _columns_to_2d(df, y_names)
                 do_extend = extend_cpu
 
             do_extend(
@@ -393,9 +393,9 @@ class AreaToLineAxis0Multi(_AreaToLineLike):
                 ys1 = self.to_cupy_array(df, y_stack_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
-                ys0 = df.loc[:, list(y_names)].to_numpy()
-                ys1 = df.loc[:, list(y_stack_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
+                ys0 = _columns_to_2d(df, y_names)
+                ys1 = _columns_to_2d(df, y_stack_names)
                 do_extend = extend_cpu
 
             do_extend(
@@ -501,8 +501,8 @@ class AreaToZeroAxis1(_PointLike):
                 ys = self.to_cupy_array(df,list(y_names))
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
-                ys = df.loc[:, list(y_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
+                ys = _columns_to_2d(df, y_names)
                 do_extend = extend_cpu
 
             do_extend(
@@ -610,9 +610,9 @@ class AreaToLineAxis1(_AreaToLineLike):
                 y_stacks = self.to_cupy_array(df,list(y_stack_names))
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
-                ys = df.loc[:, list(y_names)].to_numpy()
-                y_stacks = df.loc[:, list(y_stack_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
+                ys = _columns_to_2d(df, y_names)
+                y_stacks = _columns_to_2d(df, y_stack_names)
                 do_extend = extend_cpu
 
             do_extend(
@@ -678,7 +678,7 @@ class AreaToZeroAxis1XConstant(AreaToZeroAxis1):
                 ys = self.to_cupy_array(df,list(y_names))
                 do_extend = extend_cuda[cuda_args(ys.shape)]
             else:
-                ys = df.loc[:, list(y_names)].to_numpy()
+                ys = _columns_to_2d(df, y_names)
                 do_extend = extend_cpu
 
             do_extend(
@@ -760,8 +760,8 @@ class AreaToLineAxis1XConstant(AreaToLineAxis1):
                 y_stacks = self.to_cupy_array(df,list(y_stack_names))
                 do_extend = extend_cuda[cuda_args(ys.shape)]
             else:
-                ys = df.loc[:, list(y_names)].to_numpy()
-                y_stacks = df.loc[:, list(y_stack_names)].to_numpy()
+                ys = _columns_to_2d(df, y_names)
+                y_stacks = _columns_to_2d(df, y_stack_names)
                 do_extend = extend_cpu
 
             do_extend(
@@ -829,7 +829,7 @@ class AreaToZeroAxis1YConstant(AreaToZeroAxis1):
                 ys = cp.asarray(y_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
                 ys = y_values
                 do_extend = extend_cpu
 
@@ -899,7 +899,7 @@ class AreaToLineAxis1YConstant(AreaToLineAxis1):
                 ysv = cp.asarray(y_stack_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
                 ys = y_values
                 ysv = y_stack_values
                 do_extend = extend_cpu

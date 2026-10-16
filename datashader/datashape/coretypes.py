@@ -757,6 +757,8 @@ class CType(Unit):
         >>> CType.from_numpy_dtype(dtype('U30'))  # doctest: +SKIP
         ctype("string[30, 'U32']")
         """
+        if not isinstance(dt, np.dtype):
+            dt = getattr(dt, "numpy_dtype", dt)
         try:
             return Type.lookup_type(dt.name)
         except KeyError:
