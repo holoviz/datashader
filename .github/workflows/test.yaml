@@ -65,6 +65,7 @@ jobs:
             code:
               - 'datashader/**'
               - 'examples/**'
+              - 'scripts/**'
               - 'pixi.toml'
               - 'pixi.lock'
               - 'pyproject.toml'
