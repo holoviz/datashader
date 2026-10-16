@@ -1,9 +1,8 @@
+import numba as nb
 import numpy as np
 
-from datashader.utils import ngjit
 
-
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def masked_clip_2d(data, mask, lower, upper):
     """
     Clip the elements of an input array between lower and upper bounds,
@@ -39,7 +38,7 @@ def masked_clip_2d(data, mask, lower, upper):
             data[i, j] = val if mask[i, j] else clipped
 
 
-@ngjit
+@nb.jit(nogil=True, cache=True)
 def _interp_with_lut(x, xp, fp, lut, g0, inv_step):
     """``np.interp(x, xp, fp)`` for 1D float ``x``, bit-identical to NumPy.
 
