@@ -74,7 +74,7 @@ def to_parquet(filename, prefix="maccdc2012"):
                     traffic[key] += nbytes
                 else:
                     traffic[key] = nbytes
-            except:
+            except (IndexError, OSError, ValueError):
                 pass
 
         nodes = dict([(node, i) for i, node in enumerate(sorted(nodes))])
