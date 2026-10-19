@@ -1173,6 +1173,33 @@ def test_eq_hist_uint64_above_int64_max():
     assert discrete_levels == 3
 
 
+def test_eq_hist_float16():
+    data = np.array([[0., 1.], [2., 3.5]], dtype='f2')
+    hist, bin_edges = np.histogram(data, bins=17)
+    bin_centers = ((bin_edges[:-1] + bin_edges[1:]) / 2)[hist > 0]
+    cdf = hist[hist > 0].cumsum()
+    expected = np.interp(data, bin_centers, cdf / float(cdf[-1]))
+    eq, discrete_levels = tf.eq_hist(data, nbins=17)
+    np.testing.assert_array_equal(eq, expected)
+    assert discrete_levels == 4
+
+
+def test_eq_hist_masked_int8():
+    data = np.array([[-127, -1, 0, 5], [127, 3, -50, 100]], dtype='i1')
+    mask = np.zeros(data.shape, dtype=bool)
+    mask[:, 0] = True
+    eq, discrete_levels = tf.eq_hist(data, mask=mask)
+    np.testing.assert_allclose(eq, [[np.nan, 2/6, 3/6, 5/6], [np.nan, 4/6, 1/6, 1]])
+    assert discrete_levels == 6
+
+
+def test_eq_hist_bool():
+    data = np.array([[True, False], [True, True]])
+    eq, discrete_levels = tf.eq_hist(data)
+    np.testing.assert_array_equal(eq, [[1, 0.25], [1, 1]])
+    assert discrete_levels == 2
+
+
 @pytest.mark.parametrize('dtype', ['f2', 'f4', 'f8', 'i4', 'u1'])
 @pytest.mark.parametrize('n', [1, 2, 5, 7, 8, 9])
 def test_sum_last_axis_matches_numpy(rng, dtype, n):

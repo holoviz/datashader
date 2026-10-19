@@ -223,9 +223,13 @@ def eq_hist(data, mask=None, nbins=256*256):
     if grid is not None and array_module is np and discrete_levels >= 2 and grid[1] > grid[0]:
         from ._cpu_utils import _interp_with_lut
         lut = np.cumsum(keep_mask) - 1
+        flat = data.ravel()
+        # numba has no float16 support
+        if flat.dtype == np.float16:
+            flat, grid = flat.astype(np.float32), grid.astype(np.float32)
         inv_step = 1.0 / (grid[1] - grid[0])
         out = _interp_with_lut(
-            data.ravel(), bin_centers.astype(np.float64), cdf, lut, grid[0], inv_step,
+            flat, bin_centers.astype(np.float64), cdf, lut, grid[0], inv_step,
         ).reshape(data.shape)
     else:
         out = interp(data, bin_centers, cdf).reshape(data.shape)
