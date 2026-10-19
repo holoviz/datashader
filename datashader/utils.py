@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import re
 
+from bisect import bisect_right
+from itertools import accumulate
 from inspect import getmro
 
 import numba as nb
@@ -418,6 +420,8 @@ def _is_masked(col):
     """Return whether ``col`` is a numeric column that stores missing values
     in a separate mask (np.ma, pandas nullable or Arrow)."""
     dtype = getattr(col, "dtype", None)
+    if isinstance(col, _ArrowColumn):
+        return col.format in _ARROW_DTYPES
     if isinstance(col, np.ma.MaskedArray):
         pass
     elif isinstance(dtype, BaseMaskedDtype):
@@ -435,6 +439,17 @@ def _is_masked(col):
     else:
         return False
     return dtype.kind in "biuf"
+
+
+def _is_arrow(col):
+    """Return whether ``col`` is an Arrow array, or a pandas array backed by one."""
+    dtype = getattr(col, "dtype", None)
+    if isinstance(dtype, pd.ArrowDtype):
+        return True
+    if isinstance(col, np.ndarray) or isinstance(
+            dtype, (np.dtype, pd.api.extensions.ExtensionDtype)):
+        return False
+    return hasattr(col, "__arrow_c_stream__") or hasattr(col, "__arrow_c_array__")
 
 
 def _arrow_format(col):
@@ -475,56 +490,129 @@ def _extract_values_and_mask(obj):
     if isinstance(obj, pd.Series):
         # Series.__arrow_c_stream__ copies the mask and needs pandas 3
         obj = obj.array
-    if isinstance(obj, pd.arrays.ArrowExtensionArray):
-        obj = obj.__arrow_array__()
     if isinstance(obj, (np.ma.MaskedArray, BaseMaskedArray)):
         return obj._data, (obj._mask if obj._mask.any() else None)
-    if not (hasattr(obj, "__arrow_c_stream__") or hasattr(obj, "__arrow_c_array__")):
-        return obj, None
+    if isinstance(obj, _ArrowColumn):
+        return obj.values_and_mask()
+    if isinstance(obj, pd.arrays.ArrowExtensionArray) or hasattr(obj, "__arrow_c_stream__") \
+            or hasattr(obj, "__arrow_c_array__"):
+        return _ArrowColumn.from_arrow(obj).values_and_mask()
+    return obj, None
 
-    import nanoarrow as na
 
-    stream = na.c_array_stream(obj)
-    fmt = stream.get_schema().format
-    if fmt.startswith("ts"):
-        dtype = f"datetime64[{_ARROW_TIME_UNITS[fmt[2]]}]"
-    elif fmt.startswith("tD"):
-        dtype = f"timedelta64[{_ARROW_TIME_UNITS[fmt[2]]}]"
-    elif fmt in _ARROW_DTYPES:
-        dtype = _ARROW_DTYPES[fmt]
-    else:
-        raise NotImplementedError(f"Arrow format {fmt!r} is not supported")
-    views = [chunk.view() for chunk in stream]
+class _ArrowColumn:
+    """Arrow array of a numeric or temporal type, kept as its chunks.
 
-    values = [np.asarray(v.buffer(1))[v.offset : v.offset + v.length].view(dtype) for v in views]
-    if len(values) == 1:
-        values = values[0]
-    else:
-        values = np.concatenate(values) if values else np.array([], dtype=dtype)
+    Slicing does not copy, and a slice only materializes the values and mask
+    of its own rows, so sources can be aggregated in blocks.
+    """
+    def __init__(self, format, dtype, chunks, starts, start, stop):
+        self.format = format
+        self.dtype = dtype
+        self._chunks = chunks
+        self._starts = starts
+        self._start = start
+        self._stop = stop
 
-    if not any(v.null_count for v in views):
-        return values, None
-    v = views[0]
-    if len(views) == 1 and v.offset % 8:
-        start, shift = divmod(v.offset, 8)
-        mask = np.unpackbits(
-            np.asarray(v.buffer(0))[start:],
-            bitorder="little",
-            count=shift + v.length,
-        )[shift:].view(np.bool_)
+    @classmethod
+    def from_arrow(cls, obj):
+        import nanoarrow as na
+
+        if isinstance(obj, pd.Series):
+            obj = obj.array
+        if isinstance(obj, pd.arrays.ArrowExtensionArray):
+            obj = obj.__arrow_array__()
+        stream = na.c_array_stream(obj)
+        fmt = stream.get_schema().format
+        if fmt.startswith("ts"):
+            dtype = f"datetime64[{_ARROW_TIME_UNITS[fmt[2]]}]"
+        elif fmt.startswith("tD"):
+            dtype = f"timedelta64[{_ARROW_TIME_UNITS[fmt[2]]}]"
+        elif fmt in _ARROW_DTYPES:
+            dtype = _ARROW_DTYPES[fmt]
+        else:
+            raise NotImplementedError(f"Arrow format {fmt!r} is not supported")
+        # The arrays own the buffers the views point into
+        chunks = [(array, array.view()) for array in stream]
+        starts = list(accumulate((view.length for _, view in chunks), initial=0))
+        return cls(fmt, np.dtype(dtype), chunks, starts, 0, starts[-1])
+
+    def __len__(self):
+        return self._stop - self._start
+
+    def slice(self, start, stop):
+        return _ArrowColumn(self.format, self.dtype, self._chunks, self._starts,
+                            self._start + start, self._start + stop)
+
+    def chunk_ends(self):
+        """Return the rows of this slice where a chunk ends."""
+        return sorted({
+            end - self._start for end in self._starts[1:] if self._start < end < self._stop
+        })
+
+    def _pieces(self):
+        """Return ``(view, offset, length)`` of the part of each chunk in this slice."""
+        pieces = []
+        first = bisect_right(self._starts, self._start) - 1
+        for (_, view), chunk_start, chunk_stop in zip(
+                self._chunks[first:], self._starts[first:], self._starts[first + 1:]):
+            if chunk_start >= self._stop:
+                break
+            lo, hi = max(self._start, chunk_start), min(self._stop, chunk_stop)
+            if lo < hi:
+                pieces.append((view, int(view.offset + lo - chunk_start), int(hi - lo)))
+        return pieces
+
+    def values_and_mask(self):
+        pieces = self._pieces()
+        values = [np.asarray(v.buffer(1))[lo : lo + n].view(self.dtype) for v, lo, n in pieces]
+        if len(values) == 1:
+            values = values[0]
+        else:
+            values = np.concatenate(values) if values else np.array([], dtype=self.dtype)
+
+        if not any(v.null_count for v, _, _ in pieces):
+            return values, None
+        if len(pieces) == 1:
+            v, lo, n = pieces[0]
+            start, shift = divmod(lo, 8)
+            mask = np.unpackbits(
+                np.asarray(v.buffer(0))[start:],
+                bitorder="little",
+                count=shift + n,
+            )[shift:].view(np.bool_)
+            np.logical_not(mask, out=mask)
+            return values, mask
+
+        mask = np.empty(len(values), dtype=np.bool_)
+        pos = 0
+        for v, lo, n in pieces:
+            if v.null_count:
+                v.buffer(0).unpack_bits_into(mask, lo, n, pos)
+            else:
+                mask[pos : pos + n] = True
+            pos += n
         np.logical_not(mask, out=mask)
         return values, mask
 
-    mask = np.empty(len(values), dtype=np.bool_)
-    pos = 0
-    for v in views:
-        if v.null_count:
-            v.buffer(0).unpack_bits_into(mask, v.offset, v.length, pos)
-        else:
-            mask[pos : pos + v.length] = True
-        pos += v.length
-    np.logical_not(mask, out=mask)
-    return values, mask
+
+# Rows per block when aggregating an _ArraySource, so masks and copies of
+# values never cover more than one block
+_BLOCK_SIZE = 2**20
+
+
+def _block_bounds(length, ends, size):
+    """Return ``(start, stop)`` ranges covering ``length`` rows with at most
+    ``size`` rows each, stopping at one of the sorted ``ends`` where possible."""
+    bounds = []
+    start = 0
+    while start < length:
+        limit = min(start + size, length)
+        i = bisect_right(ends, limit) - 1
+        stop = ends[i] if limit < length and i >= 0 and ends[i] > start else limit
+        bounds.append((start, stop))
+        start = stop
+    return bounds
 
 
 def _readonly(arr):
@@ -613,10 +701,7 @@ class _ArraySource:
             lengths.add(len(col))
         if len(lengths) > 1:
             raise ValueError("dict source columns must all have the same length")
-        self._data = {
-            name: pd.Series(col, copy=False) if _is_plain_or_categorical(col) else col
-            for name, col in data.items()
-        }
+        self._data = {name: _wrap_column(col) for name, col in data.items()}
         self._length = lengths.pop() if lengths else 0
 
     @property
@@ -628,6 +713,47 @@ class _ArraySource:
 
     def __len__(self):
         return self._length
+
+    def _block_bounds(self, size):
+        """Return ``(start, stop)`` row ranges of at most ``size`` rows, ending
+        where Arrow chunks end where possible, so a block does not copy."""
+        ends = sorted({
+            end for col in self._data.values() if isinstance(col, _ArrowColumn)
+            for end in col.chunk_ends()
+        })
+        return _block_bounds(len(self), ends, size)
+
+    def _slice(self, start, stop):
+        """Return rows ``start`` to ``stop`` without copying."""
+        if start == 0 and stop == len(self):
+            return self
+        block = object.__new__(_ArraySource)
+        block._data = {name: _slice_column(col, start, stop) for name, col in self._data.items()}
+        block._length = stop - start
+        # Read by reductions that use the row index
+        block._datashader_row_offset = getattr(self, "_datashader_row_offset", 0) + start
+        return block
+
+
+def _wrap_column(col):
+    if _is_plain_or_categorical(col):
+        return pd.Series(col, copy=False)
+    if _is_arrow(col):
+        try:
+            wrapped = _ArrowColumn.from_arrow(col)
+        except NotImplementedError:
+            return col
+        if wrapped.format in _ARROW_DTYPES:
+            return wrapped
+    return col
+
+
+def _slice_column(col, start, stop):
+    if isinstance(col, _ArrowColumn):
+        return col.slice(start, stop)
+    if isinstance(col, pd.Series):
+        return col.iloc[start:stop]
+    return col[start:stop]
 
 
 def _is_plain_or_categorical(col):

@@ -3745,6 +3745,9 @@ def _dict_source(kind, nan_df):
         elif kind == "arrow chunked":
             arr = pa.array(v, mask=missing)
             out[k] = pa.chunked_array([arr[:77], arr[77:]])
+        elif kind == "arrow many chunks":
+            arr = pa.array(v, mask=missing)
+            out[k] = pa.chunked_array([arr[i : i + 5] for i in range(0, len(arr), 5)])
         elif kind == "polars":
             out[k] = pl.Series(k, v, nan_to_null=True)
     return out
@@ -3754,6 +3757,7 @@ _dict_kinds = [
     "numpy", "np.ma", "Float64",
     pytest.param("arrow", marks=skip_no_pyarrow),
     pytest.param("arrow chunked", marks=skip_no_pyarrow),
+    pytest.param("arrow many chunks", marks=skip_no_pyarrow),
     pytest.param("arrow pd.array", marks=skip_no_pyarrow),
     pytest.param("polars", marks=skip_no_polars),
 ]
@@ -3879,6 +3883,87 @@ def test_points_dict_source_by(kind, reduction):
     df = nan_df.assign(cat=source["cat"], i=source["i"])
     cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
     assert_eq_xr(cvs.points(source, "x", "y", reduction), cvs.points(df, "x", "y", reduction))
+
+
+@pytest.fixture
+def small_blocks(monkeypatch):
+    monkeypatch.setattr(du, "_BLOCK_SIZE", 7)
+
+
+@pytest.mark.usefixtures("small_blocks")
+@pytest.mark.parametrize("kind", _dict_kinds)
+@pytest.mark.parametrize(
+    "reduction",
+    [
+        ds.count(), ds.sum("v"), ds.mean("v"), ds.std("v"), ds.first("v"), ds.last("v"),
+        ds.first_n("v", n=3), ds.last_n("v", n=3), ds.max_n("v", n=2), ds.where(ds.max("v")),
+        ds.where(ds.first("v"), "x"), ds.by("cat", ds.last("v")),
+    ],
+    ids=repr,
+)
+def test_points_dict_source_blocks(kind, reduction):
+    nan_df, _ = _masked_frames("Float64")
+    source = _dict_source(kind, nan_df)
+    source["cat"] = pd.Categorical(np.arange(len(nan_df)) % 3)
+    df = nan_df.assign(cat=source["cat"])
+    cvs = ds.Canvas(plot_width=7, plot_height=5)
+    assert_eq_xr(cvs.points(source, "x", "y", reduction), cvs.points(df, "x", "y", reduction))
+
+
+def _blocks_frame():
+    rng = np.random.default_rng(3)
+    n = 30
+    nan_df = pd.DataFrame({
+        f"{k}{j}": np.where(rng.random(n) < 0.2, np.nan, rng.uniform(0, 1, n))
+        for k in "xy" for j in range(3)
+    })
+    nan_df["v"] = rng.integers(0, 10, n).astype(float)
+    return nan_df
+
+
+_block_kinds = ["np.ma", pytest.param("arrow many chunks", marks=skip_no_pyarrow)]
+
+
+@pytest.mark.usefixtures("small_blocks")
+@pytest.mark.parametrize("kind", _block_kinds)
+@pytest.mark.parametrize("line_width", [0, 1])
+@pytest.mark.parametrize("spec", list(_masked_line_specs))
+def test_line_dict_source_blocks(kind, spec, line_width):
+    nan_df = _blocks_frame()
+    source = _dict_source(kind, nan_df)
+    cvs = ds.Canvas(plot_width=9, plot_height=7)
+    kwargs = dict(_masked_line_specs[spec], line_width=line_width)
+    for agg in [ds.count(), ds.sum("v"), ds.first("v")]:
+        assert_eq_xr(cvs.line(source, agg=agg, **kwargs), cvs.line(nan_df, agg=agg, **kwargs))
+
+
+@pytest.mark.usefixtures("small_blocks")
+@pytest.mark.parametrize("kind", _block_kinds)
+@pytest.mark.parametrize("spec", list(_masked_area_specs))
+def test_area_dict_source_blocks(kind, spec):
+    nan_df = _blocks_frame()
+    source = _dict_source(kind, nan_df)
+    cvs = ds.Canvas(plot_width=9, plot_height=7)
+    kwargs = _masked_area_specs[spec]
+    for agg in [ds.count(), ds.sum("v"), ds.first("v")]:
+        assert_eq_xr(cvs.area(source, agg=agg, **kwargs), cvs.area(nan_df, agg=agg, **kwargs))
+
+
+@skip_no_pyarrow
+def test_dict_source_extracts_in_blocks(monkeypatch, small_blocks):
+    lengths = []
+    values_and_mask = du._ArrowColumn.values_and_mask
+
+    def record(self):
+        lengths.append(len(self))
+        return values_and_mask(self)
+
+    monkeypatch.setattr(du._ArrowColumn, "values_and_mask", record)
+    nan_df, _ = _masked_frames("Float64")
+    source = _dict_source("arrow chunked", nan_df)
+    ds.Canvas(plot_width=7, plot_height=5).points(source, "x", "y", ds.sum("v"))
+    assert lengths
+    assert max(lengths) <= 7
 
 
 @pytest.mark.parametrize("where", ["vertices", "simplices", "mesh"])

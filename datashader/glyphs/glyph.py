@@ -8,7 +8,10 @@ from math import isnan
 import numpy as np
 import xarray as xr
 
-from datashader.utils import Expr, _column_values_and_mask, ngjit
+from datashader import utils
+from datashader.utils import (
+    Expr, _ArrowColumn, _block_bounds, _column_values_and_mask, ngjit,
+)
 from datashader.macros import expand_varargs
 
 try:
@@ -59,6 +62,12 @@ class Glyph(Expr):
                 return (s.min().item(), s.max().item())
             else:
                 return Glyph._compute_bounds_numba(s.values.ravel())
+        elif isinstance(s, _ArrowColumn) and len(s) > utils._BLOCK_SIZE:
+            bounds = [
+                Glyph._compute_bounds(s.slice(start, stop)) for start, stop in
+                _block_bounds(len(s), s.chunk_ends(), utils._BLOCK_SIZE)
+            ]
+            return min(b[0] for b in bounds), max(b[1] for b in bounds)
         else:
             values, mask = _column_values_and_mask(s)
             if mask is not None:

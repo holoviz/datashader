@@ -6,7 +6,8 @@ from xarray import DataArray
 
 from datashader.datashape import dshape
 from datashader.utils import (
-    Dispatcher, _ArraySource, _column_values_and_mask, _extract_values_and_mask, apply, calc_res,
+    Dispatcher, _ArraySource, _ArrowColumn, _block_bounds, _column_values_and_mask,
+    _extract_values_and_mask, apply, calc_res,
     dshape_from_pandas, isreal, orient_array,
 )
 
@@ -245,3 +246,69 @@ def test_extract_values_and_mask_pandas_arrow_no_copy(wrap):
     arr = pd.array([1.0, None, 3.0], dtype="float64[pyarrow]")
     values, _ = _extract_values_and_mask(wrap(arr))
     assert values.ctypes.data == arr.__arrow_array__().chunk(0).buffers()[1].address
+
+
+@pytest.mark.parametrize(
+    ("ends", "size", "expected"),
+    [
+        ([], 4, [(0, 4), (4, 8), (8, 10)]),
+        ([3, 4, 9], 4, [(0, 4), (4, 8), (8, 10)]),
+        ([3, 4, 7], 4, [(0, 4), (4, 7), (7, 10)]),
+        ([2, 3, 5], 10, [(0, 10)]),
+        ([5], 7, [(0, 5), (5, 10)]),
+    ],
+)
+def test_block_bounds(ends, size, expected):
+    assert _block_bounds(10, ends, size) == expected
+
+
+def test_block_bounds_empty():
+    assert _block_bounds(0, [], 4) == []
+
+
+@skip_no_pyarrow
+def test_arrow_column_slices():
+    rng = np.random.default_rng(0)
+    data = rng.uniform(0, 1, 60)
+    null = rng.random(60) < 0.3
+    arr = pa.array(data, mask=null)
+    chunked = pa.chunked_array([arr[1:11], arr[11:11], arr[11:12], arr[12:47], arr[47:]])
+    col = _ArrowColumn.from_arrow(chunked)
+    assert len(col) == 59
+    assert col.chunk_ends() == [10, 11, 46]
+    for start, stop in [(0, 59), (0, 10), (3, 9), (5, 30), (10, 11), (9, 12), (13, 59), (7, 7)]:
+        values, mask = col.slice(start, stop).values_and_mask()
+        expected_null = null[1 + start : 1 + stop]
+        if expected_null.any():
+            np.testing.assert_array_equal(mask, expected_null)
+        else:
+            assert mask is None or not mask.any()
+        np.testing.assert_array_equal(
+            values[~expected_null], data[1 + start : 1 + stop][~expected_null]
+        )
+
+
+@skip_no_pyarrow
+def test_arrow_column_slice_in_one_chunk_no_copy():
+    arr = pa.array([0.0, 1.0, None, 3.0, 4.0, 5.0])
+    values, _ = _ArrowColumn.from_arrow(pa.chunked_array([arr[:3], arr[3:]])).slice(4, 6) \
+        .values_and_mask()
+    assert values.ctypes.data == arr.buffers()[1].address + 4 * 8
+
+
+@skip_no_pyarrow
+def test_array_source_slice():
+    arr = pa.array([0.0, 1.0, None, 3.0, 4.0, 5.0])
+    source = _ArraySource({
+        "a": pa.chunked_array([arr[:4], arr[4:]]),
+        "b": np.arange(6.0),
+        "c": np.ma.masked_array(np.arange(6.0), mask=[0, 0, 0, 1, 0, 0]),
+    })
+    assert source._block_bounds(3) == [(0, 3), (3, 6)]
+    assert source._block_bounds(2) == [(0, 2), (2, 4), (4, 6)]
+    block = source._slice(2, 5)._slice(1, 3)
+    assert len(block) == 2
+    assert block._datashader_row_offset == 3
+    np.testing.assert_array_equal(block["a"].values_and_mask()[0], [3.0, 4.0])
+    np.testing.assert_array_equal(block["b"].to_numpy(), [3.0, 4.0])
+    np.testing.assert_array_equal(block["c"].mask, [True, False])
