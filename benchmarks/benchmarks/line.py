@@ -6,12 +6,12 @@ from .common import DataLibrary
 
 try:
     import cudf
-except:
+except ImportError:
     cudf = None
 
 try:
     import dask_cudf
-except:
+except ImportError:
     dask_cudf = None
 
 
