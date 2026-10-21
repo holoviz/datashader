@@ -343,7 +343,10 @@ def _interpolate(agg, cmap, how, alpha, span, min_alpha, name, rescale_discrete_
             scaled_data = cupy.asnumpy(scaled_data)
 
         rgba = cmap(scaled_data, bytes=True)
-        rgba[:, :, 3] = np.where(np.isnan(scaled_data), 0, alpha).astype(np.uint8)
+        nan_mask = np.isnan(scaled_data)
+        if alpha is not None:
+            rgba[:, :, 3] = alpha
+        rgba[nan_mask, 3] = 0
     else:
         raise TypeError("Expected `cmap` of `matplotlib.colors.Colormap`, "
                         f"`list`, `str`, or `tuple`; got: '{type(cmap)}'")
@@ -614,7 +617,7 @@ def _apply_discrete_colorkey(agg, color_key, alpha, name, color_baseline):
 
 
 def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
-          how='eq_hist', alpha=255, min_alpha=40, span=None, name=None,
+          how='eq_hist', alpha=None, min_alpha=40, span=None, name=None,
           color_baseline=None, rescale_discrete_levels=False):
     """Convert a DataArray to an image by choosing an RGBA pixel color for each value.
 
@@ -669,13 +672,15 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         mask array indicating missingness. They should return a numeric
         array of the same shape, with ``NaN`` values where the mask was
         True.
-    alpha : int, optional
+    alpha : int or None, optional
         Value between 0 - 255 representing the alpha value to use for
         colormapped pixels that contain data (i.e. non-NaN values).
-        Also used as the maximum alpha value when alpha is indicating
-        data value, such as for single colors or categorical plots.
-        Regardless of this value, ``NaN`` values are set to be fully
-        transparent when doing colormapping.
+        For callable Matplotlib colormaps, ``None`` (the default) preserves
+        the alpha values supplied by the colormap, while an explicit numeric
+        value overrides them. For other colormaps and categorical shading,
+        omitting alpha preserves the existing behavior equivalent to 255,
+        including data-dependent alpha for single colors and 3D categorical
+        plots. ``NaN`` values are always fully transparent.
     min_alpha : float, optional
         The minimum alpha value to use for non-empty pixels when
         alpha is indicating data value, in [0, 255].  Use a higher value
@@ -724,8 +729,10 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
         raise TypeError("agg must be instance of DataArray")
     name = agg.name if name is None else name
 
-    if not ((0 <= min_alpha <= 255) and (0 <= alpha <= 255)):
+    if not (0 <= min_alpha <= 255) or (alpha is not None and not 0 <= alpha <= 255):
         raise ValueError(f"min_alpha ({min_alpha}) and alpha ({alpha}) must be between 0 and 255")
+
+    effective_alpha = 255 if alpha is None else alpha
 
     if rescale_discrete_levels and how != 'eq_hist':
         rescale_discrete_levels = False
@@ -733,14 +740,17 @@ def shade(agg, cmap=["lightblue", "darkblue"], color_key=Sets1to3,
     if agg.ndim == 2:
         if color_key is not None and isinstance(color_key, dict):
             return _apply_discrete_colorkey(
-                agg, color_key, alpha, name, color_baseline
+                agg, color_key, effective_alpha, name, color_baseline
             )
         else:
-            return _interpolate(agg, cmap, how, alpha, span, min_alpha, name,
+            interpolate_alpha = alpha if callable(cmap) else effective_alpha
+            return _interpolate(agg, cmap, how, interpolate_alpha, span, min_alpha, name,
                                 rescale_discrete_levels)
     elif agg.ndim == 3:
-        return _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
-                         rescale_discrete_levels)
+        return _colorize(
+            agg, color_key, how, effective_alpha, span, min_alpha, name, color_baseline,
+            rescale_discrete_levels
+        )
     else:
         raise ValueError("agg must use 2D or 3D coordinates")
 
