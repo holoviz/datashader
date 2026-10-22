@@ -10,8 +10,6 @@ from numba.extending import overload
 import numpy as np
 import pandas as pd
 
-from pandas.core.arrays.masked import BaseMaskedArray
-from pandas.core.dtypes.dtypes import BaseMaskedDtype
 from toolz import memoize
 from xarray import DataArray
 
@@ -420,7 +418,9 @@ def _is_masked(col):
     dtype = getattr(col, "dtype", None)
     if isinstance(col, np.ma.MaskedArray):
         pass
-    elif isinstance(dtype, BaseMaskedDtype):
+    elif isinstance(dtype, pd.api.extensions.ExtensionDtype) and issubclass(
+        dtype.construct_array_type(), _PANDAS_MASKED_ARRAYS
+    ):
         dtype = dtype.numpy_dtype
     elif isinstance(dtype, pd.ArrowDtype):
         # Arrow bools are bit-packed, so they cannot be viewed as a numpy array
@@ -431,16 +431,109 @@ def _is_masked(col):
     elif isinstance(dtype, (np.dtype, pd.api.extensions.ExtensionDtype)):
         return False
     elif hasattr(col, "__arrow_c_stream__") or hasattr(col, "__arrow_c_array__"):
-        return _arrow_format(col) in _ARROW_DTYPES
+        schema = _arrow_schema(col)
+        return schema.dictionary is None and schema.format in _ARROW_DTYPES
     else:
         return False
     return dtype.kind in "biuf"
 
 
-def _arrow_format(col):
+_PANDAS_MASKED_ARRAYS = (pd.arrays.IntegerArray, pd.arrays.FloatingArray, pd.arrays.BooleanArray)
+
+
+def _arrow_schema(col):
     import nanoarrow as na
 
-    return na.c_array_stream(col).get_schema().format
+    return na.c_array_stream(col).get_schema()
+
+
+def _is_arrow_categorical(col):
+    """Return whether ``col`` is a dictionary-encoded Arrow column, such as a
+    polars Categorical or Enum, or a pandas ``ArrowDtype`` dictionary column."""
+    dtype = getattr(col, "dtype", None)
+    if isinstance(dtype, pd.ArrowDtype):
+        return hasattr(dtype.pyarrow_dtype, "index_type")
+    elif isinstance(dtype, (np.dtype, pd.api.extensions.ExtensionDtype)):
+        return False
+    elif hasattr(col, "__arrow_c_stream__") or hasattr(col, "__arrow_c_array__"):
+        return _arrow_schema(col).dictionary is not None
+    return False
+
+
+def _arrow_dictionary_chunks(col):
+    """Return the schema and chunks of a dictionary-encoded Arrow column, the
+    merged categories of all chunks, and per chunk an array mapping its
+    dictionary indices to positions in the categories."""
+    import nanoarrow as na
+
+    if isinstance(col, pd.Series):
+        col = col.array
+    if isinstance(col, pd.arrays.ArrowExtensionArray):
+        col = col.__arrow_array__()
+    stream = na.c_array_stream(col)
+    schema = stream.get_schema()
+    chunks = list(stream)
+    # Chunks can each have their own dictionary
+    categories = {}
+    lookups = [
+        np.array(
+            [categories.setdefault(v, len(categories))
+             for v in na.Array(chunk.dictionary).to_pylist()],
+            dtype=np.int32,
+        )
+        for chunk in chunks
+    ]
+    return schema, chunks, list(categories), lookups
+
+
+def _categories(col):
+    """Return the categories and orderedness of a categorical column."""
+    if isinstance(col, pd.Categorical):
+        return col.categories, col.ordered
+    if _is_arrow_categorical(col):
+        if dd and isinstance(col, dd.Series):
+            raise NotImplementedError(
+                "Arrow dictionary columns are not supported for dask DataFrames")
+        schema, _, categories, _ = _arrow_dictionary_chunks(col)
+        return categories, bool(schema.flags & _ARROW_FLAG_DICTIONARY_ORDERED)
+    categories = col.cat.categories
+    if dd and isinstance(categories, dd.Index):
+        categories = categories.compute()
+    if cudf and isinstance(categories, cudf.Index):
+        categories = categories.to_pandas()
+    return categories, col.cat.ordered
+
+
+_ARROW_FLAG_DICTIONARY_ORDERED = 1
+
+
+def _categorical_codes(col):
+    """Return the category codes of a categorical column, -1 for missing."""
+    if isinstance(col, pd.Categorical):
+        return col.codes
+    if not _is_arrow_categorical(col):
+        return col.cat.codes.values
+    schema, chunks, _, lookups = _arrow_dictionary_chunks(col)
+    index_dtype = _ARROW_DTYPES[schema.format]
+    codes = np.empty(sum(chunk.length for chunk in chunks), dtype=np.int32)
+    pos = 0
+    for chunk, lookup in zip(chunks, lookups):
+        v = chunk.view()
+        out = codes[pos : pos + v.length]
+        pos += v.length
+        if not len(lookup):
+            out[:] = -1
+            continue
+        indices = np.asarray(v.buffer(1))[v.offset : v.offset + v.length].view(index_dtype)
+        if v.null_count:
+            valid = np.empty(v.length, dtype=np.bool_)
+            v.buffer(0).unpack_bits_into(valid, v.offset, v.length, 0)
+            # Indices behind nulls are undefined, so they may be out of range
+            np.take(lookup, np.where(valid, indices, 0), out=out)
+            out[~valid] = -1
+        else:
+            np.take(lookup, indices, out=out)
+    return codes
 
 
 _ARROW_DTYPES = {
@@ -469,15 +562,15 @@ def _extract_values_and_mask(obj):
     result must not be modified. Arrow data is read with nanoarrow; chunks
     are concatenated and the validity bitmap is unpacked.
 
-    This relies on the private pandas attributes ``_data`` and ``_mask`` of
-    ``BaseMaskedArray``.
+    This relies on the private attributes ``_data`` and ``_mask`` of the pandas
+    nullable arrays.
     """
     if isinstance(obj, pd.Series):
         # Series.__arrow_c_stream__ copies the mask and needs pandas 3
         obj = obj.array
     if isinstance(obj, pd.arrays.ArrowExtensionArray):
         obj = obj.__arrow_array__()
-    if isinstance(obj, (np.ma.MaskedArray, BaseMaskedArray)):
+    if isinstance(obj, (np.ma.MaskedArray, *_PANDAS_MASKED_ARRAYS)):
         return obj._data, (obj._mask if obj._mask.any() else None)
     if not (hasattr(obj, "__arrow_c_stream__") or hasattr(obj, "__arrow_c_array__")):
         return obj, None
@@ -592,11 +685,10 @@ def _columns_from_arrow_stream(obj):
 class _ArraySource:
     """Dict of equal-length 1D arrays used as a source in place of a DataFrame.
 
-    Columns can be numpy arrays, np.ma arrays, pandas arrays, Arrow arrays
-    (anything with ``__arrow_c_stream__`` or ``__arrow_c_array__``), or
-    sequences such as lists, which are converted with ``np.asarray``. numpy
-    arrays and ``pd.Categorical`` are wrapped in a ``pd.Series`` without
-    copying, so categorizers can use them like DataFrame columns.
+    Columns can be numpy arrays, np.ma arrays, pandas arrays (including
+    ``pd.Categorical``), Arrow arrays (anything with ``__arrow_c_stream__`` or
+    ``__arrow_c_array__``, dictionary-encoded arrays are categorical), or
+    sequences such as lists, which are converted with ``np.asarray``.
     """
     def __init__(self, data):
         data = {
@@ -613,10 +705,7 @@ class _ArraySource:
             lengths.add(len(col))
         if len(lengths) > 1:
             raise ValueError("dict source columns must all have the same length")
-        self._data = {
-            name: pd.Series(col, copy=False) if _is_plain_or_categorical(col) else col
-            for name, col in data.items()
-        }
+        self._data = data
         self._length = lengths.pop() if lengths else 0
 
     @property
@@ -629,11 +718,12 @@ class _ArraySource:
     def __len__(self):
         return self._length
 
-
-def _is_plain_or_categorical(col):
-    return isinstance(col, pd.Categorical) or (
-        isinstance(col, np.ndarray) and not isinstance(col, np.ma.MaskedArray)
-    )
+    def __repr__(self):
+        columns = ", ".join(
+            f"{name}: {getattr(col, 'dtype', type(col).__name__)}"
+            for name, col in self._data.items()
+        )
+        return f"{type(self).__name__}(length={self._length}, columns={{{columns}}})"
 
 
 def _dshape_from_array_source(source):
@@ -642,12 +732,16 @@ def _dshape_from_array_source(source):
         col = source[name]
         if isinstance(col, pd.Series):
             dshape = dshape_from_pandas_helper(col)
+        elif isinstance(col, pd.Categorical) or _is_arrow_categorical(col):
+            dshape = _categorical_dshape(col)
         elif _is_masked(col):
             dtype = getattr(col, "dtype", None)
             dtype = getattr(dtype, "numpy_dtype", dtype)
             if not isinstance(dtype, np.dtype):
-                dtype = np.dtype(_ARROW_DTYPES[_arrow_format(col)])
-            dshape = datashape.Option(datashape.CType.from_numpy_dtype(dtype))
+                dtype = np.dtype(_ARROW_DTYPES[_arrow_schema(col).format])
+            dshape = datashape.Masked(datashape.CType.from_numpy_dtype(dtype))
+        elif isinstance(col, np.ndarray):
+            dshape = dshape_from_pandas_helper(pd.Series(col, copy=False))
         else:
             dshape = datashape.CType.from_numpy_dtype(np.asarray(col).dtype)
         fields.append((name, dshape))
@@ -656,9 +750,7 @@ def _dshape_from_array_source(source):
 
 def _is_masked_dshape(dt):
     """Return whether a column with datashape ``dt`` is a masked numeric column."""
-    return isinstance(dt, datashape.Option) and (
-        dt.ty in datashape.typesets.real or dt.ty == datashape.bool_
-    )
+    return isinstance(dt, datashape.Masked)
 
 
 def _is_missing(mask, i):
@@ -672,6 +764,17 @@ def _is_missing_overload(mask, i):
     return lambda mask, i: mask[i]
 
 
+def _categorical_dshape(col):
+    categories, ordered = _categories(col)
+    categories = np.array(categories)
+
+    if categories.dtype.kind == 'U':
+        categories = categories.astype('object')
+
+    cat_dshape = datashape.dshape(f'{len(categories)} * {categories.dtype}')
+    return datashape.Categorical(categories, type=cat_dshape, ordered=ordered)
+
+
 # Heavily inspired by odo
 def dshape_from_pandas_helper(col):
     """Return an object from datashader.datashape.coretypes given a column from a pandas
@@ -679,23 +782,9 @@ def dshape_from_pandas_helper(col):
     """
     if (isinstance(col.dtype, type(pd.Categorical.dtype)) or
             isinstance(col.dtype, pd.api.types.CategoricalDtype) or
-            cudf and isinstance(col.dtype, cudf.core.dtypes.CategoricalDtype)):
-        # Compute category dtype
-        pd_categories = col.cat.categories
-        if dd and isinstance(pd_categories, dd.Index):
-            pd_categories = pd_categories.compute()
-        if cudf and isinstance(pd_categories, cudf.Index):
-            pd_categories = pd_categories.to_pandas()
-
-        categories = np.array(pd_categories)
-
-        if categories.dtype.kind == 'U':
-            categories = categories.astype('object')
-
-        cat_dshape = datashape.dshape(f'{len(col.cat.categories)} * {categories.dtype}')
-        return datashape.Categorical(categories,
-                                     type=cat_dshape,
-                                     ordered=col.cat.ordered)
+            cudf and isinstance(col.dtype, cudf.core.dtypes.CategoricalDtype) or
+            _is_arrow_categorical(col)):
+        return _categorical_dshape(col)
     elif col.dtype.kind == 'M':
         tz = getattr(col.dtype, 'tz', None)
         if tz is not None:
@@ -708,7 +797,7 @@ def dshape_from_pandas_helper(col):
         return col.dtype
     dshape = datashape.CType.from_numpy_dtype(col.dtype)
     if _is_masked(col):
-        return datashape.Option(dshape)
+        return datashape.Masked(dshape)
     dshape = datashape.string if dshape == datashape.object_ else dshape
     if dshape in (datashape.string, datashape.datetime_):
         return datashape.Option(dshape)

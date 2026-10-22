@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from xarray import DataArray
 
-from datashader.datashape import dshape
+from datashader.datashape import Masked, Option, dshape
 from datashader.utils import (
     Dispatcher, _ArraySource, _column_values_and_mask, _extract_values_and_mask, apply, calc_res,
     dshape_from_pandas, isreal, orient_array,
@@ -117,17 +117,22 @@ def test_orient_array():
 @pytest.mark.parametrize(
     ("dtype", "expected"),
     [
-        ("Float64", "?float64"),
-        ("Float32", "?float32"),
-        ("Int64", "?int64"),
-        ("Int32", "?int32"),
-        pytest.param("float64[pyarrow]", "?float64", marks=skip_no_pyarrow),
-        pytest.param("int32[pyarrow]", "?int32", marks=skip_no_pyarrow),
+        ("Float64", "float64"),
+        ("Float32", "float32"),
+        ("Int64", "int64"),
+        ("Int32", "int32"),
+        pytest.param("float64[pyarrow]", "float64", marks=skip_no_pyarrow),
+        pytest.param("int32[pyarrow]", "int32", marks=skip_no_pyarrow),
     ],
 )
 def test_dshape_from_pandas_masked(dtype, expected):
     df = pd.DataFrame({"v": pd.array([1, None, 3], dtype=dtype)})
-    assert dshape_from_pandas(df).measure["v"] == dshape(expected).measure
+    assert dshape_from_pandas(df).measure["v"] == Masked(dshape(expected).measure)
+
+
+def test_dshape_from_pandas_string_is_option_not_masked():
+    df = pd.DataFrame({"v": pd.Series(["a", None], dtype=object)})
+    assert dshape_from_pandas(df).measure["v"] == Option(dshape("string").measure)
 
 
 def test_dshape_from_pandas_numpy_not_option():
@@ -234,9 +239,17 @@ def test_dshape_from_pandas_arrow_bool_not_option():
     assert dshape_from_pandas(df).measure["v"] == dshape("bool").measure
 
 
-def test_array_source_wraps_numpy_without_copy():
+def test_array_source_keeps_columns():
     x = np.arange(5.0)
-    assert np.shares_memory(_ArraySource({"x": x})["x"].to_numpy(), x)
+    cat = pd.Categorical(list("abcab"))
+    source = _ArraySource({"x": x, "cat": cat})
+    assert source["x"] is x
+    assert source["cat"] is cat
+
+
+def test_array_source_repr():
+    source = _ArraySource({"x": np.arange(5.0), "cat": pd.Categorical(list("abcab"))})
+    assert repr(source) == "_ArraySource(length=5, columns={x: float64, cat: category})"
 
 
 @skip_no_pyarrow
