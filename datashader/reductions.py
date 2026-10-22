@@ -9,7 +9,9 @@ from toolz import concat, unique
 import xarray as xr
 
 from datashader.antialias import AntialiasCombination, AntialiasStage2
-from datashader.utils import _column_values_and_mask, _column_with_nan, isminus1, isnull
+from datashader.utils import (
+    _categorical_codes, _column_values_and_mask, _column_with_nan, isminus1, isnull,
+)
 from numba import cuda as nb_cuda
 
 try:
@@ -175,7 +177,7 @@ class category_codes(CategoryPreprocess):
                 return df[self.column].cat.codes.to_cupy()
             return df[self.column].cat.codes.to_gpu_array()
         else:
-            return df[self.column].cat.codes.values
+            return _categorical_codes(df[self.column])
 
 class category_modulo(category_codes):
     """
@@ -212,7 +214,7 @@ class category_modulo(category_codes):
                 return result.to_cupy()
             return result.to_gpu_array()
         else:
-            return result.values
+            return getattr(result, "values", result)
 
 class category_binning(category_modulo):
     """

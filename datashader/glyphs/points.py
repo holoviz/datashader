@@ -154,10 +154,8 @@ class _PointLike(Glyph):
     def compute_bounds_dask(self, ddf):
 
         r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin(df[self.x].values).item(),
-            np.nanmax(df[self.x].values).item(),
-            np.nanmin(df[self.y].values).item(),
-            np.nanmax(df[self.y].values).item()]]
+            *self._compute_bounds(df[self.x]),
+            *self._compute_bounds(df[self.y])]]
         )).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
