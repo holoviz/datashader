@@ -545,7 +545,6 @@ _ARROW_DTYPES = {
     "I": "uint32",
     "l": "int64",
     "L": "uint64",
-    "e": "float16",
     "f": "float32",
     "g": "float64",
 }
@@ -742,6 +741,13 @@ def _dshape_from_array_source(source):
             dshape = datashape.Masked(datashape.CType.from_numpy_dtype(dtype))
         elif isinstance(col, np.ndarray):
             dshape = dshape_from_pandas_helper(pd.Series(col, copy=False))
+        elif hasattr(col, "__arrow_c_stream__") or hasattr(col, "__arrow_c_array__"):
+            import nanoarrow as na
+
+            arrow_type = na.Schema(_arrow_schema(col)).type.name.lower()
+            raise NotImplementedError(
+                f"column {name!r} has unsupported Arrow type {arrow_type}, only "
+                "numeric and dictionary-encoded columns are supported")
         else:
             dshape = datashape.CType.from_numpy_dtype(np.asarray(col).dtype)
         fields.append((name, dshape))

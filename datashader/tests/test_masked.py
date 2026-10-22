@@ -515,3 +515,29 @@ def test_categorical_polars_enum_categories():
 @skip_no_pyarrow
 def test_arrow_categorical_is_not_masked():
     assert not du._is_masked(pa.array(["a", "b"]).dictionary_encode())
+
+
+@skip_no_polars
+@pytest.mark.parametrize("glyph, agg, column, arrow_type", [
+    ("points", ds.count(), pl.Series([1, 2], dtype=pl.Datetime), "timestamp"),
+    ("points", ds.by("c"), pl.Series(["a", "b"]), "string_view"),
+    ("points", ds.any("c"), pl.Series([True, False]), "bool"),
+    ("points", ds.max("c"), pl.Series([[1], [2]]), "large_list"),
+    ("line", ds.count(), pl.Series([1, 2], dtype=pl.Datetime), "timestamp"),
+] if pl is not None else [])
+def test_unsupported_arrow_column(glyph, agg, column, arrow_type):
+    name = "x" if agg.column is None else "c"
+    source = pl.DataFrame({"x": [0.0, 1.0], "y": [0.0, 1.0]}).with_columns(column.alias(name))
+    cvs = ds.Canvas(plot_width=2, plot_height=2)
+    match = f"column {name!r} has unsupported Arrow type {arrow_type}"
+    with pytest.raises(NotImplementedError, match=match):
+        getattr(cvs, glyph)(source, "x", "y", agg=agg)
+
+
+@skip_no_pyarrow
+def test_unsupported_arrow_half_float():
+    source = {"x": pa.array([0.0, 1.0], pa.float16()), "y": np.array([0.0, 1.0])}
+    cvs = ds.Canvas(plot_width=2, plot_height=2)
+    match = "column 'x' has unsupported Arrow type half_float"
+    with pytest.raises(NotImplementedError, match=match):
+        cvs.points(source, "x", "y")
