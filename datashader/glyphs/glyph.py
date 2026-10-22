@@ -66,6 +66,11 @@ class Glyph(Expr):
             return Glyph._compute_bounds_numba(values)
 
     @staticmethod
+    def _compute_bounds_columns(df, columns):
+        bounds = [Glyph._compute_bounds(df[c]) for c in columns]
+        return np.nanmin([b[0] for b in bounds]), np.nanmax([b[1] for b in bounds])
+
+    @staticmethod
     @ngjit
     def _compute_bounds_numba(arr):
         minval = np.inf
