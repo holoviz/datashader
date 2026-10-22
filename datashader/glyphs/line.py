@@ -143,12 +143,13 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
     @memoize
     def compute_bounds_dask(self, ddf):
 
-        r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([self._compute_bounds(df[c])[0] for c in self.x]),
-            np.nanmax([self._compute_bounds(df[c])[1] for c in self.x]),
-            np.nanmin([self._compute_bounds(df[c])[0] for c in self.y]),
-            np.nanmax([self._compute_bounds(df[c])[1] for c in self.y])]]
-        )).compute()
+        def partition_bounds(df):
+            return np.array([[
+                *self._compute_bounds_columns(df, self.x),
+                *self._compute_bounds_columns(df, self.y),
+            ]])
+
+        r = ddf.map_partitions(partition_bounds).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
         y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
@@ -257,12 +258,13 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
     @memoize
     def compute_bounds_dask(self, ddf):
 
-        r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([self._compute_bounds(df[c])[0] for c in self.x]),
-            np.nanmax([self._compute_bounds(df[c])[1] for c in self.x]),
-            np.nanmin([self._compute_bounds(df[c])[0] for c in self.y]),
-            np.nanmax([self._compute_bounds(df[c])[1] for c in self.y])]]
-        )).compute()
+        def partition_bounds(df):
+            return np.array([[
+                *self._compute_bounds_columns(df, self.x),
+                *self._compute_bounds_columns(df, self.y),
+            ]])
+
+        r = ddf.map_partitions(partition_bounds).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
         y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
@@ -333,10 +335,12 @@ class LinesAxis1XConstant(LinesAxis1):
     @memoize
     def compute_bounds_dask(self, ddf):
 
-        r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([self._compute_bounds(df[c])[0] for c in self.y]),
-            np.nanmax([self._compute_bounds(df[c])[1] for c in self.y])]]
-        )).compute()
+        def partition_bounds(df):
+            return np.array([[
+                *self._compute_bounds_columns(df, self.y),
+            ]])
+
+        r = ddf.map_partitions(partition_bounds).compute()
 
         y_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
 
@@ -407,10 +411,12 @@ class LinesAxis1YConstant(LinesAxis1):
     @memoize
     def compute_bounds_dask(self, ddf):
 
-        r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([self._compute_bounds(df[c])[0] for c in self.x]),
-            np.nanmax([self._compute_bounds(df[c])[1] for c in self.x])]]
-        )).compute()
+        def partition_bounds(df):
+            return np.array([[
+                *self._compute_bounds_columns(df, self.x),
+            ]])
+
+        r = ddf.map_partitions(partition_bounds).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
 
@@ -480,12 +486,13 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
     @memoize
     def compute_bounds_dask(self, ddf):
 
-        r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin(df[self.x].array.flat_array).item(),
-            np.nanmax(df[self.x].array.flat_array).item(),
-            np.nanmin(df[self.y].array.flat_array).item(),
-            np.nanmax(df[self.y].array.flat_array).item()]]
-        )).compute()
+        def partition_bounds(df):
+            return np.array([[
+                *self._compute_bounds_numba(df[self.x].array.flat_array),
+                *self._compute_bounds_numba(df[self.y].array.flat_array),
+            ]])
+
+        r = ddf.map_partitions(partition_bounds).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
         y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
