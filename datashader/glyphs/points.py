@@ -6,6 +6,7 @@ from toolz import memoize
 from datashader.glyphs.glyph import Glyph
 from datashader.utils import isreal, ngjit
 
+import numba as nb
 from numba import cuda
 
 try:
@@ -185,7 +186,7 @@ class Point(_PointLike):
         x_name = self.x
         y_name = self.y
 
-        @ngjit
+        @nb.jit(nogil=True, inline="always")
         @self.expand_aggs_and_cols(append)
         def _perform_extend_points(i, sx, tx, sy, ty, xmin, xmax,
                                    ymin, ymax, xs, ys, xxmax, yymax,
@@ -258,7 +259,7 @@ class MultiPointGeoPandas(_GeometryLike):
 
         geometry_name = self.geometry
 
-        @ngjit
+        @nb.jit(nogil=True, inline="always")
         @self.expand_aggs_and_cols(append)
         def _perform_extend_points(
             i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax, values, *aggs_and_cols
@@ -338,7 +339,7 @@ class MultiPointGeometry(_GeometryLike):
                       _antialias_stage_2_funcs):
         geometry_name = self.geometry
 
-        @ngjit
+        @nb.jit(nogil=True, inline="always")
         @self.expand_aggs_and_cols(append)
         def _perform_extend_points(
                 i, j, sx, tx, sy, ty, xmin, xmax, ymin, ymax, values, *aggs_and_cols
