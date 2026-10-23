@@ -4,6 +4,7 @@ channels:
 
 dependencies:
  - bokeh
+ - bokeh_sampledata
  - cartopy
  - colorcet
  - graphviz
@@ -12,7 +13,10 @@ dependencies:
  - datashader
  - distributed
  - fastparquet
- - holoviews
+ - geodatasets
+ - geopandas
+ - holoviews >=1.21
+ - hvsampledata >=0.1.5
  - ipython
  - jupyter
  - matplotlib
@@ -29,6 +33,7 @@ dependencies:
  - scipy
  - shapely
  - snappy
+ - spatialpandas
  - statsmodels
  - streamz
  - xarray
