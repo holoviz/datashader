@@ -310,6 +310,23 @@ def test_shade_mpl_cmap(agg):
     assert_eq_xr(img, sol)
 
 
+def test_shade_mpl_cmap_alpha():
+    colors = pytest.importorskip('matplotlib.colors')
+    agg = xr.DataArray([[0.0, 0.5], [1.0, np.nan]], dims=['y_axis', 'x_axis'])
+    cmap = colors.LinearSegmentedColormap.from_list(
+        'transparent_to_blue',
+        [(1.0, 0.0, 0.0, 0.0), (0.0, 0.0, 1.0, 1.0)],
+    )
+
+    img = tf.shade(agg, cmap=cmap, how='linear')
+    rgba = img.data.view(np.uint8).reshape(2, 2, 4)
+    np.testing.assert_array_equal(rgba[..., 3], [[0, 128], [255, 0]])
+
+    img = tf.shade(agg, cmap=cmap, how='linear', alpha=100)
+    rgba = img.data.view(np.uint8).reshape(2, 2, 4)
+    np.testing.assert_array_equal(rgba[..., 3], [[100, 100], [100, 0]])
+
+
 def test_shade_category(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
     cat_agg = tf.Image(array([[(0, 12, 0), (3, 0, 3)], [(12, 12, 12), (24, 0, 0)]], dtype='u4'),
