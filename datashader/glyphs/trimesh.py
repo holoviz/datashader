@@ -1,5 +1,6 @@
 from __future__ import annotations
 from math import floor
+import numba as nb
 import numpy as np
 from toolz import memoize
 
@@ -83,7 +84,7 @@ class Triangles(_PolygonLike):
 
 def _build_draw_triangle(append):
     """Specialize a triangle plotting kernel for a given append/axis combination"""
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def edge_func(ax, ay, bx, by, cx, cy):
         return (cx - ax) * (by - ay) - (cy - ay) * (bx - ax)
 
