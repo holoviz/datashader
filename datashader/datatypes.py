@@ -505,16 +505,27 @@ Cannot check equality of RaggedArray of length {len(self)} with:
 
     def fillna(self, value=None, method=None, limit=None, copy=True):
         # Override in RaggedArray to handle ndarray fill values
-        from pandas.util._validators import validate_fillna_kwargs
-        from pandas.core.missing import get_fill_func
+        from pandas.core.missing import clean_fill_method, get_fill_func
 
         if getattr(self, "_readonly", None) and not copy:
             raise ValueError("Cannot modify read-only array")
 
-        if value is not None or method is not None:
-            value, method = validate_fillna_kwargs(value, method)
-        else:
+        if value is None and method is None:
             return self.copy() if copy else self
+        elif value is not None and method is not None:
+            raise ValueError("Cannot specify both 'value' and 'method'.")
+        elif method is not None:
+            method = clean_fill_method(method)
+        elif isinstance(value, dict):
+            raise TypeError(
+                "ExtensionArray.fillna does not support filling with a dict. "
+                "Use Series.fillna instead."
+            )
+        elif isinstance(value, (list, tuple)):
+            raise TypeError(
+                '"value" parameter must be a scalar, but '
+                f'you passed a "{type(value).__name__}"'
+            )
 
         mask = self.isna()
 
