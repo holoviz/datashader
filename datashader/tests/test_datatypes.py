@@ -896,6 +896,14 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     def test_sort_values_frame(self):
         pass
 
+    @pytest.mark.skip(reason="ragged arrays are never monotonic")
+    def test_is_monotonic_increasing(self):
+        pass
+
+    @pytest.mark.skip(reason="ragged arrays are never monotonic")
+    def test_is_monotonic_decreasing(self):
+        pass
+
     @pytest.mark.skip(reason="ragged elements of different length can't be compared")
     def test_where_series(self):
         pass

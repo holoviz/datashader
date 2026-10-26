@@ -542,6 +542,16 @@ Cannot check equality of RaggedArray of length {len(self)} with:
     def _values_for_argsort(self):
         return self._as_ragged_element_array()
 
+    @property
+    def _is_monotonic_increasing(self):
+        # no promises for monotonic increasing
+        return False
+
+    @property
+    def _is_monotonic_decreasing(self):
+        # no promises for monotonic decreasing
+        return False
+
     def unique(self):
         from pandas import unique
 
