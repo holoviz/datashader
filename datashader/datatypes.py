@@ -202,6 +202,16 @@ class RaggedDtype(ExtensionDtype):
         return subtype_string
 
 
+def _is_ragged_element(v):
+    if missing(v):
+        return True
+    try:
+        arr = np.asarray(v)
+    except ValueError:
+        return False
+    return arr.ndim == 1 and arr.dtype != object
+
+
 def missing(v):
     return v is None or (np.isscalar(v) and np.isnan(v))
 
@@ -475,6 +485,43 @@ Cannot check equality of RaggedArray of length {len(self)} with:
         else:
             raise IndexError(err_msg)
 
+    def __setitem__(self, key, value):
+        from pandas.api.indexers import check_array_indexer
+
+        if getattr(self, "_readonly", False):
+            raise ValueError("Cannot modify read-only array")
+
+        if isinstance(key, Integral):
+            if key < -len(self) or key >= len(self):
+                raise IndexError(f"{key} is out of bounds")
+        elif not isinstance(key, slice):
+            key = check_array_indexer(self, key)
+
+        selected = np.arange(len(self))[key]
+        data = np.empty(len(self), dtype=object)
+        data[:] = [self[i] for i in range(len(self))]
+
+        if np.ndim(selected) == 0:
+            data[selected] = value
+        elif _is_ragged_element(value):
+            for i in selected:
+                data[i] = value
+        else:
+            value = list(value)
+            if len(value) == 1:
+                value = value * len(selected)
+            elif len(value) != len(selected):
+                raise ValueError(
+                    f"Length of values ({len(value)}) does not match "
+                    f"length of indexer ({len(selected)})"
+                )
+            for i, v in zip(selected, value, strict=True):
+                data[i] = v
+
+        new = RaggedArray(data, dtype=self.flat_array.dtype)
+        self._start_indices = new._start_indices
+        self._flat_array = new._flat_array
+
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
         return RaggedArray(scalars, dtype=dtype)
@@ -495,6 +542,16 @@ Cannot check equality of RaggedArray of length {len(self)} with:
     def _values_for_argsort(self):
         return self._as_ragged_element_array()
 
+    @property
+    def _is_monotonic_increasing(self):
+        # no promises for monotonic increasing
+        return False
+
+    @property
+    def _is_monotonic_decreasing(self):
+        # no promises for monotonic decreasing
+        return False
+
     def unique(self):
         from pandas import unique
 
@@ -505,16 +562,27 @@ Cannot check equality of RaggedArray of length {len(self)} with:
 
     def fillna(self, value=None, method=None, limit=None, copy=True):
         # Override in RaggedArray to handle ndarray fill values
-        from pandas.util._validators import validate_fillna_kwargs
-        from pandas.core.missing import get_fill_func
+        from pandas.core.missing import clean_fill_method, get_fill_func
 
         if getattr(self, "_readonly", None) and not copy:
             raise ValueError("Cannot modify read-only array")
 
-        if value is not None or method is not None:
-            value, method = validate_fillna_kwargs(value, method)
-        else:
+        if value is None and method is None:
             return self.copy() if copy else self
+        elif value is not None and method is not None:
+            raise ValueError("Cannot specify both 'value' and 'method'.")
+        elif method is not None:
+            method = clean_fill_method(method)
+        elif isinstance(value, dict):
+            raise TypeError(
+                "ExtensionArray.fillna does not support filling with a dict. "
+                "Use Series.fillna instead."
+            )
+        elif isinstance(value, (list, tuple)):
+            raise TypeError(
+                '"value" parameter must be a scalar, but '
+                f'you passed a "{type(value).__name__}"'
+            )
 
         mask = self.isna()
 
