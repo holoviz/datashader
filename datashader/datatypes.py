@@ -202,6 +202,16 @@ class RaggedDtype(ExtensionDtype):
         return subtype_string
 
 
+def _is_ragged_element(v):
+    if missing(v):
+        return True
+    try:
+        arr = np.asarray(v)
+    except ValueError:
+        return False
+    return arr.ndim == 1 and arr.dtype != object
+
+
 def missing(v):
     return v is None or (np.isscalar(v) and np.isnan(v))
 
@@ -474,6 +484,43 @@ Cannot check equality of RaggedArray of length {len(self)} with:
                 raise IndexError(err_msg)
         else:
             raise IndexError(err_msg)
+
+    def __setitem__(self, key, value):
+        from pandas.api.indexers import check_array_indexer
+
+        if getattr(self, "_readonly", False):
+            raise ValueError("Cannot modify read-only array")
+
+        if isinstance(key, Integral):
+            if key < -len(self) or key >= len(self):
+                raise IndexError(f"{key} is out of bounds")
+        elif not isinstance(key, slice):
+            key = check_array_indexer(self, key)
+
+        selected = np.arange(len(self))[key]
+        data = np.empty(len(self), dtype=object)
+        data[:] = [self[i] for i in range(len(self))]
+
+        if np.ndim(selected) == 0:
+            data[selected] = value
+        elif _is_ragged_element(value):
+            for i in selected:
+                data[i] = value
+        else:
+            value = list(value)
+            if len(value) == 1:
+                value = value * len(selected)
+            elif len(value) != len(selected):
+                raise ValueError(
+                    f"Length of values ({len(value)}) does not match "
+                    f"length of indexer ({len(selected)})"
+                )
+            for i, v in zip(selected, value, strict=True):
+                data[i] = v
+
+        new = RaggedArray(data, dtype=self.flat_array.dtype)
+        self._start_indices = new._start_indices
+        self._flat_array = new._flat_array
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
