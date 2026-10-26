@@ -148,8 +148,7 @@ def test_hammer_bundle_with_weights(nodes, weighted_edges, include_edge_id):
     starts = df[(df.x == 0.0) & (df.y == 0.0)]
     ends = df[df.isnull().any(axis=1)]
     given = pd.concat([starts, ends])
-    given.sort_index(inplace=True)
-    given.reset_index(drop=True, inplace=True)
+    given = given.sort_index().reset_index(drop=True)
 
     assert given.equals(expected)
 
@@ -175,7 +174,6 @@ def test_hammer_bundle_without_weights(nodes, edges, include_edge_id):
     starts = df[(df.x == 0.0) & (df.y == 0.0)]
     ends = df[df.isnull().any(axis=1)]
     given = pd.concat([starts, ends])
-    given.sort_index(inplace=True)
-    given.reset_index(drop=True, inplace=True)
+    given = given.sort_index().reset_index(drop=True)
 
     assert given.equals(expected)
