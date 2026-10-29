@@ -92,3 +92,7 @@ def test_unsupported_expanding():
         return list(*[1, 2, 3])
 
     expand_varargs(2)(func_with_other_star)
+
+
+def test_expand_varargs_is_cached():
+    assert expand_varargs(2) is expand_varargs(2)
