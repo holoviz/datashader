@@ -105,12 +105,10 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
     bases = list(unique(concat(r._build_bases(cuda, partitioned) for r in reds)))
     dshapes = [b.out_dshape(schema, antialias, cuda, partitioned) for b in bases]
 
-    # Information on how to perform second stage aggregation of antialiased lines,
-    # including whether antialiased lines self-intersect or not as we need a single
-    # value for this even for a compound reduction. This is by default True, but
-    # is False if a single constituent reduction requests it.
+    # Information for second-stage aggregation and the shared self-intersection
+    # mode, selected from reduction preferences and glyph requirements.
     if antialias:
-        self_intersect, antialias_stage_2 = make_antialias_stage_2(reds, bases)
+        self_intersect, antialias_stage_2 = make_antialias_stage_2(reds, bases, glyph, cuda)
         if cuda:
             import cupy
             array_module = cupy
@@ -536,16 +534,14 @@ def make_finalize(bases, agg, schema, cuda, partitioned):
         return agg._build_finalize(schema)
 
 
-def make_antialias_stage_2(reds, bases):
+def make_antialias_stage_2(reds, bases, glyph, cuda):
     # Only called if antialias is True.
 
-    # Prefer a single-stage antialiased aggregation, but if any requested
-    # reduction requires two stages then force use of two for all reductions.
-    self_intersect = True
-    for red in reds:
-        if red._antialias_requires_2_stages():
-            self_intersect = False
-            break
+    from .glyphs.line import LineAxis0
+    requires_2_stages = any(red._antialias_requires_2_stages() for red in reds)
+    self_intersect = all(red._antialias_self_intersect() for red in reds)
+    if (cuda or not isinstance(glyph, LineAxis0)) and requires_2_stages:
+        self_intersect = False
 
     def antialias_stage_2(array_module) -> UnzippedAntialiasStage2:
         return tuple(zip(*concat(b._antialias_stage_2(self_intersect, array_module)
