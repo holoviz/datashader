@@ -161,8 +161,8 @@ def add_arr(src, dst):
 
 @arr_operator
 def max_arr(src, dst):
-    return max([src,  dst])
+    return max(src, dst)
 
 @arr_operator
 def min_arr(src, dst):
-    return min([src,  dst])
+    return min(src, dst)

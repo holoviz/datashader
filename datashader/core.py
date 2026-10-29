@@ -1389,7 +1389,11 @@ def _bypixel_sanitise(source, glyph, agg):
             from .glyphs.polygon import PolygonGeom
             if isinstance(glyph, PolygonGeom):
                 sindex = getattr(source[glyph.geometry].array, "_sindex", None)
-            source = source[cols_to_keep]
+            if type(source) is pd.DataFrame and source.columns.is_unique:
+                # source[cols_to_keep] copies columns that are irregularly spaced in a block
+                source = pd.DataFrame({col: source[col] for col in cols_to_keep}, copy=False)
+            else:
+                source = source[cols_to_keep]
             if (sindex is not None and
                     getattr(source[glyph.geometry].array, "_sindex", None) is None):
                 source[glyph.geometry].array._sindex = sindex
