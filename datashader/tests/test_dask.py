@@ -20,6 +20,7 @@ try:
 except ImportError:
     sp = None
 
+from datashader.tests.test_masked import _ARROW_FLOAT, _masked_frames, _to_masked
 from datashader.tests.test_pandas import (
     assert_eq_xr, assert_eq_ndarray, values
 )
@@ -2535,3 +2536,97 @@ def test_series_reset_index(ddf, npartitions):
         dims=['i32', 'index'],
     )
     assert_eq_xr(out, expected)
+
+
+def _with_cat(*dfs):
+    cat = pd.Categorical(np.arange(len(dfs[0])) % 3)
+    return [df.assign(cat=cat) for df in dfs]
+
+
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT, "Int64"])
+@pytest.mark.parametrize(
+    "reduction",
+    [ds.count("v"), ds.sum("v"), ds.max("v"), ds.mean("v"), ds.first("v"), ds.last_n("v", n=2)],
+    ids=repr,
+)
+@pytest.mark.parametrize("by", [False, True], ids=["", "by"])
+def test_points_masked(npartitions, dtype, reduction, by):
+    nan_df, _ = _masked_frames("Float64")
+    masked_df = _to_masked(nan_df[["x", "y"]], "Float64").assign(
+        v=_to_masked(nan_df[["v"]], dtype)["v"]
+    )
+    if by:
+        nan_df, masked_df = _with_cat(nan_df, masked_df)
+        reduction = ds.by("cat", reduction)
+    expected = ds.Canvas(plot_width=7, plot_height=5).points(nan_df, "x", "y", reduction)
+    actual = ds.Canvas(plot_width=7, plot_height=5).points(
+        dd.from_pandas(masked_df, npartitions=npartitions), "x", "y", reduction
+    )
+    np.testing.assert_array_equal(actual.values.astype(float), expected.values.astype(float))
+    assert actual.attrs["x_range"] == expected.attrs["x_range"]
+
+
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
+def test_line_masked(npartitions, dtype):
+    rng = np.random.default_rng(3)
+    n = 30
+    nan_df = pd.DataFrame({
+        f"{k}{j}": np.where(rng.random(n) < 0.2, np.nan, rng.uniform(0, 1, n))
+        for k in "xy" for j in range(3)
+    })
+    kwargs = dict(x=["x0", "x1", "x2"], y=["y0", "y1", "y2"], axis=1)
+    cvs = ds.Canvas(plot_width=9, plot_height=7)
+    expected = cvs.line(nan_df, **kwargs)
+    actual = cvs.line(
+        dd.from_pandas(_to_masked(nan_df, dtype), npartitions=npartitions), **kwargs
+    )
+    assert_eq_xr(actual, expected)
+
+
+@pytest.mark.parametrize("dtype", ["Float64", _ARROW_FLOAT])
+@pytest.mark.parametrize(
+    "reduction",
+    [ds.where(ds.max("v")), ds.where(ds.min("v"), "y"), ds.where(ds.first("v"), "y")],
+    ids=repr,
+)
+@pytest.mark.parametrize("by", [False, True], ids=["", "by"])
+def test_points_masked_where(npartitions, dtype, reduction, by):
+    nan_df, masked_df = _masked_frames(dtype)
+    if by:
+        nan_df, masked_df = _with_cat(nan_df, masked_df)
+        reduction = ds.by("cat", reduction)
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    expected = cvs.points(nan_df, "x", "y", reduction)
+    actual = cvs.points(dd.from_pandas(masked_df, npartitions=npartitions), "x", "y", reduction)
+    assert_eq_xr(actual, expected)
+
+
+@pytest.mark.parametrize("npartitions", [
+    pytest.param(1, marks=pytest.mark.xfail(
+        raises=IndexError, strict=True, reason="IndexError with one partition, also on main")),
+    2,
+    4,
+])
+@pytest.mark.parametrize("dtype", [None, "Float64"])
+def test_summary_where_shared_first_selector(npartitions, dtype):
+    nan_df, _ = _masked_frames("Float64")
+    nan_df["w"] = nan_df["v"][::-1].to_numpy()
+    source = nan_df if dtype is None else _to_masked(nan_df, dtype)
+    agg = ds.summary(a=ds.where(ds.first("v")), b=ds.where(ds.first("v"), "w"))
+    cvs = ds.Canvas(plot_width=7, plot_height=5, x_range=(0, 1), y_range=(0, 1))
+    expected = cvs.points(nan_df, "x", "y", agg)
+    actual = cvs.points(dd.from_pandas(source, npartitions=npartitions), "x", "y", agg)
+    xr.testing.assert_equal(actual, expected)
+
+
+def test_points_by_arrow_categorical_raises(npartitions):
+    pa = pytest.importorskip("pyarrow")
+    df = pd.DataFrame({
+        "x": np.linspace(0, 1, 20),
+        "y": np.linspace(0, 1, 20),
+        "cat": pd.Series(pa.array(list("abcd") * 5).dictionary_encode(),
+                         dtype=pd.ArrowDtype(pa.dictionary(pa.int32(), pa.string()))),
+    })
+    cvs = ds.Canvas(plot_width=4, plot_height=4)
+    with pytest.raises(NotImplementedError, match="Arrow dictionary columns"):
+        cvs.points(dd.from_pandas(df, npartitions=npartitions), "x", "y", ds.by("cat"))

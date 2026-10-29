@@ -9,8 +9,10 @@ import numpy as np
 import xarray as xr
 
 from .antialias import AntialiasCombination
-from .reductions import SpecialColumn, UsesCudaMutex, by, category_codes, summary
-from .utils import (isnull, ngjit,
+from .reductions import (
+    SpecialColumn, UsesCudaMutex, by, category_codes, extract, extract_mask, summary,
+)
+from .utils import (_column_values_and_mask, _is_masked_dshape, _is_missing, isnull, ngjit,
     nanmax_in_place, nanmin_in_place, nansum_in_place, nanfirst_in_place, nanlast_in_place,
     nanmax_n_in_place_3d, nanmax_n_in_place_4d, nanmin_n_in_place_3d, nanmin_n_in_place_4d,
     nanfirst_n_in_place_3d, nanfirst_n_in_place_4d, nanlast_n_in_place_3d, nanlast_n_in_place_4d,
@@ -134,13 +136,22 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
     nan_check_cols = list(c[3] for c in calls if c[3] is not None)
     cols = list(unique(cols + nan_check_cols))
 
+    masks = {
+        c.column: extract_mask(c.column) for c in cols
+        if isinstance(c, extract) and c.column in schema.dict
+        and _is_masked_dshape(schema[c.column])
+    }
+    if masks and cuda:
+        raise NotImplementedError("Masked columns are not supported on the GPU")
+    cols += list(masks.values())
+
     # List of temps needed
     temps = list(pluck(4, calls))
     combine_temps = list(pluck(5, calls))
 
     create = make_create(bases, dshapes, cuda)
-    append, any_uses_cuda_mutex = make_append(bases, cols, calls, glyph, antialias)
-    info = make_info(tuple(cols), cuda, any_uses_cuda_mutex)
+    append, any_uses_cuda_mutex = make_append(bases, cols, calls, glyph, antialias, masks)
+    info = make_info(tuple(cols), cuda, any_uses_cuda_mutex, tuple(masks))
     combine = make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned)
     finalize = make_finalize(bases, agg, schema, cuda, partitioned)
 
@@ -303,9 +314,21 @@ def make_create(bases, dshapes, cuda):
 
 
 @memoize
-def make_info(cols, cuda, uses_cuda_mutex: bool):
+def make_info(cols, cuda, uses_cuda_mutex: bool, masks=None):
+    masked = [isinstance(c, (extract, extract_mask)) and c.column in masks for c in cols] \
+        if masks else [False] * len(cols)
+
     def info(df, canvas_shape):
-        ret = tuple(c.apply(df, cuda) for c in cols)
+        extracted = {}
+        ret = []
+        for c, is_masked in zip(cols, masked):
+            if is_masked:
+                if c.column not in extracted:
+                    extracted[c.column] = _column_values_and_mask(df[c.column])
+                ret.append(extracted[c.column][isinstance(c, extract_mask)])
+            else:
+                ret.append(c.apply(df, cuda))
+        ret = tuple(ret)
         if uses_cuda_mutex:
             import cupy  # Guaranteed to be available if uses_cuda_mutex is True
             import numba
@@ -320,13 +343,17 @@ def make_info(cols, cuda, uses_cuda_mutex: bool):
     return info
 
 
-def make_append(bases, cols, calls, glyph, antialias):
+def make_append(bases, cols, calls, glyph, antialias, masks=None):
     names = (f'_{i}' for i in count())
     inputs = list(bases) + list(cols)
     namespace = {}
     need_isnull = any(call[3] for call in calls)
     if need_isnull:
         namespace["isnull"] = isnull
+    if masks:
+        namespace["_is_missing"] = _is_missing
+        namespace["nan"] = np.nan
+    is_where_call = [len(call[1]) == 1 and call[1][0].is_where() for call in calls]
     global_cuda_mutex = any(call[6] == UsesCudaMutex.Global for call in calls)
     any_uses_cuda_mutex = any(call[6] != UsesCudaMutex.No for call in calls)
     if any_uses_cuda_mutex:
@@ -359,6 +386,13 @@ def make_append(bases, cols, calls, glyph, antialias):
         func = "cuda_mutex_lock" if lock else "cuda_mutex_unlock"
         return f'{func}({arg_lk["_cuda_mutex"]}, (y, x))'
 
+    def nan_check(nan_check_column) -> str:
+        condition = f'not isnull({arg_lk[nan_check_column]}[{subscript}])'
+        if masks and nan_check_column.column in masks:
+            mask = arg_lk[masks[nan_check_column.column]]
+            condition = f'not _is_missing({mask}, {subscript}) and {condition}'
+        return condition
+
     for index, (func, bases, cols, nan_check_column, temps, _, uses_cuda_mutex, categorical) \
             in enumerate(calls):
         local_cuda_mutex = not global_cuda_mutex and uses_cuda_mutex == UsesCudaMutex.Local
@@ -367,6 +401,7 @@ def make_append(bases, cols, calls, glyph, antialias):
         logger.debug(f"func {func_name} {func}")
         namespace[func_name] = func
         args = [arg_lk[i] for i in bases]
+        conditions = []
         if categorical and isinstance(cols[0], category_codes):
             args.extend(f'{arg_lk[col]}[{subscript}]' for col in cols[1:])
         elif ndims is None:
@@ -375,8 +410,17 @@ def make_append(bases, cols, calls, glyph, antialias):
             args.extend(f'{arg_lk[i]}[{subscript}][1]'
                         for i in cols)
         else:
-            args.extend(f'{arg_lk[i]}[{subscript}]'
-                        for i in cols)
+            for col in cols:
+                if masks and isinstance(col, extract) and col.column in masks:
+                    # Reductions skip NaN, and numba does not inline a call inside a branch
+                    value, missing = next(names), next(names)
+                    head.append(f'{value} = {arg_lk[col]}[{subscript}]')
+                    head.append(
+                        f'{missing} = _is_missing({arg_lk[masks[col.column]]}, {subscript})')
+                    head.append(f'{value} = nan if {missing} else {value}')
+                    args.append(value)
+                else:
+                    args.append(f'{arg_lk[col]}[{subscript}]')
 
         if categorical:
             # Categorical aggregate arrays need to be unpacked
@@ -429,9 +473,8 @@ def make_append(bases, cols, calls, glyph, antialias):
             if nan_check_column is None:
                 whitespace = ''
             else:
-                var = f"{arg_lk[nan_check_column]}[{subscript}]"
                 prev_body = body[-1]
-                body[-1] = f'if not isnull({var}):'
+                body[-1] = f'if {nan_check(nan_check_column)}:'
                 body.append(f'    {prev_body}')
                 whitespace = '    '
 
@@ -441,8 +484,15 @@ def make_append(bases, cols, calls, glyph, antialias):
             if local_cuda_mutex and not prev_local_cuda_mutex:
                 body.append(get_cuda_mutex_call(True))
             if nan_check_column:
-                var = f"{arg_lk[nan_check_column]}[{subscript}]"
-                body.append(f'if not isnull({var}):')
+                conditions.append(nan_check(nan_check_column))
+            next_is_where = index + 1 < len(calls) and is_where_call[index + 1]
+            if conditions and next_is_where:
+                # The following where reduction needs the selector call as one expression
+                body.append(
+                    f'{func_name}(x, y, {", ".join(args)}) '
+                    f'if {" and ".join(conditions)} else -1')
+            elif conditions:
+                body.append(f'if {" and ".join(conditions)}:')
                 body.append(f'    {func_name}(x, y, {", ".join(args)})')
             else:
                 body.append(f'{func_name}(x, y, {", ".join(args)})')

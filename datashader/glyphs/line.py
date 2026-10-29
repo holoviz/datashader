@@ -5,7 +5,7 @@ from toolz import memoize
 
 from datashader.antialias import two_stage_agg
 from datashader.glyphs.points import _PointLike, _GeometryLike
-from datashader.utils import isnull, isreal, ngjit
+from datashader.utils import _column_with_nan, _columns_to_2d, isnull, isreal, ngjit
 from numba import cuda
 import numba.types as nb_types
 
@@ -90,8 +90,8 @@ class LineAxis0(_PointLike, _AntiAliasedLine):
                 ys = self.to_cupy_array(df, y_name)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, x_name].to_numpy()
-                ys = df.loc[:, y_name].to_numpy()
+                xs = _column_with_nan(df[x_name])
+                ys = _column_with_nan(df[y_name])
                 do_extend = extend_cpu
 
             # line may be clipped, then mapped to pixels
@@ -143,12 +143,13 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
     @memoize
     def compute_bounds_dask(self, ddf):
 
-        r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([np.nanmin(df[c].values).item() for c in self.x]),
-            np.nanmax([np.nanmax(df[c].values).item() for c in self.x]),
-            np.nanmin([np.nanmin(df[c].values).item() for c in self.y]),
-            np.nanmax([np.nanmax(df[c].values).item() for c in self.y])]]
-        )).compute()
+        def partition_bounds(df):
+            return np.array([[
+                *self._compute_bounds_columns(df, self.x),
+                *self._compute_bounds_columns(df, self.y),
+            ]])
+
+        r = ddf.map_partitions(partition_bounds).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
         y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
@@ -182,8 +183,8 @@ class LineAxis0Multi(_PointLike, _AntiAliasedLine):
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
-                ys = df.loc[:, list(y_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
+                ys = _columns_to_2d(df, y_names)
                 do_extend = extend_cpu
 
             # line may be clipped, then mapped to pixels
@@ -257,12 +258,13 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
     @memoize
     def compute_bounds_dask(self, ddf):
 
-        r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([np.nanmin(df[c].values).item() for c in self.x]),
-            np.nanmax([np.nanmax(df[c].values).item() for c in self.x]),
-            np.nanmin([np.nanmin(df[c].values).item() for c in self.y]),
-            np.nanmax([np.nanmax(df[c].values).item() for c in self.y])]]
-        )).compute()
+        def partition_bounds(df):
+            return np.array([[
+                *self._compute_bounds_columns(df, self.x),
+                *self._compute_bounds_columns(df, self.y),
+            ]])
+
+        r = ddf.map_partitions(partition_bounds).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
         y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
@@ -295,8 +297,8 @@ class LinesAxis1(_PointLike, _AntiAliasedLine):
                 ys = self.to_cupy_array(df, y_names)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
-                ys = df.loc[:, list(y_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
+                ys = _columns_to_2d(df, y_names)
                 do_extend = extend_cpu
 
             do_extend(
@@ -333,10 +335,12 @@ class LinesAxis1XConstant(LinesAxis1):
     @memoize
     def compute_bounds_dask(self, ddf):
 
-        r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([np.nanmin(df[c].values).item() for c in self.y]),
-            np.nanmax([np.nanmax(df[c].values).item() for c in self.y])]]
-        )).compute()
+        def partition_bounds(df):
+            return np.array([[
+                *self._compute_bounds_columns(df, self.y),
+            ]])
+
+        r = ddf.map_partitions(partition_bounds).compute()
 
         y_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
 
@@ -370,7 +374,7 @@ class LinesAxis1XConstant(LinesAxis1):
                 do_extend = extend_cuda[cuda_args(ys.shape)]
             else:
                 xs = x_values
-                ys = df.loc[:, list(y_names)].to_numpy()
+                ys = _columns_to_2d(df, y_names)
                 do_extend = extend_cpu
 
             do_extend(
@@ -407,10 +411,12 @@ class LinesAxis1YConstant(LinesAxis1):
     @memoize
     def compute_bounds_dask(self, ddf):
 
-        r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin([np.nanmin(df[c].values).item() for c in self.x]),
-            np.nanmax([np.nanmax(df[c].values).item() for c in self.x])]]
-        )).compute()
+        def partition_bounds(df):
+            return np.array([[
+                *self._compute_bounds_columns(df, self.x),
+            ]])
+
+        r = ddf.map_partitions(partition_bounds).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
 
@@ -443,7 +449,7 @@ class LinesAxis1YConstant(LinesAxis1):
                 ys = cp.asarray(y_values)
                 do_extend = extend_cuda[cuda_args(xs.shape)]
             else:
-                xs = df.loc[:, list(x_names)].to_numpy()
+                xs = _columns_to_2d(df, x_names)
                 ys = y_values
                 do_extend = extend_cpu
 
@@ -480,12 +486,13 @@ class LinesAxis1Ragged(_PointLike, _AntiAliasedLine):
     @memoize
     def compute_bounds_dask(self, ddf):
 
-        r = ddf.map_partitions(lambda df: np.array([[
-            np.nanmin(df[self.x].array.flat_array).item(),
-            np.nanmax(df[self.x].array.flat_array).item(),
-            np.nanmin(df[self.y].array.flat_array).item(),
-            np.nanmax(df[self.y].array.flat_array).item()]]
-        )).compute()
+        def partition_bounds(df):
+            return np.array([[
+                *self._compute_bounds_numba(df[self.x].array.flat_array),
+                *self._compute_bounds_numba(df[self.y].array.flat_array),
+            ]])
+
+        r = ddf.map_partitions(partition_bounds).compute()
 
         x_extents = np.nanmin(r[:, 0]), np.nanmax(r[:, 1])
         y_extents = np.nanmin(r[:, 2]), np.nanmax(r[:, 3])
