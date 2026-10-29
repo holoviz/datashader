@@ -387,6 +387,10 @@ def _colorize(agg, color_key, how, alpha, span, min_alpha, name, color_baseline,
     data = agg_t.data.transpose([1, 2, 0])
     if da and isinstance(data, da.Array):
         data = data.compute()
+    if data.dtype == bool:
+        # Treat bool aggregates (e.g. by(..., any())) as 0/1 counts so that False pixels
+        # stay transparent and the baseline arithmetic below works
+        data = data.astype(np.uint32)
 
     color_data = xp.array(data, order='C', copy=True)
     nan_mask = np.isnan(data)

@@ -517,6 +517,51 @@ def test_shade_category_mixed_nan():
     assert alpha[0, 1] > 0
 
 
+@pytest.mark.parametrize('how', ['linear', 'log', 'eq_hist'])
+def test_shade_category_bool(array, how):
+    # e.g. from by(..., any()); should shade like the equivalent 0/1 count
+    coords = [np.array([0, 1]), np.array([2, 5])]
+    data = np.array([[(False, True, False), (True, False, True)],
+                     [(False, False, False), (True, True, True)]])
+    cat_agg = tf.Image(array(data),
+                       coords=(coords + [['a', 'b', 'c']]),
+                       dims=(dims + ['cats']))
+    colors = [(255, 0, 0), '#0000FF', 'orange']
+
+    img = tf.shade(cat_agg, color_key=colors, how=how)
+    sol = tf.shade(cat_agg.astype('u4'), color_key=colors, how=how)
+    assert_eq_xr(img, sol)
+
+    rgba = img.data.view(np.uint8).reshape((*img.shape, 4))
+    assert_eq_ndarray(rgba[..., 3] > 0, data.any(axis=2))  # all False -> transparent
+    assert rgba[0, 0, 3] == 40  # min_alpha for the smallest total
+    assert rgba[1, 1, 3] == 255
+    # Mean of the colors of the True categories
+    assert_eq_ndarray(rgba[0, 0, :3], np.array([0, 0, 255], dtype='u1'))
+    assert_eq_ndarray(rgba[0, 1, :3], np.array([255, 82, 0], dtype='u1'))
+    assert_eq_ndarray(rgba[1, 1, :3], np.array([170, 55, 85], dtype='u1'))
+
+
+@pytest.mark.parametrize('how', ['linear', 'log'])
+def test_shade_category_bool_span(array, how):
+    # A pixel can have more than 255 True categories, so the span can exceed 255
+    data = np.zeros((1, 3, 300), dtype='bool')
+    data[0, 1, 0] = True
+    data[0, 2, :] = True
+    cat_agg = tf.Image(array(data),
+                       coords=[np.array([0]), np.array([2, 5, 7]), np.arange(300)],
+                       dims=(dims + ['cats']))
+    kwargs = dict(color_key=['red'] * 300, how=how, span=(1, 300))
+
+    img = tf.shade(cat_agg, **kwargs)
+    sol = tf.shade(cat_agg.astype('u4'), **kwargs)
+    assert_eq_xr(img, sol)
+
+    rgba = img.data.view(np.uint8).reshape((*img.shape, 4))
+    assert_eq_ndarray(rgba[0, :, 3], np.array([0, 40, 255], dtype='u1'))
+    assert_eq_ndarray(rgba[0, 1:, :3], np.array([[255, 0, 0], [255, 0, 0]], dtype='u1'))
+
+
 def test_shade_zeros(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
     cat_agg = tf.Image(array([[(0, 0, 0), (0, 0, 0)],
