@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from toolz import unique, concat, pluck, get, memoize
+import numba as nb
 from numba import literal_unroll
 import numpy as np
 import xarray as xr
@@ -259,7 +260,7 @@ def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned
     aa_stage_2_clear = ngjit(namespace["aa_stage_2_clear"])
 
     # aa_stage_2_copy_back
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def aa_stage_2_copy_back(aggs_and_copies):
         # Numba access to heterogeneous tuples is only permitted using literal_unroll.
         for agg_and_copy in literal_unroll(aggs_and_copies):
