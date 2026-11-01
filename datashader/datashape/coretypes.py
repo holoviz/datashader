@@ -727,6 +727,32 @@ class Option(Mono):
         raise TypeError(f'DataShape measure {self} is not NumPy-compatible')
 
 
+class Masked(Mono):
+
+    """
+    Numeric or boolean measure whose missing values are stored in a separate
+    mask, as in ``np.ma``, pandas nullable and Arrow arrays.
+    """
+    __slots__ = 'ty',
+
+    def __init__(self, ds):
+        self.ty = _launder(ds)
+
+    @property
+    def shape(self):
+        return self.ty.shape
+
+    @property
+    def itemsize(self):
+        return self.ty.itemsize
+
+    def __str__(self):
+        return f'masked[{self.ty}]'
+
+    def to_numpy_dtype(self):
+        return self.ty.to_numpy_dtype()
+
+
 class CType(Unit):
 
     """
@@ -757,6 +783,8 @@ class CType(Unit):
         >>> CType.from_numpy_dtype(dtype('U30'))  # doctest: +SKIP
         ctype("string[30, 'U32']")
         """
+        if not isinstance(dt, np.dtype):
+            dt = getattr(dt, "numpy_dtype", dt)
         try:
             return Type.lookup_type(dt.name)
         except KeyError:

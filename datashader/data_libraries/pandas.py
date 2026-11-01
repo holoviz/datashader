@@ -7,12 +7,13 @@ from datashader.compiler import compile_components
 from datashader.glyphs.points import _PointLike, _GeometryLike
 from datashader.glyphs.area import _AreaToLineLike
 from datashader.glyphs.line import LinesXarrayCommonX
-from datashader.utils import Dispatcher
+from datashader.utils import Dispatcher, _ArraySource
 
 __all__ = ()
 
 
 @bypixel.pipeline.register(pd.DataFrame)
+@bypixel.pipeline.register(_ArraySource)
 def pandas_pipeline(df, schema, canvas, glyph, summary, *, antialias=False):
     return glyph_dispatch(glyph, df, schema, canvas, summary, antialias=antialias)
 

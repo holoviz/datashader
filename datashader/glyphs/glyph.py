@@ -6,10 +6,9 @@ import os
 from math import isnan
 
 import numpy as np
-import pandas as pd
 import xarray as xr
 
-from datashader.utils import Expr, ngjit
+from datashader.utils import Expr, _column_values_and_mask, ngjit
 from datashader.macros import expand_varargs
 
 try:
@@ -18,6 +17,8 @@ try:
 except Exception:
     cudf = None
     cp = None
+
+_NAN_IF_MISSING = np.array([0.0, np.nan])
 
 
 class Glyph(Expr):
@@ -53,15 +54,21 @@ class Glyph(Expr):
         if cudf and isinstance(s, cudf.Series):
             s = s.nans_to_nulls()
             return (s.min(), s.max())
-        elif isinstance(s, pd.Series):
-            return Glyph._compute_bounds_numba(s.values)
         elif isinstance(s, xr.DataArray):
             if cp and isinstance(s.data, cp.ndarray):
                 return (s.min().item(), s.max().item())
             else:
                 return Glyph._compute_bounds_numba(s.values.ravel())
         else:
-            return Glyph._compute_bounds_numba(s)
+            values, mask = _column_values_and_mask(s)
+            if mask is not None:
+                return Glyph._compute_bounds_masked_numba(values, mask)
+            return Glyph._compute_bounds_numba(values)
+
+    @staticmethod
+    def _compute_bounds_columns(df, columns):
+        bounds = [Glyph._compute_bounds(df[c]) for c in columns]
+        return np.nanmin([b[0] for b in bounds]), np.nanmax([b[1] for b in bounds])
 
     @staticmethod
     @ngjit
@@ -74,6 +81,20 @@ class Glyph(Expr):
                     minval = x
                 if x > maxval:
                     maxval = x
+
+        return minval, maxval
+
+    @staticmethod
+    @ngjit
+    def _compute_bounds_masked_numba(arr, mask):
+        minval = np.inf
+        maxval = -np.inf
+        for i in range(arr.shape[0]):
+            # Masked values become NaN. Comparisons with NaN are false, so NaN is
+            # skipped without a branch, which lets LLVM vectorize the loop
+            x = arr[i] + _NAN_IF_MISSING[np.intp(mask[i])]
+            minval = x if x < minval else minval
+            maxval = x if x > maxval else maxval
 
         return minval, maxval
 
