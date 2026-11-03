@@ -2869,6 +2869,27 @@ class TestLineAntialiasSummary:
         assert_eq_ndarray(agg["count"].data, sol_count, close=True)
         assert_eq_ndarray(agg["min"].data, sol_min, close=True)
 
+    def test_summary_count_min_line_width_10(self, cvs):
+        # Issue #1380: adding an unrelated min reduction must not change count.
+        df = pd.DataFrame({
+            "x": [0.0, 1.0, 1.0, 0.0],
+            "y": [0.0, 1.0, 0.0, 1.0],
+        })
+        line_kwargs = dict(source=df, x="x", y="y", line_width=10)
+
+        cat_only = cvs.line(agg=ds.summary(cat=ds.count()), **line_kwargs)["cat"]
+        cat_where_min = cvs.line(
+            agg=ds.summary(cat=ds.count(), index=ds.where(ds.min("x"))),
+            **line_kwargs,
+        )["cat"]
+        cat_min = cvs.line(
+            agg=ds.summary(cat=ds.count(), index=ds.min("x")),
+            **line_kwargs,
+        )["cat"]
+
+        assert_eq_ndarray(cat_only.data, cat_where_min.data)
+        assert_eq_ndarray(cat_only.data, cat_min.data)
+
     def test_summary_count_first(self, cvs, line_kwargs, sol_count, sol_first):
         agg = cvs.line(
             agg=ds.summary(
