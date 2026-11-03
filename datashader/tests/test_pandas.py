@@ -1253,6 +1253,16 @@ def test_points_geometry_multipoint():
     assert_eq_ndarray(agg.y_range, (0, 2), close=True)
 
 
+def test_points_does_not_copy_needed_columns():
+    # A single 2D block, where selecting irregularly spaced columns copies them
+    df = pd.DataFrame(np.arange(25, dtype='f8').reshape(5, 5), columns=['x', 'y', 'a', 'b', 'v'])
+    source, _ = ds.core._bypixel_sanitise(df, ds.glyphs.Point('x', 'y'), ds.sum('v'))
+
+    assert list(source.columns) == ['x', 'y', 'v']
+    for col in source.columns:
+        assert np.shares_memory(source[col].to_numpy(), df[col].to_numpy())
+
+
 def test_line():
     axis = ds.core.LinearAxis()
     lincoords = axis.compute_index(axis.compute_scale_and_translate((-3., 3.), 7), 7)
