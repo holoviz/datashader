@@ -551,7 +551,7 @@ class count(SelfIntersectingOptionalFieldReduction):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] += 1
@@ -559,7 +559,7 @@ class count(SelfIntersectingOptionalFieldReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         if not isnull(field):
             if isnull(agg[y, x]):
@@ -570,7 +570,7 @@ class count(SelfIntersectingOptionalFieldReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor, prev_aa_factor):
         if not isnull(field):
             if isnull(agg[y, x]) or aa_factor > agg[y, x]:
@@ -579,13 +579,13 @@ class count(SelfIntersectingOptionalFieldReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_no_field(x, y, agg):
         agg[y, x] += 1
         return 0
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_no_field_antialias(x, y, agg, aa_factor, prev_aa_factor):
         if isnull(agg[y, x]):
             agg[y, x] = aa_factor - prev_aa_factor
@@ -594,7 +594,7 @@ class count(SelfIntersectingOptionalFieldReduction):
         return 0
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_no_field_antialias_not_self_intersect(x, y, agg, aa_factor, prev_aa_factor):
         if isnull(agg[y, x]) or aa_factor > agg[y, x]:
             agg[y, x] = aa_factor
@@ -678,7 +678,7 @@ class _count_ignore_antialiasing(count):
             return (AntialiasStage2(AntialiasCombination.SUM_2AGG, 0),)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         if not isnull(field) and prev_aa_factor == 0.0:
             agg[y, x] += 1
@@ -686,7 +686,7 @@ class _count_ignore_antialiasing(count):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor, prev_aa_factor):
         if not isnull(field) and prev_aa_factor == 0.0:
             agg[y, x] += 1
@@ -839,7 +839,7 @@ class any(OptionalFieldReduction):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] = True
@@ -847,7 +847,7 @@ class any(OptionalFieldReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         if not isnull(field):
             if isnull(agg[y, x]) or aa_factor > agg[y, x]:
@@ -856,13 +856,13 @@ class any(OptionalFieldReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_no_field(x, y, agg):
         agg[y, x] = True
         return 0
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_no_field_antialias(x, y, agg, aa_factor, prev_aa_factor):
         if isnull(agg[y, x]) or aa_factor > agg[y, x]:
             agg[y, x] = aa_factor
@@ -910,7 +910,7 @@ class _upsample(Reduction):
         return self._create_float64_empty
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         # not called, the upsample function must set agg directly
         pass
@@ -955,7 +955,7 @@ class _sum_zero(FloatingReduction):
 
     # CPU append functions.
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         if not isnull(field):
             # agg[y, x] cannot be null as initialised to zero.
@@ -964,7 +964,7 @@ class _sum_zero(FloatingReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*(aa_factor - prev_aa_factor)
         if not isnull(value):
@@ -974,7 +974,7 @@ class _sum_zero(FloatingReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value) and value > agg[y, x]:
@@ -1053,7 +1053,7 @@ class sum(SelfIntersectingFloatingReduction):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         if not isnull(field):
             if isnull(agg[y, x]):
@@ -1064,7 +1064,7 @@ class sum(SelfIntersectingFloatingReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*(aa_factor - prev_aa_factor)
         if not isnull(value):
@@ -1076,7 +1076,7 @@ class sum(SelfIntersectingFloatingReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias_not_self_intersect(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
@@ -1125,7 +1125,7 @@ class m2(FloatingReduction):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, m2, field, sum, count):
         # sum & count are the results of sum[y, x], count[y, x] before being
         # updated by field
@@ -1175,7 +1175,7 @@ class min(FloatingReduction):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         if not isnull(field) and (isnull(agg[y, x]) or agg[y, x] > field):
             agg[y, x] = field
@@ -1183,7 +1183,7 @@ class min(FloatingReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
@@ -1220,7 +1220,7 @@ class max(FloatingReduction):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         if not isnull(field) and (isnull(agg[y, x]) or agg[y, x] < field):
             agg[y, x] = field
@@ -1228,7 +1228,7 @@ class max(FloatingReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
@@ -1397,7 +1397,7 @@ class first(_first_or_last):
         return (AntialiasStage2(AntialiasCombination.FIRST, array_module.nan),)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         if not isnull(field) and isnull(agg[y, x]):
             agg[y, x] = field
@@ -1405,7 +1405,7 @@ class first(_first_or_last):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
@@ -1435,7 +1435,7 @@ class last(_first_or_last):
         return (AntialiasStage2(AntialiasCombination.LAST, array_module.nan),)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         if not isnull(field):
             agg[y, x] = field
@@ -1443,7 +1443,7 @@ class last(_first_or_last):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value) and (isnull(agg[y, x]) or value > agg[y, x]):
@@ -1567,7 +1567,7 @@ class first_n(_first_n_or_last_n):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
@@ -1605,7 +1605,7 @@ class last_n(_first_n_or_last_n):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         if not isnull(field):
             # Always inserts at front of agg's third dimension.
@@ -1614,7 +1614,7 @@ class last_n(_first_n_or_last_n):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
@@ -1659,7 +1659,7 @@ class max_n(FloatingNReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
@@ -1749,7 +1749,7 @@ class min_n(FloatingNReduction):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         value = field*aa_factor
         if not isnull(value):
@@ -1825,17 +1825,17 @@ class mode(Reduction):
         return dshape(Option(ct.float64))
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _combine(aggs):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _finalize(bases, **kwargs):
         raise NotImplementedError("mode is currently implemented only for rasters")
 
@@ -1920,7 +1920,7 @@ class where(FloatingReduction):
     # and the previous values from this index upwards are shifted along to make room
     # for the new value.
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field, update_index):
         if agg.ndim > 2:
             shift_and_insert(agg[y, x], field, update_index)
@@ -1929,7 +1929,7 @@ class where(FloatingReduction):
         return update_index
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor, update_index):
         # Ignore aa_factor.
         if agg.ndim > 2:
@@ -2258,7 +2258,7 @@ class _max_row_index(_max_or_min_row_index):
         return (AntialiasStage2(AntialiasCombination.MAX, -1),)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         # field is int64 row index
         if field > agg[y, x]:
@@ -2267,7 +2267,7 @@ class _max_row_index(_max_or_min_row_index):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         # field is int64 row index
         # Ignore aa_factor
@@ -2316,7 +2316,7 @@ class _min_row_index(_max_or_min_row_index):
 
     # CPU append functions
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         # field is int64 row index
         if field != -1 and (agg[y, x] == -1 or field < agg[y, x]):
@@ -2325,7 +2325,7 @@ class _min_row_index(_max_or_min_row_index):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         # field is int64 row index
         # Ignore aa_factor
@@ -2407,7 +2407,7 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
         return (AntialiasStage2(AntialiasCombination.MAX, -1, n_reduction=True),)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         # field is int64 row index
         if field != -1:
@@ -2421,7 +2421,7 @@ class _max_n_row_index(_max_n_or_min_n_row_index):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         # field is int64 row index
         # Ignoring aa_factor
@@ -2490,7 +2490,7 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
         return (AntialiasStage2(AntialiasCombination.MIN, -1, n_reduction=True),)
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append(x, y, agg, field):
         # field is int64 row index
         if field != -1:
@@ -2504,7 +2504,7 @@ class _min_n_row_index(_max_n_or_min_n_row_index):
         return -1
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def _append_antialias(x, y, agg, field, aa_factor, prev_aa_factor):
         # field is int64 row index
         # Ignoring aa_factor
