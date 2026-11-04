@@ -67,20 +67,19 @@ dev-labelled channel `conda install -c pyviz/label/dev datashader`.
 
 ## Fetching Examples
 
-Once you've installed datashader as above you can fetch the examples:
+The examples are the Jupyter notebooks in the `examples` folder of the
+Datashader repository. To get them, clone the repository:
 
-    datashader examples
-    cd datashader-examples
+    git clone https://github.com/holoviz/datashader.git
+    cd datashader/examples
 
-This will create a new directory called
-<span class="title-ref">datashader-examples</span> with all the data
-needed to run the examples.
+The notebooks create or download the data they need when you run them.
 
 To run all the examples you will need some extra dependencies. If you
-installed datashader **within a conda environment**, with that
-environment active run:
+installed datashader **within a conda environment**, add them to that
+environment, replacing `<env-name>` with its name:
 
-    conda env update --file environment.yml
+    conda env update --name <env-name> --file environment.yml
 
 Otherwise create a new environment:
 

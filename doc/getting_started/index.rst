@@ -5,7 +5,7 @@ Getting Started
 Installation
 ------------
 
-Datashader supports Python 3.10, 3.11, 3.12 and 3.13 on Linux, Windows, or Mac
+Datashader supports Python 3.11, 3.12, 3.13, 3.14 and 3.15 on Linux, Windows, or Mac
 and can be installed with conda::
 
     conda install datashader
@@ -23,18 +23,19 @@ and the latest pre-release versions are available on the dev-labeled channel
 Fetching Examples
 -----------------
 
-Once you've installed datashader as above you can fetch the examples::
+The examples are the Jupyter notebooks in the ``examples`` folder of the
+Datashader repository. To get them, clone the repository::
 
-    datashader examples
-    cd datashader-examples
+    git clone https://github.com/holoviz/datashader.git
+    cd datashader/examples
 
-This will create a new directory called `datashader-examples` with all the
-data needed to run the examples.
+The notebooks create or download the data they need when you run them.
 
 To run all the examples you will need some extra dependencies. If you installed
-datashader **within a conda environment**, with that environment active run::
+datashader **within a conda environment**, add them to that environment,
+replacing ``<env-name>`` with its name::
 
-    conda env update --file environment.yml
+    conda env update --name <env-name> --file environment.yml
 
 Otherwise create a new environment::
 
