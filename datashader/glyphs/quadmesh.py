@@ -285,7 +285,7 @@ class QuadMeshRectilinear(_QuadMeshLike):
         y_name = self.y
         name = self.name
 
-        @ngjit
+        @numba.jit(nogil=True, inline="always")
         @self.expand_aggs_and_cols(append)
         def perform_extend(i, j, xs, ys, shape, *aggs_and_cols):
             x0i, x1i = xs[i], xs[i + 1]
@@ -714,7 +714,7 @@ class QuadMeshCurvilinear(_QuadMeshLike):
         y_name = self.y
         name = self.name
 
-        @ngjit
+        @numba.jit(nogil=True, inline="always")
         @self.expand_aggs_and_cols(append)
         def perform_extend(
                 i, j,
