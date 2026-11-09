@@ -373,6 +373,10 @@ class Reduction(Expr):
         # Overridden in derived classes as appropriate.
         return False
 
+    def _antialias_self_intersect(self):
+        # Return whether this reduction allows self-intersecting line rendering.
+        return True
+
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
         # Only called if using antialiased lines. Overridden in derived classes.
         # Returns a tuple containing an item for each constituent reduction.
@@ -505,6 +509,9 @@ class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
 
     def _antialias_requires_2_stages(self):
         return not self.self_intersect
+
+    def _antialias_self_intersect(self):
+        return self.self_intersect
 
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         if antialias and not self_intersect:
@@ -779,6 +786,9 @@ class by(Reduction):
     def _antialias_requires_2_stages(self):
         return self.reduction._antialias_requires_2_stages()
 
+    def _antialias_self_intersect(self):
+        return self.reduction._antialias_self_intersect()
+
     def _antialias_stage_2(self, self_intersect, array_module) -> tuple[AntialiasStage2]:
         ret = self.reduction._antialias_stage_2(self_intersect, array_module)
         return (AntialiasStage2(combination=ret[0].combination,
@@ -1008,6 +1018,9 @@ class SelfIntersectingFloatingReduction(FloatingReduction):
 
     def _antialias_requires_2_stages(self):
         return not self.self_intersect
+
+    def _antialias_self_intersect(self):
+        return self.self_intersect
 
     def _build_append(self, dshape, schema, cuda, antialias, self_intersect):
         if antialias and not self_intersect:
@@ -1883,6 +1896,9 @@ class where(FloatingReduction):
 
     def is_where(self):
         return True
+
+    def _antialias_self_intersect(self):
+        return self.selector._antialias_self_intersect()
 
     def out_dshape(self, input_dshape, antialias, cuda, partitioned):
         if self.column == SpecialColumn.RowIndex:
