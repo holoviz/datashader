@@ -117,8 +117,8 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
         else:
             array_module = np
         antialias_stage_2 = antialias_stage_2(array_module)
-        antialias_stage_2_funcs = make_antialias_stage_2_functions(antialias_stage_2, bases, cuda,
-                                                                   partitioned)
+        antialias_stage_2_funcs = make_antialias_stage_2_functions(
+            antialias_stage_2, tuple(bases), cuda, partitioned)
     else:
         self_intersect = False
         antialias_stage_2 = False
@@ -140,7 +140,7 @@ def compile_components(agg, schema, glyph, *, antialias=False, cuda=False, parti
 
     create = make_create(bases, dshapes, cuda)
     append, any_uses_cuda_mutex = make_append(bases, cols, calls, glyph, antialias)
-    info = make_info(cols, cuda, any_uses_cuda_mutex)
+    info = make_info(tuple(cols), cuda, any_uses_cuda_mutex)
     combine = make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned)
     finalize = make_finalize(bases, agg, schema, cuda, partitioned)
 
@@ -195,6 +195,7 @@ def _get_antialias_stage_2_combine_func(combination: AntialiasCombination, zero:
                 return nansum_in_place
 
 
+@memoize
 def make_antialias_stage_2_functions(antialias_stage_2, bases, cuda, partitioned):
     aa_combinations, aa_zeroes, aa_n_reductions, aa_categorical = antialias_stage_2
 
@@ -301,6 +302,7 @@ def make_create(bases, dshapes, cuda):
     return lambda shape: tuple(c(shape, array_module) for c in creators)
 
 
+@memoize
 def make_info(cols, cuda, uses_cuda_mutex: bool):
     def info(df, canvas_shape):
         ret = tuple(c.apply(df, cuda) for c in cols)
@@ -471,8 +473,21 @@ def make_append(bases, cols, calls, glyph, antialias):
             '\n    '.join(body)
         )
     logger.debug(code)
-    exec(code, namespace)
-    return ngjit(namespace['append']), any_uses_cuda_mutex
+    return _jit_append(code, namespace), any_uses_cuda_mutex
+
+
+_append_cache = {}
+
+
+def _jit_append(code, namespace):
+    # compile_components is memoized on the full schema and glyph, so identical
+    # append code is generated for many inputs. Reusing the jitted function lets
+    # numba and the glyph's memoized extend functions reuse their compilations.
+    key = (code, tuple(sorted(namespace.items())))
+    if key not in _append_cache:
+        exec(code, namespace)
+        _append_cache[key] = ngjit(namespace['append'])
+    return _append_cache[key]
 
 
 def make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned):
