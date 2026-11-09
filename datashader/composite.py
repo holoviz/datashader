@@ -9,10 +9,14 @@ from __future__ import annotations
 import numba as nb
 import numpy as np
 import os
+import sys
+import warnings
+from functools import cache, partial
+from numbers import Number
 
 image_operators = ('over', 'add', 'saturate', 'source')
 array_operators = ('add_arr', 'max_arr', 'min_arr', 'source_arr')
-__all__ = ('composite_op_lookup', 'validate_operator') + image_operators + array_operators
+__all__ = ('composite_op_lookup', 'validate_operator')
 
 
 def validate_operator(how, is_image):
@@ -56,34 +60,19 @@ if jit_enabled:
     extract_scaled.disable_compile()
     combine_scaled.disable_compile()
 
-# Lookup table for storing compositing operators by function name
-composite_op_lookup = {}
 
-
-def operator(f):
-    """Define and register a new image composite operator"""
-
-    if jit_enabled:
-        f2 = nb.vectorize(f)
-        f2._compile_for_argtys((nb.types.uint32, nb.types.uint32))
-        f2._frozen = True
-    else:
-        f2 = np.vectorize(f)
-
-    composite_op_lookup[f.__name__] = f2
-    return f2
-
-
-@operator
-def source(src, dst):
+# Scalar kernels. The public operators of the same name are built from them below.
+# Image kernels are inlined, as a call per pixel makes `spread` ~50% slower.
+@nb.jit(nogil=True, cache=True)
+def _source(src, dst):
     if src & 0xff000000:
         return src
     else:
         return dst
 
 
-@operator
-def over(src, dst):
+@nb.jit(nogil=True, cache=True, inline='always')
+def _over(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
 
@@ -97,8 +86,8 @@ def over(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-@operator
-def add(src, dst):
+@nb.jit(nogil=True, cache=True, inline='always')
+def _add(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
 
@@ -111,8 +100,8 @@ def add(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-@operator
-def saturate(src, dst):
+@nb.jit(nogil=True, cache=True, inline='always')
+def _saturate(src, dst):
     sr, sg, sb, sa = extract_scaled(src)
     dr, dg, db, da = extract_scaled(dst)
 
@@ -126,43 +115,301 @@ def saturate(src, dst):
     return combine_scaled(r, g, b, a)
 
 
-
-def arr_operator(f):
-    """Define and register a new array composite operator"""
-
-    if jit_enabled:
-        f2 = nb.vectorize(f)
-        f2._compile_for_argtys(
-           (nb.types.int32, nb.types.int32))
-        f2._compile_for_argtys(
-           (nb.types.int64, nb.types.int64))
-        f2._compile_for_argtys(
-            (nb.types.float32, nb.types.float32))
-        f2._compile_for_argtys(
-            (nb.types.float64, nb.types.float64))
-        f2._frozen = True
-    else:
-        f2 = np.vectorize(f)
-
-    composite_op_lookup[f.__name__] = f2
-    return f2
-
-
-@arr_operator
-def source_arr(src, dst):
+@nb.jit(nogil=True, cache=True)
+def _source_arr(src, dst):
     if src:
         return src
     else:
         return dst
 
-@arr_operator
-def add_arr(src, dst):
+
+@nb.jit(nogil=True, cache=True)
+def _add_arr(src, dst):
     return src + dst
 
-@arr_operator
-def max_arr(src, dst):
+
+@nb.jit(nogil=True, cache=True)
+def _max_arr(src, dst):
     return max(src, dst)
 
-@arr_operator
-def min_arr(src, dst):
+
+@nb.jit(nogil=True, cache=True)
+def _min_arr(src, dst):
     return min(src, dst)
+
+
+# Jitted code selects an operator by its index in `image_operators` or
+# `array_operators`: a closure capturing a compiled function gets a different
+# cache key in every process, but one capturing an int doesn't.
+@nb.jit(nogil=True, cache=True, inline='always')
+def _image_op(code, src, dst):
+    if code == 0:
+        return _over(src, dst)
+    elif code == 1:
+        return _add(src, dst)
+    elif code == 2:
+        return _saturate(src, dst)
+    return _source(src, dst)
+
+
+@nb.jit(nogil=True, cache=True, inline='always')
+def _arr_op(code, src, dst):
+    if code == 0:
+        return _add_arr(src, dst)
+    elif code == 1:
+        return _max_arr(src, dst)
+    elif code == 2:
+        return _min_arr(src, dst)
+    return _source_arr(src, dst)
+
+
+def _loop_sigs(types, out_types=None):
+    # Inputs are read-only broadcast views with any strides.
+    inp = [nb.types.Array(t, 1, "A", readonly=True) for t in types]
+    out = [nb.types.Array(t, 1, "C") for t in (out_types or types)]
+    return [nb.void(i, i, o) for i, o in zip(inp, out)]
+
+
+_ARR_TYPES = (nb.int32, nb.int64, nb.float32, nb.float64)
+_IMAGE_SIGS = _loop_sigs((nb.uint32,))
+_ARR_SIGS = _loop_sigs(_ARR_TYPES)
+# `int32 + int32` is `int64` in numba.
+_ADD_ARR_SIGS = _loop_sigs(_ARR_TYPES, (nb.int64, nb.int64, nb.float32, nb.float64))
+
+
+# Elementwise loops over flat arrays, written out per operator. A cached
+# `nb.guvectorize` would be shorter, but its disk cache segfaults when
+# parallel processes fill a fresh cache.
+@nb.jit(_IMAGE_SIGS, nogil=True, cache=True)
+def _over_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _over(src[i], dst[i])
+
+
+@nb.jit(_IMAGE_SIGS, nogil=True, cache=True)
+def _add_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _add(src[i], dst[i])
+
+
+@nb.jit(_IMAGE_SIGS, nogil=True, cache=True)
+def _saturate_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _saturate(src[i], dst[i])
+
+
+@nb.jit(_IMAGE_SIGS, nogil=True, cache=True)
+def _source_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _source(src[i], dst[i])
+
+
+@nb.jit(_ADD_ARR_SIGS, nogil=True, cache=True)
+def _add_arr_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _add_arr(src[i], dst[i])
+
+
+@nb.jit(_ARR_SIGS, nogil=True, cache=True)
+def _max_arr_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _max_arr(src[i], dst[i])
+
+
+@nb.jit(_ARR_SIGS, nogil=True, cache=True)
+def _min_arr_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _min_arr(src[i], dst[i])
+
+
+@nb.jit(_ARR_SIGS, nogil=True, cache=True)
+def _source_arr_loop(src, dst, out):
+    for i in range(out.size):
+        out[i] = _source_arr(src[i], dst[i])
+
+
+def _dask_array_module(*args):
+    da = sys.modules.get("dask.array")
+    if da is not None and any(isinstance(x, da.Array) for x in args):
+        return da
+
+
+def _apply(loop, src, dst, dtype, out_dtype):
+    if da := _dask_array_module(src, dst):
+        src, dst = da.broadcast_arrays(da.asarray(src), da.asarray(dst))
+        func = partial(_apply, loop, dtype=dtype, out_dtype=out_dtype)
+        return da.map_blocks(func, src, dst, dtype=out_dtype)
+    src, dst = np.asarray(src, dtype=dtype), np.asarray(dst, dtype=dtype)
+    shape = np.broadcast_shapes(src.shape, dst.shape)
+    src, dst = np.broadcast_to(src, shape), np.broadcast_to(dst, shape)
+    out = np.empty(shape, dtype=out_dtype)
+    loop(src.reshape(-1), dst.reshape(-1), out.reshape(-1))
+    return out if out.ndim else out[()]
+
+
+_ARR_DTYPES = tuple(map(np.dtype, ("int32", "int64", "float32", "float64")))
+
+
+def _result_type(src, dst):
+    # Python scalars stay weak, so a uint32 array with `5` stays uint32.
+    return np.result_type(*(
+        x if isinstance(x, Number)
+        else x.dtype if hasattr(x, "dtype")
+        else np.asarray(x).dtype
+        for x in (src, dst)
+    ))
+
+
+def _image_dtype(src, dst):
+    dtype = _result_type(src, dst)
+    if not np.can_cast(dtype, np.uint32):
+        raise TypeError(f"Unsupported dtype for image composite operators: {dtype}")
+    return np.uint32
+
+
+def _arr_dtype(src, dst):
+    # The first supported type both inputs cast to safely, as ufunc loop selection does.
+    dtype = _result_type(src, dst)
+    for t in _ARR_DTYPES:
+        if np.can_cast(dtype, t):
+            return t
+    raise TypeError(f"Unsupported dtype for array composite operators: {dtype}")
+
+
+def _over_op(src, dst):
+    dtype = _image_dtype(src, dst)
+    return _apply(_over_loop, src, dst, dtype, dtype)
+
+
+def _add_op(src, dst):
+    dtype = _image_dtype(src, dst)
+    return _apply(_add_loop, src, dst, dtype, dtype)
+
+
+def _saturate_op(src, dst):
+    dtype = _image_dtype(src, dst)
+    return _apply(_saturate_loop, src, dst, dtype, dtype)
+
+
+def _source_op(src, dst):
+    dtype = _image_dtype(src, dst)
+    return _apply(_source_loop, src, dst, dtype, dtype)
+
+
+def _add_arr_op(src, dst):
+    dtype = _arr_dtype(src, dst)
+    # `int32 + int32` is `int64` in numba.
+    out_dtype = np.dtype("int64") if dtype == np.int32 else dtype
+    return _apply(_add_arr_loop, src, dst, dtype, out_dtype)
+
+
+def _max_arr_op(src, dst):
+    dtype = _arr_dtype(src, dst)
+    return _apply(_max_arr_loop, src, dst, dtype, dtype)
+
+
+def _min_arr_op(src, dst):
+    dtype = _arr_dtype(src, dst)
+    return _apply(_min_arr_loop, src, dst, dtype, dtype)
+
+
+def _source_arr_op(src, dst):
+    dtype = _arr_dtype(src, dst)
+    return _apply(_source_arr_loop, src, dst, dtype, dtype)
+
+# Lookup table for storing compositing operators by function name
+composite_op_lookup = dict(zip(
+    image_operators + array_operators,
+    (_over_op, _add_op, _saturate_op, _source_op,
+     _add_arr_op, _max_arr_op, _min_arr_op, _source_arr_op),
+))
+
+
+_IMAGE_ARGTYS = ((nb.types.uint32, nb.types.uint32),)
+_ARR_ARGTYS = tuple((t, t) for t in (nb.types.int32, nb.types.int64,
+                                      nb.types.float32, nb.types.float64))
+
+
+def _warn_deprecated(name):
+    warnings.warn(
+        f"'datashader.composite.{name}' is deprecated since version 0.20 and will be "
+        "removed in version 0.21. Use 'composite_op_lookup' or the 'how' argument of "
+        "'tf.stack' and 'tf.spread' instead.",
+        category=FutureWarning,
+        stacklevel=3,
+    )
+
+
+def _vectorize(f, argtys):
+    if not jit_enabled:
+        return np.vectorize(f)
+    f2 = nb.vectorize(f)
+    for tys in argtys:
+        f2._compile_for_argtys(tys)
+    f2._frozen = True
+    return f2
+
+
+def _operator(f):
+    """Define and register a new image composite operator"""
+    f2 = _vectorize(f, _IMAGE_ARGTYS)
+    composite_op_lookup[f.__name__] = f2
+    return f2
+
+
+def _arr_operator(f):
+    """Define and register a new array composite operator"""
+    f2 = _vectorize(f, _ARR_ARGTYS)
+    composite_op_lookup[f.__name__] = f2
+    return f2
+
+
+@cache
+def _deprecated_ufunc(name):
+    kernel = globals()[f"_{name}"]
+
+    def f(src, dst):
+        return kernel(src, dst)
+
+    f.__name__ = f.__qualname__ = name
+    argtys = _IMAGE_ARGTYS if name in image_operators else _ARR_ARGTYS
+    return _vectorize(f, argtys)
+
+
+def __getattr__(name):
+    if name in ("operator", "arr_operator"):
+        obj = globals()[f"_{name}"]
+    elif name in image_operators or name in array_operators:
+        # Built on first access; compiling the ufuncs at import is slow.
+        obj = _deprecated_ufunc(name)
+    else:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    _warn_deprecated(name)
+    return obj
+
+
+@nb.jit(nogil=True, cache=True)
+def _spread_image(arr, mask, out, code):
+    """Spread kernel for images, compositing with ``image_operators[code]``.
+
+    Module-level, so numba can cache it: a closure capturing the image
+    operators gets a different cache key in every process.
+    """
+    M, N = arr.shape
+    w = mask.shape[0]
+    for y in range(M):
+        for x in range(N):
+            el = arr[y, x]
+            # Skip if data is transparent
+            if (int(el) >> 24) & 255:
+                for i in range(w):
+                    for j in range(w):
+                        # Skip if mask is False at this value
+                        if mask[i, j]:
+                            if el == 0:
+                                result = out[i + y, j + x]
+                            if out[i + y, j + x] == 0:
+                                result = el
+                            else:
+                                result = _image_op(code, el, out[i + y, j + x])
+                            out[i + y, j + x] = result
