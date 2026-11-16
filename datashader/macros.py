@@ -7,6 +7,8 @@ import inspect
 import ast
 import textwrap
 
+from toolz import memoize
+
 prop_re = re.compile(r"^_(\d+)$")
 
 class NameVisitor(ast.NodeVisitor):
@@ -247,6 +249,7 @@ The variable length positional argument {vararg_name} is used in an unsupported 
     return new_fn_ast
 
 
+@memoize
 def expand_varargs(expand_number):
     """
     Decorator to expand the variable length (starred) argument in a function
