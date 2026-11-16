@@ -50,6 +50,9 @@ Contents:
 `13. GeoPandas <Geopandas.html>`_
  GeoPandas support in Datashader.
 
+`14. Antialiased Lines <Antialiased_Lines.html>`_
+ Choosing line widths and interpreting fractional line aggregates.
+
 .. toctree::
     :hidden:
     :maxdepth: 3
@@ -67,3 +70,4 @@ Contents:
     Geography <Geography>
     Inspection Reductions <Inspection_Reductions>
     GeoPandas <Geopandas>
+    Antialiased Lines <Antialiased_Lines>
