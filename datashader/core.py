@@ -5,12 +5,13 @@ from math import log10
 import warnings
 import contextlib
 
+import numba as nb
 import numpy as np
 import pandas as pd
 from packaging.version import Version
 from xarray import DataArray, Dataset
 
-from .utils import Dispatcher, ngjit, calc_res, calc_bbox, orient_array, \
+from .utils import Dispatcher, calc_res, calc_bbox, orient_array, \
     dshape_from_xarray_dataset
 from .utils import get_indices, dshape_from_pandas, dshape_from_dask
 from .utils import Expr # noqa (API import)
@@ -114,12 +115,12 @@ class Axis:
 class LinearAxis(Axis):
     """A linear Axis"""
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def mapper(val):
         return val
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def inverse_mapper(val):
         return val
 
@@ -127,12 +128,12 @@ class LinearAxis(Axis):
 class LogAxis(Axis):
     """A base-10 logarithmic Axis"""
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def mapper(val):
         return log10(float(val))
 
     @staticmethod
-    @ngjit
+    @nb.jit(nogil=True, cache=True)
     def inverse_mapper(val):
         y = 10 # temporary workaround for https://github.com/numba/numba/issues/3135 (numba 0.39.0)
         return y**val
