@@ -1033,6 +1033,10 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
         agg : Reduction, optional default=mean()
             Resampling mode when downsampling raster. The supported
             options include: first, last, mean, mode, var, std, min,
+            max. For integer or boolean sources, `mean` returns
+            float64 values, since the mean of integers is in general
+            not an integer. `var` and `std` return float32 values for
+            integer sources, as before.
             The agg can be specified as either a string name or as a
             reduction function, but note that the function object will
             be used only to extract the agg type (mean, max, etc.) and
@@ -1155,6 +1159,15 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             source_window = array[rmin:rmax+1, cmin:cmax+1]
             if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
+            elif ds_method == 'mean' and source_window.dtype.kind in 'biu':
+                # Mean of integer/boolean data must be computed in
+                # floating point, otherwise the result is truncated
+                # back to integers on downsampling (see
+                # https://github.com/holoviz/datashader/issues/655).
+                # Float64 (not float32) so that large int64 values
+                # above 2**24 keep their precision. Float sources
+                # keep their dtype (as before).
+                source_window = source_window.astype('d')
             if da and isinstance(source_window, da.Array):
                 data = resample_2d_distributed(
                     source_window, chunksize=chunksize, max_mem=max_mem,
@@ -1166,6 +1179,9 @@ x- and y-coordinate arrays must have 1 or 2 dimensions.
             source_window = array[:, rmin:rmax+1, cmin:cmax+1]
             if ds_method in ['var', 'std']:
                 source_window = source_window.astype('f')
+            elif ds_method == 'mean' and source_window.dtype.kind in 'biu':
+                # See comment in the 2D branch above (issue #655).
+                source_window = source_window.astype('d')
             arrays = []
             for arr in source_window:
                 if da and isinstance(arr, da.Array):
