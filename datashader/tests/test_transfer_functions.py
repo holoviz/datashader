@@ -310,6 +310,23 @@ def test_shade_mpl_cmap(agg):
     assert_eq_xr(img, sol)
 
 
+def test_shade_mpl_cmap_alpha():
+    colors = pytest.importorskip('matplotlib.colors')
+    agg = xr.DataArray([[0.0, 0.5], [1.0, np.nan]], dims=['y_axis', 'x_axis'])
+    cmap = colors.LinearSegmentedColormap.from_list(
+        'transparent_to_blue',
+        [(1.0, 0.0, 0.0, 0.0), (0.0, 0.0, 1.0, 1.0)],
+    )
+
+    img = tf.shade(agg, cmap=cmap, how='linear')
+    rgba = img.data.view(np.uint8).reshape(2, 2, 4)
+    np.testing.assert_array_equal(rgba[..., 3], [[0, 128], [255, 0]])
+
+    img = tf.shade(agg, cmap=cmap, how='linear', alpha=100)
+    rgba = img.data.view(np.uint8).reshape(2, 2, 4)
+    np.testing.assert_array_equal(rgba[..., 3], [[100, 100], [100, 0]])
+
+
 def test_shade_category(array):
     coords = [np.array([0, 1]), np.array([2, 5])]
     cat_agg = tf.Image(array([[(0, 12, 0), (3, 0, 3)], [(12, 12, 12), (24, 0, 0)]], dtype='u4'),
@@ -1151,6 +1168,82 @@ def test_eq_hist(rng):
     data = data - data.min()
     eq, _ = tf.eq_hist(data)
     check_eq_hist_cdf_slope(eq)
+
+
+@pytest.mark.parametrize(
+    'dtype',
+    ['f4', 'f8', '>f4', '>f8', 'g', '>i8'],
+    ids=[
+        'float32',
+        'float64',
+        'float32-big-endian',
+        'float64-big-endian',
+        'longdouble',
+        'int64-big-endian',
+    ])
+def test_eq_hist_float_matches_interp(rng, dtype):
+    nbins = 256 * 256
+    data = (1000 * rng.lognormal(sigma=3, size=(60, 70))).astype(dtype)
+    hist, bin_edges = np.histogram(data, bins=nbins)
+    bin_centers = ((bin_edges[:-1] + bin_edges[1:]) / 2)[hist > 0]
+    cdf = hist[hist > 0].cumsum()
+    # np.interp cannot cast longdouble to float64
+    expected = np.interp(data.astype('f8'), bin_centers.astype('f8'), cdf / float(cdf[-1]))
+    eq, discrete_levels = tf.eq_hist(data, nbins=nbins)
+    np.testing.assert_array_max_ulp(eq, expected, maxulp=1)
+    assert discrete_levels == bin_centers.size
+
+
+def test_eq_hist_uint64_above_int64_max():
+    data = np.array([[2**63, 2**63 + 1], [2**63 + 5, 2**63]], dtype='u8')
+    eq, discrete_levels = tf.eq_hist(data)
+    np.testing.assert_array_equal(eq, [[0.5, 0.75], [1.0, 0.5]])
+    assert discrete_levels == 3
+
+
+def test_eq_hist_float16():
+    data = np.array([[0., 1.], [2., 3.5]], dtype='f2')
+    hist, bin_edges = np.histogram(data, bins=17)
+    bin_centers = ((bin_edges[:-1] + bin_edges[1:]) / 2)[hist > 0]
+    cdf = hist[hist > 0].cumsum()
+    expected = np.interp(data, bin_centers, cdf / float(cdf[-1]))
+    eq, discrete_levels = tf.eq_hist(data, nbins=17)
+    np.testing.assert_array_equal(eq, expected)
+    assert discrete_levels == 4
+
+
+def test_eq_hist_masked_int8():
+    data = np.array([[-127, -1, 0, 5], [127, 3, -50, 100]], dtype='i1')
+    mask = np.zeros(data.shape, dtype=bool)
+    mask[:, 0] = True
+    eq, discrete_levels = tf.eq_hist(data, mask=mask)
+    np.testing.assert_allclose(eq, [[np.nan, 2/6, 3/6, 5/6], [np.nan, 4/6, 1/6, 1]])
+    assert discrete_levels == 6
+
+
+def test_eq_hist_integer_range_wider_than_dtype():
+    data = np.array([[-2**31, 0], [5, 7]], dtype=np.intc)
+    assert tf._eq_hist_integer(data, data, 256 * 256) is None
+    eq, discrete_levels = tf.eq_hist(data)
+    np.testing.assert_array_equal(eq, [[0.25, 1.0], [1.0, 1.0]])
+    assert discrete_levels == 2
+
+
+def test_eq_hist_bool():
+    data = np.array([[True, False], [True, True]])
+    eq, discrete_levels = tf.eq_hist(data)
+    np.testing.assert_array_equal(eq, [[1, 0.25], [1, 1]])
+    assert discrete_levels == 2
+
+
+@pytest.mark.parametrize('dtype', ['f2', 'f4', 'f8', 'i4', 'u1'])
+@pytest.mark.parametrize('n', [1, 2, 5, 7, 8, 9])
+def test_sum_last_axis_matches_numpy(rng, dtype, n):
+    data = (rng.lognormal(sigma=3, size=(100, 100, n)) % 200).astype(dtype)
+    expected = data.sum(axis=-1)
+    result = tf._sum_last_axis(data)
+    assert result.dtype == expected.dtype
+    np.testing.assert_array_equal(result, expected)
 
 
 def test_Image_to_pil():
