@@ -45,7 +45,7 @@ Contents:
  Pointers to using Datashader for geographic and other spatial applications.
 
 `12. Inspection Reductions <Inspection_Reductions.html>`_
- Using reduction to inspect rather than aggregate data.
+ Using reductions to inspect rather than aggregate data.
 
 `13. GeoPandas <Geopandas.html>`_
  GeoPandas support in Datashader.

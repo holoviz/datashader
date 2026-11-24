@@ -74,7 +74,7 @@ def to_parquet(filename, prefix="maccdc2012"):
                     traffic[key] += nbytes
                 else:
                     traffic[key] = nbytes
-            except:
+            except (IndexError, OSError, ValueError):
                 pass
 
         nodes = dict([(node, i) for i, node in enumerate(sorted(nodes))])
@@ -93,8 +93,8 @@ def to_parquet(filename, prefix="maccdc2012"):
         edges_df['weight'] = pd.to_numeric(edges_df['weight'])
         edges_df['protocol'] = edges_df['protocol'].astype('category')
 
-        fp.write('{}_nodes.parq'.format(prefix), nodes_df)
-        fp.write('{}_edges.parq'.format(prefix), edges_df)
+        fp.write(f'{prefix}_nodes.parq', nodes_df)
+        fp.write(f'{prefix}_edges.parq', edges_df)
 
 if __name__ == '__main__':
     if len(sys.argv) > 2:

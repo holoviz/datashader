@@ -794,12 +794,11 @@ class TestRaggedInterface(eb.BaseInterfaceTests):
             else:
                 np.testing.assert_array_equal(a1, a2)
 
-    # # NotImplementedError: 'RaggedArray' does not support __setitem__
-    @pytest.mark.skip(reason="__setitem__ not supported")
+    @pytest.mark.skip(reason="ragged elements of different length can't be compared")
     def test_copy(self):
         pass
 
-    @pytest.mark.skip(reason="__setitem__ not supported")
+    @pytest.mark.skip(reason="slices are copies, not views")
     def test_view(self):
         pass
 
@@ -897,7 +896,15 @@ class TestRaggedMethods(eb.BaseMethodsTests):
     def test_sort_values_frame(self):
         pass
 
-    @pytest.mark.skip(reason="__setitem__ not supported")
+    @pytest.mark.skip(reason="ragged arrays are never monotonic")
+    def test_is_monotonic_increasing(self):
+        pass
+
+    @pytest.mark.skip(reason="ragged arrays are never monotonic")
+    def test_is_monotonic_decreasing(self):
+        pass
+
+    @pytest.mark.skip(reason="ragged elements of different length can't be compared")
     def test_where_series(self):
         pass
 
@@ -971,7 +978,7 @@ class TestRaggedMissing(eb.BaseMissingTests):
 
 
 class TestRaggedReshaping(eb.BaseReshapingTests):
-    @pytest.mark.skip(reason="__setitem__ not supported")
+    @pytest.mark.skip(reason="ravel returns a copy, not a view")
     def test_ravel(self):
         pass
 

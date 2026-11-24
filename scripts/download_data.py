@@ -17,12 +17,6 @@ def retry(func, *args, **kwargs):
 
 
 with suppress(ImportError):
-    import pyct.cmd
-
-    retry(pyct.cmd.fetch_data, name="data", path="examples", datasets="datasets.yml")
-
-
-with suppress(ImportError):
     import bokeh
 
     # Replaced with bokeh_sampledata in 3.5

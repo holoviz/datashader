@@ -13,7 +13,13 @@ from __future__ import annotations
 import time
 global_start = time.time()
 
-import os, os.path, sys, glob, argparse, resource, multiprocessing
+import os
+import os.path
+import sys
+import glob
+import argparse
+import resource
+import multiprocessing
 import pandas as pd
 import dask.dataframe as dd
 import numpy as np
@@ -71,7 +77,7 @@ def benchmark(fn, args, filetype=None):
 
     if DEBUG:
         printable_posargs = ', '.join([str(posarg.head()) if hasattr(posarg, 'head') else str(posarg) for posarg in posargs])
-        printable_kwargs = ', '.join(['{}={}'.format(k, v) for k,v in kwargs.items()])
+        printable_kwargs = ', '.join([f'{k}={v}' for k,v in kwargs.items()])
         print('DEBUG: {}({}{})'.format(fn.__name__, printable_posargs, ', '+printable_kwargs if printable_kwargs else ''), flush=True)
 
     # Benchmark fn when run on posargs and kwargs
@@ -131,7 +137,7 @@ def read_csv_pandas(filepath, usecols=None):
     # Dask may have written out CSV files in partitions
     filepath_expr = filepath.replace('.csv', '*.csv')
     filepaths = glob.glob(filepath_expr)
-    return pd.concat((pd.read_csv(f, usecols=usecols) for f in filepaths))
+    return pd.concat(pd.read_csv(f, usecols=usecols) for f in filepaths)
 read["csv"]         ["pandas"] = lambda filepath,p,filetype:  benchmark(read_csv_pandas, (filepath, Kwargs(usecols=p.columns)), filetype)
 read["h5"]          ["pandas"] = lambda filepath,p,filetype:  benchmark(pd.read_hdf, (filepath, p.base, Kwargs(columns=p.columns)), filetype)
 read["feather"]     ["pandas"] = lambda filepath,p,filetype:  benchmark(feather.read_dataframe, (filepath,), filetype)
@@ -173,10 +179,10 @@ def timed_write(filepath,dftype,fsize='double',output_directory="times"):
         basename, extension = os.path.splitext(filename)
         fname = output_directory+os.path.sep+basename+"."+ext
         if os.path.exists(fname):
-            print("{:28} (keeping existing)".format(fname), flush=True)
+            print(f"{fname:28} (keeping existing)", flush=True)
         else:
             filetype=ext.split(".")[-1]
-            if not filetype in filetypes_storing_categories:
+            if filetype not in filetypes_storing_categories:
                 for c in p.categories:
                     if filetype == 'parq' and df[c].dtype == 'object':
                         df[c]=df[c].str.encode('utf8')
@@ -192,12 +198,12 @@ def timed_write(filepath,dftype,fsize='double',output_directory="times"):
             code = write[ext].get(dftype,None)
 
             if code is None:
-                print("{:28} {:7} Operation not supported".format(fname,dftype), flush=True)
+                print(f"{fname:28} {dftype:7} Operation not supported", flush=True)
             else:
                 duration, res = code(df,fname,p)
-                print("{:28} {:7} {:05.2f}".format(fname,dftype,duration), flush=True)
+                print(f"{fname:28} {dftype:7} {duration:05.2f}", flush=True)
 
-            if not filetype in filetypes_storing_categories:
+            if filetype not in filetypes_storing_categories:
                 for c in p.categories:
                     df[c]=df[c].astype('category')
 
@@ -219,7 +225,7 @@ def timed_read(filepath,dftype):
 
 
 CACHED_RANGES = (None, None)
-def timed_agg(df, filepath, plot_width=int(900), plot_height=int(900*7.0/12), cache_ranges=True):
+def timed_agg(df, filepath, plot_width=900, plot_height=int(900*7.0/12), cache_ranges=True):
     global CACHED_RANGES
     start = time.time()
     cvs = ds.Canvas(plot_width, plot_height, x_range=CACHED_RANGES[0], y_range=CACHED_RANGES[1])
@@ -266,7 +272,7 @@ def main(argv):
     parser.add_argument('y')
     parser.add_argument('categories', nargs='+')
     parser.add_argument('--debug', action='store_true', help='Enable increased verbosity and DEBUG messages')
-    parser.add_argument('--cache', choices=('persist', 'cachey'), default=None, help='Enable caching: "persist" causes Dask dataframes to force loading into memory; "cachey" uses dask.cache.Cache with a cachesize of {}. Caching is disabled by default'.format(int(p.cachesize)))
+    parser.add_argument('--cache', choices=('persist', 'cachey'), default=None, help=f'Enable caching: "persist" causes Dask dataframes to force loading into memory; "cachey" uses dask.cache.Cache with a cachesize of {int(p.cachesize)}. Caching is disabled by default')
     parser.add_argument('--distributed', action='store_true', help='Enable the distributed scheduler instead of the threaded, which is the default.')
     parser.add_argument('--recalc-ranges', action='store_true', help='Tell datashader to recalculate the ranges on each aggregation, instead of caching them (by default).')
     args = parser.parse_args(argv[1:])
@@ -283,7 +289,7 @@ def main(argv):
             DD_FORCE_LOAD = True
 
         if args.debug:
-            print('DEBUG: Cache "{}" mode enabled'.format(args.cache), flush=True)
+            print(f'DEBUG: Cache "{args.cache}" mode enabled', flush=True)
 
     if args.dftype == 'dask' and args.distributed:
         local_cluster = distributed.LocalCluster(n_workers=p.n_workers, threads_per_worker=1)
@@ -306,16 +312,16 @@ def main(argv):
     DEBUG = args.debug
 
     if DEBUG:
-        print('DEBUG: Memory usage (before read):\t{} MB'.format(get_proc_mem()), flush=True)
+        print(f'DEBUG: Memory usage (before read):\t{get_proc_mem()} MB', flush=True)
     df,loadtime = timed_read(filepath, p.dftype)
 
     if df is None:
         if loadtime == -1:
-            print("{:28} {:6}  Operation not supported".format(filepath, p.dftype), flush=True)
+            print(f"{filepath:28} {p.dftype:6}  Operation not supported", flush=True)
         return 1
 
     if DEBUG:
-        print('DEBUG: Memory usage (after read):\t{} MB'.format(get_proc_mem()), flush=True)
+        print(f'DEBUG: Memory usage (after read):\t{get_proc_mem()} MB', flush=True)
 
     img,aggtime1 = timed_agg(df,filepath,5,5,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
@@ -324,21 +330,21 @@ def main(argv):
             mem_usage = mem_usage.compute()
         print('DEBUG:', mem_usage, flush=True)
         mem_usage_total = mem_usage.sum()
-        print('DEBUG: DataFrame size:\t\t\t{} MB'.format(mem_usage_total / 1e6), flush=True)
+        print(f'DEBUG: DataFrame size:\t\t\t{mem_usage_total / 1e6} MB', flush=True)
         for colname in df.columns:
-            print('DEBUG: column "{}" dtype: {}'.format(colname, df[colname].dtype))
-        print('DEBUG: Memory usage (after agg1):\t{} MB'.format(get_proc_mem()), flush=True)
+            print(f'DEBUG: column "{colname}" dtype: {df[colname].dtype}')
+        print(f'DEBUG: Memory usage (after agg1):\t{get_proc_mem()} MB', flush=True)
 
     img,aggtime2 = timed_agg(df,filepath,cache_ranges=(not args.recalc_ranges))
     if DEBUG:
-        print('DEBUG: Memory usage (after agg2):\t{} MB'.format(get_proc_mem()), flush=True)
+        print(f'DEBUG: Memory usage (after agg2):\t{get_proc_mem()} MB', flush=True)
 
     in_size  = get_size(filepath)
     out_size = get_size(filepath+".png")
 
     global_end = time.time()
-    print("{:28} {:6}  Aggregate1:{:06.2f} ({:06.2f}+{:06.2f})  Aggregate2:{:06.2f}  In:{:011d}  Out:{:011d}  Total:{:06.2f}"\
-          .format(filepath, p.dftype, loadtime+aggtime1, loadtime, aggtime1, aggtime2, in_size, out_size, global_end-global_start), flush=True)
+    print(f"{filepath:28} {p.dftype:6}  Aggregate1:{loadtime+aggtime1:06.2f} ({loadtime:06.2f}+{aggtime1:06.2f})  Aggregate2:{aggtime2:06.2f}  In:{in_size:011d}  Out:{out_size:011d}  Total:{global_end-global_start:06.2f}"\
+          , flush=True)
 
     return 0
 
