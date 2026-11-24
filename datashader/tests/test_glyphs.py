@@ -771,3 +771,13 @@ def test_lines_xy_validate():
     with pytest.raises(ValueError):
         g.validate(
             dshape("{x0: int32, x1: float32, y11: string, y12: float32}"))
+
+
+def test_line_helper_builders_are_cached():
+    from datashader.glyphs.line import _build_bresenham, _build_full_antialias
+    from datashader.macros import expand_varargs
+
+    assert _build_bresenham(expand_varargs(2)) is _build_bresenham(expand_varargs(2))
+    assert _build_full_antialias(expand_varargs(2)) is _build_full_antialias(expand_varargs(2))
+    assert (_build_map_onto_pixel_for_line(mapper, mapper, True)
+            is _build_map_onto_pixel_for_line(mapper, mapper, True))

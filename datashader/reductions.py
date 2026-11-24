@@ -5,7 +5,7 @@ from packaging.version import Version
 import numpy as np
 from datashader.datashape import dshape, isnumeric, Record, Option
 from datashader.datashape import coretypes as ct
-from toolz import concat, unique
+from toolz import concat, memoize, unique
 import xarray as xr
 
 from datashader.antialias import AntialiasCombination, AntialiasStage2
@@ -2007,114 +2007,7 @@ class where(FloatingReduction):
         # representing missing data. Otherwise missing data is NaN.
         invalid = isminus1 if self.selector.uses_row_index(cuda, partitioned) else isnull
 
-        @ngjit
-        def combine_cpu_2d(aggs, selector_aggs):
-            ny, nx = aggs[0].shape
-            for y in range(ny):
-                for x in range(nx):
-                    value = selector_aggs[1][y, x]
-                    if not invalid(value) and append(x, y, selector_aggs[0], value) >= 0:
-                        aggs[0][y, x] = aggs[1][y, x]
-
-        @ngjit
-        def combine_cpu_3d(aggs, selector_aggs):
-            ny, nx, ncat = aggs[0].shape
-            for y in range(ny):
-                for x in range(nx):
-                    for cat in range(ncat):
-                        value = selector_aggs[1][y, x, cat]
-                        if not invalid(value) and append(x, y, selector_aggs[0][:, :, cat],
-                                                         value) >= 0:
-                            aggs[0][y, x, cat] = aggs[1][y, x, cat]
-
-        @ngjit
-        def combine_cpu_n_3d(aggs, selector_aggs):
-            ny, nx, n = aggs[0].shape
-            for y in range(ny):
-                for x in range(nx):
-                    for i in range(n):
-                        value = selector_aggs[1][y, x, i]
-                        if invalid(value):
-                            break
-                        update_index = append(x, y, selector_aggs[0], value)
-                        if update_index < 0:
-                            break
-                        shift_and_insert(aggs[0][y, x], aggs[1][y, x, i], update_index)
-
-        @ngjit
-        def combine_cpu_n_4d(aggs, selector_aggs):
-            ny, nx, ncat, n = aggs[0].shape
-            for y in range(ny):
-                for x in range(nx):
-                    for cat in range(ncat):
-                        for i in range(n):
-                            value = selector_aggs[1][y, x, cat, i]
-                            if invalid(value):
-                                break
-                            update_index = append(x, y, selector_aggs[0][:, :, cat, :], value)
-                            if update_index < 0:
-                                break
-                            shift_and_insert(aggs[0][y, x, cat], aggs[1][y, x, cat, i],
-                                             update_index)
-
-        @nb_cuda.jit
-        def combine_cuda_2d(aggs, selector_aggs):
-            ny, nx = aggs[0].shape
-            x, y = nb_cuda.grid(2)
-            if x < nx and y < ny:
-                value = selector_aggs[1][y, x]
-                if not invalid(value) and append(x, y, selector_aggs[0], value) >= 0:
-                    aggs[0][y, x] = aggs[1][y, x]
-
-        @nb_cuda.jit
-        def combine_cuda_3d(aggs, selector_aggs):
-            ny, nx, ncat = aggs[0].shape
-            x, y, cat = nb_cuda.grid(3)
-            if x < nx and y < ny and cat < ncat:
-                value = selector_aggs[1][y, x, cat]
-                if not invalid(value) and append(x, y, selector_aggs[0][:, :, cat], value) >= 0:
-                    aggs[0][y, x, cat] = aggs[1][y, x, cat]
-
-        @nb_cuda.jit
-        def combine_cuda_n_3d(aggs, selector_aggs):
-            ny, nx, n = aggs[0].shape
-            x, y = nb_cuda.grid(2)
-            if x < nx and y < ny:
-                for i in range(n):
-                    value = selector_aggs[1][y, x, i]
-                    if invalid(value):
-                        break
-                    update_index = append(x, y, selector_aggs[0], value)
-                    if update_index < 0:
-                        break
-                    cuda_shift_and_insert(aggs[0][y, x], aggs[1][y, x, i], update_index)
-
-        @nb_cuda.jit
-        def combine_cuda_n_4d(aggs, selector_aggs):
-            ny, nx, ncat, n = aggs[0].shape
-            x, y, cat = nb_cuda.grid(3)
-            if x < nx and y < ny and cat < ncat:
-                for i in range(n):
-                    value = selector_aggs[1][y, x, cat, i]
-                    if invalid(value):
-                        break
-                    update_index = append(x, y, selector_aggs[0][:, :, cat, :], value)
-                    if update_index < 0:
-                        break
-                    cuda_shift_and_insert(aggs[0][y, x, cat], aggs[1][y, x, cat, i], update_index)
-
-        if is_n_reduction:
-            # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
-            if cuda:
-                return combine_cuda_n_4d if categorical else combine_cuda_n_3d
-            else:
-                return combine_cpu_n_4d if categorical else combine_cpu_n_3d
-        else:
-            # ndim is either 2 (ny, nx) or 3 (ny, nx, ncat)
-            if cuda:
-                return combine_cuda_3d if categorical else combine_cuda_2d
-            else:
-                return combine_cpu_3d if categorical else combine_cpu_2d
+        return _build_where_combine(append, invalid, cuda, categorical, is_n_reduction)
 
     def _build_combine(self, dshape, antialias, cuda, partitioned, categorical = False):
         combine = self._combine_callback(cuda, partitioned, categorical)
@@ -2165,6 +2058,118 @@ class where(FloatingReduction):
 
     def __repr__(self):
         return f"where(selector={self.selector!r}, lookup_column={self.column!r})"
+
+
+@memoize
+def _build_where_combine(append, invalid, cuda, categorical, is_n_reduction):
+    @ngjit
+    def combine_cpu_2d(aggs, selector_aggs):
+        ny, nx = aggs[0].shape
+        for y in range(ny):
+            for x in range(nx):
+                value = selector_aggs[1][y, x]
+                if not invalid(value) and append(x, y, selector_aggs[0], value) >= 0:
+                    aggs[0][y, x] = aggs[1][y, x]
+
+    @ngjit
+    def combine_cpu_3d(aggs, selector_aggs):
+        ny, nx, ncat = aggs[0].shape
+        for y in range(ny):
+            for x in range(nx):
+                for cat in range(ncat):
+                    value = selector_aggs[1][y, x, cat]
+                    if not invalid(value) and append(x, y, selector_aggs[0][:, :, cat],
+                                                     value) >= 0:
+                        aggs[0][y, x, cat] = aggs[1][y, x, cat]
+
+    @ngjit
+    def combine_cpu_n_3d(aggs, selector_aggs):
+        ny, nx, n = aggs[0].shape
+        for y in range(ny):
+            for x in range(nx):
+                for i in range(n):
+                    value = selector_aggs[1][y, x, i]
+                    if invalid(value):
+                        break
+                    update_index = append(x, y, selector_aggs[0], value)
+                    if update_index < 0:
+                        break
+                    shift_and_insert(aggs[0][y, x], aggs[1][y, x, i], update_index)
+
+    @ngjit
+    def combine_cpu_n_4d(aggs, selector_aggs):
+        ny, nx, ncat, n = aggs[0].shape
+        for y in range(ny):
+            for x in range(nx):
+                for cat in range(ncat):
+                    for i in range(n):
+                        value = selector_aggs[1][y, x, cat, i]
+                        if invalid(value):
+                            break
+                        update_index = append(x, y, selector_aggs[0][:, :, cat, :], value)
+                        if update_index < 0:
+                            break
+                        shift_and_insert(aggs[0][y, x, cat], aggs[1][y, x, cat, i],
+                                         update_index)
+
+    @nb_cuda.jit
+    def combine_cuda_2d(aggs, selector_aggs):
+        ny, nx = aggs[0].shape
+        x, y = nb_cuda.grid(2)
+        if x < nx and y < ny:
+            value = selector_aggs[1][y, x]
+            if not invalid(value) and append(x, y, selector_aggs[0], value) >= 0:
+                aggs[0][y, x] = aggs[1][y, x]
+
+    @nb_cuda.jit
+    def combine_cuda_3d(aggs, selector_aggs):
+        ny, nx, ncat = aggs[0].shape
+        x, y, cat = nb_cuda.grid(3)
+        if x < nx and y < ny and cat < ncat:
+            value = selector_aggs[1][y, x, cat]
+            if not invalid(value) and append(x, y, selector_aggs[0][:, :, cat], value) >= 0:
+                aggs[0][y, x, cat] = aggs[1][y, x, cat]
+
+    @nb_cuda.jit
+    def combine_cuda_n_3d(aggs, selector_aggs):
+        ny, nx, n = aggs[0].shape
+        x, y = nb_cuda.grid(2)
+        if x < nx and y < ny:
+            for i in range(n):
+                value = selector_aggs[1][y, x, i]
+                if invalid(value):
+                    break
+                update_index = append(x, y, selector_aggs[0], value)
+                if update_index < 0:
+                    break
+                cuda_shift_and_insert(aggs[0][y, x], aggs[1][y, x, i], update_index)
+
+    @nb_cuda.jit
+    def combine_cuda_n_4d(aggs, selector_aggs):
+        ny, nx, ncat, n = aggs[0].shape
+        x, y, cat = nb_cuda.grid(3)
+        if x < nx and y < ny and cat < ncat:
+            for i in range(n):
+                value = selector_aggs[1][y, x, cat, i]
+                if invalid(value):
+                    break
+                update_index = append(x, y, selector_aggs[0][:, :, cat, :], value)
+                if update_index < 0:
+                    break
+                cuda_shift_and_insert(aggs[0][y, x, cat], aggs[1][y, x, cat, i], update_index)
+
+    if is_n_reduction:
+        # ndim is either 3 (ny, nx, n) or 4 (ny, nx, ncat, n)
+        if cuda:
+            return combine_cuda_n_4d if categorical else combine_cuda_n_3d
+        else:
+            return combine_cpu_n_4d if categorical else combine_cpu_n_3d
+    else:
+        # ndim is either 2 (ny, nx) or 3 (ny, nx, ncat)
+        if cuda:
+            return combine_cuda_3d if categorical else combine_cuda_2d
+        else:
+            return combine_cpu_3d if categorical else combine_cpu_2d
 
 
 class summary(Expr):
