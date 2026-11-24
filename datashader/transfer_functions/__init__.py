@@ -250,7 +250,8 @@ def _eq_hist_integer(data, data2, nbins):
     if is_bool:
         data, data2 = data.view(np.uint8), data2.view(np.uint8)
     vmin, vmax = data2.min(), data2.max()
-    if not is_bool and np.subtract(vmax, vmin) >= nbins:
+    # using int to avoid array dtype overflow
+    if not is_bool and int(vmax) - int(vmin) >= nbins:
         return None
     hist = np.bincount(np.subtract(data2.ravel(), vmin, dtype=np.intp),
                        minlength=int(vmax) - int(vmin) + 1)

@@ -641,6 +641,8 @@ class LinesXarrayCommonX(LinesAxis1):
 
         # Avoids materializing the full arrays.
         x, y = xr_ds[self.x].data, xr_ds[self.y].data
+        if x.size == 0 or y.size == 0:
+            return (-1.0, 1.0), (-1.0, 1.0)
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', r'All-NaN (slice|axis) encountered')
             xmin, xmax, ymin, ymax = dask.compute(

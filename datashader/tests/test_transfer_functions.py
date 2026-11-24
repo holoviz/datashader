@@ -1221,6 +1221,14 @@ def test_eq_hist_masked_int8():
     assert discrete_levels == 6
 
 
+def test_eq_hist_integer_range_wider_than_dtype():
+    data = np.array([[-2**31, 0], [5, 7]], dtype='i4')
+    assert tf._eq_hist_integer(data, data, 256 * 256) is None
+    eq, discrete_levels = tf.eq_hist(data)
+    np.testing.assert_array_equal(eq, [[0.25, 1.0], [1.0, 1.0]])
+    assert discrete_levels == 2
+
+
 def test_eq_hist_bool():
     data = np.array([[True, False], [True, True]])
     eq, discrete_levels = tf.eq_hist(data)
@@ -1231,10 +1239,9 @@ def test_eq_hist_bool():
 @pytest.mark.parametrize('dtype', ['f2', 'f4', 'f8', 'i4', 'u1'])
 @pytest.mark.parametrize('n', [1, 2, 5, 7, 8, 9])
 def test_sum_last_axis_matches_numpy(rng, dtype, n):
-    from datashader.transfer_functions import _sum_last_axis
     data = (rng.lognormal(sigma=3, size=(100, 100, n)) % 200).astype(dtype)
     expected = data.sum(axis=-1)
-    result = _sum_last_axis(data)
+    result = tf._sum_last_axis(data)
     assert result.dtype == expected.dtype
     np.testing.assert_array_equal(result, expected)
 
