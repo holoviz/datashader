@@ -1222,7 +1222,7 @@ def test_eq_hist_masked_int8():
 
 
 def test_eq_hist_integer_range_wider_than_dtype():
-    data = np.array([[-2**31, 0], [5, 7]], dtype='i4')
+    data = np.array([[-2**31, 0], [5, 7]], dtype=np.intc)
     assert tf._eq_hist_integer(data, data, 256 * 256) is None
     eq, discrete_levels = tf.eq_hist(data)
     np.testing.assert_array_equal(eq, [[0.25, 1.0], [1.0, 1.0]])
