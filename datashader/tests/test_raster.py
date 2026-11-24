@@ -587,3 +587,186 @@ def test_raster_vs_points_coords():
     # Coordinates should be identical, not merely close.
     np.testing.assert_array_equal(im_points.coords["x"], im_raster.coords["x"])
     np.testing.assert_array_equal(im_points.coords["y"], im_raster.coords["y"])
+
+
+def _int_raster(value, size, dtype=np.int64):
+    arr = np.full((size, size), value, dtype=dtype)
+    return xr.DataArray(arr, coords=[('y', np.arange(size)),
+                                     ('x', np.arange(size))], name='z')
+
+
+def test_raster_mean_int_no_artifact():
+    # Issue 655: mean downsampling of a uniform integer raster at a
+    # non-integer ratio must not produce off-by-one artifacts.
+    # allclose (not exact equality): the float64 weighted mean of a
+    # uniform raster deviates from the value by up to ~2e-15.
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    agg = cvs.raster(_int_raster(5, 100), agg=ds.mean('z'))
+    assert agg.data.dtype == np.float64
+    np.testing.assert_allclose(agg.data, 5.0, rtol=1e-12)
+
+
+def test_raster_mean_int_large_value():
+    # Issue 655: same artifact at large magnitudes.
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    agg = cvs.raster(_int_raster(1000003, 100), agg=ds.mean('z'))
+    assert agg.data.dtype == np.float64
+    np.testing.assert_allclose(agg.data, 1000003.0, rtol=1e-12)
+
+
+def test_raster_mean_int_above_float32_precision():
+    # Values above 2**24 are not exactly representable in float32
+    # (float32(1000000001) == float32(1000000003) == 1e9), so mean
+    # must be computed in float64 for integer sources.
+    arr = np.full((100, 100), 1000000001, dtype=np.int64)
+    arr[:, 50:] = 1000000003
+    da = xr.DataArray(arr, coords=[('y', np.arange(100)),
+                                   ('x', np.arange(100))], name='z')
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    agg = cvs.raster(da, agg=ds.mean('z'))
+    assert agg.data.dtype == np.float64
+    np.testing.assert_array_equal(np.unique(agg.data),
+                                  [1000000001.0, 1000000003.0])
+
+
+def test_raster_mean_int_step_values():
+    # Issue 655: boundary means of a 5|10 step raster must be
+    # intermediate floats, not truncated back to only 5 or 10.
+    # The step at row 47 and the non-integer ratio 100->30 make the
+    # boundary output cells mix 5s and 10s.
+    arr = np.full((100, 100), 10, dtype=np.int64)
+    arr[:47, :] = 5
+    da = xr.DataArray(arr, coords=[('y', np.arange(100)),
+                                   ('x', np.arange(100))], name='z')
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    agg = cvs.raster(da, agg=ds.mean('z'))
+    assert agg.data.dtype == np.float64
+    np.testing.assert_allclose(agg.data.min(), 5.0, rtol=1e-12)
+    np.testing.assert_allclose(agg.data.max(), 10.0, rtol=1e-12)
+    assert ((agg.data > 5.0) & (agg.data < 10.0)).any()
+
+
+def test_raster_mean_int_integer_ratio():
+    # Issue 655: fractional means must survive at integer ratios too.
+    # The step at row 45 makes output rows 40-49 average five 5s and
+    # five 10s, i.e. exactly 7.5 (a uniform raster would hide this:
+    # truncation of 5.0 is still 5.0).
+    arr = np.full((100, 100), 10, dtype=np.int64)
+    arr[:45, :] = 5
+    da = xr.DataArray(arr, coords=[('y', np.arange(100)),
+                                   ('x', np.arange(100))], name='z')
+    cvs = ds.Canvas(plot_width=10, plot_height=10)
+    agg = cvs.raster(da, agg=ds.mean('z'))
+    assert agg.data.dtype == np.float64
+    assert 7.5 in agg.data
+    assert agg.data.min() == 5.0
+    assert agg.data.max() == 10.0
+
+
+def test_raster_mean_int_upsample():
+    # Upsampling a uniform integer raster is untouched by the fix
+    # apart from the dtype: values stay 5.0, now as float64.
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    agg = cvs.raster(_int_raster(5, 10), agg=ds.mean('z'))
+    assert agg.data.dtype == np.float64
+    np.testing.assert_allclose(agg.data, 5.0, rtol=1e-12)
+
+
+def test_raster_mean_bool():
+    # Issue 655, same truncation for boolean sources: a half-True
+    # block must average to 0.5, not coerce to True/False.
+    arr = np.zeros((100, 100), dtype=bool)
+    arr[:47, :] = True
+    da = xr.DataArray(arr, coords=[('y', np.arange(100)),
+                                   ('x', np.arange(100))], name='z')
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    agg = cvs.raster(da, agg=ds.mean('z'))
+    assert agg.data.dtype == np.float64
+    assert agg.data.min() == 0.0
+    assert agg.data.max() == 1.0
+    assert ((agg.data > 0.0) & (agg.data < 1.0)).any()
+
+
+def test_raster_mean_uint8_3d():
+    # Issue 655: the 3D (band) branch and the common uint8 dtype.
+    arr = np.zeros((3, 100, 100), dtype=np.uint8)
+    arr[0, :47, :] = 255
+    arr[1, :, :47] = 128
+    da = xr.DataArray(arr, coords=[('band', [0, 1, 2]),
+                                   ('y', np.arange(100)),
+                                   ('x', np.arange(100))], name='z')
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    agg = cvs.raster(da, agg=ds.mean('z'))
+    assert agg.data.shape == (3, 30, 30)
+    assert agg.data.dtype == np.float64
+    band0, band1, band2 = agg.data[0], agg.data[1], agg.data[2]
+    np.testing.assert_allclose(band0.min(), 0.0, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(band0.max(), 255.0, rtol=1e-12)
+    assert ((band0 > 0.0) & (band0 < 255.0)).any()
+    np.testing.assert_allclose(band1.min(), 0.0, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(band1.max(), 128.0, rtol=1e-12)
+    assert ((band1 > 0.0) & (band1 < 128.0)).any()
+    np.testing.assert_array_equal(band2, 0.0)
+
+
+def test_raster_mean_uint8_2d():
+    # Issue 655: uint8 is the common raster dtype and is exact in
+    # float64, so a uniform 200 stays exactly 200.0.
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    agg = cvs.raster(_int_raster(200, 100, dtype=np.uint8),
+                     agg=ds.mean('z'))
+    assert agg.data.dtype == np.float64
+    np.testing.assert_allclose(agg.data, 200.0, rtol=1e-12)
+
+
+@dask_skip
+def test_raster_mean_int_dask():
+    # Issue 655: the distributed (dask-backed) path goes through the
+    # same pre-cast, so its result must match the in-memory one.
+    darr = da.from_array(np.full((100, 100), 5, dtype=np.int64),
+                         chunks=(50, 50))
+    xr_darr = xr.DataArray(darr, coords=[('y', np.arange(100)),
+                                         ('x', np.arange(100))], name='z')
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    agg = cvs.raster(xr_darr, agg=ds.mean('z'))
+    data = agg.data.compute()
+    assert data.dtype == np.float64
+    np.testing.assert_allclose(data, 5.0, rtol=1e-12)
+
+
+def test_raster_mean_int_nan_value_mask():
+    # Issue 655: masking (nan_value) still works after the float cast:
+    # fully masked cells keep the fill value, clean cells stay ~5.0.
+    arr = np.full((100, 100), 5, dtype=np.int64)
+    arr[40:60, 40:60] = -9999
+    da = xr.DataArray(arr, coords=[('y', np.arange(100)),
+                                   ('x', np.arange(100))], name='z')
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    agg = cvs.raster(da, agg=ds.mean('z'), nan_value=-9999)
+    assert agg.data.dtype == np.float64
+    np.testing.assert_array_equal(agg.data[13:16, 13:16], -9999.0)
+    np.testing.assert_allclose(agg.data[0, 0], 5.0, rtol=1e-12)
+
+
+def test_raster_mean_float_unchanged():
+    # Float sources are unaffected: still float64, same values up to
+    # the pre-existing float64 rounding of the weighted mean
+    # (a uniform 5.5 raster yields 5.499999999999998 in some cells).
+    arr = np.full((100, 100), 5.5, dtype=np.float64)
+    da = xr.DataArray(arr, coords=[('y', np.arange(100)),
+                                   ('x', np.arange(100))], name='z')
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    agg = cvs.raster(da, agg=ds.mean('z'))
+    assert agg.data.dtype == np.float64
+    np.testing.assert_allclose(agg.data, 5.5, rtol=1e-12)
+
+
+def test_raster_var_std_int_still_float():
+    # Pre-existing behaviour: var/std on integer sources return
+    # float32 values. (Values are not asserted here: std of a uniform
+    # raster already yields NaN cells on main from float32 rounding in
+    # the std kernel; that is out of scope for this fix.)
+    cvs = ds.Canvas(plot_width=30, plot_height=30)
+    for agg_fn in (ds.var('z'), ds.std('z')):
+        agg = cvs.raster(_int_raster(5, 100), agg=agg_fn)
+        assert agg.data.dtype == np.float32
