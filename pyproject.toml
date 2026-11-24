@@ -124,6 +124,8 @@ filterwarnings = [
     "ignore:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning:fastparquet", # https://github.com/dask/fastparquet/pull/981
     # 2026-09
     "ignore:Use `@` matmul instead of `\\*` mul:Warning:rioxarray", # https://github.com/corteva/rioxarray/issues/937
+    # 2026-11
+    "ignore:The configuration option \"asyncio_default_fixture_loop_scope\" is unset:pytest.PytestDeprecationWarning",  # only for development with pytest-asyncio installed
 ]
 
 [tool.typos.default]
