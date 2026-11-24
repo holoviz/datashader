@@ -3546,3 +3546,21 @@ def test_categorical_where_last_n(df):
             assert_eq_ndarray(agg[:, :, :, 0].data,
                               c.points(df, 'x', 'y', ds.by('cat2', ds.where(ds.last('plusminus'),
                                                                             'reverse'))).data)
+
+
+@pytest.mark.parametrize("in_summary", [False, True])
+def test_categorical_max_different_categorizers_same_column(in_summary):
+    df = pd.DataFrame({
+        'x': np.zeros(6), 'y': np.zeros(6), 'c': np.arange(6), 'v': np.arange(6.0),
+    })
+    cvs = ds.Canvas(plot_width=1, plot_height=1, x_range=(-1, 1), y_range=(-1, 1))
+    modulo = ds.by(ds.category_modulo('c', 4), ds.max('v'))
+    binning = ds.by(ds.category_binning('c', 0, 6, 3), ds.max('v'))
+    if in_summary:
+        agg = cvs.points(df, 'x', 'y', ds.summary(modulo=modulo, binning=binning))
+        agg_modulo, agg_binning = agg['modulo'], agg['binning']
+    else:
+        agg_modulo = cvs.points(df, 'x', 'y', modulo)
+        agg_binning = cvs.points(df, 'x', 'y', binning)
+    np.testing.assert_array_equal(agg_modulo.values[0, 0], [4, 5, 2, 3])
+    np.testing.assert_array_equal(agg_binning.values[0, 0], [1, 3, 5, np.nan])

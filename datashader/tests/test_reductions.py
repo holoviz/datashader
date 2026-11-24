@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -65,3 +66,40 @@ def test_mode_raise_error():
     cvs = ds.Canvas(x_range=(0, 3), y_range=(0, 4))
     with pytest.raises(NotImplementedError):
         cvs.quadmesh(xr_ds, x="x", y="y", agg=ds.reductions.mode("foo"))
+
+
+@pytest.mark.parametrize("a, b", [
+    (
+        ds.reductions.category_values(ds.category_modulo('c', 3), 'v'),
+        ds.reductions.category_values(ds.category_binning('c', 0, 2, 3), 'v'),
+    ),
+    (ds.by(ds.category_modulo('c', 3), ds.max('v')), ds.by(ds.category_modulo('c', 4), ds.max('v'))),
+    (ds.by('c', ds.max('v')), ds.by('c', ds.min('v'))),
+    (ds.where(ds.max('v'), 'w'), ds.where(ds.min('v'), 'w')),
+])
+def test_hash_and_eq_include_nested_expressions(a, b):
+    assert a != b
+    assert hash(a) != hash(b)
+    assert len({a, b}) == 2
+
+
+@pytest.mark.parametrize("dtype", ["int32", "float32"])
+def test_compile_components_reused_across_unused_columns(dtype):
+    from datashader.compiler import compile_components
+    from datashader.glyphs import LineAxis0
+    from datashader.utils import dshape_from_pandas
+
+    df = pd.DataFrame({'x': [0.0, 1.0], 'y': [0.0, 1.0], 'v': [1.0, 2.0]})
+    other = df.assign(unused=np.zeros(2, dtype=dtype))
+    glyph = LineAxis0('x', 'y')
+    glyph.set_line_width(1)
+    agg = ds.summary(max=ds.max('v'), first=ds.first('v'))
+
+    def compile(df):
+        return compile_components(agg, dshape_from_pandas(df), glyph, antialias=True)
+
+    _, info1, append1, *_, aa_funcs1, _ = compile(df)
+    _, info2, append2, *_, aa_funcs2, _ = compile(other)
+    assert append1 is append2
+    assert info1 is info2
+    assert aa_funcs1 is aa_funcs2

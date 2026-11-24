@@ -186,7 +186,7 @@ class category_modulo(category_codes):
         self.modulo = modulo
 
     def _hashable_inputs(self):
-        return super()._hashable_inputs() + (self.offset, self.modulo)
+        return (*super()._hashable_inputs(), self.offset, self.modulo)
 
     def categories(self, in_dshape):
         return list(range(self.modulo))
@@ -232,7 +232,7 @@ class category_binning(category_modulo):
         self.bin_over  = nbins-1 if include_over else nbins
 
     def _hashable_inputs(self):
-        return super()._hashable_inputs() + (self.bin0, self.binsize, self.bin_under, self.bin_over)
+        return (*super()._hashable_inputs(), self.bin0, self.binsize, self.bin_under, self.bin_over)
 
     def validate(self, in_dshape):
         if self.column not in in_dshape.dict:
@@ -268,7 +268,7 @@ class category_values(CategoryPreprocess):
 
     @property
     def inputs(self):
-        return (self.categorizer.column, self.column)
+        return (self.categorizer, self.column)
 
     @property
     def cat_column(self):
@@ -527,7 +527,7 @@ class SelfIntersectingOptionalFieldReduction(OptionalFieldReduction):
     def _hashable_inputs(self):
         # Reductions with different self_intersect attributes much have different hashes otherwise
         # toolz.memoize will treat them as the same to give incorrect results.
-        return super()._hashable_inputs() + (self.self_intersect,)
+        return (*super()._hashable_inputs(), self.self_intersect)
 
 
 class count(SelfIntersectingOptionalFieldReduction):
@@ -733,9 +733,8 @@ class by(Reduction):
         else:
             self.preprocess = self.categorizer
 
-    def __hash__(self):
-        return hash((type(self), self._hashable_inputs(), self.categorizer._hashable_inputs(),
-                     self.reduction))
+    def _hashable_inputs(self):
+        return (*super()._hashable_inputs(), self.categorizer, self.reduction)
 
     def _build_temps(self, cuda=False):
         return tuple(by(self.categorizer, tmp) for tmp in self.reduction._build_temps(cuda))
@@ -1025,7 +1024,7 @@ class SelfIntersectingFloatingReduction(FloatingReduction):
     def _hashable_inputs(self):
         # Reductions with different self_intersect attributes much have different hashes otherwise
         # toolz.memoize will treat them as the same to give incorrect results.
-        return super()._hashable_inputs() + (self.self_intersect,)
+        return (*super()._hashable_inputs(), self.self_intersect)
 
 
 class sum(SelfIntersectingFloatingReduction):
@@ -1489,7 +1488,7 @@ class FloatingNReduction(OptionalFieldReduction):
         return finalize
 
     def _hashable_inputs(self):
-        return super()._hashable_inputs() + (self.n,)
+        return (*super()._hashable_inputs(), self.n)
 
     def __repr__(self):
         return f"{type(self).__name__}(column={self.column!r}, n={self.n!r})"
@@ -1879,8 +1878,8 @@ class where(FloatingReduction):
         # List of all column names that this reduction uses.
         self.columns = (selector.column, lookup_column)
 
-    def __hash__(self):
-        return hash((type(self), self._hashable_inputs(), self.selector))
+    def _hashable_inputs(self):
+        return (*super()._hashable_inputs(), self.selector)
 
     def is_where(self):
         return True
