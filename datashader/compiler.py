@@ -480,14 +480,14 @@ _append_cache = {}
 
 
 def _jit_append(code, namespace):
-    # compile_components is memoized on the full schema and glyph, so identical
-    # append code is generated for many inputs. Reusing the jitted function lets
-    # numba and the glyph's memoized extend functions reuse their compilations.
+    # schemas differing only in unused columns generate the same append code, so
+    # caching the jitted function lets numba and the glyphs reuse compilations.
+    # `setdefault` keeps it shared across concurrent misses.
     key = (code, tuple(sorted(namespace.items())))
-    if key not in _append_cache:
+    if (append := _append_cache.get(key)) is None:
         exec(code, namespace)
-        _append_cache[key] = ngjit(namespace['append'])
-    return _append_cache[key]
+        append = _append_cache.setdefault(key, ngjit(namespace['append']))
+    return append
 
 
 def make_combine(bases, dshapes, temps, combine_temps, antialias, cuda, partitioned):
