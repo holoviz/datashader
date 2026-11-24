@@ -1170,14 +1170,25 @@ def test_eq_hist(rng):
     check_eq_hist_cdf_slope(eq)
 
 
-@pytest.mark.parametrize('dtype', ['f4', 'f8'])
+@pytest.mark.parametrize(
+    'dtype',
+    ['f4', 'f8', '>f4', '>f8', 'g', '>i8'],
+    ids=[
+        'float32',
+        'float64',
+        'float32-big-endian',
+        'float64-big-endian',
+        'longdouble',
+        'int64-big-endian',
+    ])
 def test_eq_hist_float_matches_interp(rng, dtype):
     nbins = 256 * 256
-    data = rng.lognormal(sigma=3, size=(60, 70)).astype(dtype)
+    data = (1000 * rng.lognormal(sigma=3, size=(60, 70))).astype(dtype)
     hist, bin_edges = np.histogram(data, bins=nbins)
     bin_centers = ((bin_edges[:-1] + bin_edges[1:]) / 2)[hist > 0]
     cdf = hist[hist > 0].cumsum()
-    expected = np.interp(data, bin_centers, cdf / float(cdf[-1]))
+    # np.interp cannot cast longdouble to float64
+    expected = np.interp(data.astype('f8'), bin_centers.astype('f8'), cdf / float(cdf[-1]))
     eq, discrete_levels = tf.eq_hist(data, nbins=nbins)
     np.testing.assert_array_max_ulp(eq, expected, maxulp=1)
     assert discrete_levels == bin_centers.size

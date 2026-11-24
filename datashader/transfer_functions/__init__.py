@@ -224,9 +224,12 @@ def eq_hist(data, mask=None, nbins=256*256):
         from ._cpu_utils import _interp_with_lut
         lut = np.cumsum(keep_mask) - 1
         flat = data.ravel()
-        # numba has no float16 support
-        if flat.dtype == np.float16:
-            flat, grid = flat.astype(np.float32), grid.astype(np.float32)
+        # numba only supports native byte order
+        if not flat.dtype.isnative:
+            flat = flat.astype(flat.dtype.newbyteorder('='))
+        # numba has no float16 or longdouble support
+        if flat.dtype in (np.float16, np.longdouble):
+            flat, grid = flat.astype(np.float64), grid.astype(np.float64)
         inv_step = 1.0 / (grid[1] - grid[0])
         out = _interp_with_lut(
             flat, bin_centers.astype(np.float64), cdf, lut, grid[0], inv_step,

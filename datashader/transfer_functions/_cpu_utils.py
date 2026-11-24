@@ -1,4 +1,5 @@
 import numpy as np
+import numba as nb
 
 from datashader.utils import ngjit
 
@@ -39,9 +40,9 @@ def masked_clip_2d(data, mask, lower, upper):
             data[i, j] = val if mask[i, j] else clipped
 
 
-@ngjit
+@nb.jit(nopython=True, nogil=True, cache=True)
 def _interp_with_lut(x, xp, fp, lut, g0, inv_step):
-    """``np.interp(x, xp, fp)`` for 1D float ``x``, bit-identical to NumPy.
+    """``np.interp(x, xp, fp)`` for 1D float ``x``, identical to NumPy +/-1 ULP.
 
     Instead of a binary search per element, the interval is guessed from a
     uniform grid (``lut[k]`` is the last ``xp`` index at or below grid point
