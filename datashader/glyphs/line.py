@@ -1118,7 +1118,7 @@ def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, antialias_stage
     @nb.jit(nogil=True, inline="always")
     @expand_aggs_and_cols
     def perform_extend_line(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                            plot_start, xs, ys, buffer, *aggs_and_cols):
+                            plot_start, xs, ys, buffer, use_2_stage_agg, *aggs_and_cols):
         x0 = xs[i]
         y0 = ys[i]
         x1 = xs[i + 1]
@@ -1148,8 +1148,9 @@ def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, antialias_stage
         buffer = np.empty(8) if antialias else None
         nrows = xs.shape[0]
         for i in range(nrows - 1):
+            # A single CPU path needs its previous vertex for joins.
             perform_extend_line(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                                plot_start, xs, ys, buffer, *aggs_and_cols)
+                                plot_start, xs, ys, buffer, False, *aggs_and_cols)
 
     @cuda.jit
     @expand_aggs_and_cols
@@ -1160,7 +1161,7 @@ def _build_extend_line_axis0(draw_segment, expand_aggs_and_cols, antialias_stage
         i = cuda.grid(1)
         if i < xs.shape[0] - 1:
             perform_extend_line(i, sx, tx, sy, ty, xmin, xmax, ymin, ymax,
-                                plot_start, xs, ys, buffer, *aggs_and_cols)
+                                plot_start, xs, ys, buffer, use_2_stage_agg, *aggs_and_cols)
 
     return extend_cpu, extend_cuda
 
