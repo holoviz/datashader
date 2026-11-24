@@ -260,3 +260,13 @@ class TestLinesXarrayCommonX:
     def test_where_min_row_index(self, canvas, source, sol_where_min_row):
         agg = canvas.line(source, x="x", y="name", agg=ds.where(ds.min("value")))
         assert_eq_ndarray(agg.data, sol_where_min_row)
+
+
+@pytest.mark.skipif(dask is None, reason="Dask not available")
+def test_lines_xarray_common_x_dask_empty():
+    source = xr.Dataset(
+        {"name": (("channel", "x"), np.empty((3, 0)))},
+        coords={"channel": np.arange(3), "x": np.empty(0)},
+    ).chunk({"channel": 1})
+    agg = ds.Canvas(plot_height=3, plot_width=7).line(source, x="x", y="name", agg=ds.count())
+    assert_eq_ndarray(agg.data, np.zeros((3, 7), dtype=np.uint32))
