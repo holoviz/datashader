@@ -1360,7 +1360,7 @@ def bypixel(source, canvas, glyph, agg, *, antialias=False):
 
 
 def _bypixel_sanitise(source, glyph, agg):
-    # Convert 1D xarray DataArrays and DataSets into Dask DataFrames
+    # Convert 1D xarray sources into pandas or Dask DataFrames.
     if isinstance(source, DataArray) and source.ndim == 1:
         if not source.name:
             source.name = 'value'
@@ -1369,7 +1369,11 @@ def _bypixel_sanitise(source, glyph, agg):
         columns = list(source.coords.keys()) + list(source.data_vars.keys())
         cols_to_keep = _cols_to_keep(columns, glyph, agg)
         source = source.drop_vars([col for col in columns if col not in cols_to_keep])
-        if dd:
+        has_categories = any(
+            isinstance(var.dtype, pd.CategoricalDtype) for var in source.variables.values()
+        )
+        has_chunks = any(var.chunks is not None for var in source.variables.values())
+        if dd and (has_chunks or not has_categories):
             source = source.to_dask_dataframe()
         else:
             source = source.to_dataframe()
