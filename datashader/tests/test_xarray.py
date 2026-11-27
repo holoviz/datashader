@@ -2,6 +2,7 @@ from __future__ import annotations
 from copy import deepcopy
 import numpy as np
 from numpy import nan
+import pandas as pd
 import xarray as xr
 
 import datashader as ds
@@ -36,6 +37,26 @@ except ImportError:
     dask, xdda, xdds = None, None, None
 
 c = ds.Canvas(plot_width=2, plot_height=2, x_range=(0, 1), y_range=(0, 1))
+
+
+def test_eager_dataset_categorical_with_dask_available():
+    pytest.importorskip("dask.dataframe")
+    frame = pd.DataFrame({
+        "x": [0.1, 0.5, 0.9],
+        "y": [0.1, 0.5, 0.9],
+        "category": pd.Categorical(["a", "b", "a"], categories=["a", "b", "unused"]),
+    })
+    source = xr.Dataset({
+        "x": ("record", frame["x"].to_numpy()),
+        "y": ("record", frame["y"].to_numpy()),
+        "category": ("record", frame["category"].array),
+    })
+    if not isinstance(source["category"].dtype, pd.CategoricalDtype):
+        pytest.skip("This xarray version does not preserve pandas categoricals")
+
+    expected = c.points(frame, "x", "y", agg=ds.count_cat("category"))
+    actual = c.points(source, "x", "y", agg=ds.count_cat("category"))
+    xr.testing.assert_identical(actual, expected)
 
 axis = ds.core.LinearAxis()
 lincoords = axis.compute_index(axis.compute_scale_and_translate((0, 1), 2), 2)
